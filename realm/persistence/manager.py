@@ -1,0 +1,354 @@
+"""
+Persistence manager for saving/loading game objects.
+
+Features:
+- Async SQLite support via aiosqlite
+- Simple save strategies: immediate vs deferred (batched)
+- JSON serialization for attributes and complex data
+- Dirty tracking for efficient saves
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+import aiosqlite
+
+if TYPE_CHECKING:
+    from realm.core.objects import GameObject
+
+logger = logging.getLogger(__name__)
+
+
+# SQL Schema
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS objects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    location_id TEXT,
+    parent_id TEXT,
+    owner_id TEXT,
+    tags TEXT DEFAULT '[]',
+    attributes TEXT DEFAULT '{}',
+    behaviors TEXT DEFAULT '[]',
+    locks TEXT DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_objects_location ON objects(location_id);
+CREATE INDEX IF NOT EXISTS idx_objects_owner ON objects(owner_id);
+CREATE INDEX IF NOT EXISTS idx_objects_name ON objects(name);
+"""
+
+
+class PersistenceManager:
+    """
+    Manages persistence of game objects to SQLite.
+
+    Usage:
+        pm = PersistenceManager("game.db")
+        await pm.initialize()
+
+        # Save immediately
+        await pm.save(obj)
+
+        # Queue for batch save
+        await pm.save_deferred(obj)
+
+        # Load an object
+        obj = await pm.load("object-id")
+
+        # Start background flush loop
+        await pm.start_flush_loop()
+    """
+
+    def __init__(self, db_path: str | Path, flush_interval: float = 5.0):
+        """
+        Initialize the persistence manager.
+
+        Args:
+            db_path: Path to SQLite database file
+            flush_interval: Seconds between batch saves (default 5)
+        """
+        self.db_path = Path(db_path)
+        self.flush_interval = flush_interval
+        self._db: aiosqlite.Connection | None = None
+        self._save_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._flush_task: asyncio.Task[None] | None = None
+        self._object_cache: dict[str, GameObject] = {}
+        self._running = False
+
+    async def initialize(self) -> None:
+        """Initialize the database connection and create tables."""
+        self._db = await aiosqlite.connect(self.db_path)
+        self._db.row_factory = aiosqlite.Row
+        await self._db.executescript(SCHEMA)
+        await self._db.commit()
+        logger.info(f"Database initialized at {self.db_path}")
+
+    async def close(self) -> None:
+        """Close the database connection and stop the flush loop."""
+        self._running = False
+        if self._flush_task:
+            self._flush_task.cancel()
+            try:
+                await self._flush_task
+            except asyncio.CancelledError:
+                pass
+
+        # Final flush
+        await self._flush_queue()
+
+        if self._db:
+            await self._db.close()
+            self._db = None
+        logger.info("Database connection closed")
+
+    async def start_flush_loop(self) -> None:
+        """Start the background task that periodically flushes the save queue."""
+        self._running = True
+        self._flush_task = asyncio.create_task(self._flush_loop())
+
+    async def _flush_loop(self) -> None:
+        """Background loop that flushes the save queue periodically."""
+        while self._running:
+            await asyncio.sleep(self.flush_interval)
+            await self._flush_queue()
+
+    async def _flush_queue(self) -> None:
+        """Process all objects in the save queue."""
+        if not self._db:
+            return
+
+        to_save: set[str] = set()
+        while not self._save_queue.empty():
+            try:
+                obj_id = self._save_queue.get_nowait()
+                to_save.add(obj_id)
+            except asyncio.QueueEmpty:
+                break
+
+        if not to_save:
+            return
+
+        saved_count = 0
+        for obj_id in to_save:
+            obj = self._object_cache.get(obj_id)
+            if obj and obj.is_dirty():
+                await self._save_object(obj)
+                saved_count += 1
+
+        if saved_count > 0:
+            logger.debug(f"Flushed {saved_count} objects to database")
+
+    # --- Public API ---
+
+    def register(self, obj: GameObject) -> None:
+        """Register an object in the cache for deferred saving."""
+        self._object_cache[obj.id] = obj
+
+    def unregister(self, obj: GameObject) -> None:
+        """Remove an object from the cache."""
+        self._object_cache.pop(obj.id, None)
+
+    async def save(self, obj: GameObject) -> None:
+        """Save an object immediately."""
+        self.register(obj)
+        await self._save_object(obj)
+
+    async def save_deferred(self, obj: GameObject) -> None:
+        """Queue an object for batch saving."""
+        self.register(obj)
+        await self._save_queue.put(obj.id)
+
+    async def load(self, obj_id: str) -> GameObject | None:
+        """Load an object by ID."""
+        # Check cache first
+        if obj_id in self._object_cache:
+            return self._object_cache[obj_id]
+
+        return await self._load_object(obj_id)
+
+    async def load_all(self) -> list[GameObject]:
+        """Load all objects from the database."""
+        if not self._db:
+            return []
+
+        objects: list[GameObject] = []
+        async with self._db.execute("SELECT * FROM objects") as cursor:
+            async for row in cursor:
+                obj = self._row_to_object(dict(row))
+                if obj:
+                    self._object_cache[obj.id] = obj
+                    objects.append(obj)
+
+        # Second pass: resolve references (location, parent, owner)
+        for obj in objects:
+            await self._resolve_references(obj)
+
+        return objects
+
+    async def delete(self, obj: GameObject) -> None:
+        """Delete an object from the database."""
+        if not self._db:
+            return
+
+        await self._db.execute("DELETE FROM objects WHERE id = ?", (obj.id,))
+        await self._db.commit()
+        self.unregister(obj)
+        logger.debug(f"Deleted object {obj.id}")
+
+    async def exists(self, obj_id: str) -> bool:
+        """Check if an object exists in the database."""
+        if not self._db:
+            return False
+
+        async with self._db.execute(
+            "SELECT 1 FROM objects WHERE id = ?", (obj_id,)
+        ) as cursor:
+            return await cursor.fetchone() is not None
+
+    # --- Internal methods ---
+
+    async def _save_object(self, obj: GameObject) -> None:
+        """Save a single object to the database."""
+        if not self._db:
+            return
+
+        data = self._object_to_row(obj)
+        await self._db.execute(
+            """
+            INSERT OR REPLACE INTO objects
+            (id, name, description, location_id, parent_id, owner_id,
+             tags, attributes, behaviors, locks, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (
+                data['id'],
+                data['name'],
+                data['description'],
+                data['location_id'],
+                data['parent_id'],
+                data['owner_id'],
+                data['tags'],
+                data['attributes'],
+                data['behaviors'],
+                data['locks'],
+            ),
+        )
+        await self._db.commit()
+        obj.clear_dirty()
+        logger.debug(f"Saved object {obj.id} ({obj.name})")
+
+    async def _load_object(self, obj_id: str) -> GameObject | None:
+        """Load a single object from the database."""
+        if not self._db:
+            return None
+
+        async with self._db.execute(
+            "SELECT * FROM objects WHERE id = ?", (obj_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return None
+
+            obj = self._row_to_object(dict(row))
+            if obj:
+                self._object_cache[obj.id] = obj
+                await self._resolve_references(obj)
+            return obj
+
+    def _object_to_row(self, obj: GameObject) -> dict[str, Any]:
+        """Convert a GameObject to database row data."""
+        from realm.core.behaviors import Behavior
+
+        # Serialize behaviors
+        behaviors_data = []
+        for b in obj.get_behaviors():
+            behaviors_data.append(b.to_dict())
+
+        return {
+            'id': obj.id,
+            'name': obj.name,
+            'description': obj.description,
+            'location_id': obj.location.id if obj.location else None,
+            'parent_id': obj.parent.id if obj.parent else None,
+            'owner_id': obj.owner.id if obj.owner else None,
+            'tags': json.dumps(obj.tags.to_list()),
+            'attributes': json.dumps(obj.db.all()),
+            'behaviors': json.dumps(behaviors_data),
+            'locks': json.dumps(obj.locks),
+        }
+
+    def _row_to_object(self, row: dict[str, Any]) -> GameObject | None:
+        """Convert a database row to a GameObject."""
+        from realm.core.behaviors import BehaviorRegistry
+        from realm.core.objects import GameObject
+
+        try:
+            obj = GameObject(
+                name=row['name'],
+                id=row['id'],
+                description=row['description'] or "",
+                tags=json.loads(row['tags'] or '[]'),
+            )
+
+            # Load attributes
+            attrs = json.loads(row['attributes'] or '{}')
+            for key, value in attrs.items():
+                obj.db.set(key, value)
+
+            # Load behaviors
+            behaviors_data = json.loads(row['behaviors'] or '[]')
+            for b_data in behaviors_data:
+                behavior = BehaviorRegistry.from_dict(b_data)
+                if behavior:
+                    obj.add_behavior(behavior)
+
+            # Load locks
+            obj.locks = json.loads(row['locks'] or '{}')
+
+            # Clear dirty flag since we just loaded
+            obj.clear_dirty()
+
+            return obj
+        except Exception as e:
+            logger.error(f"Error loading object {row.get('id')}: {e}")
+            return None
+
+    async def _resolve_references(self, obj: GameObject) -> None:
+        """Resolve location, parent, and owner references after loading."""
+        if not self._db:
+            return
+
+        # We need to get the raw IDs from the database since they weren't
+        # set during _row_to_object (to avoid infinite recursion)
+        async with self._db.execute(
+            "SELECT location_id, parent_id, owner_id FROM objects WHERE id = ?",
+            (obj.id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                return
+
+            location_id = row['location_id']
+            parent_id = row['parent_id']
+            owner_id = row['owner_id']
+
+        # Resolve references from cache (objects should be loaded already)
+        if location_id and location_id in self._object_cache:
+            obj._location = self._object_cache[location_id]
+            if obj not in obj._location._contents:
+                obj._location._contents.append(obj)
+
+        if parent_id and parent_id in self._object_cache:
+            obj.parent = self._object_cache[parent_id]
+
+        if owner_id and owner_id in self._object_cache:
+            obj.owner = self._object_cache[owner_id]
