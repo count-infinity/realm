@@ -39,6 +39,9 @@ env/
 .pydevproject
 .settings/
 
+# Documentation
+site/
+
 # Testing
 .pytest_cache/
 .coverage

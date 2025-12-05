@@ -1,0 +1,78 @@
+site_name: REALM Documentation
+site_description: Real-time Event-Action Layered MUD framework
+site_url: https://realm-mud.github.io/realm/
+repo_url: https://github.com/realm-mud/realm
+repo_name: realm-mud/realm
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Your First Game: getting-started/first-game.md
+  - Architecture:
+    - Overview: architecture/overview.md
+    - Session Lifecycle: architecture/sessions.md
+    - Event System: architecture/events.md
+    - Command Dispatch: architecture/commands.md
+  - Protocols:
+    - Overview: protocols/overview.md
+    - Adding a Protocol: protocols/adding-protocol.md
+  - Development:
+    - Contributing: development/contributing.md
+    - Testing: development/testing.md
+  - API Reference:
+    - Core Objects: api/objects.md
+    - Sessions: api/sessions.md
+    - Events: api/events.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/realm-mud/realm

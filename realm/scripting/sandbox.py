@@ -356,7 +356,7 @@ class ScriptSandbox:
 
         Runs the script in a thread pool to avoid blocking the event loop.
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
             lambda: self.execute(code, ctx, validate=validate)

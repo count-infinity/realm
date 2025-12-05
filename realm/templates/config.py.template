@@ -1,0 +1,88 @@
+"""
+{game_name} - Configuration
+
+This file configures your REALM-based game.
+Edit the settings below to customize your game.
+
+Run with: realm start
+"""
+
+# =============================================================================
+# GAME SETTINGS
+# =============================================================================
+
+# Name shown in welcome screen and logs
+GAME_NAME = "{game_name}"
+
+# Enable debug logging
+DEBUG = False
+
+
+# =============================================================================
+# NETWORK SETTINGS
+# =============================================================================
+
+# Telnet server (traditional MUD clients)
+ENABLE_TELNET = True
+TELNET_HOST = "0.0.0.0"
+TELNET_PORT = 4000
+
+# WebSocket server (web clients)
+ENABLE_WEBSOCKET = False
+WEBSOCKET_HOST = "0.0.0.0"
+WEBSOCKET_PORT = 4001
+
+
+# =============================================================================
+# DATABASE SETTINGS
+# =============================================================================
+
+# Path to SQLite database (relative to this directory)
+DB_PATH = "data/game.db"
+
+
+# =============================================================================
+# FILES
+# =============================================================================
+
+# Welcome screen shown on connection
+WELCOME_FILE = "data/welcome.txt"
+
+
+# =============================================================================
+# CALLBACKS (Optional)
+# =============================================================================
+# Uncomment and implement these functions to customize behavior.
+
+# async def init_world(server):
+#     \"\"\"
+#     Called once when the world is empty.
+#     Create your starting rooms, NPCs, and items here.
+#     \"\"\"
+#     from realm.core.objects import GameObject
+#
+#     # Example: Create a starting room
+#     town_square = GameObject(
+#         name="Town Square",
+#         description="The center of town. Cobblestones underfoot.",
+#         tags=['room', 'start_room'],
+#     )
+#     await server.persistence.save(town_square)
+
+
+# def register_commands(server):
+#     \"\"\"
+#     Register custom commands for your game.
+#     \"\"\"
+#     @server.dispatcher.command("wave", aliases=["wav"])
+#     async def cmd_wave(ctx):
+#         await ctx.session.send("You wave enthusiastically!")
+
+
+# def register_protocols(server):
+#     \"\"\"
+#     Register custom protocols (Godot, custom clients, etc.)
+#     \"\"\"
+#     # from myprotocols import GodotServer
+#     # server.register_protocol("godot", GodotServer, port=4002)
+#     pass

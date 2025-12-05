@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum, auto
@@ -35,7 +36,7 @@ class SessionMessage:
 
     session_id: str
     content: str
-    timestamp: float = field(default_factory=lambda: asyncio.get_event_loop().time())
+    timestamp: float = field(default_factory=time.monotonic)
 
 
 class Session:
@@ -81,7 +82,7 @@ class Session:
 
         self._protocol = protocol
         self._address = address
-        self._created_at = asyncio.get_event_loop().time()
+        self._created_at = time.monotonic()
         self._last_activity = self._created_at
         self._account_name: str | None = None
         self._data: dict[str, Any] = {}  # Extra session data
@@ -99,12 +100,12 @@ class Session:
     @property
     def idle_time(self) -> float:
         """Seconds since last activity."""
-        return asyncio.get_event_loop().time() - self._last_activity
+        return time.monotonic() - self._last_activity
 
     @property
     def connected_time(self) -> float:
         """Seconds since connection."""
-        return asyncio.get_event_loop().time() - self._created_at
+        return time.monotonic() - self._created_at
 
     @property
     def account_name(self) -> str | None:
@@ -117,7 +118,7 @@ class Session:
 
     def touch(self) -> None:
         """Update last activity timestamp."""
-        self._last_activity = asyncio.get_event_loop().time()
+        self._last_activity = time.monotonic()
 
     async def send(self, message: str) -> None:
         """Send a message to the player."""
@@ -220,13 +221,44 @@ class SessionManager:
         """Register a callback for disconnections."""
         self._on_disconnect.append(callback)
 
+    async def _auto_flush(self, session: Session) -> None:
+        """
+        Flush session output with error logging.
+
+        Called automatically after connection callbacks to ensure welcome
+        messages are sent immediately. Protocol-agnostic - works with any
+        session that has a writer configured.
+        """
+        try:
+            await session.flush_output()
+        except Exception as e:
+            logger.error(
+                f"Failed to flush output for session {session.id} "
+                f"({session.protocol} from {session.address}): {e}"
+            )
+
     async def create_session(
         self,
         protocol: str = "unknown",
         address: str = "unknown",
+        writer: Callable[[str], Awaitable[None]] | None = None,
     ) -> Session:
-        """Create and register a new session."""
+        """
+        Create and register a new session.
+
+        Args:
+            protocol: The protocol name (telnet, websocket, etc.)
+            address: The remote address string
+            writer: Optional writer callback. If provided, it's set before
+                    connection callbacks run, ensuring welcome messages can
+                    be flushed immediately.
+        """
         session = Session(protocol=protocol, address=address)
+
+        # Set writer BEFORE callbacks so auto-flush works
+        if writer is not None:
+            session.set_writer(writer)
+
         self._sessions[session.id] = session
 
         # Track by address
@@ -242,6 +274,11 @@ class SessionManager:
                 await callback(session)
             except Exception as e:
                 logger.error(f"Error in connect callback: {e}")
+
+        # Auto-flush output after connection callbacks complete.
+        # This ensures welcome messages are sent immediately without
+        # waiting for user input. Protocol-agnostic.
+        await self._auto_flush(session)
 
         return session
 

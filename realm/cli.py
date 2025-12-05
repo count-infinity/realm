@@ -2,126 +2,121 @@
 REALM CLI - Command line interface for running REALM-based games.
 
 Usage:
-    realm start          Start the game server
-    realm start --init   Initialize world and start server
-    realm version        Show version info
+    realm init <gamename>    Create a new game project
+    realm start              Start the game server from current directory
+    realm start --reset-db   Reset database and start
+    realm version            Show version info
+
+Typical workflow:
+    1. pip install realm
+    2. realm init spacegame
+    3. cd spacegame
+    4. realm start
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-import importlib.util
 import logging
+import os
 import sys
 from pathlib import Path
-from typing import Any
 
+from realm.config.loader import load_config
 from realm.server.game import GameServer
+from realm.templates import render_template, get_template
 
 
-def find_game_config() -> dict[str, Any]:
+def cmd_init(args: argparse.Namespace) -> int:
     """
-    Find and load game configuration from current directory.
+    Initialize a new game project.
 
-    Looks for:
-    1. realm_config.py - Python config file
-    2. realm.toml - TOML config file (future)
-
-    Returns default config if nothing found.
+    Creates a directory with:
+    - config.py: Game configuration
+    - data/welcome.txt: Welcome screen
+    - data/: Directory for database and data files
     """
-    cwd = Path.cwd()
+    game_name = args.name
+    project_dir = Path.cwd() / game_name
 
-    # Try realm_config.py
-    config_py = cwd / "realm_config.py"
-    if config_py.exists():
-        spec = importlib.util.spec_from_file_location("realm_config", config_py)
-        if spec and spec.loader:
-            module = importlib.util.module_from_spec(spec)
-            sys.path.insert(0, str(cwd))
-            try:
-                spec.loader.exec_module(module)
-            finally:
-                sys.path.pop(0)
+    # Validate name
+    if not game_name.isidentifier():
+        print(f"Error: '{game_name}' is not a valid project name.")
+        print("Use only letters, numbers, and underscores.")
+        return 1
 
-            config = {}
-            for key in dir(module):
-                if not key.startswith('_'):
-                    config[key] = getattr(module, key)
-            return config
+    # Check if directory exists
+    if project_dir.exists():
+        if not args.force:
+            print(f"Error: Directory '{game_name}' already exists.")
+            print("Use --force to overwrite.")
+            return 1
+        print(f"Warning: Overwriting existing directory '{game_name}'")
 
-    # Default config
-    return {
-        'GAME_NAME': 'REALM',
-        'DB_PATH': 'game.db',
-        'TELNET_PORT': 4000,
-        'TELNET_HOST': '0.0.0.0',
-        'WEBSOCKET_PORT': 4001,
-        'ENABLE_TELNET': True,
-        'ENABLE_WEBSOCKET': False,
-    }
+    # Create project structure
+    print(f"Creating REALM project: {game_name}")
+
+    # Create directories
+    project_dir.mkdir(exist_ok=True)
+    (project_dir / "data").mkdir(exist_ok=True)
+
+    # Create config.py from template
+    config_content = render_template(
+        "config.py.template",
+        game_name=game_name.replace("_", " ").title(),
+    )
+    (project_dir / "config.py").write_text(config_content)
+    print(f"  Created config.py")
+
+    # Create welcome.txt from template
+    welcome_content = render_template(
+        "welcome.txt.template",
+        game_name=game_name.replace("_", " ").title(),
+    )
+    (project_dir / "data" / "welcome.txt").write_text(welcome_content)
+    print(f"  Created data/welcome.txt")
+
+    print()
+    print(f"Project created! Next steps:")
+    print(f"  cd {game_name}")
+    print(f"  realm start")
+    print()
+    print("Edit config.py to customize your game.")
+
+    return 0
 
 
 async def cmd_start(args: argparse.Namespace) -> int:
-    """Start the game server."""
-    config = find_game_config()
-
-    game_name = config.get('GAME_NAME', 'REALM')
-    db_path = config.get('DB_PATH', 'game.db')
-    telnet_port = config.get('TELNET_PORT', 4000)
-    telnet_host = config.get('TELNET_HOST', '0.0.0.0')
-
-    # Set up logging
+    """Start the game server from the current directory."""
+    # Set up logging first
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(
         level=log_level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-
     logger = logging.getLogger('realm.cli')
-    logger.info(f"Starting {game_name}...")
 
-    # Handle --init flag
-    if args.init:
-        db_file = Path(db_path)
-        if db_file.exists():
-            logger.info(f"Removing existing database: {db_path}")
-            db_file.unlink()
+    # Load configuration from current directory
+    try:
+        settings = load_config()
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        return 1
+    except Exception as e:
+        logger.error(f"Failed to load configuration: {e}")
+        return 1
 
-    # Create server
-    server = GameServer(
-        db_path=db_path,
-        telnet_port=telnet_port,
-        telnet_host=telnet_host,
-        enable_telnet=config.get('ENABLE_TELNET', True),
-        enable_websocket=config.get('ENABLE_WEBSOCKET', False),
-    )
+    logger.info(f"Starting {settings.game_name}...")
 
-    # Hook up world initialization if provided in config
-    init_world = config.get('init_world')
-    if init_world and callable(init_world):
-        async def do_init():
-            if server.persistence:
-                # Check if world needs initialization
-                obj_count = len(server.persistence._object_cache)
-                if obj_count <= 1:  # Only default void room
-                    logger.info("Initializing game world...")
-                    await init_world(server)
-                    logger.info("World initialized")
+    # Handle --reset-db flag
+    if args.reset_db:
+        if settings.db_path.exists():
+            logger.info(f"Removing existing database: {settings.db_path}")
+            settings.db_path.unlink()
 
-        server.on_start(do_init)
-
-    # Hook up custom welcome banner if provided
-    welcome_banner = config.get('WELCOME_BANNER')
-    if welcome_banner:
-        original_connect = server._on_session_connect
-        async def custom_connect(session):
-            await session.send(welcome_banner)
-            # Still show default login prompts
-            await session.send("\nEnter 'connect <name> <password>' to log in")
-            await session.send("Enter 'create <name> <password>' to create a new character")
-            await session.send("")
-        server._on_session_connect = custom_connect
+    # Create server from settings
+    server = GameServer.from_settings(settings)
 
     # Run server
     try:
@@ -144,22 +139,39 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         prog="realm",
         description="REALM MUD Framework CLI",
+        epilog="Typical workflow: realm init mygame && cd mygame && realm start",
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
+    # realm init <name>
+    init_parser = subparsers.add_parser(
+        "init",
+        help="Create a new game project",
+    )
+    init_parser.add_argument(
+        "name",
+        help="Name for the new game project (creates directory)",
+    )
+    init_parser.add_argument(
+        "--force", "-f",
+        action="store_true",
+        help="Overwrite existing directory",
+    )
+
     # realm start
-    start_parser = subparsers.add_parser("start", help="Start the game server")
-    start_parser.add_argument(
-        "--init", action="store_true",
-        help="Initialize world from scratch (removes existing DB)"
+    start_parser = subparsers.add_parser(
+        "start",
+        help="Start the game server from current directory",
     )
     start_parser.add_argument(
-        "--debug", action="store_true",
-        help="Enable debug logging"
+        "--reset-db",
+        action="store_true",
+        help="Remove existing database and start fresh",
     )
     start_parser.add_argument(
-        "--port", type=int,
-        help="Override telnet port"
+        "--debug", "-d",
+        action="store_true",
+        help="Enable debug logging",
     )
 
     # realm version
@@ -167,7 +179,9 @@ def main() -> int:
 
     args = parser.parse_args()
 
-    if args.command == "start":
+    if args.command == "init":
+        return cmd_init(args)
+    elif args.command == "start":
         return asyncio.run(cmd_start(args))
     elif args.command == "version":
         return cmd_version(args)

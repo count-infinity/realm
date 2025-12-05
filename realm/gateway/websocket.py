@@ -49,7 +49,9 @@ class WebSocketHandler:
         """Run the WebSocket handler loop."""
         self._running = True
 
-        # Set up writer
+        # Note: Writer is now set in _handle_websocket before create_session()
+        # to ensure welcome screen flushes immediately. We update it here to
+        # use the handler's method which checks self._running for cleaner shutdown.
         self.session.set_writer(self._write_to_client)
 
         try:
@@ -193,10 +195,21 @@ class WebSocketServer:
         peername = request.transport.get_extra_info('peername') if request.transport else None
         address = f"{peername[0]}:{peername[1]}" if peername else "unknown"
 
-        # Create session
+        # Create writer function that captures the ws object.
+        # This must be created BEFORE create_session() so the welcome
+        # screen can be flushed immediately (same pattern as telnet).
+        async def write_to_client(message: str) -> None:
+            if not ws.closed:
+                try:
+                    await ws.send_str(message)
+                except Exception as e:
+                    logger.error(f"Error writing to WebSocket: {e}")
+
+        # Create session with writer so welcome screen flushes immediately
         session = await self.session_manager.create_session(
             protocol="websocket",
             address=address,
+            writer=write_to_client,
         )
 
         logger.info(f"WebSocket connection from {address}")

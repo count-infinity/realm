@@ -69,16 +69,19 @@ class TelnetProtocol(asyncio.Protocol):
 
     async def _setup_session(self, address: str) -> None:
         """Set up the session and send initial negotiation."""
+        # Send initial telnet negotiation first
+        self._send_negotiation()
+
+        # Create session with writer already configured.
+        # The writer must be set BEFORE create_session() because
+        # create_session() triggers connection callbacks that send
+        # the welcome screen and then auto-flush. Without the writer,
+        # flush does nothing.
         self.session = await self.session_manager.create_session(
             protocol="telnet",
             address=address,
+            writer=self._write_to_client,
         )
-
-        # Set up the writer callback
-        self.session.set_writer(self._write_to_client)
-
-        # Send initial telnet negotiation
-        self._send_negotiation()
 
         logger.info(f"Telnet connection from {address}")
 
@@ -224,7 +227,7 @@ class TelnetServer:
 
     async def start(self) -> None:
         """Start the telnet server."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def protocol_factory():
             return TelnetProtocol(self.session_manager, self.on_command)

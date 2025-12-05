@@ -2,11 +2,14 @@
 Game server for REALM.
 
 Orchestrates all components:
-- Gateway layer (telnet, websocket)
+- Gateway layer (telnet, websocket, custom protocols)
 - Session management
 - Command dispatching
 - Event bus
 - Persistence
+
+The GameServer can be configured either directly with parameters or
+via a Settings object from the config loader.
 """
 
 from __future__ import annotations
@@ -15,7 +18,7 @@ import asyncio
 import logging
 import signal
 from pathlib import Path
-from typing import Any, Callable, Awaitable
+from typing import Any, Callable, Awaitable, TYPE_CHECKING
 
 from realm.core.events import EventBus, Event, EventType
 from realm.core.objects import GameObject
@@ -24,6 +27,9 @@ from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager
 from realm.server.dispatcher import CommandDispatcher, CommandContext
 
+if TYPE_CHECKING:
+    from realm.config.loader import Settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -31,11 +37,17 @@ class GameServer:
     """
     Main game server that coordinates all components.
 
-    Usage:
+    Usage via direct instantiation:
         server = GameServer(db_path="game.db")
         await server.start()
         # ... runs until stopped
         await server.stop()
+
+    Usage via Settings (recommended):
+        from realm.config.loader import load_config
+        settings = load_config()
+        server = GameServer.from_settings(settings)
+        await server.run_forever()
     """
 
     def __init__(
@@ -48,6 +60,8 @@ class GameServer:
         enable_telnet: bool = True,
         enable_websocket: bool = False,  # Requires aiohttp
         flush_interval: float = 30.0,
+        game_name: str = "REALM",
+        welcome_file: str | Path | None = None,
     ):
         self.db_path = Path(db_path)
         self.telnet_port = telnet_port
@@ -57,6 +71,8 @@ class GameServer:
         self.enable_telnet = enable_telnet
         self.enable_websocket = enable_websocket
         self.flush_interval = flush_interval
+        self.game_name = game_name
+        self.welcome_file = Path(welcome_file) if welcome_file else None
 
         # Core components
         self.session_manager = SessionManager()
@@ -64,17 +80,102 @@ class GameServer:
         self.dispatcher = CommandDispatcher()
         self.persistence: PersistenceManager | None = None
 
-        # Protocol servers
+        # Protocol servers - built-in
         self._telnet_server: TelnetServer | None = None
         self._websocket_server: Any = None  # WebSocketServer if enabled
+
+        # Custom protocol registrations
+        # Format: {name: (class, kwargs)}
+        self._custom_protocols: dict[str, tuple[type, dict[str, Any]]] = {}
+
+        # Running custom protocol instances
+        self._protocol_servers: dict[str, Any] = {}
 
         # State
         self._running = False
         self._startup_room: GameObject | None = None
+        self._settings: Settings | None = None
 
         # Callbacks
         self._on_start: list[Callable[[], Awaitable[None]]] = []
         self._on_stop: list[Callable[[], Awaitable[None]]] = []
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> GameServer:
+        """
+        Create a GameServer from a Settings object.
+
+        This is the recommended way to create a server when using
+        realm as a library with config.py configuration.
+
+        Args:
+            settings: Settings loaded from load_config()
+
+        Returns:
+            Configured GameServer instance.
+        """
+        server = cls(
+            db_path=settings.db_path,
+            telnet_port=settings.telnet_port,
+            telnet_host=settings.telnet_host,
+            websocket_port=settings.websocket_port,
+            websocket_host=settings.websocket_host,
+            enable_telnet=settings.enable_telnet,
+            enable_websocket=settings.enable_websocket,
+            flush_interval=settings.flush_interval,
+            game_name=settings.game_name,
+            welcome_file=settings.welcome_file,
+        )
+        server._settings = settings
+
+        # Register any startup callbacks from config
+        if settings.on_start:
+            async def config_on_start():
+                await settings.on_start(server)
+            server.on_start(config_on_start)
+
+        if settings.on_stop:
+            async def config_on_stop():
+                await settings.on_stop(server)
+            server.on_stop(config_on_stop)
+
+        return server
+
+    def register_protocol(
+        self,
+        name: str,
+        protocol_class: type,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Register a custom protocol server.
+
+        The protocol class must have:
+        - __init__(session_manager, on_command, host, port, **kwargs)
+        - async start() -> None
+        - async stop() -> None
+        - is_serving property -> bool
+
+        Args:
+            name: Unique name for this protocol (e.g., "godot", "ssh")
+            protocol_class: Protocol server class
+            **kwargs: Additional arguments passed to protocol constructor
+                      (must include 'port' at minimum)
+
+        Example:
+            from mygame.protocols import GodotServer
+            server.register_protocol("godot", GodotServer, port=4002)
+        """
+        if name in self._custom_protocols:
+            raise ValueError(f"Protocol '{name}' is already registered")
+
+        if name in ("telnet", "websocket"):
+            raise ValueError(
+                f"Cannot register '{name}' - use enable_{name}=True instead"
+            )
+
+        self._custom_protocols[name] = (protocol_class, kwargs)
+        logger.debug(f"Registered custom protocol: {name}")
 
     def on_start(self, callback: Callable[[], Awaitable[None]]) -> None:
         """Register a callback to run after server starts."""
@@ -86,7 +187,7 @@ class GameServer:
 
     async def start(self) -> None:
         """Start the game server."""
-        logger.info("Starting REALM game server...")
+        logger.info(f"Starting {self.game_name} game server...")
 
         # Initialize persistence
         self.persistence = PersistenceManager(
@@ -99,6 +200,14 @@ class GameServer:
         # Load world
         await self._load_world()
 
+        # Call init_world callback if defined in settings
+        if self._settings and self._settings.init_world:
+            try:
+                await self._settings.init_world(self)
+            except Exception as e:
+                logger.error(f"Error in init_world callback: {e}")
+                raise
+
         # Set up session callbacks
         self.session_manager.on_connect(self._on_session_connect)
         self.session_manager.on_disconnect(self._on_session_disconnect)
@@ -109,7 +218,23 @@ class GameServer:
         self.dispatcher._persistence = self.persistence  # For room lookups
         self._register_builtin_commands()
 
-        # Start protocol servers
+        # Call register_commands callback if defined in settings
+        if self._settings and self._settings.register_commands:
+            try:
+                self._settings.register_commands(self)
+            except Exception as e:
+                logger.error(f"Error in register_commands callback: {e}")
+                raise
+
+        # Call register_protocols callback if defined in settings
+        if self._settings and self._settings.register_protocols:
+            try:
+                self._settings.register_protocols(self)
+            except Exception as e:
+                logger.error(f"Error in register_protocols callback: {e}")
+                raise
+
+        # Start built-in protocol servers
         if self.enable_telnet:
             self._telnet_server = TelnetServer(
                 self.session_manager,
@@ -132,6 +257,22 @@ class GameServer:
             except Exception as e:
                 logger.warning(f"Could not start WebSocket server: {e}")
 
+        # Start custom protocol servers
+        for name, (protocol_class, kwargs) in self._custom_protocols.items():
+            try:
+                # Protocol servers receive session_manager and on_command
+                server = protocol_class(
+                    self.session_manager,
+                    self._on_command,
+                    **kwargs,
+                )
+                await server.start()
+                self._protocol_servers[name] = server
+                logger.info(f"Started custom protocol: {name}")
+            except Exception as e:
+                logger.error(f"Failed to start protocol '{name}': {e}")
+                raise
+
         self._running = True
 
         # Run startup callbacks
@@ -141,11 +282,11 @@ class GameServer:
             except Exception as e:
                 logger.error(f"Error in startup callback: {e}")
 
-        logger.info("REALM game server started")
+        logger.info(f"{self.game_name} game server started")
 
     async def stop(self) -> None:
         """Stop the game server."""
-        logger.info("Stopping REALM game server...")
+        logger.info(f"Stopping {self.game_name} game server...")
 
         self._running = False
 
@@ -156,7 +297,17 @@ class GameServer:
             except Exception as e:
                 logger.error(f"Error in stop callback: {e}")
 
-        # Stop protocol servers
+        # Stop custom protocol servers
+        for name, server in self._protocol_servers.items():
+            try:
+                await server.stop()
+                logger.debug(f"Stopped custom protocol: {name}")
+            except Exception as e:
+                logger.error(f"Error stopping protocol '{name}': {e}")
+
+        self._protocol_servers.clear()
+
+        # Stop built-in protocol servers
         if self._telnet_server:
             await self._telnet_server.stop()
 
@@ -172,14 +323,14 @@ class GameServer:
         if self.persistence:
             await self.persistence.close()
 
-        logger.info("REALM game server stopped")
+        logger.info(f"{self.game_name} game server stopped")
 
     async def run_forever(self) -> None:
         """Run the server until interrupted."""
         await self.start()
 
         # Set up signal handlers
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def handle_signal():
             logger.info("Received shutdown signal")
@@ -222,15 +373,52 @@ class GameServer:
 
     async def _on_session_connect(self, session: Session) -> None:
         """Called when a new session connects."""
-        await session.send("\n")
-        await session.send("=" * 60)
-        await session.send("  Welcome to REALM")
-        await session.send("  Real-time Event-Action Layered MUD")
-        await session.send("=" * 60)
-        await session.send("\n")
-        await session.send("Enter 'connect <name> <password>' to log in")
-        await session.send("Enter 'create <name> <password>' to create a new character")
-        await session.send("")
+        welcome_text = self._get_welcome_screen()
+        await session.send(welcome_text)
+
+    def _get_welcome_screen(self) -> str:
+        """
+        Get the connection welcome screen.
+
+        Looks for welcome file in order:
+        1. Configured welcome_file (from settings)
+        2. data/welcome.txt (relative to working directory)
+        3. Falls back to default welcome message
+
+        Returns:
+            The welcome screen text to display on connection.
+        """
+        # Try configured welcome file
+        if self.welcome_file and self.welcome_file.exists():
+            try:
+                return self.welcome_file.read_text()
+            except Exception as e:
+                logger.warning(f"Failed to read welcome file: {e}")
+
+        # Fallback to legacy location
+        legacy_welcome = Path("data/welcome.txt")
+        if legacy_welcome.exists():
+            try:
+                return legacy_welcome.read_text()
+            except Exception as e:
+                logger.warning(f"Failed to read legacy welcome file: {e}")
+
+        return self._default_welcome_screen()
+
+    def _default_welcome_screen(self) -> str:
+        """Return the default welcome screen."""
+        lines = [
+            "",
+            "=" * 60,
+            f"  Welcome to {self.game_name}",
+            "  Powered by REALM",
+            "=" * 60,
+            "",
+            "Enter 'connect <name> <password>' to log in",
+            "Enter 'create <name> <password>' to create a new character",
+            "",
+        ]
+        return "\n".join(lines)
 
     async def _on_session_disconnect(self, session: Session) -> None:
         """Called when a session disconnects."""
