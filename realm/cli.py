@@ -19,13 +19,16 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
-import os
+import shutil
 import sys
 from pathlib import Path
 
 from realm.config.loader import load_config
 from realm.server.game import GameServer
 from realm.templates import render_template, get_template
+
+# Examples directory (for --template option)
+EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -36,6 +39,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     - config.py: Game configuration
     - data/welcome.txt: Welcome screen
     - data/: Directory for database and data files
+
+    With --template, copies from examples/<template>/ instead.
     """
     game_name = args.name
     project_dir = Path.cwd() / game_name
@@ -53,8 +58,13 @@ def cmd_init(args: argparse.Namespace) -> int:
             print("Use --force to overwrite.")
             return 1
         print(f"Warning: Overwriting existing directory '{game_name}'")
+        shutil.rmtree(project_dir)
 
-    # Create project structure
+    # Handle --template option
+    if args.template:
+        return _init_from_template(game_name, project_dir, args.template)
+
+    # Create minimal project structure
     print(f"Creating REALM project: {game_name}")
 
     # Create directories
@@ -83,6 +93,42 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"  realm start")
     print()
     print("Edit config.py to customize your game.")
+
+    return 0
+
+
+def _init_from_template(game_name: str, project_dir: Path, template: str) -> int:
+    """Initialize a project by copying from an example template."""
+    template_dir = EXAMPLES_DIR / template
+
+    if not template_dir.exists():
+        print(f"Error: Template '{template}' not found.")
+        available = [d.name for d in EXAMPLES_DIR.iterdir() if d.is_dir() and not d.name.startswith("_")]
+        if available:
+            print(f"Available templates: {', '.join(sorted(available))}")
+        return 1
+
+    print(f"Creating REALM project: {game_name} (from template: {template})")
+
+    # Copy the template directory
+    shutil.copytree(
+        template_dir,
+        project_dir,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db", "*.sqlite*"),
+    )
+
+    # List what was created
+    for item in sorted(project_dir.rglob("*")):
+        if item.is_file():
+            rel_path = item.relative_to(project_dir)
+            print(f"  Created {rel_path}")
+
+    print()
+    print(f"Project created! Next steps:")
+    print(f"  cd {game_name}")
+    print(f"  realm start")
+    print()
+    print(f"This template includes example game code - explore and modify!")
 
     return 0
 
@@ -156,6 +202,10 @@ def main() -> int:
         "--force", "-f",
         action="store_true",
         help="Overwrite existing directory",
+    )
+    init_parser.add_argument(
+        "--template", "-t",
+        help="Use an example template (e.g., spacegame)",
     )
 
     # realm start

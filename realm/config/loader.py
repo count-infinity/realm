@@ -157,16 +157,14 @@ def _load_config_file(config_file: Path, game_dir: Path) -> dict[str, Any]:
     module = importlib.util.module_from_spec(spec)
 
     # Add game_dir to sys.path so config can import from game
-    sys.path.insert(0, str(game_dir))
+    # Keep it permanently - callbacks like init_world need to import game modules
+    if str(game_dir) not in sys.path:
+        sys.path.insert(0, str(game_dir))
     try:
         spec.loader.exec_module(module)
     except Exception as e:
         logger.error(f"Error loading {config_file}: {e}")
         raise
-    finally:
-        # Remove from path after loading
-        if str(game_dir) in sys.path:
-            sys.path.remove(str(game_dir))
 
     # Extract public attributes
     config: dict[str, Any] = {}

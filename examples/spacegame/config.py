@@ -35,9 +35,9 @@ async def init_world(server):
 
     Called on first startup when the database is empty.
     """
-    from examples.spacegame.world import create_world
-    from examples.spacegame.equipment import create_equipment_prototypes
-    from examples.spacegame.ships import create_ship_prototypes
+    from world import create_world
+    from equipment import create_equipment_prototypes
+    from ships import create_ship_prototypes
 
     # Create the world
     world = await create_world(server.persistence)
