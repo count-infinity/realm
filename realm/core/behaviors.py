@@ -1,13 +1,14 @@
 """
 Behavior system for composable object behaviors.
 
-Behaviors are attached to GameObjects at runtime and receive events.
-They can validate (veto) events and react to them.
+Behaviors are attached to GameObjects at runtime and participate in the
+two-pass action propagation engine via on_check (permission pass) and
+on_react (reaction pass). They can also opt into periodic ticks.
 
 Key features:
 - Composable: Multiple behaviors can be attached to one object
 - Runtime modifiable: Add/remove behaviors while game is running
-- Event-driven: Behaviors react to the two-phase event system
+- Action-driven: Behaviors react to actions via on_check / on_react
 - Tickable: Behaviors can opt into periodic updates
 """
 
@@ -17,8 +18,8 @@ from abc import ABC
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from realm.core.events import Event
     from realm.core.objects import GameObject
+    from realm.core.propagation import Action
 
 
 class Behavior(ABC):
@@ -35,9 +36,9 @@ class Behavior(ABC):
     - attach(obj): Called when behavior is added to an object
     - detach(obj): Called when behavior is removed from an object
 
-    Event handling (two-phase):
-    - validate_event(obj, event): Return False to veto the event
-    - handle_event(obj, event): React to the event after validation
+    Action handling (two-pass):
+    - on_check(obj, action): Permission pass — inspect, modify, or block
+    - on_react(obj, action): Reaction pass — accumulate messages, queue trailing
 
     Periodic updates:
     - tick(obj, delta): Called periodically if should_tick is True
@@ -90,36 +91,40 @@ class Behavior(ABC):
         """
         self._owner = None
 
-    # --- Event handling (two-phase) ---
+    # --- Action propagation (two-pass) ---
 
-    async def validate_event(self, obj: GameObject, event: Event) -> bool:
+    async def on_check(self, obj: GameObject, action: Action) -> None:
         """
-        Phase 1: Validation. Return False to veto the event.
+        Permission pass: inspect or block an action before it resolves.
 
-        Override to implement validation logic. For example:
-        - A "frozen" behavior might veto MOVE events
-        - A "muted" behavior might veto SPEECH events
+        Override to:
+          - Filter on action.action_type or action.tags
+          - Call action.block(reason) to veto the action
+          - Call action.add_modifier(value, reason) to influence resolution
+          - Call action.add_data(key, value) to inject context for downstream
+
+        The permission pass ALWAYS runs to completion — even a blocked action
+        notifies all observers. Don't return early as a "veto," call block().
 
         Args:
             obj: The GameObject this behavior is attached to
-            event: The event being validated
-
-        Returns:
-            True to allow the event, False to cancel it
+            action: The action being propagated
         """
-        return True
+        pass
 
-    async def handle_event(self, obj: GameObject, event: Event) -> None:
+    async def on_react(self, obj: GameObject, action: Action) -> None:
         """
-        Phase 2: Execution. React to the event after validation.
+        Reaction pass: react to an action's resolution.
 
-        Override to implement event reactions. For example:
-        - An "aggressive" behavior might attack on ENTER events
-        - A "greeter" behavior might say hello on ENTER events
+        Always runs after the permission pass, even if the action was blocked.
+        Override to:
+          - Add audience messages via action.add_message(audience, msg)
+          - Queue trailing actions via action.queue_trailing(other)
+          - Mutate world state in response to what happened
 
         Args:
             obj: The GameObject this behavior is attached to
-            event: The event to handle
+            action: The action being propagated
         """
         pass
 

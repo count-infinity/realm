@@ -15,9 +15,6 @@ class PersistTestBehavior(Behavior):
 
     behavior_id = "test_persist"
 
-    async def validate_event(self, obj, event):
-        return True
-
 
 @pytest.fixture
 def db_path():

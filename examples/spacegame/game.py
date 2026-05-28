@@ -23,10 +23,8 @@ async def setup_game() -> dict[str, any]:
     Returns a dict with key game components:
     - 'repo': GameObjectRepository
     - 'combat': CombatSystem (GURPS)
-    - 'event_bus': EventBus
     - 'world': Dict of key world objects
     """
-    from realm.core.events import EventBus
     from realm.persistence.repository import GameObjectRepository
     from realm.combat.system import create_combat_system, set_combat_system
 
@@ -34,16 +32,12 @@ async def setup_game() -> dict[str, any]:
     from examples.spacegame.equipment import create_equipment_prototypes
     from examples.spacegame.ships import create_ship_prototypes
 
-    # Initialize event bus
-    event_bus = EventBus()
-
     # Initialize repository (in-memory for demo)
     repo = GameObjectRepository()
 
     # Create GURPS combat system
     combat = create_combat_system(
         ruleset_name="gurps",
-        event_bus=event_bus,
         allow_active_defense=True,
     )
     set_combat_system(combat)
@@ -65,7 +59,6 @@ async def setup_game() -> dict[str, any]:
     return {
         "repo": repo,
         "combat": combat,
-        "event_bus": event_bus,
         "world": world,
         "equipment": equipment,
         "ships": ships,

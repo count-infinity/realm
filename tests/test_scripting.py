@@ -233,22 +233,31 @@ class TestEventTrigger:
     """Test suite for EventTrigger."""
 
     def test_matches_event_type(self):
-        """EventTrigger matches correct event type."""
-        from realm.core.events import Event, EventType
+        """EventTrigger matches correct action_type suffix."""
+        from realm.core.propagation import Action
 
         trigger = EventTrigger(event_type="ENTER", action="say Welcome!")
-        event = Event(type=EventType.ENTER)
+        action = Action(actor=None, target=None, action_type="event:on_enter")
 
-        assert trigger.matches_event(event)
+        assert trigger.matches_event(action)
+
+    def test_matches_event_type_without_on_prefix(self):
+        """EventTrigger matches even when action_type lacks the on_ prefix."""
+        from realm.core.propagation import Action
+
+        trigger = EventTrigger(event_type="ENTER", action="say Welcome!")
+        action = Action(actor=None, target=None, action_type="event:enter")
+
+        assert trigger.matches_event(action)
 
     def test_no_match_wrong_type(self):
-        """EventTrigger doesn't match wrong event type."""
-        from realm.core.events import Event, EventType
+        """EventTrigger doesn't match wrong action_type."""
+        from realm.core.propagation import Action
 
         trigger = EventTrigger(event_type="ENTER", action="say Welcome!")
-        event = Event(type=EventType.LEAVE)
+        action = Action(actor=None, target=None, action_type="event:on_leave")
 
-        assert not trigger.matches_event(event)
+        assert not trigger.matches_event(action)
 
 
 class TestTriggerManager:

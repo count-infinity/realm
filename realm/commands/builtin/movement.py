@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_exit
-from realm.core.events import Event, EventType
+from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
 
 
 async def cmd_go(ctx: CommandContext) -> None:
@@ -48,42 +48,41 @@ async def cmd_go(ctx: CommandContext) -> None:
 
     old_location = ctx.player.location
 
-    # Emit leave event (can be cancelled)
-    if old_location:
-        leave_event = Event(
-            type=EventType.LEAVE,
-            source=ctx.player,
-            location=old_location,
-            data={'exit': exit_obj, 'destination': dest_obj},
-            source_msg=f"You leave {direction}.",
-            others_msg=f"{ctx.player.name} leaves {direction}.",
+    # Phase 1: on_leave gates the move. Behaviors at the old location
+    # (GuardBehavior, locked-room debuffs, encumbrance checks) can block here.
+    if old_location is not None:
+        leave = Action(
+            actor=ctx.player,
+            target=old_location,
+            action_type="event:on_leave",
+            chain=ROOM_TARGET_CHAIN,
+            extra={"exit": exit_obj, "destination": dest_obj, "direction": direction},
+            tags={"movement"},
         )
+        leave.add_message("actor", f"You leave {direction}.")
+        leave.add_message("room", f"{{actor}} leaves {direction}.")
+        await propagate(leave, deliver=False)
+        if leave.blocked:
+            ctx.player.msg(leave.block_reason or "You can't go that way.")
+            return
+        from realm.core.propagation import deliver_messages
+        deliver_messages(leave)
 
-        # TODO: Emit through event bus
-        # For now, just send messages
-        await ctx.session.send(leave_event.source_msg)
-
-        # Notify others in old room
-        for obj in old_location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(leave_event.others_msg)
-
-    # Move the player
+    # Phase 2: actually move.
     ctx.player.location = dest_obj
 
-    # Emit enter event
-    enter_event = Event(
-        type=EventType.ENTER,
-        source=ctx.player,
-        location=dest_obj,
-        data={'from': old_location, 'exit': exit_obj},
-        others_msg=f"{ctx.player.name} arrives.",
+    # Phase 3: on_enter is informational at this point — the player has arrived.
+    # Behaviors can react (greet, attack, etc.) but block here is advisory only.
+    enter = Action(
+        actor=ctx.player,
+        target=dest_obj,
+        action_type="event:on_enter",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"from": old_location, "exit": exit_obj, "direction": direction},
+        tags={"movement"},
     )
-
-    # Notify others in new room
-    for obj in dest_obj.contents:
-        if obj != ctx.player and obj.has_tag('player'):
-            obj.msg(enter_event.others_msg)
+    enter.add_message("room", f"{{actor}} arrives.")
+    await propagate(enter)
 
     # Show the new room
     await _show_room(ctx, dest_obj)

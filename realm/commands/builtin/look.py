@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object, find_exit
-from realm.core.events import Event, EventType
+from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
 
 
 async def cmd_look(ctx: CommandContext) -> None:
@@ -145,14 +145,17 @@ async def _show_room(ctx: CommandContext) -> None:
         await ctx.session.send("You are nowhere.")
         return
 
-    # Emit look event
-    event = Event(
-        type=EventType.LOOK,
-        source=ctx.player,
+    # Propagate a look action so observers can react (mirrors, paintings,
+    # NPCs that notice scrutiny, audit logs). The actual display output
+    # below is the answer to a query, not a propagated message.
+    look = Action(
+        actor=ctx.player,
         target=room,
-        location=room,
+        action_type="event:look",
+        chain=ROOM_TARGET_CHAIN,
+        tags={"visual"},
     )
-    # TODO: Emit through event bus
+    await propagate(look)
 
     # Room name
     await ctx.session.send(f"\n{room.name}")
@@ -201,14 +204,17 @@ async def _show_room(ctx: CommandContext) -> None:
 
 async def _show_object(ctx: CommandContext, target) -> None:
     """Display an object to the player."""
-    # Emit look event
-    event = Event(
-        type=EventType.LOOK,
-        source=ctx.player,
-        target=target,
-        location=ctx.player.location if ctx.player else None,
-    )
-    # TODO: Emit through event bus
+    # Looking AT an object: target is the object, default chain visits
+    # actor → room → bystanders → target. The object's behaviors get a
+    # chance to react ("the box rattles when you look at it").
+    if ctx.player is not None:
+        look = Action(
+            actor=ctx.player,
+            target=target,
+            action_type="event:look",
+            tags={"visual"},
+        )
+        await propagate(look)
 
     await ctx.session.send(f"\n{target.name}")
 

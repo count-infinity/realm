@@ -4,10 +4,14 @@ Combat system orchestrator for REALM.
 Ties together:
 - Ruleset: How combat is resolved
 - Combatants: Who is fighting
-- Events: Combat events (attack, damage, death)
+- Actions: Combat actions propagated through the engine (attack, damage, death)
 - Messaging: What players see
 
-The CombatSystem is the main entry point for all combat operations.
+The CombatSystem is the main entry point for all combat operations. Combat
+emits actions through ``propagate(action, deliver=False)`` because it does
+its own messaging via the ruleset's formatted message dicts; behaviors
+attached to combatants/rooms can still observe and influence each step
+(blocking an attack, modifying damage, reacting to a death).
 """
 
 from __future__ import annotations
@@ -23,9 +27,9 @@ from realm.combat.ruleset import (
     DamageResult,
     RollResult,
 )
+from realm.core.propagation import Action, propagate
 
 if TYPE_CHECKING:
-    from realm.core.events import Event, EventBus
     from realm.core.objects import GameObject
 
 
@@ -85,20 +89,14 @@ class CombatSystem:
     - Message generation
     """
 
-    def __init__(
-        self,
-        ruleset: Ruleset,
-        event_bus: Any | None = None,  # EventBus
-    ):
+    def __init__(self, ruleset: Ruleset):
         """
         Initialize combat system.
 
         Args:
             ruleset: The combat ruleset to use
-            event_bus: Optional event bus for emitting combat events
         """
         self.ruleset = ruleset
-        self.event_bus = event_bus
         self._active_combats: dict[str, list[Combatant]] = {}
 
     async def attack(
@@ -137,16 +135,16 @@ class CombatSystem:
         dfn.state = CombatState.COMBAT
         atk.target = dfn
 
-        # Emit attack event (can be vetoed)
-        if self.event_bus:
-            event = await self._emit_attack_event(atk, dfn, weapon)
-            if event and event.cancelled:
-                return CombatResult(
-                    success=False,
-                    messages={
-                        'attacker_msg': event.cancel_reason or "Attack prevented.",
-                    },
-                )
+        # Propagate attack action — behaviors can block (e.g. a "frozen" debuff
+        # vetoes the attack) or add modifiers picked up by the ruleset.
+        attack_action = await self._propagate_attack(atk, dfn, weapon)
+        if attack_action.blocked:
+            return CombatResult(
+                success=False,
+                messages={
+                    'attacker_msg': attack_action.block_reason or "Attack prevented.",
+                },
+            )
 
         # Roll attack
         attack_result = self.ruleset.roll_attack(atk, dfn, weapon, modifiers)
@@ -181,17 +179,17 @@ class CombatSystem:
         # Roll damage
         damage_result = self.ruleset.roll_damage(atk, dfn, attack_result, weapon)
 
-        # Emit damage event (can be vetoed or modified)
-        if self.event_bus:
-            event = await self._emit_damage_event(atk, dfn, damage_result)
-            if event and event.cancelled:
-                return CombatResult(
-                    success=True,
-                    attack_result=attack_result,
-                    messages={
-                        'attacker_msg': event.cancel_reason or "Damage prevented.",
-                    },
-                )
+        # Propagate damage action — a "ward" or "shield" behavior can block
+        # damage even after a successful hit.
+        damage_action = await self._propagate_damage(atk, dfn, damage_result)
+        if damage_action.blocked:
+            return CombatResult(
+                success=True,
+                attack_result=attack_result,
+                messages={
+                    'attacker_msg': damage_action.block_reason or "Damage prevented.",
+                },
+            )
 
         # Apply damage
         actual_damage = self.ruleset.apply_damage(dfn, damage_result)
@@ -200,10 +198,7 @@ class CombatSystem:
         target_defeated = self.ruleset.is_defeated(dfn)
         if target_defeated:
             dfn.state = CombatState.DEFEATED
-
-            # Emit death event
-            if self.event_bus:
-                await self._emit_death_event(dfn, atk)
+            await self._propagate_death(dfn, atk)
 
         # Generate messages
         messages = self.ruleset.format_attack_message(atk, dfn, attack_result, damage_result)
@@ -330,84 +325,68 @@ class CombatSystem:
             return obj
         return get_combatant(obj)
 
-    # --- Event Emission ---
+    # --- Action Propagation ---
+    #
+    # Combat propagates actions through the engine but opts out of default
+    # message delivery (deliver=False) — the ruleset produces the
+    # attacker/defender/others message dict and the caller delivers those
+    # itself. Behaviors can still block actions or accumulate modifiers.
 
-    async def _emit_attack_event(
+    async def _propagate_attack(
         self,
         attacker: Combatant,
         defender: Combatant,
         weapon: Any | None,
-    ) -> Any:
-        """Emit an attack event."""
-        if not self.event_bus:
-            return None
-
-        from realm.core.events import Event, EventType
-
-        event = Event(
-            type=EventType.ATTACK,
-            source=attacker.obj,
+    ) -> Action:
+        action = Action(
+            actor=attacker.obj,
             target=defender.obj,
-            location=attacker.obj.location,
-            data={
+            action_type="combat:on_attack",
+            tool=weapon if hasattr(weapon, 'name') else None,
+            tags={"hostile"},
+            extra={
                 'weapon': weapon,
                 'attacker_hp': attacker.hp,
                 'defender_hp': defender.hp,
             },
         )
+        await propagate(action, deliver=False)
+        return action
 
-        await self.event_bus.emit(event)
-        return event
-
-    async def _emit_damage_event(
+    async def _propagate_damage(
         self,
         attacker: Combatant,
         defender: Combatant,
         damage: DamageResult,
-    ) -> Any:
-        """Emit a damage event."""
-        if not self.event_bus:
-            return None
-
-        from realm.core.events import Event, EventType
-
-        event = Event(
-            type=EventType.DAMAGE,
-            source=attacker.obj,
+    ) -> Action:
+        action = Action(
+            actor=attacker.obj,
             target=defender.obj,
-            location=defender.obj.location,
-            data={
+            action_type="combat:on_damage",
+            tags={"hostile"},
+            extra={
                 'damage': damage.total,
                 'damage_types': {k.value: v for k, v in damage.damage_by_type.items()},
             },
         )
+        await propagate(action, deliver=False)
+        return action
 
-        await self.event_bus.emit(event)
-        return event
-
-    async def _emit_death_event(
+    async def _propagate_death(
         self,
         victim: Combatant,
         killer: Combatant | None,
-    ) -> Any:
-        """Emit a death event."""
-        if not self.event_bus:
-            return None
-
-        from realm.core.events import Event, EventType
-
-        event = Event(
-            type=EventType.DEATH,
-            source=killer.obj if killer else None,
+    ) -> Action:
+        action = Action(
+            actor=killer.obj if killer else None,
             target=victim.obj,
-            location=victim.obj.location,
-            data={
+            action_type="combat:on_death",
+            extra={
                 'killer': killer.name if killer else None,
             },
         )
-
-        await self.event_bus.emit(event)
-        return event
+        await propagate(action, deliver=False)
+        return action
 
 
 # Global combat system instance
@@ -427,7 +406,6 @@ def set_combat_system(system: CombatSystem) -> None:
 
 def create_combat_system(
     ruleset_name: str = "d20",
-    event_bus: Any | None = None,
     **ruleset_options: Any,
 ) -> CombatSystem:
     """
@@ -435,7 +413,6 @@ def create_combat_system(
 
     Args:
         ruleset_name: Name of ruleset ("d20", "gurps")
-        event_bus: Optional event bus
         **ruleset_options: Options passed to ruleset constructor
 
     Returns:
@@ -456,4 +433,4 @@ def create_combat_system(
         raise ValueError(f"Unknown ruleset: {ruleset_name}. Available: {list(ruleset_map.keys())}")
 
     ruleset = ruleset_class(**ruleset_options)
-    return CombatSystem(ruleset=ruleset, event_bus=event_bus)
+    return CombatSystem(ruleset=ruleset)

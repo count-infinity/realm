@@ -29,7 +29,6 @@ from realm.scripting.triggers import (
 from realm.scripting.functions import ScriptFunctions
 
 if TYPE_CHECKING:
-    from realm.core.events import Event
     from realm.core.objects import GameObject
     from realm.gateway.session import Session
     from realm.server.dispatcher import CommandContext
@@ -113,38 +112,6 @@ class ScriptEngine:
 
             await self._execute_trigger(match, speaker, None)
 
-    async def handle_event(self, event: Event) -> None:
-        """
-        Handle a game event by checking for event triggers.
-
-        Called by the EventBus after an event passes validation.
-
-        Args:
-            event: The game event
-        """
-        # Collect objects that might have triggers for this event
-        objects_to_check: list[GameObject] = []
-
-        # Target object
-        if event.target:
-            objects_to_check.append(event.target)
-
-        # Location and its contents
-        if event.location:
-            objects_to_check.append(event.location)
-            objects_to_check.extend(event.location.contents)
-
-        # Source (less common to have triggers on source)
-        if event.source and event.source not in objects_to_check:
-            objects_to_check.append(event.source)
-
-        # Check each object for matching triggers
-        for obj in objects_to_check:
-            triggers = self.trigger_manager.find_event_triggers(event, obj)
-
-            for trigger in triggers:
-                await self._execute_event_trigger(trigger, obj, event)
-
     async def _execute_trigger(
         self,
         match: TriggerMatch,
@@ -185,47 +152,6 @@ class ScriptEngine:
                 logger.warning(f"Script error on {match.obj.name}: {e}")
                 if session:
                     await session.send(f"Script error: {e}")
-
-    async def _execute_event_trigger(
-        self,
-        trigger: Any,  # EventTrigger
-        obj: GameObject,
-        event: Event,
-    ) -> None:
-        """Execute an event trigger."""
-        # Build script context from event
-        script_ctx = ScriptContext(
-            enactor=event.source,
-            executor=obj,
-            location=event.location,
-            captures=[],  # Event triggers don't have captures
-            extra={
-                'event': event,
-                'event_type': str(event.type),
-                'target': event.target,
-                'data': event.data,
-            },
-        )
-
-        action = trigger.action
-
-        if SimpleScriptRunner.is_simple_script(action):
-            expanded = SimpleScriptRunner.expand_simple(action, script_ctx)
-            await self._queue_command(obj, expanded, None)
-        else:
-            try:
-                result, output = await self.sandbox.execute_async(
-                    action,
-                    script_ctx,
-                )
-
-                for line in output:
-                    line = line.strip()
-                    if line:
-                        await self._queue_command(obj, line, None)
-
-            except ScriptError as e:
-                logger.warning(f"Event script error on {obj.name}: {e}")
 
     async def _queue_command(
         self,

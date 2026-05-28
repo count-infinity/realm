@@ -16,11 +16,10 @@ import random
 from typing import TYPE_CHECKING, Any
 
 from realm.core.behaviors import Behavior, BehaviorRegistry
-from realm.core.events import EventType
 
 if TYPE_CHECKING:
-    from realm.core.events import Event
     from realm.core.objects import GameObject
+    from realm.core.propagation import Action
 
 
 @BehaviorRegistry.register
@@ -46,13 +45,13 @@ class AggressiveBehavior(Behavior):
     def tick_interval(self) -> float:
         return 3.0  # Attack every 3 seconds in combat
 
-    async def handle_event(self, obj: GameObject, event: Event) -> None:
+    async def on_react(self, obj: GameObject, action: Action) -> None:
         """React to enter events by potentially attacking."""
-        if event.type != EventType.ENTER:
+        if action.action_type != "event:on_enter":
             return
 
         # Check if the entering object is a valid target
-        entering = event.source
+        entering = action.actor
         if not entering or entering == obj:
             return
 
@@ -74,7 +73,7 @@ class AggressiveBehavior(Behavior):
         taunts = self.get_param('taunt_messages', [])
         if taunts:
             taunt = random.choice(taunts)
-            # Would emit speech event
+            # Would queue a trailing speech action
             pass
 
         # Attack the target
@@ -130,16 +129,16 @@ class DefensiveBehavior(Behavior):
 
     behavior_id = "defensive"
 
-    async def handle_event(self, obj: GameObject, event: Event) -> None:
+    async def on_react(self, obj: GameObject, action: Action) -> None:
         """React to being attacked."""
-        if event.type != EventType.DAMAGE:
+        if action.action_type != "combat:on_damage":
             return
 
         # Check if we are the target
-        if event.target != obj:
+        if action.target != obj:
             return
 
-        attacker = event.source
+        attacker = action.actor
         if not attacker:
             return
 
@@ -192,20 +191,20 @@ class GuardBehavior(Behavior):
 
     behavior_id = "guard"
 
-    async def validate_event(self, obj: GameObject, event: Event) -> bool:
+    async def on_check(self, obj: GameObject, action: Action) -> None:
         """Potentially block movement through guarded exits."""
-        if event.type not in (EventType.ENTER, EventType.LEAVE):
-            return True
+        if action.action_type not in ("event:on_enter", "event:on_leave"):
+            return
 
-        mover = event.source
+        mover = action.actor
         if not mover or mover == obj:
-            return True
+            return
 
         # Check if mover is allowed
         allow_tags = self.get_param('allow_tags', ['guard', 'admin'])
         for tag in allow_tags:
             if mover.has_tag(tag):
-                return True
+                return
 
         # Check if mover should be blocked
         guard_tags = self.get_param('guard_tags', ['player'])
@@ -216,12 +215,11 @@ class GuardBehavior(Behavior):
                 break
 
         if not should_block:
-            return True
+            return
 
         # Block the movement
         challenge = self.get_param('challenge_message', "Halt! You shall not pass!")
-        event.cancel(challenge)
-        return False
+        action.block(challenge)
 
 
 @BehaviorRegistry.register
@@ -236,12 +234,12 @@ class FleeingBehavior(Behavior):
 
     behavior_id = "fleeing"
 
-    async def handle_event(self, obj: GameObject, event: Event) -> None:
+    async def on_react(self, obj: GameObject, action: Action) -> None:
         """Check HP after taking damage."""
-        if event.type != EventType.DAMAGE:
+        if action.action_type != "combat:on_damage":
             return
 
-        if event.target != obj:
+        if action.target != obj:
             return
 
         from realm.combat.combatant import get_combatant, CombatState
@@ -350,25 +348,25 @@ class CombatantBehavior(Behavior):
 
     behavior_id = "combatant"
 
-    async def handle_event(self, obj: GameObject, event: Event) -> None:
-        """Handle combat events."""
+    async def on_react(self, obj: GameObject, action: Action) -> None:
+        """Handle combat actions targeting this object."""
         from realm.combat.combatant import get_combatant, CombatState
 
-        if event.type == EventType.DAMAGE and event.target == obj:
+        if action.action_type == "combat:on_damage" and action.target == obj:
             # We took damage
             combatant = get_combatant(obj)
 
             # Auto-retaliate if configured
-            if self.get_param('auto_retaliate', True) and event.source:
+            if self.get_param('auto_retaliate', True) and action.actor:
                 if combatant.state == CombatState.IDLE:
                     combatant.state = CombatState.COMBAT
-                    combatant.target = get_combatant(event.source)
+                    combatant.target = get_combatant(action.actor)
 
-        elif event.type == EventType.DEATH and event.target == obj:
+        elif action.action_type == "combat:on_death" and action.target == obj:
             # We died
             death_msg = self.get_param('death_message', '')
             if death_msg:
-                # Would emit speech/message
+                # Would queue a trailing speech action
                 pass
 
             combatant = get_combatant(obj)

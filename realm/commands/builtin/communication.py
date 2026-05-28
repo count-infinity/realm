@@ -1,14 +1,17 @@
 """
 Communication commands for REALM.
 
-Handles speaking, emoting, and messaging.
+Handles speaking, emoting, and messaging. Each command emits an action
+through the propagation engine; behaviors on actor / room / bystanders /
+target can observe, modify (add modifiers), or block (e.g. a "muted"
+debuff vetoes speech).
 """
 
 from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_player
-from realm.core.events import Event, EventType
+from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
 
 
 async def cmd_say(ctx: CommandContext) -> None:
@@ -20,28 +23,25 @@ async def cmd_say(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-
     if not ctx.args:
         await ctx.session.send("Say what?")
         return
+    location = ctx.player.location
+    if location is None:
+        await ctx.session.send("You have nowhere to speak from.")
+        return
 
     message = ctx.args
-
-    # Show to speaker
-    await ctx.session.send(f'You say, "{message}"')
-
-    # Show to others in room
-    if ctx.player.location:
-        event = Event(
-            type=EventType.SPEECH,
-            source=ctx.player,
-            location=ctx.player.location,
-            data={'message': message},
-        )
-
-        for obj in ctx.player.location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(f'{ctx.player.name} says, "{message}"')
+    action = Action(
+        actor=ctx.player,
+        target=location,
+        action_type="event:speech",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"message": message},
+    )
+    action.add_message("actor", f'You say, "{message}"')
+    action.add_message("room", f'{{actor}} says, "{message}"')
+    await propagate(action)
 
 
 async def cmd_pose(ctx: CommandContext) -> None:
@@ -56,28 +56,24 @@ async def cmd_pose(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-
     if not ctx.args:
         await ctx.session.send("Pose what?")
         return
+    location = ctx.player.location
+    if location is None:
+        return
 
-    action = ctx.args
-
-    # Show to self and others
-    pose_msg = f"{ctx.player.name} {action}"
-    await ctx.session.send(pose_msg)
-
-    if ctx.player.location:
-        event = Event(
-            type=EventType.EMOTE,
-            source=ctx.player,
-            location=ctx.player.location,
-            data={'action': action},
-        )
-
-        for obj in ctx.player.location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(pose_msg)
+    pose_text = ctx.args
+    action = Action(
+        actor=ctx.player,
+        target=location,
+        action_type="event:emote",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"pose": pose_text},
+    )
+    action.add_message("actor", f"{{actor}} {pose_text}")
+    action.add_message("room", f"{{actor}} {pose_text}")
+    await propagate(action)
 
 
 async def cmd_semipose(ctx: CommandContext) -> None:
@@ -92,21 +88,27 @@ async def cmd_semipose(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-
     if not ctx.args:
         await ctx.session.send("Pose what?")
         return
+    location = ctx.player.location
+    if location is None:
+        return
 
-    action = ctx.args
-
-    # No space between name and action
-    pose_msg = f"{ctx.player.name}{action}"
-    await ctx.session.send(pose_msg)
-
-    if ctx.player.location:
-        for obj in ctx.player.location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(pose_msg)
+    pose_text = ctx.args
+    action = Action(
+        actor=ctx.player,
+        target=location,
+        action_type="event:semipose",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"pose": pose_text},
+    )
+    # No space between name and action — pre-format here so {actor} substitution
+    # doesn't insert a leading space.
+    line = f"{ctx.player.name}{pose_text}"
+    action.add_message("actor", line)
+    action.add_message("room", line)
+    await propagate(action)
 
 
 async def cmd_emit(ctx: CommandContext) -> None:
@@ -120,20 +122,25 @@ async def cmd_emit(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-
     if not ctx.args:
         await ctx.session.send("Emit what?")
         return
+    location = ctx.player.location
+    if location is None:
+        return
 
     message = ctx.args
-
-    # Show to everyone including self
-    await ctx.session.send(message)
-
-    if ctx.player.location:
-        for obj in ctx.player.location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(message)
+    action = Action(
+        actor=ctx.player,
+        target=location,
+        action_type="event:emit",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"message": message},
+    )
+    # @emit shows the same raw message to everyone, including the emitter.
+    action.add_message("actor", message)
+    action.add_message("room", message)
+    await propagate(action)
 
 
 async def cmd_whisper(ctx: CommandContext) -> None:
@@ -144,7 +151,6 @@ async def cmd_whisper(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: whisper <player> = <message>")
         return
@@ -152,25 +158,27 @@ async def cmd_whisper(ctx: CommandContext) -> None:
     target_name = ctx.left_args
     message = ctx.right_args
 
-    # Find the target player
     target = find_player(ctx, target_name)
     if not target:
         await ctx.session.send(f"You don't see '{target_name}' here.")
         return
-
     if target == ctx.player:
         await ctx.session.send("Talking to yourself?")
         return
 
-    # Send whisper
-    await ctx.session.send(f'You whisper to {target.name}, "{message}"')
-    target.msg(f'{ctx.player.name} whispers, "{message}"')
-
-    # Notify others that a whisper occurred (but not the content)
-    if ctx.player.location:
-        for obj in ctx.player.location.contents:
-            if obj.has_tag('player') and obj != ctx.player and obj != target:
-                obj.msg(f"{ctx.player.name} whispers something to {target.name}.")
+    # Default chain — actor → room → bystanders → target. Bystanders see the
+    # vague "X whispers something to Y" via the room audience; the target
+    # gets the actual whisper via the target audience.
+    action = Action(
+        actor=ctx.player,
+        target=target,
+        action_type="event:whisper",
+        extra={"message": message},
+    )
+    action.add_message("actor", f'You whisper to {{target}}, "{message}"')
+    action.add_message("target", f'{{actor}} whispers, "{message}"')
+    action.add_message("room", "{actor} whispers something to {target}.")
+    await propagate(action)
 
 
 async def cmd_ooc(ctx: CommandContext) -> None:
@@ -181,20 +189,25 @@ async def cmd_ooc(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-
     if not ctx.args:
         await ctx.session.send("OOC what?")
         return
+    location = ctx.player.location
+    if location is None:
+        return
 
     message = ctx.args
-
-    # Show to self and room with OOC marker
-    await ctx.session.send(f'[OOC] {ctx.player.name}: {message}')
-
-    if ctx.player.location:
-        for obj in ctx.player.location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(f'[OOC] {ctx.player.name}: {message}')
+    action = Action(
+        actor=ctx.player,
+        target=location,
+        action_type="event:ooc",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"message": message},
+    )
+    line = f"[OOC] {ctx.player.name}: {message}"
+    action.add_message("actor", line)
+    action.add_message("room", line)
+    await propagate(action)
 
 
 async def cmd_shout(ctx: CommandContext) -> None:
@@ -205,24 +218,29 @@ async def cmd_shout(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-
     if not ctx.args:
         await ctx.session.send("Shout what?")
         return
+    location = ctx.player.location
+    if location is None:
+        return
 
     message = ctx.args
-
-    # Show to self
-    await ctx.session.send(f'You shout, "{message}"')
-
-    if ctx.player.location:
-        # Show to others in room
-        for obj in ctx.player.location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(f'{ctx.player.name} shouts, "{message}"')
-
-        # TODO: Also send to adjacent rooms (through exits) as:
-        # "Someone shouts in the distance..."
+    action = Action(
+        actor=ctx.player,
+        target=location,
+        action_type="event:shout",
+        chain=ROOM_TARGET_CHAIN,
+        # 'sound' tag lets behaviors react to any noisy action regardless
+        # of whether it's speech, shouting, combat, etc.
+        tags={"sound"},
+        extra={"message": message},
+    )
+    action.add_message("actor", f'You shout, "{message}"')
+    action.add_message("room", f'{{actor}} shouts, "{message}"')
+    await propagate(action)
+    # TODO: also propagate a muffled "Someone shouts in the distance..." to
+    # adjacent rooms via exits — needs a multi-room chain helper.
 
 
 def register_communication_commands(dispatcher: CommandDispatcher) -> None:

@@ -8,13 +8,13 @@ No rigid type hierarchy - use tags for categorization.
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 from realm.core.tags import TagSet
 
 if TYPE_CHECKING:
     from realm.core.behaviors import Behavior
-    from realm.core.events import Event
+    from realm.core.propagation import Action
 
 
 class AttributeProxy:
@@ -127,6 +127,7 @@ class GameObject:
         '_attrs',
         '_db',
         '_dirty',
+        '_msg_handler',
     )
 
     def __init__(
@@ -153,6 +154,7 @@ class GameObject:
         self._attrs: dict[str, Any] = {}
         self._db: AttributeProxy | None = None
         self._dirty = False
+        self._msg_handler: Callable[[str], None] | None = None
 
         # Set location through property to maintain contents lists
         if location is not None:
@@ -266,25 +268,57 @@ class GameObject:
                 return b
         return None
 
-    # --- Event handling (two-phase) ---
+    # --- Action propagation visitors ---
+    #
+    # The propagation engine calls these on each object in the chain.
+    # The default implementations walk this object's behaviors. Subclasses
+    # override to also walk child objects (a Character walks equipment,
+    # a Pet walks its rider, etc.) — call super() first to run own behaviors.
 
-    async def on_event_validate(self, event: Event) -> bool:
-        """
-        Phase 1: Validation. Any behavior can veto by returning False.
-        Called before the event is executed.
-        """
+    async def visit_check(self, action: Action) -> None:
+        """Permission pass: run own hook then own behaviors' on_check."""
+        self.at_action_check(action)
         for behavior in self._behaviors:
-            if not await behavior.validate_event(self, event):
-                return False
-        return True
+            await behavior.on_check(self, action)
 
-    async def on_event_execute(self, event: Event) -> None:
-        """
-        Phase 2: Execution. Called after validation passes.
-        All behaviors get to react to the event.
-        """
+    async def visit_react(self, action: Action) -> None:
+        """Reaction pass: run own hook then own behaviors' on_react."""
+        self.at_action_react(action)
         for behavior in self._behaviors:
-            await behavior.handle_event(self, event)
+            await behavior.on_react(self, action)
+
+    async def visit_observe_check(self, action: Action) -> None:
+        """Permission pass when this object is a bystander in the room."""
+        self.at_observe_check(action)
+        for behavior in self._behaviors:
+            await behavior.on_check(self, action)
+
+    async def visit_observe_react(self, action: Action) -> None:
+        """Reaction pass when this object is a bystander in the room."""
+        self.at_observe_react(action)
+        for behavior in self._behaviors:
+            await behavior.on_react(self, action)
+
+    # --- Action hooks ---
+    #
+    # Sync, lightweight hooks for typeclass-style overrides. Heavy work
+    # belongs in a Behavior. Override on subclasses; do not call super().
+
+    def at_action_check(self, action: Action) -> None:
+        """Called during permission pass before behaviors, when this is actor or target."""
+        pass
+
+    def at_action_react(self, action: Action) -> None:
+        """Called during reaction pass before behaviors, when this is actor or target."""
+        pass
+
+    def at_observe_check(self, action: Action) -> None:
+        """Called during permission pass before behaviors, when this is a bystander."""
+        pass
+
+    def at_observe_react(self, action: Action) -> None:
+        """Called during reaction pass before behaviors, when this is a bystander."""
+        pass
 
     # --- Attribute inheritance ---
 
@@ -317,17 +351,52 @@ class GameObject:
 
     def msg(self, text: str) -> None:
         """
-        Send a message to this object.
+        Deliver a message to this object.
 
-        For players, this sends to their session.
-        For other objects, this may trigger listen behaviors.
+        Routes through ``_msg_handler`` if one is installed (typical for
+        players linked to a session). Otherwise drops the message — non-player
+        objects ignore output by default.
 
-        Note: Actual implementation depends on session management.
-        This is a placeholder that subclasses/behaviors can override.
+        Subclasses or behaviors that want listen-style reactions can override
+        this method or install a handler that captures the text.
         """
-        # Default implementation does nothing
-        # Player objects will override to send to their session
-        pass
+        if self._msg_handler is not None:
+            self._msg_handler(text)
+
+    def set_msg_handler(self, handler: Callable[[str], None] | None) -> None:
+        """
+        Install a callback that receives messages sent to this object.
+
+        Typically called by the framework when a player is linked to a session
+        (handler = session.send_nowait). Pass ``None`` to clear.
+        """
+        self._msg_handler = handler
+
+    def clear_msg_handler(self) -> None:
+        """Clear any installed msg handler (alias for set_msg_handler(None))."""
+        self._msg_handler = None
+
+    def msg_contents(
+        self,
+        text: str,
+        exclude: Iterable[GameObject] | None = None,
+    ) -> None:
+        """
+        Deliver a message to every object contained in this one.
+
+        Used for room broadcasts. ``exclude`` skips listed objects (typically
+        the actor and target of an action that already received their own
+        per-perspective messages).
+        """
+        excluded_ids: set[str] = set()
+        if exclude is not None:
+            for obj in exclude:
+                if obj is not None:
+                    excluded_ids.add(obj.id)
+        for child in self._contents:
+            if child.id in excluded_ids:
+                continue
+            child.msg(text)
 
     def __repr__(self) -> str:
         return f"<GameObject {self.id[:8]}... '{self.name}' tags={self.tags}>"

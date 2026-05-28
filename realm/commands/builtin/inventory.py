@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object, find_player, format_list
-from realm.core.events import Event, EventType
+from realm.core.propagation import Action, deliver_messages, propagate
 
 
 async def cmd_inventory(ctx: CommandContext) -> None:
@@ -98,28 +98,27 @@ async def cmd_get(ctx: CommandContext) -> None:
         await ctx.session.send("You can't pick up players!")
         return
 
-    # TODO: Check locks
-
-    # Emit get event
-    event = Event(
-        type=EventType.GET,
-        source=ctx.player,
+    # Propagate the get action so behaviors can block (cursed item glued to
+    # the floor, locked-down container, weight limits) and observers can react.
+    action = Action(
+        actor=ctx.player,
         target=target,
-        location=ctx.player.location,
+        action_type="item:on_get",
     )
-    # TODO: Emit through event bus and check if cancelled
+    await propagate(action, deliver=False)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or f"You can't pick up {target.name}.")
+        deliver_messages(action)  # fire any behavior-added messages
+        return
 
-    # Move the item
-    old_location = target.location
+    # Mutate state
     target.location = ctx.player
 
-    # Messages
-    await ctx.session.send(f"You pick up {target.name}.")
-
-    if old_location and old_location != ctx.player:
-        for obj in old_location.contents:
-            if obj != ctx.player and obj.has_tag('player'):
-                obj.msg(f"{ctx.player.name} picks up {target.name}.")
+    # Bake in success messages and deliver everything (including any behavior
+    # messages added during the propagation passes).
+    action.add_message("actor", f"You pick up {{target}}.")
+    action.add_message("room", f"{{actor}} picks up {{target}}.")
+    deliver_messages(action)
 
 
 async def _get_all(ctx: CommandContext, from_container=None) -> None:
@@ -187,26 +186,22 @@ async def cmd_drop(ctx: CommandContext) -> None:
         await ctx.session.send(f"You aren't carrying '{item_name}'.")
         return
 
-    # TODO: Check drop lock
-
-    # Emit drop event
-    event = Event(
-        type=EventType.DROP,
-        source=ctx.player,
+    action = Action(
+        actor=ctx.player,
         target=target,
-        location=ctx.player.location,
+        action_type="item:on_drop",
     )
-    # TODO: Emit through event bus
+    await propagate(action, deliver=False)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or f"You can't drop {target.name}.")
+        deliver_messages(action)
+        return
 
-    # Move the item
     target.location = ctx.player.location
 
-    # Messages
-    await ctx.session.send(f"You drop {target.name}.")
-
-    for obj in ctx.player.location.contents:
-        if obj != ctx.player and obj.has_tag('player'):
-            obj.msg(f"{ctx.player.name} drops {target.name}.")
+    action.add_message("actor", f"You drop {{target}}.")
+    action.add_message("room", f"{{actor}} drops {{target}}.")
+    deliver_messages(action)
 
 
 async def _drop_all(ctx: CommandContext) -> None:
@@ -271,29 +266,27 @@ async def cmd_give(ctx: CommandContext) -> None:
         await ctx.session.send("Give it to yourself? That doesn't make sense.")
         return
 
-    # TODO: Check give lock
-
-    # Emit give event
-    event = Event(
-        type=EventType.GIVE,
-        source=ctx.player,
+    # For 'give', the target is the recipient and the item travels via extra.
+    # The 'tool' field carries the item so {tool} substitution works in messages.
+    action = Action(
+        actor=ctx.player,
         target=target,
-        location=ctx.player.location,
-        data={'item': item},
+        action_type="item:on_give",
+        tool=item,
+        extra={"item": item},
     )
-    # TODO: Emit through event bus
+    await propagate(action, deliver=False)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or f"You can't give {item.name} to {target.name}.")
+        deliver_messages(action)
+        return
 
-    # Move the item
     item.location = target
 
-    # Messages
-    await ctx.session.send(f"You give {item.name} to {target.name}.")
-    target.msg(f"{ctx.player.name} gives you {item.name}.")
-
-    if ctx.player.location:
-        for obj in ctx.player.location.contents:
-            if obj.has_tag('player') and obj != ctx.player and obj != target:
-                obj.msg(f"{ctx.player.name} gives {item.name} to {target.name}.")
+    action.add_message("actor", f"You give {{tool}} to {{target}}.")
+    action.add_message("target", f"{{actor}} gives you {{tool}}.")
+    action.add_message("room", f"{{actor}} gives {{tool}} to {{target}}.")
+    deliver_messages(action)
 
 
 async def cmd_put(ctx: CommandContext) -> None:
@@ -333,22 +326,25 @@ async def cmd_put(ctx: CommandContext) -> None:
         await ctx.session.send("You can't put something inside itself!")
         return
 
-    # TODO: Check if container can hold items
-
-    # Emit put event
-    event = Event(
-        type=EventType.PUT,
-        source=ctx.player,
+    # For 'put', the target is the container and the item travels via tool/extra.
+    action = Action(
+        actor=ctx.player,
         target=container,
-        location=ctx.player.location,
-        data={'item': item},
+        action_type="item:on_put",
+        tool=item,
+        extra={"item": item},
     )
-    # TODO: Emit through event bus
+    await propagate(action, deliver=False)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or f"You can't put {item.name} in {container.name}.")
+        deliver_messages(action)
+        return
 
-    # Move the item
     item.location = container
 
-    await ctx.session.send(f"You put {item.name} in {container.name}.")
+    action.add_message("actor", f"You put {{tool}} in {{target}}.")
+    action.add_message("room", f"{{actor}} puts {{tool}} in {{target}}.")
+    deliver_messages(action)
 
 
 def register_inventory_commands(dispatcher: CommandDispatcher) -> None:

@@ -362,7 +362,6 @@ class TestGameSetup:
 
         assert "repo" in game
         assert "combat" in game
-        assert "event_bus" in game
         assert "world" in game
         assert "equipment" in game
         assert "ships" in game

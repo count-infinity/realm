@@ -20,8 +20,8 @@ import signal
 from pathlib import Path
 from typing import Any, Callable, Awaitable, TYPE_CHECKING
 
-from realm.core.events import EventBus, Event, EventType
 from realm.core.objects import GameObject
+from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
 from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager
@@ -76,7 +76,6 @@ class GameServer:
 
         # Core components
         self.session_manager = SessionManager()
-        self.event_bus = EventBus()
         self.dispatcher = CommandDispatcher()
         self.persistence: PersistenceManager | None = None
 
@@ -423,24 +422,31 @@ class GameServer:
     async def _on_session_disconnect(self, session: Session) -> None:
         """Called when a session disconnects."""
         if session.player:
-            # Emit disconnect event
-            event = Event(
-                type=EventType.DISCONNECT,
-                source=session.player,
-                location=session.player.location,
-            )
-            await self.event_bus.emit(event)
+            player = session.player
+            location = player.location
+            if location is not None:
+                action = Action(
+                    actor=player,
+                    target=location,
+                    action_type="event:disconnect",
+                    chain=ROOM_TARGET_CHAIN,
+                )
+                action.add_message("room", f"{{actor}} has disconnected.")
+                await propagate(action)
 
-            # Save player state
             if self.persistence:
-                await self.persistence.save(session.player)
+                await self.persistence.save(player)
 
     async def _on_command(self, session: Session, command: str) -> None:
         """Called when a command is received from a session."""
         await self.dispatcher.dispatch(session, command)
 
-        # Flush output to client
-        await session.flush_output()
+        # Flush every session, not just the actor's — actions propagated by
+        # this command can queue messages on bystanders' output queues. If we
+        # only flushed the actor, bystanders wouldn't see anything until they
+        # typed a command of their own.
+        for s in self.session_manager.all_sessions():
+            await s.flush_output()
 
     async def _handle_login(self, ctx: CommandContext) -> None:
         """Handle commands when not logged in."""
@@ -502,15 +508,7 @@ class GameServer:
         # Link player to session
         self.session_manager.link_player_to_session(session, player)
 
-        # Emit connect event
-        event = Event(
-            type=EventType.CONNECT,
-            source=player,
-            location=player.location,
-        )
-        await self.event_bus.emit(event)
-
-        await session.send(f"\nWelcome back, {player.name}!\n")
+        await self._announce_connect(player, returning=True)
 
         # Show room
         await self._show_room(session, player)
@@ -541,18 +539,29 @@ class GameServer:
         # Link player to session
         self.session_manager.link_player_to_session(session, player)
 
-        # Emit connect event
-        event = Event(
-            type=EventType.CONNECT,
-            source=player,
-            location=player.location,
-        )
-        await self.event_bus.emit(event)
-
         await session.send(f"\nCharacter '{name}' created. Welcome to REALM!\n")
+        await self._announce_connect(player, returning=False)
 
         # Show room
         await self._show_room(session, player)
+
+    async def _announce_connect(self, player: GameObject, *, returning: bool) -> None:
+        """Tell the player and bystanders that the player has connected."""
+        location = player.location
+        if location is None:
+            return
+        verb = "has reconnected" if returning else "arrives"
+        action = Action(
+            actor=player,
+            target=location,
+            action_type="event:connect",
+            chain=ROOM_TARGET_CHAIN,
+            extra={"returning": returning},
+        )
+        if returning:
+            action.add_message("actor", f"\nWelcome back, {player.name}!\n")
+        action.add_message("room", f"{{actor}} {verb}.")
+        await propagate(action)
 
     async def _do_who(self, session: Session) -> None:
         """Show who is online."""
@@ -610,40 +619,48 @@ class GameServer:
         self.dispatcher.register("look", cmd_look, aliases=["l"])
 
         async def cmd_say(ctx: CommandContext) -> None:
+            # Canonical example of the command → action → propagation flow.
+            # The command is a thin parser; everything else (actor self-message,
+            # room broadcast, behaviors that listen for speech) goes through
+            # the propagation engine via the speech action.
             if not ctx.player or not ctx.args:
                 return
+            location = ctx.player.location
+            if location is None:
+                await ctx.session.send("You have nowhere to speak from.")
+                return
             message = ctx.args
-            await ctx.session.send(f'You say, "{message}"')
-
-            # Notify others in room
-            if ctx.player.location:
-                event = Event(
-                    type=EventType.SPEECH,
-                    source=ctx.player,
-                    location=ctx.player.location,
-                    data={'message': message},
-                    source_msg=f'You say, "{message}"',
-                    others_msg=f'{ctx.player.name} says, "{message}"',
-                )
-                await self.event_bus.emit(event)
+            action = Action(
+                actor=ctx.player,
+                target=location,
+                action_type="event:speech",
+                chain=ROOM_TARGET_CHAIN,
+                extra={"message": message},
+            )
+            action.add_message("actor", f'You say, "{message}"')
+            action.add_message("room", f'{{actor}} says, "{message}"')
+            await propagate(action)
 
         self.dispatcher.register("say", cmd_say, aliases=["'"])
 
         async def cmd_pose(ctx: CommandContext) -> None:
             if not ctx.player or not ctx.args:
                 return
-            action = ctx.args
-            await ctx.session.send(f"{ctx.player.name} {action}")
-
-            if ctx.player.location:
-                event = Event(
-                    type=EventType.EMOTE,
-                    source=ctx.player,
-                    location=ctx.player.location,
-                    data={'action': action},
-                    others_msg=f"{ctx.player.name} {action}",
-                )
-                await self.event_bus.emit(event)
+            location = ctx.player.location
+            if location is None:
+                return
+            pose_text = ctx.args
+            action = Action(
+                actor=ctx.player,
+                target=location,
+                action_type="event:emote",
+                chain=ROOM_TARGET_CHAIN,
+                extra={"pose": pose_text},
+            )
+            # Pose shows the same line to actor and room.
+            action.add_message("actor", f"{{actor}} {pose_text}")
+            action.add_message("room", f"{{actor}} {pose_text}")
+            await propagate(action)
 
         self.dispatcher.register("pose", cmd_pose, aliases=[":"])
 

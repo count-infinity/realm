@@ -179,13 +179,16 @@ class Session:
         self._data[key] = value
 
     def link_player(self, player: GameObject) -> None:
-        """Link this session to a player object."""
+        """Link this session to a player object and wire output delivery."""
         self.player = player
         self.state = SessionState.PLAYING
+        # Route player.msg() text through this session's output queue.
+        player.set_msg_handler(self.send_nowait)
 
     def unlink_player(self) -> None:
         """Unlink this session from its player object."""
         if self.player:
+            self.player.clear_msg_handler()
             self.player = None
         self.state = SessionState.CONNECTED
 

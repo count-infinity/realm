@@ -9,7 +9,6 @@ from __future__ import annotations
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object
 from realm.commands.olc.create import _find_object_global, get_persistence
-from realm.core.events import Event, EventType
 
 
 async def cmd_teleport(ctx: CommandContext) -> None:

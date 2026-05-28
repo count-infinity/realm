@@ -25,8 +25,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from realm.core.events import Event
     from realm.core.objects import GameObject
+    from realm.core.propagation import Action
 
 
 @dataclass
@@ -147,7 +147,7 @@ class ListenTrigger(Trigger):
 @dataclass
 class EventTrigger:
     """
-    Trigger that fires on game events.
+    Trigger that fires on propagated actions.
 
     Set on objects via: &ON_EVENT obj = action
 
@@ -155,19 +155,22 @@ class EventTrigger:
         &ON_ENTER obj = say Welcome!
         &ON_LOOK obj = @emit The mirror shimmers.
         &ON_GET obj = @trigger me/PICKED_UP
+
+    The ``event_type`` matches against the suffix of an Action's
+    ``action_type`` — i.e. ``"ENTER"`` matches ``Action(action_type="event:on_enter")``.
+    Comparison is case-insensitive and ignores the ``on_`` prefix.
     """
 
     event_type: str  # ENTER, LEAVE, LOOK, GET, DROP, etc.
     action: str
 
-    def matches_event(self, event: Event) -> bool:
-        """Check if this trigger should fire for an event."""
-        # Event type can be EventType enum value or string
-        event_type_str = str(event.type).upper()
-        if '.' in event_type_str:
-            # Handle EventType.ENTER -> ENTER
-            event_type_str = event_type_str.split('.')[-1]
-        return event_type_str == self.event_type.upper()
+    def matches_event(self, action: Action) -> bool:
+        """Check if this trigger should fire for a propagated action."""
+        # Take the suffix of "domain:on_event" or "domain:event" and compare.
+        suffix = action.action_type.rsplit(":", 1)[-1].upper()
+        if suffix.startswith("ON_"):
+            suffix = suffix[3:]
+        return suffix == self.event_type.upper()
 
 
 # Mapping of event types to attribute prefix
