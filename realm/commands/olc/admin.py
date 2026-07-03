@@ -7,8 +7,8 @@ Commands for teleportation, ownership, destruction, and other admin tasks.
 from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
-from realm.commands.base import find_object
-from realm.commands.olc.create import _find_object_global, get_persistence
+from realm.commands.base import find_object_global, resolve_target, save_object
+from realm.core.render import render_room
 
 
 async def cmd_teleport(ctx: CommandContext) -> None:
@@ -39,7 +39,7 @@ async def cmd_teleport(ctx: CommandContext) -> None:
         dest_name = ctx.args.strip()
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
@@ -50,7 +50,7 @@ async def cmd_teleport(ctx: CommandContext) -> None:
     elif dest_name.lower() == 'here':
         destination = ctx.player.location
     else:
-        destination = _find_object_global(dest_name)
+        destination = find_object_global(ctx, dest_name)
 
     if not destination:
         await ctx.session.send(f"Destination '{dest_name}' not found.")
@@ -60,14 +60,10 @@ async def cmd_teleport(ctx: CommandContext) -> None:
         await ctx.session.send("Can't teleport something to itself.")
         return
 
-    old_location = target.location
-
     # Move the object
     target.location = destination
 
-    persistence = get_persistence()
-    if persistence:
-        await persistence.save(target)
+    await save_object(ctx, target)
 
     # Notify
     if target == ctx.player:
@@ -75,7 +71,7 @@ async def cmd_teleport(ctx: CommandContext) -> None:
 
         # Show the new location
         if destination.has_tag('room'):
-            await _show_room(ctx, destination)
+            await ctx.session.send(render_room(destination, ctx.player))
     else:
         await ctx.session.send(f"Teleported {target.name} to {destination.name}.")
 
@@ -97,13 +93,13 @@ async def cmd_chown(ctx: CommandContext) -> None:
     owner_name = ctx.right_args.strip()
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
     # Find new owner
-    new_owner = _find_object_global(owner_name)
+    new_owner = find_object_global(ctx, owner_name)
     if not new_owner:
         await ctx.session.send(f"Owner '{owner_name}' not found.")
         return
@@ -111,9 +107,7 @@ async def cmd_chown(ctx: CommandContext) -> None:
     old_owner = target.owner
     target.owner = new_owner
 
-    persistence = get_persistence()
-    if persistence:
-        await persistence.save(target)
+    await save_object(ctx, target)
 
     old_name = old_owner.name if old_owner else "nobody"
     await ctx.session.send(
@@ -136,7 +130,7 @@ async def cmd_destroy(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @destroy <object>")
         return
 
-    target = _resolve_target(ctx, ctx.args.strip())
+    target = resolve_target(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
         return
@@ -155,7 +149,7 @@ async def cmd_destroy(ctx: CommandContext) -> None:
         return
 
     # Recursively destroy contents
-    destroyed_count = await _destroy_recursive(target)
+    destroyed_count = await _destroy_recursive(ctx, target)
 
     await ctx.session.send(f"Destroyed {target.name} and {destroyed_count} contained object(s).")
 
@@ -175,7 +169,7 @@ async def cmd_nuke(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @nuke <player>")
         return
 
-    target = _find_object_global(ctx.args.strip())
+    target = find_object_global(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Player '{ctx.args}' not found.")
         return
@@ -191,7 +185,7 @@ async def cmd_nuke(ctx: CommandContext) -> None:
     # TODO: Disconnect the player's session if connected
 
     # Destroy
-    await _destroy_recursive(target)
+    await _destroy_recursive(ctx, target)
     await ctx.session.send(f"Player {target.name} has been nuked.")
 
 
@@ -203,8 +197,7 @@ async def cmd_find(ctx: CommandContext) -> None:
            @find/tag <tag>
            @find/owner <owner>
     """
-    persistence = get_persistence()
-    if not ctx.player or not persistence:
+    if not ctx.player or not ctx.persistence:
         return
 
     if not ctx.args:
@@ -216,17 +209,15 @@ async def cmd_find(ctx: CommandContext) -> None:
 
     if 'tag' in ctx.switches:
         # Search by tag
-        for obj in persistence._object_cache.values():
-            if obj.has_tag(search):
-                results.append(obj)
+        results = ctx.persistence.find_cached(tag=search)
     elif 'owner' in ctx.switches:
         # Search by owner name
-        for obj in persistence._object_cache.values():
+        for obj in ctx.persistence.all_cached():
             if obj.owner and obj.owner.name.lower() == search:
                 results.append(obj)
     else:
-        # Search by name
-        for obj in persistence._object_cache.values():
+        # Substring search by name
+        for obj in ctx.persistence.all_cached():
             if search in obj.name.lower():
                 results.append(obj)
 
@@ -260,7 +251,7 @@ async def cmd_examine_full(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @examine <object>")
         return
 
-    target = _resolve_target(ctx, ctx.args.strip())
+    target = resolve_target(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
         return
@@ -327,7 +318,7 @@ async def cmd_force(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @force <object> = <command>")
         return
 
-    target = _resolve_target(ctx, ctx.left_args.strip())
+    target = resolve_target(ctx, ctx.left_args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.left_args}' not found.")
         return
@@ -353,40 +344,16 @@ async def cmd_boot(ctx: CommandContext) -> None:
         return
 
     # TODO: Find player's session and disconnect
-    await ctx.session.send(f"@boot not fully implemented.")
+    await ctx.session.send("@boot not fully implemented.")
 
 
-async def _show_room(ctx: CommandContext, room) -> None:
-    """Show a room to the player."""
-    await ctx.session.send(f"\n{room.name}")
-    await ctx.session.send("-" * len(room.name))
-
-    if room.description:
-        await ctx.session.send(room.description)
-
-    # Show contents
-    others = [obj for obj in room.contents if obj != ctx.player and not obj.has_tag('exit')]
-    if others:
-        await ctx.session.send("\nYou see:")
-        for obj in others:
-            await ctx.session.send(f"  {obj.name}")
-
-    # Show exits
-    exits = [obj for obj in room.contents if obj.has_tag('exit')]
-    if exits:
-        exit_names = ", ".join(e.name for e in exits)
-        await ctx.session.send(f"\nExits: {exit_names}")
-
-    await ctx.session.send("")
-
-
-async def _destroy_recursive(obj) -> int:
+async def _destroy_recursive(ctx: CommandContext, obj) -> int:
     """Destroy an object and all its contents. Returns count of destroyed objects."""
     count = 0
 
     # First destroy contents
     for child in list(obj.contents):
-        count += await _destroy_recursive(child)
+        count += await _destroy_recursive(ctx, child)
         count += 1
 
     # Remove from location
@@ -394,29 +361,10 @@ async def _destroy_recursive(obj) -> int:
         obj.location = None
 
     # Delete from persistence
-    persistence = get_persistence()
-    if persistence:
-        await persistence.delete(obj)
+    if ctx.persistence:
+        await ctx.persistence.delete(obj)
 
     return count
-
-
-def _resolve_target(ctx: CommandContext, name: str):
-    """Resolve a target by name, with special handling for 'me' and 'here'."""
-    name_lower = name.lower()
-
-    if name_lower in ('me', 'self'):
-        return ctx.player
-    if name_lower == 'here':
-        return ctx.player.location if ctx.player else None
-
-    # Try local first
-    target = find_object(ctx, name, search_exits=True)
-    if target:
-        return target
-
-    # Try global lookup
-    return _find_object_global(name)
 
 
 def register_admin_commands(dispatcher: CommandDispatcher) -> None:

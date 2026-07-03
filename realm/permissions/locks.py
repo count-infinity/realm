@@ -28,10 +28,11 @@ import ast
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from realm.permissions.roles import get_role, Role
+from realm.permissions.roles import Role, get_role
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
+    from realm.core.propagation import Action
 
 
 class LockType(str, Enum):
@@ -361,3 +362,87 @@ def list_locks(target: GameObject) -> dict[str, str]:
         Dictionary of lock_type -> expression
     """
     return dict(target.locks)
+
+
+# --- Enforcement in the propagation check pass ------------------------------
+#
+# Locks are enforced where the data lives: each object, when visited during
+# an action's permission pass, checks the lock that its role in the action
+# implies. GameObject.visit_check calls enforce_lock_on_action before its
+# behaviors run, so behaviors still observe lock-blocked attempts (both
+# propagation passes always complete).
+#
+# Movement is the exception: exit traversal (basic) and destination entry
+# (enter) are checked directly in realm.core.movement.move_through_exit,
+# because the exit and destination aren't the target of the gating
+# on_leave action.
+
+# action_type → (lock checked ON THE TARGET, default failure message)
+TARGET_ACTION_LOCKS: dict[str, tuple[LockType, str]] = {
+    "item:on_get": (LockType.BASIC, "You can't pick up {name}."),
+    "item:on_drop": (LockType.DROP, "You can't drop {name}."),
+    "item:on_put": (LockType.ENTER, "You can't put things in {name}."),
+    # All room-directed communication is gated by the room's speech lock.
+    "event:speech": (LockType.SPEECH, "You can't speak here."),
+    "event:shout": (LockType.SPEECH, "You can't speak here."),
+    "event:ooc": (LockType.SPEECH, "You can't speak here."),
+    "event:emote": (LockType.SPEECH, "You can't emote here."),
+    "event:semipose": (LockType.SPEECH, "You can't emote here."),
+    "event:emit": (LockType.SPEECH, "You can't emit here."),
+}
+
+# action_type → (lock checked ON THE TOOL by the actor, default message).
+# The tool isn't visited by the propagation chain, so the actor — who is
+# always visited — checks the lock of the thing it's wielding/giving.
+TOOL_ACTION_LOCKS: dict[str, tuple[LockType, str]] = {
+    "item:on_give": (LockType.GIVE, "You can't give {name} away."),
+}
+
+
+def lock_failure_message(
+    obj: GameObject,
+    lock_type: LockType,
+    default_template: str,
+) -> str:
+    """
+    The message shown when a lock blocks an action.
+
+    Builders can override per object and lock type with a
+    ``lock_fail_<type>`` attribute (e.g. ``@set door/lock_fail_basic =
+    The door glows red and refuses to budge.``); otherwise the default
+    template is used with ``{name}`` substituted.
+    """
+    custom = obj.db.get(f"lock_fail_{lock_type.value}")
+    if custom:
+        return str(custom)
+    return default_template.format(name=obj.name)
+
+
+def enforce_lock_on_action(obj: GameObject, action: Action) -> None:
+    """
+    Check the lock implied by ``obj``'s role in ``action``; block on failure.
+
+    Called from GameObject.visit_check for the actor and target. Does
+    nothing for action types with no lock mapping, for already-blocked
+    actions (first block reason wins), or for actorless actions.
+    """
+    actor = action.actor
+    if actor is None or action.blocked:
+        return
+
+    if obj is action.target and obj is not actor:
+        entry = TARGET_ACTION_LOCKS.get(action.action_type)
+        if entry:
+            lock_type, template = entry
+            if not check_lock(obj, lock_type, actor):
+                action.block(lock_failure_message(obj, lock_type, template))
+                return
+
+    if obj is actor and action.tool is not None:
+        entry = TOOL_ACTION_LOCKS.get(action.action_type)
+        if entry:
+            lock_type, template = entry
+            if not check_lock(action.tool, lock_type, actor):
+                action.block(
+                    lock_failure_message(action.tool, lock_type, template)
+                )

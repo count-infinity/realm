@@ -12,19 +12,23 @@ from __future__ import annotations
 
 import pytest
 
-from realm.commands.base import find_object  # ensure the module imports cleanly
+from realm.commands.base import find_object  # noqa: F401  # ensure the module imports cleanly
 from realm.commands.builtin.communication import (
-    cmd_say, cmd_pose, cmd_semipose, cmd_emit, cmd_whisper, cmd_ooc, cmd_shout,
+    cmd_emit,
+    cmd_ooc,
+    cmd_pose,
+    cmd_say,
+    cmd_semipose,
+    cmd_shout,
+    cmd_whisper,
 )
-from realm.commands.builtin.inventory import cmd_get, cmd_drop, cmd_give, cmd_put
+from realm.commands.builtin.inventory import cmd_drop, cmd_get, cmd_give, cmd_put
 from realm.commands.builtin.look import cmd_look
 from realm.commands.builtin.movement import cmd_go
 from realm.core.behaviors import Behavior
 from realm.core.objects import GameObject
-from realm.core.propagation import Action
 from realm.gateway.session import Session
 from realm.server.dispatcher import CommandContext
-
 
 # --- Helpers --------------------------------------------------------------
 
@@ -254,6 +258,42 @@ class TestMovementCommand:
 
         assert drain(sess) == ["You can't go south."]
 
+    async def test_dispatcher_exit_name_fires_movement_events(self):
+        """Typing a bare exit name (default-game path) fires on_enter to bystanders."""
+        from realm.server.dispatcher import CommandDispatcher
+
+        room_a, room_b, _ = await self._setup_two_rooms()
+        alice, sess_a = make_player("Alice", location=room_a)
+        carol, sess_c = make_player("Carol", location=room_b)
+
+        dispatcher = CommandDispatcher()
+        await dispatcher.dispatch(sess_a, "north")
+
+        assert alice.location is room_b
+        assert any("Alice arrives" in m for m in drain(sess_c))
+
+    async def test_dispatcher_exit_name_honors_block(self):
+        """A behavior blocking on_leave stops movement via the dispatcher path too."""
+        from realm.server.dispatcher import CommandDispatcher
+
+        room_a, room_b, _ = await self._setup_two_rooms()
+        alice, sess = make_player("Alice", location=room_a)
+
+        class Lockdown(Behavior):
+            behavior_id = "lockdown"
+
+            async def on_check(self, obj, action):
+                if action.action_type == "event:on_leave":
+                    action.block("The doors are sealed.")
+
+        room_a.add_behavior(Lockdown())
+
+        dispatcher = CommandDispatcher()
+        await dispatcher.dispatch(sess, "north")
+
+        assert alice.location is room_a, "should not have moved"
+        assert "The doors are sealed." in drain(sess)
+
 
 # --- Look ------------------------------------------------------------------
 
@@ -325,8 +365,8 @@ class TestInventoryCommands:
         await cmd_get(make_ctx(sess_a, args="sword"))
 
         assert sword.location is alice
-        assert drain(sess_a) == ["You pick up sword."]
-        assert drain(sess_b) == ["Alice picks up sword."]
+        assert drain(sess_a) == ["You pick up a sword."]
+        assert drain(sess_b) == ["Alice picks up a sword."]
 
     async def test_get_blocked_by_behavior(self):
         """A behavior on the item can block 'item:on_get' (cursed item)."""
@@ -357,8 +397,8 @@ class TestInventoryCommands:
         await cmd_drop(make_ctx(sess_a, args="sword"))
 
         assert sword.location is room
-        assert drain(sess_a) == ["You drop sword."]
-        assert drain(sess_b) == ["Alice drops sword."]
+        assert drain(sess_a) == ["You drop a sword."]
+        assert drain(sess_b) == ["Alice drops a sword."]
 
     async def test_give_three_audiences(self):
         room = GameObject("Room", tags=["room"])
@@ -372,9 +412,9 @@ class TestInventoryCommands:
         ))
 
         assert coin.location is bob
-        assert drain(sess_a) == ["You give coin to Bob."]
-        assert drain(sess_b) == ["Alice gives you coin."]
-        assert drain(sess_c) == ["Alice gives coin to Bob."]
+        assert drain(sess_a) == ["You give a coin to Bob."]
+        assert drain(sess_b) == ["Alice gives you a coin."]
+        assert drain(sess_c) == ["Alice gives a coin to Bob."]
 
     async def test_put_moves_item_into_container(self):
         room = GameObject("Room", tags=["room"])
@@ -385,7 +425,7 @@ class TestInventoryCommands:
         await cmd_put(make_ctx(sess, args="coin in bag"))
 
         assert coin.location is bag
-        assert drain(sess) == ["You put coin in bag."]
+        assert drain(sess) == ["You put a coin in the bag."]
 
     async def test_drop_blocked_by_cursed_behavior(self):
         room = GameObject("Room", tags=["room"])
@@ -419,10 +459,11 @@ class TestOnCommandFlushesAllSessions:
     """
 
     async def test_bystander_writer_called_after_actor_command(self):
+        from realm.commands.builtin import register_all_commands
         from realm.server.game import GameServer
 
         server = GameServer(db_path=":memory:", enable_telnet=False)
-        server._register_builtin_commands()
+        register_all_commands(server.dispatcher)
 
         room = GameObject("Tavern", tags=["room"])
         alice = GameObject("Alice", location=room); alice.add_tag("player")

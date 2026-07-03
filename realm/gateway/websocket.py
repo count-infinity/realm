@@ -6,13 +6,12 @@ Provides a WebSocket interface for web clients using aiohttp.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from typing import TYPE_CHECKING, Any
 
 try:
-    from aiohttp import web, WSMsgType
+    from aiohttp import WSMsgType, web
     HAS_AIOHTTP = True
 except ImportError:
     HAS_AIOHTTP = False
@@ -211,6 +210,8 @@ class WebSocketServer:
             address=address,
             writer=write_to_client,
         )
+        # ws.close() returns an awaitable; close_connection awaits it.
+        session.set_closer(ws.close)
 
         logger.info(f"WebSocket connection from {address}")
 

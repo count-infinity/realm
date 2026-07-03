@@ -1,11 +1,12 @@
 """Tests for the command system."""
 
 import pytest
+
+from realm.commands import CommandContext, CommandDispatcher
+from realm.commands.base import find_exit, find_object, format_list
+from realm.commands.builtin import register_all_commands
 from realm.core.objects import GameObject
 from realm.gateway.session import Session
-from realm.commands import CommandDispatcher, CommandContext
-from realm.commands.base import find_object, find_exit, format_list
-from realm.commands.builtin import register_all_commands
 
 
 class TestCommandBase:

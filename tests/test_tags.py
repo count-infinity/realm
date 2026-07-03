@@ -1,6 +1,5 @@
 """Tests for the TagSet class."""
 
-import pytest
 from realm.core.tags import TagSet
 
 

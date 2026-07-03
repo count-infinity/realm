@@ -1,40 +1,106 @@
 """
 Base utilities for command implementation.
 
-Provides helper functions for common command patterns.
+Provides helper functions for common command patterns. All name
+resolution goes through realm.core.search — one matcher, so "prom"
+finds "Station Promenade" everywhere a player can name something.
+Helpers return None for no match and raise AmbiguousMatchError when several
+objects match equally well (the dispatcher renders the choice list).
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.search import match_objects, match_one
+
 if TYPE_CHECKING:
     from realm.commands import CommandContext
     from realm.core.objects import GameObject
 
 
-async def send(ctx: CommandContext, message: str) -> None:
-    """Send a message to the command invoker."""
-    await ctx.session.send(message)
+async def save_object(ctx: CommandContext, obj: GameObject) -> None:
+    """Persist a modified object, if the server has persistence wired."""
+    if ctx.persistence:
+        await ctx.persistence.save(obj)
 
 
-async def send_to_room(
+def find_object_global(ctx: CommandContext, spec: str) -> GameObject | None:
+    """
+    Find an object anywhere in the world by ID or name.
+
+    Accepts ``#id``, a bare UUID, or a (partial) name. Requires
+    persistence; returns None when the server runs without it. Raises
+    AmbiguousMatchError when a name matches several objects equally well.
+    """
+    persistence = ctx.persistence
+    if not persistence:
+        return None
+
+    spec = spec.strip()
+
+    # ID reference (#abc123 or bare UUID)
+    if spec.startswith('#'):
+        return persistence.get_cached(spec[1:])
+    if '-' in spec and len(spec) > 30:
+        return persistence.get_cached(spec)
+
+    return match_one(spec, persistence.all_cached())
+
+
+def resolve_target(ctx: CommandContext, name: str) -> GameObject | None:
+    """
+    Resolve a builder-command target: 'me'/'self', 'here', then local
+    objects (including exits), then a global ID/name lookup.
+    """
+    name_lower = name.lower()
+
+    if name_lower in ('me', 'self'):
+        return ctx.player
+    if name_lower == 'here':
+        return ctx.player.location if ctx.player else None
+
+    target = find_object(ctx, name, search_exits=True)
+    if target:
+        return target
+
+    return find_object_global(ctx, name)
+
+
+def local_candidates(
     ctx: CommandContext,
-    message: str,
-    exclude_self: bool = True,
-) -> None:
-    """Send a message to everyone in the player's room."""
-    if not ctx.player or not ctx.player.location:
-        return
+    *,
+    search_room: bool = True,
+    search_inventory: bool = True,
+    search_exits: bool = False,
+) -> list[GameObject]:
+    """
+    Objects a player can plausibly mean by name: inventory first, then
+    room contents (excluding self, and exits unless requested).
 
-    room = ctx.player.location
-    for obj in room.contents:
-        if obj.has_tag('player') and obj != ctx.player:
-            # Get session for this player
-            session = obj.db.get('session_id')
-            # Note: In a real implementation, we'd look up the session
-            # For now, we use the msg() method which can be overridden
-            obj.msg(message)
+    Perception applies: things the player can't see (invisible, or in an
+    unlit dark room) can't be targeted. Exits are exempt — a secret door
+    stays traversable by name for those who know it's there.
+    """
+    from realm.core.perception import can_see
+
+    if not ctx.player:
+        return []
+
+    candidates: list[GameObject] = []
+    if search_inventory:
+        candidates.extend(ctx.player.contents)
+    if search_room and ctx.player.location:
+        for obj in ctx.player.location.contents:
+            if obj == ctx.player:
+                continue
+            if obj.has_tag('exit'):
+                if search_exits:
+                    candidates.append(obj)
+                continue
+            if can_see(ctx.player, obj):
+                candidates.append(obj)
+    return candidates
 
 
 def find_object(
@@ -46,43 +112,21 @@ def find_object(
     search_exits: bool = False,
 ) -> GameObject | None:
     """
-    Find an object by name from the player's perspective.
+    Find one object by (partial) name from the player's perspective.
 
-    Searches in order:
-    1. Inventory (if search_inventory)
-    2. Room contents (if search_room)
-    3. Exits (if search_exits)
-
-    Returns the first match or None.
+    Candidates: inventory, then room contents, then exits if requested.
+    Returns None for no match; raises AmbiguousMatchError when several match
+    equally well (pick with ``name-2`` style suffixes).
     """
-    if not ctx.player:
-        return None
-
-    name_lower = name.lower()
-
-    # Search inventory
-    if search_inventory:
-        for obj in ctx.player.contents:
-            if obj.name.lower() == name_lower:
-                return obj
-            # Check aliases
-            aliases = obj.db.get('aliases', [])
-            if name_lower in [a.lower() for a in aliases]:
-                return obj
-
-    # Search room
-    if search_room and ctx.player.location:
-        for obj in ctx.player.location.contents:
-            if obj == ctx.player:
-                continue
-            if search_exits or not obj.has_tag('exit'):
-                if obj.name.lower() == name_lower:
-                    return obj
-                aliases = obj.db.get('aliases', [])
-                if name_lower in [a.lower() for a in aliases]:
-                    return obj
-
-    return None
+    return match_one(
+        name,
+        local_candidates(
+            ctx,
+            search_room=search_room,
+            search_inventory=search_inventory,
+            search_exits=search_exits,
+        ),
+    )
 
 
 def find_objects(
@@ -93,70 +137,48 @@ def find_objects(
     search_inventory: bool = True,
 ) -> list[GameObject]:
     """
-    Find all objects matching a name.
-
-    Returns a list of all matches.
+    Find all objects matching a (partial) name — the best-matching tier.
     """
-    if not ctx.player:
-        return []
-
-    matches: list[GameObject] = []
-    name_lower = name.lower()
-
-    # Search inventory
-    if search_inventory:
-        for obj in ctx.player.contents:
-            if obj.name.lower() == name_lower:
-                matches.append(obj)
-            elif name_lower in [a.lower() for a in obj.db.get('aliases', [])]:
-                matches.append(obj)
-
-    # Search room
-    if search_room and ctx.player.location:
-        for obj in ctx.player.location.contents:
-            if obj == ctx.player:
-                continue
-            if not obj.has_tag('exit'):
-                if obj.name.lower() == name_lower:
-                    matches.append(obj)
-                elif name_lower in [a.lower() for a in obj.db.get('aliases', [])]:
-                    matches.append(obj)
-
-    return matches
+    return match_objects(
+        name,
+        local_candidates(
+            ctx,
+            search_room=search_room,
+            search_inventory=search_inventory,
+        ),
+    ).matches
 
 
 def find_player(ctx: CommandContext, name: str) -> GameObject | None:
     """
-    Find a player by name in the current room.
+    Find a player by (partial) name in the current room — a player you
+    can see (whisper can't target someone hiding invisible).
     """
+    from realm.core.perception import can_see
+
     if not ctx.player or not ctx.player.location:
         return None
 
-    name_lower = name.lower()
-    for obj in ctx.player.location.contents:
-        if obj.has_tag('player') and obj.name.lower() == name_lower:
-            return obj
-
-    return None
+    players = [
+        obj for obj in ctx.player.location.contents
+        if obj.has_tag('player') and can_see(ctx.player, obj)
+    ]
+    return match_one(name, players)
 
 
 def find_exit(ctx: CommandContext, direction: str) -> GameObject | None:
     """
-    Find an exit by name or alias.
+    Find an exit by name, alias, or unambiguous prefix.
+
+    No substring tier — 'or' should not match 'north'.
     """
     if not ctx.player or not ctx.player.location:
         return None
 
-    direction_lower = direction.lower()
-    for obj in ctx.player.location.contents:
-        if obj.has_tag('exit'):
-            if obj.name.lower() == direction_lower:
-                return obj
-            aliases = obj.db.get('aliases', [])
-            if direction_lower in [a.lower() for a in aliases]:
-                return obj
-
-    return None
+    exits = [
+        obj for obj in ctx.player.location.contents if obj.has_tag('exit')
+    ]
+    return match_one(direction, exits, allow_substring=False)
 
 
 def format_list(items: list[str], conjunction: str = "and") -> str:

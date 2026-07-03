@@ -82,8 +82,14 @@ class TelnetProtocol(asyncio.Protocol):
             address=address,
             writer=self._write_to_client,
         )
+        self.session.set_closer(self._close_transport)
 
         logger.info(f"Telnet connection from {address}")
+
+    def _close_transport(self) -> None:
+        """Close the client connection (session closer hook)."""
+        if self.transport is not None and not self.transport.is_closing():
+            self.transport.close()
 
     def _send_negotiation(self) -> None:
         """Send initial telnet option negotiation."""
@@ -198,9 +204,7 @@ class TelnetProtocol(asyncio.Protocol):
     def connection_lost(self, exc: Exception | None) -> None:
         """Called when the connection is lost."""
         if self.session:
-            asyncio.create_task(
-                self.session_manager.destroy_session(self.session)
-            )
+            self.session_manager.destroy_session_soon(self.session)
         self.transport = None
         self.session = None
 

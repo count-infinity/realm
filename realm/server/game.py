@@ -17,15 +17,25 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import Any, Callable, Awaitable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from realm.core.objects import GameObject
-from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
+from realm.core.propagation import (
+    ROOM_TARGET_CHAIN,
+    Action,
+    propagate,
+)
+from realm.core.propagation import (
+    get_engine as get_propagation_engine,
+)
+from realm.core.render import render_room
 from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager
-from realm.server.dispatcher import CommandDispatcher, CommandContext
+from realm.scripting.engine import ScriptEngine
+from realm.server.dispatcher import CommandContext, CommandDispatcher
 
 if TYPE_CHECKING:
     from realm.config.loader import Settings
@@ -59,6 +69,7 @@ class GameServer:
         websocket_host: str = "0.0.0.0",
         enable_telnet: bool = True,
         enable_websocket: bool = False,  # Requires aiohttp
+        enable_scripting: bool = True,
         flush_interval: float = 30.0,
         game_name: str = "REALM",
         welcome_file: str | Path | None = None,
@@ -70,6 +81,7 @@ class GameServer:
         self.websocket_host = websocket_host
         self.enable_telnet = enable_telnet
         self.enable_websocket = enable_websocket
+        self.enable_scripting = enable_scripting
         self.flush_interval = flush_interval
         self.game_name = game_name
         self.welcome_file = Path(welcome_file) if welcome_file else None
@@ -78,6 +90,7 @@ class GameServer:
         self.session_manager = SessionManager()
         self.dispatcher = CommandDispatcher()
         self.persistence: PersistenceManager | None = None
+        self.script_engine: ScriptEngine | None = None
 
         # Protocol servers - built-in
         self._telnet_server: TelnetServer | None = None
@@ -121,6 +134,7 @@ class GameServer:
             websocket_host=settings.websocket_host,
             enable_telnet=settings.enable_telnet,
             enable_websocket=settings.enable_websocket,
+            enable_scripting=settings.enable_scripting,
             flush_interval=settings.flush_interval,
             game_name=settings.game_name,
             welcome_file=settings.welcome_file,
@@ -197,25 +211,42 @@ class GameServer:
         await self.persistence.start_flush_loop()
 
         # Load world
-        await self._load_world()
+        loaded_count = await self._load_world()
 
-        # Call init_world callback if defined in settings
-        if self._settings and self._settings.init_world:
+        # Call init_world only on first boot (empty database) — its documented
+        # contract. Running it on every start would recreate world objects
+        # over the loaded ones, leaving players in stale duplicate rooms.
+        if loaded_count == 0 and self._settings and self._settings.init_world:
             try:
                 await self._settings.init_world(self)
             except Exception as e:
                 logger.error(f"Error in init_world callback: {e}")
                 raise
 
+        # Fall back to a default startup room if the world still lacks one.
+        await self._ensure_startup_room()
+
         # Set up session callbacks
         self.session_manager.on_connect(self._on_session_connect)
         self.session_manager.on_disconnect(self._on_session_disconnect)
 
-        # Set up dispatcher handlers
+        # Set up dispatcher handlers and services
         self.dispatcher.set_login_handler(self._handle_login)
         self.dispatcher.set_unknown_handler(self._handle_unknown)
-        self.dispatcher._persistence = self.persistence  # For room lookups
-        self._register_builtin_commands()
+        self.dispatcher.persistence = self.persistence
+        self.dispatcher.session_manager = self.session_manager
+
+        # Softcode scripting: $-command fallback via _handle_unknown, and an
+        # action observer so ^listen and ON_<EVENT> triggers fire on the
+        # same propagated actions behaviors see.
+        if self.enable_scripting:
+            self.script_engine = ScriptEngine(persistence=self.persistence)
+            get_propagation_engine().add_observer(self.script_engine.handle_action)
+
+        # Imported here, not at module top: realm.commands re-exports from
+        # realm.server.dispatcher, so a top-level import would be circular.
+        from realm.commands.builtin import register_all_commands
+        register_all_commands(self.dispatcher)
 
         # Call register_commands callback if defined in settings
         if self._settings and self._settings.register_commands:
@@ -296,6 +327,19 @@ class GameServer:
             except Exception as e:
                 logger.error(f"Error in stop callback: {e}")
 
+        # Detach the script engine from the (module-singleton) propagation
+        # engine so a later server instance doesn't double-fire scripts.
+        if self.script_engine is not None:
+            get_propagation_engine().remove_observer(self.script_engine.handle_action)
+            self.script_engine = None
+
+        # Disconnect all sessions BEFORE stopping protocol servers:
+        # Server.wait_closed() (Python 3.12.1+) waits for client connections,
+        # so lingering sessions would stall shutdown until clients hang up.
+        for session in self.session_manager.all_sessions():
+            await session.send("Server shutting down. Goodbye!")
+            await self.session_manager.destroy_session(session)
+
         # Stop custom protocol servers
         for name, server in self._protocol_servers.items():
             try:
@@ -313,11 +357,6 @@ class GameServer:
         if self._websocket_server:
             await self._websocket_server.stop()
 
-        # Disconnect all sessions
-        for session in self.session_manager.all_sessions():
-            await session.send("Server shutting down. Goodbye!")
-            await self.session_manager.destroy_session(session)
-
         # Save and close persistence
         if self.persistence:
             await self.persistence.close()
@@ -330,10 +369,13 @@ class GameServer:
 
         # Set up signal handlers
         loop = asyncio.get_running_loop()
+        stop_task: asyncio.Task[None] | None = None
 
         def handle_signal():
+            nonlocal stop_task
             logger.info("Received shutdown signal")
-            asyncio.create_task(self.stop())
+            if stop_task is None:
+                stop_task = asyncio.create_task(self.stop())
 
         try:
             loop.add_signal_handler(signal.SIGINT, handle_signal)
@@ -346,29 +388,41 @@ class GameServer:
         while self._running:
             await asyncio.sleep(1)
 
-    async def _load_world(self) -> None:
-        """Load the game world from persistence."""
+        # stop() flips _running immediately, which ends the wait loop above.
+        # Await the full shutdown here — returning early would let
+        # asyncio.run() cancel it mid-flight (unflushed saves, a stranded
+        # aiosqlite thread that keeps the process alive).
+        if stop_task is not None:
+            await stop_task
+
+    async def _load_world(self) -> int:
+        """Load the game world from persistence. Returns the object count."""
         if not self.persistence:
-            return
+            return 0
 
         objects = await self.persistence.load_all()
         logger.info(f"Loaded {len(objects)} objects from database")
 
-        # Find or create startup room
         for obj in objects:
             if obj.has_tag('start_room'):
                 self._startup_room = obj
                 break
 
-        if not self._startup_room:
-            # Create a default startup room
-            self._startup_room = GameObject(
-                name="The Void",
-                description="You are floating in an empty void. This is the default starting location.",
-                tags=['room', 'start_room'],
-            )
-            await self.persistence.save(self._startup_room)
-            logger.info("Created default startup room")
+        return len(objects)
+
+    async def _ensure_startup_room(self) -> None:
+        """Create a default startup room when neither the database nor
+        init_world provided one."""
+        if self._startup_room or not self.persistence:
+            return
+
+        self._startup_room = GameObject(
+            name="The Void",
+            description="You are floating in an empty void. This is the default starting location.",
+            tags=['room', 'start_room'],
+        )
+        await self.persistence.save(self._startup_room)
+        logger.info("Created default startup room")
 
     async def _on_session_connect(self, session: Session) -> None:
         """Called when a new session connects."""
@@ -431,7 +485,7 @@ class GameServer:
                     action_type="event:disconnect",
                     chain=ROOM_TARGET_CHAIN,
                 )
-                action.add_message("room", f"{{actor}} has disconnected.")
+                action.add_message("room", "{actor} has disconnected.")
                 await propagate(action)
 
             if self.persistence:
@@ -488,12 +542,8 @@ class GameServer:
         # TODO: Proper password verification
         # For now, just find the player by name
 
-        # Search for existing player
-        player = None
-        for obj in self.persistence._object_cache.values():
-            if obj.has_tag('player') and obj.name.lower() == name.lower():
-                player = obj
-                break
+        matches = self.persistence.find_cached(tag='player', name=name)
+        player = matches[0] if matches else None
 
         if not player:
             await session.send(f"Character '{name}' not found. Use 'create' to make one.")
@@ -511,7 +561,7 @@ class GameServer:
         await self._announce_connect(player, returning=True)
 
         # Show room
-        await self._show_room(session, player)
+        await session.send(render_room(player.location, player))
 
     async def _do_create(self, session: Session, name: str, password: str) -> None:
         """Handle the create command."""
@@ -520,10 +570,9 @@ class GameServer:
             return
 
         # Check if name is taken
-        for obj in self.persistence._object_cache.values():
-            if obj.has_tag('player') and obj.name.lower() == name.lower():
-                await session.send(f"Character '{name}' already exists.")
-                return
+        if self.persistence.find_cached(tag='player', name=name):
+            await session.send(f"Character '{name}' already exists.")
+            return
 
         # Create new player
         player = GameObject(
@@ -543,7 +592,7 @@ class GameServer:
         await self._announce_connect(player, returning=False)
 
         # Show room
-        await self._show_room(session, player)
+        await session.send(render_room(player.location, player))
 
     async def _announce_connect(self, player: GameObject, *, returning: bool) -> None:
         """Tell the player and bystanders that the player has connected."""
@@ -573,131 +622,23 @@ class GameServer:
                 await session.send(f"  {s.player.name} (idle {idle}s)")
         await session.send("")
 
-    async def _show_room(self, session: Session, player: GameObject) -> None:
-        """Show the current room to a player."""
-        room = player.location
-        if not room:
-            await session.send("You are nowhere.")
-            return
-
-        await session.send(f"\n{room.name}")
-        await session.send("-" * len(room.name))
-        await session.send(room.description)
-
-        # Show contents
-        others = [
-            obj for obj in room.contents
-            if obj != player and not obj.has_tag('exit')
-        ]
-        if others:
-            await session.send("\nYou see:")
-            for obj in others:
-                await session.send(f"  {obj.name}")
-
-        # Show exits
-        exits = [obj for obj in room.contents if obj.has_tag('exit')]
-        if exits:
-            exit_names = ", ".join(e.name for e in exits)
-            await session.send(f"\nExits: {exit_names}")
-
-        await session.send("")
-
     async def _handle_unknown(self, ctx: CommandContext) -> None:
-        """Handle unknown commands (softcode fallback)."""
-        # TODO: Search for $-commands on nearby objects
-        await ctx.session.send(f"Huh? (Type 'help' for commands)")
-
-    def _register_builtin_commands(self) -> None:
-        """Register built-in commands."""
-
-        async def cmd_look(ctx: CommandContext) -> None:
-            if ctx.player:
-                session = self.session_manager.get_session_by_player(ctx.player)
-                if session:
-                    await self._show_room(session, ctx.player)
-
-        self.dispatcher.register("look", cmd_look, aliases=["l"])
-
-        async def cmd_say(ctx: CommandContext) -> None:
-            # Canonical example of the command → action → propagation flow.
-            # The command is a thin parser; everything else (actor self-message,
-            # room broadcast, behaviors that listen for speech) goes through
-            # the propagation engine via the speech action.
-            if not ctx.player or not ctx.args:
+        """Handle unknown commands: softcode $-command fallback."""
+        if self.script_engine is not None:
+            if await self.script_engine.handle_unknown_command(ctx):
                 return
-            location = ctx.player.location
-            if location is None:
-                await ctx.session.send("You have nowhere to speak from.")
-                return
-            message = ctx.args
-            action = Action(
-                actor=ctx.player,
-                target=location,
-                action_type="event:speech",
-                chain=ROOM_TARGET_CHAIN,
-                extra={"message": message},
-            )
-            action.add_message("actor", f'You say, "{message}"')
-            action.add_message("room", f'{{actor}} says, "{message}"')
-            await propagate(action)
-
-        self.dispatcher.register("say", cmd_say, aliases=["'"])
-
-        async def cmd_pose(ctx: CommandContext) -> None:
-            if not ctx.player or not ctx.args:
-                return
-            location = ctx.player.location
-            if location is None:
-                return
-            pose_text = ctx.args
-            action = Action(
-                actor=ctx.player,
-                target=location,
-                action_type="event:emote",
-                chain=ROOM_TARGET_CHAIN,
-                extra={"pose": pose_text},
-            )
-            # Pose shows the same line to actor and room.
-            action.add_message("actor", f"{{actor}} {pose_text}")
-            action.add_message("room", f"{{actor}} {pose_text}")
-            await propagate(action)
-
-        self.dispatcher.register("pose", cmd_pose, aliases=[":"])
-
-        async def cmd_who(ctx: CommandContext) -> None:
-            await self._do_who(ctx.session)
-
-        self.dispatcher.register("who", cmd_who)
-
-        async def cmd_quit(ctx: CommandContext) -> None:
-            await ctx.session.send("Goodbye!")
-            await self.session_manager.destroy_session(ctx.session)
-
-        self.dispatcher.register("quit", cmd_quit, aliases=["QUIT"])
-
-        async def cmd_help(ctx: CommandContext) -> None:
-            commands = self.dispatcher.list_commands()
-            await ctx.session.send("\nAvailable commands:")
-            await ctx.session.send(", ".join(commands))
-            await ctx.session.send("")
-
-        self.dispatcher.register("help", cmd_help, aliases=["?"])
-
-        async def cmd_inventory(ctx: CommandContext) -> None:
-            if not ctx.player:
-                return
-            items = [obj for obj in ctx.player.contents if obj.has_tag('thing')]
-            if items:
-                await ctx.session.send("\nYou are carrying:")
-                for item in items:
-                    await ctx.session.send(f"  {item.name}")
-            else:
-                await ctx.session.send("You aren't carrying anything.")
-            await ctx.session.send("")
-
-        self.dispatcher.register("inventory", cmd_inventory, aliases=["i", "inv"])
+        await ctx.session.send("Huh? (Type 'help' for commands)")
 
     @property
     def is_running(self) -> bool:
         """Check if the server is running."""
         return self._running
+
+    @property
+    def startup_room(self) -> GameObject | None:
+        """The room new characters and roomless players start in."""
+        return self._startup_room
+
+    @startup_room.setter
+    def startup_room(self, room: GameObject | None) -> None:
+        self._startup_room = room

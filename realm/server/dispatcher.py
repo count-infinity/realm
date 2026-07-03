@@ -8,13 +8,14 @@ Implements the command parsing pipeline from the plan.
 from __future__ import annotations
 
 import logging
-import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Awaitable
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from realm.gateway.session import Session
     from realm.core.objects import GameObject
+    from realm.gateway.session import Session, SessionManager
+    from realm.persistence.manager import PersistenceManager
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,10 @@ class CommandContext:
     """
     Context passed to command handlers.
 
-    Contains all information about the command invocation.
+    Contains all information about the command invocation, plus the
+    dispatcher that built it — handlers reach shared services
+    (``ctx.dispatcher.persistence``, ``ctx.dispatcher.session_manager``)
+    through it instead of module-level globals.
     """
 
     session: Session
@@ -35,11 +39,22 @@ class CommandContext:
     switches: list[str] = field(default_factory=list)
     left_args: str = ""
     right_args: str = ""
+    dispatcher: CommandDispatcher | None = None
 
     @property
     def has_player(self) -> bool:
         """Check if a player is linked to this command."""
         return self.player is not None
+
+    @property
+    def persistence(self) -> PersistenceManager | None:
+        """The server's persistence manager, if wired."""
+        return self.dispatcher.persistence if self.dispatcher else None
+
+    @property
+    def session_manager(self) -> SessionManager | None:
+        """The server's session manager, if wired."""
+        return self.dispatcher.session_manager if self.dispatcher else None
 
 
 # Type for command handlers
@@ -118,6 +133,11 @@ class CommandDispatcher:
         self._commands: dict[str, Command] = {}
         self._aliases: dict[str, str] = {}  # alias -> command name
         self._player_aliases: dict[str, dict[str, str]] = {}  # player_id -> {alias: expansion}
+
+        # Shared services, wired by GameServer.start(). Commands reach them
+        # via ctx.persistence / ctx.session_manager.
+        self.persistence: PersistenceManager | None = None
+        self.session_manager: SessionManager | None = None
 
         # Handler for unknown commands (for softcode fallback)
         self._unknown_handler: CommandHandler | None = None
@@ -202,6 +222,7 @@ class CommandDispatcher:
                     raw_input=raw_input,
                     command_name="",
                     args=raw_input,
+                    dispatcher=self,
                 )
                 await self._login_handler(ctx)
             else:
@@ -236,6 +257,7 @@ class CommandDispatcher:
                 raw_input=original,
                 command_name=command_name,
                 args=args,
+                dispatcher=self,
             )
 
         # Step 2: Check for channel prefix (+)
@@ -255,6 +277,7 @@ class CommandDispatcher:
                     args=args,
                     left_args=channel,
                     right_args=message,
+                    dispatcher=self,
                 )
 
         # Step 3: Split into command and arguments
@@ -301,6 +324,7 @@ class CommandDispatcher:
             switches=switches,
             left_args=left_args,
             right_args=right_args,
+            dispatcher=self,
         )
 
     async def _execute(self, ctx: CommandContext) -> None:
@@ -373,80 +397,26 @@ class CommandDispatcher:
         if not ctx.player:
             return
 
-        # Get destination ID (stored as string room ID)
-        dest_id = exit_obj.db.get('destination')
-        if not dest_id:
-            await ctx.session.send("That exit doesn't lead anywhere.")
-            return
+        from realm.core.movement import move_through_exit, resolve_exit_destination
+        from realm.core.render import render_room
 
-        # Find destination room by ID
-        destination = self._find_room_by_id(ctx, dest_id)
-
+        destination = resolve_exit_destination(exit_obj, self.persistence)
         if not destination:
             await ctx.session.send("That exit leads nowhere you can reach.")
             return
 
         # TODO: Check locks on exit
 
-        # Move the player
-        ctx.player.location = destination
-
-        # Notify player
-        await ctx.session.send(f"\nYou go {exit_obj.name}.")
-
-        # Show new room
-        await self._show_room_to_session(ctx.session, ctx.player)
-
-    def _find_room_by_id(self, ctx: CommandContext, room_id: str) -> GameObject | None:
-        """Find a room by its ID."""
-        # Check if it's already an object reference
-        if hasattr(room_id, 'id'):
-            return room_id
-
-        # Search persistence cache if available
-        if hasattr(self, '_persistence') and self._persistence:
-            return self._persistence._object_cache.get(room_id)
-
-        # Search player's location contents (won't work for other rooms)
-        if ctx.player and ctx.player.location:
-            for obj in ctx.player.location.contents:
-                if obj.id == room_id:
-                    return obj
-
-        return None
-
-    async def _show_room_to_session(self, session: Session, player: GameObject) -> None:
-        """Display a room to a session."""
-        room = player.location
-        if not room:
-            await session.send("You are nowhere.")
+        # Move through the exit via the shared movement path so on_leave/on_enter
+        # events fire (and behaviors like GuardBehavior get a chance to block).
+        moved = await move_through_exit(
+            ctx.player, destination, exit_obj=exit_obj, direction=exit_obj.name
+        )
+        if not moved:
             return
 
-        await session.send(f"\n{room.name}")
-        await session.send("-" * len(room.name))
-
-        # Description from db.description or .description
-        desc = room.db.get('description') or room.description
-        if desc:
-            await session.send(desc)
-
-        # Show contents (excluding player and exits)
-        others = [
-            obj for obj in room.contents
-            if obj != player and not obj.has_tag('exit')
-        ]
-        if others:
-            await session.send("\nYou see:")
-            for obj in others:
-                await session.send(f"  {obj.name}")
-
-        # Show exits
-        exits = [obj for obj in room.contents if obj.has_tag('exit')]
-        if exits:
-            exit_names = ", ".join(e.name for e in exits)
-            await session.send(f"\nExits: {exit_names}")
-
-        await session.send("")
+        # Show new room
+        await ctx.session.send(render_room(ctx.player.location, ctx.player))
 
     async def _run_command(self, cmd: Command, ctx: CommandContext) -> None:
         """Run a command after finding it."""
@@ -457,8 +427,13 @@ class CommandDispatcher:
 
         # TODO: Argument validation
 
+        from realm.core.search import AmbiguousMatchError, format_ambiguous
         try:
             await cmd.handler(ctx)
+        except AmbiguousMatchError as e:
+            # A name matched several objects equally well — let the player
+            # narrow it down. One handler here covers every command.
+            await ctx.session.send(format_ambiguous(e, ctx.player))
         except Exception as e:
             logger.exception(f"Error executing command {cmd.name}: {e}")
             await ctx.session.send(f"An error occurred: {e}")

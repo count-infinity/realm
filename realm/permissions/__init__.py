@@ -8,28 +8,28 @@ Provides:
 - Permission checking utilities
 """
 
-from realm.permissions.roles import (
-    Role,
-    get_role,
-    has_permission,
-    can_control,
-    is_god,
-    is_admin,
-    is_builder,
+from realm.permissions.flags import (
+    Flag,
+    clear_flag,
+    get_flags,
+    has_flag,
+    set_flag,
 )
 from realm.permissions.locks import (
     Lock,
-    LockType,
     LockEvaluator,
+    LockType,
     check_lock,
     parse_lock,
 )
-from realm.permissions.flags import (
-    Flag,
-    has_flag,
-    set_flag,
-    clear_flag,
-    get_flags,
+from realm.permissions.roles import (
+    Role,
+    can_control,
+    get_role,
+    has_permission,
+    is_admin,
+    is_builder,
+    is_god,
 )
 
 __all__ = [

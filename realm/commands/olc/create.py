@@ -7,22 +7,9 @@ Commands for creating new objects, rooms, and exits.
 from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
+from realm.commands.base import find_object_global, save_object
 from realm.core.objects import GameObject
-
-
-# Reference to persistence manager (set by GameServer)
-_persistence = None
-
-
-def set_persistence(manager) -> None:
-    """Set the persistence manager for OLC commands."""
-    global _persistence
-    _persistence = manager
-
-
-def get_persistence():
-    """Get the persistence manager for OLC commands."""
-    return _persistence
+from realm.core.search import match_one
 
 
 async def cmd_create(ctx: CommandContext) -> None:
@@ -48,7 +35,7 @@ async def cmd_create(ctx: CommandContext) -> None:
     # Find parent if specified
     parent = None
     if parent_name:
-        parent = _find_object_global(parent_name)
+        parent = find_object_global(ctx, parent_name)
         if not parent:
             await ctx.session.send(f"Parent object '{parent_name}' not found.")
             return
@@ -62,9 +49,7 @@ async def cmd_create(ctx: CommandContext) -> None:
         tags=['thing'],
     )
 
-    # Save to persistence
-    if _persistence:
-        await _persistence.save(obj)
+    await save_object(ctx, obj)
 
     await ctx.session.send(f"Created: {obj.name} (#{obj.id[:8]})")
 
@@ -104,8 +89,7 @@ async def cmd_dig(ctx: CommandContext) -> None:
         tags=['room'],
     )
 
-    if _persistence:
-        await _persistence.save(new_room)
+    await save_object(ctx, new_room)
 
     await ctx.session.send(f"Room created: {new_room.name} (#{new_room.id[:8]})")
 
@@ -136,10 +120,8 @@ async def cmd_dig(ctx: CommandContext) -> None:
                 tags=['exit'],
             )
             exit_out.db.destination = new_room.id
-            exit_out.db.destination_obj = new_room
 
-            if _persistence:
-                await _persistence.save(exit_out)
+            await save_object(ctx, exit_out)
 
             await ctx.session.send(f"  Exit '{exit_name}' created -> {new_room.name}")
 
@@ -153,10 +135,8 @@ async def cmd_dig(ctx: CommandContext) -> None:
                     tags=['exit'],
                 )
                 exit_back.db.destination = current_room.id
-                exit_back.db.destination_obj = current_room
 
-                if _persistence:
-                    await _persistence.save(exit_back)
+                await save_object(ctx, exit_back)
 
                 await ctx.session.send(f"  Exit '{return_name}' created -> {current_room.name}")
 
@@ -182,7 +162,7 @@ async def cmd_open(ctx: CommandContext) -> None:
     dest_spec = ctx.right_args.strip()
 
     # Find the destination
-    destination = _find_object_global(dest_spec)
+    destination = find_object_global(ctx, dest_spec)
     if not destination:
         await ctx.session.send(f"Destination '{dest_spec}' not found.")
         return
@@ -199,10 +179,8 @@ async def cmd_open(ctx: CommandContext) -> None:
         tags=['exit'],
     )
     exit_obj.db.destination = destination.id
-    exit_obj.db.destination_obj = destination
 
-    if _persistence:
-        await _persistence.save(exit_obj)
+    await save_object(ctx, exit_obj)
 
     await ctx.session.send(f"Exit '{exit_name}' created -> {destination.name}")
 
@@ -226,11 +204,8 @@ async def cmd_link(ctx: CommandContext) -> None:
     dest_spec = ctx.right_args.strip()
 
     # Find the exit in current room
-    exit_obj = None
-    for obj in ctx.player.location.contents:
-        if obj.has_tag('exit') and obj.name.lower() == exit_name.lower():
-            exit_obj = obj
-            break
+    exits = [obj for obj in ctx.player.location.contents if obj.has_tag('exit')]
+    exit_obj = match_one(exit_name, exits, allow_substring=False)
 
     if not exit_obj:
         await ctx.session.send(f"Exit '{exit_name}' not found here.")
@@ -240,7 +215,7 @@ async def cmd_link(ctx: CommandContext) -> None:
     if dest_spec.lower() == 'here':
         destination = ctx.player.location
     else:
-        destination = _find_object_global(dest_spec)
+        destination = find_object_global(ctx, dest_spec)
 
     if not destination:
         await ctx.session.send(f"Destination '{dest_spec}' not found.")
@@ -248,10 +223,8 @@ async def cmd_link(ctx: CommandContext) -> None:
 
     # Update the exit
     exit_obj.db.destination = destination.id
-    exit_obj.db.destination_obj = destination
 
-    if _persistence:
-        await _persistence.save(exit_obj)
+    await save_object(ctx, exit_obj)
 
     await ctx.session.send(f"Exit '{exit_name}' now leads to {destination.name}")
 
@@ -272,11 +245,8 @@ async def cmd_unlink(ctx: CommandContext) -> None:
     exit_name = ctx.args.strip()
 
     # Find the exit
-    exit_obj = None
-    for obj in ctx.player.location.contents:
-        if obj.has_tag('exit') and obj.name.lower() == exit_name.lower():
-            exit_obj = obj
-            break
+    exits = [obj for obj in ctx.player.location.contents if obj.has_tag('exit')]
+    exit_obj = match_one(exit_name, exits, allow_substring=False)
 
     if not exit_obj:
         await ctx.session.send(f"Exit '{exit_name}' not found here.")
@@ -286,41 +256,9 @@ async def cmd_unlink(ctx: CommandContext) -> None:
     exit_obj.db.delete('destination')
     exit_obj.db.delete('destination_obj')
 
-    if _persistence:
-        await _persistence.save(exit_obj)
+    await save_object(ctx, exit_obj)
 
     await ctx.session.send(f"Exit '{exit_name}' unlinked.")
-
-
-def _find_object_global(spec: str) -> GameObject | None:
-    """
-    Find an object by ID or name.
-
-    Checks:
-    1. By ID (if starts with # or looks like UUID)
-    2. By name in persistence cache
-    """
-    if not _persistence:
-        return None
-
-    spec = spec.strip()
-
-    # Check if it's an ID reference
-    if spec.startswith('#'):
-        obj_id = spec[1:]
-        return _persistence._object_cache.get(obj_id)
-
-    # Check if it looks like a UUID
-    if '-' in spec and len(spec) > 30:
-        return _persistence._object_cache.get(spec)
-
-    # Search by name in cache
-    spec_lower = spec.lower()
-    for obj in _persistence._object_cache.values():
-        if obj.name.lower() == spec_lower:
-            return obj
-
-    return None
 
 
 def register_create_commands(dispatcher: CommandDispatcher) -> None:

@@ -23,11 +23,15 @@ to prevent runaway chain reactions.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -55,12 +59,12 @@ class Action:
       - Call ``action.queue_trailing(other)`` to chain another action.
     """
 
-    actor: Optional[GameObject]
-    target: Optional[GameObject]
+    actor: GameObject | None
+    target: GameObject | None
     action_type: str
 
-    tool: Optional[GameObject] = None
-    chain: Optional[list[Step]] = None
+    tool: GameObject | None = None
+    chain: list[Step] | None = None
     tags: set[str] = field(default_factory=set)
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -73,6 +77,10 @@ class Action:
     messages: dict[str, list[str]] = field(
         default_factory=lambda: {"actor": [], "target": [], "room": []}
     )
+    # Messages that only make sense if the action succeeds ("You say ...").
+    # deliver_messages suppresses these when the action is blocked, while
+    # regular messages (a trap announcing itself) always deliver.
+    success_messages: dict[str, list[str]] = field(default_factory=dict)
     trailing_actions: list[Action] = field(default_factory=list)
 
     @property
@@ -96,9 +104,19 @@ class Action:
     def add_modifier(self, value: int, reason: str) -> None:
         self.modifiers.append((value, reason))
 
-    def add_message(self, audience: str, msg: str) -> None:
-        """Queue a message. Standard audiences: 'actor', 'target', 'room'."""
-        self.messages.setdefault(audience, []).append(msg)
+    def add_message(self, audience: str, msg: str, *, success_only: bool = False) -> None:
+        """
+        Queue a message. Standard audiences: 'actor', 'target', 'room'.
+
+        ``success_only=True`` marks a message that must not deliver if the
+        action ends up blocked — the calling convention for a command's own
+        outcome lines ("You say ..."), letting the command bake them before
+        propagating and still gate on ``action.blocked`` afterwards.
+        """
+        if success_only:
+            self.success_messages.setdefault(audience, []).append(msg)
+        else:
+            self.messages.setdefault(audience, []).append(msg)
 
     def add_data(self, key: str, value: Any) -> None:
         self.extra[key] = value
@@ -107,16 +125,48 @@ class Action:
         """Queue a follow-up action. Processed after this one, depth-limited."""
         self.trailing_actions.append(action)
 
-    def format_message(self, msg: str, looker: Optional[GameObject] = None) -> str:
-        """Substitute ``{actor}``, ``{target}``, and ``{tool}`` in a message."""
-        actor_name = self.actor.name if self.actor is not None else "Someone"
-        target_name = self.target.name if self.target is not None else "something"
-        tool_name = self.tool.name if self.tool is not None else "something"
-        return (
-            msg.replace("{actor}", actor_name)
-               .replace("{target}", target_name)
-               .replace("{tool}", tool_name)
-        )
+    def format_message(self, msg: str, looker: GameObject | None = None) -> str:
+        """
+        Substitute participant tokens in a message template.
+
+        Tokens, for each of ``actor`` / ``target`` / ``tool``:
+          - ``{target}``     — bare name: "apple"
+          - ``{target:a}``   — indefinite: "an apple" (article overrides
+                               and proper nouns handled by core.language)
+          - ``{target:the}`` — definite: "the apple"
+
+        ``looker`` makes formatting perception-aware: each participant is
+        named via ``get_display_name(looker)``, so a recipient who can't
+        see the actor reads "Someone picks up an apple." Unseen
+        participants take no article.
+        """
+        from realm.core.language import definite_name, singular_name
+
+        result = msg
+        for token, obj, missing in (
+            ("actor", self.actor, "Someone"),
+            ("target", self.target, "something"),
+            ("tool", self.tool, "something"),
+        ):
+            if f"{{{token}" not in result:
+                continue
+            if obj is None:
+                bare = indefinite = definite = missing
+            else:
+                bare = obj.get_display_name(looker)
+                if bare == obj.name:
+                    indefinite = singular_name(obj)
+                    definite = definite_name(obj)
+                else:
+                    # Unseen: "Someone"/"something" reads wrong with an
+                    # article attached.
+                    indefinite = definite = bare
+            result = (
+                result.replace(f"{{{token}:a}}", indefinite)
+                      .replace(f"{{{token}:the}}", definite)
+                      .replace(f"{{{token}}}", bare)
+            )
+        return result
 
 
 class Step(Protocol):
@@ -126,7 +176,7 @@ class Step(Protocol):
     async def on_react(self, action: Action) -> None: ...
 
 
-def _get_room(action: Action) -> Optional[GameObject]:
+def _get_room(action: Action) -> GameObject | None:
     """
     Find the room for an action.
 
@@ -186,7 +236,7 @@ class RoomContentsStep:
     come directly from the target instead of from target.location.contents.
     """
 
-    def __init__(self, get_contents: Optional[ContentsFn] = None):
+    def __init__(self, get_contents: ContentsFn | None = None):
         self._get_contents = get_contents
 
     def _contents(self, action: Action) -> Iterable[GameObject]:
@@ -259,6 +309,27 @@ class PropagationEngine:
 
     MAX_TRAILING_DEPTH = 3
 
+    def __init__(self):
+        # Cross-cutting systems (the script engine) that see every action
+        # after its react pass. Not for per-object logic — that's behaviors.
+        self._observers: list[Callable[[Action], Awaitable[None]]] = []
+
+    def add_observer(self, observer: Callable[[Action], Awaitable[None]]) -> None:
+        """
+        Register an async callable invoked with every propagated action,
+        at every depth of the trailing tree, after the reaction pass and
+        message delivery. Observers see blocked actions too (check
+        ``action.blocked``). An observer that emits new actions must bound
+        its own recursion — a fresh ``propagate()`` starts a fresh tree.
+        """
+        if observer not in self._observers:
+            self._observers.append(observer)
+
+    def remove_observer(self, observer: Callable[[Action], Awaitable[None]]) -> None:
+        """Unregister an observer registered with add_observer."""
+        if observer in self._observers:
+            self._observers.remove(observer)
+
     async def propagate(
         self,
         action: Action,
@@ -290,6 +361,17 @@ class PropagationEngine:
         if deliver:
             deliver_messages(action)
 
+        # Observers run after delivery so their own output (an NPC replying
+        # to overheard speech) reads after the action that provoked it. A
+        # failing observer must never break the action being propagated.
+        for observer in list(self._observers):
+            try:
+                await observer(action)
+            except Exception:
+                logger.exception(
+                    f"Action observer failed on {action.action_type}"
+                )
+
         if action.trailing_actions and _depth < self.MAX_TRAILING_DEPTH:
             for trailing in action.trailing_actions:
                 await self.propagate(trailing, _depth=_depth + 1, deliver=deliver)
@@ -297,7 +379,7 @@ class PropagationEngine:
         return action
 
 
-_engine: Optional[PropagationEngine] = None
+_engine: PropagationEngine | None = None
 
 
 def get_engine() -> PropagationEngine:
@@ -316,7 +398,7 @@ def reset_engine() -> None:
 
 async def propagate(
     action: Action,
-    engine: Optional[PropagationEngine] = None,
+    engine: PropagationEngine | None = None,
     deliver: bool = True,
 ) -> Action:
     """
@@ -332,7 +414,34 @@ async def propagate(
     return await (engine or get_engine()).propagate(action, deliver=deliver)
 
 
-def _delivery_room(action: Action) -> Optional[GameObject]:
+async def gate_action(
+    action: Action,
+    *,
+    fail_msg: str = "You can't do that.",
+    engine: PropagationEngine | None = None,
+) -> bool:
+    """
+    Propagate an action that a lock or behavior may veto.
+
+    The gated calling convention: build the action WITHOUT success
+    messages, gate it, and only on True mutate state, add the success
+    messages, and call deliver_messages(action).
+
+    On a block this messages the actor with the block reason (or
+    ``fail_msg``) and delivers any behavior-added messages (a trap
+    announcing itself), then returns False. Trailing actions propagate
+    without delivery here — the same trade-off as the movement gate.
+    """
+    await propagate(action, engine=engine, deliver=False)
+    if action.blocked:
+        if action.actor is not None:
+            action.actor.msg(action.block_reason or fail_msg)
+        deliver_messages(action)
+        return False
+    return True
+
+
+def _delivery_room(action: Action) -> GameObject | None:
     """Find the room used as the audience for 'room' messages."""
     if action.actor is not None:
         loc = getattr(action.actor, "location", None)
@@ -354,10 +463,14 @@ def deliver_messages(action: Action) -> None:
 
     - 'actor' messages go to ``action.actor.msg(...)``
     - 'target' messages go to ``action.target.msg(...)`` (skipped if target is actor)
-    - 'room' messages go to the delivery room's ``msg_contents(..., exclude=[actor, target])``
+    - 'room' messages go to everyone else in the delivery room
 
-    All messages are passed through ``action.format_message`` first, which
-    substitutes ``{actor}`` / ``{target}`` / ``{tool}`` placeholders.
+    Every message is formatted **per recipient** via
+    ``action.format_message(msg, looker=recipient)``, so perception rules
+    apply: a bystander who can't see the actor reads "Someone picks up an
+    apple." while an admin in the same room reads "Alice picks up an
+    apple." Recipients without a message handler (unlinked NPCs, items)
+    are skipped before formatting.
 
     Audiences other than 'actor' / 'target' / 'room' are ignored here — they
     can still be inspected on ``action.messages`` by any caller that wants
@@ -366,19 +479,33 @@ def deliver_messages(action: Action) -> None:
     actor = action.actor
     target = action.target
 
+    def audience_messages(audience: str) -> list[str]:
+        msgs: list[str] = []
+        if not action.blocked:
+            msgs.extend(action.success_messages.get(audience, ()))
+        msgs.extend(action.messages.get(audience, ()))
+        return msgs
+
     if actor is not None:
-        for msg in action.messages.get("actor", ()):
-            actor.msg(action.format_message(msg))
+        for msg in audience_messages("actor"):
+            actor.msg(action.format_message(msg, looker=actor))
 
     if target is not None and target is not actor:
-        for msg in action.messages.get("target", ()):
-            target.msg(action.format_message(msg))
+        for msg in audience_messages("target"):
+            target.msg(action.format_message(msg, looker=target))
 
     room = _delivery_room(action)
-    if room is not None and hasattr(room, "msg_contents"):
-        exclude = [obj for obj in (actor, target) if obj is not None]
-        for msg in action.messages.get("room", ()):
-            room.msg_contents(action.format_message(msg), exclude=exclude)
+    if room is not None:
+        room_msgs = audience_messages("room")
+        if room_msgs:
+            # Every non-participant gets the message (matching the old
+            # msg_contents semantics — subclasses may override .msg() for
+            # listen-style reactions even without a session handler).
+            for recipient in room.contents:
+                if recipient is actor or recipient is target:
+                    continue
+                for msg in room_msgs:
+                    recipient.msg(action.format_message(msg, looker=recipient))
 
 
 __all__ = [
@@ -393,5 +520,6 @@ __all__ = [
     "get_engine",
     "reset_engine",
     "propagate",
+    "gate_action",
     "deliver_messages",
 ]

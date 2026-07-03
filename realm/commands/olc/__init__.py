@@ -5,9 +5,9 @@ Builder commands for creating and modifying the game world.
 All OLC commands start with @ by convention.
 """
 
+from realm.commands.olc.admin import register_admin_commands
 from realm.commands.olc.create import register_create_commands
 from realm.commands.olc.modify import register_modify_commands
-from realm.commands.olc.admin import register_admin_commands
 
 
 def register_olc_commands(dispatcher) -> None:

@@ -1,24 +1,39 @@
 """Tests for OLC (Online Creation) commands."""
 
 import pytest
-from realm.core.objects import GameObject
-from realm.gateway.session import Session
-from realm.commands import CommandDispatcher, CommandContext
+
+from realm.commands import CommandContext, CommandDispatcher
+from realm.commands.base import find_object_global
+from realm.commands.olc.admin import (
+    cmd_chown,
+    cmd_destroy,
+    cmd_examine_full,
+    cmd_find,
+    cmd_teleport,
+)
 from realm.commands.olc.create import (
-    cmd_create, cmd_dig, cmd_open, cmd_link, cmd_unlink,
-    set_persistence, _find_object_global,
+    cmd_create,
+    cmd_dig,
+    cmd_link,
+    cmd_open,
+    cmd_unlink,
 )
 from realm.commands.olc.modify import (
-    cmd_desc, cmd_name, cmd_set, cmd_wipe, cmd_parent,
-    cmd_tag, cmd_untag, cmd_lock, cmd_unlock,
+    cmd_desc,
+    cmd_lock,
+    cmd_name,
+    cmd_parent,
+    cmd_set,
+    cmd_tag,
+    cmd_unlock,
+    cmd_untag,
+    cmd_wipe,
 )
-from realm.commands.olc.admin import (
-    cmd_teleport, cmd_chown, cmd_destroy, cmd_find, cmd_examine_full,
-)
+from realm.core.objects import GameObject
 
 
 class MockPersistence:
-    """Mock persistence manager for testing."""
+    """Mock persistence manager implementing the public lookup API."""
 
     def __init__(self):
         self._object_cache = {}
@@ -38,6 +53,23 @@ class MockPersistence:
         """Add object to cache without async."""
         self._object_cache[obj.id] = obj
 
+    def get_cached(self, obj_id):
+        return self._object_cache.get(obj_id)
+
+    def all_cached(self):
+        return list(self._object_cache.values())
+
+    def find_cached(self, *, tag=None, name=None):
+        name_lower = name.lower() if name is not None else None
+        results = []
+        for obj in self._object_cache.values():
+            if tag is not None and not obj.has_tag(tag):
+                continue
+            if name_lower is not None and obj.name.lower() != name_lower:
+                continue
+            results.append(obj)
+        return results
+
 
 class MockSession:
     """Mock session for testing."""
@@ -54,10 +86,17 @@ class MockSession:
 
 
 def make_context(player, raw_input="", command_name="", args="",
-                 left_args=None, right_args=None, switches=None):
-    """Create a command context for testing."""
+                 left_args=None, right_args=None, switches=None,
+                 persistence=None):
+    """Create a command context for testing.
+
+    Commands reach persistence via ctx.dispatcher, mirroring how
+    GameServer wires the real dispatcher.
+    """
     session = MockSession()
     session.link_player(player)
+    dispatcher = CommandDispatcher()
+    dispatcher.persistence = persistence if persistence is not None else _current_persistence
     return CommandContext(
         session=session,
         player=player,
@@ -67,7 +106,18 @@ def make_context(player, raw_input="", command_name="", args="",
         left_args=left_args,
         right_args=right_args,
         switches=switches or [],
+        dispatcher=dispatcher,
     )
+
+
+# Persistence used by make_context, set per-test-class via use_persistence().
+_current_persistence = None
+
+
+def use_persistence(persistence):
+    """Point contexts built by make_context at this persistence manager."""
+    global _current_persistence
+    _current_persistence = persistence
 
 
 class TestCreateCommands:
@@ -76,7 +126,7 @@ class TestCreateCommands:
     def setup_method(self):
         """Set up test environment."""
         self.persistence = MockPersistence()
-        set_persistence(self.persistence)
+        use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
         self.player = GameObject("Builder", tags=['player'], location=self.room)
@@ -230,7 +280,7 @@ class TestModifyCommands:
     def setup_method(self):
         """Set up test environment."""
         self.persistence = MockPersistence()
-        set_persistence(self.persistence)
+        use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
         self.player = GameObject("Builder", tags=['player'], location=self.room)
@@ -444,7 +494,7 @@ class TestModifyCommands:
         )
         await cmd_lock(ctx)
 
-        assert self.sword.locks['default'] == "caller.has_tag('knight')"
+        assert self.sword.locks['basic'] == "caller.has_tag('knight')"
 
     @pytest.mark.asyncio
     async def test_lock_with_type(self):
@@ -479,7 +529,7 @@ class TestAdminCommands:
     def setup_method(self):
         """Set up test environment."""
         self.persistence = MockPersistence()
-        set_persistence(self.persistence)
+        use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
         self.room2 = GameObject("Other Room", tags=['room'])
@@ -634,29 +684,33 @@ class TestFindObjectGlobal:
     def setup_method(self):
         """Set up test environment."""
         self.persistence = MockPersistence()
-        set_persistence(self.persistence)
+        use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
         self.persistence.add(self.room)
 
     def test_find_by_id(self):
-        """_find_object_global finds by #id."""
-        result = _find_object_global(f"#{self.room.id}")
+        """find_object_global finds by #id."""
+        ctx = make_context(None)
+        result = find_object_global(ctx, f"#{self.room.id}")
         assert result == self.room
 
     def test_find_by_name(self):
-        """_find_object_global finds by name."""
-        result = _find_object_global("Test Room")
+        """find_object_global finds by name."""
+        ctx = make_context(None)
+        result = find_object_global(ctx, "Test Room")
         assert result == self.room
 
     def test_find_by_name_case_insensitive(self):
-        """_find_object_global is case insensitive."""
-        result = _find_object_global("test room")
+        """find_object_global is case insensitive."""
+        ctx = make_context(None)
+        result = find_object_global(ctx, "test room")
         assert result == self.room
 
     def test_find_not_found(self):
-        """_find_object_global returns None when not found."""
-        result = _find_object_global("nonexistent")
+        """find_object_global returns None when not found."""
+        ctx = make_context(None)
+        result = find_object_global(ctx, "nonexistent")
         assert result is None
 
 
@@ -666,7 +720,7 @@ class TestResolveTarget:
     def setup_method(self):
         """Set up test environment."""
         self.persistence = MockPersistence()
-        set_persistence(self.persistence)
+        use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
         self.player = GameObject("Builder", tags=['player'], location=self.room)
@@ -698,3 +752,54 @@ class TestResolveTarget:
         await cmd_desc(ctx)
 
         assert self.room.description == "Room description"
+
+
+class TestOLCAgainstRealPersistence:
+    """
+    Regression: @dig/@open/@link once stored a live GameObject reference in
+    exit attributes, which json.dumps could not serialize — every OLC exit
+    command crashed against the real database. OLC must build worlds that
+    the real PersistenceManager can save, and the exits must still resolve.
+    """
+
+    @pytest.mark.asyncio
+    async def test_dig_saves_and_exits_resolve(self):
+        from realm.core.movement import resolve_exit_destination
+        from realm.persistence.manager import PersistenceManager
+
+        pm = PersistenceManager(":memory:")
+        await pm.initialize()
+        try:
+            room = GameObject("Test Room", tags=['room'])
+            player = GameObject("Builder", tags=['player', 'builder'], location=room)
+            await pm.save(room)
+            await pm.save(player)
+
+            ctx = make_context(
+                player,
+                args="Test Lab = east",
+                left_args="Test Lab",
+                right_args="east",
+                persistence=pm,
+            )
+            await cmd_dig(ctx)  # raised TypeError before the fix
+
+            messages = "\n".join(ctx.session.messages)
+            assert "Room created" in messages
+            assert "error" not in messages.lower()
+
+            exit_east = next(
+                obj for obj in room.contents
+                if obj.has_tag('exit') and obj.name == 'east'
+            )
+            new_room = resolve_exit_destination(exit_east, pm)
+            assert new_room is not None and new_room.name == "Test Lab"
+
+            # The return exit resolves back from the new room.
+            exit_west = next(
+                obj for obj in new_room.contents
+                if obj.has_tag('exit') and obj.name == 'west'
+            )
+            assert resolve_exit_destination(exit_west, pm) == room
+        finally:
+            await pm.close()

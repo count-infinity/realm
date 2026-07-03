@@ -119,7 +119,12 @@ class PersistenceManager:
         """Background loop that flushes the save queue periodically."""
         while self._running:
             await asyncio.sleep(self.flush_interval)
-            await self._flush_queue()
+            try:
+                await self._flush_queue()
+            except Exception:
+                # One bad object must not kill autosave for the rest of the
+                # server's lifetime — log and keep the loop alive.
+                logger.exception("Error flushing save queue; autosave continues")
 
     async def _flush_queue(self) -> None:
         """Process all objects in the save queue."""
@@ -156,6 +161,31 @@ class PersistenceManager:
     def unregister(self, obj: GameObject) -> None:
         """Remove an object from the cache."""
         self._object_cache.pop(obj.id, None)
+
+    def get_cached(self, obj_id: str) -> GameObject | None:
+        """Get a loaded object by ID without touching the database."""
+        return self._object_cache.get(obj_id)
+
+    def all_cached(self) -> list[GameObject]:
+        """All loaded objects. Callers filter by tag/name as needed."""
+        return list(self._object_cache.values())
+
+    def find_cached(self, *, tag: str | None = None, name: str | None = None) -> list[GameObject]:
+        """
+        Find loaded objects by tag and/or exact name (case-insensitive).
+
+        The standard lookup for "the player named X" / "everything tagged
+        room" style queries, replacing direct iteration of the cache.
+        """
+        name_lower = name.lower() if name is not None else None
+        results = []
+        for obj in self._object_cache.values():
+            if tag is not None and not obj.has_tag(tag):
+                continue
+            if name_lower is not None and obj.name.lower() != name_lower:
+                continue
+            results.append(obj)
+        return results
 
     async def save(self, obj: GameObject) -> None:
         """Save an object immediately."""
@@ -266,7 +296,6 @@ class PersistenceManager:
 
     def _object_to_row(self, obj: GameObject) -> dict[str, Any]:
         """Convert a GameObject to database row data."""
-        from realm.core.behaviors import Behavior
 
         # Serialize behaviors
         behaviors_data = []

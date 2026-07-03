@@ -9,34 +9,17 @@ from __future__ import annotations
 from realm.commands import CommandContext, CommandDispatcher
 
 
-# Reference to session manager (set by GameServer)
-_session_manager = None
-_dispatcher = None
-
-
-def set_session_manager(manager) -> None:
-    """Set the session manager for utility commands."""
-    global _session_manager
-    _session_manager = manager
-
-
-def set_command_dispatcher(dispatcher) -> None:
-    """Set the command dispatcher for help command."""
-    global _dispatcher
-    _dispatcher = dispatcher
-
-
 async def cmd_who(ctx: CommandContext) -> None:
     """
     Show who is online.
 
     Usage: who
     """
-    if not _session_manager:
+    if not ctx.session_manager:
         await ctx.session.send("Who list unavailable.")
         return
 
-    playing = _session_manager.playing_sessions()
+    playing = ctx.session_manager.playing_sessions()
 
     await ctx.session.send(f"\n{'=' * 40}")
     await ctx.session.send(f"  {len(playing)} player(s) online")
@@ -76,10 +59,9 @@ async def cmd_quit(ctx: CommandContext) -> None:
     """
     await ctx.session.send("Goodbye! Come back soon.")
 
-    if _session_manager:
-        # Import here to avoid circular dependency
-        import asyncio
-        asyncio.create_task(_session_manager.destroy_session(ctx.session))
+    if ctx.session_manager:
+        # destroy_session flushes the farewell, then hangs up the connection.
+        await ctx.session_manager.destroy_session(ctx.session)
 
 
 async def cmd_help(ctx: CommandContext) -> None:
@@ -88,7 +70,7 @@ async def cmd_help(ctx: CommandContext) -> None:
 
     Usage: help [command]
     """
-    if not _dispatcher:
+    if not ctx.dispatcher:
         await ctx.session.send("Help unavailable.")
         return
 
@@ -102,7 +84,7 @@ async def cmd_help(ctx: CommandContext) -> None:
 
 async def _show_command_list(ctx: CommandContext) -> None:
     """Show list of available commands."""
-    commands = _dispatcher.list_commands(ctx.player)
+    commands = ctx.dispatcher.list_commands(ctx.player)
 
     await ctx.session.send("\n" + "=" * 40)
     await ctx.session.send("  Available Commands")
@@ -139,7 +121,7 @@ async def _show_command_list(ctx: CommandContext) -> None:
 
 async def _show_command_help(ctx: CommandContext, command_name: str) -> None:
     """Show help for a specific command."""
-    cmd = _dispatcher.get_command(command_name.lower())
+    cmd = ctx.dispatcher.get_command(command_name.lower())
 
     if not cmd:
         await ctx.session.send(f"Unknown command: {command_name}")
@@ -227,8 +209,6 @@ async def cmd_recall(ctx: CommandContext) -> None:
 
 def register_utility_commands(dispatcher: CommandDispatcher) -> None:
     """Register utility commands with the dispatcher."""
-    global _dispatcher
-    _dispatcher = dispatcher
 
     dispatcher.register(
         "who",

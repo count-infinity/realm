@@ -22,10 +22,9 @@ from typing import TYPE_CHECKING, Any
 
 from realm.combat.combatant import Combatant, CombatState, get_combatant
 from realm.combat.ruleset import (
-    Ruleset,
     AttackResult,
     DamageResult,
-    RollResult,
+    Ruleset,
 )
 from realm.core.propagation import Action, propagate
 

@@ -5,9 +5,9 @@ Provides command registration, parsing, and execution.
 """
 
 from realm.server.dispatcher import (
-    CommandDispatcher,
-    CommandContext,
     Command,
+    CommandContext,
+    CommandDispatcher,
     command,
     register_commands,
 )

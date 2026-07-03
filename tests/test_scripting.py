@@ -1,23 +1,24 @@
 """Tests for the scripting system."""
 
 import pytest
+
 from realm.core.objects import GameObject
+from realm.scripting.functions import ScriptFunctions
 from realm.scripting.sandbox import (
-    ScriptSandbox,
     ScriptContext,
     ScriptError,
-    ScriptSecurityError,
     ScriptLimits,
+    ScriptSandbox,
+    ScriptSecurityError,
     SimpleScriptRunner,
 )
 from realm.scripting.triggers import (
-    TriggerManager,
     CommandTrigger,
-    ListenTrigger,
     EventTrigger,
+    ListenTrigger,
+    TriggerManager,
     get_search_objects,
 )
-from realm.scripting.functions import ScriptFunctions
 
 
 class TestScriptSandbox:

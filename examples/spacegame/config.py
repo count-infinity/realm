@@ -47,11 +47,11 @@ async def init_world(server):
     if docking_bay:
         docking_bay.add_tag("start_room")
         await server.persistence.save(docking_bay)
-        server._startup_room = docking_bay
+        server.startup_room = docking_bay
 
     # Create equipment and ship prototypes
     await create_equipment_prototypes(server.persistence)
     await create_ship_prototypes(server.persistence)
 
     print(f"Created {len(world)} locations")
-    print(f"Starting room: {server._startup_room.name if server._startup_room else 'None'}")
+    print(f"Starting room: {server.startup_room.name if server.startup_room else 'None'}")

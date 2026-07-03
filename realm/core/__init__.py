@@ -7,13 +7,13 @@ Core module containing the fundamental building blocks of REALM.
 - Tags: Flexible categorization
 """
 
-from realm.core.objects import GameObject, AttributeProxy
 from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.objects import AttributeProxy, GameObject
 from realm.core.propagation import (
+    ROOM_TARGET_CHAIN,
     Action,
     ActorStep,
     PropagationEngine,
-    ROOM_TARGET_CHAIN,
     RoomContentsStep,
     RoomStep,
     Step,

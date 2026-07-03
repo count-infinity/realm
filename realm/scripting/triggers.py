@@ -22,7 +22,7 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -245,14 +245,18 @@ class TriggerManager:
         return triggers
 
     def get_event_triggers(self, obj: GameObject, event_type: str) -> list[EventTrigger]:
-        """Get all event triggers of a specific type from an object."""
+        """
+        Get all event triggers of a specific type from an object.
+
+        Attribute keys match case-insensitively (``on_enter`` and
+        ``ON_ENTER`` both work), consistent with CMD_/LISTEN_ parsing.
+        """
         triggers = []
         attr_name = f'{EVENT_ATTR_PREFIX}{event_type.upper()}'
 
-        # Check for the event attribute
-        action = obj.db.get(attr_name)
-        if action and isinstance(action, str):
-            triggers.append(EventTrigger(event_type=event_type, action=action))
+        for key, value in obj.db.all().items():
+            if key.upper() == attr_name and isinstance(value, str) and value:
+                triggers.append(EventTrigger(event_type=event_type, action=value))
 
         return triggers
 
@@ -383,32 +387,6 @@ class TriggerManager:
                     ))
 
         return matches
-
-    def find_event_triggers(
-        self,
-        event: Event,
-        obj: GameObject,
-    ) -> list[EventTrigger]:
-        """
-        Find event triggers on an object that match the event.
-
-        Args:
-            event: The game event that occurred
-            obj: The object to check for triggers
-
-        Returns:
-            List of matching EventTrigger objects
-        """
-        # Skip objects with HALT flag
-        if obj.has_tag('halt'):
-            return []
-
-        # Get the event type string
-        event_type = str(event.type)
-        if '.' in event_type:
-            event_type = event_type.split('.')[-1]
-
-        return self.get_event_triggers(obj, event_type)
 
 
 def get_search_objects(player: GameObject) -> list[GameObject]:

@@ -11,9 +11,10 @@ import asyncio
 import logging
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Awaitable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -58,6 +59,7 @@ class Session:
         '_input_queue',
         '_output_queue',
         '_writer',
+        '_closer',
         '_protocol',
         '_address',
         '_created_at',
@@ -79,6 +81,7 @@ class Session:
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._output_queue: asyncio.Queue[str] = asyncio.Queue()
         self._writer: Callable[[str], Awaitable[None]] | None = None
+        self._closer: Callable[[], Any] | None = None
 
         self._protocol = protocol
         self._address = address
@@ -115,6 +118,27 @@ class Session:
     def set_writer(self, writer: Callable[[str], Awaitable[None]]) -> None:
         """Set the function used to write data to the client."""
         self._writer = writer
+
+    def set_closer(self, closer: Callable[[], Any] | None) -> None:
+        """
+        Set the function that closes the underlying connection.
+
+        Wired by the protocol layer so the server can hang up (quit command,
+        shutdown) instead of waiting for the client to disconnect. May be a
+        plain callable or one returning an awaitable.
+        """
+        self._closer = closer
+
+    async def close_connection(self) -> None:
+        """Close the underlying network connection, if a closer is wired."""
+        if self._closer is None:
+            return
+        try:
+            result = self._closer()
+            if result is not None and hasattr(result, '__await__'):
+                await result
+        except Exception as e:
+            logger.warning(f"Session {self.id}: error closing connection: {e}")
 
     def touch(self) -> None:
         """Update last activity timestamp."""
@@ -205,7 +229,10 @@ class SessionManager:
     Handles session lifecycle events.
     """
 
-    __slots__ = ('_sessions', '_by_player', '_by_address', '_on_connect', '_on_disconnect')
+    __slots__ = (
+        '_sessions', '_by_player', '_by_address',
+        '_on_connect', '_on_disconnect', '_pending_destroys',
+    )
 
     def __init__(self):
         self._sessions: dict[str, Session] = {}
@@ -215,6 +242,10 @@ class SessionManager:
         # Callbacks
         self._on_connect: list[Callable[[Session], Awaitable[None]]] = []
         self._on_disconnect: list[Callable[[Session], Awaitable[None]]] = []
+
+        # Strong refs to in-flight destroy tasks — a bare create_task() can
+        # be garbage-collected before it runs.
+        self._pending_destroys: set[asyncio.Task] = set()
 
     def on_connect(self, callback: Callable[[Session], Awaitable[None]]) -> None:
         """Register a callback for new connections."""
@@ -286,7 +317,9 @@ class SessionManager:
         return session
 
     async def destroy_session(self, session: Session) -> None:
-        """Clean up and remove a session."""
+        """Clean up a session and hang up its connection. Idempotent."""
+        if session.id not in self._sessions:
+            return
         session.state = SessionState.DISCONNECTING
 
         # Notify callbacks
@@ -313,7 +346,22 @@ class SessionManager:
         # Remove from main registry
         self._sessions.pop(session.id, None)
 
+        # Deliver anything still queued (farewells), then hang up. Without
+        # this the server depends on the client closing the socket.
+        await self._auto_flush(session)
+        await session.close_connection()
+
         logger.info(f"Session destroyed: {session.id}")
+
+    def destroy_session_soon(self, session: Session) -> None:
+        """
+        Schedule a session for destruction from sync code (protocol
+        callbacks). Holds a reference to the task so it can't be
+        garbage-collected before running.
+        """
+        task = asyncio.create_task(self.destroy_session(session))
+        self._pending_destroys.add(task)
+        task.add_done_callback(self._pending_destroys.discard)
 
     def get_session(self, session_id: str) -> Session | None:
         """Get a session by ID."""

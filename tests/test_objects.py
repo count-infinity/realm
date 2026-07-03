@@ -1,7 +1,8 @@
 """Tests for GameObject and AttributeProxy."""
 
 import pytest
-from realm.core.objects import GameObject, AttributeProxy
+
+from realm.core.objects import GameObject
 
 
 class TestAttributeProxy:

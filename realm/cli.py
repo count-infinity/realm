@@ -25,7 +25,7 @@ from pathlib import Path
 
 from realm.config.loader import load_config
 from realm.server.game import GameServer
-from realm.templates import render_template, get_template
+from realm.templates import render_template
 
 # Examples directory (for --template option)
 EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
@@ -77,7 +77,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         game_name=game_name.replace("_", " ").title(),
     )
     (project_dir / "config.py").write_text(config_content)
-    print(f"  Created config.py")
+    print("  Created config.py")
 
     # Create welcome.txt from template
     welcome_content = render_template(
@@ -85,12 +85,12 @@ def cmd_init(args: argparse.Namespace) -> int:
         game_name=game_name.replace("_", " ").title(),
     )
     (project_dir / "data" / "welcome.txt").write_text(welcome_content)
-    print(f"  Created data/welcome.txt")
+    print("  Created data/welcome.txt")
 
     print()
-    print(f"Project created! Next steps:")
+    print("Project created! Next steps:")
     print(f"  cd {game_name}")
-    print(f"  realm start")
+    print("  realm start")
     print()
     print("Edit config.py to customize your game.")
 
@@ -124,11 +124,11 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
             print(f"  Created {rel_path}")
 
     print()
-    print(f"Project created! Next steps:")
+    print("Project created! Next steps:")
     print(f"  cd {game_name}")
-    print(f"  realm start")
+    print("  realm start")
     print()
-    print(f"This template includes example game code - explore and modify!")
+    print("This template includes example game code - explore and modify!")
 
     return 0
 

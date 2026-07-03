@@ -26,11 +26,11 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from realm.combat.ruleset import (
-    Ruleset,
-    RollResult,
     AttackResult,
     DamageResult,
     DamageType,
+    RollResult,
+    Ruleset,
 )
 
 if TYPE_CHECKING:

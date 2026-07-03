@@ -1,40 +1,39 @@
 """Tests for the permission system."""
 
-import pytest
 from realm.core.objects import GameObject
-from realm.permissions.roles import (
-    Role,
-    get_role,
-    has_permission,
-    can_control,
-    is_god,
-    is_admin,
-    is_builder,
-    set_role,
-    get_role_name,
-)
 from realm.permissions.flags import (
     Flag,
-    has_flag,
-    set_flag,
+    can_set_flag,
     clear_flag,
     get_flags,
-    toggle_flag,
-    is_halted,
-    is_gagged,
+    has_flag,
     is_dark,
+    is_gagged,
+    is_halted,
     is_safe,
-    can_set_flag,
+    set_flag,
+    toggle_flag,
 )
 from realm.permissions.locks import (
     Lock,
-    LockType,
     LockEvaluator,
+    LockType,
     check_lock,
-    parse_lock,
-    set_lock,
     clear_lock,
     get_lock,
+    parse_lock,
+    set_lock,
+)
+from realm.permissions.roles import (
+    Role,
+    can_control,
+    get_role,
+    get_role_name,
+    has_permission,
+    is_admin,
+    is_builder,
+    is_god,
+    set_role,
 )
 
 

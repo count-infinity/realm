@@ -4,7 +4,6 @@ Default settings for REALM.
 Users override these in their game's config.py file.
 """
 
-from pathlib import Path
 from typing import Any
 
 # Server settings
@@ -20,6 +19,9 @@ WEBSOCKET_PORT: int = 4001
 # Protocol toggles
 ENABLE_TELNET: bool = True
 ENABLE_WEBSOCKET: bool = False
+
+# Softcode scripting ($commands, ^listens, ON_EVENT triggers)
+ENABLE_SCRIPTING: bool = True
 
 # Database settings
 # Relative paths are resolved from the game directory
@@ -49,6 +51,7 @@ def get_default_settings() -> dict[str, Any]:
         'WEBSOCKET_PORT': WEBSOCKET_PORT,
         'ENABLE_TELNET': ENABLE_TELNET,
         'ENABLE_WEBSOCKET': ENABLE_WEBSOCKET,
+        'ENABLE_SCRIPTING': ENABLE_SCRIPTING,
         'DB_PATH': DB_PATH,
         'WELCOME_FILE': WELCOME_FILE,
         'FLUSH_INTERVAL': FLUSH_INTERVAL,

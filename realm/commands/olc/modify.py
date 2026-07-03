@@ -9,8 +9,7 @@ from __future__ import annotations
 import json
 
 from realm.commands import CommandContext, CommandDispatcher
-from realm.commands.base import find_object
-from realm.commands.olc.create import _find_object_global, _persistence
+from realm.commands.base import find_object_global, resolve_target, save_object
 
 
 async def cmd_desc(ctx: CommandContext) -> None:
@@ -34,7 +33,7 @@ async def cmd_desc(ctx: CommandContext) -> None:
     description = ctx.right_args if ctx.right_args else ""
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
@@ -42,8 +41,7 @@ async def cmd_desc(ctx: CommandContext) -> None:
     # Set description
     target.description = description
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
     if description:
         await ctx.session.send(f"Description set for {target.name}.")
@@ -68,7 +66,7 @@ async def cmd_name(ctx: CommandContext) -> None:
     new_name = ctx.right_args.strip()
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
@@ -76,8 +74,7 @@ async def cmd_name(ctx: CommandContext) -> None:
     old_name = target.name
     target.name = new_name
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
     await ctx.session.send(f"Renamed '{old_name}' to '{new_name}'.")
 
@@ -118,7 +115,7 @@ async def cmd_set(ctx: CommandContext) -> None:
         return
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
@@ -132,8 +129,7 @@ async def cmd_set(ctx: CommandContext) -> None:
         target.db.delete(attr_name)
         await ctx.session.send(f"Cleared {target.name}/{attr_name}")
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
 
 async def cmd_wipe(ctx: CommandContext) -> None:
@@ -149,7 +145,7 @@ async def cmd_wipe(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @wipe <object>")
         return
 
-    target = _resolve_target(ctx, ctx.args.strip())
+    target = resolve_target(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
         return
@@ -161,8 +157,7 @@ async def cmd_wipe(ctx: CommandContext) -> None:
     for key in list(attrs.keys()):
         target.db.delete(key)
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
     await ctx.session.send(f"Wiped {count} attribute(s) from {target.name}.")
 
@@ -185,14 +180,14 @@ async def cmd_parent(ctx: CommandContext) -> None:
     parent_name = ctx.right_args.strip() if ctx.right_args else ""
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
     if parent_name:
         # Find parent
-        parent = _find_object_global(parent_name)
+        parent = find_object_global(ctx, parent_name)
         if not parent:
             await ctx.session.send(f"Parent '{parent_name}' not found.")
             return
@@ -208,8 +203,7 @@ async def cmd_parent(ctx: CommandContext) -> None:
         target.parent = None
         await ctx.session.send(f"{target.name} no longer has a parent.")
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
 
 async def cmd_tag(ctx: CommandContext) -> None:
@@ -233,7 +227,7 @@ async def cmd_tag(ctx: CommandContext) -> None:
     tag = ctx.right_args.strip().lower()
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
@@ -244,8 +238,7 @@ async def cmd_tag(ctx: CommandContext) -> None:
 
     target.add_tag(tag)
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
     await ctx.session.send(f"Added tag '{tag}' to {target.name}.")
 
@@ -267,7 +260,7 @@ async def cmd_untag(ctx: CommandContext) -> None:
     tag = ctx.right_args.strip().lower()
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
@@ -278,8 +271,7 @@ async def cmd_untag(ctx: CommandContext) -> None:
 
     target.remove_tag(tag)
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
     await ctx.session.send(f"Removed tag '{tag}' from {target.name}.")
 
@@ -291,17 +283,22 @@ async def cmd_lock(ctx: CommandContext) -> None:
     Usage: @lock <object> = <lock expression>
            @lock/<type> <object> = <lock expression>
 
-    Lock types: default, enter, use, get, drop, give, control
+    Without a type, sets the 'basic' lock (pick up / traverse).
+    Types: basic, enter, use, control, zone, speech, teleport, examine,
+    give, drop, command, listen, page, mail.
 
     Lock expressions are Python boolean expressions with access to:
     - caller: The object trying to pass the lock
     - target: The object with the lock (self)
+    - owner: The lock owner
 
     Examples:
         @lock door = caller.has_tag('key_holder')
         @lock/enter room = caller.db.level >= 10
         @lock chest = caller == target.owner
     """
+    from realm.permissions.locks import LockType, parse_lock, set_lock
+
     if not ctx.player:
         return
 
@@ -310,22 +307,34 @@ async def cmd_lock(ctx: CommandContext) -> None:
         return
 
     # Determine lock type from switches
-    lock_type = 'default'
+    lock_type = LockType.BASIC.value
     if ctx.switches:
-        lock_type = ctx.switches[0]
+        lock_type = ctx.switches[0].lower()
+
+    valid_types = {lt.value for lt in LockType}
+    if lock_type not in valid_types:
+        await ctx.session.send(
+            f"Unknown lock type '{lock_type}'. "
+            f"Valid types: {', '.join(sorted(valid_types))}"
+        )
+        return
 
     target_name = ctx.left_args.strip()
     lock_expr = ctx.right_args if ctx.right_args else ""
 
     # Find target
-    target = _resolve_target(ctx, target_name)
+    target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
     if lock_expr:
-        # Set the lock
-        target.locks[lock_type] = lock_expr
+        # Set the lock — validated at write time so builders learn about a
+        # bad expression now, not from a lock that silently never passes.
+        if not set_lock(target, lock_type, lock_expr):
+            _, error = parse_lock(lock_expr, lock_type).validate()
+            await ctx.session.send(f"Invalid lock expression: {error}")
+            return
         await ctx.session.send(f"Lock/{lock_type} set on {target.name}.")
     else:
         # Clear the lock
@@ -335,8 +344,7 @@ async def cmd_lock(ctx: CommandContext) -> None:
         else:
             await ctx.session.send(f"{target.name} has no {lock_type} lock.")
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
 
 async def cmd_unlock(ctx: CommandContext) -> None:
@@ -352,7 +360,7 @@ async def cmd_unlock(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @unlock <object>")
         return
 
-    target = _resolve_target(ctx, ctx.args.strip())
+    target = resolve_target(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
         return
@@ -360,28 +368,9 @@ async def cmd_unlock(ctx: CommandContext) -> None:
     count = len(target.locks)
     target.locks.clear()
 
-    if _persistence:
-        await _persistence.save(target)
+    await save_object(ctx, target)
 
     await ctx.session.send(f"Removed {count} lock(s) from {target.name}.")
-
-
-def _resolve_target(ctx: CommandContext, name: str):
-    """Resolve a target by name, with special handling for 'me' and 'here'."""
-    name_lower = name.lower()
-
-    if name_lower in ('me', 'self'):
-        return ctx.player
-    if name_lower == 'here':
-        return ctx.player.location if ctx.player else None
-
-    # Try local first
-    target = find_object(ctx, name, search_exits=True)
-    if target:
-        return target
-
-    # Try global lookup
-    return _find_object_global(name)
 
 
 def _parse_value(value_str: str):

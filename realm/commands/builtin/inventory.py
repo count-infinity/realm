@@ -8,7 +8,47 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object, find_player, format_list
-from realm.core.propagation import Action, deliver_messages, propagate
+from realm.core.language import numbered_name
+from realm.core.objects import GameObject
+from realm.core.propagation import Action, deliver_messages, gate_action
+from realm.core.render import group_contents
+
+
+def _summarize(items: list[GameObject]) -> str:
+    """Grouped, articled phrasing for bulk results: "2 apples and a sword"."""
+    return format_list(
+        [numbered_name(rep, count) for rep, count in group_contents(items)],
+        conjunction="and",
+    )
+
+
+async def _gate_item_action(
+    actor: GameObject,
+    action_type: str,
+    target: GameObject,
+    *,
+    tool: GameObject | None = None,
+    extra: dict | None = None,
+    fail_msg: str,
+) -> Action | None:
+    """
+    Run an item action's permission pass through propagation.
+
+    Locks (via the check-pass lock guard) and behaviors both get a chance
+    to block. Returns the action on success, None on a block (the actor
+    has been messaged). Every item transfer — single or bulk — goes
+    through this one gate.
+    """
+    action = Action(
+        actor=actor,
+        target=target,
+        action_type=action_type,
+        tool=tool,
+        extra=extra or {},
+    )
+    if not await gate_action(action, fail_msg=fail_msg):
+        return None
+    return action
 
 
 async def cmd_inventory(ctx: CommandContext) -> None:
@@ -72,11 +112,8 @@ async def cmd_get(ctx: CommandContext) -> None:
     # Find the item
     if from_container:
         # Search in container
-        target = None
-        for obj in from_container.contents:
-            if obj.name.lower() == item_name.lower():
-                target = obj
-                break
+        from realm.core.search import match_one
+        target = match_one(item_name, from_container.contents)
         if not target:
             await ctx.session.send(
                 f"You don't see '{item_name}' in {from_container.name}."
@@ -98,17 +135,13 @@ async def cmd_get(ctx: CommandContext) -> None:
         await ctx.session.send("You can't pick up players!")
         return
 
-    # Propagate the get action so behaviors can block (cursed item glued to
-    # the floor, locked-down container, weight limits) and observers can react.
-    action = Action(
-        actor=ctx.player,
-        target=target,
-        action_type="item:on_get",
+    # Locks and behaviors can both block (locked-down item, cursed item
+    # glued to the floor, weight limits); observers can react either way.
+    action = await _gate_item_action(
+        ctx.player, "item:on_get", target,
+        fail_msg=f"You can't pick up {target.name}.",
     )
-    await propagate(action, deliver=False)
-    if action.blocked:
-        ctx.player.msg(action.block_reason or f"You can't pick up {target.name}.")
-        deliver_messages(action)  # fire any behavior-added messages
+    if action is None:
         return
 
     # Mutate state
@@ -116,8 +149,8 @@ async def cmd_get(ctx: CommandContext) -> None:
 
     # Bake in success messages and deliver everything (including any behavior
     # messages added during the propagation passes).
-    action.add_message("actor", f"You pick up {{target}}.")
-    action.add_message("room", f"{{actor}} picks up {{target}}.")
+    action.add_message("actor", "You pick up {target:a}.")
+    action.add_message("room", "{actor} picks up {target:a}.")
     deliver_messages(action)
 
 
@@ -143,11 +176,19 @@ async def _get_all(ctx: CommandContext, from_container=None) -> None:
 
     gotten = []
     for item in items:
-        # TODO: Check locks
+        # Same gate as single-item get: locks and behaviors apply per item.
+        action = await _gate_item_action(
+            ctx.player, "item:on_get", item,
+            fail_msg=f"You can't pick up {item.name}.",
+        )
+        if action is None:
+            continue
         item.location = ctx.player
-        gotten.append(item.name)
+        deliver_messages(action)
+        gotten.append(item)
 
-    await ctx.session.send(f"You pick up: {format_list(gotten)}")
+    if gotten:
+        await ctx.session.send(f"You pick up {_summarize(gotten)}.")
 
 
 async def cmd_drop(ctx: CommandContext) -> None:
@@ -186,21 +227,17 @@ async def cmd_drop(ctx: CommandContext) -> None:
         await ctx.session.send(f"You aren't carrying '{item_name}'.")
         return
 
-    action = Action(
-        actor=ctx.player,
-        target=target,
-        action_type="item:on_drop",
+    action = await _gate_item_action(
+        ctx.player, "item:on_drop", target,
+        fail_msg=f"You can't drop {target.name}.",
     )
-    await propagate(action, deliver=False)
-    if action.blocked:
-        ctx.player.msg(action.block_reason or f"You can't drop {target.name}.")
-        deliver_messages(action)
+    if action is None:
         return
 
     target.location = ctx.player.location
 
-    action.add_message("actor", f"You drop {{target}}.")
-    action.add_message("room", f"{{actor}} drops {{target}}.")
+    action.add_message("actor", "You drop {target:a}.")
+    action.add_message("room", "{actor} drops {target:a}.")
     deliver_messages(action)
 
 
@@ -214,11 +251,19 @@ async def _drop_all(ctx: CommandContext) -> None:
 
     dropped = []
     for item in items:
-        # TODO: Check locks
+        # Same gate as single-item drop: locks and behaviors apply per item.
+        action = await _gate_item_action(
+            ctx.player, "item:on_drop", item,
+            fail_msg=f"You can't drop {item.name}.",
+        )
+        if action is None:
+            continue
         item.location = ctx.player.location
-        dropped.append(item.name)
+        deliver_messages(action)
+        dropped.append(item)
 
-    await ctx.session.send(f"You drop: {format_list(dropped)}")
+    if dropped:
+        await ctx.session.send(f"You drop {_summarize(dropped)}.")
 
 
 async def cmd_give(ctx: CommandContext) -> None:
@@ -267,25 +312,22 @@ async def cmd_give(ctx: CommandContext) -> None:
         return
 
     # For 'give', the target is the recipient and the item travels via extra.
-    # The 'tool' field carries the item so {tool} substitution works in messages.
-    action = Action(
-        actor=ctx.player,
-        target=target,
-        action_type="item:on_give",
+    # The 'tool' field carries the item so {tool} substitution works in
+    # messages and the actor-side give-lock check can find it.
+    action = await _gate_item_action(
+        ctx.player, "item:on_give", target,
         tool=item,
         extra={"item": item},
+        fail_msg=f"You can't give {item.name} to {target.name}.",
     )
-    await propagate(action, deliver=False)
-    if action.blocked:
-        ctx.player.msg(action.block_reason or f"You can't give {item.name} to {target.name}.")
-        deliver_messages(action)
+    if action is None:
         return
 
     item.location = target
 
-    action.add_message("actor", f"You give {{tool}} to {{target}}.")
-    action.add_message("target", f"{{actor}} gives you {{tool}}.")
-    action.add_message("room", f"{{actor}} gives {{tool}} to {{target}}.")
+    action.add_message("actor", "You give {tool:a} to {target}.")
+    action.add_message("target", "{actor} gives you {tool:a}.")
+    action.add_message("room", "{actor} gives {tool:a} to {target}.")
     deliver_messages(action)
 
 
@@ -327,23 +369,19 @@ async def cmd_put(ctx: CommandContext) -> None:
         return
 
     # For 'put', the target is the container and the item travels via tool/extra.
-    action = Action(
-        actor=ctx.player,
-        target=container,
-        action_type="item:on_put",
+    action = await _gate_item_action(
+        ctx.player, "item:on_put", container,
         tool=item,
         extra={"item": item},
+        fail_msg=f"You can't put {item.name} in {container.name}.",
     )
-    await propagate(action, deliver=False)
-    if action.blocked:
-        ctx.player.msg(action.block_reason or f"You can't put {item.name} in {container.name}.")
-        deliver_messages(action)
+    if action is None:
         return
 
     item.location = container
 
-    action.add_message("actor", f"You put {{tool}} in {{target}}.")
-    action.add_message("room", f"{{actor}} puts {{tool}} in {{target}}.")
+    action.add_message("actor", "You put {tool:a} in {target:the}.")
+    action.add_message("room", "{actor} puts {tool:a} in {target:the}.")
     deliver_messages(action)
 
 

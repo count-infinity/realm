@@ -1,8 +1,8 @@
 """Tests for the Session and SessionManager classes."""
 
-import asyncio
 
 import pytest
+
 from realm.core.objects import GameObject
 from realm.gateway.session import Session, SessionManager, SessionState
 

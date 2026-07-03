@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_player
-from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
+from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 
 
 async def cmd_say(ctx: CommandContext) -> None:
@@ -39,9 +39,11 @@ async def cmd_say(ctx: CommandContext) -> None:
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
-    action.add_message("actor", f'You say, "{message}"')
-    action.add_message("room", f'{{actor}} says, "{message}"')
+    action.add_message("actor", f'You say, "{message}"', success_only=True)
+    action.add_message("room", f'{{actor}} says, "{message}"', success_only=True)
     await propagate(action)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or "You can't speak here.")
 
 
 async def cmd_pose(ctx: CommandContext) -> None:
@@ -71,9 +73,11 @@ async def cmd_pose(ctx: CommandContext) -> None:
         chain=ROOM_TARGET_CHAIN,
         extra={"pose": pose_text},
     )
-    action.add_message("actor", f"{{actor}} {pose_text}")
-    action.add_message("room", f"{{actor}} {pose_text}")
+    action.add_message("actor", f"{{actor}} {pose_text}", success_only=True)
+    action.add_message("room", f"{{actor}} {pose_text}", success_only=True)
     await propagate(action)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or "You can't emote here.")
 
 
 async def cmd_semipose(ctx: CommandContext) -> None:
@@ -106,9 +110,11 @@ async def cmd_semipose(ctx: CommandContext) -> None:
     # No space between name and action — pre-format here so {actor} substitution
     # doesn't insert a leading space.
     line = f"{ctx.player.name}{pose_text}"
-    action.add_message("actor", line)
-    action.add_message("room", line)
+    action.add_message("actor", line, success_only=True)
+    action.add_message("room", line, success_only=True)
     await propagate(action)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or "You can't emote here.")
 
 
 async def cmd_emit(ctx: CommandContext) -> None:
@@ -138,9 +144,11 @@ async def cmd_emit(ctx: CommandContext) -> None:
         extra={"message": message},
     )
     # @emit shows the same raw message to everyone, including the emitter.
-    action.add_message("actor", message)
-    action.add_message("room", message)
+    action.add_message("actor", message, success_only=True)
+    action.add_message("room", message, success_only=True)
     await propagate(action)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or "You can't emit here.")
 
 
 async def cmd_whisper(ctx: CommandContext) -> None:
@@ -175,10 +183,12 @@ async def cmd_whisper(ctx: CommandContext) -> None:
         action_type="event:whisper",
         extra={"message": message},
     )
-    action.add_message("actor", f'You whisper to {{target}}, "{message}"')
-    action.add_message("target", f'{{actor}} whispers, "{message}"')
-    action.add_message("room", "{actor} whispers something to {target}.")
+    action.add_message("actor", f'You whisper to {{target}}, "{message}"', success_only=True)
+    action.add_message("target", f'{{actor}} whispers, "{message}"', success_only=True)
+    action.add_message("room", "{actor} whispers something to {target}.", success_only=True)
     await propagate(action)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or "You can't whisper here.")
 
 
 async def cmd_ooc(ctx: CommandContext) -> None:
@@ -205,9 +215,11 @@ async def cmd_ooc(ctx: CommandContext) -> None:
         extra={"message": message},
     )
     line = f"[OOC] {ctx.player.name}: {message}"
-    action.add_message("actor", line)
-    action.add_message("room", line)
+    action.add_message("actor", line, success_only=True)
+    action.add_message("room", line, success_only=True)
     await propagate(action)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or "You can't speak here.")
 
 
 async def cmd_shout(ctx: CommandContext) -> None:
@@ -236,9 +248,11 @@ async def cmd_shout(ctx: CommandContext) -> None:
         tags={"sound"},
         extra={"message": message},
     )
-    action.add_message("actor", f'You shout, "{message}"')
-    action.add_message("room", f'{{actor}} shouts, "{message}"')
+    action.add_message("actor", f'You shout, "{message}"', success_only=True)
+    action.add_message("room", f'{{actor}} shouts, "{message}"', success_only=True)
     await propagate(action)
+    if action.blocked:
+        ctx.player.msg(action.block_reason or "You can't speak here.")
     # TODO: also propagate a muffled "Someone shouts in the distance..." to
     # adjacent rooms via exits — needs a multi-room chain helper.
 

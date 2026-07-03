@@ -5,8 +5,9 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from realm.core.objects import GameObject
+
 from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.objects import GameObject
 from realm.persistence.manager import PersistenceManager
 
 

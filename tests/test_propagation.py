@@ -26,13 +26,11 @@ from realm.core.propagation import (
     ActorStep,
     PropagationEngine,
     RoomContentsStep,
-    RoomStep,
     TargetStep,
     deliver_messages,
     propagate,
 )
 from realm.gateway.session import Session
-
 
 # --- Test helpers ---------------------------------------------------------
 

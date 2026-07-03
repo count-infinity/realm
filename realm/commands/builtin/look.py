@@ -7,8 +7,10 @@ Handles viewing rooms, objects, and players.
 from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
-from realm.commands.base import find_object, find_exit
-from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
+from realm.commands.base import find_exit, find_object
+from realm.core.movement import resolve_exit_destination
+from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.core.render import render_room
 
 
 async def cmd_look(ctx: CommandContext) -> None:
@@ -157,49 +159,7 @@ async def _show_room(ctx: CommandContext) -> None:
     )
     await propagate(look)
 
-    # Room name
-    await ctx.session.send(f"\n{room.name}")
-    await ctx.session.send("-" * len(room.name))
-
-    # Room description
-    if room.description:
-        await ctx.session.send(room.description)
-
-    # Contents (excluding self and exits)
-    things = []
-    players = []
-    for obj in room.contents:
-        if obj == ctx.player:
-            continue
-        if obj.has_tag('exit'):
-            continue
-        if obj.has_tag('player'):
-            players.append(obj)
-        else:
-            things.append(obj)
-
-    if things:
-        await ctx.session.send("\nYou see:")
-        for obj in things:
-            await ctx.session.send(f"  {obj.name}")
-
-    if players:
-        await ctx.session.send("\nPlayers here:")
-        for obj in players:
-            status = ""
-            if obj.db.get('idle', 0) > 300:  # 5 minutes
-                status = " (idle)"
-            await ctx.session.send(f"  {obj.name}{status}")
-
-    # Exits
-    exits = [obj for obj in room.contents if obj.has_tag('exit')]
-    if exits:
-        exit_names = ", ".join(e.name for e in exits)
-        await ctx.session.send(f"\nExits: {exit_names}")
-    else:
-        await ctx.session.send("\nExits: None")
-
-    await ctx.session.send("")
+    await ctx.session.send(render_room(room, ctx.player))
 
 
 async def _show_object(ctx: CommandContext, target) -> None:
@@ -241,7 +201,7 @@ async def _show_exit(ctx: CommandContext, exit_obj) -> None:
     if exit_obj.description:
         await ctx.session.send(exit_obj.description)
 
-    dest = exit_obj.db.get('destination_obj')
+    dest = resolve_exit_destination(exit_obj, ctx.persistence)
     if dest:
         await ctx.session.send(f"Leads to: {dest.name}")
 

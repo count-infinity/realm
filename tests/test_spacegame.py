@@ -2,8 +2,8 @@
 Tests for the space game example.
 """
 
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 from realm.core.objects import GameObject
 from realm.persistence.repository import GameObjectRepository
@@ -14,7 +14,7 @@ class TestSpaceCharacters:
 
     def test_character_roles_defined(self):
         """All character roles should be defined."""
-        from examples.spacegame.characters import CharacterRole, TEMPLATES
+        from examples.spacegame.characters import TEMPLATES, CharacterRole
 
         for role in CharacterRole:
             assert role in TEMPLATES
@@ -24,7 +24,7 @@ class TestSpaceCharacters:
 
     def test_character_creation(self):
         """Character creation should apply template stats."""
-        from examples.spacegame.characters import SpaceCharacter, CharacterRole
+        from examples.spacegame.characters import CharacterRole, SpaceCharacter
 
         obj = GameObject(id="test_player", name="Test")
         char = SpaceCharacter.create(obj, CharacterRole.MARINE, "Test Marine")
@@ -41,7 +41,7 @@ class TestSpaceCharacters:
 
     def test_character_stats(self):
         """SpaceCharacter should expose stats correctly."""
-        from examples.spacegame.characters import SpaceCharacter, CharacterRole
+        from examples.spacegame.characters import CharacterRole, SpaceCharacter
 
         obj = GameObject(id="test_player", name="Test")
         char = SpaceCharacter.create(obj, CharacterRole.PILOT)
@@ -53,7 +53,7 @@ class TestSpaceCharacters:
 
     def test_character_damage_and_healing(self):
         """Character should track damage and healing."""
-        from examples.spacegame.characters import SpaceCharacter, CharacterRole
+        from examples.spacegame.characters import CharacterRole, SpaceCharacter
 
         obj = GameObject(id="test_player", name="Test")
         char = SpaceCharacter.create(obj, CharacterRole.MARINE)
@@ -70,7 +70,7 @@ class TestSpaceCharacters:
 
     def test_character_credits(self):
         """Character credits should be modifiable."""
-        from examples.spacegame.characters import SpaceCharacter, CharacterRole
+        from examples.spacegame.characters import CharacterRole, SpaceCharacter
 
         obj = GameObject(id="test_player", name="Test")
         char = SpaceCharacter.create(obj, CharacterRole.MERCHANT)
@@ -86,7 +86,7 @@ class TestSpaceCharacters:
 
     def test_character_status_string(self):
         """Status string should include key info."""
-        from examples.spacegame.characters import SpaceCharacter, CharacterRole
+        from examples.spacegame.characters import CharacterRole, SpaceCharacter
 
         obj = GameObject(id="test_player", name="Test")
         char = SpaceCharacter.create(obj, CharacterRole.MEDIC)
@@ -104,7 +104,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_creation(self):
         """Ships should be created from templates."""
-        from examples.spacegame.ships import Spaceship, ShipClass
+        from examples.spacegame.ships import ShipClass, Spaceship
 
         repo = GameObjectRepository()
         ship = await Spaceship.create(repo, ShipClass.FIGHTER, "Red Five")
@@ -118,7 +118,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_damage(self):
         """Ships should handle damage correctly."""
-        from examples.spacegame.ships import Spaceship, ShipClass
+        from examples.spacegame.ships import ShipClass, Spaceship
 
         repo = GameObjectRepository()
         ship = await Spaceship.create(repo, ShipClass.CORVETTE, "Test Ship")
@@ -144,7 +144,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_repair(self):
         """Ships should be repairable."""
-        from examples.spacegame.ships import Spaceship, ShipClass
+        from examples.spacegame.ships import ShipClass, Spaceship
 
         repo = GameObjectRepository()
         ship = await Spaceship.create(repo, ShipClass.FREIGHTER, "Cargo One")
@@ -162,7 +162,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_status(self):
         """Ship status should reflect current state."""
-        from examples.spacegame.ships import Spaceship, ShipClass
+        from examples.spacegame.ships import ShipClass, Spaceship
 
         repo = GameObjectRepository()
         ship = await Spaceship.create(repo, ShipClass.CRUISER, "Battlestar")
@@ -199,10 +199,10 @@ class TestEquipment:
     async def test_create_equipment_prototypes(self):
         """Should create all equipment prototypes."""
         from examples.spacegame.equipment import (
-            create_equipment_prototypes,
-            WEAPONS,
             ARMOR,
             GEAR,
+            WEAPONS,
+            create_equipment_prototypes,
         )
 
         repo = GameObjectRepository()
@@ -322,8 +322,8 @@ class TestCombatIntegration:
     @pytest.mark.asyncio
     async def test_character_combat(self):
         """Characters should be able to engage in combat."""
+        from examples.spacegame.characters import CharacterRole, SpaceCharacter
         from realm.combat.system import create_combat_system
-        from examples.spacegame.characters import SpaceCharacter, CharacterRole
 
         combat = create_combat_system(ruleset_name="gurps")
 
@@ -372,7 +372,7 @@ class TestGameSetup:
     @pytest.mark.asyncio
     async def test_create_player(self):
         """Player creation should work with game world."""
-        from examples.spacegame.game import setup_game, create_player
+        from examples.spacegame.game import create_player, setup_game
 
         game = await setup_game()
         docking_bay = game["world"]["docking_bay"]

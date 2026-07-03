@@ -1,24 +1,24 @@
 """Tests for the combat system."""
 
 import pytest
-from realm.core.objects import GameObject
+
 from realm.combat.combatant import (
     Combatant,
     CombatState,
     StatusEffect,
-    get_combatant,
     clear_combatant_cache,
+    get_combatant,
 )
 from realm.combat.ruleset import (
-    Ruleset,
-    RollResult,
     AttackResult,
     DamageResult,
     DamageType,
+    RollResult,
 )
 from realm.combat.rulesets.d20 import D20Ruleset
 from realm.combat.rulesets.gurps import GURPSRuleset
 from realm.combat.system import CombatSystem, create_combat_system
+from realm.core.objects import GameObject
 
 
 class TestCombatant:

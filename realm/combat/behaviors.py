@@ -81,8 +81,8 @@ class AggressiveBehavior(Behavior):
 
     async def tick(self, obj: GameObject, delta: float) -> None:
         """Continue attacking in combat."""
+        from realm.combat.combatant import CombatState, get_combatant
         from realm.combat.system import get_combat_system
-        from realm.combat.combatant import get_combatant, CombatState
 
         combat = get_combat_system()
         if not combat:
@@ -170,7 +170,7 @@ class DefensiveBehavior(Behavior):
 
     async def _try_flee(self, obj: GameObject) -> None:
         """Attempt to flee combat."""
-        from realm.combat.combatant import get_combatant, CombatState
+        from realm.combat.combatant import CombatState, get_combatant
 
         combatant = get_combatant(obj)
         combatant.state = CombatState.FLEEING
@@ -242,7 +242,7 @@ class FleeingBehavior(Behavior):
         if action.target != obj:
             return
 
-        from realm.combat.combatant import get_combatant, CombatState
+        from realm.combat.combatant import CombatState, get_combatant
 
         combatant = get_combatant(obj)
         flee_threshold = self.get_param('flee_threshold', 0.25)
@@ -294,7 +294,7 @@ class HealerBehavior(Behavior):
     async def tick(self, obj: GameObject, delta: float) -> None:
         """Check for injured allies and heal them."""
         import time
-        from realm.combat.system import get_combat_system
+
         from realm.combat.combatant import get_combatant
 
         # Check cooldown
@@ -350,7 +350,7 @@ class CombatantBehavior(Behavior):
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
         """Handle combat actions targeting this object."""
-        from realm.combat.combatant import get_combatant, CombatState
+        from realm.combat.combatant import CombatState, get_combatant
 
         if action.action_type == "combat:on_damage" and action.target == obj:
             # We took damage
@@ -396,7 +396,7 @@ class WanderingBehavior(Behavior):
 
     async def tick(self, obj: GameObject, delta: float) -> None:
         """Potentially wander to a new room."""
-        from realm.combat.combatant import get_combatant, CombatState
+        from realm.combat.combatant import CombatState, get_combatant
 
         # Don't wander if in combat
         combatant = get_combatant(obj)

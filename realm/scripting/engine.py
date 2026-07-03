@@ -2,12 +2,24 @@
 Script execution engine for REALM.
 
 Ties together:
-- TriggerManager: Finding matching triggers
-- ScriptSandbox: Safe execution
-- ScriptFunctions: Built-in functions
-- Command dispatcher integration
+- TriggerManager: finding matching triggers
+- ScriptSandbox: safe execution
+- ScriptFunctions: built-in functions injected into scripts
+- The propagation engine: how scripts observe the world and act back on it
 
-This is the main entry point for executing softcode.
+The engine is owned by GameServer (``server.script_engine``) and wired in
+two places:
+
+- The command dispatcher's unknown handler calls ``handle_unknown_command``
+  so ``$pattern`` softcode commands act as a fallback for player input.
+- ``handle_action`` is registered as a propagation observer, so ``^listen``
+  triggers overhear speech and ``ON_<EVENT>`` attribute triggers fire for
+  any propagated action — the same message stream behaviors see.
+
+Script actions (say/pose/emit/whisper) are emitted back through the
+propagation engine as real actions, so players hear them, behaviors can
+react to them, and other objects' listen triggers can fire — bounded by
+MAX_SCRIPT_DEPTH so NPCs answering NPCs can't recurse forever.
 """
 
 from __future__ import annotations
@@ -15,10 +27,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.scripting.functions import ScriptFunctions
 from realm.scripting.sandbox import (
-    ScriptSandbox,
     ScriptContext,
     ScriptError,
+    ScriptSandbox,
     SimpleScriptRunner,
 )
 from realm.scripting.triggers import (
@@ -26,7 +40,6 @@ from realm.scripting.triggers import (
     TriggerMatch,
     get_search_objects,
 )
-from realm.scripting.functions import ScriptFunctions
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -37,196 +50,354 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# Action types whose extra["message"] counts as overhearable speech.
+# Whispers are deliberately excluded — bystanders only see the vague
+# "X whispers something to Y" line, so scripts shouldn't overhear either.
+LISTENABLE_ACTIONS = {
+    "event:speech",
+    "event:shout",
+    "event:ooc",
+    "event:emit",
+}
+
+
 class ScriptEngine:
     """
     Central script execution engine.
 
     Handles:
-    - Softcode command fallback (unknown commands check triggers)
-    - Listen trigger execution (on speech events)
-    - Event trigger execution (on game events)
+    - Softcode command fallback (unknown commands search $-triggers)
+    - Listen trigger execution (^patterns overhear propagated speech)
+    - Event trigger execution (ON_<EVENT> attributes fire on actions)
     """
+
+    # Script-initiated actions may trigger further scripts (an NPC's say
+    # matching another NPC's listen). Each nested trigger execution adds a
+    # level; past this depth triggers are skipped.
+    MAX_SCRIPT_DEPTH = 3
 
     def __init__(self, persistence: Any = None):
         self.trigger_manager = TriggerManager()
         self.sandbox = ScriptSandbox()
         self._persistence = persistence
+        self._depth = 0
+
+    # --- Entry point: unknown command fallback ---
 
     async def handle_unknown_command(self, ctx: CommandContext) -> bool:
         """
         Handle an unknown command by searching for softcode triggers.
 
-        This is called by the command dispatcher when no built-in command matches.
-
-        Args:
-            ctx: The command context
+        Called by the dispatcher's unknown handler when no built-in
+        command matches.
 
         Returns:
-            True if a trigger was found and executed, False otherwise
+            True if a trigger was found and executed, False otherwise.
         """
         if not ctx.player:
             return False
 
-        # Get objects to search for triggers
         search_objects = get_search_objects(ctx.player)
 
-        # Look for a matching command trigger
         match = self.trigger_manager.find_command_match(
             ctx.raw_input,
             search_objects,
         )
 
         if match:
-            await self._execute_trigger(match, ctx.player, ctx.session)
+            await self._execute_trigger(match, ctx.player, session=ctx.session)
             return True
 
         return False
 
+    # --- Entry point: propagation observer ---
+
+    async def handle_action(self, action: Action) -> None:
+        """
+        Observe a propagated action and fire matching scripts.
+
+        Registered with the propagation engine by GameServer. Runs listen
+        triggers for overhearable speech and ON_<EVENT> triggers for every
+        action type.
+        """
+        if action.blocked:
+            return
+
+        room = self._action_room(action)
+
+        # ^listen triggers on overheard speech
+        if action.action_type in LISTENABLE_ACTIONS and room is not None:
+            message = action.extra.get("message")
+            if message:
+                await self.handle_speech(action.actor, str(message), room)
+
+        # ON_<EVENT> attribute triggers
+        await self._fire_event_triggers(action, room)
+
     async def handle_speech(
         self,
-        speaker: GameObject,
+        speaker: GameObject | None,
         speech: str,
         location: GameObject,
     ) -> None:
         """
-        Handle speech/emote for listen triggers.
-
-        Called when someone speaks or emotes. Searches for ^pattern triggers.
+        Run ^listen triggers for speech heard at a location.
 
         Args:
-            speaker: Who spoke
+            speaker: Who spoke (None for sourceless emits)
             speech: What was said
-            location: Where it happened
+            location: Where it was heard
         """
-        # Get objects to search - room contents plus room itself
         search_objects = list(location.contents) + [location]
 
-        # Find all matching listen triggers
         matches = self.trigger_manager.find_listen_matches(speech, search_objects)
 
-        # Execute each matching trigger
         for match in matches:
-            # Don't trigger on yourself
-            if match.obj == speaker:
+            # Don't overhear yourself
+            if speaker is not None and match.obj == speaker:
                 continue
+            await self._execute_trigger(match, speaker, location=location)
 
-            await self._execute_trigger(match, speaker, None)
+    async def _fire_event_triggers(
+        self,
+        action: Action,
+        room: GameObject | None,
+    ) -> None:
+        """Fire ON_<EVENT> triggers on objects that witnessed the action."""
+        event_type = self._event_suffix(action.action_type)
+        if not event_type:
+            return
+
+        # Witnesses: the room, its contents, and the target — like the
+        # propagation chain itself. The actor doesn't trigger its own
+        # ON_<EVENT>; it gets ON_ARRIVE for movement instead (below).
+        candidates: list[GameObject] = []
+        seen: set[str] = set()
+
+        def add(obj: GameObject | None) -> None:
+            if obj is None or obj.id in seen:
+                return
+            if action.actor is not None and obj.id == action.actor.id:
+                return
+            seen.add(obj.id)
+            candidates.append(obj)
+
+        add(room)
+        if room is not None:
+            for obj in room.contents:
+                add(obj)
+        add(action.target)
+
+        for obj in candidates:
+            if obj.has_tag('halt'):
+                continue
+            for trigger in self.trigger_manager.get_event_triggers(obj, event_type):
+                match = TriggerMatch(
+                    trigger=trigger,  # type: ignore[arg-type]
+                    captures=[],
+                    full_match=action.action_type,
+                    obj=obj,
+                    action=trigger.action,
+                )
+                await self._execute_trigger(match, action.actor, location=room)
+
+        # The mover's own hook: ON_ARRIVE fires on the actor when it enters
+        # somewhere new (plan.md: "this object arrives somewhere new").
+        if event_type == 'ENTER' and action.actor is not None:
+            actor = action.actor
+            if not actor.has_tag('halt'):
+                for trigger in self.trigger_manager.get_event_triggers(actor, 'ARRIVE'):
+                    match = TriggerMatch(
+                        trigger=trigger,  # type: ignore[arg-type]
+                        captures=[],
+                        full_match=action.action_type,
+                        obj=actor,
+                        action=trigger.action,
+                    )
+                    await self._execute_trigger(match, actor, location=room)
+
+    @staticmethod
+    def _event_suffix(action_type: str) -> str:
+        """``event:on_enter`` → ``ENTER``; ``item:get`` → ``GET``."""
+        suffix = action_type.rsplit(":", 1)[-1].upper()
+        if suffix.startswith("ON_"):
+            suffix = suffix[3:]
+        return suffix
+
+    @staticmethod
+    def _action_room(action: Action) -> GameObject | None:
+        """The room where an action is audible/visible."""
+        if action.actor is not None and action.actor.location is not None:
+            return action.actor.location
+        target = action.target
+        if target is None:
+            return None
+        if target.location is not None:
+            return target.location
+        # Target may BE the room (broadcast actions).
+        if target.contents or target.has_tag('room'):
+            return target
+        return None
+
+    # --- Trigger execution ---
 
     async def _execute_trigger(
         self,
         match: TriggerMatch,
-        enactor: GameObject,
-        session: Session | None,
+        enactor: GameObject | None,
+        *,
+        session: Session | None = None,
+        location: GameObject | None = None,
     ) -> None:
-        """Execute a matched trigger."""
-        # Build script context
+        """Execute a matched trigger, depth-guarded."""
+        if self._depth >= self.MAX_SCRIPT_DEPTH:
+            logger.warning(
+                f"Script depth limit ({self.MAX_SCRIPT_DEPTH}) reached; "
+                f"skipping trigger on {match.obj.name}"
+            )
+            return
+
+        if location is None and enactor is not None:
+            location = enactor.location
+
         script_ctx = ScriptContext(
             enactor=enactor,
             executor=match.obj,
-            location=enactor.location,
+            location=location,
             captures=match.captures,
         )
 
-        # Check if this is a simple command or needs Python execution
-        action = match.action
+        self._depth += 1
+        try:
+            action_code = match.action
 
-        if SimpleScriptRunner.is_simple_script(action):
-            # Simple expansion - just substitute and execute as command
-            expanded = SimpleScriptRunner.expand_simple(action, script_ctx)
-            await self._queue_command(match.obj, expanded, session)
-        else:
-            # Full Python script execution
-            try:
-                result, output = await self.sandbox.execute_async(
-                    action,
-                    script_ctx,
+            if SimpleScriptRunner.is_simple_script(action_code):
+                # Simple expansion — substitute and run as a script command
+                expanded = SimpleScriptRunner.expand_simple(action_code, script_ctx)
+                await self._run_script_command(match.obj, expanded)
+            else:
+                # Full Python script execution with game functions injected
+                functions = ScriptFunctions(
+                    enactor=enactor,
+                    executor=match.obj,
+                    location=location,
+                    persistence=self._persistence,
                 )
+                try:
+                    _result, output = await self.sandbox.execute_async(
+                        action_code,
+                        script_ctx,
+                        functions=functions.to_dict(),
+                    )
+                except ScriptError as e:
+                    logger.warning(f"Script error on {match.obj.name}: {e}")
+                    if session:
+                        await session.send(f"Script error: {e}")
+                    return
 
-                # Process output lines as commands
+                # Output lines are script commands (say/pose/emit/whisper)
                 for line in output:
                     line = line.strip()
                     if line:
-                        await self._queue_command(match.obj, line, session)
+                        await self._run_script_command(match.obj, line)
 
-            except ScriptError as e:
-                logger.warning(f"Script error on {match.obj.name}: {e}")
-                if session:
-                    await session.send(f"Script error: {e}")
+                # Deliveries queued by pemit/remit/oemit during execution
+                self._deliver_queued(functions)
+        finally:
+            self._depth -= 1
 
-    async def _queue_command(
-        self,
-        executor: GameObject,
-        command: str,
-        session: Session | None,
-    ) -> None:
+    # --- Script command emission (via propagation) ---
+
+    async def _run_script_command(self, executor: GameObject, command: str) -> None:
         """
-        Queue a command for execution by an object.
+        Run a command produced by a script, acting as the scripted object.
 
-        For now, we handle simple built-in commands directly.
-        More complex routing would go through the dispatcher.
+        Communication commands are emitted through the propagation engine as
+        real actions — players hear them, behaviors react, other scripts'
+        listen triggers can fire (depth-guarded). Anything else is logged
+        and dropped until scripted objects can drive the full dispatcher.
         """
         command = command.strip()
         if not command:
             return
+        lower = command.lower()
 
-        # Handle common simple commands directly
-        if command.lower().startswith('say '):
-            message = command[4:]
-            await self._emit_speech(executor, message)
+        if lower.startswith('say '):
+            await self._emit_speech(executor, command[4:])
 
-        elif command.lower().startswith('pose ') or command.startswith(':'):
-            message = command[5:] if command.lower().startswith('pose ') else command[1:]
-            await self._emit_pose(executor, message)
+        elif lower.startswith('pose ') or command.startswith(':'):
+            pose = command[5:] if lower.startswith('pose ') else command[1:]
+            await self._emit_pose(executor, pose)
 
-        elif command.lower().startswith('@emit ') or command.startswith('\\'):
-            message = command[6:] if command.lower().startswith('@emit ') else command[1:]
-            await self._emit_raw(executor.location, message)
+        elif lower.startswith('@emit ') or lower.startswith('emit ') or command.startswith('\\'):
+            if command.startswith('\\'):
+                message = command[1:]
+            elif lower.startswith('@emit '):
+                message = command[6:]
+            else:
+                message = command[5:]
+            await self._emit_raw(executor, message)
 
-        elif command.lower().startswith('whisper '):
-            # whisper target=message
+        elif lower.startswith('whisper '):
             parts = command[8:].split('=', 1)
             if len(parts) == 2:
                 await self._emit_whisper(executor, parts[0].strip(), parts[1].strip())
 
         else:
-            # For other commands, log them (full implementation would re-route to dispatcher)
-            logger.debug(f"Script queued command from {executor.name}: {command}")
+            logger.warning(
+                f"Script on {executor.name} produced unsupported command: {command!r}"
+            )
 
     async def _emit_speech(self, speaker: GameObject, message: str) -> None:
-        """Emit speech to a room."""
-        if not speaker.location:
+        """Scripted say — mirrors cmd_say's action shape."""
+        location = speaker.location
+        if location is None:
             return
+        action = Action(
+            actor=speaker,
+            target=location,
+            action_type="event:speech",
+            chain=ROOM_TARGET_CHAIN,
+            tags={"scripted"},
+            extra={"message": message},
+        )
+        action.add_message("actor", f'You say, "{message}"', success_only=True)
+        action.add_message("room", f'{{actor}} says, "{message}"', success_only=True)
+        await propagate(action)
 
-        # Format: Speaker says, "message"
-        formatted = f'{speaker.name} says, "{message}"'
-
-        # Send to all in room
-        for obj in speaker.location.contents:
-            if obj.has_tag('player'):
-                # Players would receive via their session
-                # For now, just log
-                logger.debug(f"Speech to {obj.name}: {formatted}")
-
-    async def _emit_pose(self, poser: GameObject, message: str) -> None:
-        """Emit a pose to a room."""
-        if not poser.location:
+    async def _emit_pose(self, poser: GameObject, pose_text: str) -> None:
+        """Scripted pose — mirrors cmd_pose's action shape."""
+        location = poser.location
+        if location is None:
             return
+        action = Action(
+            actor=poser,
+            target=location,
+            action_type="event:emote",
+            chain=ROOM_TARGET_CHAIN,
+            tags={"scripted"},
+            extra={"pose": pose_text},
+        )
+        action.add_message("actor", f"{{actor}} {pose_text}", success_only=True)
+        action.add_message("room", f"{{actor}} {pose_text}", success_only=True)
+        await propagate(action)
 
-        # Format: Name message (e.g., "Bob waves hello")
-        formatted = f'{poser.name} {message}'
-
-        for obj in poser.location.contents:
-            if obj.has_tag('player'):
-                logger.debug(f"Pose to {obj.name}: {formatted}")
-
-    async def _emit_raw(self, location: GameObject | None, message: str) -> None:
-        """Emit raw text to a room."""
-        if not location:
+    async def _emit_raw(self, executor: GameObject, message: str) -> None:
+        """Scripted @emit — raw text to the executor's room."""
+        location = executor.location
+        if location is None:
             return
-
-        for obj in location.contents:
-            if obj.has_tag('player'):
-                logger.debug(f"Emit to {obj.name}: {message}")
+        action = Action(
+            actor=executor,
+            target=location,
+            action_type="event:emit",
+            chain=ROOM_TARGET_CHAIN,
+            tags={"scripted"},
+            extra={"message": message},
+        )
+        action.add_message("actor", message, success_only=True)
+        action.add_message("room", message, success_only=True)
+        await propagate(action)
 
     async def _emit_whisper(
         self,
@@ -234,49 +405,41 @@ class ScriptEngine:
         target_spec: str,
         message: str,
     ) -> None:
-        """Send a whisper to a target."""
-        # Find target in same room
-        if not speaker.location:
+        """Scripted whisper — mirrors cmd_whisper's action shape."""
+        location = speaker.location
+        if location is None:
             return
 
         target = None
         target_lower = target_spec.lower()
-
-        for obj in speaker.location.contents:
+        for obj in location.contents:
             if obj.name.lower() == target_lower:
                 target = obj
                 break
-
-        if target:
-            logger.debug(f"Whisper from {speaker.name} to {target.name}: {message}")
-
-
-# Global engine instance (set by GameServer)
-_engine: ScriptEngine | None = None
-
-
-def get_engine() -> ScriptEngine | None:
-    """Get the global script engine."""
-    return _engine
-
-
-def set_engine(engine: ScriptEngine) -> None:
-    """Set the global script engine."""
-    global _engine
-    _engine = engine
-
-
-async def softcode_fallback(ctx: CommandContext) -> None:
-    """
-    Command dispatcher fallback handler for softcode.
-
-    This is registered with the dispatcher as the unknown command handler.
-    """
-    engine = get_engine()
-    if engine:
-        found = await engine.handle_unknown_command(ctx)
-        if found:
+        if target is None or target == speaker:
             return
 
-    # No trigger found
-    await ctx.session.send(f"Unknown command: {ctx.command_name}")
+        action = Action(
+            actor=speaker,
+            target=target,
+            action_type="event:whisper",
+            tags={"scripted"},
+            extra={"message": message},
+        )
+        action.add_message("actor", f'You whisper to {{target}}, "{message}"', success_only=True)
+        action.add_message("target", f'{{actor}} whispers, "{message}"', success_only=True)
+        action.add_message("room", "{actor} whispers something to {target}.", success_only=True)
+        await propagate(action)
+
+    def _deliver_queued(self, functions: ScriptFunctions) -> None:
+        """Deliver pemit/remit/oemit entries queued during script execution."""
+        for kind, obj, message in functions.command_queue:
+            if kind == 'pemit':
+                obj.msg(message)
+            elif kind == 'remit':
+                obj.msg_contents(message)
+            elif kind == 'oemit':
+                room = functions.executor.location if functions.executor else None
+                if room is not None:
+                    room.msg_contents(message, exclude=[obj])
+        functions.command_queue.clear()

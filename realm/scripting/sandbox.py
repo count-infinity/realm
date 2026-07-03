@@ -17,8 +17,9 @@ from __future__ import annotations
 import ast
 import asyncio
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -263,6 +264,7 @@ class ScriptSandbox:
         ctx: ScriptContext,
         *,
         validate: bool = True,
+        functions: dict[str, Any] | None = None,
     ) -> tuple[Any, list[str]]:
         """
         Execute script code synchronously.
@@ -271,6 +273,9 @@ class ScriptSandbox:
             code: The script code to execute
             ctx: Script context with enactor, executor, etc.
             validate: Whether to validate the AST first
+            functions: Extra names injected into the script namespace
+                (typically ``ScriptFunctions.to_dict()``). Callables are
+                wrapped so they count against the call/time limits.
 
         Returns:
             Tuple of (result, output_lines)
@@ -300,6 +305,14 @@ class ScriptSandbox:
 
         # Create safe globals
         safe_globals = self._make_safe_globals(ctx)
+
+        # Inject provided game functions, limit-wrapped
+        if functions:
+            for fn_name, fn_value in functions.items():
+                if callable(fn_value):
+                    safe_globals[fn_name] = self._wrap_function(fn_value)
+                else:
+                    safe_globals[fn_name] = fn_value
 
         # Custom output function
         def script_output(*args: Any, sep: str = ' ', end: str = '\n') -> None:
@@ -350,16 +363,20 @@ class ScriptSandbox:
         ctx: ScriptContext,
         *,
         validate: bool = True,
+        functions: dict[str, Any] | None = None,
     ) -> tuple[Any, list[str]]:
         """
         Execute script code asynchronously.
 
         Runs the script in a thread pool to avoid blocking the event loop.
+        Injected functions therefore run off-loop: they must only read game
+        state or queue work (see ScriptFunctions.command_queue), never touch
+        sessions or the loop directly.
         """
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(
             None,
-            lambda: self.execute(code, ctx, validate=validate)
+            lambda: self.execute(code, ctx, validate=validate, functions=functions)
         )
 
 
@@ -371,23 +388,31 @@ class SimpleScriptRunner:
     like "say Hello, %n!" - no Python execution needed.
     """
 
-    @staticmethod
-    def is_simple_script(code: str) -> bool:
-        """Check if this is a simple command script (no Python)."""
-        # Simple scripts are single lines that look like commands
+    # A simple script is a single game command; anything else is Python.
+    SIMPLE_COMMAND_PREFIXES = (
+        'say ', 'pose ', 'whisper ', 'emit ', '@emit ',
+    )
+    SIMPLE_COMMAND_TOKENS = (':', ';', '\\')
+
+    @classmethod
+    def is_simple_script(cls, code: str) -> bool:
+        """
+        Check if this is a simple command script (no Python).
+
+        Simple scripts are single lines starting with a script command
+        (say/pose/whisper/emit or a token shortcut). Everything else runs
+        through the sandbox — where say()/pose() exist as functions, so
+        Python one-liners like ``say(f"...")`` still work.
+        """
         lines = code.strip().split('\n')
         if len(lines) != 1:
             return False
 
         line = lines[0].strip()
-        # Simple if it starts with a command word and doesn't have Python syntax
-        if any(kw in line for kw in ['def ', 'class ', 'import ', 'for ', 'while ', 'if ']):
-            return False
-        if '=' in line and not line.startswith('say ') and not line.startswith('pose '):
-            # Could be assignment, treat as Python
-            return '==' in line  # Only == is comparison, = might be assignment
-
-        return True
+        return (
+            line.lower().startswith(cls.SIMPLE_COMMAND_PREFIXES)
+            or line.startswith(cls.SIMPLE_COMMAND_TOKENS)
+        )
 
     @staticmethod
     def expand_simple(code: str, ctx: ScriptContext) -> str:

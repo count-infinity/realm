@@ -7,7 +7,7 @@ Objects can have multiple tags like: room, zone:forest, indoor, npc, shopkeeper
 
 from __future__ import annotations
 
-from typing import Iterator
+from collections.abc import Iterator
 
 
 class TagSet:

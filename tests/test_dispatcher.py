@@ -1,15 +1,16 @@
 """Tests for the CommandDispatcher class."""
 
 import pytest
+
 from realm.core.objects import GameObject
-from realm.gateway.session import Session, SessionState
+from realm.gateway.session import Session
 from realm.server.dispatcher import (
-    CommandDispatcher,
+    DIRECTION_ALIASES,
+    TOKEN_MAP,
     CommandContext,
+    CommandDispatcher,
     command,
     register_commands,
-    TOKEN_MAP,
-    DIRECTION_ALIASES,
 )
 
 

@@ -9,9 +9,10 @@ from __future__ import annotations
 import importlib.util
 import logging
 import sys
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Awaitable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from realm.config.defaults import get_default_settings
 
@@ -42,6 +43,9 @@ class Settings:
     # Protocol toggles
     enable_telnet: bool = True
     enable_websocket: bool = False
+
+    # Softcode scripting ($commands, ^listens, ON_EVENT triggers)
+    enable_scripting: bool = True
 
     # Paths (resolved to absolute)
     db_path: Path = field(default_factory=lambda: Path("data/game.db"))
@@ -123,6 +127,7 @@ def load_config(game_dir: Path | None = None) -> Settings:
         websocket_port=config.get('WEBSOCKET_PORT', 4001),
         enable_telnet=config.get('ENABLE_TELNET', True),
         enable_websocket=config.get('ENABLE_WEBSOCKET', False),
+        enable_scripting=config.get('ENABLE_SCRIPTING', True),
         db_path=_resolve_path(game_dir, config.get('DB_PATH', 'data/game.db')),
         welcome_file=_resolve_path(game_dir, config.get('WELCOME_FILE', 'data/welcome.txt')),
         game_dir=game_dir,

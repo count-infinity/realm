@@ -8,7 +8,8 @@ No rigid type hierarchy - use tags for categorization.
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any
 
 from realm.core.tags import TagSet
 
@@ -276,7 +277,15 @@ class GameObject:
     # a Pet walks its rider, etc.) — call super() first to run own behaviors.
 
     async def visit_check(self, action: Action) -> None:
-        """Permission pass: run own hook then own behaviors' on_check."""
+        """
+        Permission pass: enforce locks, then own hook, then behaviors.
+
+        Locks run first so behaviors observe lock-blocked attempts (both
+        propagation passes always complete). Imported lazily so core stays
+        importable on its own.
+        """
+        from realm.permissions.locks import enforce_lock_on_action
+        enforce_lock_on_action(self, action)
         self.at_action_check(action)
         for behavior in self._behaviors:
             await behavior.on_check(self, action)
@@ -348,6 +357,22 @@ class GameObject:
         return default
 
     # --- Utility methods ---
+
+    def get_display_name(self, looker: GameObject | None = None) -> str:
+        """
+        The name ``looker`` knows this object by.
+
+        Perception-aware ("Someone" for an unseen actor); the override
+        point for recognition/disguise systems. Lazy import keeps core
+        importable on its own.
+        """
+        from realm.core.perception import perceived_name
+        return perceived_name(self, looker)
+
+    @property
+    def has_msg_handler(self) -> bool:
+        """Whether messages to this object go anywhere (linked session)."""
+        return self._msg_handler is not None
 
     def msg(self, text: str) -> None:
         """

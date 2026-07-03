@@ -4,10 +4,10 @@ Built-in commands for REALM.
 These are the core commands available in every REALM game.
 """
 
-from realm.commands.builtin.movement import register_movement_commands
 from realm.commands.builtin.communication import register_communication_commands
-from realm.commands.builtin.look import register_look_commands
 from realm.commands.builtin.inventory import register_inventory_commands
+from realm.commands.builtin.look import register_look_commands
+from realm.commands.builtin.movement import register_movement_commands
 from realm.commands.builtin.utility import register_utility_commands
 from realm.commands.olc import register_olc_commands
 
