@@ -118,9 +118,13 @@ same day (see Completed); these remain, roughly by impact:
   hand-maintained help category map in `utility.py` that must be edited for
   every new command — derive categories from a `Command.category` field.
 - [ ] **Persistence follow-ups:** N+1 query in `load_all` (per-object
-  reference SELECT), per-object commits in `_flush_queue` (batch in one
-  transaction), no schema versioning (`PRAGMA user_version` + migrations),
-  `repository.py` interface incompatible with `manager.py`.
+  reference SELECT), no schema versioning (`PRAGMA user_version` +
+  migrations), `repository.py` interface incompatible with `manager.py`.
+  Consider SQLite WAL mode for crash-robustness. (FIXED 2026-07-03: the
+  flush loop now sweeps ALL dirty objects in one transaction — pure
+  gameplay mutations previously never persisted unless something
+  incidentally called save(); crash-loss is now genuinely bounded by
+  FLUSH_INTERVAL. Verified by unit tests + a live SIGKILL drive.)
 - [ ] **Gateway duplication:** telnet/websocket repeat the server-wrapper
   shape; websocket defines its writer twice (handler swaps mid-connection).
   Extract a small base or shared `connect_session` helper.

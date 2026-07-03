@@ -145,30 +145,37 @@ class PersistenceManager:
                 logger.exception("Error flushing save queue; autosave continues")
 
     async def _flush_queue(self) -> None:
-        """Process all objects in the save queue."""
+        """
+        Write every dirty object to the database in one transaction.
+
+        This is the durability contract: ANY mutation — an attribute
+        write, a tag change, an item changing location — marks its object
+        dirty, and the periodic flush persists it. A crash loses at most
+        ``flush_interval`` seconds of play; nothing depends on gameplay
+        code remembering to call save().
+
+        The explicit save queue is drained too (kept as an API for callers
+        that want to hint urgency), but the dirty sweep is what guarantees
+        coverage.
+        """
         if not self._db:
             return
 
-        to_save: set[str] = set()
         while not self._save_queue.empty():
             try:
-                obj_id = self._save_queue.get_nowait()
-                to_save.add(obj_id)
+                self._save_queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
 
-        if not to_save:
+        dirty = [obj for obj in self._object_cache.values() if obj.is_dirty()]
+        if not dirty:
             return
 
-        saved_count = 0
-        for obj_id in to_save:
-            obj = self._object_cache.get(obj_id)
-            if obj and obj.is_dirty():
-                await self._save_object(obj)
-                saved_count += 1
+        for obj in dirty:
+            await self._save_object(obj, commit=False)
+        await self._db.commit()
 
-        if saved_count > 0:
-            logger.debug(f"Flushed {saved_count} objects to database")
+        logger.debug(f"Flushed {len(dirty)} dirty objects to database")
 
     # --- Public API ---
 
@@ -264,8 +271,13 @@ class PersistenceManager:
 
     # --- Internal methods ---
 
-    async def _save_object(self, obj: GameObject) -> None:
-        """Save a single object to the database."""
+    async def _save_object(self, obj: GameObject, commit: bool = True) -> None:
+        """
+        Save a single object to the database.
+
+        ``commit=False`` lets the flush loop batch many objects into one
+        transaction and commit once.
+        """
         if not self._db:
             return
 
@@ -290,7 +302,8 @@ class PersistenceManager:
                 data['locks'],
             ),
         )
-        await self._db.commit()
+        if commit:
+            await self._db.commit()
         obj.clear_dirty()
         logger.debug(f"Saved object {obj.id} ({obj.name})")
 

@@ -415,3 +415,76 @@ class TestEdgeCases:
         assert loaded.db.nested == {'a': {'b': 'c'}}
         assert loaded.db.boolean is True
         assert loaded.db.null_val is None
+
+
+class TestDirtySweep:
+    """
+    The durability contract: ANY dirty object is persisted by the
+    periodic flush — gameplay code never has to call save(). A crash
+    loses at most flush_interval seconds.
+    """
+
+    @pytest.mark.asyncio
+    async def test_unqueued_attribute_mutation_survives_flush(self, tmp_path):
+        db = tmp_path / "sweep.db"
+        pm = PersistenceManager(db)
+        await pm.initialize()
+        obj = GameObject("safe", tags=['thing'])
+        await pm.save(obj)
+
+        # Pure gameplay mutation: no save(), no save_deferred().
+        obj.db.locked = False
+        obj.add_tag('closed')
+        assert obj.is_dirty()
+
+        await pm._flush_queue()  # what the background loop runs
+        await pm.close()
+
+        pm2 = PersistenceManager(db)
+        await pm2.initialize()
+        loaded = await pm2.load(obj.id)
+        assert loaded.db.locked is False
+        assert loaded.has_tag('closed')
+        await pm2.close()
+
+    @pytest.mark.asyncio
+    async def test_location_move_survives_flush(self, tmp_path):
+        db = tmp_path / "sweep2.db"
+        pm = PersistenceManager(db)
+        await pm.initialize()
+        room = GameObject("Vault", tags=['room'])
+        player = GameObject("Raven", tags=['player'], location=room)
+        docs = GameObject("documents", tags=['thing'], location=room)
+        for o in (room, player, docs):
+            await pm.save(o)
+
+        docs.location = player  # a 'get' — nobody calls save
+        await pm._flush_queue()
+        await pm.close()
+
+        pm2 = PersistenceManager(db)
+        await pm2.initialize()
+        objs = {o.name: o for o in await pm2.load_all()}
+        assert objs["documents"].location is objs["Raven"]
+        await pm2.close()
+
+    @pytest.mark.asyncio
+    async def test_clean_objects_not_rewritten(self, tmp_path):
+        db = tmp_path / "sweep3.db"
+        pm = PersistenceManager(db)
+        await pm.initialize()
+        obj = GameObject("statue", tags=['thing'])
+        await pm.save(obj)
+        assert not obj.is_dirty()
+
+        writes = []
+        original = pm._save_object
+
+        async def counting(o, commit=True):
+            writes.append(o.id)
+            await original(o, commit=commit)
+
+        pm._save_object = counting
+        await pm._flush_queue()
+        assert writes == []  # nothing dirty, nothing written
+        await pm.close()
