@@ -24,6 +24,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# The running server's manager — the ambient identity map (same pattern as
+# the propagation-engine singleton). Set by GameServer.start(), cleared on
+# stop(). Behaviors and other engine-internal code resolve object IDs
+# through it when no explicit manager is in reach.
+_active_manager = None
+
+
+def set_active_manager(manager) -> None:
+    """Install (or clear, with None) the ambient PersistenceManager."""
+    global _active_manager
+    _active_manager = manager
+
+
+def get_active_manager():
+    """The running server's PersistenceManager, if any."""
+    return _active_manager
+
+
 # SQL Schema
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS objects (

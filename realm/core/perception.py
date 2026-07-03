@@ -31,6 +31,16 @@ LIGHT_TAG = "light"
 NIGHTVISION_TAG = "nightvision"
 INVISIBLE_TAG = "invisible"
 SEE_INVISIBLE_TAG = "see_invisible"
+HIDDEN_TAG = "hidden"
+
+# Actions loud enough to break stealth. Movement is deliberately absent —
+# sneaking room to room is the point of hiding; Watchful observers contest it.
+LOUD_ACTIONS = {
+    "event:speech", "event:shout", "event:ooc",
+    "event:emote", "event:semipose", "event:emit",
+    "item:on_get", "item:on_open", "item:on_close",
+    "combat:on_attack",
+}
 
 
 def _is_admin(viewer: GameObject) -> bool:
@@ -77,6 +87,11 @@ def can_see(viewer: GameObject | None, obj: GameObject) -> bool:
         return True
     if obj.has_tag(INVISIBLE_TAG) and not viewer.has_tag(SEE_INVISIBLE_TAG):
         return False
+    # Hidden (active stealth) isn't countered by see_invisible — only by
+    # winning a contest (the `search` command, Watchful observers) or by
+    # the hider acting loudly.
+    if obj.has_tag(HIDDEN_TAG):
+        return False
     location = obj.location
     if location is not None and not can_see_room(viewer, location):
         return False
@@ -97,14 +112,50 @@ def perceived_name(obj: GameObject, looker: GameObject | None = None) -> str:
     return "something"
 
 
+def break_stealth(obj: GameObject, reason: str = "") -> bool:
+    """
+    Drop an object's ``hidden`` tag and announce it. Returns True if the
+    object was actually hidden.
+    """
+    if not obj.has_tag(HIDDEN_TAG):
+        return False
+    obj.remove_tag(HIDDEN_TAG)
+    obj.msg(reason or "You are no longer hidden.")
+    room = obj.location
+    if room is not None:
+        room.msg_contents(
+            f"{obj.name} emerges from hiding.", exclude=[obj],
+        )
+    return True
+
+
+async def stealth_observer(action) -> None:
+    """
+    Propagation observer: acting loudly breaks the actor's stealth.
+
+    Registered by GameServer alongside the script engine. Runs after
+    delivery, so bystanders hear the unattributed action ("Someone
+    says...") and THEN see the hider revealed — you gave yourself away.
+    """
+    actor = action.actor
+    if actor is None or action.blocked:
+        return
+    if action.action_type in LOUD_ACTIONS and actor.has_tag(HIDDEN_TAG):
+        break_stealth(actor, "Your action gives you away!")
+
+
 __all__ = [
     "DARK_TAG",
     "LIGHT_TAG",
     "NIGHTVISION_TAG",
     "INVISIBLE_TAG",
     "SEE_INVISIBLE_TAG",
+    "HIDDEN_TAG",
+    "LOUD_ACTIONS",
     "room_is_lit",
     "can_see_room",
     "can_see",
     "perceived_name",
+    "break_stealth",
+    "stealth_observer",
 ]

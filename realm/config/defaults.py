@@ -34,6 +34,9 @@ WELCOME_FILE: str = "data/welcome.txt"
 # Persistence settings
 FLUSH_INTERVAL: float = 30.0  # Seconds between auto-saves
 
+# World heartbeat: seconds between behavior ticks (0 disables)
+TICK_INTERVAL: float = 4.0
+
 
 def get_default_settings() -> dict[str, Any]:
     """
@@ -55,6 +58,7 @@ def get_default_settings() -> dict[str, Any]:
         'DB_PATH': DB_PATH,
         'WELCOME_FILE': WELCOME_FILE,
         'FLUSH_INTERVAL': FLUSH_INTERVAL,
+        'TICK_INTERVAL': TICK_INTERVAL,
     }
 
 

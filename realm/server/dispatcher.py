@@ -354,9 +354,14 @@ class CommandDispatcher:
             )
             return
 
-        # Try exit matching (if player has location)
+        # Try exit matching (if player has location). Multi-word exit
+        # names ("fire escape") arrive split into command+args, so try
+        # the full raw input as well.
         if ctx.player and ctx.player.location:
-            exit_obj = self._find_exit(ctx.player.location, name)
+            exit_obj = (
+                self._find_exit(ctx.player.location, name)
+                or self._find_exit(ctx.player.location, ctx.raw_input.strip())
+            )
             if exit_obj:
                 # Execute movement through the exit
                 await self._handle_exit(ctx, exit_obj)

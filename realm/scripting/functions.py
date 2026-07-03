@@ -425,6 +425,25 @@ class ScriptFunctions:
         if exclude_obj is not None:
             self.command_queue.append(('oemit', exclude_obj, str(message)))
 
+    # --- Skill checks (contests power scripted social/skill outcomes) ---
+
+    def skill_check(self, obj, skill: str, modifier: int = 0) -> bool:
+        """Roll a skill check for an object (name/#id or object)."""
+        from realm.core.checks import check as _check
+        target = self._resolve(obj)
+        if target is None:
+            return False
+        return bool(_check(target, str(skill), int(modifier)))
+
+    def contest(self, actor, actor_skill: str, opponent, opponent_skill: str) -> bool:
+        """Opposed quick contest; True if the actor wins."""
+        from realm.core.checks import contest as _contest
+        a = self._resolve(actor)
+        b = self._resolve(opponent)
+        if a is None or b is None:
+            return False
+        return _contest(a, str(actor_skill), b, str(opponent_skill))
+
     # --- Comparison functions ---
 
     @staticmethod
@@ -527,6 +546,9 @@ class ScriptFunctions:
             'setunion': self.setunion,
             'setinter': self.setinter,
             'setdiff': self.setdiff,
+            # Skill checks
+            'skill_check': self.skill_check,
+            'contest': self.contest,
             # Communication
             'pemit': self.pemit,
             'remit': self.remit,

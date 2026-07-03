@@ -47,8 +47,12 @@ def resolve_exit_destination(
         return dest_obj
 
     dest_id = exit_obj.db.get('destination')
-    if dest_id and persistence is not None:
-        return persistence.get_cached(dest_id)
+    if dest_id:
+        if persistence is None:
+            from realm.persistence.manager import get_active_manager
+            persistence = get_active_manager()
+        if persistence is not None:
+            return persistence.get_cached(dest_id)
 
     return None
 
@@ -91,6 +95,32 @@ async def move_through_exit(
             exit_obj, LockType.BASIC, "You can't go {name} — it's locked.",
         ))
         return False
+
+    # Physical door state: a 'closed' exit must be opened first.
+    if exit_obj is not None and exit_obj.has_tag('closed'):
+        actor.msg(
+            exit_obj.db.get('closed_msg') or f"The {exit_obj.name} is closed."
+        )
+        return False
+
+    # Skill-gated exits (fire escapes, ledges): db.check_skill names the
+    # skill, db.check_difficulty subtracts, db.check_fail_msg customizes.
+    check_skill = exit_obj.db.get('check_skill') if exit_obj is not None else None
+    if check_skill:
+        from realm.core.checks import check
+        difficulty = int(exit_obj.db.get('check_difficulty') or 0)
+        result = check(actor, str(check_skill), -difficulty)
+        if not result.success:
+            actor.msg(
+                exit_obj.db.get('check_fail_msg')
+                or f"You fail to make it {direction} ({check_skill} check)."
+            )
+            if origin is not None:
+                origin.msg_contents(
+                    f"{actor.get_display_name(None)} tries to go {direction} and fails.",
+                    exclude=[actor],
+                )
+            return False
 
     if not check_lock(destination, LockType.ENTER, actor):
         actor.msg(lock_failure_message(

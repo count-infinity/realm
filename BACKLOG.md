@@ -300,6 +300,62 @@ Design sketch:
 
 ## Completed
 
+- [x] **THE NEXAGEN HEIST: infiltration gameplay complete (2026-07-03).**
+  Story 1 (Stealth & B&E) from the infiltration user stories is fully
+  playable end to end. Verified: 615 unit tests (29 new) + a 24-check
+  full playthrough over telnet — challenge at the lobby, dark-alley
+  fire-escape climb, looted toolkit, nightvision stairwell crossing,
+  hide, sneaking past a live patrolling guard, electronic suite lock
+  defeated by skill, concealed safe found behind the painting, safe
+  cracked, documents taken, clean exfiltration — plus the Story 6
+  softcode blackout epilogue. All lean objects + tags + attributes +
+  behaviors, per the architecture goal:
+  - `realm/core/checks.py`: 3d6 roll-under skill checks vs
+    `db.skill_<name>` with GURPS-style attribute defaults
+    (SKILL_DEFAULTS), margins, opposed `contest()`, and a pluggable
+    resolver (`set_check_resolver` — tests inject a deterministic one).
+    Softcode gets `skill_check()`/`contest()` functions.
+  - Physical state vs permission: `closed` tag + `db.locked`/`key_id`
+    on exits AND containers — one mechanism for doors and safes.
+    Commands: `open/close/lock/unlock` (carried key via `db.unlocks`),
+    `pick` (skill vs `db.lock_difficulty`; `db.lock_skill` for
+    electronic locks; -5 without a `lockpicks`-tagged tool),
+    `use <item> on <target>` (keycards toggle their lock; everything
+    else propagates `item:on_use` for behaviors/ON_USE softcode).
+  - Skill-gated exits: `db.check_skill`/`check_difficulty`/
+    `check_fail_msg` on an exit (the fire escape) — generalizes to any
+    athletic obstacle.
+  - Wearables: `wearable` tag, `db.slot` conflicts, `db.grants_tags`
+    applied while worn (nightvision goggles); innate tags survive
+    removal.
+  - Stealth: `hide` (darkness +3) grants `hidden`; loud actions break
+    it via a propagation observer; `search` runs Observation contests
+    against hiders and reveals `conceal_difficulty` scenery with
+    custom `reveal_msg`.
+  - NPC kit (`realm/behaviors/`): WatchfulBehavior (challenges visible
+    arrivals, contests sneaks, bumps own `db.alert_level` on a spot)
+    and PatrolBehavior (walks a route of EXIT NAMES through the real
+    movement gate — closed doors stop patrols; state in owner.db so it
+    persists). Registered with BehaviorRegistry → survives save/load.
+  - Server tick loop (`TICK_INTERVAL`, default 4s): drives
+    `should_tick` behaviors and flushes all sessions — closes the
+    long-standing OOB-flush backlog item (NPCs act without waiting for
+    player input).
+  - Ambient persistence accessor (`set_active_manager`/
+    `get_active_manager`, same pattern as the propagation singleton) so
+    behaviors resolve exit-destination IDs after a restart.
+  - Dispatcher: multi-word exit names ("fire escape") walkable by
+    typing them (full raw input tried in exit fallthrough).
+  - `examples/spacegame/nexagen.py`: the tower zone — 10 rooms, tram
+    link from the Promenade, guards, locker/goggles/lockpicks, badge
+    door, concealed wall safe, PROJECT LONGSHADOW documents, and a
+    pure-softcode ON_USE power panel that toggles the floor-46
+    blackout.
+  Remaining story gaps → still-open items: social contests as commands
+  (Fast-Talk NPC conviction states), building alert zones, guard
+  combat response/backup, disguises, timed effects, `open` for
+  revealable paintings vs search (search chosen), Observation-based
+  per-looker reveals.
 - [x] **Perception: per-looker rendering + darkness/invisibility
   (2026-07-02).** Verified: 586 unit tests (23 new) + an 18-check live
   telnet drive. Extends solar_frontiers infiltration user stories

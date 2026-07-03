@@ -35,12 +35,17 @@ async def init_world(server):
 
     Called on first startup when the database is empty.
     """
-    from world import create_world
     from equipment import create_equipment_prototypes
+    from nexagen import create_nexagen
     from ships import create_ship_prototypes
+    from world import create_world
 
     # Create the world
     world = await create_world(server.persistence)
+
+    # Nexagen Tower: the corporate infiltration zone, reached by tram
+    # from the Station Promenade.
+    await create_nexagen(server.persistence, world["promenade"])
 
     # Mark docking bay as start room
     docking_bay = world.get("docking_bay")

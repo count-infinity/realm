@@ -21,7 +21,12 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+# Importing the behavior kit registers its behaviors with the
+# BehaviorRegistry so persisted worlds can rehydrate them.
+import realm.behaviors  # noqa: F401
+import realm.combat.behaviors  # noqa: F401
 from realm.core.objects import GameObject
+from realm.core.perception import stealth_observer
 from realm.core.propagation import (
     ROOM_TARGET_CHAIN,
     Action,
@@ -33,7 +38,7 @@ from realm.core.propagation import (
 from realm.core.render import render_room
 from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
-from realm.persistence.manager import PersistenceManager
+from realm.persistence.manager import PersistenceManager, set_active_manager
 from realm.scripting.engine import ScriptEngine
 from realm.server.dispatcher import CommandContext, CommandDispatcher
 
@@ -71,6 +76,7 @@ class GameServer:
         enable_websocket: bool = False,  # Requires aiohttp
         enable_scripting: bool = True,
         flush_interval: float = 30.0,
+        tick_interval: float = 4.0,
         game_name: str = "REALM",
         welcome_file: str | Path | None = None,
     ):
@@ -83,6 +89,7 @@ class GameServer:
         self.enable_websocket = enable_websocket
         self.enable_scripting = enable_scripting
         self.flush_interval = flush_interval
+        self.tick_interval = tick_interval
         self.game_name = game_name
         self.welcome_file = Path(welcome_file) if welcome_file else None
 
@@ -105,6 +112,7 @@ class GameServer:
 
         # State
         self._running = False
+        self._tick_task: asyncio.Task[None] | None = None
         self._startup_room: GameObject | None = None
         self._settings: Settings | None = None
 
@@ -136,6 +144,7 @@ class GameServer:
             enable_websocket=settings.enable_websocket,
             enable_scripting=settings.enable_scripting,
             flush_interval=settings.flush_interval,
+            tick_interval=settings.tick_interval,
             game_name=settings.game_name,
             welcome_file=settings.welcome_file,
         )
@@ -209,6 +218,7 @@ class GameServer:
         )
         await self.persistence.initialize()
         await self.persistence.start_flush_loop()
+        set_active_manager(self.persistence)
 
         # Load world
         loaded_count = await self._load_world()
@@ -242,6 +252,15 @@ class GameServer:
         if self.enable_scripting:
             self.script_engine = ScriptEngine(persistence=self.persistence)
             get_propagation_engine().add_observer(self.script_engine.handle_action)
+
+        # Loud actions break stealth, whoever performs them.
+        get_propagation_engine().add_observer(stealth_observer)
+
+        # The world's heartbeat: drives tickable behaviors (patrols, AI)
+        # and flushes sessions so NPC-initiated output reaches players
+        # without waiting for them to type something.
+        if self.tick_interval > 0:
+            self._tick_task = asyncio.create_task(self._tick_loop())
 
         # Imported here, not at module top: realm.commands re-exports from
         # realm.server.dispatcher, so a top-level import would be circular.
@@ -327,11 +346,22 @@ class GameServer:
             except Exception as e:
                 logger.error(f"Error in stop callback: {e}")
 
-        # Detach the script engine from the (module-singleton) propagation
-        # engine so a later server instance doesn't double-fire scripts.
+        # Stop the heartbeat before tearing anything else down.
+        if self._tick_task is not None:
+            self._tick_task.cancel()
+            try:
+                await self._tick_task
+            except asyncio.CancelledError:
+                pass
+            self._tick_task = None
+
+        # Detach observers from the (module-singleton) propagation engine
+        # so a later server instance doesn't double-fire.
         if self.script_engine is not None:
             get_propagation_engine().remove_observer(self.script_engine.handle_action)
             self.script_engine = None
+        get_propagation_engine().remove_observer(stealth_observer)
+        set_active_manager(None)
 
         # Disconnect all sessions BEFORE stopping protocol servers:
         # Server.wait_closed() (Python 3.12.1+) waits for client connections,
@@ -621,6 +651,35 @@ class GameServer:
                 idle = int(s.idle_time)
                 await session.send(f"  {s.player.name} (idle {idle}s)")
         await session.send("")
+
+    async def _tick_loop(self) -> None:
+        """
+        Periodic world pulse.
+
+        Every tick_interval seconds, run tick() on every behavior that
+        opts in (should_tick), then flush all session output — NPC
+        actions must reach players without a player command in flight.
+        A failing behavior is logged and skipped; the pulse survives.
+        """
+        while True:
+            await asyncio.sleep(self.tick_interval)
+            if self.persistence is None:
+                continue
+            for obj in self.persistence.all_cached():
+                for behavior in obj.get_behaviors():
+                    if not behavior.should_tick:
+                        continue
+                    try:
+                        await behavior.tick(obj, self.tick_interval)
+                    except Exception:
+                        logger.exception(
+                            f"Tick error in {behavior.behavior_id} on {obj.name}"
+                        )
+            for session in self.session_manager.all_sessions():
+                try:
+                    await session.flush_output()
+                except Exception:
+                    logger.exception("Tick flush error")
 
     async def _handle_unknown(self, ctx: CommandContext) -> None:
         """Handle unknown commands: softcode $-command fallback."""

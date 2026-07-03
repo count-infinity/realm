@@ -101,6 +101,9 @@ async def cmd_get(ctx: CommandContext) -> None:
         if not from_container:
             await ctx.session.send(f"You don't see '{container_name.strip()}' here.")
             return
+        if from_container.has_tag('closed'):
+            await ctx.session.send(f"{from_container.name} is closed.")
+            return
     else:
         item_name = args
 
@@ -366,6 +369,10 @@ async def cmd_put(ctx: CommandContext) -> None:
 
     if container == item:
         await ctx.session.send("You can't put something inside itself!")
+        return
+
+    if container.has_tag('closed'):
+        await ctx.session.send(f"{container.name} is closed.")
         return
 
     # For 'put', the target is the container and the item travels via tool/extra.
