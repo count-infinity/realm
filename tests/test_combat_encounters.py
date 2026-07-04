@@ -488,3 +488,101 @@ class TestEscalation:
         encounter = manager.encounter_of(guard)
         assert encounter is not None
         assert encounter.get(sneak.id) is not None
+
+
+# --- Timed effects (bleeding, poison, regeneration) --------------------------------
+
+
+@pytest.mark.asyncio
+class TestTimedEffects:
+
+    async def test_bleeding_ticks_damage_and_expires(self, manager):
+        from realm.behaviors import DamageOverTimeBehavior
+
+        room = GameObject("Arena", tags=["room"])
+        alice, sess = make_fighter("Alice", room, hp=10)
+        bleed = DamageOverTimeBehavior(kind="bleeding", damage=2,
+                                       interval=1, duration=3,
+                                       expire_msg="The bleeding stops.")
+        alice.add_behavior(bleed)
+        assert alice.has_tag("bleeding")
+
+        await bleed.tick(alice, 4.0)
+        assert int(alice.db.get('hp')) == 8
+
+        await bleed.tick(alice, 4.0)
+        assert int(alice.db.get('hp')) == 6
+
+        await bleed.tick(alice, 4.0)  # duration exhausted -> expires
+        assert not alice.has_tag("bleeding")
+        assert bleed not in alice.get_behaviors()
+        assert any("bleeding stops" in line for line in drain(sess))
+
+    async def test_poison_kills_through_shared_death_path(self, manager):
+        from realm.behaviors import DamageOverTimeBehavior
+
+        room = GameObject("Arena", tags=["room"])
+        thug, _ = make_fighter("Thug", room, player=False, hp=2)
+        loot = GameObject("shiv", location=thug, tags=["thing"])
+        poison = DamageOverTimeBehavior(kind="poisoned", damage=3, duration=10)
+        thug.add_behavior(poison)
+
+        await poison.tick(thug, 4.0)
+
+        corpses = [o for o in room.contents if o.name.startswith("corpse of")]
+        assert len(corpses) == 1 and loot.location is corpses[0]
+
+    async def test_poisoned_player_falls_unconscious(self, manager):
+        from realm.behaviors import DamageOverTimeBehavior
+
+        room = GameObject("Arena", tags=["room"])
+        alice, _ = make_fighter("Alice", room, hp=1)
+        poison = DamageOverTimeBehavior(kind="poisoned", damage=2, duration=10)
+        alice.add_behavior(poison)
+
+        await poison.tick(alice, 4.0)
+
+        assert alice.has_tag('unconscious')
+        assert alice.location is room
+
+    async def test_regeneration_heals_and_caps(self, manager):
+        from realm.behaviors import RegenerationBehavior
+
+        room = GameObject("Arena", tags=["room"])
+        troll, _ = make_fighter("Troll", room, player=False, hp=10)
+        troll.db.hp = 8
+        regen = RegenerationBehavior(heal=3, duration=0)  # innate
+        troll.add_behavior(regen)
+
+        await regen.tick(troll, 4.0)
+        assert int(troll.db.get('hp')) == 10  # capped at max
+
+        await regen.tick(troll, 4.0)
+        assert int(troll.db.get('hp')) == 10
+        assert regen in troll.get_behaviors()  # permanent
+
+    async def test_effect_survives_serialization(self, manager):
+        from realm.behaviors import DamageOverTimeBehavior
+        from realm.core.behaviors import BehaviorRegistry
+
+        alice = GameObject("Alice", tags=["player"])
+        alice.add_behavior(DamageOverTimeBehavior(kind="poisoned", damage=1,
+                                                  duration=20))
+        data = alice.get_behaviors()[0].to_dict()
+
+        revived = BehaviorRegistry.from_dict(data)
+        assert revived is not None
+        assert revived.get_param('kind') == "poisoned"
+        assert revived.get_param('duration') == 20
+
+    async def test_registry_tracks_behavior_owners(self, manager):
+        from realm.behaviors import RegenerationBehavior
+        from realm.core.behaviors import behavior_owners
+
+        obj = GameObject("thing", tags=["thing"])
+        regen = RegenerationBehavior()
+        obj.add_behavior(regen)
+        assert obj in behavior_owners()
+
+        obj.remove_behavior(regen)
+        assert obj not in behavior_owners()

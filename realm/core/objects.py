@@ -115,6 +115,7 @@ class GameObject:
     """
 
     __slots__ = (
+        '__weakref__',
         'id',
         'name',
         'description',
@@ -250,6 +251,8 @@ class GameObject:
             self._behaviors.append(behavior)
             behavior.attach(self)
             self._mark_dirty()
+            from realm.core.behaviors import register_behavior_owner
+            register_behavior_owner(self)
 
     def remove_behavior(self, behavior: Behavior) -> None:
         """Detach a behavior from this object."""
@@ -257,6 +260,9 @@ class GameObject:
             behavior.detach(self)
             self._behaviors.remove(behavior)
             self._mark_dirty()
+            if not self._behaviors:
+                from realm.core.behaviors import unregister_behavior_owner
+                unregister_behavior_owner(self)
 
     def get_behaviors(self) -> list[Behavior]:
         """Get all attached behaviors."""

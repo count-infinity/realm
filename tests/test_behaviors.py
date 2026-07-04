@@ -122,7 +122,14 @@ class TestBehaviorRegistry:
     """Test suite for BehaviorRegistry."""
 
     def setup_method(self):
+        # Snapshot the global registry — clearing it destructively would
+        # unregister every import-time behavior for the rest of the session.
+        self._saved = dict(BehaviorRegistry._behaviors)
         BehaviorRegistry._behaviors.clear()
+
+    def teardown_method(self):
+        BehaviorRegistry._behaviors.clear()
+        BehaviorRegistry._behaviors.update(self._saved)
 
     def test_register_behavior(self):
         BehaviorRegistry.register(SimpleBehavior)

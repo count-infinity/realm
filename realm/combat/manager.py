@@ -150,22 +150,28 @@ class CombatManager:
     # --- Defeat ---
 
     async def handle_defeat(self, encounter, participant, killer=None) -> None:
-        """
-        Player defeat: unconscious in place, revivable. NPC defeat:
-        death — corpse handling arrives with the death phase.
-        """
+        """Defeat inside an encounter: remove, then the shared death path."""
         obj = participant.obj
         encounter.remove(obj.id, make_peace=False)
+        await self.handle_death(obj, killer.obj if killer else None)
 
+    async def handle_death(self, obj: GameObject,
+                           killer: GameObject | None = None) -> None:
+        """
+        The one death path, whatever the cause (a swing, poison, a trap):
+        players fall unconscious in place, revivable; NPCs die into
+        lootable corpses.
+        """
         if obj.has_tag('player'):
-            obj.add_tag('unconscious')
+            if not obj.has_tag('unconscious'):
+                obj.add_tag('unconscious')
             obj.msg("Everything goes black...")
             if obj.location is not None:
                 obj.location.msg_contents(
                     f"{obj.name} collapses, unconscious!", exclude=[obj],
                 )
         else:
-            await self._npc_death(obj, killer.obj if killer else None)
+            await self._npc_death(obj, killer)
 
     async def _npc_death(self, npc: GameObject, killer: GameObject | None) -> None:
         from realm.persistence.manager import get_active_manager

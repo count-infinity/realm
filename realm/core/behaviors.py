@@ -14,6 +14,7 @@ Key features:
 
 from __future__ import annotations
 
+import weakref
 from abc import ABC
 from typing import TYPE_CHECKING, Any
 
@@ -184,6 +185,28 @@ class Behavior(ABC):
     def __repr__(self) -> str:
         owner_name = self._owner.name if self._owner else "unattached"
         return f"<{self.__class__.__name__} on '{owner_name}'>"
+
+
+# --- Behavior-owner registry -------------------------------------------------
+#
+# The server's tick loop should not scan 100,000 inert objects to find the
+# fifty with behaviors. Objects register here when their first behavior is
+# attached (weak references — deleted objects vanish on their own).
+
+_behavior_owners: weakref.WeakSet = weakref.WeakSet()
+
+
+def register_behavior_owner(obj: GameObject) -> None:
+    _behavior_owners.add(obj)
+
+
+def unregister_behavior_owner(obj: GameObject) -> None:
+    _behavior_owners.discard(obj)
+
+
+def behavior_owners() -> list[GameObject]:
+    """A snapshot of every object with at least one behavior attached."""
+    return list(_behavior_owners)
 
 
 class BehaviorRegistry:

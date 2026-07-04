@@ -702,11 +702,10 @@ class GameServer:
         actions must reach players without a player command in flight.
         A failing behavior is logged and skipped; the pulse survives.
         """
+        from realm.core.behaviors import behavior_owners
         while True:
             await asyncio.sleep(self.tick_interval)
-            if self.persistence is None:
-                continue
-            for obj in self.persistence.all_cached():
+            for obj in behavior_owners():
                 for behavior in obj.get_behaviors():
                     if not behavior.should_tick:
                         continue

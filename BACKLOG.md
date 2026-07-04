@@ -304,6 +304,26 @@ Design sketch:
 
 ## Completed
 
+- [x] **Timed effects + tick-sweep registry (2026-07-03).** 648 tests.
+  - Effects ARE tickable behaviors (`realm/behaviors/effects.py`):
+    `TimedEffectBehavior` base (interval/duration countdowns in
+    owner.db — a poisoned character is still poisoned after a reboot;
+    the effect kind mirrors as a tag for perception/softcode/strategy
+    visibility), `DamageOverTimeBehavior` (bleeding/poison/burning;
+    lethal pulses route through the new shared
+    `CombatManager.handle_death` — players fall unconscious, NPCs die
+    into corpses, same as a sword), `RegenerationBehavior` (capped,
+    optionally innate with duration=0).
+  - Tick loop no longer scans the whole world: objects register in a
+    WeakSet on first behavior attach (`behavior_owners()` in
+    core/behaviors.py). Measured: 100K-object sweep went from 15.08ms
+    to 0.070ms per pulse (215×), now O(objects-with-behaviors).
+  - Fixed a latent test-hygiene bug: test_behaviors cleared the global
+    BehaviorRegistry without restoring it, silently unregistering all
+    import-time behaviors for the rest of the session.
+  - Follow-up: `StatusEffect` in combat/combatant.py is now superseded
+    dead code (never driven) — remove alongside the combat-behaviors
+    de-stubbing; `cure`/antidote surface for removing effects.
 - [x] **BEAT-DRIVEN COMBAT (2026-07-03).** The full design in
   docs/design/combat.md, all five phases, shipped in one pass.
   Verified: 642 unit tests (24 combat) + a 24-check live telnet drive
