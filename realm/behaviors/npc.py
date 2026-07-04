@@ -55,6 +55,7 @@ class WatchfulBehavior(Behavior):
         spot_msg (str): line said on catching someone sneaking (default
             "Hey! Who's there?").
         alert_on_spot (bool): bump own db.alert_level on a spot (default True).
+        hostile (bool): attack spotted sneaks — starts combat (default False).
 
     When a hidden character enters the room, the watcher contests
     perception vs their stealth; winning breaks the sneak and issues the
@@ -84,6 +85,11 @@ class WatchfulBehavior(Behavior):
                 if self.get_param('alert_on_spot', True):
                     obj.db.alert_level = alertness + 1
                 await _npc_say(obj, self.get_param('spot_msg', "Hey! Who's there?"))
+                if self.get_param('hostile', False):
+                    from realm.combat.manager import get_combat_manager
+                    manager = get_combat_manager()
+                    if manager is not None:
+                        await manager.initiate(obj, actor)
             return
 
         challenge = self.get_param('challenge')

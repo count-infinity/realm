@@ -58,6 +58,12 @@ class Settings:
     # World heartbeat (seconds between behavior ticks; 0 disables)
     tick_interval: float = 4.0
 
+    # Combat
+    combat_ruleset: str = "gurps"
+    combat_beat_min: float = 4.0
+    combat_beat_max: float = 120.0
+    combat_beat_default: float = 15.0
+
     # Callbacks (optional, from user config)
     init_world: Callable[[GameServer], Awaitable[None]] | None = None
     on_start: Callable[[GameServer], Awaitable[None]] | None = None
@@ -136,6 +142,10 @@ def load_config(game_dir: Path | None = None) -> Settings:
         game_dir=game_dir,
         flush_interval=config.get('FLUSH_INTERVAL', 30.0),
         tick_interval=config.get('TICK_INTERVAL', 4.0),
+        combat_ruleset=config.get('COMBAT_RULESET', 'gurps'),
+        combat_beat_min=config.get('COMBAT_BEAT_MIN', 4.0),
+        combat_beat_max=config.get('COMBAT_BEAT_MAX', 120.0),
+        combat_beat_default=config.get('COMBAT_BEAT_DEFAULT', 15.0),
         init_world=config.get('init_world'),
         on_start=config.get('on_start'),
         on_stop=config.get('on_stop'),

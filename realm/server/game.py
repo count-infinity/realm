@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Any
 # BehaviorRegistry so persisted worlds can rehydrate them.
 import realm.behaviors  # noqa: F401
 import realm.combat.behaviors  # noqa: F401
+from realm.combat.manager import CombatManager, set_combat_manager
+from realm.combat.system import create_combat_system
 from realm.core.objects import GameObject
 from realm.core.perception import stealth_observer
 from realm.core.propagation import (
@@ -77,6 +79,10 @@ class GameServer:
         enable_scripting: bool = True,
         flush_interval: float = 30.0,
         tick_interval: float = 4.0,
+        combat_ruleset: str = "gurps",
+        combat_beat_min: float = 4.0,
+        combat_beat_max: float = 120.0,
+        combat_beat_default: float = 15.0,
         game_name: str = "REALM",
         welcome_file: str | Path | None = None,
     ):
@@ -90,6 +96,10 @@ class GameServer:
         self.enable_scripting = enable_scripting
         self.flush_interval = flush_interval
         self.tick_interval = tick_interval
+        self.combat_ruleset = combat_ruleset
+        self.combat_beat_min = combat_beat_min
+        self.combat_beat_max = combat_beat_max
+        self.combat_beat_default = combat_beat_default
         self.game_name = game_name
         self.welcome_file = Path(welcome_file) if welcome_file else None
 
@@ -98,6 +108,7 @@ class GameServer:
         self.dispatcher = CommandDispatcher()
         self.persistence: PersistenceManager | None = None
         self.script_engine: ScriptEngine | None = None
+        self.combat_manager: CombatManager | None = None
 
         # Protocol servers - built-in
         self._telnet_server: TelnetServer | None = None
@@ -145,6 +156,10 @@ class GameServer:
             enable_scripting=settings.enable_scripting,
             flush_interval=settings.flush_interval,
             tick_interval=settings.tick_interval,
+            combat_ruleset=settings.combat_ruleset,
+            combat_beat_min=settings.combat_beat_min,
+            combat_beat_max=settings.combat_beat_max,
+            combat_beat_default=settings.combat_beat_default,
             game_name=settings.game_name,
             welcome_file=settings.welcome_file,
         )
@@ -256,6 +271,18 @@ class GameServer:
         # Loud actions break stealth, whoever performs them.
         get_propagation_engine().add_observer(stealth_observer)
 
+        # Combat: beat-driven encounters; hostile-tagged actions between
+        # combat-capable parties auto-initiate (the fireball WAS your turn).
+        self.combat_manager = CombatManager(
+            create_combat_system(self.combat_ruleset),
+            beat_min=self.combat_beat_min,
+            beat_max=self.combat_beat_max,
+            beat_default=self.combat_beat_default,
+            session_manager=self.session_manager,
+        )
+        set_combat_manager(self.combat_manager)
+        get_propagation_engine().add_observer(self.combat_manager.hostile_observer)
+
         # The world's heartbeat: drives tickable behaviors (patrols, AI)
         # and flushes sessions so NPC-initiated output reaches players
         # without waiting for them to type something.
@@ -361,6 +388,11 @@ class GameServer:
             get_propagation_engine().remove_observer(self.script_engine.handle_action)
             self.script_engine = None
         get_propagation_engine().remove_observer(stealth_observer)
+        if self.combat_manager is not None:
+            get_propagation_engine().remove_observer(self.combat_manager.hostile_observer)
+            self.combat_manager.stop_all()
+            self.combat_manager = None
+            set_combat_manager(None)
         set_active_manager(None)
 
         # Disconnect all sessions BEFORE stopping protocol servers:
@@ -612,6 +644,15 @@ class GameServer:
             tags=['player'],
         )
         player.db.password = password  # TODO: Hash this!
+
+        # Baseline GURPS-style stats so combat and skill checks work out
+        # of the box; games override in their own chargen.
+        for stat, value in (
+            ('strength', 10), ('dexterity', 10), ('intelligence', 10),
+            ('health', 10), ('hp', 10), ('max_hp', 10), ('dodge', 8),
+        ):
+            if player.db.get(stat) is None:
+                player.db.set(stat, value)
 
         await self.persistence.save(player)
 

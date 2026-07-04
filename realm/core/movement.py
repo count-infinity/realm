@@ -63,6 +63,7 @@ async def move_through_exit(
     *,
     exit_obj: GameObject | None = None,
     direction: str | None = None,
+    fleeing: bool = False,
 ) -> bool:
     """
     Move ``actor`` to ``destination``, firing on_leave then on_enter.
@@ -83,6 +84,15 @@ async def move_through_exit(
     direction = direction or "away"
 
     origin = actor.location
+
+    # Mid-combat, leaving the room requires a flee attempt (which sets
+    # ``fleeing=True``); everything else stays free.
+    if actor.has_tag('in_combat') and not fleeing:
+        actor.msg("You're in the middle of combat — flee to escape!")
+        return False
+    if actor.has_tag('unconscious'):
+        actor.msg("You are unconscious.")
+        return False
 
     # Phase 0: locks gate the move before any events fire. The exit's
     # 'basic' lock controls traversal; the destination's 'enter' lock

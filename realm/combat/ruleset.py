@@ -142,6 +142,41 @@ class Ruleset(ABC):
     # Stat names this ruleset uses (for validation)
     required_stats: list[str] = []
 
+    # --- Maneuver vocabulary ---
+    #
+    # The encounter engine schedules whatever maneuvers the ruleset
+    # publishes; rulesets extend the base vocabulary as DATA. Resolution
+    # of ruleset-specific maneuvers happens in resolve_special_maneuver.
+
+    def maneuvers(self) -> list:
+        """The maneuvers combatants may queue. Extend in subclasses."""
+        from realm.combat.maneuver import BASE_MANEUVERS
+        return list(BASE_MANEUVERS)
+
+    def get_maneuver(self, key_or_alias: str):
+        """Look up a maneuver by key or alias (case-insensitive)."""
+        wanted = key_or_alias.strip().lower()
+        for maneuver in self.maneuvers():
+            if maneuver.key == wanted or wanted in maneuver.aliases:
+                return maneuver
+        return None
+
+    async def resolve_special_maneuver(
+        self,
+        combat_system,
+        encounter,
+        actor,
+        action,
+        target,
+    ) -> bool:
+        """
+        Resolve a ruleset-specific maneuver (anything beyond the base
+        attack/defend/flee/wait, which the CombatSystem handles).
+
+        Returns True if handled.
+        """
+        return False
+
     # --- Core Resolution Methods ---
 
     @abstractmethod

@@ -304,6 +304,54 @@ Design sketch:
 
 ## Completed
 
+- [x] **BEAT-DRIVEN COMBAT (2026-07-03).** The full design in
+  docs/design/combat.md, all five phases, shipped in one pass.
+  Verified: 642 unit tests (24 combat) + a 24-check live telnet drive
+  (PvP duel on real beats, PvE guard kill with lootable corpse, and the
+  heist failure path: spotted → hostile guard opens combat → flee →
+  re-hide).
+  - **Encounter engine** (`realm/combat/encounter.py`): one fight per
+    room, its own async beat timer (no per-fight polling). The beat is
+    the decision window — the slowest player's `db.combat_beat` wins,
+    clamped to `COMBAT_BEAT_MIN/MAX` (4s–120s), `pace` command sets it.
+    Queued actions are freely replaceable until the beat fires; then
+    everything resolves in initiative order (fixed per encounter).
+    Round prompts show what will fire and when.
+  - **Ruleset-agnostic scheduling, data-driven vocabulary**:
+    `Ruleset.maneuvers()` publishes what can be queued (base:
+    attack/defend/flee/wait); GURPS adds All-Out Attack (+4/no
+    defense), All-Out Defense (+4), and Feint (contest; opens the
+    target's guard NEXT round via deferred modifiers) purely through
+    the `resolve_special_maneuver` seam — D20 keeps the base verbs,
+    proving swappability.
+  - **Commands**: attack/kill, queue (+ defend shortcut), flee
+    (random-exit fallback, failed flee wastes the beat, success moves
+    with the `fleeing` flag through the movement gate — leaving a room
+    mid-combat otherwise refuses), combat (status with HP bars), pace,
+    combatdefault (attack|defend|repeat|nothing), wimpy, firstaid.
+  - **Strategies** (`realm/combat/strategy.py`): ordered
+    condition→action rules in `db.combat_strategy`, lock-style safe
+    expressions over `me/target/round/enemies/chance(pct)` views.
+    Plain rules fire only when nothing is queued; `!`-flagged
+    OVERRIDE rules preempt even manual intent — `wimpy 30` is sugar
+    writing `["!me.hp_percent < 30", "flee"]`. NPC combat AI is the
+    same engine: a guard's brain is a strategy list, @examine-able.
+  - **Hostile-tag auto-combat** (propagation observer): any successful
+    action tagged `hostile` between combat-capable parties starts the
+    fight, crediting the initiator (`already_acted` — the fireball WAS
+    your turn). Defender auto-joins targeting the attacker.
+  - **Defeat asymmetry**: players fall unconscious in place
+    (`unconscious` tag; firstaid revives); NPCs die into lootable
+    corpse containers that spill-and-crumble via DecayBehavior.
+    Nexagen's executive guard is now `hostile=True` — stealth failure
+    on floor 46 has real teeth.
+  - **Messaging** rides `deliver_messages` (perception applies — an
+    unseen attacker narrates as "Someone"); new characters get baseline
+    GURPS-style stats at creation so combat works out of the box.
+  - Follow-ups (docs/design/combat.md): full narration interception via
+    react-pass propagation, Aim/ranged, action-point economy for
+    attacks-per-beat, GURPS death spirals at -HP, group formations,
+    strategy editor command (today: @set combat_strategy).
 - [x] **THE NEXAGEN HEIST: infiltration gameplay complete (2026-07-03).**
   Story 1 (Stealth & B&E) from the infiltration user stories is fully
   playable end to end. Verified: 615 unit tests (29 new) + a 24-check

@@ -34,6 +34,8 @@ SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
     "computer_operation": ("intelligence", -4),
     "traps": ("intelligence", -5),
     "fast_talk": ("intelligence", -5),
+    "flee": ("dexterity", -2),
+    "first_aid": ("intelligence", -5),
     "detect_lies": ("intelligence", -6),
     "disguise": ("intelligence", -5),
     "acting": ("intelligence", -5),

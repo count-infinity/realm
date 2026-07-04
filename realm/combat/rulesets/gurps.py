@@ -121,6 +121,104 @@ class GURPSRuleset(Ruleset):
             return True
         return False
 
+    # --- Maneuver vocabulary (GURPS B363-366, v1 subset) ---
+
+    def maneuvers(self):
+        from realm.combat.maneuver import BASE_MANEUVERS, Maneuver
+        return list(BASE_MANEUVERS) + [
+            Maneuver(
+                key="all_out_attack",
+                name="All-Out Attack",
+                aliases=("aoa", "allout"),
+                needs_target=True,
+                help_text="+4 to hit, but NO active defense until your next turn.",
+            ),
+            Maneuver(
+                key="all_out_defense",
+                name="All-Out Defense",
+                aliases=("aod",),
+                help_text="+4 to all active defenses; no attack this round.",
+            ),
+            Maneuver(
+                key="feint",
+                name="Feint",
+                aliases=(),
+                needs_target=True,
+                help_text="Contest of skill; win to lower the target's defenses next round.",
+            ),
+        ]
+
+    async def resolve_special_maneuver(self, combat_system, encounter,
+                                       actor, action, target):
+        """Resolve GURPS-specific maneuvers. actor/target are Participants."""
+        from realm.combat.encounter import deliver_combat_messages
+        key = action.maneuver
+        obj = actor.obj
+        combatant = actor.combatant
+
+        if key == "all_out_attack":
+            if target is None:
+                obj.msg("You have no target for an all-out attack.")
+                return True
+            # +4 to hit now; defenses forfeited until next round.
+            combatant.add_modifier('skill_melee', 4, 'all-out attack')
+            actor.round_modifiers.append(('skill_melee', 4))
+            for stat in ('dodge', 'parry', 'block'):
+                combatant.add_modifier(stat, -99, 'all-out attack')
+                actor.round_modifiers.append((stat, -99))
+            result = await combat_system.attack(obj, target.obj)
+            messages = dict(result.messages)
+            if messages.get('attacker_msg'):
+                messages['attacker_msg'] = "[All-Out] " + messages['attacker_msg']
+            deliver_combat_messages(obj, target.obj, messages)
+            if result.target_defeated:
+                await encounter.manager.handle_defeat(encounter, target, killer=actor)
+            return True
+
+        if key == "all_out_defense":
+            for stat in ('dodge', 'parry', 'block'):
+                combatant.add_modifier(stat, 4, 'all-out defense')
+                actor.round_modifiers.append((stat, 4))
+            deliver_combat_messages(obj, None, {
+                'attacker_msg': "You give ground, focused entirely on defense.",
+                'others_msg': "{actor} goes fully defensive.",
+            })
+            return True
+
+        if key == "feint":
+            if target is None:
+                obj.msg("You have no target to feint against.")
+                return True
+            # Quick contest of combat skill.
+            attacker_margin = self._quick_skill_margin(obj)
+            defender_margin = self._quick_skill_margin(target.obj)
+            if attacker_margin > defender_margin:
+                opening = min(4, attacker_margin - defender_margin)
+                for stat in ('dodge', 'parry', 'block'):
+                    target.next_round_modifiers.append((stat, -opening))
+                deliver_combat_messages(obj, target.obj, {
+                    'attacker_msg': (f"Your feint opens {target.obj.name}'s "
+                                     f"guard (-{opening} defenses)!"),
+                    'defender_msg': "{actor} feints — you fall for it!",
+                    'others_msg': "{actor} feints at {target}.",
+                })
+            else:
+                deliver_combat_messages(obj, target.obj, {
+                    'attacker_msg': f"{target.obj.name} doesn't buy your feint.",
+                    'defender_msg': "{actor} tries a clumsy feint. You're not fooled.",
+                    'others_msg': "{actor} feints at {target} to no effect.",
+                })
+            return True
+
+        return False
+
+    def _quick_skill_margin(self, obj) -> int:
+        """Roll 3d6 vs melee skill; return margin of success."""
+        skill = obj.db.get('skill_melee')
+        skill = int(skill) if skill is not None else 10
+        roll, _dice = self.roll_3d6()
+        return skill - roll
+
     def get_skill(self, combatant: Combatant, skill_type: str = "melee") -> int:
         """Get skill level for attack type."""
         if skill_type == "ranged":

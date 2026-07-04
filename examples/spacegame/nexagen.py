@@ -343,6 +343,7 @@ unlocked.
     exec_guard.db.skill_melee = 13
     exec_guard.add_behavior(WatchfulBehavior(
         spot_msg="Contact! Intruder on forty-six!",
+        hostile=True,
     ))
     exec_guard.add_behavior(PatrolBehavior(
         route=["west", "east"], pause=4,

@@ -37,6 +37,12 @@ FLUSH_INTERVAL: float = 30.0  # Seconds between auto-saves
 # World heartbeat: seconds between behavior ticks (0 disables)
 TICK_INTERVAL: float = 4.0
 
+# Combat: ruleset and beat (decision window) bounds in seconds
+COMBAT_RULESET: str = "gurps"
+COMBAT_BEAT_MIN: float = 4.0
+COMBAT_BEAT_MAX: float = 120.0
+COMBAT_BEAT_DEFAULT: float = 15.0
+
 
 def get_default_settings() -> dict[str, Any]:
     """
@@ -59,6 +65,10 @@ def get_default_settings() -> dict[str, Any]:
         'WELCOME_FILE': WELCOME_FILE,
         'FLUSH_INTERVAL': FLUSH_INTERVAL,
         'TICK_INTERVAL': TICK_INTERVAL,
+        'COMBAT_RULESET': COMBAT_RULESET,
+        'COMBAT_BEAT_MIN': COMBAT_BEAT_MIN,
+        'COMBAT_BEAT_MAX': COMBAT_BEAT_MAX,
+        'COMBAT_BEAT_DEFAULT': COMBAT_BEAT_DEFAULT,
     }
 
 
