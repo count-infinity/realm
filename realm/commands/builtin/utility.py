@@ -194,9 +194,6 @@ async def cmd_recall(ctx: CommandContext) -> None:
 
     Usage: recall
     """
-    if not ctx.player:
-        return
-
     # Get home location
     home = ctx.player.db.get('home')
     if not home:

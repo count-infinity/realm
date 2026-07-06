@@ -281,39 +281,6 @@ class D20Ruleset(Ruleset):
             description=f"Initiative: d20({d20})+{dex_mod} = {total}",
         )
 
-    def roll_saving_throw(
-        self,
-        combatant: Combatant,
-        save_type: str,
-        difficulty: int,
-        modifiers: dict[str, int] | None = None,
-    ) -> Any:
-        """
-        Roll a saving throw: d20 + ability modifier vs DC.
-
-        save_type should be an ability name (strength, dexterity, etc.)
-        """
-        from realm.combat.ruleset import DefenseResult
-
-        modifiers = modifiers or {}
-
-        d20 = random.randint(1, 20)
-        ability_mod = self.get_ability_modifier(combatant, save_type)
-        situational = sum(modifiers.values())
-        total = d20 + ability_mod + situational
-
-        success = total >= difficulty
-
-        roll = RollResult(
-            total=total,
-            dice=[d20],
-            modifier=ability_mod + situational,
-            target=difficulty,
-            success=success,
-            description=f"{save_type.title()} save: d20({d20})+{ability_mod} = {total} vs DC {difficulty}",
-        )
-
-        return DefenseResult(success=success, roll=roll)
 
     def _parse_dice(self, dice_str: str) -> tuple[int, int]:
         """Parse dice notation like '2d6' into (num, sides)."""

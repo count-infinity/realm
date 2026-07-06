@@ -171,6 +171,14 @@ async def move_through_exit(
     enter.add_message("room", "{actor} arrives.")
     await propagate(enter)
 
+    # Followers walk after their leader (room-local scan of the origin,
+    # so chains cascade and cycles self-resolve — the mover already left
+    # the room being scanned). Fleeing breaks the chain: you escape
+    # alone.
+    if not fleeing:
+        from realm.core.party import bring_followers
+        await bring_followers(actor, origin, destination, exit_obj)
+
     return True
 
 

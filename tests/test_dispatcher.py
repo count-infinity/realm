@@ -9,8 +9,6 @@ from realm.server.dispatcher import (
     TOKEN_MAP,
     CommandContext,
     CommandDispatcher,
-    command,
-    register_commands,
 )
 
 
@@ -422,48 +420,6 @@ class TestCommandDispatcher:
 
         assert called == [("ooc", "Hello everyone!")]
 
-
-class TestCommandDecorator:
-    """Test suite for the @command decorator."""
-
-    def test_command_decorator_metadata(self):
-        """@command decorator stores metadata."""
-
-        @command("test", aliases=["t"], help_text="Test command")
-        async def cmd_test(ctx):
-            pass
-
-        assert hasattr(cmd_test, '_command_meta')
-        meta = cmd_test._command_meta
-        assert meta['name'] == "test"
-        assert meta['aliases'] == ["t"]
-        assert meta['help_text'] == "Test command"
-
-    @pytest.mark.asyncio
-    async def test_register_commands(self):
-        """register_commands registers decorated handlers."""
-        dispatcher = CommandDispatcher()
-        called = []
-
-        @command("foo", aliases=["f"])
-        async def cmd_foo(ctx):
-            called.append("foo")
-
-        @command("bar")
-        async def cmd_bar(ctx):
-            called.append("bar")
-
-        register_commands(dispatcher, cmd_foo, cmd_bar)
-
-        session = Session()
-        player = GameObject("Player", tags=['player'])
-        session.link_player(player)
-
-        await dispatcher.dispatch(session, "foo")
-        await dispatcher.dispatch(session, "f")
-        await dispatcher.dispatch(session, "bar")
-
-        assert called == ["foo", "foo", "bar"]
 
 
 class TestTokenMap:

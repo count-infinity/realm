@@ -9,7 +9,12 @@ from __future__ import annotations
 import json
 
 from realm.commands import CommandContext, CommandDispatcher
-from realm.commands.base import find_object_global, resolve_target, save_object
+from realm.commands.base import (
+    find_object_global,
+    require_control,
+    resolve_target,
+    save_object,
+)
 
 
 async def cmd_desc(ctx: CommandContext) -> None:
@@ -22,9 +27,6 @@ async def cmd_desc(ctx: CommandContext) -> None:
 
     Use multi-line by ending with \\ and continuing on next line.
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args:
         await ctx.session.send("Usage: @desc <object> = <description>")
         return
@@ -36,6 +38,9 @@ async def cmd_desc(ctx: CommandContext) -> None:
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     # Set description
@@ -55,9 +60,6 @@ async def cmd_name(ctx: CommandContext) -> None:
 
     Usage: @name <object> = <new name>
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @name <object> = <new name>")
         return
@@ -69,6 +71,9 @@ async def cmd_name(ctx: CommandContext) -> None:
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     old_name = target.name
@@ -94,9 +99,6 @@ async def cmd_set(ctx: CommandContext) -> None:
         @set npc/dialogue = ["Hello", "Goodbye"]
         @set room/hidden = true
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args:
         await ctx.session.send("Usage: @set <object>/<attribute> = <value>")
         return
@@ -120,6 +122,9 @@ async def cmd_set(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
+    if not await require_control(ctx, target):
+        return
+
     # Set or clear the attribute
     if ctx.right_args:
         value = _parse_value(ctx.right_args)
@@ -138,9 +143,6 @@ async def cmd_wipe(ctx: CommandContext) -> None:
 
     Usage: @wipe <object>
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @wipe <object>")
         return
@@ -148,6 +150,9 @@ async def cmd_wipe(ctx: CommandContext) -> None:
     target = resolve_target(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     # Clear all attributes
@@ -169,9 +174,6 @@ async def cmd_parent(ctx: CommandContext) -> None:
     Usage: @parent <object> = <parent>
            @parent <object> =             (clear parent)
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args:
         await ctx.session.send("Usage: @parent <object> = <parent>")
         return
@@ -183,6 +185,9 @@ async def cmd_parent(ctx: CommandContext) -> None:
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     if parent_name:
@@ -216,9 +221,6 @@ async def cmd_tag(ctx: CommandContext) -> None:
         @tag chest = container
         @tag npc = zone:tavern
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @tag <object> = <tag>")
         return
@@ -230,6 +232,9 @@ async def cmd_tag(ctx: CommandContext) -> None:
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     if target.has_tag(tag):
@@ -249,9 +254,6 @@ async def cmd_untag(ctx: CommandContext) -> None:
 
     Usage: @untag <object> = <tag>
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @untag <object> = <tag>")
         return
@@ -263,6 +265,9 @@ async def cmd_untag(ctx: CommandContext) -> None:
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     if not target.has_tag(tag):
@@ -299,9 +304,6 @@ async def cmd_lock(ctx: CommandContext) -> None:
     """
     from realm.permissions.locks import LockType, parse_lock, set_lock
 
-    if not ctx.player:
-        return
-
     if not ctx.left_args:
         await ctx.session.send("Usage: @lock[/<type>] <object> = <expression>")
         return
@@ -326,6 +328,9 @@ async def cmd_lock(ctx: CommandContext) -> None:
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     if lock_expr:
@@ -353,9 +358,6 @@ async def cmd_unlock(ctx: CommandContext) -> None:
 
     Usage: @unlock <object>
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @unlock <object>")
         return
@@ -363,6 +365,9 @@ async def cmd_unlock(ctx: CommandContext) -> None:
     target = resolve_target(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     count = len(target.locks)

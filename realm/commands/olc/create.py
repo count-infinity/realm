@@ -7,7 +7,7 @@ Commands for creating new objects, rooms, and exits.
 from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
-from realm.commands.base import find_object_global, save_object
+from realm.commands.base import find_object_global, require_control, save_object
 from realm.core.objects import GameObject
 from realm.core.search import match_one
 
@@ -21,9 +21,6 @@ async def cmd_create(ctx: CommandContext) -> None:
 
     The object is created in your inventory.
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @create <name> [= <parent>]")
         return
@@ -211,6 +208,9 @@ async def cmd_link(ctx: CommandContext) -> None:
         await ctx.session.send(f"Exit '{exit_name}' not found here.")
         return
 
+    if not await require_control(ctx, exit_obj):
+        return
+
     # Find destination
     if dest_spec.lower() == 'here':
         destination = ctx.player.location
@@ -250,6 +250,9 @@ async def cmd_unlink(ctx: CommandContext) -> None:
 
     if not exit_obj:
         await ctx.session.send(f"Exit '{exit_name}' not found here.")
+        return
+
+    if not await require_control(ctx, exit_obj):
         return
 
     # Remove destination

@@ -8,16 +8,26 @@ BehaviorRegistry, so persisted worlds can rehydrate them by id.
 from realm.behaviors.decay import DecayBehavior
 from realm.behaviors.effects import (
     DamageOverTimeBehavior,
+    DispositionBoostBehavior,
+    ModifierEffectBehavior,
     RegenerationBehavior,
     TimedEffectBehavior,
 )
 from realm.behaviors.npc import PatrolBehavior, WatchfulBehavior
+from realm.behaviors.shop import ShopkeeperBehavior
+from realm.behaviors.spawner import SpawnerBehavior
+from realm.behaviors.ticker import ScriptTickerBehavior
 
 __all__ = [
+    "ScriptTickerBehavior",
+    "SpawnerBehavior",
+    "ShopkeeperBehavior",
     "WatchfulBehavior",
     "PatrolBehavior",
     "DecayBehavior",
     "TimedEffectBehavior",
+    "ModifierEffectBehavior",
+    "DispositionBoostBehavior",
     "DamageOverTimeBehavior",
     "RegenerationBehavior",
 ]

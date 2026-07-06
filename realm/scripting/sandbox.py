@@ -14,12 +14,16 @@ Security model:
 
 from __future__ import annotations
 
-import ast
 import asyncio
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+
+from realm.core.safe_eval import (
+    SafeAstValidator,
+    validate_code,
+)
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -50,25 +54,9 @@ class ScriptSecurityError(ScriptError):
     pass
 
 
-# Forbidden AST node types
-FORBIDDEN_NODES = {
-    ast.Import,
-    ast.ImportFrom,
-    ast.Global,
-    ast.Nonlocal,
-}
-
-# Forbidden function names (built-ins that shouldn't be available)
-FORBIDDEN_NAMES = {
-    'eval', 'exec', 'compile', 'open', 'input',
-    '__import__', 'globals', 'locals', 'vars',
-    'getattr', 'setattr', 'delattr', 'hasattr',
-    'type', 'isinstance', 'issubclass',
-    'memoryview', 'bytearray', 'bytes',
-    'classmethod', 'staticmethod', 'property',
-    'super', 'object', 'dir', 'help',
-    'breakpoint', 'exit', 'quit',
-}
+# Validation rules live in realm.core.safe_eval — the one engine shared
+# with locks and strategy conditions. Re-exported here for compatibility.
+ASTValidator = SafeAstValidator
 
 # Safe built-ins that scripts can use
 SAFE_BUILTINS = {
@@ -112,33 +100,6 @@ SAFE_BUILTINS = {
     'slice': slice,
     'print': lambda *args, **kwargs: None,  # Silently ignore prints
 }
-
-
-class ASTValidator(ast.NodeVisitor):
-    """Validates AST for security violations."""
-
-    def __init__(self):
-        self.errors: list[str] = []
-
-    def visit(self, node: ast.AST) -> None:
-        # Check for forbidden node types
-        if type(node) in FORBIDDEN_NODES:
-            self.errors.append(f"Forbidden construct: {type(node).__name__}")
-
-        # Check for forbidden names
-        if isinstance(node, ast.Name):
-            if node.id in FORBIDDEN_NAMES:
-                self.errors.append(f"Forbidden name: {node.id}")
-            if node.id.startswith('_'):
-                self.errors.append(f"Private names not allowed: {node.id}")
-
-        # Check for forbidden attribute access
-        if isinstance(node, ast.Attribute):
-            if node.attr.startswith('_'):
-                self.errors.append(f"Private attribute access not allowed: {node.attr}")
-
-        # Continue visiting children
-        self.generic_visit(node)
 
 
 @dataclass
@@ -185,14 +146,7 @@ class ScriptSandbox:
 
         Returns list of error messages (empty if valid).
         """
-        try:
-            tree = ast.parse(code, mode='exec')
-        except SyntaxError as e:
-            return [f"Syntax error: {e.msg} at line {e.lineno}"]
-
-        validator = ASTValidator()
-        validator.visit(tree)
-        return validator.errors
+        return validate_code(code, mode='exec')
 
     def expand_substitutions(self, code: str, ctx: ScriptContext) -> str:
         """
@@ -325,6 +279,11 @@ class ScriptSandbox:
         safe_globals['output'] = script_output
         safe_globals['say'] = lambda msg: script_output(f"say {msg}")
         safe_globals['pose'] = lambda msg: script_output(f"pose {msg}")
+        safe_globals['move'] = lambda direction: script_output(f"move {direction}")
+        safe_globals['trigger'] = lambda spec: script_output(f"trigger {spec}")
+        # Generic escape hatch: emit any script command line (get/drop/
+        # give/open/close/wait/...) — same actuator set as simple scripts.
+        safe_globals['cmd'] = lambda line: script_output(str(line))
 
         # Execute with resource tracking
         local_vars: dict[str, Any] = {}
@@ -391,6 +350,8 @@ class SimpleScriptRunner:
     # A simple script is a single game command; anything else is Python.
     SIMPLE_COMMAND_PREFIXES = (
         'say ', 'pose ', 'whisper ', 'emit ', '@emit ',
+        'move ', 'go ', 'trigger ', '@tr ',
+        'get ', 'take ', 'drop ', 'give ', 'open ', 'close ', 'wait ',
     )
     SIMPLE_COMMAND_TOKENS = (':', ';', '\\')
 

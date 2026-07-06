@@ -196,11 +196,16 @@ class TestPersistenceWithBehaviors:
 
     @pytest.fixture(autouse=True)
     def register_behaviors(self):
-        """Register test behaviors."""
-        BehaviorRegistry._behaviors.clear()
+        """Register the test behavior; restore the real registry after.
+
+        Clearing without restoring would silently unregister every
+        import-time behavior for the rest of the test session.
+        """
+        saved = dict(BehaviorRegistry._behaviors)
         BehaviorRegistry.register(PersistTestBehavior)
         yield
         BehaviorRegistry._behaviors.clear()
+        BehaviorRegistry._behaviors.update(saved)
 
     @pytest.mark.asyncio
     async def test_save_and_load_behaviors(self, pm):

@@ -129,7 +129,7 @@ class TestCreateCommands:
         use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
-        self.player = GameObject("Builder", tags=['player'], location=self.room)
+        self.player = GameObject("Builder", tags=['player', 'builder'], location=self.room)
         self.persistence.add(self.room)
         self.persistence.add(self.player)
 
@@ -283,7 +283,7 @@ class TestModifyCommands:
         use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
-        self.player = GameObject("Builder", tags=['player'], location=self.room)
+        self.player = GameObject("Builder", tags=['player', 'builder'], location=self.room)
         self.sword = GameObject("sword", tags=['thing'], location=self.room)
         self.persistence.add(self.room)
         self.persistence.add(self.player)
@@ -533,7 +533,7 @@ class TestAdminCommands:
 
         self.room = GameObject("Test Room", tags=['room'])
         self.room2 = GameObject("Other Room", tags=['room'])
-        self.player = GameObject("Admin", tags=['player'], location=self.room)
+        self.player = GameObject("Admin", tags=['player', 'admin'], location=self.room)
         self.sword = GameObject("sword", tags=['thing'], location=self.room)
         self.npc = GameObject("Guard", tags=['npc'], location=self.room)
 
@@ -723,7 +723,7 @@ class TestResolveTarget:
         use_persistence(self.persistence)
 
         self.room = GameObject("Test Room", tags=['room'])
-        self.player = GameObject("Builder", tags=['player'], location=self.room)
+        self.player = GameObject("Builder", tags=['player', 'builder'], location=self.room)
         self.persistence.add(self.room)
         self.persistence.add(self.player)
 

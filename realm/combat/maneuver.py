@@ -67,6 +67,42 @@ BASE_MANEUVERS: tuple[Maneuver, ...] = (
         help_text="Attempt to disengage and leave through an exit.",
     ),
     Maneuver(
+        key="shoot",
+        name="Shoot",
+        aliases=("fire",),
+        needs_target=True,
+        help_text="Attack with your wielded ranged weapon (works at range; "
+                  "-2 in close quarters, -2 vs cover).",
+    ),
+    Maneuver(
+        key="aim",
+        name="Aim",
+        aliases=(),
+        needs_target=True,
+        help_text="Steady your ranged weapon: +Acc to your next shot at "
+                  "that target (+1 more per extra round, max Acc+2).",
+    ),
+    Maneuver(
+        key="close",
+        name="Close In",
+        aliases=("advance", "charge"),
+        help_text="Close the distance to melee reach.",
+    ),
+    Maneuver(
+        key="withdraw",
+        name="Withdraw",
+        aliases=("fallback", "distance"),
+        help_text="Fall back to range — out of melee reach; ranged attacks "
+                  "still apply.",
+    ),
+    Maneuver(
+        key="cover",
+        name="Take Cover",
+        aliases=("takecover", "duck"),
+        help_text="Duck behind cover (needs a cover-tagged object here): "
+                  "-2 to ranged attacks against you until you move.",
+    ),
+    Maneuver(
         key="wait",
         name="Wait",
         aliases=("pass", "nothing"),

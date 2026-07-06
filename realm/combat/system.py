@@ -76,6 +76,14 @@ class CombatResult:
     target_defeated: bool = False
 
 
+def find_wielded(obj) -> Any | None:
+    """The first carried object tagged ``wielded`` — the readied weapon."""
+    for item in obj.contents:
+        if item.has_tag('wielded'):
+            return item
+    return None
+
+
 class CombatSystem:
     """
     Main combat system orchestrator.
@@ -388,19 +396,6 @@ class CombatSystem:
         return action
 
 
-# Global combat system instance
-_combat_system: CombatSystem | None = None
-
-
-def get_combat_system() -> CombatSystem | None:
-    """Get the global combat system."""
-    return _combat_system
-
-
-def set_combat_system(system: CombatSystem) -> None:
-    """Set the global combat system."""
-    global _combat_system
-    _combat_system = system
 
 
 def create_combat_system(

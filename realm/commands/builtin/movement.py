@@ -18,9 +18,6 @@ async def cmd_go(ctx: CommandContext) -> None:
 
     Usage: go <direction>
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Go where?")
         return
@@ -54,9 +51,6 @@ async def cmd_direction(ctx: CommandContext) -> None:
 
     This is the handler for n, s, e, w, etc.
     """
-    if not ctx.player:
-        return
-
     # The command name IS the direction (after alias expansion)
     direction = ctx.command_name
 

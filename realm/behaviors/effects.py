@@ -64,9 +64,24 @@ class TimedEffectBehavior(Behavior):
     def attach(self, obj: GameObject) -> None:
         super().attach(obj)
         obj.add_tag(self.kind)
+        # Any timed effect can carry check modifiers ("blinding poison"):
+        # its entry in db.check_mods lives exactly as long as the effect.
+        check_mods = self.get_param('check_mods')
+        if check_mods is not None:
+            mods = dict(obj.db.get('check_mods') or {})
+            mods[self.kind] = check_mods
+            obj.db.check_mods = mods
 
     def detach(self, obj: GameObject) -> None:
         obj.remove_tag(self.kind)
+        mods = obj.db.get('check_mods')
+        if isinstance(mods, dict) and self.kind in mods:
+            mods = dict(mods)
+            del mods[self.kind]
+            if mods:
+                obj.db.check_mods = mods
+            else:
+                obj.db.delete('check_mods')
         super().detach(obj)
 
     async def tick(self, obj: GameObject, delta: float) -> None:
@@ -147,6 +162,93 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
 
 
 @BehaviorRegistry.register
+class ModifierEffectBehavior(TimedEffectBehavior):
+    """
+    A pure condition: no pulses, just check modifiers for a while.
+
+    The banshee wail: fear that gives -2 to every roll until it wears
+    off. The modifier plumbing lives in TimedEffectBehavior (any effect
+    can carry ``check_mods``); this class is the named, softcode-friendly
+    "just a debuff/buff" shape.
+
+        victim.add_behavior(ModifierEffectBehavior(
+            kind="fear", duration=8, check_mods={"all": -2},
+            apply_msg="Terror grips you!", expire_msg="Your nerve returns.",
+        ))
+
+    Params (plus TimedEffectBehavior's): check_mods (dict of skill->mod,
+    'all' for everything, or a bare int), apply_msg.
+    """
+
+    behavior_id = "modifier_effect"
+
+    @property
+    def kind(self) -> str:
+        return str(self.get_param('kind', 'shaken'))
+
+    def attach(self, obj: GameObject) -> None:
+        super().attach(obj)
+        apply_msg = self.get_param('apply_msg')
+        if apply_msg:
+            obj.msg(str(apply_msg))
+
+
+@BehaviorRegistry.register
+class DispositionBoostBehavior(TimedEffectBehavior):
+    """
+    A temporary opinion: fast-talk wears off.
+
+    Attached to the NPC whose mind was changed; on expiry the boost is
+    reversed — the guard who waved you through starts wondering why.
+
+    Params: target_id (whose standing changes), delta (default +2),
+    duration ticks, plus TimedEffectBehavior's kind/expire_msg.
+    """
+
+    behavior_id = "disposition_boost"
+
+    @property
+    def kind(self) -> str:
+        # Unique per target so two con artists don't collide.
+        return str(self.get_param(
+            'kind', f"swayed_{str(self.get_param('target_id', ''))[:8]}"))
+
+    def attach(self, obj: GameObject) -> None:
+        super().attach(obj)
+        if not self.get_param('applied'):
+            self._params['applied'] = True
+            target = self._target(obj)
+            if target is not None:
+                from realm.core.disposition import adjust_disposition
+                adjust_disposition(obj, target, int(self.get_param('delta', 2)))
+
+    def _target(self, obj: GameObject) -> GameObject | None:
+        from realm.persistence.manager import get_active_manager
+
+        target_id = self.get_param('target_id')
+        if not target_id:
+            return None
+        persistence = get_active_manager()
+        if persistence is not None:
+            found = persistence.get_cached(str(target_id))
+            if found is not None:
+                return found
+        room = obj.location
+        if room is not None:
+            for other in room.contents:
+                if other.id == target_id:
+                    return other
+        return None
+
+    async def _expire(self, obj: GameObject) -> None:
+        target = self._target(obj)
+        if target is not None:
+            from realm.core.disposition import adjust_disposition
+            adjust_disposition(obj, target, -int(self.get_param('delta', 2)))
+        await super()._expire(obj)
+
+
+@BehaviorRegistry.register
 class RegenerationBehavior(TimedEffectBehavior):
     """
     Periodic healing (a medkit's afterglow, trollish vitality).
@@ -171,4 +273,10 @@ class RegenerationBehavior(TimedEffectBehavior):
         obj.db.hp = min(int(max_hp), int(hp) + heal)
 
 
-__all__ = ["TimedEffectBehavior", "DamageOverTimeBehavior", "RegenerationBehavior"]
+__all__ = [
+    "TimedEffectBehavior",
+    "DamageOverTimeBehavior",
+    "DispositionBoostBehavior",
+    "ModifierEffectBehavior",
+    "RegenerationBehavior",
+]

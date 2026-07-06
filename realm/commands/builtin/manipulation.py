@@ -25,7 +25,6 @@ from __future__ import annotations
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object
 from realm.core.checks import check, contest
-from realm.core.language import singular_name
 from realm.core.objects import GameObject
 from realm.core.perception import room_is_lit
 from realm.core.propagation import Action, deliver_messages, gate_action
@@ -71,23 +70,8 @@ async def cmd_open(ctx: CommandContext) -> None:
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
-    if not target.has_tag('closed'):
-        await ctx.session.send(f"{singular_name(target).capitalize()} is already open.")
-        return
-    if target.db.get('locked'):
-        await ctx.session.send(
-            target.db.get('locked_msg') or f"{singular_name(target).capitalize()} is locked."
-        )
-        return
-
-    action = await _gated(ctx, "item:on_open", target,
-                          fail_msg=f"You can't open {target.name}.")
-    if action is None:
-        return
-    target.remove_tag('closed')
-    action.add_message("actor", "You open {target:the}.")
-    action.add_message("room", "{actor} opens {target:the}.")
-    deliver_messages(action)
+    from realm.core.verbs import do_open
+    await do_open(ctx.player, target)
 
 
 async def cmd_close(ctx: CommandContext) -> None:
@@ -103,22 +87,8 @@ async def cmd_close(ctx: CommandContext) -> None:
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
-    if target.has_tag('closed'):
-        await ctx.session.send(f"{singular_name(target).capitalize()} is already closed.")
-        return
-    is_door_or_container = target.has_tag('exit') or target.db.get('container')
-    if not is_door_or_container and not target.db.get('closable'):
-        await ctx.session.send(f"You can't close {target.name}.")
-        return
-
-    action = await _gated(ctx, "item:on_close", target,
-                          fail_msg=f"You can't close {target.name}.")
-    if action is None:
-        return
-    target.add_tag('closed')
-    action.add_message("actor", "You close {target:the}.")
-    action.add_message("room", "{actor} closes {target:the}.")
-    deliver_messages(action)
+    from realm.core.verbs import do_close
+    await do_close(ctx.player, target)
 
 
 def _find_key(player: GameObject, target: GameObject) -> GameObject | None:
@@ -368,8 +338,6 @@ async def cmd_hide(ctx: CommandContext) -> None:
 
     Usage: hide
     """
-    if not ctx.player:
-        return
     if ctx.player.has_tag('hidden'):
         await ctx.session.send("You are already hidden.")
         return

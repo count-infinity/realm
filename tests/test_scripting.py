@@ -466,7 +466,8 @@ class TestScriptFunctions:
         obj = GameObject("chest")
         obj.db.gold = 100
 
-        funcs = ScriptFunctions()
+        # Mutations run with the executor's authority; the chest edits itself.
+        funcs = ScriptFunctions(executor=obj)
 
         assert funcs.get_attr(obj, "gold") == 100
         assert funcs.get_attr(obj, "silver", 0) == 0

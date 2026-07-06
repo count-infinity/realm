@@ -26,7 +26,7 @@ async def setup_game() -> dict[str, any]:
     - 'world': Dict of key world objects
     """
     from realm.persistence.repository import GameObjectRepository
-    from realm.combat.system import create_combat_system, set_combat_system
+    from realm.combat.system import create_combat_system
 
     from examples.spacegame.world import create_world
     from examples.spacegame.equipment import create_equipment_prototypes
@@ -40,7 +40,6 @@ async def setup_game() -> dict[str, any]:
         ruleset_name="gurps",
         allow_active_defense=True,
     )
-    set_combat_system(combat)
 
     # Create the world
     logger.info("Creating game world...")

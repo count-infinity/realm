@@ -19,6 +19,20 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
+async def require_control(ctx: CommandContext, target: GameObject) -> bool:
+    """
+    Gate for mutating builder commands: caller must control the target
+    (see permissions.locks.controls). Sends the refusal itself; callers
+    just ``if not await require_control(ctx, target): return``.
+    """
+    from realm.permissions.locks import controls
+
+    if controls(ctx.player, target):
+        return True
+    await ctx.session.send(f"You don't control {target.name}.")
+    return False
+
+
 async def save_object(ctx: CommandContext, obj: GameObject) -> None:
     """Persist a modified object, if the server has persistence wired."""
     if ctx.persistence:

@@ -180,6 +180,24 @@ class CombatManager:
         if room is not None:
             room.msg_contents(f"{npc.name} falls dead!", exclude=[npc])
 
+        # Character-point award: the victim's worth (db.points, GURPS-ish)
+        # scaled down, split across the killer's party members present
+        # (solo killers keep the whole award).
+        if killer is not None and killer.has_tag('player'):
+            from realm.core.party import party_members
+            worth = int(npc.db.get('points') or 10)
+            award = max(1, worth // 10)
+            sharers = [m for m in party_members(killer)
+                       if m.has_tag('player') and not m.has_tag('unconscious')]
+            if not sharers:
+                sharers = [killer]
+            share = max(1, award // len(sharers))
+            for member in sharers:
+                member.db.character_points = \
+                    int(member.db.get('character_points') or 0) + share
+                member.msg(f"You gain {share} character point"
+                           f"{'s' if share != 1 else ''}.")
+
         # Corpse: a container holding the fallen's belongings.
         from realm.core.objects import GameObject as GameObjectCls
         corpse = GameObjectCls(name=f"corpse of {npc.name}", tags=['thing', 'no_group'])

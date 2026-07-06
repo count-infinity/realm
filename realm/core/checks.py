@@ -41,6 +41,26 @@ SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
     "acting": ("intelligence", -5),
 }
 
+
+# Skills the ENGINE itself rolls (combat flee checks, movement gates).
+# Game systems layer their tables over this floor but can't drop it —
+# otherwise every live server silently loses the flee default.
+ENGINE_SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
+    "flee": ("dexterity", -2),
+}
+
+
+def set_skill_defaults(defaults: dict[str, tuple[str, int]]) -> None:
+    """
+    Install the active GameSystem's untrained-skill table, merged over
+    the engine floor (ENGINE_SKILL_DEFAULTS) — the rules package owns
+    the skill list; the engine keeps the skills it rolls itself.
+    """
+    SKILL_DEFAULTS.clear()
+    SKILL_DEFAULTS.update(ENGINE_SKILL_DEFAULTS)
+    SKILL_DEFAULTS.update(defaults)
+
+
 DEFAULT_ATTRIBUTE = 10
 
 
@@ -106,9 +126,74 @@ def set_check_resolver(resolver: CheckResolver | None) -> None:
     _resolver = resolver or _default_resolver
 
 
+# --- Condition modifiers (the banshee-wail pipeline) --------------------------
+#
+# Effects, gear, and environment change rolls WITHOUT every caller
+# remembering to ask: check() sums registered providers into the
+# modifier before the resolver sees it, so fear really is "-2 to
+# everything" no matter who rolls or which ruleset resolves.
+#
+# The built-in provider reads ``db.check_mods`` — one dict, keyed by
+# condition kind, entirely softcode-writable:
+#
+#     db.check_mods = {"fear": {"all": -2}, "blinded": {"observation": -6}}
+#
+# An entry may also be a bare int (applies to all checks). Effect
+# behaviors (ModifierEffectBehavior, or any TimedEffectBehavior with a
+# ``check_mods`` param) maintain their own entry and remove it on expiry.
+
+ModifierProvider = Callable[["GameObject", str], int]
+
+
+def _attr_modifier_provider(obj: GameObject, skill: str) -> int:
+    mods = obj.db.get('check_mods')
+    if not isinstance(mods, dict):
+        return 0
+    total = 0
+    for entry in mods.values():
+        if isinstance(entry, dict):
+            total += int(entry.get('all', 0)) + int(entry.get(skill, 0))
+        else:
+            try:
+                total += int(entry)
+            except (TypeError, ValueError):
+                continue
+    return total
+
+
+_modifier_providers: list[ModifierProvider] = [_attr_modifier_provider]
+
+
+def add_modifier_provider(provider: ModifierProvider) -> None:
+    """Register an extra condition-modifier source (darkness, encumbrance...)."""
+    if provider not in _modifier_providers:
+        _modifier_providers.append(provider)
+
+
+def remove_modifier_provider(provider: ModifierProvider) -> None:
+    _modifier_providers[:] = [p for p in _modifier_providers if p is not provider]
+
+
+def condition_modifier(obj: GameObject, skill: str) -> int:
+    """Sum every provider's modifier for this check; errors count as 0."""
+    total = 0
+    for provider in _modifier_providers:
+        try:
+            total += int(provider(obj, skill))
+        except Exception:
+            continue
+    return total
+
+
 def check(obj: GameObject, skill: str, modifier: int = 0) -> CheckResult:
-    """Roll a skill check for an object."""
-    return _resolver(obj, skill, modifier)
+    """
+    Roll a skill check for an object.
+
+    Condition modifiers (fear, blindness, buffs — see condition_modifier)
+    are folded in here, upstream of the resolver, so every ruleset and
+    injected test resolver inherits them.
+    """
+    return _resolver(obj, skill, modifier + condition_modifier(obj, skill))
 
 
 def contest(

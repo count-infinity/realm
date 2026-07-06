@@ -7,7 +7,7 @@ Commands for teleportation, ownership, destruction, and other admin tasks.
 from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
-from realm.commands.base import find_object_global, resolve_target, save_object
+from realm.commands.base import find_object_global, require_control, resolve_target, save_object
 from realm.core.render import render_room
 
 
@@ -23,9 +23,6 @@ async def cmd_teleport(ctx: CommandContext) -> None:
         @teleport #abc123
         @teleport sword = me
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @teleport [<object> =] <destination>")
         return
@@ -60,6 +57,10 @@ async def cmd_teleport(ctx: CommandContext) -> None:
         await ctx.session.send("Can't teleport something to itself.")
         return
 
+    # Moving something other than yourself is control-level power.
+    if target is not ctx.player and not await require_control(ctx, target):
+        return
+
     # Move the object
     target.location = destination
 
@@ -82,9 +83,6 @@ async def cmd_chown(ctx: CommandContext) -> None:
 
     Usage: @chown <object> = <new owner>
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @chown <object> = <new owner>")
         return
@@ -123,9 +121,6 @@ async def cmd_destroy(ctx: CommandContext) -> None:
 
     This cannot be undone! The object and its contents are deleted.
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @destroy <object>")
         return
@@ -133,6 +128,9 @@ async def cmd_destroy(ctx: CommandContext) -> None:
     target = resolve_target(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
+        return
+
+    if not await require_control(ctx, target):
         return
 
     # Safety checks
@@ -162,9 +160,6 @@ async def cmd_nuke(ctx: CommandContext) -> None:
 
     This disconnects the player and destroys their character.
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @nuke <player>")
         return
@@ -244,9 +239,6 @@ async def cmd_examine_full(ctx: CommandContext) -> None:
     Usage: @examine <object>
            @ex <object>
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @examine <object>")
         return
@@ -311,9 +303,6 @@ async def cmd_force(ctx: CommandContext) -> None:
 
     Usage: @force <object> = <command>
     """
-    if not ctx.player:
-        return
-
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @force <object> = <command>")
         return
@@ -336,9 +325,6 @@ async def cmd_boot(ctx: CommandContext) -> None:
 
     Usage: @boot <player>
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Usage: @boot <player>")
         return

@@ -66,28 +66,8 @@ class TestTagSet:
         assert tags.has('zone:forest')
         assert not tags.has('player')
 
-    def test_has_prefix(self):
-        """has_prefix() finds namespaced tags."""
-        tags = TagSet(['room', 'zone:forest', 'zone:dark'])
-        assert tags.has_prefix('zone')
-        assert tags.has_prefix('zone:')
-        assert not tags.has_prefix('type')
 
-    def test_get_value(self):
-        """get_value() extracts value from namespaced tag."""
-        tags = TagSet(['room', 'zone:forest'])
-        assert tags.get_value('zone') == 'forest'
-        assert tags.get_value('zone:') == 'forest'
-        assert tags.get_value('type') is None
 
-    def test_get_all_values(self):
-        """get_all_values() extracts all values for a prefix."""
-        tags = TagSet(['zone:forest', 'zone:dark', 'zone:magical', 'room'])
-        values = tags.get_all_values('zone')
-        assert len(values) == 3
-        assert 'forest' in values
-        assert 'dark' in values
-        assert 'magical' in values
 
     def test_clear(self):
         """clear() removes all tags."""

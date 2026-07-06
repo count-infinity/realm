@@ -18,7 +18,7 @@ Route in from Space Station Alpha: a tram at the Station Promenade.
 
 from __future__ import annotations
 
-from realm.behaviors import PatrolBehavior, WatchfulBehavior
+from realm.behaviors import SpawnerBehavior
 from realm.core.objects import GameObject
 
 
@@ -301,61 +301,72 @@ unlocked.
     panel.location = utility
     await repo.save(panel)
 
-    # === Guards ===
+    # === Guards (spawner-backed: the tower re-staffs itself) ===
 
-    door_guard = GameObject(id="nexagen_guard_door", name="Nexagen door guard")
-    door_guard.add_tag("npc")
-    door_guard.add_tag("zone:nexagen")
-    door_guard.db.description = (
-        "Broad, bored, and armored in corporate polyweave. Her eyes sweep "
-        "the lobby in a practiced rhythm."
-    )
-    door_guard.db.strength = 12
-    door_guard.db.dexterity = 11
-    door_guard.db.intelligence = 10
-    door_guard.db.health = 12
-    door_guard.db.hp = 12
-    door_guard.db.max_hp = 12
-    door_guard.db.skill_observation = 12
-    door_guard.db.skill_melee = 12
-    door_guard.db.listen_help = "^*help*:say Move along. Tower's closed."
-    door_guard.add_behavior(WatchfulBehavior(
-        challenge="Building's closed. Authorized personnel only.",
-        spot_msg="Hey! You there — step out where I can see you!",
+    lobby.add_behavior(SpawnerBehavior(
+        key="door_guard",
+        respawn_ticks=150,
+        announce="A relief guard steps out of the security office.",
+        prototype={
+            "name": "Nexagen door guard",
+            "description": (
+                "Broad, bored, and armored in corporate polyweave. Her eyes "
+                "sweep the lobby in a practiced rhythm."
+            ),
+            "tags": ["npc", "zone:nexagen"],
+            "attrs": {
+                "strength": 12, "dexterity": 11, "intelligence": 10,
+                "health": 12, "hp": 12, "max_hp": 12,
+                "skill_observation": 12, "skill_melee": 12, "dodge": 8,
+                "points": 60,
+                "listen_help": "^*help*:say Move along. Tower's closed.",
+            },
+            "behaviors": [
+                {"behavior_id": "watchful", "params": {
+                    "challenge": "Building's closed. Authorized personnel only.",
+                    "spot_msg": "Hey! You there — step out where I can see you!",
+                }},
+            ],
+        },
     ))
-    door_guard.location = lobby
-    await repo.save(door_guard)
+    await repo.save(lobby)
 
-    exec_guard = GameObject(id="nexagen_guard_exec", name="executive floor guard")
-    exec_guard.add_tag("npc")
-    exec_guard.add_tag("zone:nexagen")
-    exec_guard.db.description = (
-        "Lean and unsmiling, with a patrol route worn into the carpet and "
-        "a stunner on his hip."
-    )
-    exec_guard.db.strength = 11
-    exec_guard.db.dexterity = 12
-    exec_guard.db.intelligence = 11
-    exec_guard.db.health = 11
-    exec_guard.db.hp = 11
-    exec_guard.db.max_hp = 11
-    exec_guard.db.skill_observation = 13
-    exec_guard.db.skill_melee = 13
-    exec_guard.add_behavior(WatchfulBehavior(
-        spot_msg="Contact! Intruder on forty-six!",
-        hostile=True,
+    floor46.add_behavior(SpawnerBehavior(
+        key="exec_guard",
+        respawn_ticks=150,
+        announce="The service lift chimes: a fresh guard steps out.",
+        prototype={
+            "name": "executive floor guard",
+            "description": (
+                "Lean and unsmiling, with a patrol route worn into the "
+                "carpet and a stunner on his hip."
+            ),
+            "tags": ["npc", "zone:nexagen"],
+            "attrs": {
+                "strength": 11, "dexterity": 12, "intelligence": 11,
+                "health": 11, "hp": 11, "max_hp": 11,
+                "skill_observation": 13, "skill_melee": 13, "dodge": 9,
+                "points": 80,
+                "combat_strategy": [["!me.hp_percent < 25", "flee"],
+                                     ["", "attack"]],
+            },
+            "behaviors": [
+                {"behavior_id": "watchful", "params": {
+                    "spot_msg": "Contact! Intruder on forty-six!",
+                    "hostile": True,
+                }},
+                {"behavior_id": "patrol", "params": {
+                    "route": ["west", "east"], "pause": 4,
+                }},
+            ],
+        },
     ))
-    exec_guard.add_behavior(PatrolBehavior(
-        route=["west", "east"], pause=4,
-    ))
-    exec_guard.location = floor46
-    await repo.save(exec_guard)
+    await repo.save(floor46)
 
     objects.update({
         "locker": locker, "goggles": goggles, "picks": picks, "lamp": lamp,
         "desk": desk, "keycard": keycard, "painting": painting, "safe": safe,
         "documents": documents, "panel": panel,
-        "door_guard": door_guard, "exec_guard": exec_guard,
         "suite_door": suite_door, "fire_escape": fire_up,
     })
     return objects

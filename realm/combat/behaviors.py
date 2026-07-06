@@ -1,19 +1,17 @@
 """
-Combat behaviors for NPCs and automated combat.
+Combat behaviors for NPCs: brains that join, taunt, guard, heal, and roam.
 
-These behaviors can be attached to GameObjects to give them
-combat AI:
-- AggressiveBehavior: Attacks enemies on sight
-- DefensiveBehavior: Only fights back when attacked
-- GuardBehavior: Protects an area or object
-- FleeingBehavior: Runs when HP is low
-- HealerBehavior: Heals allies
+All of these route through the CombatManager and the encounter engine —
+an NPC never swings outside a fight's beats. Reflex-style behaviors
+(fleeing when hurt) are implemented as strategy rules written onto the
+owner, so they share the exact selection engine players use and are
+inspectable via ``@examine``.
 """
 
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from realm.core.behaviors import Behavior, BehaviorRegistry
 
@@ -22,177 +20,125 @@ if TYPE_CHECKING:
     from realm.core.propagation import Action
 
 
+def _combat_manager():
+    from realm.combat.manager import get_combat_manager
+    return get_combat_manager()
+
+
+def _ensure_strategy_rule(obj: GameObject, condition: str, action: str) -> None:
+    """Prepend a strategy rule if an equivalent one isn't present."""
+    rules = list(obj.db.get('combat_strategy') or [])
+    if any(str(rule[0]) == condition for rule in rules if rule):
+        return
+    rules.insert(0, [condition, action])
+    obj.db.combat_strategy = rules
+
+
 @BehaviorRegistry.register
 class AggressiveBehavior(Behavior):
     """
-    Attacks valid targets when they enter the room.
+    Attacks valid targets on sight (they enter, or it wanders in on them).
 
     Parameters:
-        attack_chance: Probability of attacking (0.0-1.0, default 1.0)
-        target_tags: Tags that mark valid targets (default ['player'])
-        attack_delay: Seconds to wait before attacking (default 0)
-        taunt_messages: Optional list of messages to say before attacking
+        attack_chance: probability of engaging (0.0-1.0, default 1.0)
+        target_tags: tags marking valid prey (default ['player'])
+        taunt: line said when engaging (optional)
     """
 
     behavior_id = "aggressive"
 
-    @property
-    def should_tick(self) -> bool:
-        # Tick to continue combat
-        return True
-
-    @property
-    def tick_interval(self) -> float:
-        return 3.0  # Attack every 3 seconds in combat
-
     async def on_react(self, obj: GameObject, action: Action) -> None:
-        """React to enter events by potentially attacking."""
-        if action.action_type != "event:on_enter":
-            return
-
-        # Check if the entering object is a valid target
         entering = action.actor
-        if not entering or entering == obj:
+        if action.action_type != "event:on_enter" or entering is None:
             return
-
-        if not self._is_valid_target(entering):
+        if entering is obj or obj.has_tag('in_combat'):
             return
-
-        # Roll for attack chance
-        attack_chance = self.get_param('attack_chance', 1.0)
-        if random.random() > attack_chance:
+        # Fires both when prey enters our room and when we arrive in theirs.
+        if obj.location is None:
             return
-
-        # Delay if configured
-        attack_delay = self.get_param('attack_delay', 0)
-        if attack_delay > 0:
-            # Would need async delay, skip for now
-            pass
-
-        # Say taunt
-        taunts = self.get_param('taunt_messages', [])
-        if taunts:
-            taunt = random.choice(taunts)
-            # Would queue a trailing speech action
-            pass
-
-        # Attack the target
-        await self._attack_target(obj, entering)
-
-    async def tick(self, obj: GameObject, delta: float) -> None:
-        """Continue attacking in combat."""
-        from realm.combat.combatant import CombatState, get_combatant
-        from realm.combat.system import get_combat_system
-
-        combat = get_combat_system()
-        if not combat:
+        if entering is not obj and action.target is not obj.location:
             return
+        await self._maybe_engage(obj, entering)
 
-        combatant = get_combatant(obj)
-        if combatant.state != CombatState.COMBAT:
-            return
+    async def _maybe_engage(self, obj: GameObject, target: GameObject) -> None:
+        from realm.core.perception import can_see
 
-        # Continue attacking current target
-        if combatant.target and combatant.target.is_alive:
-            await combat.attack(combatant, combatant.target)
-        else:
-            # Find new target
-            combatant.state = CombatState.IDLE
-            combatant.target = None
-
-    def _is_valid_target(self, target: GameObject) -> bool:
-        """Check if target should be attacked."""
         target_tags = self.get_param('target_tags', ['player'])
-        for tag in target_tags:
-            if target.has_tag(tag):
-                return True
-        return False
+        if not any(target.has_tag(tag) for tag in target_tags):
+            return
+        # Even a monster spares those it's devoted to (spare_at=None disables).
+        spare_at = self.get_param('spare_at', 2)
+        if spare_at is not None:
+            from realm.core.disposition import get_disposition
+            if get_disposition(obj, target) >= int(spare_at):
+                return
+        if not can_see(obj, target):
+            return
+        if random.random() > float(self.get_param('attack_chance', 1.0)):
+            return
 
-    async def _attack_target(self, attacker: GameObject, target: GameObject) -> None:
-        """Initiate attack on target."""
-        from realm.combat.system import get_combat_system
+        manager = _combat_manager()
+        if manager is None:
+            return
 
-        combat = get_combat_system()
-        if combat:
-            await combat.attack(attacker, target)
+        taunt = self.get_param('taunt')
+        if taunt:
+            from realm.behaviors.npc import _npc_say
+            await _npc_say(obj, str(taunt))
+
+        await manager.initiate(obj, target)
 
 
 @BehaviorRegistry.register
 class DefensiveBehavior(Behavior):
     """
-    Only fights back when attacked.
+    Fights back only when attacked (the encounter engine's defender
+    auto-join already does the joining); flees when badly hurt.
 
     Parameters:
-        retaliate_chance: Probability of fighting back (default 1.0)
-        flee_threshold: HP percentage to flee at (default 0.2)
+        flee_percent: HP percentage to flee below (default 25).
     """
 
     behavior_id = "defensive"
 
-    async def on_react(self, obj: GameObject, action: Action) -> None:
-        """React to being attacked."""
-        if action.action_type != "combat:on_damage":
-            return
+    def attach(self, obj: GameObject) -> None:
+        super().attach(obj)
+        flee_percent = int(self.get_param('flee_percent', 25))
+        _ensure_strategy_rule(obj, f"!me.hp_percent < {flee_percent}", "flee")
 
-        # Check if we are the target
-        if action.target != obj:
-            return
 
-        attacker = action.actor
-        if not attacker:
-            return
+@BehaviorRegistry.register
+class FleeingBehavior(Behavior):
+    """
+    A coward's reflex: flee combat below an HP threshold. Implemented as
+    an override strategy rule — the same wimpy players get.
 
-        # Roll for retaliation
-        retaliate_chance = self.get_param('retaliate_chance', 1.0)
-        if random.random() > retaliate_chance:
-            return
+    Parameters:
+        flee_percent: HP percentage to flee below (default 50).
+    """
 
-        # Check if we should flee instead
-        from realm.combat.combatant import get_combatant
+    behavior_id = "fleeing"
 
-        combatant = get_combatant(obj)
-        flee_threshold = self.get_param('flee_threshold', 0.2)
-        if combatant.hp_percent <= flee_threshold:
-            # Try to flee
-            await self._try_flee(obj)
-            return
-
-        # Retaliate
-        await self._attack_target(obj, attacker)
-
-    async def _attack_target(self, attacker: GameObject, target: GameObject) -> None:
-        """Counter-attack."""
-        from realm.combat.system import get_combat_system
-
-        combat = get_combat_system()
-        if combat:
-            await combat.attack(attacker, target)
-
-    async def _try_flee(self, obj: GameObject) -> None:
-        """Attempt to flee combat."""
-        from realm.combat.combatant import CombatState, get_combatant
-
-        combatant = get_combatant(obj)
-        combatant.state = CombatState.FLEEING
-        # Actual fleeing logic would go here
+    def attach(self, obj: GameObject) -> None:
+        super().attach(obj)
+        flee_percent = int(self.get_param('flee_percent', 50))
+        _ensure_strategy_rule(obj, f"!me.hp_percent < {flee_percent}", "flee")
 
 
 @BehaviorRegistry.register
 class GuardBehavior(Behavior):
     """
-    Protects an area, attacking those without permission.
+    Blocks movement for those without permission.
 
     Parameters:
-        guard_tags: Tags that mark who to block (default ['player'])
-        allow_tags: Tags that mark who to let pass (default ['guard', 'admin'])
-        challenge_message: What to say when challenging
-        block_exits: List of exit names to guard (default all)
+        guard_tags: tags marking who to block (default ['player'])
+        allow_tags: tags marking who passes (default ['guard', 'admin'])
+        challenge_message: the block reason shown
     """
 
     behavior_id = "guard"
 
     async def on_check(self, obj: GameObject, action: Action) -> None:
-        """Potentially block movement through guarded exits."""
         if action.action_type not in ("event:on_enter", "event:on_leave"):
             return
 
@@ -200,188 +146,108 @@ class GuardBehavior(Behavior):
         if not mover or mover == obj:
             return
 
-        # Check if mover is allowed
         allow_tags = self.get_param('allow_tags', ['guard', 'admin'])
-        for tag in allow_tags:
-            if mover.has_tag(tag):
-                return
-
-        # Check if mover should be blocked
-        guard_tags = self.get_param('guard_tags', ['player'])
-        should_block = False
-        for tag in guard_tags:
-            if mover.has_tag(tag):
-                should_block = True
-                break
-
-        if not should_block:
+        if any(mover.has_tag(tag) for tag in allow_tags):
             return
 
-        # Block the movement
+        # Friends (and the successfully fast-talked) get waved through.
+        from realm.core.disposition import get_disposition
+        if get_disposition(obj, mover) >= int(self.get_param('allow_disposition', 2)):
+            return
+
+        guard_tags = self.get_param('guard_tags', ['player'])
+        if not any(mover.has_tag(tag) for tag in guard_tags):
+            return
+
         challenge = self.get_param('challenge_message', "Halt! You shall not pass!")
         action.block(challenge)
 
 
 @BehaviorRegistry.register
-class FleeingBehavior(Behavior):
-    """
-    Flees when HP drops below threshold.
-
-    Parameters:
-        flee_threshold: HP percentage to flee at (default 0.25)
-        flee_chance: Probability of successful flee (default 0.5)
-    """
-
-    behavior_id = "fleeing"
-
-    async def on_react(self, obj: GameObject, action: Action) -> None:
-        """Check HP after taking damage."""
-        if action.action_type != "combat:on_damage":
-            return
-
-        if action.target != obj:
-            return
-
-        from realm.combat.combatant import CombatState, get_combatant
-
-        combatant = get_combatant(obj)
-        flee_threshold = self.get_param('flee_threshold', 0.25)
-
-        if combatant.hp_percent <= flee_threshold:
-            combatant.state = CombatState.FLEEING
-            await self._attempt_flee(obj)
-
-    async def _attempt_flee(self, obj: GameObject) -> None:
-        """Try to escape combat."""
-        flee_chance = self.get_param('flee_chance', 0.5)
-
-        if random.random() < flee_chance:
-            # Find an exit and run
-            if obj.location:
-                exits = [o for o in obj.location.contents if o.has_tag('exit')]
-                if exits:
-                    escape_exit = random.choice(exits)
-                    # Would trigger movement through exit
-                    pass
-
-
-@BehaviorRegistry.register
 class HealerBehavior(Behavior):
     """
-    Heals injured allies.
+    Heals injured allies in the room, periodically.
 
     Parameters:
-        heal_amount: Base healing amount (default 10)
-        heal_threshold: HP percentage to trigger healing (default 0.5)
-        heal_cooldown: Seconds between heals (default 5)
-        ally_tags: Tags that mark allies (default ['player'])
+        heal_amount: HP restored per heal (default 5)
+        heal_threshold: HP percentage that triggers healing (default 50)
+        cooldown: ticks between heals (default 3)
+        ally_tags: tags marking allies (default ['player'])
     """
 
     behavior_id = "healer"
-
-    def __init__(self, **params: Any):
-        super().__init__(**params)
-        self._last_heal = 0.0
 
     @property
     def should_tick(self) -> bool:
         return True
 
-    @property
-    def tick_interval(self) -> float:
-        return 2.0
-
     async def tick(self, obj: GameObject, delta: float) -> None:
-        """Check for injured allies and heal them."""
-        import time
-
-        from realm.combat.combatant import get_combatant
-
-        # Check cooldown
-        cooldown = self.get_param('heal_cooldown', 5.0)
-        now = time.time()
-        if now - self._last_heal < cooldown:
+        wait = int(obj.db.get('healer_wait') or 0)
+        if wait > 0:
+            obj.db.healer_wait = wait - 1
             return
 
-        if not obj.location:
+        if obj.location is None:
             return
-
-        # Find injured allies
-        heal_threshold = self.get_param('heal_threshold', 0.5)
+        threshold = int(self.get_param('heal_threshold', 50))
         ally_tags = self.get_param('ally_tags', ['player'])
 
         for other in obj.location.contents:
-            if other == obj:
+            if other is obj:
+                continue
+            if not any(other.has_tag(tag) for tag in ally_tags):
+                continue
+            hp = other.db.get('hp')
+            max_hp = other.db.get('max_hp')
+            if hp is None or max_hp is None or int(max_hp) <= 0:
+                continue
+            if 100 * int(hp) / int(max_hp) >= threshold:
                 continue
 
-            # Check if ally
-            is_ally = any(other.has_tag(tag) for tag in ally_tags)
-            if not is_ally:
-                continue
-
-            # Check if injured
-            combatant = get_combatant(other)
-            if combatant.hp_percent < heal_threshold:
-                await self._heal_target(obj, other)
-                self._last_heal = now
-                break
-
-    async def _heal_target(self, healer: GameObject, target: GameObject) -> None:
-        """Heal the target."""
-        from realm.combat.system import get_combat_system
-
-        combat = get_combat_system()
-        if combat:
-            heal_amount = self.get_param('heal_amount', 10)
-            await combat.heal(healer, target, heal_amount)
+            heal = int(self.get_param('heal_amount', 5))
+            other.db.hp = min(int(max_hp), int(hp) + heal)
+            other.msg(f"{obj.name} tends your wounds (+{heal} HP).")
+            if obj.location:
+                obj.location.msg_contents(
+                    f"{obj.name} tends {other.name}'s wounds.",
+                    exclude=[other],
+                )
+            obj.db.healer_wait = int(self.get_param('cooldown', 3))
+            break
 
 
 @BehaviorRegistry.register
 class CombatantBehavior(Behavior):
     """
-    Basic combatant behavior - handles being in combat.
+    Combat flavor: last words on death.
 
     Parameters:
-        auto_retaliate: Automatically fight back when attacked (default True)
-        death_message: Message when defeated
+        death_message: line announced to the room when this one falls.
     """
 
     behavior_id = "combatant"
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
-        """Handle combat actions targeting this object."""
-        from realm.combat.combatant import CombatState, get_combatant
-
-        if action.action_type == "combat:on_damage" and action.target == obj:
-            # We took damage
-            combatant = get_combatant(obj)
-
-            # Auto-retaliate if configured
-            if self.get_param('auto_retaliate', True) and action.actor:
-                if combatant.state == CombatState.IDLE:
-                    combatant.state = CombatState.COMBAT
-                    combatant.target = get_combatant(action.actor)
-
-        elif action.action_type == "combat:on_death" and action.target == obj:
-            # We died
-            death_msg = self.get_param('death_message', '')
-            if death_msg:
-                # Would queue a trailing speech action
-                pass
-
-            combatant = get_combatant(obj)
-            combatant.state = CombatState.DEAD
+        if action.action_type != "combat:on_death" or action.target is not obj:
+            return
+        death_msg = self.get_param('death_message')
+        if death_msg and obj.location is not None:
+            obj.location.msg_contents(str(death_msg))
 
 
 @BehaviorRegistry.register
 class WanderingBehavior(Behavior):
     """
-    Wanders randomly between rooms.
+    Roams through random open exits.
 
     Parameters:
-        wander_chance: Probability of wandering each tick (default 0.1)
-        wander_interval: Seconds between wander checks (default 30)
-        avoid_tags: Tags of rooms to avoid
+        wander_chance: probability of moving on each check (default 0.25)
+        pause: ticks between wander checks (default 7 ≈ 30s at 4s ticks)
+        avoid_tags: destination-room tags never entered (default
+            ['no_wander']); wanderers also never leave their zone if
+            stay_in_zone is set.
+        stay_in_zone: keep to rooms sharing the owner's zone: tag
+            (default True).
     """
 
     behavior_id = "wandering"
@@ -390,35 +256,42 @@ class WanderingBehavior(Behavior):
     def should_tick(self) -> bool:
         return True
 
-    @property
-    def tick_interval(self) -> float:
-        return self.get_param('wander_interval', 30.0)
-
     async def tick(self, obj: GameObject, delta: float) -> None:
-        """Potentially wander to a new room."""
-        from realm.combat.combatant import CombatState, get_combatant
-
-        # Don't wander if in combat
-        combatant = get_combatant(obj)
-        if combatant.state == CombatState.COMBAT:
+        if obj.has_tag('in_combat') or obj.location is None:
             return
 
-        # Roll for wandering
-        wander_chance = self.get_param('wander_chance', 0.1)
-        if random.random() > wander_chance:
+        wait = int(obj.db.get('wander_wait') or 0)
+        if wait > 0:
+            obj.db.wander_wait = wait - 1
+            return
+        obj.db.wander_wait = int(self.get_param('pause', 7))
+
+        if random.random() > float(self.get_param('wander_chance', 0.25)):
             return
 
-        if not obj.location:
+        from realm.core.movement import move_through_exit, resolve_exit_destination
+
+        avoid = set(self.get_param('avoid_tags', ['no_wander']))
+        my_zones = {t for t in obj.location.tags.to_list() if t.startswith('zone:')}
+        stay_in_zone = bool(self.get_param('stay_in_zone', True))
+
+        candidates = []
+        for exit_obj in obj.location.contents:
+            if not exit_obj.has_tag('exit') or exit_obj.has_tag('closed'):
+                continue
+            destination = resolve_exit_destination(exit_obj)
+            if destination is None:
+                continue
+            if any(destination.has_tag(tag) for tag in avoid):
+                continue
+            if stay_in_zone and my_zones:
+                dest_zones = {t for t in destination.tags.to_list()
+                              if t.startswith('zone:')}
+                if not (my_zones & dest_zones):
+                    continue
+            candidates.append((exit_obj, destination))
+
+        if not candidates:
             return
-
-        # Find valid exits
-        avoid_tags = self.get_param('avoid_tags', [])
-        exits = [o for o in obj.location.contents if o.has_tag('exit')]
-
-        if not exits:
-            return
-
-        # Pick a random exit and go through it
-        exit_obj = random.choice(exits)
-        # Would trigger movement through exit
-        pass
+        exit_obj, destination = random.choice(candidates)
+        await move_through_exit(obj, destination, exit_obj=exit_obj)

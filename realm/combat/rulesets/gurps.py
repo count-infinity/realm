@@ -220,7 +220,12 @@ class GURPSRuleset(Ruleset):
         return skill - roll
 
     def get_skill(self, combatant: Combatant, skill_type: str = "melee") -> int:
-        """Get skill level for attack type."""
+        """Skill level for an attack type — honors the weapon's named
+        skill (skill_guns, skill_bow) before falling back to the broad
+        melee/ranged stats."""
+        direct = combatant.get_stat(f'skill_{skill_type}', -999)
+        if direct != -999:
+            return direct
         if skill_type == "ranged":
             return combatant.get_stat('skill_ranged', 10)
         return combatant.get_stat('skill_melee', 10)
@@ -478,47 +483,6 @@ class GURPSRuleset(Ruleset):
             description=f"Initiative: Basic Speed {basic_speed:.2f}",
         )
 
-    def roll_saving_throw(
-        self,
-        combatant: Combatant,
-        save_type: str,
-        difficulty: int,
-        modifiers: dict[str, int] | None = None,
-    ) -> DefenseResult:
-        """
-        Roll a resistance check: 3d6 vs attribute.
-
-        save_type should be HT, Will, etc.
-        difficulty modifies the target number.
-        """
-        modifiers = modifiers or {}
-
-        # Map save types to stats
-        stat_map = {
-            'health': 'health',
-            'ht': 'health',
-            'will': 'will',
-            'iq': 'intelligence',
-            'fright': 'will',
-        }
-        stat = stat_map.get(save_type.lower(), save_type)
-        base = combatant.get_stat(stat, 10)
-
-        # Apply difficulty as penalty
-        effective = base - difficulty + sum(modifiers.values())
-
-        roll_total, dice = self.roll_3d6()
-        success = roll_total <= effective
-
-        roll = RollResult(
-            total=roll_total,
-            dice=dice,
-            target=effective,
-            success=success,
-            description=f"{save_type} check: 3d6({roll_total}) vs {effective}",
-        )
-
-        return DefenseResult(success=success, roll=roll)
 
     def _parse_gurps_dice(self, dice_str: str) -> tuple[int, int]:
         """

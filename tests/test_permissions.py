@@ -1,19 +1,6 @@
 """Tests for the permission system."""
 
 from realm.core.objects import GameObject
-from realm.permissions.flags import (
-    Flag,
-    can_set_flag,
-    clear_flag,
-    get_flags,
-    has_flag,
-    is_dark,
-    is_gagged,
-    is_halted,
-    is_safe,
-    set_flag,
-    toggle_flag,
-)
 from realm.permissions.locks import (
     Lock,
     LockEvaluator,
@@ -26,14 +13,8 @@ from realm.permissions.locks import (
 )
 from realm.permissions.roles import (
     Role,
-    can_control,
     get_role,
-    get_role_name,
     has_permission,
-    is_admin,
-    is_builder,
-    is_god,
-    set_role,
 )
 
 
@@ -105,207 +86,6 @@ class TestRoles:
         player = GameObject("Player", tags=['player'])
         assert has_permission(player, "builder") is False
         assert has_permission(player, "admin") is False
-
-    def test_is_god(self):
-        """is_god helper function."""
-        god = GameObject("God", tags=['god'])
-        player = GameObject("Player", tags=['player'])
-
-        assert is_god(god) is True
-        assert is_god(player) is False
-
-    def test_is_admin(self):
-        """is_admin helper function."""
-        admin = GameObject("Admin", tags=['admin'])
-        builder = GameObject("Builder", tags=['builder'])
-
-        assert is_admin(admin) is True
-        assert is_admin(builder) is False
-
-    def test_is_builder(self):
-        """is_builder helper function."""
-        builder = GameObject("Builder", tags=['builder'])
-        player = GameObject("Player", tags=['player'])
-
-        assert is_builder(builder) is True
-        assert is_builder(player) is False
-
-
-class TestCanControl:
-    """Test suite for can_control function."""
-
-    def test_god_controls_everything(self):
-        """God can control any object."""
-        god = GameObject("God", tags=['god'])
-        target = GameObject("Target")
-
-        assert can_control(god, target) is True
-
-    def test_admin_controls_most(self):
-        """Admin can control most objects."""
-        admin = GameObject("Admin", tags=['admin'])
-        target = GameObject("Target")
-
-        assert can_control(admin, target) is True
-
-    def test_admin_cannot_control_god_owned(self):
-        """Admin cannot control God-owned objects."""
-        god = GameObject("God", tags=['god'])
-        admin = GameObject("Admin", tags=['admin'])
-        god_item = GameObject("God's Item", owner=god)
-
-        assert can_control(admin, god_item) is False
-
-    def test_owner_controls_own_objects(self):
-        """Owner can control their own objects."""
-        player = GameObject("Player", tags=['player'])
-        item = GameObject("My Item", owner=player)
-
-        assert can_control(player, item) is True
-
-    def test_non_owner_cannot_control(self):
-        """Non-owner cannot control others' objects."""
-        player1 = GameObject("Player1", tags=['player'])
-        player2 = GameObject("Player2", tags=['player'])
-        item = GameObject("Item", owner=player1)
-
-        assert can_control(player2, item) is False
-
-    def test_none_actor_cannot_control(self):
-        """None actor cannot control anything."""
-        target = GameObject("Target")
-        assert can_control(None, target) is False
-
-    def test_none_target_cannot_be_controlled(self):
-        """Cannot control None target."""
-        actor = GameObject("Actor")
-        assert can_control(actor, None) is False
-
-
-class TestSetRole:
-    """Test suite for set_role function."""
-
-    def test_set_role_adds_tag(self):
-        """set_role adds appropriate tag."""
-        player = GameObject("Player", tags=['player'])
-        set_role(player, Role.BUILDER)
-
-        assert player.has_tag('builder')
-        assert get_role(player) == Role.BUILDER
-
-    def test_set_role_removes_old_tags(self):
-        """set_role removes previous role tags."""
-        admin = GameObject("Admin", tags=['admin', 'player'])
-        set_role(admin, Role.BUILDER)
-
-        assert not admin.has_tag('admin')
-        assert player.has_tag('builder') if (player := admin) else False
-
-    def test_set_player_role_no_tag(self):
-        """Player role doesn't need a tag."""
-        builder = GameObject("Builder", tags=['builder', 'player'])
-        set_role(builder, Role.PLAYER)
-
-        assert not builder.has_tag('builder')
-        assert get_role(builder) == Role.PLAYER
-
-
-class TestFlags:
-    """Test suite for object flags."""
-
-    def test_set_and_has_flag(self):
-        """Can set and check flags."""
-        obj = GameObject("Object")
-
-        assert has_flag(obj, Flag.HALT) is False
-        set_flag(obj, Flag.HALT)
-        assert has_flag(obj, Flag.HALT) is True
-
-    def test_clear_flag(self):
-        """Can clear flags."""
-        obj = GameObject("Object")
-        set_flag(obj, Flag.DARK)
-
-        assert has_flag(obj, Flag.DARK) is True
-        clear_flag(obj, Flag.DARK)
-        assert has_flag(obj, Flag.DARK) is False
-
-    def test_get_flags(self):
-        """get_flags returns all set flags."""
-        obj = GameObject("Object")
-        set_flag(obj, Flag.HALT)
-        set_flag(obj, Flag.GAGGED)
-        set_flag(obj, Flag.DARK)
-
-        flags = get_flags(obj)
-        assert Flag.HALT in flags
-        assert Flag.GAGGED in flags
-        assert Flag.DARK in flags
-        assert Flag.SAFE not in flags
-
-    def test_toggle_flag(self):
-        """toggle_flag toggles state."""
-        obj = GameObject("Object")
-
-        result = toggle_flag(obj, Flag.QUIET)
-        assert result is True
-        assert has_flag(obj, Flag.QUIET)
-
-        result = toggle_flag(obj, Flag.QUIET)
-        assert result is False
-        assert not has_flag(obj, Flag.QUIET)
-
-    def test_flag_convenience_functions(self):
-        """Convenience functions work."""
-        obj = GameObject("Object")
-
-        assert is_halted(obj) is False
-        set_flag(obj, Flag.HALT)
-        assert is_halted(obj) is True
-
-        assert is_gagged(obj) is False
-        set_flag(obj, Flag.GAGGED)
-        assert is_gagged(obj) is True
-
-        assert is_dark(obj) is False
-        set_flag(obj, Flag.DARK)
-        assert is_dark(obj) is True
-
-        assert is_safe(obj) is False
-        set_flag(obj, Flag.SAFE)
-        assert is_safe(obj) is True
-
-    def test_flag_with_string(self):
-        """Flags work with string names."""
-        obj = GameObject("Object")
-
-        set_flag(obj, "halt")
-        assert has_flag(obj, "halt") is True
-        assert has_flag(obj, Flag.HALT) is True
-
-    def test_none_object_flags(self):
-        """None object has no flags."""
-        assert has_flag(None, Flag.HALT) is False
-        assert get_flags(None) == []
-
-    def test_can_set_flag_requires_control(self):
-        """can_set_flag requires control over target."""
-        player1 = GameObject("Player1", tags=['player'])
-        player2 = GameObject("Player2", tags=['player'])
-        item = GameObject("Item", owner=player1)
-
-        assert can_set_flag(player1, item, Flag.HALT) is True
-        assert can_set_flag(player2, item, Flag.HALT) is False
-
-    def test_admin_only_flags(self):
-        """Admin-only flags require admin role."""
-        player = GameObject("Player", tags=['player'])
-        admin = GameObject("Admin", tags=['admin'])
-        item = GameObject("Item", owner=player)
-
-        assert can_set_flag(player, item, Flag.SAFE) is False
-        assert can_set_flag(admin, item, Flag.SAFE) is True
-
 
 class TestLocks:
     """Test suite for lock system."""
@@ -475,25 +255,3 @@ class TestLockTypes:
         """CONTROL lock type exists."""
         assert LockType.CONTROL.value == "control"
 
-    def test_all_lock_types(self):
-        """All expected lock types exist."""
-        expected = [
-            'basic', 'enter', 'use', 'control', 'zone',
-            'speech', 'teleport', 'examine', 'give', 'drop',
-            'command', 'listen', 'page', 'mail'
-        ]
-
-        for name in expected:
-            assert LockType(name), f"Missing lock type: {name}"
-
-
-class TestRoleNames:
-    """Test role name helpers."""
-
-    def test_get_role_name(self):
-        """get_role_name returns display names."""
-        assert get_role_name(Role.GOD) == "God"
-        assert get_role_name(Role.ADMIN) == "Admin"
-        assert get_role_name(Role.BUILDER) == "Builder"
-        assert get_role_name(Role.PLAYER) == "Player"
-        assert get_role_name(Role.GUEST) == "Guest"

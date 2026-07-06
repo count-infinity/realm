@@ -2,6 +2,20 @@
 
 Prioritized list of improvements, features, and technical debt items.
 
+**NORTH STAR: docs/design/engine_vision.md** — REALM is the Godot of
+MU*s: the engine obfuscates MU* complexity, games are softcode.
+Almost all functionality reachable from softcode, with permissions on
+softcode (`controls()` authority model). Every feature ships in two
+layers — hardcoded mechanism + softcode surface; a feature without its
+softcode surface is half-shipped and its other half belongs here.
+The vision doc's capability matrix is the coverage tracker.
+**docs/design/adventure_coverage.md** grades the engine against nine
+published one-shots (B2, Tomb of Horrors, Death House, Caravan to Ein
+Arris, The Haunting, Death Station, Food Fight, Ypsilon 14...) — its
+gap clusters (check-modifier providers, ranged combat, disposition
+states, economy kit, followers, @force) are the demand signal for
+prioritizing below.
+
 ## Priority 0 - Core Architecture (Library Design)
 
 REALM must be usable as a library, not an application to fork.
@@ -75,12 +89,12 @@ framework is fully in place.
 Full-codebase review (3 subsystem passes). The structural tier was fixed the
 same day (see Completed); these remain, roughly by impact:
 
-- [ ] **Scripting follow-ups** (engine is wired as of 2026-07-02, see
-  Completed): zone objects and the Master Room are still unimplemented in
-  `get_search_objects` (plan.md search order steps 4–5); scripts can only
-  emit communication commands (say/pose/emit/whisper) — anything else is
-  logged and dropped until scripted objects can drive the dispatcher
-  (ties into `@force`); listen triggers hear `extra["message"]` actions
+- [ ] **Scripting follow-ups** (engine wired 2026-07-02; actuators +
+  builder loop 2026-07-04, see Completed): zone objects and the Master
+  Room are still unimplemented in `get_search_objects` (plan.md search
+  order steps 4–5); scripts can emit communication commands plus
+  `move`/`trigger` — `get`/`drop`/`open` and full dispatcher access
+  (`@force`) remain; listen triggers hear `extra["message"]` actions
   (say/shout/ooc/emit) but not poses.
 - [ ] **Spacegame content:** the doctor's `$help` softcode is shadowed by
   the builtin `help` command (softcode only sees *unknown* commands) —
@@ -88,23 +102,34 @@ same day (see Completed); these remain, roughly by impact:
 - [ ] **Rewrite or delete `examples/spacegame/commands.py`.** It imports a
   command API that doesn't exist (`realm.commands.registry`, `context`,
   `Command`) — cannot be imported. Add an import smoke-test for examples.
-- [ ] **Extract auth from GameServer.** `_do_connect`/`_do_create` compare
-  plaintext passwords (`# TODO: Hash this!`), are untested, and live on the
-  server object. Extract an `AuthService(persistence)` with salted hashing.
-- [ ] **Unify the two AST validators.** `sandbox.py` and `locks.py` each
-  hand-roll eval/exec validation with diverged blocklists. One shared
-  safe-eval policy module; both consume it. (No RestrictedPython anywhere —
-  plan.md's sandboxing claim is aspirational.)
+- [ ] **Extract auth from GameServer** (hashing DONE 2026-07-04:
+  `realm/server/auth.py`, salted scrypt, legacy plaintext upgraded in
+  place on login). Remaining: move the connect/create orchestration
+  into an `AuthService(persistence)`; rate-limit login attempts.
+- [x] ~~**Unify the AST validators.**~~ DONE 2026-07-04:
+  `realm/core/safe_eval.py` is the one policy module; sandbox, locks,
+  and strategy conditions all consume it (locks got strictly stronger —
+  `getattr` and private names are now rejected there too).
 - [ ] **Fix the flag namespace.** `flags.py` docstring claims a `flag:` prefix
   but `_flag_tag` returns bare values — `set_flag(obj, Flag.WIZARD)` silently
   grants ADMIN via the role check on the `wizard` tag.
-- [ ] **Lock follow-ups** (core enforcement landed 2026-07-02, see
-  Completed): `use` lock not yet checked on softcode $-command triggers,
-  `command`/`listen` locks unenforced, `teleport` lock not checked by
+- [ ] **Lock follow-ups** (core enforcement 2026-07-02; use/listen/
+  command + controls() landed 2026-07-04, see Completed): `teleport`
+  lock now checked by scripted `teleport_obj` but still not by
   `@teleport` (admin-gated anyway), `examine` lock not consulted by
   look/examine, `page`/`mail` have no systems yet. The gated-broadcast
   pattern drops trailing-action messages (pre-existing movement trade-off,
   now shared by `gate_action`).
+- [ ] **Softcode platform remaining** (engine_vision.md matrix; the
+  2026-07-04 tranche shipped locks/combat/verbs/waits — see Completed):
+  `@force` / full dispatcher access for scripts (needs per-command
+  authority story); persistent waits (current one-shots are in-memory
+  like MUSH @waits); `put <thing> in <container>` script verb.
+- [ ] **Script-thread vs event-loop trade-off** (documented in
+  engine_vision.md): sandbox mutations run in the worker thread and rely
+  on the GIL; session/persistence work is queued and drained on-loop.
+  If a race ever bites, queue mutations wholesale or run scripts
+  on-loop with an instruction budget.
 - [ ] **Inventory action boilerplate + bulk gap.** The ~18-line
   propagate/block/move/deliver ritual repeats 4× in `inventory.py`, and
   `get all`/`drop all` skip propagation entirely — behaviors fire for
@@ -304,6 +329,272 @@ Design sketch:
 
 ## Completed
 
+- [x] **SIMPLICITY REVIEW + TIER-1 FIXES (2026-07-05, tenth package).**
+  Three independent review passes; full findings + verdicts in
+  docs/design/simplicity_review.md. Verdict: bones are right (layering
+  clean, singletons right-sized, _resolve_action chain and core layout
+  KEEP). Fixed same day (789 tests): @teleport/@destroy/@link/@unlink
+  now require_control (builder commands were LOOSER than scripts);
+  set_skill_defaults merges over ENGINE_SKILL_DEFAULTS floor (flee
+  default was silently lost on every live server); COMBAT_RULESET now
+  defaults to the GameSystem's ruleset (GAME_SYSTEM=d20 no longer gets
+  GURPS combat); create_obj location gated; roles.py rival authority
+  layer (can_control/can_examine + dead helpers) DELETED — locks.controls
+  is the one predicate; flags.can_set_flag rewired to it.
+  TIER 2/3 EXECUTED same day (770 tests, ~900 lines removed):
+  DELETED flags.py (dead PennMUSH lexicon + its tests), legacy
+  set/get_combat_system + unimportable examples/spacegame/commands.py,
+  eq/gt/lt MUSH comparisons + output_callback from ScriptFunctions,
+  dead Ruleset surface (roll_saving_throw/get_attack_range/roll_dice/
+  get_modifier; calculate_healing kept — one real caller), TagSet
+  namespace API, dispatcher @command decorator + register_commands +
+  min_args, disposition BANDS, LockType PAGE/MAIL/ZONE, resolve_attr,
+  has_msg_handler, 53 unreachable ctx.player guards. CONSOLIDATED
+  functions.py to one resolution idiom (_resolve) + _controlled/_touch
+  mutate helpers (del_attr now queues its save). Still pending (review
+  doc Tier 3): resolve_or_report helper, communication.py helper +
+  speech-shape builders, Behavior.countdown, GURPS skill ladder
+  unification, RulesetRegistry, death_award hook, locks class
+  flattening, AttributeProxy dirty-set.
+- [x] **NOBODY LEFT BEHIND: followers & parties (2026-07-05, ninth
+  package).** 801 tests (12 new); coverage 51 YES / 6 NO — B2's
+  rescue-the-prisoners escort flipped.
+  - `realm/core/party.py`: `db.following = <leader id>` is the entire
+    state. `bring_followers` hooks move_through_exit: followers in the
+    origin room walk the same exit after their leader — chains cascade
+    naturally, cycles self-resolve (scans are room-local; movers have
+    left the room being scanned), locks/skill gates judge each
+    follower on their own merits, unconscious/in-combat stay, FLEEING
+    breaks the chain (you escape alone).
+  - Party = the connected component of follow edges in one room — no
+    party object, no invitations. `follow`/`unfollow`/`party` commands.
+  - **CP awards split** across the killer's party members present
+    (max(1, award // n) each; solo unchanged) — closes the
+    long-standing party-CP-split backlog item.
+  - Escort quests are pure softcode: the prisoner's
+    `$rescue prisoner: set_attr(me, 'following', '%#')` — enactor id
+    via %-substitution — tested through the real trigger path.
+- [x] **MONEY TALKS: the economy kit (2026-07-05, eighth package).**
+  789 tests (14 new); coverage 50 YES / 9 PARTIAL — B2's keep shops,
+  the bribed ogre, caravan wages, and Death Station salvage all
+  flipped.
+  - `realm/core/economy.py`: `db.credits`, never-negative
+    adjust/transfer; the active GameSystem names the currency
+    (`currency_name` — credits for GURPS-space, gold for D20).
+  - **ShopkeeperBehavior**: stock IS the keeper's inventory
+    (restocking = spawner/softcode drops goods on them); price =
+    item `db.value` × markup × DISPOSITION factor (±5%/point, cap
+    ±15%) — persuade the merchant, get a discount: the systems
+    compose. `no_sell`/`wielded` items withheld; buyback with
+    `no_buy` opt-out.
+  - Commands: `credits`/`money`, `list`/`wares`, `buy`, `sell`,
+    `pay <amount> to <target>`. **`pay` propagates `event:payment`**
+    → ON_PAYMENT softcode: the B2 ogre judges the bribe and drops
+    its `hostile` tag (tested end-to-end through the trigger path).
+  - Softcode: `credits()` read; `adjust_credits` (minting requires
+    control); `transfer_credits` (executor must control the SOURCE —
+    a banker pays from its own pocket, can't script money out of a
+    player).
+- [x] **GUNS WORK: ranged combat (2026-07-05, seventh package).**
+  775 tests (11 new); coverage 46 YES / 7 NO — Shadowrun's Food Fight
+  and Harkwood's archery contest flipped from NO.
+  - **Range bands** on Participant (0 = engaged, 1 = at range; int so
+    more bands can come later). Melee requires both at band 0
+    ("'close' the distance or 'shoot'"); shoot works at any band.
+  - **Base maneuvers** (engine vocabulary, every ruleset gets them):
+    shoot (-2 close quarters, -2 vs cover), aim (+weapon Acc on next
+    shot at that target, +1/extra round, cap Acc+2, consumed on fire),
+    close/withdraw (band moves, drop cover), cover (needs a
+    `cover`-tagged room object; -2 to ranged attacks against you).
+  - **Wielded weapons**: `wield`/`unwield` commands ('wielded' tag,
+    one at a time), `find_wielded()`; melee attack won't club with a
+    ranged weapon (goes unarmed); GURPS `get_skill` honors the
+    weapon's `skill_type` (skill_guns) before broad fallbacks.
+  - Modifier dicts flow through the existing `roll_attack(modifiers=)`
+    seam — verified by a recording-ruleset test. NPC snipers are just
+    `combat_strategy = [["", "shoot"]]`.
+  - Remaining flavor (backlogged): ammo/reload, bursts, cross-room
+    sniping (encounters stay per-room by design).
+- [x] **NPCS HOLD GRUDGES: disposition states (2026-07-04, sixth
+  package).** 764 tests (15 new). Adventure matrix gap #3 closed:
+  44 YES / 12 PARTIAL now.
+  - `realm/core/disposition.py`: `db.dispositions = {char_id: -5..+5}`
+    on the NPC; GURPS bands (hostile/unfriendly/neutral/friendly/
+    devoted); `db.default_disposition` temperament baseline; `hostile`
+    tag caps at -3; `reaction_roll` = 3d6 high-good MEMOIZED (first
+    impressions stick until something changes them).
+  - Commands: `consider` (NOT `greet` — that name is left free for
+    softcode $-commands; builtins shadow the fallback), `persuade`
+    (persuasion vs will, +1 permanent, per-person cooldown),
+    `fasttalk` (fast_talk vs detect_lies; +2 via
+    DispositionBoostBehavior that EXPIRES and reverses; caught = -1
+    permanent).
+  - Consumers: GuardBehavior waves through disposition >= 
+    allow_disposition (default 2) — the fast-talked guard literally
+    lets you past, then wonders why two minutes later; Aggressive
+    spares targets >= spare_at (default 2, None disables).
+  - Softcode: disposition()/adjust_disposition() (authority: an NPC
+    owns its own opinions)/reaction_roll() (proximity).
+  - GURPS system grows will/detect_lies defaults.
+- [x] **THE BANSHEE WAILS: condition-modifier pipeline (2026-07-04,
+  fifth package).** 749 tests (8 new). The adventure matrix's #1 gap
+  cluster closed; coverage 38→42 YES, 17→14 PARTIAL.
+  - `check()` folds `condition_modifier(obj, skill)` in UPSTREAM of the
+    resolver — every ruleset and injected resolver inherits it (Chain
+    of Responsibility on the check pipeline). Providers registerable
+    (`add_modifier_provider`); built-in provider reads `db.check_mods`
+    ({kind: {'all': -2, 'observation': -6}} or bare int) — one dict,
+    softcode-writable, reboot-safe.
+  - Any `TimedEffectBehavior` can carry `check_mods` — its entry lives
+    exactly as long as the effect (blinding poison = DoT + observation
+    penalty). `ModifierEffectBehavior` (behavior_id `modifier_effect`)
+    is the pure-condition shape: kind/duration/check_mods/apply_msg.
+  - Softcode: `apply_effect(target, effect_id, **params)` and
+    `remove_effect(target, kind)` with proximity authority (a banshee
+    frightens whoever hears the wail; a cleric cures who's present).
+    The user's original example is now literal:
+    `@set banshee/on_wail = apply_effect(enactor, 'modifier_effect',
+    kind='fear', duration=8, check_mods={'all': -2})`.
+- [x] **THE FRONT DOOR OPENS: GameSystem + chargen + hashed auth
+  (2026-07-04, fourth package).** 741 tests (16 new) + a 9-check live
+  drive of the full new-player journey: create → GURPS template
+  chargen (input captured, quit/reconnect safe) → derived stats →
+  world; scrypt-hashed password verified across a reboot, plaintext
+  never stored.
+  - **GameSystem** (`realm/systems/`): the swappable rules package —
+    Abstract Factory + Registry (config `GAME_SYSTEM = "gurps"`),
+    Strategy for advancement (`improve_cost`), Template Method for
+    chargen (server owns the prompt→answer→advance loop, state in
+    `db.chargen_step`; systems supply `ChargenStep`s; `ChoiceStep`
+    covers menus, point-buy steps are future subclasses). Owns: combat
+    ruleset name, skill defaults (`set_skill_defaults` — checks.py
+    table now comes from the system), baselines, derived stats.
+  - **GurpsSystem**: 4 templates (soldier/infiltrator/face/technician)
+    + bonus-skill step; HP from ST, dodge from DX/HT; flat 4 CP/level.
+    **D20System** proves the swap: class pick, HP from HT-analog,
+    escalating improve costs. `improve` command asks the system.
+  - **Auth** (`realm/server/auth.py`): salted scrypt
+    (`scrypt$salt$hash`), constant-time compare, legacy plaintext
+    accounts upgraded in place on first successful login.
+  - Chargen flow edge cases: stray world commands captured, `quit`
+    mid-chargen works, disconnect/reconnect resumes at the same step.
+- [x] **THE ENGINE SPEAKS SOFTCODE: combat, locks, verbs, waits
+  (2026-07-04, third package).** 725 tests (17 new) + an 8-check live
+  drive authored entirely with @set: a fetch-imp (scripted get/give), a
+  script-sealed lock, a dart-trap room (`damage(enactor, 3)` on
+  ON_ENTER — "HP now 7"), a rat killed by script leaving a real corpse,
+  and a `wait 2 say KABOOM!` fuse firing off the heartbeat.
+  - **Combat channels**: `damage`/`heal` with PROXIMITY authority (same
+    room as the executor, or inside it — room traps work); lethal
+    damage queues a death_check drained on-loop through
+    `CombatManager.handle_death`, so corpses/CP/unconsciousness hold.
+    `start_combat(attacker, target)` — executor must control the
+    attacker (no puppeting players into fights), same-room, queued into
+    `CombatManager.initiate`.
+  - **Locks from scripts**: `set_lock` (validated by the unified
+    safe-eval, authority-gated), `clear_lock`, `test_lock`.
+  - **Manipulation verbs**: get/take/drop/give/open/close as script
+    commands, backed by NEW `realm/core/verbs.py` — the single
+    implementation player commands now delegate to (cmd_get/cmd_drop/
+    cmd_give/cmd_open/cmd_close refactored; message templates exist
+    once). Scripted gets pass the same locks and behavior gates.
+    Sandbox got a generic `cmd(line)` escape hatch.
+  - **`wait`**: `wait(seconds, command)` function + `wait <sec> <cmd>`
+    script command; one-shots ride the server heartbeat
+    (`ScriptEngine.tick_waits`), clamp 0–3600s, honor `halt`,
+    in-memory like MUSH @waits (persistent waits backlogged).
+  - Script `get()` name resolution is now LOCAL-FIRST (executor's room
+    + inventory, then world) and works without persistence.
+- [x] **PERMISSIONS ON SOFTCODE + the engine API (2026-07-04, same day,
+  second package).** 708 tests (18 new); the 13-check MUSH-loop live
+  drive re-passed under the new authority layer. North star written:
+  docs/design/engine_vision.md (Godot-of-MU*s; capability matrix is
+  the coverage tracker).
+  - **`controls(actor, obj)`** (permissions/locks.py) — the one
+    authority predicate: self, owner, ADMIN+, builder-over-unowned,
+    world-trusts-world (unowned non-player ↔ unowned non-player),
+    else the `control` lock. `may_trigger` adds the trigger_ok analog:
+    controllers, or an explicit `command` lock grant.
+  - **Builder commands gated**: @desc/@name/@set/@wipe/@parent/@tag/
+    @untag/@lock/@unlock/@behavior/@clone all `require_control`;
+    @tr uses `may_trigger`. @clone now sets `clone.owner = cloner`.
+  - **Trigger locks enforced**: `use` gates who fires an object's
+    $-commands; `listen` gates whose speech its ^patterns overhear;
+    cross-object `trigger` from scripts needs may_trigger. Defaults
+    are True/True/controllers — unset locks change nothing.
+  - **Script mutations authority-gated**: set_attr/del_attr/add_tag/
+    remove_tag now require the EXECUTOR to control the target (scripts
+    run as their object, never as the enactor; self-modification always
+    works). An imp's `set_attr('Alice','hp',0)` is a no-op.
+  - **Engine API for softcode**: `create_obj` (owned by executor's
+    owner, saved via queue), `destroy_obj` (never players),
+    `teleport_obj` (checks destination teleport lock), `exits`,
+    `behaviors`/`attach_behavior`/`detach_behavior`, `controls`.
+    Script mutations queue persistence saves — deduped, drained
+    on-loop after execution alongside pemit/remit/oemit.
+- [x] **SOFTCODE MACHINES LIVE: the MUSH builder loop (2026-07-04).**
+  690 tests (34 new) + a 13-check live drive: a builder assembles a
+  living NPC entirely in-game and it survives a reboot untouched —
+  `@create parrot` → `@behavior parrot = script_ticker, interval:2` →
+  `@set parrot/on_tick = say Awk!` → `@clone parrot = polly` →
+  `@tr polly/on_tick` → a softcode-only wanderer walking real exits.
+  - **One safe-eval engine** (`realm/core/safe_eval.py`): locks,
+    strategy conditions, and the script sandbox all validate against
+    the same rules (compiled expressions LRU-cached; `eval_bool` is the
+    fail-closed gate). Locks got strictly stronger — `getattr` and
+    private names now rejected there too. Closed the "unify the AST
+    validators" hardening item.
+  - **Script actuators**: `move <exit>` (and sandbox `move()`) routes
+    through `move_through_exit` — locks, closed doors, and guard
+    behaviors apply to scripted movement exactly as to players;
+    `trigger <obj>/<attr>` chains named scripts, depth-capped.
+  - **`ScriptTickerBehavior`** (behavior_id `script_ticker`): runs the
+    owner's `on_tick` attribute as softcode on the one heartbeat —
+    scheduling stays native, logic is builder-authored. Deliberate
+    divergence from MUSH `@wait` chains (no per-mob queue machines);
+    halting = `halt` tag or detach, no `@halt` wars.
+  - **Builder commands**: `@behavior` (attach/detach/list, @set-style
+    param parsing), `@clone` (attrs+tags+behaviors+locks via the
+    spawner's prototype path; spawn-bookkeeping tags stripped;
+    players/rooms refused), `@tr obj/attr` (run a named script,
+    executor=obj, enactor=you; reports halt).
+  - `ScriptEngine.run_object_script` + `set_script_engine/get_script_engine`
+    ambient accessor (same pattern as combat/persistence managers).
+  - Fixed a second test-registry landmine: test_persistence.py cleared
+    `BehaviorRegistry._behaviors` in teardown without restoring,
+    unregistering every import-time behavior for the rest of the
+    session (same bug as test_behaviors.py, fixed same way).
+- [x] **THE KILL LOOP CLOSES: spawners, progression, real NPC brains
+  (2026-07-04).** 656 tests (10 new) + a 9-check live drive: kill the
+  spawner-staffed lobby guard → earn 6 CP → `improve stealth` → corpse
+  remains → the relief guard walks in on the respawn timer.
+  - `SpawnerBehavior` (`realm/behaviors/spawner.py`): rooms keep N
+    copies of a prototype (plain data: name/tags/attrs/behaviors)
+    alive. Liveness via the identity map — killed NPCs are deleted
+    from the cache, so a dead spawn's ID stops resolving; no scanning.
+    Respawn countdown + tracked IDs live in room.db (reboot-safe).
+    First spawn immediate. Nexagen's two guards are now spawner
+    prototypes — the tower re-staffs itself.
+  - **Progression**: NPC kills award character points
+    (`victim.db.points // 10`, min 1) to player killers via the shared
+    death path; `points`/`score` shows the ledger + trained skills;
+    `improve <skill>` spends 4 CP per +1 level (untrained skills start
+    from their attribute default). Party split awaits a group system.
+  - **Combat behaviors de-stubbed** (all five "Would ..." stubs are
+    real): Aggressive engages through the CombatManager with a spoken
+    taunt (perception-gated — it can't aggro what it can't see);
+    Defensive/Fleeing write `!`-override flee strategy rules (the same
+    engine players' wimpy uses); Healer heals with a db cooldown;
+    Combatant delivers last words on combat:on_death; Wandering
+    actually walks random open exits with zone confinement
+    (stay_in_zone) and avoid_tags. Fixed integration bug: behaviors
+    called `get_combat_system()`, a global the server never set (now
+    set alongside the manager).
+  - `Behavior.tick_interval` is honored (was silently ignored): the
+    heartbeat tracks per-instance last-tick in a WeakKeyDictionary;
+    default 0 = every pulse.
+  - Removed the superseded `StatusEffect` machinery from combatant.py
+    (effects.py behaviors replaced it); lint baseline dropped 14→8.
 - [x] **Timed effects + tick-sweep registry (2026-07-03).** 648 tests.
   - Effects ARE tickable behaviors (`realm/behaviors/effects.py`):
     `TimedEffectBehavior` base (interval/duration countdowns in

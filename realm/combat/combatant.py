@@ -8,7 +8,7 @@ work with any object that has the required attributes.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
 
@@ -27,30 +27,6 @@ class CombatState(Enum):
 
 
 @dataclass
-class StatusEffect:
-    """
-    A temporary effect on a combatant.
-
-    Examples: poisoned, stunned, blessed, hasted
-    """
-
-    name: str
-    duration: int  # Rounds remaining (-1 = permanent)
-    magnitude: int = 1  # Effect strength
-    source: str = ""  # What caused this effect
-    data: dict[str, Any] = field(default_factory=dict)
-
-    def tick(self) -> bool:
-        """
-        Reduce duration by 1.
-
-        Returns True if effect is still active.
-        """
-        if self.duration > 0:
-            self.duration -= 1
-        return self.duration != 0
-
-
 class Combatant:
     """
     Wrapper around a GameObject for combat purposes.
@@ -68,7 +44,6 @@ class Combatant:
     def __init__(self, obj: GameObject):
         self._obj = obj
         self._state = CombatState.IDLE
-        self._effects: list[StatusEffect] = []
         self._combat_modifiers: dict[str, int] = {}
         self._target: Combatant | None = None
 
@@ -258,72 +233,6 @@ class Combatant:
 
         actual_healing = new_hp - old_hp
         return actual_healing
-
-    # --- Status Effects ---
-
-    def add_effect(self, effect: StatusEffect) -> None:
-        """Add a status effect."""
-        # Check if effect already exists
-        for existing in self._effects:
-            if existing.name == effect.name:
-                # Refresh duration if new is longer
-                if effect.duration > existing.duration:
-                    existing.duration = effect.duration
-                # Use higher magnitude
-                if effect.magnitude > existing.magnitude:
-                    existing.magnitude = effect.magnitude
-                return
-
-        self._effects.append(effect)
-
-    def remove_effect(self, name: str) -> bool:
-        """
-        Remove a status effect by name.
-
-        Returns True if effect was found and removed.
-        """
-        for i, effect in enumerate(self._effects):
-            if effect.name == name:
-                self._effects.pop(i)
-                return True
-        return False
-
-    def has_effect(self, name: str) -> bool:
-        """Check if combatant has a status effect."""
-        return any(e.name == name for e in self._effects)
-
-    def get_effect(self, name: str) -> StatusEffect | None:
-        """Get a status effect by name."""
-        for effect in self._effects:
-            if effect.name == name:
-                return effect
-        return None
-
-    def get_effects(self) -> list[StatusEffect]:
-        """Get all active status effects."""
-        return list(self._effects)
-
-    def tick_effects(self) -> list[StatusEffect]:
-        """
-        Tick all effects and remove expired ones.
-
-        Returns list of expired effects.
-        """
-        expired = []
-        remaining = []
-
-        for effect in self._effects:
-            if effect.tick():
-                remaining.append(effect)
-            else:
-                expired.append(effect)
-
-        self._effects = remaining
-        return expired
-
-    def clear_effects(self) -> None:
-        """Clear all status effects."""
-        self._effects.clear()
 
     # --- Resistances/Vulnerabilities ---
 

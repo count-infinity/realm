@@ -82,7 +82,6 @@ class Command:
     aliases: list[str] = field(default_factory=list)
     help_text: str = ""
     usage: str = ""
-    min_args: int = 0
     permission: str = "player"  # player, builder, admin, god
     parse_equals: bool = False
 
@@ -164,7 +163,6 @@ class CommandDispatcher:
             aliases=[a.lower() for a in (aliases or [])],
             help_text=help_text,
             usage=usage,
-            min_args=min_args,
             permission=permission,
             parse_equals=parse_equals,
         )
@@ -475,56 +473,3 @@ class CommandDispatcher:
         return sorted(result)
 
 
-def command(
-    name: str,
-    *,
-    aliases: list[str] | None = None,
-    help_text: str = "",
-    usage: str = "",
-    min_args: int = 0,
-    permission: str = "player",
-    parse_equals: bool = False,
-):
-    """
-    Decorator for registering commands.
-
-    Usage:
-        @command("look", aliases=["l"], help_text="Look around")
-        async def cmd_look(ctx: CommandContext):
-            ...
-    """
-    def decorator(func: CommandHandler) -> CommandHandler:
-        # Store metadata on the function for later registration
-        func._command_meta = {  # type: ignore
-            'name': name,
-            'aliases': aliases or [],
-            'help_text': help_text,
-            'usage': usage,
-            'min_args': min_args,
-            'permission': permission,
-            'parse_equals': parse_equals,
-        }
-        return func
-    return decorator
-
-
-def register_commands(dispatcher: CommandDispatcher, *handlers: CommandHandler) -> None:
-    """
-    Register multiple command handlers with a dispatcher.
-
-    Usage:
-        register_commands(dispatcher, cmd_look, cmd_say, cmd_quit)
-    """
-    for handler in handlers:
-        if hasattr(handler, '_command_meta'):
-            meta = handler._command_meta  # type: ignore
-            dispatcher.register(
-                meta['name'],
-                handler,
-                aliases=meta['aliases'],
-                help_text=meta['help_text'],
-                usage=meta['usage'],
-                min_args=meta['min_args'],
-                permission=meta['permission'],
-                parse_equals=meta['parse_equals'],
-            )

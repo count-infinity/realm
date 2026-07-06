@@ -586,3 +586,189 @@ class TestTimedEffects:
 
         obj.remove_behavior(regen)
         assert obj not in behavior_owners()
+
+
+# --- Spawner, CP awards, progression, de-stubbed brains ---------------------------
+
+
+@pytest.mark.asyncio
+class TestSpawner:
+
+    def _spawner(self, room, **over):
+        from realm.behaviors import SpawnerBehavior
+        params = dict(
+            key="thug",
+            respawn_ticks=3,
+            announce="Another thug slinks in.",
+            prototype={
+                "name": "alley thug",
+                "tags": ["npc"],
+                "attrs": {"hp": 5, "max_hp": 5, "points": 20},
+                "behaviors": [{"behavior_id": "combatant",
+                               "params": {"death_message": "The thug gurgles."}}],
+            },
+        )
+        params.update(over)
+        spawner = SpawnerBehavior(**params)
+        room.add_behavior(spawner)
+        return spawner
+
+    async def test_first_spawn_is_immediate(self, manager):
+        room = GameObject("Alley", tags=["room"])
+        spawner = self._spawner(room)
+
+        await spawner.tick(room, 4.0)
+
+        thugs = [o for o in room.contents if o.name == "alley thug"]
+        assert len(thugs) == 1
+        assert thugs[0].has_tag("spawned:thug")
+        assert thugs[0].get_behaviors()[0].behavior_id == "combatant"
+
+    async def test_population_is_capped(self, manager):
+        room = GameObject("Alley", tags=["room"])
+        spawner = self._spawner(room)
+        for _ in range(5):
+            await spawner.tick(room, 4.0)
+
+        assert len([o for o in room.contents if o.name == "alley thug"]) == 1
+
+    async def test_respawn_after_death_with_countdown(self, manager):
+        room = GameObject("Alley", tags=["room"])
+        spawner = self._spawner(room)
+        await spawner.tick(room, 4.0)
+        thug = next(o for o in room.contents if o.name == "alley thug")
+
+        # Kill it the real way: the shared death path (corpse + removal).
+        await manager.handle_death(thug)
+        assert thug.location is None
+
+        # Countdown: 3 ticks of vacancy, then the replacement arrives.
+        await spawner.tick(room, 4.0)
+        await spawner.tick(room, 4.0)
+        await spawner.tick(room, 4.0)
+        assert not [o for o in room.contents if o.name == "alley thug"]
+        await spawner.tick(room, 4.0)
+
+        thugs = [o for o in room.contents if o.name == "alley thug"]
+        assert len(thugs) == 1
+        assert thugs[0] is not thug  # a fresh spawn, not a resurrection
+
+
+@pytest.mark.asyncio
+class TestProgression:
+
+    async def test_kill_awards_character_points(self, manager):
+        room = GameObject("Arena", tags=["room"])
+        alice, sess = make_fighter("Alice", room, skill=18)
+        thug, _ = make_fighter("Thug", room, player=False, hp=3, dodge=0,
+                               points=40)
+        encounter = await manager.initiate(alice, thug)
+        encounter.queue(alice, QueuedAction("attack", target_id=thug.id))
+        encounter.queue(thug, QueuedAction("wait"))
+
+        await encounter.resolve_round()
+
+        assert int(alice.db.get('character_points')) == 4  # 40 // 10
+        assert any("character points" in line for line in drain(sess))
+
+    async def test_improve_spends_points(self, manager):
+        from realm.commands.builtin.combat import cmd_improve
+        from realm.server.dispatcher import CommandContext, CommandDispatcher
+
+        room = GameObject("Arena", tags=["room"])
+        alice, sess = make_fighter("Alice", room)
+        alice.db.skill_stealth = 12
+        alice.db.character_points = 9
+
+        ctx = CommandContext(session=sess, player=alice, raw_input="",
+                             command_name="improve", args="stealth",
+                             dispatcher=CommandDispatcher())
+        await cmd_improve(ctx)
+
+        assert int(alice.db.get('skill_stealth')) == 13
+        assert int(alice.db.get('character_points')) == 5
+
+        await cmd_improve(ctx)  # 5 -> 1 point left, skill 14
+        assert int(alice.db.get('skill_stealth')) == 14
+
+        await cmd_improve(ctx)  # can't afford a third
+        assert int(alice.db.get('skill_stealth')) == 14
+        assert any("costs 4 points" in line for line in drain(sess))
+
+    async def test_improve_from_untrained_default(self, manager):
+        from realm.commands.builtin.combat import cmd_improve
+        from realm.server.dispatcher import CommandContext, CommandDispatcher
+
+        room = GameObject("Arena", tags=["room"])
+        alice, sess = make_fighter("Alice", room)  # dexterity 12, no stealth
+        alice.db.character_points = 4
+
+        ctx = CommandContext(session=sess, player=alice, raw_input="",
+                             command_name="improve", args="stealth",
+                             dispatcher=CommandDispatcher())
+        await cmd_improve(ctx)
+
+        # Untrained default was DX-5 = 7; first purchase trains to 8.
+        assert int(alice.db.get('skill_stealth')) == 8
+
+
+@pytest.mark.asyncio
+class TestDestubbedBrains:
+
+    async def test_aggressive_engages_through_manager(self, manager):
+        lair = GameObject("Lair", tags=["room"])
+        outside = GameObject("Cave Mouth", tags=["room"])
+        from realm.combat.behaviors import AggressiveBehavior
+        beast, _ = make_fighter("beast", lair, player=False)
+        beast.add_behavior(AggressiveBehavior(taunt="Fresh meat!"))
+
+        alice, sess = make_fighter("Alice", outside)
+        await move_through_exit(alice, lair)
+
+        encounter = manager.encounter_of(beast)
+        assert encounter is not None
+        assert encounter.get(alice.id) is not None
+        assert any('"Fresh meat!"' in line for line in drain(sess))
+
+    async def test_defensive_writes_flee_reflex(self, manager):
+        from realm.combat.behaviors import DefensiveBehavior
+        npc = GameObject("merchant", tags=["npc"])
+        npc.add_behavior(DefensiveBehavior(flee_percent=30))
+
+        rules = npc.db.get('combat_strategy')
+        assert ["!me.hp_percent < 30", "flee"] in rules
+
+    async def test_wandering_moves_within_zone(self, manager):
+        from realm.combat.behaviors import WanderingBehavior
+        here = GameObject("Market", tags=["room", "zone:town"])
+        there = GameObject("Square", tags=["room", "zone:town"])
+        beyond = GameObject("Wilds", tags=["room", "zone:wild"])
+        east = GameObject("east", location=here, tags=["exit"])
+        east.db.destination_obj = there
+        north = GameObject("north", location=here, tags=["exit"])
+        north.db.destination_obj = beyond
+
+        drifter, _ = make_fighter("drifter", here, player=False)
+        wander = WanderingBehavior(wander_chance=1.0, pause=0,
+                                   stay_in_zone=True)
+        drifter.add_behavior(wander)
+
+        for _ in range(12):
+            await wander.tick(drifter, 4.0)
+        # Always in-zone, never the wilds.
+        assert drifter.location in (here, there)
+
+    async def test_combatant_death_message(self, manager):
+        from realm.combat.behaviors import CombatantBehavior
+        room = GameObject("Arena", tags=["room"])
+        alice, sess = make_fighter("Alice", room, skill=18)
+        thug, _ = make_fighter("Thug", room, player=False, hp=3, dodge=0)
+        thug.add_behavior(CombatantBehavior(
+            death_message="The thug curses corporate healthcare and dies."))
+        encounter = await manager.initiate(alice, thug)
+        encounter.queue(alice, QueuedAction("attack", target_id=thug.id))
+        encounter.queue(thug, QueuedAction("wait"))
+
+        await encounter.resolve_round()
+
+        assert any("corporate healthcare" in line for line in drain(sess))

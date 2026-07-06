@@ -63,16 +63,9 @@ class CombatView:
 
 def _evaluate_condition(condition: str, namespace: dict[str, Any]) -> bool:
     """Validate + evaluate a strategy condition; errors fail closed."""
-    from realm.permissions.locks import Lock
+    from realm.core.safe_eval import eval_bool
 
-    lock = Lock('basic', condition)
-    valid, _error = lock.validate()
-    if not valid:
-        return False
-    try:
-        return bool(eval(lock._compiled, {"__builtins__": {}}, namespace))
-    except Exception:
-        return False
+    return eval_bool(condition, namespace)
 
 
 def parse_strategy_action(
@@ -132,7 +125,6 @@ def select_strategy_action(
         'round': encounter.round_number,
         'enemies': enemies,
         'chance': lambda pct: random.random() * 100 < float(pct),
-        'True': True, 'False': False, 'None': None,
     }
 
     for entry in rules:

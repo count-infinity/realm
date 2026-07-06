@@ -337,32 +337,6 @@ class GameObject:
 
     # --- Attribute inheritance ---
 
-    def resolve_attr(self, name: str, default: Any = None) -> Any:
-        """
-        Resolve an attribute with inheritance.
-
-        Lookup order:
-        1. This object's attributes
-        2. Walk @parent chain
-        3. (Future: Type ancestors)
-        """
-        # Check this object
-        if name in self._attrs:
-            return self._attrs[name]
-
-        # Walk parent chain
-        current = self.parent
-        visited: set[str] = {self.id}  # Prevent infinite loops
-
-        while current is not None and current.id not in visited:
-            visited.add(current.id)
-            if name in current._attrs:
-                return current._attrs[name]
-            current = current.parent
-
-        return default
-
-    # --- Utility methods ---
 
     def get_display_name(self, looker: GameObject | None = None) -> str:
         """
@@ -375,10 +349,6 @@ class GameObject:
         from realm.core.perception import perceived_name
         return perceived_name(self, looker)
 
-    @property
-    def has_msg_handler(self) -> bool:
-        """Whether messages to this object go anywhere (linked session)."""
-        return self._msg_handler is not None
 
     def msg(self, text: str) -> None:
         """

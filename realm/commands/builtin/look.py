@@ -20,9 +20,6 @@ async def cmd_look(ctx: CommandContext) -> None:
     Usage: look [target]
            l [target]
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         # Look at the room
         await _show_room(ctx)
@@ -64,9 +61,6 @@ async def cmd_examine(ctx: CommandContext) -> None:
     Usage: examine <target>
            ex <target>
     """
-    if not ctx.player:
-        return
-
     if not ctx.args:
         await ctx.session.send("Examine what?")
         return
@@ -139,9 +133,6 @@ async def cmd_examine(ctx: CommandContext) -> None:
 
 async def _show_room(ctx: CommandContext) -> None:
     """Display the current room to the player."""
-    if not ctx.player:
-        return
-
     room = ctx.player.location
     if not room:
         await ctx.session.send("You are nowhere.")

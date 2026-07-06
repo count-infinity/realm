@@ -37,8 +37,6 @@ async def cmd_attack(ctx: CommandContext) -> None:
     Usage: attack <target>
            kill <target>
     """
-    if not ctx.player:
-        return
     if ctx.player.has_tag('unconscious'):
         await ctx.session.send("You are unconscious.")
         return
@@ -92,8 +90,6 @@ async def cmd_queue(ctx: CommandContext) -> None:
     Usage: queue <maneuver> [target]
            e.g. queue defend | queue attack guard | queue flee north
     """
-    if not ctx.player:
-        return
     manager = _manager(ctx)
     encounter = manager.encounter_of(ctx.player) if manager else None
     if encounter is None:
@@ -144,8 +140,6 @@ async def cmd_flee(ctx: CommandContext) -> None:
 
     Usage: flee [direction]
     """
-    if not ctx.player:
-        return
     manager = _manager(ctx)
     encounter = manager.encounter_of(ctx.player) if manager else None
     if encounter is None:
@@ -164,8 +158,6 @@ async def cmd_combat_status(ctx: CommandContext) -> None:
 
     Usage: combat
     """
-    if not ctx.player:
-        return
     manager = _manager(ctx)
     encounter = manager.encounter_of(ctx.player) if manager else None
     if encounter is None:
@@ -205,8 +197,6 @@ async def cmd_pace(ctx: CommandContext) -> None:
 
     Usage: pace <seconds>
     """
-    if not ctx.player:
-        return
     manager = _manager(ctx)
     if manager is None:
         await ctx.session.send("Combat is not enabled here.")
@@ -234,8 +224,6 @@ async def cmd_combat_default(ctx: CommandContext) -> None:
 
     Usage: combatdefault <attack|defend|repeat|nothing>
     """
-    if not ctx.player:
-        return
     choice = ctx.args.strip().lower()
     if choice not in ('attack', 'defend', 'repeat', 'nothing'):
         current = ctx.player.db.get('combat_default') or 'repeat'
@@ -255,8 +243,6 @@ async def cmd_wimpy(ctx: CommandContext) -> None:
 
     Usage: wimpy <percent> | wimpy off
     """
-    if not ctx.player:
-        return
     arg = ctx.args.strip().lower()
     rules = list(ctx.player.db.get('combat_strategy') or [])
     rules = [r for r in rules if not (str(r[0]).startswith('!me.hp_percent <'))]
@@ -283,8 +269,6 @@ async def cmd_firstaid(ctx: CommandContext) -> None:
 
     Usage: firstaid [target|me]
     """
-    if not ctx.player:
-        return
     if ctx.player.has_tag('in_combat'):
         await ctx.session.send("Not while you're fighting!")
         return
@@ -325,6 +309,48 @@ async def cmd_firstaid(ctx: CommandContext) -> None:
             )
 
 
+async def cmd_wield(ctx: CommandContext) -> None:
+    """
+    Ready a carried weapon (one at a time).
+
+    Usage: wield <weapon>
+    """
+    from realm.commands.base import find_object
+
+    if not ctx.player or not ctx.args:
+        await ctx.session.send("Wield what?")
+        return
+    weapon = find_object(ctx, ctx.args.strip(),
+                         search_room=False, search_inventory=True)
+    if weapon is None:
+        await ctx.session.send(f"You aren't carrying '{ctx.args.strip()}'.")
+        return
+
+    for item in ctx.player.contents:
+        if item.has_tag('wielded') and item is not weapon:
+            item.remove_tag('wielded')
+            ctx.player.msg(f"You lower {item.name}.")
+    weapon.add_tag('wielded')
+    ctx.player.msg(f"You ready {weapon.name}.")
+    if ctx.player.location:
+        ctx.player.location.msg_contents(
+            f"{ctx.player.name} readies {weapon.name}.", exclude=[ctx.player])
+
+
+async def cmd_unwield(ctx: CommandContext) -> None:
+    """
+    Lower your readied weapon.
+
+    Usage: unwield
+    """
+    for item in ctx.player.contents:
+        if item.has_tag('wielded'):
+            item.remove_tag('wielded')
+            await ctx.session.send(f"You lower {item.name}.")
+            return
+    await ctx.session.send("You have nothing readied.")
+
+
 def register_combat_commands(dispatcher: CommandDispatcher) -> None:
     """Register combat commands with the dispatcher."""
     dispatcher.register("attack", cmd_attack, aliases=["kill", "att"],
@@ -352,3 +378,71 @@ def register_combat_commands(dispatcher: CommandDispatcher) -> None:
     dispatcher.register("firstaid", cmd_firstaid, aliases=["aid"],
                         help_text="Tend wounds (First Aid skill)",
                         usage="firstaid [target]")
+    dispatcher.register("points", cmd_points, aliases=["cp", "score"],
+                        help_text="Show character points and skills")
+    dispatcher.register("wield", cmd_wield, aliases=["ready", "draw"],
+                        help_text="Ready a carried weapon",
+                        usage="wield <weapon>")
+    dispatcher.register("unwield", cmd_unwield, aliases=["lower", "sheathe"],
+                        help_text="Lower your readied weapon",
+                        usage="unwield")
+    dispatcher.register("improve", cmd_improve,
+                        help_text="Spend points to raise a skill",
+                        usage="improve <skill>")
+
+
+async def cmd_points(ctx: CommandContext) -> None:
+    """
+    Show your character points and trained skills.
+
+    Usage: points
+    """
+    cp = int(ctx.player.db.get('character_points') or 0)
+    lines = [f"\nCharacter points: {cp}"]
+    skills = sorted(
+        (key[6:], value) for key, value in ctx.player.db.all().items()
+        if key.startswith('skill_')
+    )
+    if skills:
+        lines.append("Skills:")
+        lines.extend(f"  {name:20} {level}" for name, level in skills)
+    lines.append(f"\nSpend with: improve <skill>  ({IMPROVE_COST} points per level)")
+    lines.append("")
+    await ctx.session.send("\n".join(lines))
+
+
+IMPROVE_COST = 4  # character points per +1 skill level (GURPS-ish)
+
+
+async def cmd_improve(ctx: CommandContext) -> None:
+    """
+    Spend character points to raise a skill by one level.
+
+    Usage: improve <skill>       e.g. improve stealth
+    """
+    from realm.core.checks import skill_level
+
+    skill = ctx.args.strip().lower().replace(' ', '_')
+    if not skill:
+        await ctx.session.send("Improve which skill? (see: points)")
+        return
+    if skill.startswith('skill_'):
+        skill = skill[6:]
+
+    cp = int(ctx.player.db.get('character_points') or 0)
+    from realm.systems import get_game_system
+    system = get_game_system()
+    current = skill_level(ctx.player, skill)
+    cost = system.improve_cost(skill, current) if system else IMPROVE_COST
+    if cp < cost:
+        await ctx.session.send(
+            f"Improving {skill} costs {cost} points; you have {cp}."
+        )
+        return
+
+    ctx.player.db.set(f"skill_{skill}", current + 1)
+    ctx.player.db.character_points = cp - cost
+    await ctx.session.send(
+        f"You train {skill.replace('_', ' ')} to {current + 1} "
+        f"({cp - cost} points remain)."
+    )

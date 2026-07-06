@@ -6,7 +6,6 @@ Locks control who can perform actions on objects:
 - enter: Who can enter this container/room
 - use: Who can trigger $-commands on this
 - control: Who can modify this object (delegation)
-- zone: Who controls objects in this zone
 - speech: Who can speak here
 - teleport: Who can teleport to this room
 - examine: Who can examine this VISUAL object
@@ -24,10 +23,10 @@ Available variables:
 
 from __future__ import annotations
 
-import ast
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from realm.core.safe_eval import SAFE_EXPR_BUILTINS, compile_expression, eval_bool
 from realm.permissions.roles import Role, get_role
 
 if TYPE_CHECKING:
@@ -42,7 +41,6 @@ class LockType(str, Enum):
     ENTER = "enter"  # Enter this container
     USE = "use"  # Trigger $-commands
     CONTROL = "control"  # Modify this object
-    ZONE = "zone"  # Control objects in zone
     SPEECH = "speech"  # Speak here
     TELEPORT = "teleport"  # Teleport to this
     EXAMINE = "examine"  # Examine this object
@@ -50,8 +48,6 @@ class LockType(str, Enum):
     DROP = "drop"  # Drop this
     COMMAND = "command"  # Trigger commands
     LISTEN = "listen"  # Trigger listen patterns
-    PAGE = "page"  # Send pages to this player
-    MAIL = "mail"  # Send mail to this player
 
 
 # Default lock expressions (when no lock is set)
@@ -67,8 +63,6 @@ DEFAULT_LOCKS = {
     LockType.DROP: "True",  # Anyone can drop
     LockType.COMMAND: "True",  # Anyone can trigger
     LockType.LISTEN: "True",  # Anyone can trigger listen
-    LockType.PAGE: "True",  # Anyone can page
-    LockType.MAIL: "True",  # Anyone can mail
 }
 
 
@@ -96,60 +90,23 @@ class Lock:
         if self._valid is not None:
             return self._valid, self._error
 
+        # One validator for locks, strategies, and scripts (safe_eval).
         try:
-            # Parse the expression
-            tree = ast.parse(self.expression, mode='eval')
-
-            # Check for forbidden constructs
-            for node in ast.walk(tree):
-                if isinstance(node, (ast.Import, ast.ImportFrom)):
-                    self._valid = False
-                    self._error = "Import statements not allowed"
-                    return False, self._error
-
-                if isinstance(node, ast.Call):
-                    # Check for forbidden function calls
-                    if isinstance(node.func, ast.Name):
-                        if node.func.id in ('eval', 'exec', 'compile', '__import__'):
-                            self._valid = False
-                            self._error = f"Function '{node.func.id}' not allowed"
-                            return False, self._error
-
-                if isinstance(node, ast.Attribute):
-                    # Check for private attribute access
-                    if node.attr.startswith('_'):
-                        self._valid = False
-                        self._error = f"Private attribute access not allowed: {node.attr}"
-                        return False, self._error
-
-            # Try to compile
-            self._compiled = compile(tree, '<lock>', 'eval')
-            self._valid = True
-            return True, None
-
-        except SyntaxError as e:
+            self._compiled = compile_expression(self.expression)
+        except ValueError as e:
             self._valid = False
-            self._error = f"Syntax error: {e.msg}"
+            self._error = str(e)
             return False, self._error
+
+        self._valid = True
+        return True, None
 
     def __repr__(self) -> str:
         return f"Lock({self.lock_type.value}, {self.expression!r})"
 
 
-# Safe namespace for lock evaluation
-LOCK_SAFE_BUILTINS = {
-    'True': True,
-    'False': False,
-    'None': None,
-    'int': int,
-    'str': str,
-    'len': len,
-    'abs': abs,
-    'min': min,
-    'max': max,
-    'any': any,
-    'all': all,
-}
+# Safe namespace for lock evaluation — the shared expression builtins.
+LOCK_SAFE_BUILTINS = SAFE_EXPR_BUILTINS
 
 
 class LockEvaluator:
@@ -187,24 +144,13 @@ class LockEvaluator:
         if isinstance(lock, str):
             lock = Lock(LockType.BASIC, lock)
 
-        # Validate
-        valid, error = lock.validate()
-        if not valid:
-            # Invalid locks fail closed
-            return False
-
-        # Build namespace
-        namespace = dict(LOCK_SAFE_BUILTINS)
-        namespace['caller'] = caller
-        namespace['target'] = target
-        namespace['owner'] = target.owner if target.owner else target
-
-        try:
-            result = eval(lock._compiled, {"__builtins__": {}}, namespace)
-            return bool(result)
-        except Exception:
-            # Errors fail closed
-            return False
+        # Validation, compilation, and fail-closed evaluation all live in
+        # the shared safe_eval engine.
+        return eval_bool(lock.expression, {
+            'caller': caller,
+            'target': target,
+            'owner': target.owner if target.owner else target,
+        })
 
     def check(
         self,
@@ -272,6 +218,55 @@ def check_lock(
         True if lock passes
     """
     return _evaluator.check(target, lock_type, caller)
+
+
+def controls(actor: GameObject | None, obj: GameObject | None) -> bool:
+    """
+    The one authority predicate for mutating softcode and builder tools
+    (see docs/design/engine_vision.md):
+
+    1. You control yourself.
+    2. You control what you own.
+    3. ADMIN+ controls everything.
+    4. BUILDER controls unowned (world-built) objects.
+    5. The world trusts the world: an unowned non-player object controls
+       other unowned non-player objects (world NPCs poking world props —
+       the MUSH equivalent is everything sharing a wizard owner).
+    6. Otherwise the object's ``control`` lock decides.
+    """
+    if actor is None or obj is None:
+        return False
+    if actor is obj or actor.id == obj.id:
+        return True
+    if obj.owner is not None and actor.id == obj.owner.id:
+        return True
+    role = get_role(actor)
+    if role >= Role.ADMIN:
+        return True
+    if role >= Role.BUILDER and obj.owner is None:
+        return True
+    if (actor.owner is None and obj.owner is None
+            and not actor.has_tag('player') and not obj.has_tag('player')):
+        return True
+    return _evaluator.check(obj, LockType.CONTROL, actor)
+
+
+def may_trigger(actor: GameObject | None, obj: GameObject | None) -> bool:
+    """
+    May ``actor`` run ``obj``'s named scripts (@tr / ``trigger``)?
+
+    Running a script AS an object is control-level power, so the default
+    is controllers-only. An owner can open it up by setting an explicit
+    ``command`` lock (the trigger_ok analog): ``@lock/command bell =
+    True`` lets anyone ring it.
+    """
+    if actor is None or obj is None:
+        return False
+    if controls(actor, obj):
+        return True
+    if obj.locks.get(LockType.COMMAND.value) is not None:
+        return check_lock(obj, LockType.COMMAND, actor)
+    return False
 
 
 def parse_lock(expression: str, lock_type: LockType | str = LockType.BASIC) -> Lock:

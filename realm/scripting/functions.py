@@ -18,7 +18,6 @@ Categories:
 from __future__ import annotations
 
 import random
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -39,19 +38,19 @@ class ScriptFunctions:
         executor: GameObject | None = None,
         location: GameObject | None = None,
         persistence: Any = None,  # PersistenceManager
-        output_callback: Callable[[str], None] | None = None,
     ):
         self.enactor = enactor
         self.executor = executor
         self.location = location
         self._persistence = persistence
-        self._output = output_callback or (lambda x: None)
 
         # Deliveries queued by communication functions. Scripts execute in a
         # worker thread, so functions must never touch sessions directly —
         # the engine drains this queue on the event loop after execution.
-        # Entries: (kind, obj, message) with kind in 'pemit'/'remit'/'oemit'.
-        self.command_queue: list[tuple[str, GameObject, str]] = []
+        # Entries: (kind, obj, payload). Message kinds (pemit/remit/oemit)
+        # carry a string; world-op kinds (save/destroy/death_check/combat/
+        # wait) carry op-specific payloads. Drained by ScriptEngine.
+        self.command_queue: list[tuple[str, GameObject, Any]] = []
 
     # --- Object lookup ---
 
@@ -65,59 +64,56 @@ class ScriptFunctions:
         Returns:
             The GameObject or None if not found
         """
-        if not self._persistence:
-            return None
-
         spec = str(spec).strip()
 
         # ID lookup
         if spec.startswith('#'):
+            if not self._persistence:
+                return None
             return self._persistence.get_cached(spec[1:])
 
-        # Name lookup — same tiered matcher as commands; scripts take the
-        # first match rather than raising on ambiguity.
+        # Name lookup — local first (executor's room + inventory), like
+        # player commands; then the whole world. Same tiered matcher as
+        # commands; scripts take the first match rather than raising on
+        # ambiguity.
         from realm.core.search import match_objects
+
+        local: list[GameObject] = []
+        if self.executor is not None:
+            room = self.executor.location
+            if room is not None:
+                local.extend(room.contents)
+                local.append(room)
+            local.extend(self.executor.contents)
+            local.append(self.executor)
+        matches = match_objects(spec, local).matches
+        if matches:
+            return matches[0]
+
+        if not self._persistence:
+            return None
         matches = match_objects(spec, self._persistence.all_cached()).matches
         return matches[0] if matches else None
 
     def name(self, obj: GameObject | str | None) -> str:
         """Get an object's name."""
-        if obj is None:
-            return ""
-        if isinstance(obj, str):
-            resolved = self.get(obj)
-            return resolved.name if resolved else ""
-        return obj.name
+        target = self._resolve(obj)
+        return target.name if target else ""
 
     def loc(self, obj: GameObject | str | None) -> GameObject | None:
         """Get an object's location."""
-        if obj is None:
-            return None
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return None
-        return obj.location
+        target = self._resolve(obj)
+        return target.location if target else None
 
     def owner(self, obj: GameObject | str | None) -> GameObject | None:
         """Get an object's owner."""
-        if obj is None:
-            return None
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return None
-        return obj.owner
+        target = self._resolve(obj)
+        return target.owner if target else None
 
     def contents(self, obj: GameObject | str | None) -> list[GameObject]:
         """Get an object's contents."""
-        if obj is None:
-            return []
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return []
-        return obj.contents
+        target = self._resolve(obj)
+        return target.contents if target else []
 
     # --- Attribute access ---
 
@@ -128,13 +124,32 @@ class ScriptFunctions:
         default: Any = None,
     ) -> Any:
         """Get an attribute from an object."""
-        if obj is None:
-            return default
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return default
-        return obj.db.get(attr_name, default)
+        target = self._resolve(obj)
+        return target.db.get(attr_name, default) if target else default
+
+    # --- Authority ---
+
+    def controls(self, obj: GameObject | str | None) -> bool:
+        """Does the executor control this object? (The mutation gate.)"""
+        from realm.permissions.locks import controls as _controls
+        target = self._resolve(obj)
+        return _controls(self.executor, target)
+
+    def _may_mutate(self, obj: GameObject | None) -> bool:
+        """Scripts run AS the executor; mutations require its authority."""
+        from realm.permissions.locks import controls as _controls
+        return _controls(self.executor, obj)
+
+    def _controlled(self, obj: GameObject | str | None) -> GameObject | None:
+        """Resolve + authority in one step: None means no or not allowed."""
+        target = self._resolve(obj)
+        if target is None or not self._may_mutate(target):
+            return None
+        return target
+
+    def _touch(self, obj: GameObject) -> None:
+        """Queue a persistence save for a mutated object."""
+        self.command_queue.append(('save', obj, ''))
 
     def set_attr(
         self,
@@ -143,42 +158,31 @@ class ScriptFunctions:
         value: Any,
     ) -> bool:
         """
-        Set an attribute on an object.
+        Set an attribute on an object the executor controls.
 
-        Returns True on success, False on failure.
-        Note: Requires appropriate permissions (not checked here).
+        Returns True on success, False on failure (including no
+        authority — see docs/design/engine_vision.md).
         """
-        if obj is None:
+        target = self._controlled(obj)
+        if target is None:
             return False
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return False
-
-        obj.db.set(attr_name, value)
+        target.db.set(attr_name, value)
+        self._touch(target)
         return True
 
     def has_attr(self, obj: GameObject | str | None, attr_name: str) -> bool:
         """Check if an object has an attribute."""
-        if obj is None:
-            return False
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return False
-        return attr_name in obj.db
+        target = self._resolve(obj)
+        return attr_name in target.db if target else False
 
     def del_attr(self, obj: GameObject | str | None, attr_name: str) -> bool:
-        """Delete an attribute from an object."""
-        if obj is None:
+        """Delete an attribute from an object the executor controls."""
+        target = self._controlled(obj)
+        if target is None:
             return False
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return False
-
-        if attr_name in obj.db:
-            obj.db.delete(attr_name)
+        if attr_name in target.db:
+            target.db.delete(attr_name)
+            self._touch(target)
             return True
         return False
 
@@ -186,45 +190,398 @@ class ScriptFunctions:
 
     def has_tag(self, obj: GameObject | str | None, tag: str) -> bool:
         """Check if an object has a tag."""
-        if obj is None:
-            return False
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return False
-        return obj.has_tag(tag)
+        target = self._resolve(obj)
+        return target.has_tag(tag) if target else False
 
     def tags(self, obj: GameObject | str | None) -> list[str]:
         """Get all tags on an object."""
-        if obj is None:
-            return []
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return []
-        return obj.tags.to_list()
+        target = self._resolve(obj)
+        return target.tags.to_list() if target else []
 
     def add_tag(self, obj: GameObject | str | None, tag: str) -> bool:
-        """Add a tag to an object."""
-        if obj is None:
+        """Add a tag to an object the executor controls."""
+        target = self._controlled(obj)
+        if target is None:
             return False
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return False
-        obj.add_tag(tag)
+        target.add_tag(tag)
+        self._touch(target)
         return True
 
     def remove_tag(self, obj: GameObject | str | None, tag: str) -> bool:
-        """Remove a tag from an object."""
-        if obj is None:
+        """Remove a tag from an object the executor controls."""
+        target = self._controlled(obj)
+        if target is None:
             return False
-        if isinstance(obj, str):
-            obj = self.get(obj)
-        if obj is None:
-            return False
-        obj.remove_tag(tag)
+        target.remove_tag(tag)
+        self._touch(target)
         return True
+
+    # --- World manipulation (the engine API; all authority-gated) ---
+
+    def exits(self, room: GameObject | str | None = None) -> list[GameObject]:
+        """Open exits of a room (default: the executor's location)."""
+        room_obj = self._resolve(room) if room is not None else self.location
+        if room_obj is None:
+            return []
+        return [o for o in room_obj.contents if o.has_tag('exit')]
+
+    def create_obj(
+        self,
+        name: str,
+        tags: list[str] | None = None,
+        location: GameObject | str | None = None,
+    ) -> GameObject | None:
+        """
+        Create a new thing, owned by the executor's owner (or the
+        executor itself), at the executor's location by default.
+        """
+        from realm.core.objects import GameObject as GameObjectCls
+
+        where = self._resolve(location) if location is not None else (
+            self.executor.location if self.executor else None)
+        # Creation lands in the executor's own room, or one it controls —
+        # no seeding objects into strangers' rooms.
+        if (location is not None and where is not None
+                and self.executor is not None
+                and where is not self.executor.location
+                and not self._may_mutate(where)):
+            return None
+        owner = None
+        if self.executor is not None:
+            owner = self.executor.owner or self.executor
+        obj = GameObjectCls(
+            name=str(name),
+            tags=[str(t) for t in (tags or ['thing'])],
+            owner=owner,
+        )
+        obj.location = where
+        self.command_queue.append(('save', obj, ''))
+        return obj
+
+    def destroy_obj(self, obj: GameObject | str | None) -> bool:
+        """Destroy an object the executor controls (players never)."""
+        target = self._resolve(obj)
+        if target is None or target.has_tag('player'):
+            return False
+        if not self._may_mutate(target):
+            return False
+        self.command_queue.append(('destroy', target, ''))
+        return True
+
+    def teleport_obj(
+        self,
+        obj: GameObject | str | None,
+        destination: GameObject | str | None,
+    ) -> bool:
+        """
+        Move an object the executor controls straight to a destination.
+        The destination's teleport lock is checked against the executor.
+        """
+        from realm.permissions.locks import LockType, check_lock
+
+        target = self._resolve(obj)
+        dest = self._resolve(destination)
+        if target is None or dest is None or target is dest:
+            return False
+        if not self._may_mutate(target):
+            return False
+        if self.executor is not None and not check_lock(
+            dest, LockType.TELEPORT, self.executor
+        ):
+            return False
+        target.location = dest
+        self.command_queue.append(('save', target, ''))
+        return True
+
+    def behaviors(self, obj: GameObject | str | None) -> list[str]:
+        """Behavior ids attached to an object."""
+        target = self._resolve(obj)
+        if target is None:
+            return []
+        return [b.behavior_id for b in target.get_behaviors()]
+
+    def attach_behavior(
+        self,
+        obj: GameObject | str | None,
+        behavior_id: str,
+        **params: Any,
+    ) -> bool:
+        """Attach a registered behavior to an object the executor controls."""
+        from realm.core.behaviors import BehaviorRegistry
+
+        target = self._resolve(obj)
+        if target is None or not self._may_mutate(target):
+            return False
+        behavior = BehaviorRegistry.create(str(behavior_id), **params)
+        if behavior is None:
+            return False
+        target.add_behavior(behavior)
+        self.command_queue.append(('save', target, ''))
+        return True
+
+    def detach_behavior(self, obj: GameObject | str | None, behavior_id: str) -> bool:
+        """Detach a behavior (by id) from an object the executor controls."""
+        target = self._resolve(obj)
+        if target is None or not self._may_mutate(target):
+            return False
+        for behavior in target.get_behaviors():
+            if behavior.behavior_id == str(behavior_id):
+                target.remove_behavior(behavior)
+                self.command_queue.append(('save', target, ''))
+                return True
+        return False
+
+    # --- Combat channels (proximity authority: same room as the executor) ---
+
+    def _in_reach(self, target: GameObject | None) -> bool:
+        """
+        Proximity authority for combat channels: a trap can hurt whoever
+        is standing on it, not someone across the map.
+        """
+        if target is None or self.executor is None:
+            return False
+        if target is self.executor:
+            return True
+        if target.location is self.executor:
+            return True  # standing inside the executor (room traps, containers)
+        return (target.location is not None
+                and target.location is self.executor.location)
+
+    def damage(self, obj: GameObject | str | None, amount: int) -> bool:
+        """
+        Deal damage to something in the executor's room. Lethal damage
+        routes through the combat manager's death path (corpses, CP
+        awards, unconsciousness) after the script finishes.
+        """
+        target = self._resolve(obj)
+        if not self._in_reach(target) or int(amount) <= 0:
+            return False
+        hp = target.db.get('hp')
+        if hp is None:
+            return False
+        target.db.hp = int(hp) - int(amount)
+        self.command_queue.append(('death_check', target, self.executor))
+        self.command_queue.append(('save', target, ''))
+        return True
+
+    def heal(self, obj: GameObject | str | None, amount: int) -> bool:
+        """Restore HP (capped at max_hp) to something in the executor's room."""
+        target = self._resolve(obj)
+        if not self._in_reach(target) or int(amount) <= 0:
+            return False
+        hp = target.db.get('hp')
+        max_hp = target.db.get('max_hp')
+        if hp is None or max_hp is None:
+            return False
+        target.db.hp = min(int(max_hp), int(hp) + int(amount))
+        self.command_queue.append(('save', target, ''))
+        return True
+
+    def start_combat(
+        self,
+        attacker: GameObject | str | None,
+        target: GameObject | str | None,
+    ) -> bool:
+        """
+        Throw an attacker the executor controls into combat with a
+        target in the same room (queued; the encounter starts after the
+        script finishes).
+        """
+        atk = self._resolve(attacker)
+        tgt = self._resolve(target)
+        if atk is None or tgt is None or atk is tgt:
+            return False
+        if not self._may_mutate(atk):
+            return False
+        if atk.location is None or atk.location is not tgt.location:
+            return False
+        self.command_queue.append(('combat', atk, tgt))
+        return True
+
+    # Effect behaviors softcode may apply with proximity (not control)
+    # authority — a banshee can frighten whoever hears the wail.
+    EFFECT_BEHAVIOR_IDS = ('modifier_effect', 'damage_over_time', 'regeneration')
+
+    def apply_effect(
+        self,
+        obj: GameObject | str | None,
+        effect_id: str,
+        **params: Any,
+    ) -> bool:
+        """
+        Attach an effect (modifier_effect / damage_over_time /
+        regeneration) to something in the executor's room.
+
+            apply_effect(enactor, 'modifier_effect', kind='fear',
+                         duration=8, check_mods={'all': -2},
+                         apply_msg='Terror grips you!')
+        """
+        from realm.core.behaviors import BehaviorRegistry
+
+        if str(effect_id) not in self.EFFECT_BEHAVIOR_IDS:
+            return False
+        target = self._resolve(obj)
+        if not self._in_reach(target):
+            return False
+        behavior = BehaviorRegistry.create(str(effect_id), **params)
+        if behavior is None:
+            return False
+        target.add_behavior(behavior)
+        self.command_queue.append(('save', target, ''))
+        return True
+
+    def remove_effect(self, obj: GameObject | str | None, kind: str) -> bool:
+        """Strip an active effect by kind (cure poison, calm fear)."""
+        target = self._resolve(obj)
+        if not self._in_reach(target):
+            return False
+        from realm.behaviors.effects import TimedEffectBehavior
+        for behavior in target.get_behaviors():
+            if isinstance(behavior, TimedEffectBehavior) and behavior.kind == str(kind):
+                target.remove_behavior(behavior)
+                self.command_queue.append(('save', target, ''))
+                return True
+        return False
+
+    # --- Locks ---
+
+    def set_lock(
+        self,
+        obj: GameObject | str | None,
+        lock_type: str,
+        expression: str,
+    ) -> bool:
+        """Set a lock on an object the executor controls (validated)."""
+        from realm.permissions.locks import set_lock as _set_lock
+
+        target = self._resolve(obj)
+        if target is None or not self._may_mutate(target):
+            return False
+        try:
+            if not _set_lock(target, str(lock_type), str(expression)):
+                return False
+        except ValueError:
+            return False
+        self.command_queue.append(('save', target, ''))
+        return True
+
+    def clear_lock(self, obj: GameObject | str | None, lock_type: str) -> bool:
+        """Clear a lock from an object the executor controls."""
+        from realm.permissions.locks import clear_lock as _clear_lock
+
+        target = self._resolve(obj)
+        if target is None or not self._may_mutate(target):
+            return False
+        if _clear_lock(target, str(lock_type)):
+            self.command_queue.append(('save', target, ''))
+            return True
+        return False
+
+    def test_lock(
+        self,
+        obj: GameObject | str | None,
+        lock_type: str,
+        caller: GameObject | str | None = None,
+    ) -> bool:
+        """Would ``caller`` (default: the executor) pass this lock?"""
+        from realm.permissions.locks import check_lock as _check_lock
+
+        target = self._resolve(obj)
+        who = self._resolve(caller) if caller is not None else self.executor
+        if target is None or who is None:
+            return False
+        try:
+            return _check_lock(target, str(lock_type), who)
+        except ValueError:
+            return False
+
+    # --- Money ---
+
+    def credits(self, obj: GameObject | str | None) -> int:
+        """An object's balance."""
+        from realm.core.economy import get_credits
+        target = self._resolve(obj)
+        return get_credits(target) if target is not None else 0
+
+    def adjust_credits(self, obj: GameObject | str | None, delta: int) -> bool:
+        """Mint or burn money on an object the executor controls."""
+        from realm.core.economy import adjust_credits as _adjust
+        target = self._resolve(obj)
+        if target is None or not self._may_mutate(target):
+            return False
+        if _adjust(target, int(delta)):
+            self.command_queue.append(('save', target, ''))
+            return True
+        return False
+
+    def transfer_credits(
+        self,
+        source: GameObject | str | None,
+        dest: GameObject | str | None,
+        amount: int,
+    ) -> bool:
+        """Move money FROM something the executor controls."""
+        from realm.core.economy import transfer_credits as _transfer
+        src = self._resolve(source)
+        dst = self._resolve(dest)
+        if src is None or dst is None or not self._may_mutate(src):
+            return False
+        if _transfer(src, dst, int(amount)):
+            self.command_queue.append(('save', src, ''))
+            self.command_queue.append(('save', dst, ''))
+            return True
+        return False
+
+    # --- Dispositions (NPC attitude memory) ---
+
+    def disposition(self, npc, other=None) -> int:
+        """How npc feels about other (default: the enactor)."""
+        from realm.core.disposition import get_disposition
+        npc_obj = self._resolve(npc)
+        other_obj = self._resolve(other) if other is not None else self.enactor
+        if npc_obj is None or other_obj is None:
+            return 0
+        return get_disposition(npc_obj, other_obj)
+
+    def adjust_disposition(self, npc, other, delta: int) -> bool:
+        """
+        Shift an NPC's attitude. Authority: the executor must control
+        the NPC (its own opinions) — you can't script others' minds
+        about yourself.
+        """
+        from realm.core.disposition import adjust_disposition as _adjust
+        npc_obj = self._resolve(npc)
+        other_obj = self._resolve(other)
+        if npc_obj is None or other_obj is None:
+            return False
+        if not self._may_mutate(npc_obj):
+            return False
+        _adjust(npc_obj, other_obj, int(delta))
+        self.command_queue.append(('save', npc_obj, ''))
+        return True
+
+    def reaction_roll(self, npc, other=None, modifier: int = 0) -> int:
+        """Memoized first-impression roll (npc must be in executor's reach)."""
+        from realm.core.disposition import reaction_roll as _roll
+        npc_obj = self._resolve(npc)
+        other_obj = self._resolve(other) if other is not None else self.enactor
+        if npc_obj is None or other_obj is None or not self._in_reach(npc_obj):
+            return 0
+        value = _roll(npc_obj, other_obj, int(modifier))
+        self.command_queue.append(('save', npc_obj, ''))
+        return value
+
+    # --- Scheduling ---
+
+    def wait(self, seconds: float, command: str) -> None:
+        """
+        Run a script command as the executor ~seconds from now (one-shot,
+        fired from the server heartbeat; pending waits don't survive a
+        reboot).
+        """
+        if self.executor is not None:
+            self.command_queue.append(
+                ('wait', self.executor, (float(seconds), str(command))))
 
     # --- String functions ---
 
@@ -444,37 +801,6 @@ class ScriptFunctions:
             return False
         return _contest(a, str(actor_skill), b, str(opponent_skill))
 
-    # --- Comparison functions ---
-
-    @staticmethod
-    def eq(a: Any, b: Any) -> bool:
-        """Equality test."""
-        return a == b
-
-    @staticmethod
-    def neq(a: Any, b: Any) -> bool:
-        """Inequality test."""
-        return a != b
-
-    @staticmethod
-    def gt(a: int | float, b: int | float) -> bool:
-        """Greater than."""
-        return a > b
-
-    @staticmethod
-    def gte(a: int | float, b: int | float) -> bool:
-        """Greater than or equal."""
-        return a >= b
-
-    @staticmethod
-    def lt(a: int | float, b: int | float) -> bool:
-        """Less than."""
-        return a < b
-
-    @staticmethod
-    def lte(a: int | float, b: int | float) -> bool:
-        """Less than or equal."""
-        return a <= b
 
     # --- Conditional functions ---
 
@@ -519,6 +845,31 @@ class ScriptFunctions:
             'tags': self.tags,
             'add_tag': self.add_tag,
             'remove_tag': self.remove_tag,
+            # World manipulation (authority-gated)
+            'controls': self.controls,
+            'exits': self.exits,
+            'create_obj': self.create_obj,
+            'destroy_obj': self.destroy_obj,
+            'teleport_obj': self.teleport_obj,
+            'behaviors': self.behaviors,
+            'attach_behavior': self.attach_behavior,
+            'detach_behavior': self.detach_behavior,
+            # Combat channels + locks + scheduling
+            'damage': self.damage,
+            'heal': self.heal,
+            'start_combat': self.start_combat,
+            'apply_effect': self.apply_effect,
+            'credits': self.credits,
+            'adjust_credits': self.adjust_credits,
+            'transfer_credits': self.transfer_credits,
+            'disposition': self.disposition,
+            'adjust_disposition': self.adjust_disposition,
+            'reaction_roll': self.reaction_roll,
+            'remove_effect': self.remove_effect,
+            'set_lock': self.set_lock,
+            'clear_lock': self.clear_lock,
+            'test_lock': self.test_lock,
+            'wait': self.wait,
             # String functions
             'ucfirst': self.ucfirst,
             'lcfirst': self.lcfirst,
@@ -554,12 +905,6 @@ class ScriptFunctions:
             'remit': self.remit,
             'oemit': self.oemit,
             # Comparison
-            'eq': self.eq,
-            'neq': self.neq,
-            'gt': self.gt,
-            'gte': self.gte,
-            'lt': self.lt,
-            'lte': self.lte,
             # Conditional
             'if_else': self.if_else,
             'switch': self.switch,

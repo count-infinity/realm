@@ -1,0 +1,177 @@
+"""
+Manipulation verb cores: get / drop / give / open / close.
+
+One implementation per verb — the player commands and the script
+engine's actuators both call these, so a scripted imp picking up a
+coin passes the same locks, behavior gates, and message pathway as a
+player typing ``get coin``. Failures message the actor (a session-less
+NPC just drops the line) and return False.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from realm.core.language import singular_name
+from realm.core.propagation import Action, deliver_messages, gate_action
+
+if TYPE_CHECKING:
+    from realm.core.objects import GameObject
+
+
+async def gate_item_action(
+    actor: GameObject,
+    action_type: str,
+    target: GameObject,
+    *,
+    tool: GameObject | None = None,
+    extra: dict | None = None,
+    fail_msg: str,
+) -> Action | None:
+    """
+    Run an item action's permission pass through propagation.
+
+    Locks (via the check-pass lock guard) and behaviors both get a chance
+    to block. Returns the action on success, None on a block (the actor
+    has been messaged). Every item transfer — single or bulk, typed or
+    scripted — goes through this one gate.
+    """
+    action = Action(
+        actor=actor,
+        target=target,
+        action_type=action_type,
+        tool=tool,
+        extra=extra or {},
+    )
+    if not await gate_action(action, fail_msg=fail_msg):
+        return None
+    return action
+
+
+async def do_get(actor: GameObject, target: GameObject) -> bool:
+    """Pick up ``target`` into ``actor``'s inventory."""
+    if target.has_tag('player'):
+        actor.msg("You can't pick up players!")
+        return False
+
+    action = await gate_item_action(
+        actor, "item:on_get", target,
+        fail_msg=f"You can't pick up {target.name}.",
+    )
+    if action is None:
+        return False
+
+    target.location = actor
+
+    action.add_message("actor", "You pick up {target:a}.")
+    action.add_message("room", "{actor} picks up {target:a}.")
+    deliver_messages(action)
+    return True
+
+
+async def do_drop(actor: GameObject, target: GameObject) -> bool:
+    """Drop ``target`` from ``actor``'s inventory into its location."""
+    if actor.location is None:
+        actor.msg("You can't drop things here.")
+        return False
+
+    action = await gate_item_action(
+        actor, "item:on_drop", target,
+        fail_msg=f"You can't drop {target.name}.",
+    )
+    if action is None:
+        return False
+
+    target.location = actor.location
+
+    action.add_message("actor", "You drop {target:a}.")
+    action.add_message("room", "{actor} drops {target:a}.")
+    deliver_messages(action)
+    return True
+
+
+async def do_give(actor: GameObject, item: GameObject, target: GameObject) -> bool:
+    """Hand ``item`` from ``actor`` to ``target``."""
+    if target is actor:
+        actor.msg("Give it to yourself? That doesn't make sense.")
+        return False
+
+    # For 'give', the target is the recipient and the item travels via
+    # 'tool' so {tool} substitution works and the actor-side give-lock
+    # check can find it.
+    action = await gate_item_action(
+        actor, "item:on_give", target,
+        tool=item,
+        extra={"item": item},
+        fail_msg=f"You can't give {item.name} to {target.name}.",
+    )
+    if action is None:
+        return False
+
+    item.location = target
+
+    action.add_message("actor", "You give {tool:a} to {target}.")
+    action.add_message("target", "{actor} gives you {tool:a}.")
+    action.add_message("room", "{actor} gives {tool:a} to {target}.")
+    deliver_messages(action)
+    return True
+
+
+async def do_open(actor: GameObject, target: GameObject) -> bool:
+    """Open a door or container (must be closed and not locked)."""
+    if not target.has_tag('closed'):
+        actor.msg(f"{singular_name(target).capitalize()} is already open.")
+        return False
+    if target.db.get('locked'):
+        actor.msg(
+            target.db.get('locked_msg')
+            or f"{singular_name(target).capitalize()} is locked."
+        )
+        return False
+
+    action = await gate_item_action(
+        actor, "item:on_open", target,
+        fail_msg=f"You can't open {target.name}.",
+    )
+    if action is None:
+        return False
+
+    target.remove_tag('closed')
+    action.add_message("actor", "You open {target:the}.")
+    action.add_message("room", "{actor} opens {target:the}.")
+    deliver_messages(action)
+    return True
+
+
+async def do_close(actor: GameObject, target: GameObject) -> bool:
+    """Close a door or container."""
+    if target.has_tag('closed'):
+        actor.msg(f"{singular_name(target).capitalize()} is already closed.")
+        return False
+    is_door_or_container = target.has_tag('exit') or target.db.get('container')
+    if not is_door_or_container and not target.db.get('closable'):
+        actor.msg(f"You can't close {target.name}.")
+        return False
+
+    action = await gate_item_action(
+        actor, "item:on_close", target,
+        fail_msg=f"You can't close {target.name}.",
+    )
+    if action is None:
+        return False
+
+    target.add_tag('closed')
+    action.add_message("actor", "You close {target:the}.")
+    action.add_message("room", "{actor} closes {target:the}.")
+    deliver_messages(action)
+    return True
+
+
+__all__ = [
+    "gate_item_action",
+    "do_get",
+    "do_drop",
+    "do_give",
+    "do_open",
+    "do_close",
+]

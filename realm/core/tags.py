@@ -44,38 +44,8 @@ class TagSet:
         """Check if a specific tag exists."""
         return tag.lower().strip() in self._tags
 
-    def has_prefix(self, prefix: str) -> bool:
-        """Check if any tag starts with prefix: (e.g., 'zone:')."""
-        prefix = prefix.lower().strip()
-        if not prefix.endswith(':'):
-            prefix = prefix + ':'
-        return any(t.startswith(prefix) for t in self._tags)
 
-    def get_value(self, prefix: str) -> str | None:
-        """
-        Get the value part of a namespaced tag.
 
-        Example: tags.get_value('zone') returns 'forest' for tag 'zone:forest'
-        """
-        prefix = prefix.lower().strip()
-        if not prefix.endswith(':'):
-            prefix = prefix + ':'
-        for tag in self._tags:
-            if tag.startswith(prefix):
-                return tag[len(prefix):]
-        return None
-
-    def get_all_values(self, prefix: str) -> list[str]:
-        """
-        Get all values for a namespaced tag prefix.
-
-        Example: For tags ['zone:forest', 'zone:dark'],
-                 get_all_values('zone') returns ['forest', 'dark']
-        """
-        prefix = prefix.lower().strip()
-        if not prefix.endswith(':'):
-            prefix = prefix + ':'
-        return [tag[len(prefix):] for tag in self._tags if tag.startswith(prefix)]
 
     def clear(self) -> None:
         """Remove all tags."""

@@ -59,7 +59,8 @@ class Settings:
     tick_interval: float = 4.0
 
     # Combat
-    combat_ruleset: str = "gurps"
+    combat_ruleset: str | None = None
+    game_system: str = "gurps"
     combat_beat_min: float = 4.0
     combat_beat_max: float = 120.0
     combat_beat_default: float = 15.0
@@ -142,7 +143,8 @@ def load_config(game_dir: Path | None = None) -> Settings:
         game_dir=game_dir,
         flush_interval=config.get('FLUSH_INTERVAL', 30.0),
         tick_interval=config.get('TICK_INTERVAL', 4.0),
-        combat_ruleset=config.get('COMBAT_RULESET', 'gurps'),
+        combat_ruleset=config.get('COMBAT_RULESET'),
+        game_system=config.get('GAME_SYSTEM', 'gurps'),
         combat_beat_min=config.get('COMBAT_BEAT_MIN', 4.0),
         combat_beat_max=config.get('COMBAT_BEAT_MAX', 120.0),
         combat_beat_default=config.get('COMBAT_BEAT_DEFAULT', 15.0),

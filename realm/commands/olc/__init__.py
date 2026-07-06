@@ -8,6 +8,7 @@ All OLC commands start with @ by convention.
 from realm.commands.olc.admin import register_admin_commands
 from realm.commands.olc.create import register_create_commands
 from realm.commands.olc.modify import register_modify_commands
+from realm.commands.olc.softcode import register_softcode_commands
 
 
 def register_olc_commands(dispatcher) -> None:
@@ -15,6 +16,7 @@ def register_olc_commands(dispatcher) -> None:
     register_create_commands(dispatcher)
     register_modify_commands(dispatcher)
     register_admin_commands(dispatcher)
+    register_softcode_commands(dispatcher)
 
 
 __all__ = [
@@ -22,4 +24,5 @@ __all__ = [
     "register_create_commands",
     "register_modify_commands",
     "register_admin_commands",
+    "register_softcode_commands",
 ]

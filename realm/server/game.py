@@ -41,8 +41,10 @@ from realm.core.render import render_room
 from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager, set_active_manager
-from realm.scripting.engine import ScriptEngine
+from realm.scripting.engine import ScriptEngine, set_script_engine
+from realm.server.auth import hash_password, verify_password
 from realm.server.dispatcher import CommandContext, CommandDispatcher
+from realm.systems import GameSystemRegistry, GurpsSystem, set_game_system
 
 if TYPE_CHECKING:
     from realm.config.loader import Settings
@@ -79,7 +81,8 @@ class GameServer:
         enable_scripting: bool = True,
         flush_interval: float = 30.0,
         tick_interval: float = 4.0,
-        combat_ruleset: str = "gurps",
+        combat_ruleset: str | None = None,
+        game_system: str = "gurps",
         combat_beat_min: float = 4.0,
         combat_beat_max: float = 120.0,
         combat_beat_default: float = 15.0,
@@ -97,6 +100,8 @@ class GameServer:
         self.flush_interval = flush_interval
         self.tick_interval = tick_interval
         self.combat_ruleset = combat_ruleset
+        self.game_system_name = game_system
+        self.game_system = None
         self.combat_beat_min = combat_beat_min
         self.combat_beat_max = combat_beat_max
         self.combat_beat_default = combat_beat_default
@@ -157,6 +162,7 @@ class GameServer:
             flush_interval=settings.flush_interval,
             tick_interval=settings.tick_interval,
             combat_ruleset=settings.combat_ruleset,
+            game_system=getattr(settings, 'game_system', 'gurps'),
             combat_beat_min=settings.combat_beat_min,
             combat_beat_max=settings.combat_beat_max,
             combat_beat_default=settings.combat_beat_default,
@@ -267,14 +273,26 @@ class GameServer:
         if self.enable_scripting:
             self.script_engine = ScriptEngine(persistence=self.persistence)
             get_propagation_engine().add_observer(self.script_engine.handle_action)
+            set_script_engine(self.script_engine)
 
         # Loud actions break stealth, whoever performs them.
         get_propagation_engine().add_observer(stealth_observer)
 
         # Combat: beat-driven encounters; hostile-tagged actions between
         # combat-capable parties auto-initiate (the fireball WAS your turn).
+        # The game system is the swappable rules package (GURPS/D20/...):
+        # it supplies skill defaults, chargen, advancement, and the combat
+        # ruleset (explicit COMBAT_RULESET config overrides it).
+        self.game_system = (GameSystemRegistry.create(self.game_system_name)
+                            or GurpsSystem())
+        set_game_system(self.game_system)
+        from realm.core.checks import set_skill_defaults
+        set_skill_defaults(self.game_system.skill_defaults())
+
+        combat_system = create_combat_system(
+            self.combat_ruleset or self.game_system.ruleset_name)
         self.combat_manager = CombatManager(
-            create_combat_system(self.combat_ruleset),
+            combat_system,
             beat_min=self.combat_beat_min,
             beat_max=self.combat_beat_max,
             beat_default=self.combat_beat_default,
@@ -387,6 +405,7 @@ class GameServer:
         if self.script_engine is not None:
             get_propagation_engine().remove_observer(self.script_engine.handle_action)
             self.script_engine = None
+            set_script_engine(None)
         get_propagation_engine().remove_observer(stealth_observer)
         if self.combat_manager is not None:
             get_propagation_engine().remove_observer(self.combat_manager.hostile_observer)
@@ -394,6 +413,8 @@ class GameServer:
             self.combat_manager = None
             set_combat_manager(None)
         set_active_manager(None)
+        set_game_system(None)
+        self.game_system = None
 
         # Disconnect all sessions BEFORE stopping protocol servers:
         # Server.wait_closed() (Python 3.12.1+) waits for client connections,
@@ -555,6 +576,13 @@ class GameServer:
 
     async def _on_command(self, session: Session, command: str) -> None:
         """Called when a command is received from a session."""
+        # Mid-chargen input goes to the chargen flow, not the dispatcher.
+        if (session.player is not None
+                and session.player.db.get('chargen_step') is not None):
+            await self._handle_chargen(session, command)
+            await session.flush_output()
+            return
+
         await self.dispatcher.dispatch(session, command)
 
         # Flush every session, not just the actor's — actions propagated by
@@ -601,7 +629,7 @@ class GameServer:
             await session.send("Server not ready.")
             return
 
-        # TODO: Proper password verification
+
         # For now, just find the player by name
 
         matches = self.persistence.find_cached(tag='player', name=name)
@@ -611,14 +639,28 @@ class GameServer:
             await session.send(f"Character '{name}' not found. Use 'create' to make one.")
             return
 
-        # Check password (stored in attribute for now - should use proper hashing)
-        stored_password = player.db.get('password', '')
-        if stored_password != password:
+        stored_password = str(player.db.get('password') or '')
+        ok, needs_rehash = verify_password(password, stored_password)
+        if not ok:
             await session.send("Invalid password.")
             return
+        if needs_rehash:
+            # Legacy plaintext account: upgrade in place on first login.
+            player.db.password = hash_password(password)
+            await self.persistence.save(player)
 
         # Link player to session
         self.session_manager.link_player_to_session(session, player)
+
+        # Unfinished chargen resumes where it left off.
+        if player.db.get('chargen_step') is not None and self.game_system:
+            steps = self.game_system.chargen_steps()
+            index = min(int(player.db.get('chargen_step') or 0),
+                        max(0, len(steps) - 1))
+            await session.send("\nWelcome back — let's finish your character.\n")
+            if steps:
+                await session.send(steps[index].prompt(player))
+            return
 
         await self._announce_connect(player, returning=True)
 
@@ -640,29 +682,71 @@ class GameServer:
         player = GameObject(
             name=name,
             description=f"This is {name}.",
-            location=self._startup_room,
+            location=None,
             tags=['player'],
         )
-        player.db.password = password  # TODO: Hash this!
+        player.db.password = hash_password(password)
 
-        # Baseline GURPS-style stats so combat and skill checks work out
-        # of the box; games override in their own chargen.
-        for stat, value in (
-            ('strength', 10), ('dexterity', 10), ('intelligence', 10),
-            ('health', 10), ('hp', 10), ('max_hp', 10), ('dodge', 8),
-        ):
-            if player.db.get(stat) is None:
-                player.db.set(stat, value)
+        # The game system supplies baselines and the chargen flow.
+        self.game_system.apply_baseline(player)
 
-        await self.persistence.save(player)
-
-        # Link player to session
         self.session_manager.link_player_to_session(session, player)
+        await session.send(f"\nCharacter '{name}' created.")
 
-        await session.send(f"\nCharacter '{name}' created. Welcome to REALM!\n")
+        steps = self.game_system.chargen_steps()
+        if steps:
+            player.db.chargen_step = 0
+            await self.persistence.save(player)
+            await session.send("")
+            await session.send(steps[0].prompt(player))
+            return
+
+        await self._enter_world(session, player)
+
+    async def _handle_chargen(self, session: Session, response: str) -> None:
+        """
+        Drive the game system's chargen flow (Template Method: the loop
+        lives here, the steps come from the system). State is
+        ``db.chargen_step`` — reboot-safe mid-creation.
+        """
+        player = session.player
+        if response.strip().lower() in ('quit', 'logout'):
+            await session.send("Goodbye! Your unfinished character will wait.")
+            await self.session_manager.destroy_session(session)
+            return
+        steps = self.game_system.chargen_steps() if self.game_system else []
+        index = int(player.db.get('chargen_step') or 0)
+
+        if not steps or index >= len(steps):
+            player.db.delete('chargen_step')
+            await self._enter_world(session, player)
+            return
+
+        if response.strip():
+            advance, feedback = steps[index].handle(player, response)
+            await session.send(feedback)
+            if advance:
+                index += 1
+        if index >= len(steps):
+            player.db.delete('chargen_step')
+            welcome = self.game_system.finish_chargen(player)
+            if self.persistence:
+                await self.persistence.save(player)
+            await session.send(welcome)
+            await self._enter_world(session, player)
+        else:
+            player.db.chargen_step = index
+            await session.send("")
+            await session.send(steps[index].prompt(player))
+
+    async def _enter_world(self, session: Session, player: GameObject) -> None:
+        """Place a finished character in the world and announce them."""
+        if player.location is None:
+            player.location = self._startup_room
+        if self.persistence:
+            await self.persistence.save(player)
+        await session.send(f"\nWelcome to the world, {player.name}!\n")
         await self._announce_connect(player, returning=False)
-
-        # Show room
         await session.send(render_room(player.location, player))
 
     async def _announce_connect(self, player: GameObject, *, returning: bool) -> None:
@@ -702,19 +786,38 @@ class GameServer:
         actions must reach players without a player command in flight.
         A failing behavior is logged and skipped; the pulse survives.
         """
+        import time as _time
+        import weakref
+
         from realm.core.behaviors import behavior_owners
+        last_ticked: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
         while True:
             await asyncio.sleep(self.tick_interval)
+            now = _time.monotonic()
             for obj in behavior_owners():
                 for behavior in obj.get_behaviors():
                     if not behavior.should_tick:
                         continue
+                    interval = behavior.tick_interval
+                    previous = last_ticked.get(behavior)
+                    if interval > 0 and previous is not None \
+                            and now - previous < interval:
+                        continue
+                    last_ticked[behavior] = now
                     try:
-                        await behavior.tick(obj, self.tick_interval)
+                        await behavior.tick(
+                            obj, now - previous if previous else self.tick_interval,
+                        )
                     except Exception:
                         logger.exception(
                             f"Tick error in {behavior.behavior_id} on {obj.name}"
                         )
+            # One-shot softcode waits ride the same heartbeat.
+            if self.script_engine is not None:
+                try:
+                    await self.script_engine.tick_waits()
+                except Exception:
+                    logger.exception("Tick wait error")
             for session in self.session_manager.all_sessions():
                 try:
                     await session.flush_output()

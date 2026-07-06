@@ -48,7 +48,7 @@ class Behavior(ABC):
     # Class-level configuration
     behavior_id: str = "base"  # Unique identifier for this behavior type
 
-    __slots__ = ('_owner', '_params')
+    __slots__ = ('__weakref__', '_owner', '_params')
 
     def __init__(self, **params: Any):
         """
@@ -143,11 +143,11 @@ class Behavior(ABC):
     @property
     def tick_interval(self) -> float:
         """
-        Return the desired tick interval in seconds.
-
-        Default is 1.0 second. Override for different intervals.
+        Desired seconds between tick() calls. The server heartbeat fires
+        at TICK_INTERVAL; behaviors asking for longer intervals are
+        skipped on intervening pulses. Default 0 = every pulse.
         """
-        return 1.0
+        return 0.0
 
     async def tick(self, obj: GameObject, delta: float) -> None:
         """

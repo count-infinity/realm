@@ -44,7 +44,8 @@ class Participant:
 
     __slots__ = ('obj', 'queued', 'last_action', 'initiative',
                  'target_id', 'joined_round', 'round_modifiers',
-                 'next_round_modifiers')
+                 'next_round_modifiers', 'range_band', 'aim_bonus',
+                 'aim_target', 'in_cover')
 
     def __init__(self, obj: GameObject, initiative: int, target_id: str | None):
         self.obj = obj
@@ -57,6 +58,11 @@ class Participant:
         self.round_modifiers: list[tuple[str, int]] = []
         # Modifiers that take effect NEXT round (a feint's opening)
         self.next_round_modifiers: list[tuple[str, int]] = []
+        # Ranged model: band 0 = engaged (melee reach), 1 = at range.
+        self.range_band = 0
+        self.aim_bonus = 0
+        self.aim_target: str | None = None
+        self.in_cover = False
 
     @property
     def combatant(self) -> Combatant:
@@ -312,10 +318,64 @@ class CombatEncounter:
             if target is None:
                 obj.msg("You have no target to attack.")
                 return
-            result = await self.combat_system.attack(obj, target.obj)
+            if participant.range_band != 0 or target.range_band != 0:
+                obj.msg("You're out of melee reach — 'close' the distance "
+                        "or 'shoot'.")
+                return
+            from realm.combat.system import find_wielded
+            weapon = find_wielded(obj)
+            if weapon is not None and weapon.has_tag('ranged'):
+                weapon = None  # you don't club people with your rifle
+            result = await self.combat_system.attack(obj, target.obj,
+                                                     weapon=weapon)
             deliver_combat_messages(obj, target.obj, result.messages)
             if result.target_defeated:
                 await self.manager.handle_defeat(self, target, killer=participant)
+            return
+
+        if key == 'shoot':
+            await self._resolve_shoot(participant, action)
+            return
+
+        if key == 'aim':
+            self._resolve_aim(participant, action)
+            return
+
+        if key == 'close':
+            if participant.range_band == 0:
+                obj.msg("You're already in the thick of it.")
+                return
+            participant.range_band = 0
+            participant.in_cover = False
+            deliver_combat_messages(obj, None, {
+                'attacker_msg': "You close the distance!",
+                'others_msg': "{actor} closes in!",
+            })
+            return
+
+        if key == 'withdraw':
+            if participant.range_band != 0:
+                obj.msg("You're already keeping your distance.")
+                return
+            participant.range_band = 1
+            participant.in_cover = False
+            deliver_combat_messages(obj, None, {
+                'attacker_msg': "You fall back out of reach.",
+                'others_msg': "{actor} falls back, opening the range.",
+            })
+            return
+
+        if key == 'cover':
+            cover_objs = [o for o in self.room.contents if o.has_tag('cover')]
+            if not cover_objs:
+                obj.msg("There's nothing here to take cover behind.")
+                return
+            participant.in_cover = True
+            cover_name = cover_objs[0].name
+            deliver_combat_messages(obj, None, {
+                'attacker_msg': f"You duck behind the {cover_name}.",
+                'others_msg': f"{{actor}} takes cover behind the {cover_name}.",
+            })
             return
 
         if key == 'defend':
@@ -343,6 +403,67 @@ class CombatEncounter:
         )
         if not handled:
             obj.msg(f"You don't know how to {key}.")
+
+    async def _resolve_shoot(self, participant: Participant,
+                             action: QueuedAction) -> None:
+        """Ranged attack: works at any band; aim bonus consumed, close
+        quarters and cover penalized. Same delivery/defeat path as melee."""
+        from realm.combat.system import find_wielded
+
+        obj = participant.obj
+        target = self._resolve_target(participant, action)
+        if target is None:
+            obj.msg("You have no target to shoot.")
+            return
+        weapon = find_wielded(obj)
+        if weapon is None or not weapon.has_tag('ranged'):
+            obj.msg("You need a wielded ranged weapon to shoot "
+                    "(wield <weapon>).")
+            return
+
+        modifiers: dict[str, int] = {}
+        if participant.aim_bonus and participant.aim_target == target.obj.id:
+            modifiers['aim'] = participant.aim_bonus
+        participant.aim_bonus = 0
+        participant.aim_target = None
+        if participant.range_band == 0 and target.range_band == 0:
+            modifiers['close quarters'] = -2
+        if target.in_cover:
+            modifiers['cover'] = -2
+
+        result = await self.combat_system.attack(
+            obj, target.obj, weapon=weapon, modifiers=modifiers)
+        deliver_combat_messages(obj, target.obj, result.messages)
+        if result.target_defeated:
+            await self.manager.handle_defeat(self, target, killer=participant)
+
+    def _resolve_aim(self, participant: Participant,
+                     action: QueuedAction) -> None:
+        """Steady aim: +Acc on the next shot at that target, +1 per extra
+        round of aiming, capped at Acc+2. Lost if you switch targets."""
+        from realm.combat.system import find_wielded
+
+        obj = participant.obj
+        target = self._resolve_target(participant, action)
+        if target is None:
+            obj.msg("You have no target to aim at.")
+            return
+        weapon = find_wielded(obj)
+        if weapon is None or not weapon.has_tag('ranged'):
+            obj.msg("You need a wielded ranged weapon to aim.")
+            return
+
+        acc = int(weapon.db.get('acc') or 1)
+        if participant.aim_target == target.obj.id:
+            participant.aim_bonus = min(acc + 2, participant.aim_bonus + 1)
+        else:
+            participant.aim_bonus = acc
+            participant.aim_target = target.obj.id
+        deliver_combat_messages(obj, target.obj, {
+            'attacker_msg': (f"You take aim at {target.obj.name} "
+                             f"(+{participant.aim_bonus} next shot)."),
+            'others_msg': "{actor} takes careful aim at {target}.",
+        })
 
     async def _resolve_flee(self, participant: Participant,
                             action: QueuedAction) -> None:

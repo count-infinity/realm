@@ -5,7 +5,6 @@ import pytest
 from realm.combat.combatant import (
     Combatant,
     CombatState,
-    StatusEffect,
     clear_combatant_cache,
     get_combatant,
 )
@@ -103,34 +102,6 @@ class TestCombatant:
         assert actual == 5  # Only healed 5
         assert combatant.hp == 50
 
-    def test_status_effects(self):
-        """Can add and check status effects."""
-        obj = GameObject("Fighter")
-        combatant = Combatant(obj)
-
-        effect = StatusEffect(name="poisoned", duration=3, magnitude=5)
-        combatant.add_effect(effect)
-
-        assert combatant.has_effect("poisoned")
-        assert not combatant.has_effect("stunned")
-
-    def test_status_effect_tick(self):
-        """Status effects tick and expire."""
-        obj = GameObject("Fighter")
-        combatant = Combatant(obj)
-
-        effect = StatusEffect(name="poisoned", duration=2)
-        combatant.add_effect(effect)
-
-        # First tick
-        expired = combatant.tick_effects()
-        assert len(expired) == 0
-        assert combatant.has_effect("poisoned")
-
-        # Second tick - should expire
-        expired = combatant.tick_effects()
-        assert len(expired) == 1
-        assert not combatant.has_effect("poisoned")
 
     def test_resistance(self):
         """Resistance affects damage multiplier."""

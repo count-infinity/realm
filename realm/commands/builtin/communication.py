@@ -21,8 +21,6 @@ async def cmd_say(ctx: CommandContext) -> None:
     Usage: say <message>
            "<message>
     """
-    if not ctx.player:
-        return
     if not ctx.args:
         await ctx.session.send("Say what?")
         return
@@ -56,8 +54,6 @@ async def cmd_pose(ctx: CommandContext) -> None:
     Example: pose waves hello.
              -> "YourName waves hello."
     """
-    if not ctx.player:
-        return
     if not ctx.args:
         await ctx.session.send("Pose what?")
         return
@@ -90,8 +86,6 @@ async def cmd_semipose(ctx: CommandContext) -> None:
     Example: semipose 's dog barks.
              -> "YourName's dog barks."
     """
-    if not ctx.player:
-        return
     if not ctx.args:
         await ctx.session.send("Pose what?")
         return
@@ -126,8 +120,6 @@ async def cmd_emit(ctx: CommandContext) -> None:
 
     Example: emit A cold wind blows through the room.
     """
-    if not ctx.player:
-        return
     if not ctx.args:
         await ctx.session.send("Emit what?")
         return
@@ -157,8 +149,6 @@ async def cmd_whisper(ctx: CommandContext) -> None:
 
     Usage: whisper <player> = <message>
     """
-    if not ctx.player:
-        return
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: whisper <player> = <message>")
         return
@@ -197,8 +187,6 @@ async def cmd_ooc(ctx: CommandContext) -> None:
 
     Usage: ooc <message>
     """
-    if not ctx.player:
-        return
     if not ctx.args:
         await ctx.session.send("OOC what?")
         return
@@ -228,8 +216,6 @@ async def cmd_shout(ctx: CommandContext) -> None:
 
     Usage: shout <message>
     """
-    if not ctx.player:
-        return
     if not ctx.args:
         await ctx.session.send("Shout what?")
         return

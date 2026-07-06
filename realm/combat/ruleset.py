@@ -292,30 +292,6 @@ class Ruleset(ABC):
             roll=RollResult(total=0, dice=[]),
         )
 
-    def roll_saving_throw(
-        self,
-        combatant: Combatant,
-        save_type: str,
-        difficulty: int,
-        modifiers: dict[str, int] | None = None,
-    ) -> DefenseResult:
-        """
-        Roll a saving throw against an effect.
-
-        Default: 50% chance. Override for system-specific saves.
-        """
-        import random
-        roll = random.randint(1, 20)
-        success = roll >= 10
-        return DefenseResult(
-            success=success,
-            roll=RollResult(
-                total=roll,
-                dice=[roll],
-                target=10,
-                success=success,
-            ),
-        )
 
     def calculate_healing(
         self,
@@ -330,42 +306,9 @@ class Ruleset(ABC):
         """
         return base_amount
 
-    def get_attack_range(
-        self,
-        attacker: Combatant,
-        weapon: Any | None = None,
-    ) -> int:
-        """
-        Get the attack range for a weapon/ability.
-
-        Default: 1 (melee). Override for ranged calculations.
-        """
-        if weapon:
-            return getattr(weapon, 'range', 1)
-        return 1
 
     # --- Utility Methods ---
 
-    def roll_dice(self, num: int, sides: int, modifier: int = 0) -> RollResult:
-        """
-        Roll dice with a modifier.
-
-        Args:
-            num: Number of dice
-            sides: Sides per die
-            modifier: Added to total
-
-        Returns:
-            RollResult with individual dice and total
-        """
-        import random
-        dice = [random.randint(1, sides) for _ in range(num)]
-        total = sum(dice) + modifier
-        return RollResult(
-            total=total,
-            dice=dice,
-            modifier=modifier,
-        )
 
     def get_stat(
         self,
@@ -386,19 +329,6 @@ class Ruleset(ABC):
         """
         return combatant.get_stat(stat_name, default)
 
-    def get_modifier(
-        self,
-        combatant: Combatant,
-        stat_name: str,
-    ) -> int:
-        """
-        Get a modifier derived from a stat.
-
-        Default: (stat - 10) // 2 (D&D style)
-        Override for different modifier calculations.
-        """
-        stat = self.get_stat(combatant, stat_name, 10)
-        return (stat - 10) // 2
 
     def format_attack_message(
         self,

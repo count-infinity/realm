@@ -24,7 +24,7 @@ from realm.combat.ruleset import (
 )
 from realm.combat.rulesets.d20 import D20Ruleset
 from realm.combat.rulesets.gurps import GURPSRuleset
-from realm.combat.system import CombatSystem, get_combat_system, set_combat_system
+from realm.combat.system import CombatSystem
 
 __all__ = [
     # Core
@@ -36,8 +36,6 @@ __all__ = [
     "Combatant",
     "CombatState",
     "CombatSystem",
-    "get_combat_system",
-    "set_combat_system",
     # Rulesets
     "D20Ruleset",
     "GURPSRuleset",

@@ -8,14 +8,10 @@ from realm.server.dispatcher import (
     Command,
     CommandContext,
     CommandDispatcher,
-    command,
-    register_commands,
 )
 
 __all__ = [
     "CommandDispatcher",
     "CommandContext",
     "Command",
-    "command",
-    "register_commands",
 ]

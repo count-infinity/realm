@@ -82,8 +82,9 @@ class TestBehavior:
         assert b.should_tick is False
 
     def test_default_tick_interval(self):
+        # 0 = tick on every server pulse; behaviors override for slower cadence
         b = SimpleBehavior()
-        assert b.tick_interval == 1.0
+        assert b.tick_interval == 0.0
 
     def test_ticking_behavior(self):
         b = TickingBehavior(interval=0.5)
