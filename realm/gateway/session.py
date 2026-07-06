@@ -59,6 +59,8 @@ class Session:
         '_input_queue',
         '_output_queue',
         '_writer',
+        '_oob_writer',
+        'oob_supports',
         '_closer',
         '_protocol',
         '_address',
@@ -81,6 +83,10 @@ class Session:
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
         self._output_queue: asyncio.Queue[str] = asyncio.Queue()
         self._writer: Callable[[str], Awaitable[None]] | None = None
+        # Out-of-band channel (GMCP on telnet, JSON envelope on
+        # websocket). None = client never negotiated structured data.
+        self._oob_writer: Callable[[str, dict], None] | None = None
+        self.oob_supports: dict = {}
         self._closer: Callable[[], Any] | None = None
 
         self._protocol = protocol
@@ -114,6 +120,21 @@ class Session:
     def account_name(self) -> str | None:
         """The account name if authenticated."""
         return self._account_name
+
+    def set_oob_writer(self, writer: Callable[[str, dict], None] | None) -> None:
+        """Install the protocol's structured-data sender (GMCP etc.)."""
+        self._oob_writer = writer
+
+    def send_oob(self, package: str, data: dict) -> None:
+        """
+        Send a structured out-of-band message (fire-and-forget). A
+        no-op for clients that never negotiated an OOB channel.
+        """
+        if self._oob_writer is not None:
+            try:
+                self._oob_writer(package, data)
+            except Exception:
+                pass  # a client hiccup must never break game flow
 
     def set_writer(self, writer: Callable[[str], Awaitable[None]]) -> None:
         """Set the function used to write data to the client."""
@@ -208,11 +229,13 @@ class Session:
         self.state = SessionState.PLAYING
         # Route player.msg() text through this session's output queue.
         player.set_msg_handler(self.send_nowait)
+        player.set_oob_handler(self.send_oob)
 
     def unlink_player(self) -> None:
         """Unlink this session from its player object."""
         if self.player:
             self.player.clear_msg_handler()
+            self.player.clear_oob_handler()
             self.player = None
         self.state = SessionState.CONNECTED
 

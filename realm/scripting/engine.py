@@ -688,6 +688,9 @@ class ScriptEngine:
                 room = functions.executor.location if functions.executor else None
                 if room is not None:
                     room.msg_contents(message, exclude=[obj])
+            elif kind == 'oob':
+                package, data = message
+                obj.msg_oob(package, data)
             elif kind == 'save':
                 if self._persistence is not None and obj.id not in saved:
                     saved.add(obj.id)

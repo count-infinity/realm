@@ -326,6 +326,27 @@ Design sketch:
 
 ## Completed
 
+- [x] **SPEAKING CLIENT: GMCP / out-of-band channel (2026-07-06).**
+  813 tests (9 new). The gateway now speaks structured data:
+  - **Session OOB channel**: `session.send_oob(package, dict)` +
+    `set_oob_writer` (protocol installs it); GameObject mirror
+    `msg_oob`/`set_oob_handler` wired by link_player — engine code
+    emits unconditionally, NPCs/plain clients no-op.
+  - **Telnet GMCP** (option 201): offered at connect (IAC WILL GMCP);
+    client DO wires the channel; outbound frames IAC SB GMCP
+    "Package.Sub {json}" IAC SE with IAC-escaping; the byte machine
+    grew real subnegotiation parsing (IAC SB ... IAC SE, escaped-255
+    aware); inbound Core.Hello/Core.Supports stored in
+    session.oob_supports.
+  - **WebSocket**: {"type": "oob", "package", "data"} JSON envelope.
+  - **Engine emissions**: Room.Info (id/name/exits) on every
+    move_through_exit; Char.Vitals (hp/max_hp/round) each combat
+    round for players.
+  - **Softcode**: `oob(target, 'My.Package', {...})` — custom client
+    UI panels from builder scripts (queued like pemit).
+  Remaining protocol flavor for later: MSSP (crawler status), NAWS
+  payload use, MXP — the SB parser and option table now make each a
+  small add.
 - [x] **THE LIST IS DONE: hardening + persistence + tail (2026-07-05,
   final sweep).** 804 tests (5 new).
   - **AuthService** (realm/server/auth.py): identity extracted from

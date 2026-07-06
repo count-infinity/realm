@@ -54,6 +54,7 @@ recursion / output). What varies is API surface:
 | Manipulation verbs | get/take/drop/give/open/close script commands + `cmd()` | SHIPPED (shared cores in realm/core/verbs.py — commands and scripts run identical code) |
 | Full dispatcher access | @force + force() — PuppetSession through the real dispatcher, controls()-gated, target's own permissions apply | SHIPPED (2026-07-05) |
 | Economy | credits/adjust_credits/transfer_credits + ShopkeeperBehavior + ON_PAYMENT | SHIPPED (2026-07-05) |
+| Client OOB (GMCP) | oob(target, package, data) + msg_oob; Room.Info/Char.Vitals built-in | SHIPPED (2026-07-06) |
 | Scheduling beyond ticks | `wait(sec, cmd)` / `wait <sec> <cmd>` one-shots on the heartbeat | SHIPPED (in-memory, like MUSH @waits) |
 
 ## Permissions on softcode (the authority model)

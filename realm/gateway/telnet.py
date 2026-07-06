@@ -26,6 +26,8 @@ DO = bytes([253])
 DONT = bytes([254])
 SB = bytes([250])    # Sub-negotiation Begin
 SE = bytes([240])    # Sub-negotiation End
+GMCP = bytes([201])  # Generic MUD Communication Protocol (option 201)
+SE = bytes([240])    # Sub-negotiation End
 
 # Common telnet options
 ECHO = bytes([1])
@@ -102,6 +104,8 @@ class TelnetProtocol(asyncio.Protocol):
         self.transport.write(IAC + WILL + SGA)
         # Ask client to suppress go-ahead
         self.transport.write(IAC + DO + SGA)
+        # Offer GMCP (structured out-of-band data for modern clients)
+        self.transport.write(IAC + WILL + GMCP)
 
     def data_received(self, data: bytes) -> None:
         """Called when data is received from the client."""
@@ -109,7 +113,9 @@ class TelnetProtocol(asyncio.Protocol):
             return
 
         for byte in data:
-            if self._in_iac:
+            if getattr(self, '_in_sb', False):
+                self._handle_sb_byte(byte)
+            elif self._in_iac:
                 self._handle_iac(byte)
             elif byte == 255:  # IAC
                 self._in_iac = True
@@ -134,6 +140,10 @@ class TelnetProtocol(asyncio.Protocol):
             # Check if this is a 2-byte or 3-byte command
             if byte in (251, 252, 253, 254):  # WILL, WONT, DO, DONT
                 return  # Wait for option byte
+            elif byte == 250:  # SB — collect until IAC SE
+                self._in_iac = False
+                self._in_sb = True
+                self._sb_buffer = bytearray()
             else:
                 # 2-byte command complete
                 self._in_iac = False
@@ -149,6 +159,9 @@ class TelnetProtocol(asyncio.Protocol):
                     pass  # We already said WILL ECHO
                 elif option == 3:  # SGA
                     pass  # We already said WILL SGA
+                elif option == 201:  # GMCP accepted — wire the channel
+                    if self.session is not None:
+                        self.session.set_oob_writer(self._send_gmcp)
                 else:
                     # Refuse unknown options
                     if self.transport:
@@ -166,6 +179,50 @@ class TelnetProtocol(asyncio.Protocol):
                         self.transport.write(IAC + DONT + bytes([option]))
 
             self._in_iac = False
+
+    def _handle_sb_byte(self, byte: int) -> None:
+        """Collect a subnegotiation until IAC SE (IAC IAC = literal 255)."""
+        buf = self._sb_buffer
+        if buf and buf[-1] == 255:
+            if byte == 240:  # SE — complete
+                self._in_sb = False
+                self._handle_subnegotiation(bytes(buf[:-1]))
+                return
+            if byte == 255:  # escaped IAC
+                return  # keep the single 255 already in the buffer
+        buf.append(byte)
+
+    def _handle_subnegotiation(self, payload: bytes) -> None:
+        """Dispatch a completed IAC SB ... IAC SE block."""
+        if not payload:
+            return
+        if payload[0] == 201:  # GMCP: "Package.Sub JSON"
+            self._handle_gmcp(payload[1:])
+        # NAWS and others: ignored for now.
+
+    def _handle_gmcp(self, payload: bytes) -> None:
+        """Inbound GMCP from the client (Core.Hello, Core.Supports...)."""
+        import json
+        try:
+            text = payload.decode('utf-8', errors='replace').strip()
+            package, _, body = text.partition(' ')
+            data = json.loads(body) if body else None
+        except (ValueError, json.JSONDecodeError):
+            return
+        if self.session is None:
+            return
+        # Remember what the client told us (client name, supported
+        # packages); softcode/UI code can consult session.oob_supports.
+        self.session.oob_supports[package] = data
+
+    def _send_gmcp(self, package: str, data: dict) -> None:
+        """Outbound GMCP frame."""
+        import json
+        if self.transport is None:
+            return
+        payload = f"{package} {json.dumps(data)}".encode()
+        payload = payload.replace(IAC, IAC + IAC)  # escape literal 255s
+        self.transport.write(IAC + SB + GMCP + payload + IAC + SE)
 
     def _process_line(self) -> None:
         """Process a complete line of input."""

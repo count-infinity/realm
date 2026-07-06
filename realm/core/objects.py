@@ -118,6 +118,7 @@ class GameObject:
         '_db',
         '_dirty',
         '_msg_handler',
+        '_oob_handler',
     )
 
     def __init__(
@@ -145,6 +146,7 @@ class GameObject:
         self._db: AttributeProxy | None = None
         self._dirty = False
         self._msg_handler: Callable[[str], None] | None = None
+        self._oob_handler: Callable[[str, dict], None] | None = None
 
         # Set location through property to maintain contents lists
         if location is not None:
@@ -349,6 +351,22 @@ class GameObject:
         """
         if self._msg_handler is not None:
             self._msg_handler(text)
+
+    def msg_oob(self, package: str, data: dict) -> None:
+        """
+        Deliver structured out-of-band data (GMCP-style) to this
+        object's client. No-op for NPCs and clients without an OOB
+        channel — engine code can emit vitals/room info unconditionally.
+        """
+        if self._oob_handler is not None:
+            self._oob_handler(package, data)
+
+    def set_oob_handler(self, handler: Callable[[str, dict], None] | None) -> None:
+        """Install the session's OOB sender (mirrors set_msg_handler)."""
+        self._oob_handler = handler
+
+    def clear_oob_handler(self) -> None:
+        self._oob_handler = None
 
     def set_msg_handler(self, handler: Callable[[str], None] | None) -> None:
         """

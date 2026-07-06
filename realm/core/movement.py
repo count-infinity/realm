@@ -171,6 +171,14 @@ async def move_through_exit(
     enter.add_message("room", "{actor} arrives.")
     await propagate(enter)
 
+    # Structured client data (GMCP Room.Info) — no-op without a client
+    # that negotiated OOB.
+    actor.msg_oob("Room.Info", {
+        "id": destination.id,
+        "name": destination.name,
+        "exits": [o.name for o in destination.contents if o.has_tag('exit')],
+    })
+
     # Followers walk after their leader (room-local scan of the origin,
     # so chains cascade and cycles self-resolve — the mover already left
     # the room being scanned). Fleeing breaks the chain: you escape

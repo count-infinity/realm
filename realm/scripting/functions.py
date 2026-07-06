@@ -800,6 +800,16 @@ class ScriptFunctions:
         if exclude_obj is not None:
             self.command_queue.append(('oemit', exclude_obj, str(message)))
 
+    def oob(self, target: GameObject | str, package: str, data: dict) -> None:
+        """
+        Send structured out-of-band data (GMCP) to a player's client —
+        custom UI panels from softcode. Delivered after the script,
+        like pemit. No-op for clients without an OOB channel.
+        """
+        target_obj = self._resolve(target)
+        if target_obj is not None and isinstance(data, dict):
+            self.command_queue.append(('oob', target_obj, (str(package), data)))
+
     # --- Skill checks (contests power scripted social/skill outcomes) ---
 
     def skill_check(self, obj, skill: str, modifier: int = 0) -> bool:
@@ -924,6 +934,7 @@ class ScriptFunctions:
             'pemit': self.pemit,
             'remit': self.remit,
             'oemit': self.oemit,
+            'oob': self.oob,
             # Comparison
             # Conditional
             'if_else': self.if_else,

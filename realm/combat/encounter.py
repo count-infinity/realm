@@ -532,6 +532,11 @@ class CombatEncounter:
         for participant in self.participants.values():
             if not participant.is_player():
                 continue
+            combatant = participant.combatant
+            participant.obj.msg_oob("Char.Vitals", {
+                "hp": combatant.hp, "max_hp": combatant.max_hp,
+                "round": self.round_number,
+            })
             planned = self._select_action(participant)
             if planned is None:
                 desc = "nothing"
