@@ -1,84 +1,31 @@
 # Quick Start
 
-This guide gets you from zero to a running REALM server in 5 minutes.
-
-## Start the Server
+The five-minute version.
 
 ```bash
-# Activate your virtual environment
-source venv/bin/activate
+git clone https://github.com/realm-mud/realm.git && cd realm
+python -m venv venv && source venv/bin/activate
+pip install -e .
 
-# Start with default settings
+realm init mygame && cd mygame
 realm start
 ```
 
-You should see:
-
-```
-Starting REALM...
-Database initialized at game.db
-Loaded 1 objects from database
-Telnet server listening on 0.0.0.0:4000
-REALM game server started
-```
-
-## Connect
-
-Open a new terminal and connect via telnet:
+In another terminal:
 
 ```bash
 telnet localhost 4000
 ```
 
-You'll see the welcome screen:
-
-```
-============================================================
-  Welcome to REALM
-  Real-time Event-Action Layered MUD
-============================================================
-
-Enter 'connect <name> <password>' to log in
-Enter 'create <name> <password>' to create a new character
+```text
+create Keeper secret123        # first character = superuser
+look                           # The Void — your empty Limbo
+@dig The Garden = north, south # your first room
+north
+@desc here = Roses climb a broken trellis.
+look
 ```
 
-## Create a Character
-
-```
-create Alice secret123
-```
-
-You're now in the game! Try some commands:
-
-```
-look        # See the room
-who         # See who's online
-say Hello!  # Say something
-help        # List commands
-quit        # Disconnect
-```
-
-## Custom Welcome Screen
-
-Create a `config/welcome.txt` file to customize:
-
-```bash
-mkdir -p config
-cat > config/welcome.txt << 'EOF'
-
-    ╔═══════════════════════════════════════╗
-    ║     Welcome to My Awesome MUD!        ║
-    ╚═══════════════════════════════════════╝
-
-    Type 'connect <name> <password>' to log in
-    Type 'create <name> <password>' to register
-
-EOF
-```
-
-Restart the server to see your custom screen.
-
-## Next Steps
-
-- [Your First Game](first-game.md) - Create rooms, items, and NPCs
-- [Architecture Overview](../architecture/overview.md) - Understand how REALM works
+You're building. For the guided version with explanations, start at
+[Installation](installation.md); to build a full playable adventure,
+jump to [the tutorial](../tutorial/index.md).

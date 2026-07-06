@@ -59,14 +59,16 @@ async def cmd_dig(ctx: CommandContext) -> None:
     Create a new room with optional exits.
 
     Usage: @dig <room name>
-           @dig <room name> = <exit1>, <exit2>
+           @dig <room name> = <exit there>[, <exit back>]
 
     Examples:
         @dig The Kitchen
-        @dig The Garden = north, south
-        @dig Basement = down, up
+        @dig The Garden = north          (return 'south' auto-created)
+        @dig The Cellar = trapdoor, hatch
 
-    Exit pairs are created linking the new room to your current location.
+    The first exit leads to the new room; the second (or the compass
+    opposite of a known direction) is created in the new room, leading
+    back.
     """
     if not ctx.player or not ctx.player.location:
         return
@@ -90,11 +92,12 @@ async def cmd_dig(ctx: CommandContext) -> None:
 
     await ctx.session.send(f"Room created: {new_room.name} (#{new_room.id[:8]})")
 
-    # Create exits if specified
+    # Exits: "@dig room = there" or "@dig room = there, back" —
+    # the FIRST name leads to the new room, the SECOND (or the compass
+    # opposite of a known direction) leads back.
     if exit_spec:
-        exits = [e.strip() for e in exit_spec.split(',')]
+        names = [e.strip().lower() for e in exit_spec.split(',') if e.strip()]
 
-        # Map common exit pairs
         exit_pairs = {
             'north': 'south', 'south': 'north',
             'east': 'west', 'west': 'east',
@@ -105,37 +108,30 @@ async def cmd_dig(ctx: CommandContext) -> None:
         }
 
         current_room = ctx.player.location
+        out_name = names[0]
+        back_name = names[1] if len(names) > 1 else exit_pairs.get(out_name)
 
-        for exit_name in exits:
-            exit_name = exit_name.lower()
+        exit_out = GameObject(
+            name=out_name,
+            location=current_room,
+            owner=ctx.player,
+            tags=['exit'],
+        )
+        exit_out.db.destination = new_room.id
+        await save_object(ctx, exit_out)
+        await ctx.session.send(f"  Exit '{out_name}' created -> {new_room.name}")
 
-            # Create exit from current room to new room
-            exit_out = GameObject(
-                name=exit_name,
-                location=current_room,
+        if back_name:
+            exit_back = GameObject(
+                name=back_name,
+                location=new_room,
                 owner=ctx.player,
                 tags=['exit'],
             )
-            exit_out.db.destination = new_room.id
-
-            await save_object(ctx, exit_out)
-
-            await ctx.session.send(f"  Exit '{exit_name}' created -> {new_room.name}")
-
-            # Create return exit if there's a known pair
-            if exit_name in exit_pairs:
-                return_name = exit_pairs[exit_name]
-                exit_back = GameObject(
-                    name=return_name,
-                    location=new_room,
-                    owner=ctx.player,
-                    tags=['exit'],
-                )
-                exit_back.db.destination = current_room.id
-
-                await save_object(ctx, exit_back)
-
-                await ctx.session.send(f"  Exit '{return_name}' created -> {current_room.name}")
+            exit_back.db.destination = current_room.id
+            await save_object(ctx, exit_back)
+            await ctx.session.send(
+                f"  Exit '{back_name}' created -> {current_room.name}")
 
 
 async def cmd_open(ctx: CommandContext) -> None:

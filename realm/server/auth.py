@@ -118,15 +118,22 @@ class AuthService:
         if self._persistence.find_cached(tag='player', name=name):
             return None, f"Character '{name}' already exists."
 
+        # The first character on a fresh database is the superuser —
+        # the operator connecting to their own new game (Evennia-style).
+        first = not self._persistence.find_cached(tag='player')
+
         player = GameObject(
             name=name,
             description=f"This is {name}.",
             location=None,
             tags=['player'],
         )
+        if first:
+            player.add_tag('god')
         player.db.password = hash_password(password)
         if system is not None:
             system.apply_baseline(player)
+        await self._persistence.save(player)
         return player, ""
 
 

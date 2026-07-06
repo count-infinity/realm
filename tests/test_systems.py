@@ -208,3 +208,10 @@ class TestAuthService:
         assert player is not None
         assert player.db.get("strength") == 10
         assert str(player.db.get("password")).startswith("scrypt$")
+
+    async def test_first_character_becomes_superuser(self):
+        svc, _pers = self._service()
+        first, _ = await svc.create_account("Founder", "pw")
+        assert first.has_tag("god")
+        second, _ = await svc.create_account("Guest2", "pw")
+        assert not second.has_tag("god")

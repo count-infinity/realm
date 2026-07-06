@@ -669,6 +669,10 @@ class GameServer:
 
         self.session_manager.link_player_to_session(session, player)
         await session.send(f"\nCharacter '{name}' created.")
+        if player.has_tag('god'):
+            await session.send(
+                "As the first character on this server you have SUPERUSER "
+                "powers (builder and admin commands — see 'help').")
 
         steps = self.game_system.chargen_steps()
         if steps:

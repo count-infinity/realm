@@ -1,64 +1,47 @@
 # Installation
 
-## Requirements
+REALM needs Python 3.11 or newer. That's the whole requirements list —
+the engine is asyncio + SQLite, no external database, no message
+broker.
 
-- Python 3.11 or higher (tested up to Python 3.14)
-- pip or uv for package management
-
-## Quick Install
+## From git (for now)
 
 ```bash
-# Clone the repository
 git clone https://github.com/realm-mud/realm.git
 cd realm
-
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -e .
+```
 
-# Install in development mode
+`pip install -e .` gives you the `realm` command and lets you pull
+engine updates with a plain `git pull`.
+
+!!! note "Later: pip"
+    Once REALM is published this whole page becomes
+    `pip install realm`. Everything after this point already works
+    exactly as it will then.
+
+## Check it worked
+
+```bash
+realm --help
+```
+
+You should see the `init` / `start` subcommands. If `realm` isn't
+found, your virtualenv isn't active.
+
+## For contributors (optional)
+
+Tests, linting, and this documentation site:
+
+```bash
 pip install -e ".[dev]"
+pytest                # ~800 tests, a couple of seconds
+mkdocs serve          # these docs at http://127.0.0.1:8000
 ```
 
-## Optional Dependencies
+Docs are plain Markdown in `docs/` — readable on GitHub as-is;
+`mkdocs build` produces a static HTML site you can host anywhere.
 
-### WebSocket Support
-
-```bash
-pip install -e ".[websocket]"
-```
-
-### PostgreSQL Support
-
-```bash
-pip install -e ".[postgres]"
-```
-
-### All Optional Dependencies
-
-```bash
-pip install -e ".[dev,websocket,postgres]"
-```
-
-## Verify Installation
-
-```bash
-# Run the test suite
-pytest
-
-# Start a test server
-realm start
-```
-
-Then connect with telnet:
-
-```bash
-telnet localhost 4000
-```
-
-You should see the welcome screen immediately.
-
-## Next Steps
-
-- [Quick Start](quickstart.md) - Run your first server
-- [Your First Game](first-game.md) - Build a simple world
+Next: [Your First Game](first-game.md).

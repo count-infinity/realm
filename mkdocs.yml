@@ -56,6 +56,13 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Your First Game: getting-started/first-game.md
+  - "Tutorial: The Abandoned Lighthouse":
+    - Overview: tutorial/index.md
+    - 1. The Island: tutorial/01-the-island.md
+    - 2. Keys and Doors: tutorial/02-keys-and-doors.md
+    - 3. Living Things: tutorial/03-living-things.md
+    - 4. Softcode: tutorial/04-softcode.md
+    - 5. The Banshee: tutorial/05-the-banshee.md
   - Architecture:
     - Overview: architecture/overview.md
     - Session Lifecycle: architecture/sessions.md

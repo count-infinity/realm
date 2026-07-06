@@ -1,78 +1,72 @@
 # Your First Game
 
-This tutorial walks through creating a simple game world with rooms, items, and basic interactions.
+## Create a game directory
 
-!!! note "Work in Progress"
-    This documentation is being developed. Check back soon for the full tutorial.
+Your game is a *directory*, not a fork of the engine:
 
-## Overview
-
-You'll learn to:
-
-1. Create rooms and connect them with exits
-2. Add items players can pick up
-3. Create simple NPCs
-4. Add custom commands
-
-## Creating Rooms
-
-```python
-from realm.core.objects import GameObject
-
-# Create a starting room
-tavern = GameObject(
-    name="The Rusty Tankard",
-    description="A cozy tavern with a crackling fireplace. The smell of ale fills the air.",
-    tags=['room', 'start_room'],
-)
-
-# Create another room
-street = GameObject(
-    name="Main Street",
-    description="A cobblestone street runs through the center of town.",
-    tags=['room'],
-)
+```bash
+realm init mygame
+cd mygame
+realm start
 ```
 
-## Connecting Rooms with Exits
+`config.py` holds your settings (ports, game name, tick rate, which
+rules package to use); `data/` holds the SQLite database and welcome
+screen. The server is now listening on telnet port 4000.
 
-```python
-# Create an exit from tavern to street
-exit_out = GameObject(
-    name="out",
-    description="The door leads to Main Street.",
-    tags=['exit'],
-    location=tavern,
-)
-exit_out.db.destination = street.id
+## Connect and become the superuser
 
-# Create return exit
-exit_tavern = GameObject(
-    name="tavern",
-    description="The door to The Rusty Tankard.",
-    tags=['exit'],
-    location=street,
-)
-exit_tavern.db.destination = tavern.id
+From another terminal (or any MUD client — Mudlet, TinTin++, telnet):
+
+```bash
+telnet localhost 4000
 ```
 
-## Adding Items
-
-```python
-# A simple item
-sword = GameObject(
-    name="rusty sword",
-    description="An old sword, pitted with rust but still sharp.",
-    tags=['thing', 'weapon'],
-    location=tavern,
-)
-sword.db.damage = 5
+```text
+create Keeper mypassword
 ```
 
-## Next Steps
+**The first character created on a fresh database is the superuser** —
+you'll be told so at creation. You'll then pick a character background
+and a bonus skill (the default rules package is GURPS-flavored; set
+`GAME_SYSTEM = "d20"` in config.py for classes instead) and arrive in
+**The Void**, REALM's Limbo. You have every builder and admin command;
+characters created after you are ordinary players (promote them with
+`@tag <name> = builder`).
 
-- Add behaviors to make objects interactive
-- Create NPCs with AI behaviors
-- Implement a combat system
+## Look around
 
-See the [Architecture Overview](../architecture/overview.md) to understand how these pieces fit together.
+```text
+look
+help
+help building
+```
+
+`help` lists every command *you* can use, grouped by category — as the
+superuser you'll see the Building section ordinary players don't.
+
+## Try the example game
+
+The GURPS-flavored space station example shows most engine systems in
+play (character templates, an infiltration scenario, combat, shops):
+
+```bash
+cd ..
+realm init spacestation --template spacegame
+cd spacestation
+realm start
+```
+
+Connect, create a character, and you'll be walked through **character
+generation** — pick a background (soldier, infiltrator, face,
+technician) and a bonus skill, then arrive in the Docking Bay. Try
+`north` to the Promenade, `consider` NPCs, and `attack` something you
+shouldn't.
+
+## Stopping and restarting
+
+`Ctrl-C` stops the server. Everything is in the SQLite database —
+characters, rooms, your building work, even half-finished character
+generation — so `realm start` picks up exactly where you left off.
+
+Next: build something real — [The Abandoned Lighthouse](../tutorial/index.md).

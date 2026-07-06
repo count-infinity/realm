@@ -326,6 +326,25 @@ Design sketch:
 
 ## Completed
 
+- [x] **THE TUTORIAL IS TRUE: Getting Started docs (2026-07-06).**
+  814 tests; 14-check live drive runs the tutorial's command sequence
+  near-verbatim against a fresh default game. MkDocs Material was
+  already wired — docs stay plain Markdown (readable on GitHub),
+  `mkdocs serve`/`build` for HTML.
+  - Rewrote getting-started/ (installation from git with the
+    pip-install-later note, quickstart, first-game) and added the
+    5-part **Abandoned Lighthouse** tutorial (public-domain premise):
+    rooms/details → locked trapdoor + hidden key → NPCs/behaviors/
+    clone → softcode ($cmd, ^listen, ON_ENTER trap, inline [[...]]
+    cached-roll description) → banshee (fear wail), combat/loot,
+    ferryman ON_PAYMENT bribe. Each part ends with a Learn-more box.
+  - **First character on a fresh database becomes SUPERUSER**
+    (god tag, announced at creation) — no more sqlite surgery;
+    AuthService owns the save.
+  - Writing the docs found a REAL bug: `@dig room = a, b` created BOTH
+    names as outbound exits (even `= north, south` made a wrong-way
+    south). Fixed to Evennia semantics: first name out, second name
+    (or compass opposite) back, in the new room.
 - [x] **SPEAKING CLIENT: GMCP / out-of-band channel (2026-07-06).**
   813 tests (9 new). The gateway now speaks structured data:
   - **Session OOB channel**: `session.send_oob(package, dict)` +
