@@ -42,7 +42,7 @@ from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager, set_active_manager
 from realm.scripting.engine import ScriptEngine, set_script_engine
-from realm.server.auth import hash_password, verify_password
+from realm.server.auth import AuthService
 from realm.server.dispatcher import CommandContext, CommandDispatcher
 from realm.systems import GameSystemRegistry, GurpsSystem, set_game_system
 
@@ -112,6 +112,7 @@ class GameServer:
         self.session_manager = SessionManager()
         self.dispatcher = CommandDispatcher()
         self.persistence: PersistenceManager | None = None
+        self.auth: AuthService | None = None
         self.script_engine: ScriptEngine | None = None
         self.combat_manager: CombatManager | None = None
 
@@ -240,6 +241,7 @@ class GameServer:
         await self.persistence.initialize()
         await self.persistence.start_flush_loop()
         set_active_manager(self.persistence)
+        self.auth = AuthService(self.persistence)
 
         # Load world
         loaded_count = await self._load_world()
@@ -274,6 +276,7 @@ class GameServer:
             self.script_engine = ScriptEngine(persistence=self.persistence)
             get_propagation_engine().add_observer(self.script_engine.handle_action)
             set_script_engine(self.script_engine)
+            self.script_engine.dispatcher = self.dispatcher
 
         # Loud actions break stealth, whoever performs them.
         get_propagation_engine().add_observer(stealth_observer)
@@ -624,30 +627,15 @@ class GameServer:
             )
 
     async def _do_connect(self, session: Session, name: str, password: str) -> None:
-        """Handle the connect command."""
-        if not self.persistence:
+        """Handle the connect command (identity via AuthService)."""
+        if not self.persistence or not self.auth:
             await session.send("Server not ready.")
             return
 
-
-        # For now, just find the player by name
-
-        matches = self.persistence.find_cached(tag='player', name=name)
-        player = matches[0] if matches else None
-
-        if not player:
-            await session.send(f"Character '{name}' not found. Use 'create' to make one.")
+        player, error = await self.auth.authenticate(name, password)
+        if player is None:
+            await session.send(error)
             return
-
-        stored_password = str(player.db.get('password') or '')
-        ok, needs_rehash = verify_password(password, stored_password)
-        if not ok:
-            await session.send("Invalid password.")
-            return
-        if needs_rehash:
-            # Legacy plaintext account: upgrade in place on first login.
-            player.db.password = hash_password(password)
-            await self.persistence.save(player)
 
         # Link player to session
         self.session_manager.link_player_to_session(session, player)
@@ -668,27 +656,16 @@ class GameServer:
         await session.send(render_room(player.location, player))
 
     async def _do_create(self, session: Session, name: str, password: str) -> None:
-        """Handle the create command."""
-        if not self.persistence:
+        """Handle the create command (identity via AuthService)."""
+        if not self.persistence or not self.auth:
             await session.send("Server not ready.")
             return
 
-        # Check if name is taken
-        if self.persistence.find_cached(tag='player', name=name):
-            await session.send(f"Character '{name}' already exists.")
+        player, error = await self.auth.create_account(
+            name, password, system=self.game_system)
+        if player is None:
+            await session.send(error)
             return
-
-        # Create new player
-        player = GameObject(
-            name=name,
-            description=f"This is {name}.",
-            location=None,
-            tags=['player'],
-        )
-        player.db.password = hash_password(password)
-
-        # The game system supplies baselines and the chargen flow.
-        self.game_system.apply_baseline(player)
 
         self.session_manager.link_player_to_session(session, player)
         await session.send(f"\nCharacter '{name}' created.")

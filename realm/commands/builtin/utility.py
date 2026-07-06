@@ -83,64 +83,60 @@ async def cmd_help(ctx: CommandContext) -> None:
 
 
 async def _show_command_list(ctx: CommandContext) -> None:
-    """Show list of available commands."""
-    commands = ctx.dispatcher.list_commands(ctx.player)
+    """List available commands, grouped by their registered category."""
+    dispatcher = ctx.dispatcher
+    visible = set(dispatcher.list_commands(ctx.player))
+
+    categories: dict[str, list[str]] = {}
+    for name, cmd in dispatcher._commands.items():
+        if name in visible:
+            categories.setdefault(cmd.category, []).append(name)
 
     await ctx.session.send("\n" + "=" * 40)
     await ctx.session.send("  Available Commands")
     await ctx.session.send("=" * 40)
-
-    # Group commands by category
-    categories = {
-        'movement': ['go', 'north', 'south', 'east', 'west', 'up', 'down',
-                     'northeast', 'northwest', 'southeast', 'southwest', 'in', 'out'],
-        'communication': ['say', 'pose', 'semipose', 'emit', 'whisper', 'ooc', 'shout'],
-        'looking': ['look', 'examine'],
-        'inventory': ['inventory', 'get', 'drop', 'give', 'put'],
-        'utility': ['who', 'quit', 'help', 'commands', 'time', 'uptime'],
-    }
-
-    shown = set()
-
-    for category, cat_commands in categories.items():
-        matching = [c for c in cat_commands if c in commands]
-        if matching:
-            await ctx.session.send(f"\n{category.title()}:")
-            await ctx.session.send(f"  {', '.join(sorted(matching))}")
-            shown.update(matching)
-
-    # Show any remaining commands
-    remaining = [c for c in commands if c not in shown]
-    if remaining:
-        await ctx.session.send("\nOther:")
-        await ctx.session.send(f"  {', '.join(sorted(remaining))}")
-
-    await ctx.session.send("\nType 'help <command>' for more information.")
-    await ctx.session.send("")
+    for category in sorted(categories):
+        await ctx.session.send(f"\n{category.title()}:")
+        await ctx.session.send(f"  {', '.join(sorted(categories[category]))}")
+    await ctx.session.send(
+        "\nhelp <command> for details; help <word> searches help text.")
 
 
-async def _show_command_help(ctx: CommandContext, command_name: str) -> None:
-    """Show help for a specific command."""
-    cmd = ctx.dispatcher.get_command(command_name.lower())
-
-    if not cmd:
-        await ctx.session.send(f"Unknown command: {command_name}")
-        await ctx.session.send("Type 'help' for a list of commands.")
+async def _show_command_help(ctx: CommandContext, topic: str) -> None:
+    """Detail one command, or search help text when nothing matches."""
+    dispatcher = ctx.dispatcher
+    cmd = dispatcher.get_command(topic.lower())
+    if cmd is not None:
+        lines = [f"\n{cmd.name}"]
+        if cmd.aliases:
+            lines.append(f"  aliases: {', '.join(cmd.aliases)}")
+        if cmd.usage:
+            lines.append(f"  usage: {cmd.usage}")
+        if cmd.help_text:
+            lines.append(f"  {cmd.help_text}")
+        doc = (cmd.handler.__doc__ or "").strip()
+        if doc:
+            lines.append("")
+            lines.extend("  " + ln.strip() for ln in doc.split("\n"))
+        await ctx.session.send("\n".join(lines))
         return
 
-    await ctx.session.send(f"\n{cmd.name.upper()}")
-    await ctx.session.send("-" * len(cmd.name))
+    # Search: substring over names, aliases, and help text.
+    want = topic.lower()
+    visible = set(dispatcher.list_commands(ctx.player))
+    hits = sorted({
+        name for name, c in dispatcher._commands.items()
+        if name in visible and (
+            want in name
+            or any(want in a for a in c.aliases)
+            or want in c.help_text.lower())
+    })
+    if hits:
+        await ctx.session.send(
+            f"No command '{topic}'. Related: {', '.join(hits)}")
+    else:
+        await ctx.session.send(f"No help found for '{topic}'.")
 
-    if cmd.help_text:
-        await ctx.session.send(cmd.help_text)
-
-    if cmd.usage:
-        await ctx.session.send(f"\nUsage: {cmd.usage}")
-
-    if cmd.aliases:
-        await ctx.session.send(f"Aliases: {', '.join(cmd.aliases)}")
-
-    await ctx.session.send("")
 
 
 async def cmd_commands(ctx: CommandContext) -> None:
@@ -206,21 +202,23 @@ async def cmd_recall(ctx: CommandContext) -> None:
 
 def register_utility_commands(dispatcher: CommandDispatcher) -> None:
     """Register utility commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="utility")
 
-    dispatcher.register(
+    register(
         "who",
         cmd_who,
         help_text="Show who is online",
     )
 
-    dispatcher.register(
+    register(
         "quit",
         cmd_quit,
         aliases=["QUIT"],
         help_text="Disconnect from the game",
     )
 
-    dispatcher.register(
+    register(
         "help",
         cmd_help,
         aliases=["?"],
@@ -228,33 +226,33 @@ def register_utility_commands(dispatcher: CommandDispatcher) -> None:
         usage="help [command]",
     )
 
-    dispatcher.register(
+    register(
         "commands",
         cmd_commands,
         help_text="List all available commands",
     )
 
-    dispatcher.register(
+    register(
         "time",
         cmd_time,
         help_text="Show the current time",
     )
 
-    dispatcher.register(
+    register(
         "uptime",
         cmd_uptime,
         help_text="Show server uptime",
         permission="builder",
     )
 
-    dispatcher.register(
+    register(
         "think",
         cmd_think,
         help_text="Think to yourself",
         usage="think <thought>",
     )
 
-    dispatcher.register(
+    register(
         "recall",
         cmd_recall,
         help_text="Return to your home",

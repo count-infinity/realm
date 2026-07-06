@@ -104,10 +104,19 @@ async def cmd_chown(ctx: CommandContext) -> None:
 
     old_owner = target.owner
     target.owner = new_owner
+    # Penn-faithful safety: the old owner's scripts must not run with
+    # the NEW owner's authority. Halt until the new owner reviews them.
+    if any(k.upper().startswith(('CMD_', 'LISTEN_', 'ON_'))
+           for k in target.db.all()):
+        target.add_tag('halt')
 
     await save_object(ctx, target)
 
     old_name = old_owner.name if old_owner else "nobody"
+    if target.has_tag('halt'):
+        await ctx.session.send(
+            f"{target.name} carries scripts — halted for review "
+            f"(@untag {target.name} = halt to reactivate).")
     await ctx.session.send(
         f"Ownership of {target.name} transferred from {old_name} to {new_owner.name}."
     )
@@ -355,8 +364,10 @@ async def _destroy_recursive(ctx: CommandContext, obj) -> int:
 
 def register_admin_commands(dispatcher: CommandDispatcher) -> None:
     """Register admin OLC commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="building")
 
-    dispatcher.register(
+    register(
         "@teleport",
         cmd_teleport,
         aliases=["@tel"],
@@ -366,7 +377,7 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@chown",
         cmd_chown,
         help_text="Change ownership of an object",
@@ -375,7 +386,7 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@destroy",
         cmd_destroy,
         aliases=["@recycle"],
@@ -384,7 +395,7 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         permission="builder",
     )
 
-    dispatcher.register(
+    register(
         "@nuke",
         cmd_nuke,
         help_text="Destroy a player object",
@@ -392,7 +403,7 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         permission="admin",
     )
 
-    dispatcher.register(
+    register(
         "@find",
         cmd_find,
         aliases=["@search"],
@@ -401,7 +412,7 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         permission="builder",
     )
 
-    dispatcher.register(
+    register(
         "@examine",
         cmd_examine_full,
         aliases=["@ex"],
@@ -410,7 +421,7 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         permission="builder",
     )
 
-    dispatcher.register(
+    register(
         "@force",
         cmd_force,
         help_text="Force an object to execute a command",
@@ -419,7 +430,7 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@boot",
         cmd_boot,
         help_text="Disconnect a player",

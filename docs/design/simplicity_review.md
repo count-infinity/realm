@@ -64,8 +64,16 @@ speculative surface, and (c) rituals that never got a helper.
 
 Done: functions.py one-idiom consolidation (_resolve everywhere,
 _controlled + _touch helpers, del_attr save, eq/gt comparisons and
-output_callback deleted; 989→~900 lines); 53 unreachable ctx.player
-guards deleted. Still pending below:
+output_callback deleted); 53 unreachable ctx.player guards deleted.
+ALSO DONE (2026-07-05, second pass): GURPS skill-ladder unification
+(get_skill → checks.skill_level via the get_stat-default trick; seed
+table trimmed to the engine floor), canonical speech_action/pose_action
+in core/verbs.py (cmd_say, engine emitters, and _npc_say all consume
+them — say/pose drift is now impossible), GameSystem.death_award hook
+(manager consults it), RulesetRegistry (games register custom rulesets
+without editing engine source), Behavior.countdown helper (ticker +
+wanderer converted), DispositionBoost applied-flag moved to owner.db.
+Still pending below (small, cosmetic tier):
 
 - **functions.py**: one resolution idiom (`_resolve` everywhere — 12
   older methods hand-roll it), one mutate helper (`_controlled` +

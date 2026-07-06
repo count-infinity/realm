@@ -76,6 +76,39 @@ class CombatResult:
     target_defeated: bool = False
 
 
+class RulesetRegistry:
+    """Rulesets register by name — a game ships its own with
+    ``RulesetRegistry.register('mysystem', MyRuleset)`` and selects it
+    via COMBAT_RULESET / GameSystem.ruleset_name. Same shape as the
+    behavior and game-system registries."""
+
+    _rulesets: dict[str, type] = {}
+
+    @classmethod
+    def register(cls, name: str, ruleset_class: type) -> None:
+        cls._rulesets[name.lower()] = ruleset_class
+
+    @classmethod
+    def get(cls, name: str) -> type | None:
+        cls._ensure_builtins()
+        return cls._rulesets.get(name.lower())
+
+    @classmethod
+    def list_all(cls) -> list[str]:
+        cls._ensure_builtins()
+        return sorted(cls._rulesets)
+
+    @classmethod
+    def _ensure_builtins(cls) -> None:
+        if 'gurps' not in cls._rulesets:
+            from realm.combat.rulesets.d20 import D20Ruleset
+            from realm.combat.rulesets.gurps import GURPSRuleset
+            cls._rulesets.setdefault('d20', D20Ruleset)
+            cls._rulesets.setdefault('dnd', D20Ruleset)
+            cls._rulesets.setdefault('gurps', GURPSRuleset)
+            cls._rulesets.setdefault('3d6', GURPSRuleset)
+
+
 def find_wielded(obj) -> Any | None:
     """The first carried object tagged ``wielded`` — the readied weapon."""
     for item in obj.contents:
@@ -412,19 +445,11 @@ def create_combat_system(
     Returns:
         Configured CombatSystem
     """
-    from realm.combat.rulesets.d20 import D20Ruleset
-    from realm.combat.rulesets.gurps import GURPSRuleset
-
-    ruleset_map = {
-        'd20': D20Ruleset,
-        'dnd': D20Ruleset,
-        'gurps': GURPSRuleset,
-        '3d6': GURPSRuleset,
-    }
-
-    ruleset_class = ruleset_map.get(ruleset_name.lower())
+    ruleset_class = RulesetRegistry.get(ruleset_name.lower())
     if not ruleset_class:
-        raise ValueError(f"Unknown ruleset: {ruleset_name}. Available: {list(ruleset_map.keys())}")
+        raise ValueError(
+            f"Unknown ruleset: {ruleset_name}. "
+            f"Available: {RulesetRegistry.list_all()}")
 
     ruleset = ruleset_class(**ruleset_options)
     return CombatSystem(ruleset=ruleset)

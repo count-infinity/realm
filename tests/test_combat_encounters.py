@@ -47,6 +47,8 @@ def level_resolver(obj, skill, modifier):
 
 @pytest.fixture
 def manager():
+    from realm.core.checks import SKILL_DEFAULTS
+    saved_defaults = dict(SKILL_DEFAULTS)
     reset_engine()
     set_check_resolver(level_resolver)
     mgr = CombatManager(
@@ -58,6 +60,8 @@ def manager():
     mgr.stop_all()
     set_combat_manager(None)
     set_check_resolver(None)
+    from realm.core.checks import set_skill_defaults
+    set_skill_defaults(saved_defaults)
     reset_engine()
 
 
@@ -697,7 +701,11 @@ class TestProgression:
 
     async def test_improve_from_untrained_default(self, manager):
         from realm.commands.builtin.combat import cmd_improve
+        from realm.core.checks import set_skill_defaults
         from realm.server.dispatcher import CommandContext, CommandDispatcher
+        from realm.systems import GurpsSystem
+
+        set_skill_defaults(GurpsSystem().skill_defaults())
 
         room = GameObject("Arena", tags=["room"])
         alice, sess = make_fighter("Alice", room)  # dexterity 12, no stealth

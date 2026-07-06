@@ -67,8 +67,10 @@ async def cmd_direction(ctx: CommandContext) -> None:
 
 def register_movement_commands(dispatcher: CommandDispatcher) -> None:
     """Register movement commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="movement")
 
-    dispatcher.register(
+    register(
         "go",
         cmd_go,
         help_text="Move in a direction",
@@ -92,5 +94,5 @@ def register_movement_commands(dispatcher: CommandDispatcher) -> None:
         )
 
     # In/out
-    dispatcher.register("in", cmd_direction, help_text="Go in")
-    dispatcher.register("out", cmd_direction, help_text="Go out")
+    register("in", cmd_direction, help_text="Go in")
+    register("out", cmd_direction, help_text="Go out")

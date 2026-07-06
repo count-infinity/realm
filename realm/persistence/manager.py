@@ -102,11 +102,31 @@ class PersistenceManager:
         self._object_cache: dict[str, GameObject] = {}
         self._running = False
 
+    #: bump when SCHEMA changes; add a migration step below.
+    SCHEMA_VERSION = 1
+
     async def initialize(self) -> None:
         """Initialize the database connection and create tables."""
         self._db = await aiosqlite.connect(self.db_path)
         self._db.row_factory = aiosqlite.Row
+        # WAL survives crashes far better than the rollback journal and
+        # lets reads proceed during the flush transaction.
+        await self._db.execute("PRAGMA journal_mode=WAL")
+        await self._db.execute("PRAGMA synchronous=NORMAL")
         await self._db.executescript(SCHEMA)
+
+        async with self._db.execute("PRAGMA user_version") as cursor:
+            row = await cursor.fetchone()
+            db_version = int(row[0]) if row else 0
+        if db_version == 0:
+            await self._db.execute(
+                f"PRAGMA user_version = {self.SCHEMA_VERSION}")
+        elif db_version > self.SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Database schema v{db_version} is newer than this REALM "
+                f"(v{self.SCHEMA_VERSION}) — upgrade the engine.")
+        # db_version < SCHEMA_VERSION: run migrations here as they exist.
+
         await self._db.commit()
         logger.info(f"Database initialized at {self.db_path}")
 
@@ -236,16 +256,22 @@ class PersistenceManager:
             return []
 
         objects: list[GameObject] = []
+        refs: dict[str, tuple] = {}
         async with self._db.execute("SELECT * FROM objects") as cursor:
             async for row in cursor:
-                obj = self._row_to_object(dict(row))
+                data = dict(row)
+                obj = self._row_to_object(data)
                 if obj:
                     self._object_cache[obj.id] = obj
                     objects.append(obj)
+                    refs[obj.id] = (data.get('location_id'),
+                                    data.get('parent_id'),
+                                    data.get('owner_id'))
 
-        # Second pass: resolve references (location, parent, owner)
+        # Second pass: resolve references from the ids captured during
+        # the scan — one query for the whole world, not one per object.
         for obj in objects:
-            await self._resolve_references(obj)
+            self._apply_references(obj, *refs[obj.id])
 
         return objects
 
@@ -401,6 +427,11 @@ class PersistenceManager:
             parent_id = row['parent_id']
             owner_id = row['owner_id']
 
+        self._apply_references(obj, location_id, parent_id, owner_id)
+
+    def _apply_references(self, obj: GameObject, location_id, parent_id,
+                          owner_id) -> None:
+        """Point loaded references at cached objects."""
         # Resolve references from cache (objects should be loaded already)
         if location_id and location_id in self._object_cache:
             obj._location = self._object_cache[location_id]

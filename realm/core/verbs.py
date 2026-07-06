@@ -167,7 +167,40 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
     return True
 
 
+def speech_action(speaker: GameObject, message: str) -> Action:
+    """The canonical say shape — used by cmd_say, scripted says, and
+    NPC _npc_say so narration can never drift apart."""
+    from realm.core.propagation import ROOM_TARGET_CHAIN
+    action = Action(
+        actor=speaker,
+        target=speaker.location,
+        action_type="event:speech",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"message": message},
+    )
+    action.add_message("actor", f'You say, "{message}"', success_only=True)
+    action.add_message("room", f'{{actor}} says, "{message}"', success_only=True)
+    return action
+
+
+def pose_action(poser: GameObject, pose_text: str) -> Action:
+    """The canonical pose shape."""
+    from realm.core.propagation import ROOM_TARGET_CHAIN
+    action = Action(
+        actor=poser,
+        target=poser.location,
+        action_type="event:emote",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"pose": pose_text},
+    )
+    action.add_message("actor", f"{{actor}} {pose_text}", success_only=True)
+    action.add_message("room", f"{{actor}} {pose_text}", success_only=True)
+    return action
+
+
 __all__ = [
+    "speech_action",
+    "pose_action",
     "gate_item_action",
     "do_get",
     "do_drop",

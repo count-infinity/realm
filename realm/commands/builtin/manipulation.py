@@ -394,25 +394,27 @@ async def cmd_search(ctx: CommandContext) -> None:
 
 def register_manipulation_commands(dispatcher: CommandDispatcher) -> None:
     """Register manipulation commands with the dispatcher."""
-    dispatcher.register("open", cmd_open,
+    from functools import partial
+    register = partial(dispatcher.register, category="items")
+    register("open", cmd_open,
                         help_text="Open a door or container", usage="open <target>")
-    dispatcher.register("close", cmd_close,
+    register("close", cmd_close,
                         help_text="Close a door or container", usage="close <target>")
-    dispatcher.register("lock", cmd_lock_item,
+    register("lock", cmd_lock_item,
                         help_text="Lock with a carried key", usage="lock <target>")
-    dispatcher.register("unlock", cmd_unlock_item,
+    register("unlock", cmd_unlock_item,
                         help_text="Unlock with a carried key", usage="unlock <target>")
-    dispatcher.register("pick", cmd_pick,
+    register("pick", cmd_pick,
                         help_text="Pick a lock with skill", usage="pick <target>")
-    dispatcher.register("use", cmd_use,
+    register("use", cmd_use,
                         help_text="Use an object, or an item on a target",
                         usage="use <target> | use <item> on <target>")
-    dispatcher.register("wear", cmd_wear,
+    register("wear", cmd_wear,
                         help_text="Wear a carried item", usage="wear <item>")
-    dispatcher.register("remove", cmd_unwear, aliases=["unwear"],
+    register("remove", cmd_unwear, aliases=["unwear"],
                         help_text="Take off a worn item", usage="remove <item>")
-    dispatcher.register("hide", cmd_hide,
+    register("hide", cmd_hide,
                         help_text="Hide (Stealth check)", usage="hide")
-    dispatcher.register("search", cmd_search,
+    register("search", cmd_search,
                         help_text="Search for the hidden (Observation check)",
                         usage="search")

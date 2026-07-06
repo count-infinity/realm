@@ -215,8 +215,11 @@ class DispositionBoostBehavior(TimedEffectBehavior):
 
     def attach(self, obj: GameObject) -> None:
         super().attach(obj)
-        if not self.get_param('applied'):
-            self._params['applied'] = True
+        # Applied-flag lives in owner.db (behaviors are stateless logic;
+        # a reboot re-attach must not re-apply the delta).
+        flag = _state_key(self.kind, 'applied')
+        if not obj.db.get(flag):
+            obj.db.set(flag, True)
             target = self._target(obj)
             if target is not None:
                 from realm.core.disposition import adjust_disposition
@@ -245,6 +248,7 @@ class DispositionBoostBehavior(TimedEffectBehavior):
         if target is not None:
             from realm.core.disposition import adjust_disposition
             adjust_disposition(obj, target, -int(self.get_param('delta', 2)))
+        obj.db.delete(_state_key(self.kind, 'applied'))
         await super()._expire(obj)
 
 

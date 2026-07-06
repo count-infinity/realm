@@ -93,9 +93,18 @@ class TestChecks:
         assert skill_level(obj, "stealth") == 14
 
     def test_attribute_default(self):
-        obj = GameObject("Rube")
-        obj.db.dexterity = 12
-        assert skill_level(obj, "stealth") == 7  # DX-5
+        # The active GameSystem owns the defaults table (as on a live
+        # server); the engine seed is just the flee floor.
+        from realm.core.checks import SKILL_DEFAULTS, set_skill_defaults
+        from realm.systems import GurpsSystem
+        saved = dict(SKILL_DEFAULTS)
+        try:
+            set_skill_defaults(GurpsSystem().skill_defaults())
+            obj = GameObject("Rube")
+            obj.db.dexterity = 12
+            assert skill_level(obj, "stealth") == 7  # DX-5
+        finally:
+            set_skill_defaults(saved)
 
     def test_check_uses_resolver(self):
         skilled = GameObject("Pro")

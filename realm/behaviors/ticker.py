@@ -48,11 +48,9 @@ class ScriptTickerBehavior(Behavior):
     async def tick(self, obj: GameObject, delta: float) -> None:
         from realm.scripting.engine import get_script_engine
 
-        wait = int(obj.db.get('script_tick_wait') or 0)
-        if wait > 0:
-            obj.db.script_tick_wait = wait - 1
+        if not self.countdown(obj, 'script_tick_wait',
+                              int(self.get_param('interval', 4))):
             return
-        obj.db.script_tick_wait = max(0, int(self.get_param('interval', 4)) - 1)
 
         engine = get_script_engine()
         if engine is None:

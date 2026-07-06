@@ -266,8 +266,10 @@ async def cmd_unlink(ctx: CommandContext) -> None:
 
 def register_create_commands(dispatcher: CommandDispatcher) -> None:
     """Register creation OLC commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="building")
 
-    dispatcher.register(
+    register(
         "@create",
         cmd_create,
         help_text="Create a new object",
@@ -276,7 +278,7 @@ def register_create_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@dig",
         cmd_dig,
         help_text="Create a new room with exits",
@@ -285,7 +287,7 @@ def register_create_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@open",
         cmd_open,
         help_text="Create an exit to a room",
@@ -294,7 +296,7 @@ def register_create_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@link",
         cmd_link,
         help_text="Link an exit to a destination",
@@ -303,7 +305,7 @@ def register_create_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@unlink",
         cmd_unlink,
         help_text="Unlink an exit",

@@ -220,15 +220,15 @@ class GURPSRuleset(Ruleset):
         return skill - roll
 
     def get_skill(self, combatant: Combatant, skill_type: str = "melee") -> int:
-        """Skill level for an attack type — honors the weapon's named
-        skill (skill_guns, skill_bow) before falling back to the broad
-        melee/ranged stats."""
-        direct = combatant.get_stat(f'skill_{skill_type}', -999)
-        if direct != -999:
-            return direct
-        if skill_type == "ranged":
-            return combatant.get_stat('skill_ranged', 10)
-        return combatant.get_stat('skill_melee', 10)
+        """Skill level for an attack type — the ONE skill ladder:
+        trained level, else the GameSystem's attribute default (an
+        untrained DX-13 fighter attacks at DX-4, not a flat 10), with
+        temporary combat modifiers (feints, stances) applied on top.
+        get_stat with the ladder as its default handles every case:
+        trained/untrained x modified/unmodified."""
+        from realm.core.checks import skill_level
+        base = skill_level(combatant.obj, skill_type)
+        return combatant.get_stat(f'skill_{skill_type}', base)
 
     def get_strength_bonus(self, combatant: Combatant) -> int:
         """

@@ -110,7 +110,15 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
 
     desc = room_description(room)
     if desc:
-        lines.append(desc)
+        if '[[' in desc:
+            from realm.scripting.inline import eval_inline
+            desc = eval_inline(desc, room, viewer).strip()
+        if desc:
+            lines.append(desc)
+
+    # Per-viewer conditional details (skill-gated softcode descriptions).
+    from realm.core.describe import detail_lines
+    lines.extend(detail_lines(room, viewer))
 
     things: list[GameObject] = []
     players: list[GameObject] = []

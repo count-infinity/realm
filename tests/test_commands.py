@@ -314,7 +314,7 @@ class TestBuiltinCommands:
             output.append(self.session._output_queue.get_nowait())
 
         full_output = "\n".join(output)
-        assert "LOOK" in full_output
+        assert "look" in full_output
 
     @pytest.mark.asyncio
     async def test_think_command(self):

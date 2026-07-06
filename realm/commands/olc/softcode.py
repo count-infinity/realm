@@ -213,10 +213,44 @@ async def cmd_trigger(ctx: CommandContext) -> None:
         await ctx.session.send(f"{target.name} has no script in '{attr_name}'.")
 
 
+async def cmd_force(ctx: CommandContext) -> None:
+    """
+    Make something you control execute a command.
+
+    Usage: @force <target> = <command>
+
+    Runs through the real dispatcher — the target's own permissions
+    apply (an NPC can't run builder commands). Forcing a player needs
+    control of them: admin, or their explicit control-lock grant
+    (possession is opt-in: @lock/control me = <expression>).
+    """
+    from realm.permissions.locks import controls
+    from realm.server.puppet import force_command
+
+    if not ctx.left_args or not ctx.right_args:
+        await ctx.session.send("Usage: @force <target> = <command>")
+        return
+
+    target = resolve_target(ctx, ctx.left_args.strip())
+    if not target:
+        await ctx.session.send(f"Object '{ctx.left_args.strip()}' not found.")
+        return
+    if not controls(ctx.player, target):
+        await ctx.session.send(f"You don't control {target.name}.")
+        return
+
+    ok = await force_command(ctx.dispatcher, target, ctx.right_args.strip(),
+                             watcher=ctx.session)
+    if not ok:
+        await ctx.session.send("Puppet chain too deep.")
+
+
 def register_softcode_commands(dispatcher: CommandDispatcher) -> None:
     """Register live-composition builder commands."""
+    from functools import partial
+    register = partial(dispatcher.register, category="building")
 
-    dispatcher.register(
+    register(
         "@behavior",
         cmd_behavior,
         aliases=["@behaviors"],
@@ -226,7 +260,7 @@ def register_softcode_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@clone",
         cmd_clone,
         help_text="Duplicate an object with its attributes, tags, and behaviors",
@@ -235,7 +269,16 @@ def register_softcode_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
+        "@force",
+        cmd_force,
+        help_text="Make something you control execute a command",
+        usage="@force <target> = <command>",
+        permission="builder",
+        parse_equals=True,
+    )
+
+    register(
         "@tr",
         cmd_trigger,
         aliases=["@trigger"],

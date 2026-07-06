@@ -89,11 +89,12 @@ def get_role(obj: GameObject | None) -> Role:
     if obj.has_tag('guest'):
         return Role.GUEST
 
-    # Default for non-guest players
-    if obj.has_tag('player'):
+    # Players and NPCs are full citizens of the command layer — a
+    # forced/possessed NPC may run player-level commands (never builder+).
+    if obj.has_tag('player') or obj.has_tag('npc'):
         return Role.PLAYER
 
-    # Non-player objects default to GUEST level
+    # Other objects default to GUEST level
     return Role.GUEST
 
 

@@ -18,7 +18,8 @@ after the 2026-07-04 modifier pipeline: **42 YES / 29 SOFT / 14 PARTIAL / 9 NO**
 after dispositions (same day): **44 YES / 29 SOFT / 12 PARTIAL / 9 NO**;
 after ranged combat (2026-07-05): **46 YES / 29 SOFT / 12 PARTIAL / 7 NO**;
 after the economy kit (same day): **50 YES / 28 SOFT / 9 PARTIAL / 7 NO**;
-after followers/party (same day): **51 YES / 28 SOFT / 9 PARTIAL / 6 NO.**
+after followers/party (same day): **51 YES / 28 SOFT / 9 PARTIAL / 6 NO**;
+after @force/possession (2026-07-05): **53 YES / 28 SOFT / 8 PARTIAL / 5 NO.**
 Gap clusters at the bottom feed BACKLOG.md.
 
 ---
@@ -63,14 +64,14 @@ Gap clusters at the bottom feed BACKLOG.md.
 | Mechanic | Covered? | How / gap |
 |---|---|---|
 | Ghost children NPCs with dialogue | YES | `$ask *`/`^listen` softcode dialogue; per-looker visibility for ghosts (`invisible`/`see_invisible`). |
-| Possession (ghost controls a PC) | NO | Requires acting as another's session — the `@force`/dispatcher-access gap, deliberately deferred. |
+| Possession (ghost controls a PC) | YES | @force / softcode force() through the real dispatcher; possession is OPT-IN via the victim's control lock (`@lock/control me = caller.has_tag('ghost')`). (2026-07-05) |
 | Creepy mood escalation on a timer | YES | script_ticker on rooms + `wait` chains for staged emits. |
 | House refuses exit (doors seal) | YES | Scripted `set_lock`/`closed` tags — proven live (script-sealed coin). |
 | Animated armor / mimic furniture | YES | Innocuous object + ON_GET/ON_ENTER `start_combat`; spawner prototype. |
 | Cult ritual demands a sacrifice | SOFT | Room ON_EVENT scripts + counters in room.db. |
 | Shambling mound boss fight | YES | Beat combat, strategies, HealerBehavior-style adds. |
 | Fear/madness effects (disadvantage) | YES | ModifierEffectBehavior + check_mods → condition_modifier auto-applies to every roll (2026-07-04). |
-| Smoke/haze obscuring vision | PARTIAL | Observation penalties now work via check_mods; graded VISUAL concealment (render) still missing. |
+| Smoke/haze obscuring vision | PARTIAL | Observation penalties via check_mods; @detail gives per-viewer conditional text; graded render concealment still missing. |
 | Child corpses reveal backstory items | YES | Containers, examine, hidden objects. |
 
 ## 4. D&D 5e — A Wild Sheep Chase
@@ -115,9 +116,9 @@ Gap clusters at the bottom feed BACKLOG.md.
 
 | Mechanic | Covered? | How / gap |
 |---|---|---|
-| Library/newspaper research phase | YES | Rooms as archives, skill-gated examine reveals (`check_skill` pattern), hidden clue objects. |
+| Library/newspaper research phase | YES | Rooms as archives, hidden clue objects, and @detail skill-gated description reveals (`check('library_use') -> ...`). |
 | Sanity meter eroded by scares | SOFT | sanity attr + softcode fright events; thresholds trigger effects. |
-| Phobia/temporary madness effects | PARTIAL | Auto-penalties DONE (check_mods); forced actions still the @force gap. |
+| Phobia/temporary madness effects | YES | check_mods auto-penalties + force() for compelled actions. |
 | Haunted-house room-by-room dread | YES | ON_ENTER emits, script_ticker whispers, per-viewer perception. |
 | Poltergeist throws objects | YES | Scripted `teleport_obj` + damage + emits. |
 | The bed that attacks | YES | ON_EVENT start_combat from furniture. |
@@ -202,8 +203,12 @@ Gap clusters at the bottom feed BACKLOG.md.
    self-resolve, locks judge each follower separately, fleeing breaks
    the chain), party = connected follow component in the room, CP
    awards split across party members present.
-6. **@force / possession** (blocks 2 rows): known deliberate deferral;
-   charm/possession is its payoff case.
+6. ~~**@force / possession**~~ **DONE 2026-07-05**: PuppetSession +
+   force_command through the REAL dispatcher (target's own permissions
+   apply — NPCs are player-level citizens, never builder+); authority =
+   controls(); player possession is opt-in via control lock; softcode
+   force() queued; puppet chains depth-capped. Bonus: closed a
+   controls() hole (builders no longer control unowned players).
 7. **Chase subsystem** (1-2 rows): opposed movement contest over
    rounds; genuinely optional — contests approximate it.
 

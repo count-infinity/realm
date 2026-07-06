@@ -114,6 +114,10 @@ class GameSystem(ABC):
         """Character points to raise ``skill`` by one level."""
         return 4
 
+    def death_award(self, victim: GameObject) -> int:
+        """Character points a kill is worth (split across the party)."""
+        return max(1, int(victim.db.get('points') or 10) // 10)
+
     # --- Character creation ---
 
     def apply_baseline(self, player: GameObject) -> None:

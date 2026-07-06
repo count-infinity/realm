@@ -187,19 +187,21 @@ async def cmd_pay(ctx: CommandContext) -> None:
 
 
 def register_economy_commands(dispatcher: CommandDispatcher) -> None:
-    dispatcher.register("credits", cmd_credits, aliases=["money", "balance"],
+    from functools import partial
+    register = partial(dispatcher.register, category="economy")
+    register("credits", cmd_credits, aliases=["money", "balance"],
                         help_text="Show your balance",
                         usage="credits")
-    dispatcher.register("list", cmd_list, aliases=["wares"],
+    register("list", cmd_list, aliases=["wares"],
                         help_text="See what the merchant here sells",
                         usage="list")
-    dispatcher.register("buy", cmd_buy, aliases=["purchase"],
+    register("buy", cmd_buy, aliases=["purchase"],
                         help_text="Buy from the merchant here",
                         usage="buy <item>")
-    dispatcher.register("sell", cmd_sell,
+    register("sell", cmd_sell,
                         help_text="Sell to the merchant here",
                         usage="sell <item>")
-    dispatcher.register("pay", cmd_pay,
+    register("pay", cmd_pay,
                         help_text="Pay someone (softcode sees ON_PAYMENT)",
                         usage="pay <amount> to <target>",
                         parse_equals=True)

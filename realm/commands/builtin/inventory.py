@@ -300,15 +300,17 @@ async def cmd_put(ctx: CommandContext) -> None:
 
 def register_inventory_commands(dispatcher: CommandDispatcher) -> None:
     """Register inventory commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="items")
 
-    dispatcher.register(
+    register(
         "inventory",
         cmd_inventory,
         aliases=["i", "inv"],
         help_text="Show your inventory",
     )
 
-    dispatcher.register(
+    register(
         "get",
         cmd_get,
         aliases=["take", "grab"],
@@ -316,14 +318,14 @@ def register_inventory_commands(dispatcher: CommandDispatcher) -> None:
         usage="get <object> [from <container>]",
     )
 
-    dispatcher.register(
+    register(
         "drop",
         cmd_drop,
         help_text="Drop an object",
         usage="drop <object>",
     )
 
-    dispatcher.register(
+    register(
         "give",
         cmd_give,
         help_text="Give an object to someone",
@@ -331,7 +333,7 @@ def register_inventory_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "put",
         cmd_put,
         aliases=["place"],

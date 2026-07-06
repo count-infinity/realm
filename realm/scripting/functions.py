@@ -571,6 +571,18 @@ class ScriptFunctions:
         self.command_queue.append(('save', npc_obj, ''))
         return value
 
+    def force(self, obj: GameObject | str | None, command: str) -> bool:
+        """
+        Make something the executor controls run a command (queued;
+        executes through the real dispatcher after the script). The
+        possession primitive — see @force.
+        """
+        target = self._controlled(obj)
+        if target is None:
+            return False
+        self.command_queue.append(('force', target, str(command)))
+        return True
+
     # --- Scheduling ---
 
     def wait(self, seconds: float, command: str) -> None:
@@ -647,6 +659,12 @@ class ScriptFunctions:
     def rand(low: int = 0, high: int = 100) -> int:
         """Random integer between low and high (inclusive)."""
         return random.randint(int(low), int(high))
+
+    @staticmethod
+    def now() -> int:
+        """Current time as epoch seconds — cache expiry, cooldowns."""
+        import time
+        return int(time.time())
 
     @staticmethod
     def dice(num: int = 1, sides: int = 6, modifier: int = 0) -> int:
@@ -870,6 +888,7 @@ class ScriptFunctions:
             'clear_lock': self.clear_lock,
             'test_lock': self.test_lock,
             'wait': self.wait,
+            'force': self.force,
             # String functions
             'ucfirst': self.ucfirst,
             'lcfirst': self.lcfirst,
@@ -883,6 +902,7 @@ class ScriptFunctions:
             'replace': self.replace,
             # Math functions
             'rand': self.rand,
+            'now': self.now,
             'dice': self.dice,
             'clamp': self.clamp,
             'floor': self.floor,

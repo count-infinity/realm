@@ -1168,3 +1168,112 @@ class TestTier1AuthorityFixes:
             assert SKILL_DEFAULTS["flee"] == ("dexterity", -2)  # floor kept
         finally:
             set_skill_defaults(saved)
+
+
+@pytest.mark.asyncio
+class TestForce:
+    """@force / possession: run commands AS what you control."""
+
+    def setup_method(self):
+        self.persistence = MockPersistence()
+        use_persistence(self.persistence)
+
+    def _dispatcher(self):
+        from realm.commands.builtin import register_all_commands
+        from realm.server.dispatcher import CommandDispatcher
+        d = CommandDispatcher()
+        register_all_commands(d)
+        d.persistence = self.persistence
+        return d
+
+    async def test_force_npc_through_real_dispatcher(self):
+        from realm.commands.olc.softcode import cmd_force
+
+        room = GameObject("Stage", tags=["room"])
+        bob, sess = make_player("Bob", room)
+        imp = GameObject("imp", tags=["npc"], location=room)
+
+        ctx = make_context(bob, left_args="imp", right_args="say Obey!")
+        ctx.dispatcher = self._dispatcher()
+        await cmd_force(ctx)
+        assert any('imp says, "Obey!"' in m for m in drain(sess))
+
+    async def test_force_player_needs_control(self):
+        from realm.commands.olc.softcode import cmd_force
+
+        room = GameObject("Stage", tags=["room"])
+        bob, _ = make_player("Bob", room)
+        alice = GameObject("Alice", tags=["player"], location=room)
+
+        ctx = make_context(bob, left_args="Alice", right_args="say I obey")
+        ctx.dispatcher = self._dispatcher()
+        await cmd_force(ctx)
+        assert any("don't control" in m for m in ctx.session.messages)
+
+    async def test_possession_opt_in_via_control_lock(self):
+        from realm.commands.olc.softcode import cmd_force
+
+        room = GameObject("Crypt", tags=["room"])
+        ghost, sess = make_player("Ghost", room)
+        ghost.add_tag("ghost")
+        victim = GameObject("Victim", tags=["player"], location=room)
+        victim.locks["control"] = "caller.has_tag('ghost')"
+
+        ctx = make_context(ghost, left_args="Victim",
+                           right_args="say The house... it wants me.")
+        ctx.dispatcher = self._dispatcher()
+        await cmd_force(ctx)
+        assert any('Victim says, "The house... it wants me."' in m
+                   for m in drain(sess))
+
+    async def test_forced_npc_cannot_run_builder_commands(self):
+        from realm.commands.olc.softcode import cmd_force
+        from realm.commands.olc import register_olc_commands
+
+        room = GameObject("Stage", tags=["room"])
+        bob, _ = make_player("Bob", room)
+        imp = GameObject("imp", tags=["npc"], location=room)
+
+        d = self._dispatcher()
+        register_olc_commands(d)
+        ctx = make_context(bob, left_args="imp",
+                           right_args="@set Bob/hacked = true")
+        ctx.dispatcher = d
+        await cmd_force(ctx)
+        assert bob.db.get("hacked") is None  # imp lacks builder permission
+
+    async def test_softcode_force(self):
+        from realm.scripting.engine import ScriptEngine
+        from realm.core.propagation import get_engine
+
+        room = GameObject("Crypt", tags=["room"])
+        _alice, sess = make_player("Alice", room)
+        master = GameObject("puppetmaster", location=room)
+        minion = GameObject("minion", tags=["npc"], location=room)
+        master.db.on_command = "force('minion', 'say Yes, master.')"
+
+        engine = ScriptEngine(persistence=self.persistence)
+        engine.dispatcher = self._dispatcher()
+        get_engine().add_observer(engine.handle_action)
+
+        await engine.run_object_script(master, "on_command")
+        assert any('minion says, "Yes, master."' in m for m in drain(sess))
+
+    async def test_force_depth_capped(self):
+        from realm.server.puppet import MAX_FORCE_DEPTH, force_command
+
+        room = GameObject("Stage", tags=["room"])
+        imp = GameObject("imp", tags=["npc"], location=room)
+
+        class CountingDispatcher:
+            def __init__(self):
+                self.count = 0
+
+            async def dispatch(self, session, command):
+                self.count += 1
+                # every dispatch tries to force again — must stop at cap
+                await force_command(self, session.player, command)
+
+        d = CountingDispatcher()
+        await force_command(d, imp, "say loop")
+        assert d.count == MAX_FORCE_DEPTH

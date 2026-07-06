@@ -297,7 +297,8 @@ coat with the station's insignia.
 
     # Softcode: Healing service
     doctor.db.cmd_heal = "$heal:say Let me take a look at you..."
-    doctor.db.cmd_help = "$help:say I can heal your wounds. Just say 'heal' when you're ready."
+    # NOTE: builtins shadow softcode $-commands, so not "$help".
+    doctor.db.cmd_treatment = "$treatment:say I can heal your wounds. Just say 'heal' when you're ready."
 
     await repo.save(doctor)
     return doctor

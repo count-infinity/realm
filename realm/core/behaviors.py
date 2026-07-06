@@ -159,6 +159,22 @@ class Behavior(ABC):
         """
         pass
 
+    # --- Tick pacing ---
+
+    def countdown(self, obj: GameObject, key: str, reset_ticks: int) -> bool:
+        """
+        The standard db-counter cadence for tickable behaviors: returns
+        True when it's time to act (and re-arms the counter), False on
+        intervening pulses. One convention instead of five hand-rolled
+        decrement dances. State persists in ``obj.db[key]``.
+        """
+        wait = int(obj.db.get(key) or 0)
+        if wait > 0:
+            obj.db.set(key, wait - 1)
+            return False
+        obj.db.set(key, max(0, int(reset_ticks) - 1))
+        return True
+
     # --- Serialization ---
 
     def to_dict(self) -> dict[str, Any]:

@@ -120,9 +120,6 @@ class LockEvaluator:
     - safe built-in functions
     """
 
-    def __init__(self):
-        self._cache: dict[str, Any] = {}
-
     def evaluate(
         self,
         lock: Lock | str,
@@ -193,8 +190,12 @@ class LockEvaluator:
             # Use default lock
             lock_expr = DEFAULT_LOCKS.get(lock_type, "False")
 
-        lock = Lock(lock_type, lock_expr)
-        return self.evaluate(lock, caller, target)
+        # eval_bool validates, compiles (lru-cached), and fails closed.
+        return eval_bool(lock_expr, {
+            'caller': caller,
+            'target': target,
+            'owner': target.owner if target.owner else target,
+        })
 
 
 # Global evaluator instance
@@ -220,7 +221,8 @@ def check_lock(
     return _evaluator.check(target, lock_type, caller)
 
 
-def controls(actor: GameObject | None, obj: GameObject | None) -> bool:
+def controls(actor: GameObject | None, obj: GameObject | None,
+             _depth: int = 0) -> bool:
     """
     The one authority predicate for mutating softcode and builder tools
     (see docs/design/engine_vision.md):
@@ -228,11 +230,17 @@ def controls(actor: GameObject | None, obj: GameObject | None) -> bool:
     1. You control yourself.
     2. You control what you own.
     3. ADMIN+ controls everything.
-    4. BUILDER controls unowned (world-built) objects.
+    4. BUILDER controls unowned (world-built) NON-PLAYER objects.
     5. The world trusts the world: an unowned non-player object controls
        other unowned non-player objects (world NPCs poking world props —
        the MUSH equivalent is everything sharing a wizard owner).
-    6. Otherwise the object's ``control`` lock decides.
+    6. PennMUSH delegation: your objects act with YOUR authority — an
+       owned object controls whatever its owner controls (siblings
+       trust each other; a builder's gadget reaches world props). Only
+       the owner can script the object, so this delegates no authority
+       the owner didn't already have. @chown halts scripts for exactly
+       this reason.
+    7. Otherwise the object's ``control`` lock decides.
     """
     if actor is None or obj is None:
         return False
@@ -243,11 +251,16 @@ def controls(actor: GameObject | None, obj: GameObject | None) -> bool:
     role = get_role(actor)
     if role >= Role.ADMIN:
         return True
-    if role >= Role.BUILDER and obj.owner is None:
+    if role >= Role.BUILDER and obj.owner is None and not obj.has_tag('player'):
         return True
     if (actor.owner is None and obj.owner is None
             and not actor.has_tag('player') and not obj.has_tag('player')):
         return True
+    # Penn delegation: walk the owner chain (cycle/depth guarded) — the
+    # object wields its owner's authority.
+    if actor.owner is not None and _depth < 4:
+        if controls(actor.owner, obj, _depth=_depth + 1):
+            return True
     return _evaluator.check(obj, LockType.CONTROL, actor)
 
 

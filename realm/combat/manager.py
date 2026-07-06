@@ -185,8 +185,10 @@ class CombatManager:
         # (solo killers keep the whole award).
         if killer is not None and killer.has_tag('player'):
             from realm.core.party import party_members
-            worth = int(npc.db.get('points') or 10)
-            award = max(1, worth // 10)
+            from realm.systems.base import get_game_system
+            system = get_game_system()
+            award = (system.death_award(npc) if system
+                     else max(1, int(npc.db.get('points') or 10) // 10))
             sharers = [m for m in party_members(killer)
                        if m.has_tag('player') and not m.has_tag('unconscious')]
             if not sharers:

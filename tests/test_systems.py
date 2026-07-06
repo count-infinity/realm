@@ -5,6 +5,8 @@ package), chargen steps, and password hashing.
 
 from __future__ import annotations
 
+import pytest
+
 from realm.core.objects import GameObject
 from realm.server.auth import hash_password, verify_password
 from realm.systems import D20System, GameSystemRegistry, GurpsSystem
@@ -142,3 +144,67 @@ class TestAuth:
     def test_garbage_stored_fails_closed(self):
         ok, rehash = verify_password("x", "scrypt$nothex$zzz")
         assert ok is False and rehash is False
+
+
+@pytest.mark.asyncio
+class TestAuthService:
+
+    def _service(self, **kw):
+        from realm.server.auth import AuthService
+        from tests.test_olc import MockPersistence
+        pers = MockPersistence()
+        return AuthService(pers, **kw), pers
+
+    async def _account(self, pers, name="Bob", password="s2"):
+        from realm.server.auth import hash_password
+        from realm.core.objects import GameObject
+        p = GameObject(name, tags=["player"])
+        p.db.password = hash_password(password)
+        pers.add(p)
+        return p
+
+    async def test_authenticate_roundtrip(self):
+        svc, pers = self._service()
+        bob = await self._account(pers)
+        player, err = await svc.authenticate("Bob", "s2")
+        assert player is bob and err == ""
+
+    async def test_rate_limit_locks_and_drains(self):
+        clock = {"t": 0.0}
+        svc, pers = self._service(max_attempts=3, window_seconds=60,
+                                  clock=lambda: clock["t"])
+        await self._account(pers)
+        for _ in range(3):
+            player, err = await svc.authenticate("Bob", "wrong")
+            assert player is None
+        # Locked even with the RIGHT password now.
+        player, err = await svc.authenticate("Bob", "s2")
+        assert player is None and "Too many failed attempts" in err
+        # Window drains -> works again.
+        clock["t"] = 61.0
+        player, err = await svc.authenticate("Bob", "s2")
+        assert player is not None
+
+    async def test_legacy_plaintext_upgraded(self):
+        from realm.core.objects import GameObject
+        svc, pers = self._service()
+        old = GameObject("Old", tags=["player"])
+        old.db.password = "plain"
+        pers.add(old)
+        player, err = await svc.authenticate("Old", "plain")
+        assert player is old
+        assert str(old.db.get("password")).startswith("scrypt$")
+
+    async def test_create_account_rejects_duplicates(self):
+        svc, pers = self._service()
+        await self._account(pers)
+        player, err = await svc.create_account("Bob", "x")
+        assert player is None and "already exists" in err
+
+    async def test_create_applies_system_baseline(self):
+        svc, _pers = self._service()
+        player, err = await svc.create_account("New", "pw",
+                                               system=GurpsSystem())
+        assert player is not None
+        assert player.db.get("strength") == 10
+        assert str(player.db.get("password")).startswith("scrypt$")

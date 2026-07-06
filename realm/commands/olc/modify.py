@@ -422,10 +422,80 @@ def _would_create_cycle(target, new_parent) -> bool:
     return False
 
 
+async def cmd_detail(ctx: CommandContext) -> None:
+    """
+    Add a per-viewer conditional description line.
+
+    Usage: @detail <object> = <condition> -> <text>
+           @detail <object> = <text>            (shown to everyone)
+           @detail/clear <object>
+
+    Conditions are safe expressions over the VIEWER:
+    skill('observation'), check('observation', -2), has_tag('ghost'),
+    viewer. Example:
+
+        @detail here = check('observation', -2) -> You notice a
+            small hole in the wall.
+    """
+    from realm.core.describe import DETAILS_ATTR
+    from realm.core.safe_eval import validate_code
+
+    if not ctx.left_args:
+        await ctx.session.send("Usage: @detail <object> = [<condition> ->] <text>")
+        return
+
+    target = resolve_target(ctx, ctx.left_args.strip())
+    if not target:
+        await ctx.session.send(f"Object '{ctx.left_args.strip()}' not found.")
+        return
+
+    if not await require_control(ctx, target):
+        return
+
+    if ctx.switches and ctx.switches[0].lower() == 'clear':
+        target.db.delete(DETAILS_ATTR)
+        await save_object(ctx, target)
+        await ctx.session.send(f"Details cleared from {target.name}.")
+        return
+
+    if not ctx.right_args:
+        extras = target.db.get(DETAILS_ATTR) or []
+        if not extras:
+            await ctx.session.send(f"{target.name} has no details.")
+            return
+        lines = [f"Details on {target.name}:"]
+        for i, entry in enumerate(extras, 1):
+            cond = entry[0] or "(always)"
+            lines.append(f"  {i}. [{cond}] {entry[1]}")
+        await ctx.session.send("\n".join(lines))
+        return
+
+    spec = ctx.right_args.strip()
+    if '->' in spec:
+        condition, text = spec.split('->', 1)
+        condition, text = condition.strip(), text.strip()
+        errors = validate_code(condition, mode='eval')
+        if errors:
+            await ctx.session.send(f"Bad condition: {'; '.join(errors)}")
+            return
+    else:
+        condition, text = "", spec
+
+    extras = list(target.db.get(DETAILS_ATTR) or [])
+    extras.append([condition, text])
+    target.db.set(DETAILS_ATTR, extras)
+    await save_object(ctx, target)
+    await ctx.session.send(
+        f"Detail added to {target.name}"
+        f"{f' (when {condition})' if condition else ''}.")
+
+
 def register_modify_commands(dispatcher: CommandDispatcher) -> None:
     """Register modification OLC commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="building")
 
-    dispatcher.register(
+    register(
         "@desc",
         cmd_desc,
         aliases=["@describe"],
@@ -435,7 +505,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@name",
         cmd_name,
         help_text="Rename an object",
@@ -444,7 +514,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@set",
         cmd_set,
         help_text="Set an attribute on an object",
@@ -453,7 +523,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@wipe",
         cmd_wipe,
         help_text="Clear all attributes from an object",
@@ -461,7 +531,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         permission="builder",
     )
 
-    dispatcher.register(
+    register(
         "@parent",
         cmd_parent,
         help_text="Set an object's parent",
@@ -470,7 +540,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@tag",
         cmd_tag,
         help_text="Add a tag to an object",
@@ -479,7 +549,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@untag",
         cmd_untag,
         help_text="Remove a tag from an object",
@@ -488,7 +558,16 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
+        "@detail",
+        cmd_detail,
+        help_text="Add a per-viewer conditional description line",
+        usage="@detail <object> = [<condition> ->] <text>",
+        permission="builder",
+        parse_equals=True,
+    )
+
+    register(
         "@lock",
         cmd_lock,
         help_text="Set a lock on an object",
@@ -497,7 +576,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "@unlock",
         cmd_unlock,
         help_text="Remove all locks from an object",

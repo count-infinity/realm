@@ -97,6 +97,7 @@ class ScriptEngine:
         self.trigger_manager = TriggerManager()
         self.sandbox = ScriptSandbox()
         self._persistence = persistence
+        self.dispatcher = None  # set by GameServer; enables force()
         self._depth = 0
         # One-shot scheduled commands: (fire_at_monotonic, executor, command).
         # In-memory only — like MUSH @waits, pending waits don't survive a
@@ -605,36 +606,20 @@ class ScriptEngine:
 
     async def _emit_speech(self, speaker: GameObject, message: str) -> None:
         """Scripted say — mirrors cmd_say's action shape."""
-        location = speaker.location
-        if location is None:
+        if speaker.location is None:
             return
-        action = Action(
-            actor=speaker,
-            target=location,
-            action_type="event:speech",
-            chain=ROOM_TARGET_CHAIN,
-            tags={"scripted"},
-            extra={"message": message},
-        )
-        action.add_message("actor", f'You say, "{message}"', success_only=True)
-        action.add_message("room", f'{{actor}} says, "{message}"', success_only=True)
+        from realm.core.verbs import speech_action
+        action = speech_action(speaker, message)
+        action.tags.add("scripted")
         await propagate(action)
 
     async def _emit_pose(self, poser: GameObject, pose_text: str) -> None:
         """Scripted pose — mirrors cmd_pose's action shape."""
-        location = poser.location
-        if location is None:
+        if poser.location is None:
             return
-        action = Action(
-            actor=poser,
-            target=location,
-            action_type="event:emote",
-            chain=ROOM_TARGET_CHAIN,
-            tags={"scripted"},
-            extra={"pose": pose_text},
-        )
-        action.add_message("actor", f"{{actor}} {pose_text}", success_only=True)
-        action.add_message("room", f"{{actor}} {pose_text}", success_only=True)
+        from realm.core.verbs import pose_action
+        action = pose_action(poser, pose_text)
+        action.tags.add("scripted")
         await propagate(action)
 
     async def _emit_raw(self, executor: GameObject, message: str) -> None:
@@ -728,4 +713,8 @@ class ScriptEngine:
             elif kind == 'wait':
                 seconds, command = message
                 self.schedule_wait(obj, seconds, command)
+            elif kind == 'force':
+                if self.dispatcher is not None:
+                    from realm.server.puppet import force_command
+                    await force_command(self.dispatcher, obj, message)
         functions.command_queue.clear()

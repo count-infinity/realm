@@ -26,12 +26,11 @@ class AttributeProxy:
     for persistence (dirty tracking).
     """
 
-    __slots__ = ('_attrs', '_owner', '_dirty')
+    __slots__ = ('_attrs', '_owner')
 
     def __init__(self, attrs: dict[str, Any], owner: GameObject):
         object.__setattr__(self, '_attrs', attrs)
         object.__setattr__(self, '_owner', owner)
-        object.__setattr__(self, '_dirty', set())
 
     def __getattr__(self, name: str) -> Any:
         attrs = object.__getattribute__(self, '_attrs')
@@ -43,25 +42,21 @@ class AttributeProxy:
         if name.startswith('_'):
             raise AttributeError(f"Attribute names cannot start with underscore: {name}")
         attrs = object.__getattribute__(self, '_attrs')
-        dirty = object.__getattribute__(self, '_dirty')
         owner = object.__getattribute__(self, '_owner')
 
         old_value = attrs.get(name)
         if old_value != value:
             attrs[name] = value
-            dirty.add(name)
             owner._mark_dirty()
 
     def __delattr__(self, name: str) -> None:
         if name.startswith('_'):
             raise AttributeError(f"Attribute names cannot start with underscore: {name}")
         attrs = object.__getattribute__(self, '_attrs')
-        dirty = object.__getattribute__(self, '_dirty')
         owner = object.__getattribute__(self, '_owner')
 
         if name in attrs:
             del attrs[name]
-            dirty.add(name)
             owner._mark_dirty()
 
     def __contains__(self, name: str) -> bool:
@@ -85,13 +80,6 @@ class AttributeProxy:
         """Return all attributes as a dictionary."""
         attrs = object.__getattribute__(self, '_attrs')
         return dict(attrs)
-
-    def clear_dirty(self) -> set[str]:
-        """Clear and return the set of dirty attribute names."""
-        dirty = object.__getattribute__(self, '_dirty')
-        result = dirty.copy()
-        dirty.clear()
-        return result
 
 
 class GameObject:
@@ -206,8 +194,6 @@ class GameObject:
     def clear_dirty(self) -> None:
         """Clear the dirty flag after saving."""
         self._dirty = False
-        if self._db is not None:
-            self._db.clear_dirty()
 
     # --- Tag shortcuts ---
 

@@ -23,22 +23,11 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
-# skill -> (attribute name, default penalty). Games extend or replace.
+# skill -> (attribute name, default penalty). The active GameSystem
+# installs its full table over this at server start (set_skill_defaults);
+# the seed is just the engine floor so bare library use still works.
 SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
-    "stealth": ("dexterity", -5),
-    "climbing": ("dexterity", -5),
-    "jumping": ("dexterity", -4),
-    "lockpicking": ("dexterity", -5),
-    "observation": ("intelligence", -5),
-    "electronics": ("intelligence", -5),
-    "computer_operation": ("intelligence", -4),
-    "traps": ("intelligence", -5),
-    "fast_talk": ("intelligence", -5),
     "flee": ("dexterity", -2),
-    "first_aid": ("intelligence", -5),
-    "detect_lies": ("intelligence", -6),
-    "disguise": ("intelligence", -5),
-    "acting": ("intelligence", -5),
 }
 
 

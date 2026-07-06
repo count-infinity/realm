@@ -50,8 +50,9 @@ recursion / output). What varies is API surface:
 | Locks from scripts | set_lock / clear_lock / test_lock | SHIPPED (authority-gated, validated) |
 | Combat from scripts | damage / heal (proximity authority, death path), start_combat | SHIPPED |
 | Effects sugar | apply_effect / remove_effect (proximity authority) + check_mods auto-modifiers | SHIPPED |
+| Inline eval in text | [[...]] blocks in descriptions — sandbox per viewer, state via attrs, now() | SHIPPED (2026-07-05) |
 | Manipulation verbs | get/take/drop/give/open/close script commands + `cmd()` | SHIPPED (shared cores in realm/core/verbs.py — commands and scripts run identical code) |
-| Full dispatcher access | — | MISSING (`@force`, deliberate: needs authority story per command) |
+| Full dispatcher access | @force + force() — PuppetSession through the real dispatcher, controls()-gated, target's own permissions apply | SHIPPED (2026-07-05) |
 | Economy | credits/adjust_credits/transfer_credits + ShopkeeperBehavior + ON_PAYMENT | SHIPPED (2026-07-05) |
 | Scheduling beyond ticks | `wait(sec, cmd)` / `wait <sec> <cmd>` one-shots on the heartbeat | SHIPPED (in-memory, like MUSH @waits) |
 
@@ -63,11 +64,16 @@ One predicate decides every mutation: `controls(actor, obj)`:
 1. You control yourself.
 2. You control what you own.
 3. ADMIN+ controls everything.
-4. BUILDER controls unowned (world-built) objects.
+4. BUILDER controls unowned (world-built) NON-PLAYER objects.
 5. The world trusts the world: unowned non-player objects control each
    other (world NPCs poking world props — the MUSH equivalent is
    everything sharing a wizard owner).
-6. Otherwise the object's `control` lock decides.
+6. PennMUSH delegation: your objects act with YOUR authority — an owned
+   object controls whatever its owner controls (siblings share state; a
+   builder's gadget reaches world props). Sound because only the owner
+   can script the object; `@chown` HALTS scripted objects so old code
+   never runs with the new owner's authority.
+7. Otherwise the object's `control` lock decides.
 
 Applied at three layers:
 

@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from realm.core.behaviors import Behavior, BehaviorRegistry
 from realm.core.checks import contest
 from realm.core.perception import break_stealth, can_see
-from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.core.propagation import Action, propagate
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -29,18 +29,11 @@ logger = logging.getLogger(__name__)
 
 async def _npc_say(npc: GameObject, message: str) -> None:
     """An NPC speaks through the propagation engine (real speech)."""
-    location = npc.location
-    if location is None:
+    if npc.location is None:
         return
-    action = Action(
-        actor=npc,
-        target=location,
-        action_type="event:speech",
-        chain=ROOM_TARGET_CHAIN,
-        tags={"npc"},
-        extra={"message": message},
-    )
-    action.add_message("room", f'{{actor}} says, "{message}"')
+    from realm.core.verbs import speech_action
+    action = speech_action(npc, message)
+    action.tags.add("npc")
     await propagate(action)
 
 

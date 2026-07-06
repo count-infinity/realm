@@ -182,6 +182,7 @@ class HealerBehavior(Behavior):
         return True
 
     async def tick(self, obj: GameObject, delta: float) -> None:
+        # healer_wait re-arms only after a successful heal (below).
         wait = int(obj.db.get('healer_wait') or 0)
         if wait > 0:
             obj.db.healer_wait = wait - 1
@@ -260,11 +261,8 @@ class WanderingBehavior(Behavior):
         if obj.has_tag('in_combat') or obj.location is None:
             return
 
-        wait = int(obj.db.get('wander_wait') or 0)
-        if wait > 0:
-            obj.db.wander_wait = wait - 1
+        if not self.countdown(obj, 'wander_wait', int(self.get_param('pause', 7)) + 1):
             return
-        obj.db.wander_wait = int(self.get_param('pause', 7))
 
         if random.random() > float(self.get_param('wander_chance', 0.25)):
             return

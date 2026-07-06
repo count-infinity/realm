@@ -353,40 +353,42 @@ async def cmd_unwield(ctx: CommandContext) -> None:
 
 def register_combat_commands(dispatcher: CommandDispatcher) -> None:
     """Register combat commands with the dispatcher."""
-    dispatcher.register("attack", cmd_attack, aliases=["kill", "att"],
+    from functools import partial
+    register = partial(dispatcher.register, category="combat")
+    register("attack", cmd_attack, aliases=["kill", "att"],
                         help_text="Attack someone (starts combat)",
                         usage="attack <target>")
-    dispatcher.register("queue", cmd_queue, aliases=["q"],
+    register("queue", cmd_queue, aliases=["q"],
                         help_text="Choose your next combat action",
                         usage="queue <maneuver> [target]")
-    dispatcher.register("defend", _make_shortcut("defend"),
+    register("defend", _make_shortcut("defend"),
                         help_text="Fight defensively next beat")
-    dispatcher.register("flee", cmd_flee,
+    register("flee", cmd_flee,
                         help_text="Try to escape combat",
                         usage="flee [direction]")
-    dispatcher.register("combat", cmd_combat_status, aliases=["cstat"],
+    register("combat", cmd_combat_status, aliases=["cstat"],
                         help_text="Show the current fight")
-    dispatcher.register("pace", cmd_pace,
+    register("pace", cmd_pace,
                         help_text="Set your combat beat (seconds)",
                         usage="pace <seconds>")
-    dispatcher.register("combatdefault", cmd_combat_default,
+    register("combatdefault", cmd_combat_default,
                         help_text="Default action when a beat fires unqueued",
                         usage="combatdefault <attack|defend|repeat|nothing>")
-    dispatcher.register("wimpy", cmd_wimpy,
+    register("wimpy", cmd_wimpy,
                         help_text="Auto-flee below an HP percentage",
                         usage="wimpy <percent>|off")
-    dispatcher.register("firstaid", cmd_firstaid, aliases=["aid"],
+    register("firstaid", cmd_firstaid, aliases=["aid"],
                         help_text="Tend wounds (First Aid skill)",
                         usage="firstaid [target]")
-    dispatcher.register("points", cmd_points, aliases=["cp", "score"],
+    register("points", cmd_points, aliases=["cp", "score"],
                         help_text="Show character points and skills")
-    dispatcher.register("wield", cmd_wield, aliases=["ready", "draw"],
+    register("wield", cmd_wield, aliases=["ready", "draw"],
                         help_text="Ready a carried weapon",
                         usage="wield <weapon>")
-    dispatcher.register("unwield", cmd_unwield, aliases=["lower", "sheathe"],
+    register("unwield", cmd_unwield, aliases=["lower", "sheathe"],
                         help_text="Lower your readied weapon",
                         usage="unwield")
-    dispatcher.register("improve", cmd_improve,
+    register("improve", cmd_improve,
                         help_text="Spend points to raise a skill",
                         usage="improve <skill>")
 

@@ -29,16 +29,8 @@ async def cmd_say(ctx: CommandContext) -> None:
         await ctx.session.send("You have nowhere to speak from.")
         return
 
-    message = ctx.args
-    action = Action(
-        actor=ctx.player,
-        target=location,
-        action_type="event:speech",
-        chain=ROOM_TARGET_CHAIN,
-        extra={"message": message},
-    )
-    action.add_message("actor", f'You say, "{message}"', success_only=True)
-    action.add_message("room", f'{{actor}} says, "{message}"', success_only=True)
+    from realm.core.verbs import speech_action
+    action = speech_action(ctx.player, ctx.args)
     await propagate(action)
     if action.blocked:
         ctx.player.msg(action.block_reason or "You can't speak here.")
@@ -61,19 +53,12 @@ async def cmd_pose(ctx: CommandContext) -> None:
     if location is None:
         return
 
-    pose_text = ctx.args
-    action = Action(
-        actor=ctx.player,
-        target=location,
-        action_type="event:emote",
-        chain=ROOM_TARGET_CHAIN,
-        extra={"pose": pose_text},
-    )
-    action.add_message("actor", f"{{actor}} {pose_text}", success_only=True)
-    action.add_message("room", f"{{actor}} {pose_text}", success_only=True)
+    from realm.core.verbs import pose_action
+    action = pose_action(ctx.player, ctx.args)
     await propagate(action)
     if action.blocked:
         ctx.player.msg(action.block_reason or "You can't emote here.")
+
 
 
 async def cmd_semipose(ctx: CommandContext) -> None:
@@ -245,8 +230,10 @@ async def cmd_shout(ctx: CommandContext) -> None:
 
 def register_communication_commands(dispatcher: CommandDispatcher) -> None:
     """Register communication commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="communication")
 
-    dispatcher.register(
+    register(
         "say",
         cmd_say,
         aliases=["'"],
@@ -254,7 +241,7 @@ def register_communication_commands(dispatcher: CommandDispatcher) -> None:
         usage='say <message> or "<message>',
     )
 
-    dispatcher.register(
+    register(
         "pose",
         cmd_pose,
         aliases=["emote"],
@@ -262,14 +249,14 @@ def register_communication_commands(dispatcher: CommandDispatcher) -> None:
         usage="pose <action> or :<action>",
     )
 
-    dispatcher.register(
+    register(
         "semipose",
         cmd_semipose,
         help_text="Emote with name attached",
         usage="semipose <action> or ;<action>",
     )
 
-    dispatcher.register(
+    register(
         "emit",
         cmd_emit,
         help_text="Emit a message to the room",
@@ -277,7 +264,7 @@ def register_communication_commands(dispatcher: CommandDispatcher) -> None:
         permission="builder",
     )
 
-    dispatcher.register(
+    register(
         "whisper",
         cmd_whisper,
         aliases=["w"],
@@ -286,14 +273,14 @@ def register_communication_commands(dispatcher: CommandDispatcher) -> None:
         parse_equals=True,
     )
 
-    dispatcher.register(
+    register(
         "ooc",
         cmd_ooc,
         help_text="Out-of-character speech",
         usage="ooc <message>",
     )
 
-    dispatcher.register(
+    register(
         "shout",
         cmd_shout,
         help_text="Shout to the room (and nearby)",

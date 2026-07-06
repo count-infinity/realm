@@ -102,10 +102,8 @@ same day (see Completed); these remain, roughly by impact:
 - [ ] **Rewrite or delete `examples/spacegame/commands.py`.** It imports a
   command API that doesn't exist (`realm.commands.registry`, `context`,
   `Command`) — cannot be imported. Add an import smoke-test for examples.
-- [ ] **Extract auth from GameServer** (hashing DONE 2026-07-04:
-  `realm/server/auth.py`, salted scrypt, legacy plaintext upgraded in
-  place on login). Remaining: move the connect/create orchestration
-  into an `AuthService(persistence)`; rate-limit login attempts.
+- [x] ~~**Extract auth from GameServer**~~ DONE 2026-07-05:
+  AuthService(persistence) with rate limiting; see Completed.
 - [x] ~~**Unify the AST validators.**~~ DONE 2026-07-04:
   `realm/core/safe_eval.py` is the one policy module; sandbox, locks,
   and strategy conditions all consume it (locks got strictly stronger —
@@ -122,9 +120,9 @@ same day (see Completed); these remain, roughly by impact:
   now shared by `gate_action`).
 - [ ] **Softcode platform remaining** (engine_vision.md matrix; the
   2026-07-04 tranche shipped locks/combat/verbs/waits — see Completed):
-  `@force` / full dispatcher access for scripts (needs per-command
-  authority story); persistent waits (current one-shots are in-memory
-  like MUSH @waits); `put <thing> in <container>` script verb.
+  ~~@force~~ (DONE 2026-07-05); persistent waits (current one-shots
+  are in-memory like MUSH @waits); `put <thing> in <container>` script
+  verb.
 - [ ] **Script-thread vs event-loop trade-off** (documented in
   engine_vision.md): sandbox mutations run in the worker thread and rely
   on the GIL; session/persistence work is queued and drained on-loop.
@@ -140,8 +138,7 @@ same day (see Completed); these remain, roughly by impact:
 - [ ] **Spacegame duplicates Combatant.** `SpaceCharacter.heal/take_damage`
   vs `Combatant` both write `db.hp` through different paths. Pick one owner.
 - [ ] **Two examine implementations** (`look.py` vs `admin.py`) and a
-  hand-maintained help category map in `utility.py` that must be edited for
-  every new command — derive categories from a `Command.category` field.
+  ~~hand-maintained help category map~~ (DONE 2026-07-05: Command.category).
 - [ ] **Persistence follow-ups:** N+1 query in `load_all` (per-object
   reference SELECT), no schema versioning (`PRAGMA user_version` +
   migrations), `repository.py` interface incompatible with `manager.py`.
@@ -329,6 +326,120 @@ Design sketch:
 
 ## Completed
 
+- [x] **THE LIST IS DONE: hardening + persistence + tail (2026-07-05,
+  final sweep).** 804 tests (5 new).
+  - **AuthService** (realm/server/auth.py): identity extracted from
+    GameServer — authenticate (verify + legacy-plaintext upgrade) and
+    create_account (hash + system baseline), plus **login rate
+    limiting** (5 fails/60s per name locks the name until the window
+    drains; injectable clock, tested). Chargen flow deliberately stays
+    in the composition root (cohesive, uses server-owned resources).
+  - **Persistence**: WAL journal mode + synchronous=NORMAL (crash
+    robustness), PRAGMA user_version schema versioning (SCHEMA_VERSION
+    constant, newer-db guard, migration hook point), and the load_all
+    N+1 fixed — reference ids captured during the single world scan
+    (one query total, was one per object).
+  - **Cosmetic tail**: LockEvaluator dead cache + throwaway-Lock in
+    check() removed (eval_bool direct); AttributeProxy per-attribute
+    dirty set → the object-level bool that was actually consumed;
+    cmd_pose consumes the canonical pose_action; spacegame doctor's
+    shadowed $help renamed $treatment with a comment.
+  - Remaining accepted-as-is items (resolve_or_report sweep, ooc/shout
+    one-off shapes, put-in-container script verb, persistent waits)
+    stay documented in simplicity_review.md / BACKLOG.
+- [x] **TIER-3 FINISH: the consolidation tail (2026-07-05).** 799
+  tests. The correctness headliner: **GURPS combat now uses the one
+  skill ladder** — get_skill passes checks.skill_level as get_stat's
+  default (trained/untrained × modified/unmodified all correct; an
+  untrained DX-13 fighter attacks at DX-4, not flat 10); the drifted
+  checks.py seed table trimmed to the engine floor. Also: canonical
+  speech_action/pose_action shapes in core/verbs.py consumed by
+  cmd_say, the script engine, AND _npc_say (narration drift now
+  impossible); GameSystem.death_award(victim) hook (CP policy belongs
+  to the rules package); RulesetRegistry (register custom rulesets, no
+  engine edits — same shape as Behavior/GameSystem registries);
+  Behavior.countdown(obj, key, ticks) base helper (ticker + wanderer
+  converted); DispositionBoost applied-flag moved from params to
+  owner.db (behaviors are stateless logic). Remaining cosmetic items
+  (resolve_or_report, remaining communication commands, locks class
+  flattening, AttributeProxy dirty-set) stay listed in the review doc.
+- [x] **YOUR OBJECTS ARE YOU: Penn owner delegation (2026-07-05,
+  follow-on to the bracket).** 799 tests (6 new). `controls()` gained
+  rule 6: an owned object controls whatever its owner controls
+  (owner-chain walk, depth/cycle-guarded) — Bob's gadget reads AND
+  writes Bob's stash; a builder's tool reaches world props; strangers
+  still denied. Sound because only the owner can script the object.
+  The Penn-faithful valve: `@chown` HALTS objects carrying
+  CMD_/LISTEN_/ON_ scripts (old code must not run with the new
+  owner's authority) and says so. Inline [[...]] blocks now reach
+  sibling state — tested (room description reads + audits a ledger
+  the same owner holds).
+- [x] **THE BRACKET LIVES: inline softcode in descriptions
+  (2026-07-05, twelfth package).** 793 tests (7 new). The PennMUSH
+  ``[...]`` capability, REALM-style: any description may embed
+  ``[[ ... ]]`` blocks executed PER VIEWER through the script sandbox
+  at render time (realm/scripting/inline.py; wired into render_room +
+  look-at-object; zero cost when no '[[' present).
+  - Full ScriptFunctions namespace (get_attr/set_attr/rand/now()/...)
+    plus viewer, check_roll(skill, mod) (rolls AS the viewer,
+    condition modifiers apply), skill(name). Block runs AS the
+    described object (its authority); assigns ``result`` for the
+    substitution; ';' separates statements; blocks capped at 8;
+    errors/forbidden code fail closed to '' (logged).
+  - State in ordinary attributes = builders code caching/expiry
+    themselves — the memoized passive-detection idiom is tested
+    near-verbatim from the user's pseudocode (roll once per viewer,
+    cache PASS/FAIL on the room, stable across looks). ``now()``
+    added for time-based cache expiry.
+  - Mutations persist via the dirty sweep; pemit/remit deliver
+    immediately; loop-bound ops (combat/force/wait) are rejected with
+    a log — use ON_LOOK scripts for those.
+  - desc_extras/@detail (11th package) remains as the cheap,
+    validated declarative form; [[...]] is the full-power form.
+- [x] **EYES THAT SEE: help system + per-viewer details (2026-07-05,
+  eleventh package).** 786 tests (10 new).
+  - **Help, registry-derived**: `Command.category` field (set per
+    module via a registration partial — movement/communication/looking/
+    items/combat/social/economy/utility/building); `help` groups the
+    commands YOU can see by category (builders see Building, players
+    don't); `help <cmd>` shows aliases/usage/help + docstring;
+    `help <word>` substring-searches names, aliases, and help text
+    ("Related: buy, sell..."). Deleted the hand-maintained category
+    map (closes that backlog item).
+  - **Per-viewer conditional descriptions** (`realm/core/describe.py`):
+    `db.desc_extras = [[condition, text], ...]` evaluated PER VIEWER at
+    render time through the unified safe-eval — namespace: viewer,
+    skill(name) (stable threshold), check(name, mod) (fresh roll),
+    has_tag(name). Wired into render_room AND look-at-object. Builder
+    command: `@detail here = check('observation', -2) -> You notice a
+    small hole in the wall.` (validated at write time; @detail/clear;
+    bare text = shown to all). The thief's passive detection, softcode
+    all the way down.
+- [x] **THE GHOST RIDES: @force / possession (2026-07-05, final
+  matrix gap).** 776 tests (6 new); coverage 53 YES / 5 NO — Death
+  House possession and CoC compelled actions flipped.
+  - `realm/server/puppet.py`: PuppetSession (the minimal .player/.send
+    surface) + `force_command` through the REAL dispatcher — parsing,
+    permissions, and propagation all apply to forced commands; output
+    forwards to the forcer prefixed `[puppet]`. Chains depth-capped.
+  - Authority is `controls()` — so PLAYER possession is admin-only by
+    default and OPT-IN otherwise (`@lock/control me =
+    caller.has_tag('ghost')`): the Death House mechanic falls out of
+    the existing model with zero new concepts.
+  - `@force <target> = <command>` builder command; softcode
+    `force(target, cmd)` (queued, drained through the dispatcher).
+  - Two real fixes surfaced by tests: NPCs now rank as PLAYER role in
+    the command layer (a forced imp can `say` but never `@set`), and
+    `controls()` rule 4 no longer lets builders control unowned
+    PLAYERS.
+- [x] **THE SAGA HOLDS: consolidated live drive (2026-07-05).**
+  12-check continuous telnet playthrough on the post-cleanup engine:
+  chargen (soldier) → shopkeeper built in-game (@behavior + @teleport
+  stock) → list/buy/credits → ON_PAYMENT bribe judged by softcode →
+  consider → wield blaster → queue shoot kills in beat combat →
+  softcode-hired porter follows through an exit + party listing.
+  Dispositions/ranged/economy/followers verified live for the first
+  time, together. Driver: scratchpad e2e_saga.py (port 4805).
 - [x] **SIMPLICITY REVIEW + TIER-1 FIXES (2026-07-05, tenth package).**
   Three independent review passes; full findings + verdicts in
   docs/design/simplicity_review.md. Verdict: bones are right (layering

@@ -84,6 +84,7 @@ class Command:
     usage: str = ""
     permission: str = "player"  # player, builder, admin, god
     parse_equals: bool = False
+    category: str = "general"  # help-screen grouping
 
 
 # Special token mappings
@@ -155,6 +156,7 @@ class CommandDispatcher:
         min_args: int = 0,
         permission: str = "player",
         parse_equals: bool = False,
+        category: str = "general",
     ) -> None:
         """Register a command handler."""
         cmd = Command(
@@ -165,6 +167,7 @@ class CommandDispatcher:
             usage=usage,
             permission=permission,
             parse_equals=parse_equals,
+            category=category,
         )
         self._commands[cmd.name] = cmd
 

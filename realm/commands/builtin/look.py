@@ -84,7 +84,15 @@ async def cmd_examine(ctx: CommandContext) -> None:
     await ctx.session.send("=" * len(target.name))
 
     if target.description:
-        await ctx.session.send(target.description)
+        desc = target.description
+        if '[[' in desc:
+            from realm.scripting.inline import eval_inline
+            desc = eval_inline(desc, target, ctx.player).strip()
+        if desc:
+            await ctx.session.send(desc)
+    from realm.core.describe import detail_lines
+    for line in detail_lines(target, ctx.player):
+        await ctx.session.send(line)
 
     await ctx.session.send("")
 
@@ -170,7 +178,15 @@ async def _show_object(ctx: CommandContext, target) -> None:
     await ctx.session.send(f"\n{target.name}")
 
     if target.description:
-        await ctx.session.send(target.description)
+        desc = target.description
+        if '[[' in desc:
+            from realm.scripting.inline import eval_inline
+            desc = eval_inline(desc, target, ctx.player).strip()
+        if desc:
+            await ctx.session.send(desc)
+    from realm.core.describe import detail_lines
+    for line in detail_lines(target, ctx.player):
+        await ctx.session.send(line)
     else:
         await ctx.session.send("You see nothing special.")
 
@@ -203,8 +219,10 @@ async def _show_exit(ctx: CommandContext, exit_obj) -> None:
 
 def register_look_commands(dispatcher: CommandDispatcher) -> None:
     """Register look commands with the dispatcher."""
+    from functools import partial
+    register = partial(dispatcher.register, category="looking")
 
-    dispatcher.register(
+    register(
         "look",
         cmd_look,
         aliases=["l"],
@@ -212,7 +230,7 @@ def register_look_commands(dispatcher: CommandDispatcher) -> None:
         usage="look [target]",
     )
 
-    dispatcher.register(
+    register(
         "examine",
         cmd_examine,
         aliases=["ex", "exam"],
