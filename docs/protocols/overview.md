@@ -59,3 +59,12 @@ realm/gateway/
 
 - [Adding a Protocol](adding-protocol.md) - Step-by-step guide
 - [Session Lifecycle](../architecture/sessions.md) - How sessions work
+
+## Structured data (GMCP / OOB)
+
+Protocols may install an out-of-band writer
+(`session.set_oob_writer`) to carry structured data alongside text.
+Telnet negotiates **GMCP** (room info, character vitals, and anything
+softcode sends via `oob()`); WebSocket delivers the same packages as
+JSON envelopes. A protocol without an OOB writer simply never
+receives structured sends — games never need to check.

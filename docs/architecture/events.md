@@ -1,95 +1,64 @@
-# Event System
+# Action Propagation
 
-REALM uses an event-driven architecture where game actions emit events that can be observed, modified, or canceled.
+REALM's single message pathway. Every game action — speech, movement,
+getting an item, a sword blow — is an ``Action`` propagated through the
+room in **two passes** (CoffeeMud-style):
 
-!!! note "Work in Progress"
-    This documentation is being expanded.
-
-## Event Types
-
-```python
-class EventType(Enum):
-    # Connection events
-    CONNECT = auto()
-    DISCONNECT = auto()
-
-    # Communication
-    SPEECH = auto()      # Player says something
-    EMOTE = auto()       # Player emotes/poses
-
-    # Movement
-    MOVE = auto()        # Object moves between locations
-    ENTER = auto()       # Object enters a location
-    LEAVE = auto()       # Object leaves a location
-
-    # Actions
-    LOOK = auto()        # Player looks at something
-    GET = auto()         # Player picks up item
-    DROP = auto()        # Player drops item
-    USE = auto()         # Player uses an item
-
-    # Combat (planned)
-    ATTACK = auto()
-    DAMAGE = auto()
-    DEATH = auto()
-
-    # System
-    TICK = auto()        # Periodic game tick
-    CUSTOM = auto()      # User-defined events
-```
-
-## Event Structure
+1. **Check pass** — every visited object (and its behaviors) may
+   inspect, modify, or ``block()`` the action. Locks are enforced here
+   too. The pass always runs to completion, so observers see even
+   blocked attempts.
+2. **React pass** — objects accumulate audience messages, queue
+   trailing actions, and mutate state in response.
 
 ```python
-@dataclass
-class Event:
-    type: EventType
-    source: GameObject | None      # Who/what caused the event
-    target: GameObject | None      # Target of the event
-    location: GameObject | None    # Where the event occurred
-    data: dict                     # Event-specific data
-    source_msg: str | None         # Message for the source
-    others_msg: str | None         # Message for observers
-    canceled: bool = False         # Set to True to cancel
-```
+from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
 
-## Emitting Events
-
-```python
-from realm.core.events import Event, EventType
-
-# Emit a speech event
-event = Event(
-    type=EventType.SPEECH,
-    source=player,
-    location=player.location,
-    data={'message': 'Hello everyone!'},
-    source_msg='You say, "Hello everyone!"',
-    others_msg=f'{player.name} says, "Hello everyone!"',
+action = Action(
+    actor=player,
+    target=room,
+    action_type="event:speech",
+    chain=ROOM_TARGET_CHAIN,
+    extra={"message": "hello"},
 )
-await event_bus.emit(event)
+action.add_message("actor", 'You say, "hello"', success_only=True)
+action.add_message("room", '{actor} says, "hello"', success_only=True)
+await propagate(action)
 ```
 
-## Subscribing to Events
+Messages address audiences (``actor`` / ``target`` / ``room``), render
+**per looker** (perception applies — an unseen speaker narrates as
+"Someone"), and ``success_only`` messages are suppressed when the
+action is blocked.
+
+## Who sees an action
+
+- **Behaviors** on the actor, target, and room contents get
+  ``on_check`` / ``on_react`` calls.
+- **Observers** registered on the engine see every action — the script
+  engine (softcode ``^listen`` and ``ON_<EVENT>`` triggers), the
+  stealth system, and hostile-combat auto-initiation are all observers.
+- **Zone masters** witness events in their member rooms.
+
+## Action types
+
+Namespaced strings, not an enum: ``event:speech``, ``event:on_enter``,
+``item:on_get``, ``combat:on_death``, ``event:payment``... The suffix
+maps to softcode triggers — an object with an ``ON_ENTER`` attribute
+runs it when something enters its room.
+
+## Common patterns
 
 ```python
-# Subscribe to all speech events
-async def on_speech(event: Event) -> None:
-    print(f"{event.source.name} said: {event.data['message']}")
-
-event_bus.subscribe(EventType.SPEECH, on_speech)
+# Gate an action (locks + behaviors may veto), then act:
+from realm.core.verbs import gate_item_action
+action = await gate_item_action(actor, "item:on_get", target,
+                                fail_msg="You can't.")
+if action is not None:
+    target.location = actor
+    action.add_message("actor", "You pick up {target:a}.")
+    deliver_messages(action)
 ```
 
-## Two-Phase Processing
-
-Events are processed in two phases:
-
-1. **Validation Phase** - Handlers can set `event.canceled = True`
-2. **Execution Phase** - Only runs if not canceled
-
-This allows behaviors to prevent actions (e.g., a locked door preventing movement).
-
-## Next Steps
-
-- [Command Dispatch](commands.md) - How commands trigger events
-- [Architecture Overview](overview.md) - How events fit in the system
+The manipulation verb cores in ``realm/core/verbs.py`` are the
+reference implementations.

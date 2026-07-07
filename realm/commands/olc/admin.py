@@ -199,6 +199,7 @@ async def cmd_find(ctx: CommandContext) -> None:
 
     Usage: @find <name>
            @find/tag <tag>
+           @find/attr <attribute>[=<value>]
            @find/owner <owner>
     """
     if not ctx.player or not ctx.persistence:
@@ -214,6 +215,14 @@ async def cmd_find(ctx: CommandContext) -> None:
     if 'tag' in ctx.switches:
         # Search by tag
         results = ctx.persistence.find_cached(tag=search)
+    elif 'attr' in ctx.switches:
+        from realm.core.query import _UNSET, find_objects
+        attr, _, raw = ctx.args.strip().partition('=')
+        wanted = _UNSET
+        if raw:
+            from realm.commands.olc.modify import _parse_value
+            wanted = _parse_value(raw.strip())
+        results = find_objects(attr=attr.strip(), value=wanted, limit=100)
     elif 'owner' in ctx.switches:
         # Search by owner name
         for obj in ctx.persistence.all_cached():

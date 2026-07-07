@@ -96,6 +96,13 @@ async def cmd_examine(ctx: CommandContext) -> None:
 
     await ctx.session.send("")
 
+    # Attributes the builder flagged visual are public lore.
+    from realm.core.attrflags import visual_attrs
+    for attr_name in visual_attrs(target):
+        value = target.db.get(attr_name)
+        if value is not None:
+            await ctx.session.send(f"{attr_name}: {value}")
+
     # Show tags
     if target.tags:
         tags_str = ", ".join(sorted(target.tags.to_list()))

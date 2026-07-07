@@ -427,13 +427,12 @@ def get_search_objects(player: GameObject) -> list[GameObject]:
     for obj in player.contents:
         add_if_new(obj)
 
-    # 4. Zone objects - find zone tag on room
+    # 4. Zone masters: zone-wide $-commands/^listens (the Zone Master
+    # Room pattern) — any zone_master sharing a zone: tag with the room.
     if player.location:
-        for tag in player.location.tags.to_list():
-            if tag.startswith('zone:'):
-                # Would need a zone registry to find zone objects
-                # For now, skip this - could be added later
-                pass
+        from realm.core.zones import zone_masters
+        for master in zone_masters(player.location):
+            add_if_new(master)
 
     # 5. Global command room - TODO: implement Master Room
 

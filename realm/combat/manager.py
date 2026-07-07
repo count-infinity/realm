@@ -189,6 +189,9 @@ class CombatManager:
             system = get_game_system()
             award = (system.death_award(npc) if system
                      else max(1, int(npc.db.get('points') or 10) // 10))
+            from realm.core.zones import zone_property
+            multiplier = zone_property(room, 'xp_multiplier', 1.0)
+            award = max(1, round(award * float(multiplier)))
             sharers = [m for m in party_members(killer)
                        if m.has_tag('player') and not m.has_tag('unconscious')]
             if not sharers:

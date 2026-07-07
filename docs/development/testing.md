@@ -21,13 +21,22 @@ pytest tests/test_session.py::test_session_creation
 ## Test Structure
 
 ```
-tests/
-├── test_session.py      # Session and SessionManager tests
-├── test_objects.py      # GameObject tests
-├── test_events.py       # EventBus tests
-├── test_dispatcher.py   # Command dispatcher tests
-└── test_persistence.py  # Database tests
+tests/                        # 800+ tests, ~2s total
+├── test_propagation.py       # the action pipeline
+├── test_objects.py / test_tags.py
+├── test_dispatcher.py / test_commands.py / test_builtin_commands.py
+├── test_scripting.py / test_script_engine.py / test_softcode_builders.py
+├── test_combat*.py / test_ranged_combat.py
+├── test_behaviors.py / test_disposition.py / test_economy.py / test_party.py
+├── test_systems.py           # GameSystem, chargen, auth
+├── test_query_zones.py / test_help_and_details.py / test_oob.py
+├── test_persistence.py / test_session.py / test_permissions.py
+└── test_olc.py / test_infiltration.py / test_spacegame.py
 ```
+
+Live end-to-end drives (telnet scripts that boot a real server) live
+outside the repo during development and verify each feature package;
+the tutorial's command sequence is one of them.
 
 ## Writing Tests
 

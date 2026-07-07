@@ -200,10 +200,33 @@ async def cmd_recall(ctx: CommandContext) -> None:
     await ctx.session.send("Recall not yet implemented.")
 
 
+async def cmd_color(ctx: CommandContext) -> None:
+    """
+    Toggle color output for your client.
+
+    Usage: color on | color off
+    """
+    want = (ctx.args or "").strip().lower()
+    if want not in ("on", "off"):
+        state = "off" if ctx.player.db.get("color") is False else "on"
+        await ctx.session.send(f"Color is {state}. Usage: color on|off")
+        return
+    ctx.player.db.set("color", want == "on")
+    await ctx.session.send(
+        f"Color {want}." + (" |gLike this.|n" if want == "on" else ""))
+
+
 def register_utility_commands(dispatcher: CommandDispatcher) -> None:
     """Register utility commands with the dispatcher."""
     from functools import partial
     register = partial(dispatcher.register, category="utility")
+
+    register(
+        "color",
+        cmd_color,
+        help_text="Toggle color output",
+        usage="color on|off",
+    )
 
     register(
         "who",

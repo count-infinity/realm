@@ -60,3 +60,15 @@ await manager.broadcast_to_room(room, "A noise echoes.", exclude=source)
 total = manager.session_count()
 players = manager.player_count()
 ```
+
+## Out-of-band data (GMCP)
+
+```python
+session.send_oob("Char.Vitals", {"hp": 9, "max_hp": 12})
+session.set_oob_writer(fn)     # installed by the protocol
+session.oob_supports           # what the client announced (Core.Hello...)
+```
+
+No-op for clients that never negotiated an OOB channel. Telnet uses
+GMCP (option 201); WebSocket wraps the same data as
+`{"type": "oob", "package": ..., "data": ...}`.

@@ -6,28 +6,32 @@ REALM is a modern Python framework for building Multi-User Dungeons (MUDs), MUSH
 
 ## Features
 
-- **Async-first architecture** - Built on Python's asyncio for high concurrency
-- **Protocol agnostic** - Telnet, WebSocket, and extensible to custom protocols
-- **Event-driven** - Flexible event bus with validation and execution phases
-- **Persistent world** - SQLite-backed persistence with dirty tracking
-- **Extensible commands** - Easy command registration with aliases
-- **Session management** - Robust connection handling with auto-flush
+- **Async-first** - one asyncio process; SQLite (WAL) persistence with dirty-sweep saves
+- **Action propagation** - every game action flows through one two-pass, vetoable pipeline
+- **Softcode** - a Turing-complete, sandboxed scripting layer builders use *in-game*
+  (`$`-commands, triggers, tickers, inline `[[...]]` in descriptions), with a real authority model
+- **Swappable rules** - GameSystem packages (GURPS and D20 ship in-box): chargen,
+  skills, advancement, combat rulesets
+- **Playable out of the box** - beat combat (melee + ranged), NPCs with brains,
+  shops, dispositions, followers, zones
+- **Protocol agnostic** - telnet (with GMCP), WebSocket, custom protocols
 
 ## Quick Example
 
-```python
-from realm.server import GameServer
+```bash
+pip install -e .          # from a git clone, for now
+realm init mygame && cd mygame
+realm start               # telnet localhost 4000; first character = superuser
+```
 
-async def main():
-    server = GameServer(
-        telnet_port=4000,
-        websocket_port=4001,
-    )
-    await server.run_forever()
+Then build from inside the game:
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+```text
+@dig The Garden = north, south
+@detail here = check('observation') -> A glint of metal in the roses.
+@create parrot
+@behavior parrot = script_ticker, interval:8
+@set parrot/on_tick = say Pieces of eight!
 ```
 
 ## Getting Started
@@ -35,12 +39,15 @@ if __name__ == "__main__":
 - [Installation](getting-started/installation.md) - Set up your development environment
 - [Quick Start](getting-started/quickstart.md) - Run your first REALM server
 - [Your First Game](getting-started/first-game.md) - Build a simple game world
+- [Tutorial: The Abandoned Lighthouse](tutorial/index.md) - a complete adventure, built in-game
+- [World Management](guides/world-management.md) - search, zones, attribute flags, import/export
+- [Softcode Reference](reference/softcode.md) - every function, trigger, and script command
 
 ## Architecture
 
 - [Overview](architecture/overview.md) - How REALM components fit together
 - [Session Lifecycle](architecture/sessions.md) - Connection states and flow
-- [Event System](architecture/events.md) - The event bus and handlers
+- [Action Propagation](architecture/events.md) - the engine's one message pathway
 - [Command Dispatch](architecture/commands.md) - How commands are processed
 
 ## For Developers

@@ -111,9 +111,24 @@ class WebSocketHandler:
             self.session.set_data('terminal_height', height)
 
     async def _write_to_client(self, message: str) -> None:
-        """Write a message to the WebSocket client."""
+        """Write a message to the WebSocket client.
+
+        Markup ships as structured segments — the client styles them
+        (no ANSI-to-HTML archaeology); plain text stays plain.
+        """
         if not self._running or self.ws.closed:
             return
+
+        from realm.core.markup import MARKER, parse, strip
+        if MARKER in message:
+            try:
+                segments = [[style.key(), seg] for style, seg in parse(message)]
+                await self._send_json({'type': 'text',
+                                       'text': strip(message),
+                                       'segments': segments})
+                return
+            except Exception:
+                message = strip(message)
 
         try:
             await self.ws.send_str(message)

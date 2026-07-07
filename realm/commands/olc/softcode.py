@@ -18,6 +18,7 @@ import json
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import require_control, resolve_target, save_object
 from realm.commands.olc.modify import _parse_value
+from realm.core.attrflags import cloneable_attrs
 from realm.core.behaviors import BehaviorRegistry
 
 
@@ -152,7 +153,8 @@ async def cmd_clone(ctx: CommandContext) -> None:
         'name': new_name,
         'description': original.description,
         'tags': tags,
-        'attrs': json.loads(json.dumps(original.db.all())),
+        'attrs': json.loads(json.dumps(cloneable_attrs(
+            original.db.all(), original.db.get('attr_flags')))),
         'behaviors': [b.to_dict() for b in original.get_behaviors()],
     }
     clone = spawn_from_prototype(prototype, ctx.player.location)
@@ -245,6 +247,70 @@ async def cmd_force(ctx: CommandContext) -> None:
         await ctx.session.send("Puppet chain too deep.")
 
 
+async def cmd_zone(ctx: CommandContext) -> None:
+    """
+    Manage zones (areas): tag rooms in, inspect membership, crown masters.
+
+    Usage: @zone here = castle             (add room to zone)
+           @zone/remove here = castle
+           @zone/master <object> = castle  (make it the zone's master)
+           @zone here                      (list zones + masters)
+           @zone/rooms castle              (list member rooms)
+    """
+    from realm.core.zones import MASTER_TAG, ZONE_PREFIX, zone_masters, zone_rooms, zone_tags
+
+    switch = ctx.switches[0].lower() if ctx.switches else ""
+
+    if switch == 'rooms':
+        zone = (ctx.args or "").strip()
+        if not zone:
+            await ctx.session.send("Usage: @zone/rooms <zone>")
+            return
+        rooms = zone_rooms(zone)
+        if not rooms:
+            await ctx.session.send(f"No rooms in zone '{zone}'.")
+            return
+        await ctx.session.send(
+            f"Zone '{zone}' ({len(rooms)} rooms): "
+            + ", ".join(r.name for r in rooms[:50]))
+        return
+
+    if not ctx.left_args:
+        await ctx.session.send("Usage: @zone <object> [= <zone>]")
+        return
+    target = resolve_target(ctx, ctx.left_args.strip())
+    if not target:
+        await ctx.session.send(f"Object '{ctx.left_args.strip()}' not found.")
+        return
+
+    if not ctx.right_args:
+        zones = [t.split(':', 1)[1] for t in zone_tags(target)]
+        masters = zone_masters(target)
+        await ctx.session.send(
+            f"{target.name}: zones {zones or 'none'}"
+            + (f"; masters: {', '.join(m.name for m in masters)}"
+               if masters else ""))
+        return
+
+    if not await require_control(ctx, target):
+        return
+    zone = ctx.right_args.strip().lower().replace(' ', '_')
+    tag = ZONE_PREFIX + zone
+
+    if switch in ('remove', 'del'):
+        target.remove_tag(tag)
+        await save_object(ctx, target)
+        await ctx.session.send(f"{target.name} removed from zone '{zone}'.")
+        return
+
+    target.add_tag(tag)
+    if switch == 'master':
+        target.add_tag(MASTER_TAG)
+    await save_object(ctx, target)
+    role = "MASTER of" if switch == 'master' else "added to"
+    await ctx.session.send(f"{target.name} {role} zone '{zone}'.")
+
+
 def register_softcode_commands(dispatcher: CommandDispatcher) -> None:
     """Register live-composition builder commands."""
     from functools import partial
@@ -265,6 +331,15 @@ def register_softcode_commands(dispatcher: CommandDispatcher) -> None:
         cmd_clone,
         help_text="Duplicate an object with its attributes, tags, and behaviors",
         usage="@clone <object> [= <new name>]",
+        permission="builder",
+        parse_equals=True,
+    )
+
+    register(
+        "@zone",
+        cmd_zone,
+        help_text="Manage zones: membership, masters, room lists",
+        usage="@zone <object> [= <zone>]",
         permission="builder",
         parse_equals=True,
     )

@@ -2,9 +2,6 @@
 
 The command dispatcher routes player input to command handlers.
 
-!!! note "Work in Progress"
-    This documentation is being expanded.
-
 ## Registering Commands
 
 ```python
@@ -19,30 +16,38 @@ async def cmd_wave(ctx: CommandContext) -> None:
     else:
         await ctx.session.send("You wave.")
 
-# Register with aliases
-dispatcher.register("wave", cmd_wave, aliases=["wav"])
+# Register with aliases, permission, and a help category
+dispatcher.register("wave", cmd_wave, aliases=["wav"],
+                    help_text="Wave at someone", usage="wave [target]",
+                    permission="player", category="social")
 ```
+
+`help` derives its listing from these registrations — set `category`
+and `help_text` and your command documents itself.
 
 ## Command Context
 
 Handlers receive a `CommandContext` with:
 
 ```python
-@dataclass
-class CommandContext:
-    session: Session          # The player's session
-    player: GameObject | None # The player object (if logged in)
-    command: str              # The command name
-    args: str                 # Everything after the command
-    raw: str                  # The full input line
+CommandContext(
+    session,        # the player's session
+    player,         # the player GameObject (guaranteed for handlers)
+    command_name,   # the matched command
+    args,           # everything after the command
+    raw_input,      # the full line
+    left_args, right_args,  # split on '=' when parse_equals=True
+    switches,       # ['tag'] from "@find/tag"
+    dispatcher,     # services: dispatcher.persistence, etc.
+)
 ```
 
 ## Command Resolution Order
 
-1. **Exact match** - `look` matches the `look` command
-2. **Alias match** - `l` matches `look` if `l` is an alias
-3. **Prefix match** - `lo` matches `look` if unambiguous
-4. **Unknown handler** - Falls through to softcode search
+1. **Exact / alias match** - `look`, or `l` if aliased
+2. **Token shortcuts** - `"hello` = say, `:waves` = pose
+3. **Exit names** - `north`, `trapdoor` walk matching exits
+4. **Unknown handler** - falls through to softcode `$`-command search
 
 ## Login vs Playing Commands
 

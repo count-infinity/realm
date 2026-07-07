@@ -244,9 +244,18 @@ class TelnetProtocol(asyncio.Protocol):
             asyncio.create_task(self.on_command(self.session, line))
 
     async def _write_to_client(self, message: str) -> None:
-        """Write a message to the client."""
+        """Write a message to the client (markup renders HERE)."""
         if self.transport is None or self.transport.is_closing():
             return
+
+        # Color markup renders at the protocol edge: ANSI for clients,
+        # stripped for players who set color off.
+        from realm.core.markup import strip, to_ansi
+        player = self.session.player if self.session else None
+        if player is not None and player.db.get('color') is False:
+            message = strip(message)
+        else:
+            message = to_ansi(message)
 
         # Ensure lines end with CRLF for telnet
         if not message.endswith('\n'):

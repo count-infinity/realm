@@ -125,6 +125,12 @@ async def cmd_set(ctx: CommandContext) -> None:
     if not await require_control(ctx, target):
         return
 
+    from realm.core.attrflags import writable_attr
+    ok, reason = writable_attr(target, attr_name)
+    if not ok:
+        await ctx.session.send(reason)
+        return
+
     # Set or clear the attribute
     if ctx.right_args:
         value = _parse_value(ctx.right_args)
@@ -155,11 +161,13 @@ async def cmd_wipe(ctx: CommandContext) -> None:
     if not await require_control(ctx, target):
         return
 
-    # Clear all attributes
+    # Clear all attributes (safe-flagged ones survive the wipe)
+    from realm.core.attrflags import has_attr_flag
     attrs = target.db.all()
-    count = len(attrs)
+    keys = [k for k in attrs if not has_attr_flag(target, k, 'safe')]
+    count = len(keys)
 
-    for key in list(attrs.keys()):
+    for key in keys:
         target.db.delete(key)
 
     await save_object(ctx, target)
@@ -490,6 +498,65 @@ async def cmd_detail(ctx: CommandContext) -> None:
         f"{f' (when {condition})' if condition else ''}.")
 
 
+async def cmd_attr(ctx: CommandContext) -> None:
+    """
+    Flag attributes: secret (controllers-only read), visual (shown on
+    examine), safe (writes refused), no_clone (skipped by @clone).
+
+    Usage: @attr <object>/<attribute> = <flag>[, <flag>...]
+           @attr <object>/<attribute> = !<flag>     (remove a flag)
+           @attr <object>/<attribute> =             (clear all flags)
+           @attr <object>                           (list flagged attrs)
+    """
+    from realm.core.attrflags import VALID_FLAGS, attr_flags, set_attr_flags
+
+    if not ctx.left_args:
+        await ctx.session.send("Usage: @attr <object>[/<attribute>] [= flags]")
+        return
+
+    spec = ctx.left_args.strip()
+    obj_spec, _, attr_name = spec.partition('/')
+    target = resolve_target(ctx, obj_spec.strip())
+    if not target:
+        await ctx.session.send(f"Object '{obj_spec.strip()}' not found.")
+        return
+
+    if not attr_name:
+        table = target.db.get('attr_flags') or {}
+        if not table:
+            await ctx.session.send(f"{target.name} has no flagged attributes.")
+            return
+        lines = [f"Attribute flags on {target.name}:"]
+        for name in sorted(table):
+            lines.append(f"  {name}: {', '.join(table[name])}")
+        await ctx.session.send("\n".join(lines))
+        return
+
+    if not await require_control(ctx, target):
+        return
+
+    attr_name = attr_name.strip()
+    current = attr_flags(target, attr_name)
+    if ctx.right_args is None or not ctx.right_args.strip():
+        set_attr_flags(target, attr_name, [])
+        await save_object(ctx, target)
+        await ctx.session.send(f"Flags cleared from {target.name}/{attr_name}.")
+        return
+
+    for token in (t.strip().lower() for t in ctx.right_args.split(',')):
+        removing = token.startswith('!')
+        flag = token.lstrip('!')
+        if flag not in VALID_FLAGS:
+            await ctx.session.send(
+                f"Unknown flag '{flag}'. Valid: {', '.join(VALID_FLAGS)}")
+            return
+        (current.discard if removing else current.add)(flag)
+    set_attr_flags(target, attr_name, sorted(current))
+    await save_object(ctx, target)
+    await ctx.session.send(
+        f"{target.name}/{attr_name}: {', '.join(sorted(current)) or 'no flags'}.")
+
+
 def register_modify_commands(dispatcher: CommandDispatcher) -> None:
     """Register modification OLC commands with the dispatcher."""
     from functools import partial
@@ -554,6 +621,15 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         cmd_untag,
         help_text="Remove a tag from an object",
         usage="@untag <object> = <tag>",
+        permission="builder",
+        parse_equals=True,
+    )
+
+    register(
+        "@attr",
+        cmd_attr,
+        help_text="Flag attributes: secret, visual, safe, no_clone",
+        usage="@attr <object>/<attr> = <flag>[, ...]",
         permission="builder",
         parse_equals=True,
     )

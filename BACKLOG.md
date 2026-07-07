@@ -326,6 +326,75 @@ Design sketch:
 
 ## Completed
 
+- [x] **COLOR AT THE EDGE (2026-07-07).** 852 tests (16 new); docs
+  shipped with it (guides/color.md + regenerated softcode reference).
+  - **No ANSIString class** — the deliberate anti-Evennia decision:
+    color is |-markup inside ordinary str; the whole pipeline is
+    markup-blind; rendering happens ONCE per protocol at write time.
+    realm/core/markup.py owns semantics: parse→(Style, text) segments,
+    strip/visible_len/pad/truncate (the only raw-vs-visible code),
+    escape, to_ansi.
+  - **Minimal SGR**: codes only on style change (adjacent same-style
+    fragments coalesce — tested: '|rab|rcd|ref' = ONE escape), combined
+    params, single trailing reset (no prompt bleed). Split-safety
+    regression-tested: marked-up text split at EVERY index still
+    parses/renders.
+  - **Edges**: telnet renders ANSI (or strips for db.color=False —
+    `color on|off` player command); WebSocket ships structured
+    segments {text, segments:[[stylekey, text]...]} — no ANSI→HTML
+    parsing ever. Extension path: parser reads one char after '|',
+    so |#F00 truecolor slots in later.
+  - **Softcode**: Penn-style `ansi('rh', text)` (h=bright,
+    UPPER=background) + `escape()`; raw pipes work in @desc/say/
+    [[...]] today. Room render colorized (|c title, |g exits) as the
+    adoption starter.
+- [x] **AREAS AS FILES + ATTRIBUTE FLAGS (2026-07-07).** 836 tests
+  (12 new); docs shipped WITH the features.
+  - **World import/export** (realm/persistence/worldio.py + `realm
+    export/import` CLI): JSON area files carrying attrs (softcode
+    travels free), tags, locks, behaviors, references. Import mints
+    FRESH ids with deep reference remapping (location/owner/parent AND
+    id-bearing attribute values — exit destinations, spawner lists);
+    external refs resolve against the live world or drop cleanly;
+    passwords always stripped; `--zone castle` exports an area
+    (rooms + contents + masters) — zones are shippable. Newer-format
+    guard. Closes the old ".realm import/export" backlog item.
+  - **Attribute flags** (realm/core/attrflags.py + `@attr` command):
+    the four load-bearing Penn flags — `secret` (controllers-only
+    reads, enforced in get_attr/has_attr/search_world/@examine-path),
+    `visual` (shown on plain player examine), `safe` (@set/@wipe/
+    set_attr refuse; @wipe spares them), `no_clone` (skipped by
+    @clone). One dict (`db.attr_flags`) in the house style. REALM
+    keeps open-reads as the DEFAULT (mechanics depend on it) — the
+    deliberate inversion of Penn's model, documented. Penn's full
+    ~30-flag inventory (verified against attrib.h/atr_tab.c) recorded
+    for the deferred items: trees, per-attr ownership, NEARBY,
+    enum/rlimit.
+  - **Docs**: NEW guides/world-management.md (search, zones, flags,
+    import/export, safety valves) + reference/softcode.md
+    AUTO-GENERATED from the live API (75 functions;
+    scripts/gen_softcode_docs.py regenerates) — new capabilities and
+    everything prior now covered; nav + index updated.
+- [x] **THE WORLD ANSWERS: queries + zones (2026-07-07).** 823 tests
+  (9 new).
+  - **Query engine** (realm/core/query.py): `find_objects(tag/tags/
+    attr[=value]/name_like/limit)` over the identity map (whole world
+    in RAM; ~15ms per 100K scan). Surfaces: `@find/attr key[=value]`
+    joins /tag and /owner; softcode `search_world(...)` capped at 500.
+  - **Protected attributes**: softcode can no longer read `password`
+    (get_attr/has_attr/search_world all refuse) — closed the
+    hash-disclosure hole flagged in the design discussion.
+  - **Zones** (realm/core/zones.py): rooms carry `zone:<name>` tags;
+    any `zone_master`-tagged object sharing the tag is the area brain.
+    THREE seams wired: trigger search step 4 (zone-wide $-commands and
+    ^listens — the Penn Zone Master Room, finally implemented from
+    plan.md), event witnessing (the master's ON_ENTER/ON_DEATH fire
+    for events in member rooms), and `zone_property(room, name)` —
+    numeric policy where overlapping zones take max; the death award
+    consults `xp_multiplier` (`@set Castle Zone/xp_multiplier = 1.2`
+    is the user's +20% XP zone, one attribute, no scripts per kill).
+  - `@zone` builder command (add/remove/master/rooms/inspect);
+    softcode `zone_rooms('castle')` / `zones_of(here)`.
 - [x] **THE TUTORIAL IS TRUE: Getting Started docs (2026-07-06).**
   814 tests; 14-check live drive runs the tutorial's command sequence
   near-verbatim against a fresh default game. MkDocs Material was

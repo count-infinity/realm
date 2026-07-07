@@ -1,57 +1,40 @@
-# Events API
+# Propagation API
 
-!!! note "Work in Progress"
-    Full API documentation coming soon.
+Quick reference for ``realm.core.propagation``. The concepts:
+[Action Propagation](../architecture/events.md).
 
-## EventBus
-
-Central event dispatcher.
+## Action
 
 ```python
-from realm.core.events import EventBus, Event, EventType
-
-bus = EventBus()
-
-# Subscribe to events
-async def handler(event: Event):
-    print(f"Got {event.type}")
-
-bus.subscribe(EventType.SPEECH, handler)
-
-# Emit events
-event = Event(
-    type=EventType.SPEECH,
-    source=player,
-    location=room,
-    data={'message': 'Hello'},
+Action(
+    actor: GameObject | None,
+    target: GameObject | None,
+    action_type: str,           # "event:speech", "item:on_get", ...
+    chain=None,                 # visit order; ROOM_TARGET_CHAIN for room-wide
+    tool: GameObject | None = None,
+    extra: dict = {},           # payload ("message", "amount", ...)
+    tags: set[str] = set(),     # "scripted", "movement", ...
 )
-await bus.emit(event)
+
+action.block(reason)                    # veto (check pass)
+action.blocked / action.block_reason
+action.add_message(audience, text, success_only=False)
+action.add_modifier(value, reason)      # picked up by combat rolls
 ```
 
-## Event
-
-Event data structure.
+## Functions
 
 ```python
-@dataclass
-class Event:
-    type: EventType
-    source: GameObject | None
-    target: GameObject | None
-    location: GameObject | None
-    data: dict
-    source_msg: str | None
-    others_msg: str | None
-    canceled: bool = False
+await propagate(action, deliver=True)   # run both passes (+ messages)
+deliver_messages(action)                # deliver staged messages later
+await gate_action(action, fail_msg=...) # check-pass-only convenience
+get_engine() / reset_engine()           # the module singleton
+get_engine().add_observer(async_fn)     # see every action
 ```
 
-## EventType
+## Canonical action builders
 
-Available event types:
-
-- `CONNECT`, `DISCONNECT` - Session events
-- `SPEECH`, `EMOTE` - Communication
-- `MOVE`, `ENTER`, `LEAVE` - Movement
-- `LOOK`, `GET`, `DROP`, `USE` - Actions
-- `ATTACK`, `DAMAGE`, `DEATH` - Combat
-- `TICK`, `CUSTOM` - System
+``realm.core.verbs`` exports ``speech_action`` / ``pose_action`` and
+the manipulation cores (``do_get``, ``do_drop``, ``do_give``,
+``do_open``, ``do_close``) — use these instead of hand-building
+common shapes.

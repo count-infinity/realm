@@ -133,6 +133,61 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
     return 0
 
 
+async def cmd_export(args: argparse.Namespace) -> int:
+    """Export the world (or one zone) to an area file."""
+    import json as _json
+
+    from realm.config.loader import load_config
+    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.persistence.worldio import export_objects, export_zone
+
+    settings = load_config()
+    persistence = PersistenceManager(settings.db_path)
+    await persistence.initialize()
+    try:
+        await persistence.load_all()
+        set_active_manager(persistence)
+        if args.zone:
+            data = export_zone(args.zone)
+        else:
+            objects = [o for o in persistence.all_cached()
+                       if args.include_players or not o.has_tag('player')]
+            data = export_objects(objects)
+        with open(args.file, 'w') as f:
+            _json.dump(data, f, indent=2)
+        print(f"Exported {len(data['objects'])} objects to {args.file}")
+        return 0
+    finally:
+        set_active_manager(None)
+        await persistence.close()
+
+
+async def cmd_import(args: argparse.Namespace) -> int:
+    """Import an area file into this game's world."""
+    import json as _json
+
+    from realm.config.loader import load_config
+    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.persistence.worldio import import_objects
+
+    with open(args.file) as f:
+        data = _json.load(f)
+
+    settings = load_config()
+    persistence = PersistenceManager(settings.db_path)
+    await persistence.initialize()
+    try:
+        await persistence.load_all()
+        set_active_manager(persistence)
+        created = await import_objects(data, persistence)
+        print(f"Imported {len(created)} objects from {args.file} "
+              f"(fresh ids, references remapped)")
+        return 0
+    finally:
+        set_active_manager(None)
+        await persistence.close()
+
+
 async def cmd_start(args: argparse.Namespace) -> int:
     """Start the game server from the current directory."""
     # Set up logging first
@@ -208,6 +263,18 @@ def main() -> int:
         help="Use an example template (e.g., spacegame)",
     )
 
+    # realm export / import
+    export_parser = subparsers.add_parser(
+        "export", help="Export the world (or one zone) to an area file")
+    export_parser.add_argument("file", help="Output file (.realm, JSON content)")
+    export_parser.add_argument("--zone", help="Export only this zone")
+    export_parser.add_argument("--include-players", action="store_true",
+                               help="Include player characters (passwords always stripped)")
+
+    import_parser = subparsers.add_parser(
+        "import", help="Import an area file into this game's world")
+    import_parser.add_argument("file", help="Area file to import")
+
     # realm start
     start_parser = subparsers.add_parser(
         "start",
@@ -233,6 +300,10 @@ def main() -> int:
         return cmd_init(args)
     elif args.command == "start":
         return asyncio.run(cmd_start(args))
+    elif args.command == "export":
+        return asyncio.run(cmd_export(args))
+    elif args.command == "import":
+        return asyncio.run(cmd_import(args))
     elif args.command == "version":
         return cmd_version(args)
     else:

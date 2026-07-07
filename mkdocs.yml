@@ -56,6 +56,11 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Your First Game: getting-started/first-game.md
+  - Guides:
+    - World Management: guides/world-management.md
+    - Color: guides/color.md
+  - Reference:
+    - Softcode: reference/softcode.md
   - "Tutorial: The Abandoned Lighthouse":
     - Overview: tutorial/index.md
     - 1. The Island: tutorial/01-the-island.md
@@ -66,7 +71,7 @@ nav:
   - Architecture:
     - Overview: architecture/overview.md
     - Session Lifecycle: architecture/sessions.md
-    - Event System: architecture/events.md
+    - Action Propagation: architecture/events.md
     - Command Dispatch: architecture/commands.md
   - Protocols:
     - Overview: protocols/overview.md
@@ -74,10 +79,15 @@ nav:
   - Development:
     - Contributing: development/contributing.md
     - Testing: development/testing.md
+  - Design:
+    - Engine Vision: design/engine_vision.md
+    - Adventure Coverage: design/adventure_coverage.md
+    - Combat: design/combat.md
+    - Simplicity Review: design/simplicity_review.md
   - API Reference:
     - Core Objects: api/objects.md
     - Sessions: api/sessions.md
-    - Events: api/events.md
+    - Propagation: api/events.md
 
 extra:
   social:

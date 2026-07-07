@@ -9,13 +9,20 @@ The base class for all game objects.
 
 ```python
 class GameObject:
-    id: str              # Unique identifier
-    name: str            # Display name
-    description: str     # Long description
-    location: GameObject | None  # Container/room
-    contents: list[GameObject]   # Contained objects
-    tags: set[str]       # Tags for categorization
-    db: AttributeProxy   # Persistent attributes
+    id: str              # UUID
+    name: str            # display name (articles computed at render)
+    description: str     # may embed [[...]] softcode blocks
+    location: GameObject | None
+    contents: list[GameObject]
+    tags: TagSet         # has_tag/add_tag/remove_tag; "zone:castle" namespacing
+    db: AttributeProxy   # persistent attrs: obj.db.hp = 10 (dirty-tracked)
+    owner: GameObject | None  # authority: controls() walks this
+    locks: dict          # "basic", "enter", "use", "control", ...
+
+    def msg(text)                    # to the player's client (no-op for NPCs)
+    def msg_oob(package, data)       # GMCP structured data (no-op likewise)
+    def add_behavior(b) / get_behaviors()
+    def get_display_name(looker)     # perception/disguise hook
 ```
 
 ### Creating Objects

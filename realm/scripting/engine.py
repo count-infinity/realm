@@ -264,6 +264,10 @@ class ScriptEngine:
         if room is not None:
             for obj in room.contents:
                 add(obj)
+            # Zone masters witness events in their member rooms.
+            from realm.core.zones import zone_masters
+            for master in zone_masters(room):
+                add(master)
         add(action.target)
 
         for obj in candidates:

@@ -24,6 +24,10 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
+# Attributes softcode may never read (secrets live in ordinary attrs).
+PROTECTED_ATTRS = {'password'}
+
+
 class ScriptFunctions:
     """
     Collection of built-in functions available to scripts.
@@ -124,8 +128,15 @@ class ScriptFunctions:
         default: Any = None,
     ) -> Any:
         """Get an attribute from an object."""
+        if str(attr_name) in PROTECTED_ATTRS:
+            return default
         target = self._resolve(obj)
-        return target.db.get(attr_name, default) if target else default
+        if target is None:
+            return default
+        from realm.core.attrflags import readable_attr
+        if not readable_attr(target, str(attr_name), self.executor):
+            return default
+        return target.db.get(attr_name, default)
 
     # --- Authority ---
 
@@ -166,14 +177,25 @@ class ScriptFunctions:
         target = self._controlled(obj)
         if target is None:
             return False
+        from realm.core.attrflags import writable_attr
+        ok, _reason = writable_attr(target, str(attr_name))
+        if not ok:
+            return False
         target.db.set(attr_name, value)
         self._touch(target)
         return True
 
     def has_attr(self, obj: GameObject | str | None, attr_name: str) -> bool:
         """Check if an object has an attribute."""
+        if str(attr_name) in PROTECTED_ATTRS:
+            return False
         target = self._resolve(obj)
-        return attr_name in target.db if target else False
+        if target is None:
+            return False
+        from realm.core.attrflags import readable_attr
+        if not readable_attr(target, str(attr_name), self.executor):
+            return False
+        return attr_name in target.db
 
     def del_attr(self, obj: GameObject | str | None, attr_name: str) -> bool:
         """Delete an attribute from an object the executor controls."""
@@ -532,6 +554,100 @@ class ScriptFunctions:
             return True
         return False
 
+    def tag_values(self, obj, prefix: str) -> list:
+        """All values of a namespaced tag: tag_values(here, 'zone')
+        -> ['castle', 'haunted']."""
+        target = self._resolve(obj)
+        if target is None:
+            return []
+        p = str(prefix).rstrip(':') + ':'
+        return [t[len(p):] for t in target.tags.to_list() if t.startswith(p)]
+
+    def tag_value(self, obj, prefix: str):
+        """First value of a namespaced tag: tag_value(here, 'zone')
+        -> 'castle' (None if untagged)."""
+        values = self.tag_values(obj, prefix)
+        return values[0] if values else None
+
+    @staticmethod
+    def ansi(codes: str, text: str) -> str:
+        """
+        Penn-style color: ansi('rh', 'My thing') — lowercase letters =
+        foreground (r g y b m c w x), 'h' brightens it, UPPERCASE =
+        background, u = underline. Returns |-markup + reset.
+        """
+        fg = None
+        bg = None
+        bright = False
+        flags = ''
+        for ch in str(codes):
+            if ch in 'rgybmcwx':
+                fg = ch
+            elif ch in 'RGYBMCWX':
+                bg = ch.lower()
+            elif ch == 'h':
+                bright = True
+            elif ch == 'u':
+                flags += '|u'
+            elif ch == 'i':
+                flags += '|i'
+        markup = ''
+        if fg:
+            markup += '|' + (fg.upper() if bright else fg)
+        elif bright:
+            markup += '|h'
+        if bg:
+            markup += '|[' + bg
+        return f"{markup}{flags}{text}|n"
+
+    @staticmethod
+    def escape(text: str) -> str:
+        """Escape color markup in player-provided text (|| literals)."""
+        from realm.core.markup import escape as _escape
+        return _escape(str(text))
+
+    # --- World queries ---
+
+    def search_world(self, tag=None, attr=None, value=None,
+                     name=None, limit: int = 100):
+        """
+        Query the world: search_world(tag='zone:castle'),
+        search_world(attr='xp_multiplier'), combinable. Results capped
+        (default 100). Protected attributes can't be queried.
+        """
+        from realm.core.query import _UNSET, find_objects
+        if attr is not None and str(attr) in PROTECTED_ATTRS:
+            return []
+        if attr is not None:
+            from realm.core.attrflags import readable_attr
+            results = find_objects(
+                tag=str(tag) if tag else None,
+                attr=str(attr),
+                value=value if value is not None else _UNSET,
+                name_like=str(name) if name else None,
+                limit=max(1, min(int(limit), 500)),
+            )
+            return [o for o in results
+                    if readable_attr(o, str(attr), self.executor)]
+        return find_objects(
+            tag=str(tag) if tag else None,
+            attr=str(attr) if attr else None,
+            value=value if value is not None else _UNSET,
+            name_like=str(name) if name else None,
+            limit=max(1, min(int(limit), 500)),
+        )
+
+    def zone_rooms(self, zone: str):
+        """Rooms tagged into a zone: zone_rooms('castle')."""
+        from realm.core.zones import zone_rooms as _zone_rooms
+        return _zone_rooms(str(zone))
+
+    def zones_of(self, obj):
+        """The zone names an object belongs to (no 'zone:' prefix)."""
+        from realm.core.zones import zone_tags
+        target = self._resolve(obj)
+        return [t.split(':', 1)[1] for t in zone_tags(target)]
+
     # --- Dispositions (NPC attitude memory) ---
 
     def disposition(self, npc, other=None) -> int:
@@ -887,6 +1003,13 @@ class ScriptFunctions:
             'heal': self.heal,
             'start_combat': self.start_combat,
             'apply_effect': self.apply_effect,
+            'tag_value': self.tag_value,
+            'tag_values': self.tag_values,
+            'ansi': self.ansi,
+            'escape': self.escape,
+            'search_world': self.search_world,
+            'zone_rooms': self.zone_rooms,
+            'zones_of': self.zones_of,
             'credits': self.credits,
             'adjust_credits': self.adjust_credits,
             'transfer_credits': self.transfer_credits,

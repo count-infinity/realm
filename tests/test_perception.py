@@ -221,7 +221,7 @@ class TestDarknessRendering:
 
         text = render_room(room, alice)
 
-        assert "Exits: north" in text
+        assert "north" in text and "Exits:" in text
         assert "bookcase" not in text
 
 

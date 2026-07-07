@@ -25,16 +25,16 @@ REALM uses a layered architecture that separates concerns cleanly:
 ┌──────────────────────────▼──────────────────────────────────┐
 │                      Server Layer                            │
 │  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────┐  │
-│  │  GameServer     │  │  Dispatcher │  │   EventBus      │  │
-│  │  (Orchestrator) │  │  (Commands) │  │   (Events)      │  │
+│  │  GameServer     │  │  Dispatcher │  │  ScriptEngine   │  │
+│  │  (Orchestrator) │  │  (Commands) │  │  (Softcode)     │  │
 │  └─────────────────┘  └─────────────┘  └─────────────────┘  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │                       Core Layer                             │
 │  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────┐  │
-│  │   GameObject    │  │  Behaviors  │  │   Attributes    │  │
-│  │   (All things)  │  │  (Scripts)  │  │   (db.*)        │  │
+│  │   GameObject    │  │  Behaviors  │  │  Propagation    │  │
+│  │  (tags + db.*)  │  │  (brains)   │  │  (all actions)  │  │
 │  └─────────────────┘  └─────────────┘  └─────────────────┘  │
 └──────────────────────────┬──────────────────────────────────┘
                            │
@@ -42,7 +42,7 @@ REALM uses a layered architecture that separates concerns cleanly:
 │                   Persistence Layer                          │
 │              ┌─────────────────────────┐                     │
 │              │  PersistenceManager     │                     │
-│              │  (SQLite / PostgreSQL)  │                     │
+│              │  (SQLite, WAL mode)     │                     │
 │              └─────────────────────────┘                     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -65,17 +65,19 @@ The **SessionManager** is protocol-agnostic and manages all sessions uniformly.
 
 The server layer contains the game logic:
 
-- **GameServer** - Orchestrates all components, handles startup/shutdown
-- **CommandDispatcher** - Routes commands to handlers
-- **EventBus** - Publishes and delivers events to subscribers
+- **GameServer** - The composition root: startup/shutdown, tick loop, auth, chargen
+- **CommandDispatcher** - Routes commands to handlers (permissions, categories)
+- **ScriptEngine** - Softcode: `$`-commands, `^listen`, `ON_<EVENT>` triggers, tickers
+- **GameSystem** - The swappable rules package (GURPS/D20: chargen, skills, combat ruleset)
 
 ### Core Layer
 
 The core layer defines the game world:
 
 - **GameObject** - Everything is a GameObject (rooms, players, items, exits)
-- **Behaviors** - Scripts attached to objects that respond to events
-- **Attributes** - Persistent data stored on objects via `obj.db.attribute`
+- **Action Propagation** - every game action flows through one two-pass pipeline ([details](events.md))
+- **Behaviors** - reusable brains attached to objects (wandering, shopkeeper, effects)
+- **Attributes & tags** - persistent data via `obj.db.attr`; mechanics are tag-driven
 
 ### Persistence Layer
 
@@ -83,7 +85,8 @@ The persistence layer handles saving and loading:
 
 - Dirty tracking for efficient saves
 - Periodic flush to database
-- Support for SQLite (default) and PostgreSQL
+- SQLite (WAL mode) today; the backend is a seam — Postgres is a
+  planned alternative, not yet implemented
 
 ## Data Flow: Command Execution
 
@@ -102,10 +105,12 @@ The persistence layer handles saving and loading:
         │   4. Handler sends messages: session.send("You say...")
         │           │
         │           ▼
-        │   5. Handler emits event: event_bus.emit(SPEECH event)
+        │   5. Handler propagates an Action (two passes:
+        │      check — locks/behaviors may block; react)
         │           │
         │           ▼
-        │   6. Event delivered to room occupants
+        │   6. Messages render per looker; observers
+        │      (softcode, stealth, combat) see it
         │
         └─► Command not found? Call unknown_handler (softcode search)
 
@@ -134,16 +139,16 @@ Sessions don't know about telnet vs websocket:
 - **Easy testing** - Mock sessions without network code
 - **Future-proof** - Add new protocols without changing game code
 
-### Why Event Bus?
+### Why Action Propagation?
 
-Events decouple game actions from their effects:
+One pipeline for every action decouples causes from effects:
 
-- **Extensible** - Behaviors can subscribe to any event
-- **Cancelable** - Validation phase can prevent actions
-- **Observable** - Easy to add logging, achievements, etc.
+- **Extensible** - behaviors and softcode react to any action, no registration tables
+- **Vetoable** - the check pass lets locks and behaviors block before effects
+- **Observable** - stealth, combat auto-initiation, and logging are just observers
 
 ## Next Steps
 
 - [Session Lifecycle](sessions.md) - Deep dive into connection handling
-- [Event System](events.md) - How events flow through the system
+- [Action Propagation](events.md) - How actions flow through the system
 - [Command Dispatch](commands.md) - Command registration and routing
