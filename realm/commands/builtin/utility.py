@@ -69,6 +69,10 @@ async def cmd_help(ctx: CommandContext) -> None:
     Show help on commands.
 
     Usage: help [command]
+
+    Example:
+        help combat
+        help fasttalk
     """
     if not ctx.dispatcher:
         await ctx.session.send("Help unavailable.")
@@ -176,6 +180,9 @@ async def cmd_think(ctx: CommandContext) -> None:
     Think to yourself (only you see it).
 
     Usage: think <thought>
+
+    Example:
+        think Note to self: the ferryman takes bribes.
     """
     if not ctx.args:
         await ctx.session.send("Think what?")
@@ -205,6 +212,9 @@ async def cmd_color(ctx: CommandContext) -> None:
     Toggle color output for your client.
 
     Usage: color on | color off
+
+    Example:
+        color off
     """
     want = (ctx.args or "").strip().lower()
     if want not in ("on", "off"):

@@ -26,6 +26,9 @@ async def cmd_desc(ctx: CommandContext) -> None:
            @desc me = <description>
 
     Use multi-line by ending with \\ and continuing on next line.
+
+    Example:
+        @desc here = Salt-bleached steps spiral up the cliff face.
     """
     if not ctx.left_args:
         await ctx.session.send("Usage: @desc <object> = <description>")
@@ -59,6 +62,9 @@ async def cmd_name(ctx: CommandContext) -> None:
     Rename an object.
 
     Usage: @name <object> = <new name>
+
+    Example:
+        @name rock = moon rock
     """
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @name <object> = <new name>")
@@ -148,6 +154,9 @@ async def cmd_wipe(ctx: CommandContext) -> None:
     Clear all attributes from an object.
 
     Usage: @wipe <object>
+
+    Example:
+        @wipe scratch pad      (safe-flagged attributes survive)
     """
     if not ctx.args:
         await ctx.session.send("Usage: @wipe <object>")
@@ -181,6 +190,9 @@ async def cmd_parent(ctx: CommandContext) -> None:
 
     Usage: @parent <object> = <parent>
            @parent <object> =             (clear parent)
+
+    Example:
+        @parent red apple = apple template
     """
     if not ctx.left_args:
         await ctx.session.send("Usage: @parent <object> = <parent>")
@@ -261,6 +273,9 @@ async def cmd_untag(ctx: CommandContext) -> None:
     Remove a tag from an object.
 
     Usage: @untag <object> = <tag>
+
+    Example:
+        @untag rat = hostile
     """
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @untag <object> = <tag>")
@@ -365,6 +380,9 @@ async def cmd_unlock(ctx: CommandContext) -> None:
     Remove all locks from an object.
 
     Usage: @unlock <object>
+
+    Example:
+        @unlock old door
     """
     if not ctx.args:
         await ctx.session.send("Usage: @unlock <object>")
@@ -507,6 +525,11 @@ async def cmd_attr(ctx: CommandContext) -> None:
            @attr <object>/<attribute> = !<flag>     (remove a flag)
            @attr <object>/<attribute> =             (clear all flags)
            @attr <object>                           (list flagged attrs)
+
+    Example:
+        @attr vault/gm_notes = secret
+        @attr shrine/on_pray = safe
+        @attr vault/gm_notes = !secret
     """
     from realm.core.attrflags import VALID_FLAGS, attr_flags, set_attr_flags
 

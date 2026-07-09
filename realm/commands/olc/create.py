@@ -20,6 +20,9 @@ async def cmd_create(ctx: CommandContext) -> None:
            @create <name> = <parent>
 
     The object is created in your inventory.
+
+    Example:
+        @create storm lantern
     """
     if not ctx.args:
         await ctx.session.send("Usage: @create <name> [= <parent>]")
@@ -185,6 +188,9 @@ async def cmd_link(ctx: CommandContext) -> None:
     Usage: @link <exit> = <destination>
 
     Use @link <exit> = here to link to your current room.
+
+    Example:
+        @link trapdoor = The Cellar
     """
     if not ctx.player or not ctx.player.location:
         return
@@ -230,6 +236,9 @@ async def cmd_unlink(ctx: CommandContext) -> None:
     Unlink an exit (remove its destination).
 
     Usage: @unlink <exit>
+
+    Example:
+        @unlink trapdoor
     """
     if not ctx.player or not ctx.player.location:
         return

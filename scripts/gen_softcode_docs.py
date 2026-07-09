@@ -43,8 +43,8 @@ function defs — under time/call/output limits.
 
 ## Functions
 
-| Function | Signature | Notes |
-|---|---|---|"""
+| Function | Signature | Notes | Example |
+|---|---|---|---|"""
 
 FOOTER = """
 Authority in one line: **reads are open** (except `password` and
@@ -66,9 +66,16 @@ def main() -> None:
             sig = str(inspect.signature(fn))
         except (ValueError, TypeError):
             sig = "(...)"
-        doc = (inspect.getdoc(fn) or "").split("\n")[0].strip()
-        lines.append(f"| `{name}` | `{sig.replace('|', chr(92) + '|')}` "
-                     f"| {doc.replace('|', chr(92) + '|')} |")
+        full = inspect.getdoc(fn) or ""
+        doc = full.split("\n")[0].strip()
+        example = ""
+        for line in full.split("\n"):
+            if line.strip().startswith("Example:"):
+                example = line.strip()[len("Example:"):].strip()
+                break
+        esc = lambda t: t.replace("|", chr(92) + "|")
+        lines.append(f"| `{name}` | `{esc(sig)}` | {esc(doc)} "
+                     f"| {('`' + esc(example) + '`') if example else ''} |")
     lines.append(FOOTER)
     out = pathlib.Path(__file__).parent.parent / "docs/reference/softcode.md"
     out.write_text("\n".join(lines))

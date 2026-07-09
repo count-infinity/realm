@@ -326,6 +326,71 @@ Design sketch:
 
 ## Completed
 
+- [x] **AREAS SYNC LIKE TERRAFORM + two real flakes killed
+  (2026-07-07).** 874 tests (8 new); 20 consecutive clean full-suite
+  runs.
+  - **In-game area workflow**: `@export <zone>` /
+    `@import <name>` (PLAN) / `@import/apply` / `@areas`, all over a
+    sandboxed `data/areas/` (name-only, path-escape rejected).
+  - **Stable-id sync** (worldio `diff_plan` → `apply_plan`): re-import
+    updates the area IN PLACE, matched by UUID — idempotent, no
+    duplicate castles (fresh-id `import_objects` kept as the CLI clone
+    path). Terraform-shaped plan (create / ~update with field diffs /
+    orphan / conflict). Every touched object control-gated; orphans
+    reported never deleted; membership computed (zone rooms + contents
+    by location, NOT tagged — no area:/zone: conflation).
+  - **REAL BUG caught by a flaky test**: `apply_plan` resolved
+    intra-batch references via the persistence cache, so an exit's
+    location came out None when its room saved later in set-iteration
+    order. Fixed: references resolve against the apply batch first
+    (as import_objects already did). This is why the test flaked.
+  - **Two timing flakes eliminated at the source**:
+    test_session's idle_time / touch tests asserted on wall-clock
+    jitter (`new <= old` on microsecond gaps) — rewritten with a
+    frozen `time.monotonic` (monkeypatch) to assert the real contract
+    deterministically. No more coin-flip tests.
+- [x] **D20 IS A REAL SYSTEM: whole-package swap (2026-07-07).** 866
+  tests (5 new) + a 4-check live drive of GAME_SYSTEM=\"d20\".
+  - Closed the half-wiring: `GameSystem.resolve_check` owns NON-combat
+    skill resolution, and the server installs it via set_check_resolver
+    at startup (cleared on stop). GURPS = 3d6 roll-under (default);
+    D20 = d20 + skill-bonus vs DC 15 roll-HIGH. Before this, `d20`
+    combat rolled d20 but stealth/persuade still rolled 3d6 — now the
+    ENTIRE package swaps. checks._default_resolver → public
+    default_resolver so systems can delegate.
+  - D20 chargen sets `armor_class` (10 + DEX mod) — the ruleset's
+    required stat that chargen never wrote.
+  - Config is boot-fixed: characters stamped `db.game_system` at
+    creation; login WARNS on mismatch ("created under 'gurps', server
+    now runs 'd20'"); the generated config.py.template documents
+    GAME_SYSTEM as a once-only deployment choice; new
+    docs/guides/game-systems.md (comparison table, the swap warning,
+    a write-your-own subclass).
+- [x] **THE DIE ROLLS: Penn-parity gaps closed (2026-07-07).** 861
+  tests (9 new, incl. the user's PennMUSH die ported verbatim as the
+  regression).
+  - **eval_attr(obj, 'attr', *args)** — Penn's u(): evaluate an
+    attribute as a FUNCTION and return its `result`; args bind as
+    arg0../%0..; runs with the CALLER's authority (executor unchanged,
+    like Penn — borrowed code can't steal the target's powers); secret
+    attrs refuse; recursion capped at 8.
+  - **|v reverse video** (SGR 7) in markup + Style + encoder;
+    `ansi()`'s 'i' now Penn-faithfully maps to inverse (|i stays
+    italic).
+  - **|/ newline markup** — multiline values writable from plain @set
+    one-liners.
+  - Verified: the full die ($roll trigger → rand → eval_attr face art
+    with inverse-video blocks → pemit → real SGR at the edge) + the
+    custom lock-failure message path.
+- [x] **EVERY HELP ENTRY HAS AN EXAMPLE (2026-07-07).** 852 tests.
+  - In-game `help <command>`: all 57 argument-taking commands gained a
+    concise Example block in their docstrings (copy-pasteable real
+    invocations — `pay 25 to ogre`, `@attr vault/gm_notes = secret`,
+    `queue shoot thug`); the 18 no-argument commands' usage lines ARE
+    their examples.
+  - Softcode reference: all 87 functions carry an `Example:` docstring
+    line; the generator surfaces it as a fourth table column, so
+    examples regenerate with the API (scripts/gen_softcode_docs.py).
 - [x] **COLOR AT THE EDGE (2026-07-07).** 852 tests (16 new); docs
   shipped with it (guides/color.md + regenerated softcode reference).
   - **No ANSIString class** — the deliberate anti-Evennia decision:

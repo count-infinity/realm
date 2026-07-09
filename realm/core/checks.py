@@ -84,7 +84,7 @@ def skill_level(obj: GameObject, skill: str) -> int:
     return base + penalty
 
 
-def _default_resolver(obj: GameObject, skill: str, modifier: int) -> CheckResult:
+def default_resolver(obj: GameObject, skill: str, modifier: int) -> CheckResult:
     """3d6 roll-under vs effective skill (GURPS-style)."""
     effective = skill_level(obj, skill) + modifier
     roll = sum(random.randint(1, 6) for _ in range(3))
@@ -106,13 +106,13 @@ def _default_resolver(obj: GameObject, skill: str, modifier: int) -> CheckResult
 
 CheckResolver = Callable[["GameObject", str, int], CheckResult]
 
-_resolver: CheckResolver = _default_resolver
+_resolver: CheckResolver = default_resolver
 
 
 def set_check_resolver(resolver: CheckResolver | None) -> None:
     """Replace how checks resolve (None restores the 3d6 default)."""
     global _resolver
-    _resolver = resolver or _default_resolver
+    _resolver = resolver or default_resolver
 
 
 # --- Condition modifiers (the banshee-wail pipeline) --------------------------
@@ -212,6 +212,7 @@ def contest(
 __all__ = [
     "SKILL_DEFAULTS",
     "CheckResult",
+    "default_resolver",
     "skill_level",
     "check",
     "contest",

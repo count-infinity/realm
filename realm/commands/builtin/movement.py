@@ -17,6 +17,10 @@ async def cmd_go(ctx: CommandContext) -> None:
     Move through an exit.
 
     Usage: go <direction>
+
+    Example:
+        go north
+        north                  (bare exit names work too)
     """
     if not ctx.args:
         await ctx.session.send("Go where?")

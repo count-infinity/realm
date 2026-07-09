@@ -73,20 +73,66 @@ spent an hour writing.
 
 ## Import / export (areas as files)
 
-```bash
-realm export backup.realm                  # whole world (players excluded)
-realm export castle.realm --zone castle    # one area: rooms, contents, master
-realm import castle.realm                  # merge into this game
+Two ways in, for two jobs.
+
+### Builder workflow: `@export` / `@import` (in-game, terraform-style)
+
+A builder iterating on their own area works entirely in-game. Files
+live in a sandbox (`data/areas/`, names only — no paths):
+
+```text
+@export castle          write data/areas/castle.realm (zone castle:
+                        its rooms, their contents, and masters)
+@areas                  list importable files
+@import castle          show a PLAN (dry run — what would change)
+@import/apply castle    execute the plan
 ```
 
-Area files are JSON: attributes (softcode included — it's just string
-attributes), tags, locks, behaviors, and references. On import
-everything gets **fresh ids** with references deep-remapped — exit
-destinations, spawner lists, location/owner links — so an area merges
-into any world without collisions. References to objects *outside* the
-file resolve against the live world when present, else drop cleanly.
-Passwords are always stripped; for full backups just copy the SQLite
-database file.
+Import is **stable-id sync**: objects are matched by their permanent
+id (a UUID — a match is always *the same object re-imported*, never a
+collision), so re-importing an edited file updates the live area in
+place instead of duplicating it. The plan is a Terraform-style diff:
+
+```text
+Plan for area 'castle':
+  + create   Guardroom
+  ~ update   The Keep   (name: "Keep" → "The Keep"; attrs (banner))
+  - orphan   goblin     (in world, not in file; left untouched)
+  ! conflict Yard       (you don't control this object)
+```
+
+Rules that keep it safe:
+
+- **Every touched object is control-gated** — anything you can't
+  control becomes a `! conflict` and blocks apply.
+- **Orphans are never deleted.** Objects in the area's rooms that
+  aren't in the file are reported, not destroyed — `@destroy` them
+  yourself if you mean to.
+- **Sync moves objects to their file state.** If a player looted a
+  quest sword out of the Keep, re-import returns it there — and the
+  plan shows that (`~ update  iron sword  location: Alice → The Keep`)
+  before anything happens. Nothing applies without you seeing the plan.
+
+Area membership is computed, not tagged: rooms by their `zone:` tag,
+contents by *being located in* an area room — so NPCs and items don't
+carry zone tags. Once imported, `@tel castle` (or to the entry room)
+to visit; areas aren't auto-linked into the surrounding world.
+
+### Operator workflow: `realm export` / `realm import` (CLI, clone)
+
+For distributing a reusable module (three taverns from one file) or a
+full backup, the CLI clones with **fresh ids** — every import is
+independent, never collides:
+
+```bash
+realm export backup.realm                  # whole world (players excluded)
+realm export castle.realm --zone castle    # one area
+realm import castle.realm                  # merge as a fresh copy
+```
+
+Both forms carry attributes (softcode included — it's just strings),
+tags, locks, behaviors, and references. Passwords are always stripped;
+for a full backup, copying the SQLite file is simplest.
 
 ## Ownership and safety valves
 

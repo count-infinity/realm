@@ -289,8 +289,9 @@ class GameServer:
         self.game_system = (GameSystemRegistry.create(self.game_system_name)
                             or GurpsSystem())
         set_game_system(self.game_system)
-        from realm.core.checks import set_skill_defaults
+        from realm.core.checks import set_check_resolver, set_skill_defaults
         set_skill_defaults(self.game_system.skill_defaults())
+        set_check_resolver(self.game_system.resolve_check)
 
         combat_system = create_combat_system(
             self.combat_ruleset or self.game_system.ruleset_name)
@@ -416,6 +417,8 @@ class GameServer:
             self.combat_manager = None
             set_combat_manager(None)
         set_active_manager(None)
+        from realm.core.checks import set_check_resolver
+        set_check_resolver(None)
         set_game_system(None)
         self.game_system = None
 
@@ -639,6 +642,17 @@ class GameServer:
 
         # Link player to session
         self.session_manager.link_player_to_session(session, player)
+
+        # Warn if the character was made under a different rules package
+        # (config is boot-time-fixed; a mid-life swap leaves old sheets
+        # authored under the wrong rules).
+        made_under = player.db.get('game_system')
+        if (made_under and self.game_system
+                and made_under != self.game_system.system_id):
+            await session.send(
+                f"[!] {player.name} was created under the '{made_under}' "
+                f"rules but this server now runs '{self.game_system.system_id}'. "
+                "Your character sheet may not match the current rules.")
 
         # Unfinished chargen resumes where it left off.
         if player.db.get('chargen_step') is not None and self.game_system:

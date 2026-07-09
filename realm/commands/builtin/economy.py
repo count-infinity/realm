@@ -59,6 +59,9 @@ async def cmd_buy(ctx: CommandContext) -> None:
     Buy from the merchant here.
 
     Usage: buy <item>
+
+    Example:
+        buy medkit
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Buy what?")
@@ -97,6 +100,9 @@ async def cmd_sell(ctx: CommandContext) -> None:
     Sell something you're carrying to the merchant here.
 
     Usage: sell <item>
+
+    Example:
+        sell scrap
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Sell what?")
@@ -137,6 +143,9 @@ async def cmd_pay(ctx: CommandContext) -> None:
 
     Usage: pay <amount> to <target>
            pay <target> = <amount>
+
+    Example:
+        pay 25 to ogre         (fires the ogre's ON_PAYMENT softcode)
     """
     if not ctx.player or ctx.player.location is None:
         return

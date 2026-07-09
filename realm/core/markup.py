@@ -11,8 +11,9 @@ Syntax (one character after the pipe):
     |r |g |y |b |m |c |w |x    dark foreground (x = black/grey)
     |R |G |Y |B |M |C |W |X    bright foreground
     |[r ... |[R                background (dark / bright)
-    |h  |u  |i                 bold, underline, italic
+    |h  |u  |i  |v             bold, underline, italic, reverse video
     |n                         reset everything
+    |/                         a newline (usable in @set one-liners)
     ||                         a literal pipe
 
 Unknown codes render literally (typos stay visible). The parser reads
@@ -41,6 +42,7 @@ class Style:
     bold: bool = False
     underline: bool = False
     italic: bool = False
+    reverse: bool = False
 
     def is_default(self) -> bool:
         return self == DEFAULT_STYLE
@@ -54,7 +56,8 @@ class Style:
             parts.append('[' + self.bg)
         flags = ('h' if self.bold else '') + \
                 ('u' if self.underline else '') + \
-                ('i' if self.italic else '')
+                ('i' if self.italic else '') + \
+                ('v' if self.reverse else '')
         if flags:
             parts.append(';' + flags)
         return ''.join(parts)
@@ -100,6 +103,10 @@ def parse(text: str) -> list[tuple[Style, str]]:
             style = DEFAULT_STYLE
             i += 2
             continue
+        if code == '/':
+            buf.append('\n')
+            i += 2
+            continue
         if code == '[' and i + 2 < n and text[i + 2].lower() in _FG:
             flush()
             style = replace(style, bg=text[i + 2])
@@ -110,12 +117,13 @@ def parse(text: str) -> list[tuple[Style, str]]:
             style = replace(style, fg=code)
             i += 2
             continue
-        if code in 'hui':
+        if code in 'huiv':
             flush()
             style = replace(style,
                             bold=style.bold or code == 'h',
                             underline=style.underline or code == 'u',
-                            italic=style.italic or code == 'i')
+                            italic=style.italic or code == 'i',
+                            reverse=style.reverse or code == 'v')
             i += 2
             continue
         # Unknown code: literal, typo stays visible.
@@ -177,7 +185,7 @@ def render_markup(style: Style) -> str:
     if style.bg:
         parts.append(MARKER + '[' + style.bg)
     for flag, code in ((style.bold, 'h'), (style.underline, 'u'),
-                       (style.italic, 'i')):
+                       (style.italic, 'i'), (style.reverse, 'v')):
         if flag:
             parts.append(MARKER + code)
     return ''.join(parts)
@@ -198,6 +206,8 @@ def _sgr_params(style: Style) -> str:
         params.append('3')
     if style.underline:
         params.append('4')
+    if style.reverse:
+        params.append('7')
     if style.fg:
         base = _FG[style.fg.lower()]
         params.append(str(base + 60 if style.fg.isupper() else base))

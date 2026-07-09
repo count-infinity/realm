@@ -82,6 +82,10 @@ async def cmd_chown(ctx: CommandContext) -> None:
     Change ownership of an object.
 
     Usage: @chown <object> = <new owner>
+
+    Example:
+        @chown music box = Ada
+        (scripted objects are HALTED on transfer; review, then @untag <obj> = halt)
     """
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: @chown <object> = <new owner>")
@@ -129,6 +133,9 @@ async def cmd_destroy(ctx: CommandContext) -> None:
     Usage: @destroy <object>
 
     This cannot be undone! The object and its contents are deleted.
+
+    Example:
+        @destroy rusty key
     """
     if not ctx.args:
         await ctx.session.send("Usage: @destroy <object>")
@@ -168,6 +175,9 @@ async def cmd_nuke(ctx: CommandContext) -> None:
     Usage: @nuke <player>
 
     This disconnects the player and destroys their character.
+
+    Example:
+        @nuke Vandal
     """
     if not ctx.args:
         await ctx.session.send("Usage: @nuke <player>")
@@ -201,6 +211,11 @@ async def cmd_find(ctx: CommandContext) -> None:
            @find/tag <tag>
            @find/attr <attribute>[=<value>]
            @find/owner <owner>
+
+    Example:
+        @find lighthouse
+        @find/tag zone:castle
+        @find/attr value=50
     """
     if not ctx.player or not ctx.persistence:
         return
@@ -256,6 +271,9 @@ async def cmd_examine_full(ctx: CommandContext) -> None:
 
     Usage: @examine <object>
            @ex <object>
+
+    Example:
+        @examine merchant
     """
     if not ctx.args:
         await ctx.session.send("Usage: @examine <object>")
@@ -342,6 +360,9 @@ async def cmd_boot(ctx: CommandContext) -> None:
     Disconnect a player.
 
     Usage: @boot <player>
+
+    Example:
+        @boot Vandal
     """
     if not ctx.args:
         await ctx.session.send("Usage: @boot <player>")

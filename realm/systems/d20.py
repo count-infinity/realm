@@ -54,6 +54,21 @@ class D20System(GameSystem):
             "melee": ("strength", -2),
         }
 
+    def resolve_check(self, obj, skill: str, modifier: int):
+        """d20 + skill bonus vs DC 15 (roll-high). Under d20 a skill
+        \"level\" is a bonus, not a target: a rogue with skill_stealth 6
+        rolls d20+6. Natural 20 always succeeds, natural 1 always fails."""
+        import random
+
+        from realm.core.checks import CheckResult, skill_level
+        bonus = skill_level(obj, skill) + modifier
+        d20 = random.randint(1, 20)
+        total = d20 + bonus
+        dc = 15
+        success = d20 == 20 or (d20 != 1 and total >= dc)
+        return CheckResult(success=success, margin=total - dc, roll=d20,
+                           effective=total, skill=skill)
+
     def improve_cost(self, skill: str, current_level: int) -> int:
         # Escalating: higher levels cost more (D&D-ish training).
         return max(2, (current_level - 8) // 2)
@@ -68,8 +83,11 @@ class D20System(GameSystem):
 
     def finish_chargen(self, player: GameObject) -> str:
         health = int(player.db.get('health') or 10)
+        dexterity = int(player.db.get('dexterity') or 10)
         player.db.hp = health
         player.db.max_hp = health
+        # AC 10 + DEX modifier ((score-10)//2), D&D-style.
+        player.db.armor_class = 10 + (dexterity - 10) // 2
         cls = player.db.get('character_class') or 'adventurer'
         return f"Your {cls} is ready for adventure."
 

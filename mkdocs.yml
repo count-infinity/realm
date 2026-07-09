@@ -57,6 +57,7 @@ nav:
     - Quick Start: getting-started/quickstart.md
     - Your First Game: getting-started/first-game.md
   - Guides:
+    - Game Systems: guides/game-systems.md
     - World Management: guides/world-management.md
     - Color: guides/color.md
   - Reference:

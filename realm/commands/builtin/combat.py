@@ -36,6 +36,9 @@ async def cmd_attack(ctx: CommandContext) -> None:
 
     Usage: attack <target>
            kill <target>
+
+    Example:
+        attack thug
     """
     if ctx.player.has_tag('unconscious'):
         await ctx.session.send("You are unconscious.")
@@ -89,6 +92,11 @@ async def cmd_queue(ctx: CommandContext) -> None:
 
     Usage: queue <maneuver> [target]
            e.g. queue defend | queue attack guard | queue flee north
+
+    Example:
+        queue shoot thug
+        queue aim thug
+        queue close
     """
     manager = _manager(ctx)
     encounter = manager.encounter_of(ctx.player) if manager else None
@@ -139,6 +147,9 @@ async def cmd_flee(ctx: CommandContext) -> None:
     Try to escape combat through an exit (resolves on the beat).
 
     Usage: flee [direction]
+
+    Example:
+        flee north
     """
     manager = _manager(ctx)
     encounter = manager.encounter_of(ctx.player) if manager else None
@@ -196,6 +207,9 @@ async def cmd_pace(ctx: CommandContext) -> None:
     fight sets its tempo.
 
     Usage: pace <seconds>
+
+    Example:
+        pace 15                (seconds per combat beat)
     """
     manager = _manager(ctx)
     if manager is None:
@@ -223,6 +237,9 @@ async def cmd_combat_default(ctx: CommandContext) -> None:
     What you do when a beat fires with nothing queued.
 
     Usage: combatdefault <attack|defend|repeat|nothing>
+
+    Example:
+        combatdefault defend
     """
     choice = ctx.args.strip().lower()
     if choice not in ('attack', 'defend', 'repeat', 'nothing'):
@@ -242,6 +259,9 @@ async def cmd_wimpy(ctx: CommandContext) -> None:
     queued action. (Sugar for a '!' strategy rule.)
 
     Usage: wimpy <percent> | wimpy off
+
+    Example:
+        wimpy 30               (auto-flee below 30% HP)
     """
     arg = ctx.args.strip().lower()
     rules = list(ctx.player.db.get('combat_strategy') or [])
@@ -268,6 +288,9 @@ async def cmd_firstaid(ctx: CommandContext) -> None:
     revive the unconscious.
 
     Usage: firstaid [target|me]
+
+    Example:
+        firstaid Alice
     """
     if ctx.player.has_tag('in_combat'):
         await ctx.session.send("Not while you're fighting!")
@@ -314,6 +337,9 @@ async def cmd_wield(ctx: CommandContext) -> None:
     Ready a carried weapon (one at a time).
 
     Usage: wield <weapon>
+
+    Example:
+        wield laser pistol
     """
     from realm.commands.base import find_object
 
@@ -421,6 +447,9 @@ async def cmd_improve(ctx: CommandContext) -> None:
     Spend character points to raise a skill by one level.
 
     Usage: improve <skill>       e.g. improve stealth
+
+    Example:
+        improve stealth        (4 CP per level under GURPS)
     """
     from realm.core.checks import skill_level
 

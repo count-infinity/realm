@@ -17,6 +17,13 @@ GAME_NAME = "{game_name}"
 # Enable debug logging
 DEBUG = False
 
+# Rules package — the whole game system: chargen, skill checks,
+# advancement, combat, and currency. Ships with "gurps" and "d20".
+# IMPORTANT: choose this ONCE, before the first character is created.
+# It is a deployment choice, not a live toggle — characters are stamped
+# with the system they were made under, and there is no migration.
+GAME_SYSTEM = "gurps"
+
 
 # =============================================================================
 # NETWORK SETTINGS

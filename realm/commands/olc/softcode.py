@@ -122,6 +122,10 @@ async def cmd_clone(ctx: CommandContext) -> None:
            @clone <object> = <new name>
 
     The copy appears in your location. Players and rooms can't be cloned.
+
+    Example:
+        @clone harbor rat
+        @clone parrot = polly
     """
     from realm.behaviors.spawner import spawn_from_prototype
 
@@ -225,6 +229,9 @@ async def cmd_force(ctx: CommandContext) -> None:
     apply (an NPC can't run builder commands). Forcing a player needs
     control of them: admin, or their explicit control-lock grant
     (possession is opt-in: @lock/control me = <expression>).
+
+    Example:
+        @force imp = say Obey!
     """
     from realm.permissions.locks import controls
     from realm.server.puppet import force_command
@@ -256,6 +263,11 @@ async def cmd_zone(ctx: CommandContext) -> None:
            @zone/master <object> = castle  (make it the zone's master)
            @zone here                      (list zones + masters)
            @zone/rooms castle              (list member rooms)
+
+    Example:
+        @zone here = castle
+        @zone/master Castle Brain = castle
+        @zone/rooms castle
     """
     from realm.core.zones import MASTER_TAG, ZONE_PREFIX, zone_masters, zone_rooms, zone_tags
 

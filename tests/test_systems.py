@@ -215,3 +215,64 @@ class TestAuthService:
         assert first.has_tag("god")
         second, _ = await svc.create_account("Guest2", "pw")
         assert not second.has_tag("god")
+
+
+class TestCheckResolution:
+    """Each GameSystem owns non-combat skill resolution, not just combat."""
+
+    def test_gurps_rolls_3d6_under(self):
+        # A high skill almost always succeeds; a low one almost never —
+        # over many rolls, roll-under behaviour.
+        sys = GurpsSystem()
+        pro = GameObject("Pro"); pro.db.skill_stealth = 16
+        oaf = GameObject("Oaf"); oaf.db.skill_stealth = 4
+        pro_wins = sum(sys.resolve_check(pro, "stealth", 0).success for _ in range(200))
+        oaf_wins = sum(sys.resolve_check(oaf, "stealth", 0).success for _ in range(200))
+        assert pro_wins > 180 and oaf_wins < 20
+
+    def test_d20_rolls_high_vs_dc(self):
+        sys = D20System()
+        # skill "level" is a BONUS under d20: +10 clears DC 15 most rolls,
+        # +0 rarely does.
+        ace = GameObject("Ace"); ace.db.skill_stealth = 10
+        joe = GameObject("Joe"); joe.db.skill_stealth = 0
+        ace_wins = sum(sys.resolve_check(ace, "stealth", 0).success for _ in range(200))
+        joe_wins = sum(sys.resolve_check(joe, "stealth", 0).success for _ in range(200))
+        assert ace_wins > joe_wins
+        # roll-high, not roll-under: the higher bonus wins, opposite of GURPS
+        assert ace_wins > 100
+
+    def test_server_installs_system_resolver(self):
+        # Selecting d20 makes check() itself roll d20 (roll-high), proving
+        # the resolver is wired to the GameSystem not just combat.
+        from realm.core.checks import check, set_check_resolver
+        try:
+            set_check_resolver(D20System().resolve_check)
+            hero = GameObject("Hero"); hero.db.skill_stealth = 30  # auto-clears DC
+            assert check(hero, "stealth").success is True
+            assert check(hero, "stealth").roll <= 20  # a d20, not 3d6
+        finally:
+            set_check_resolver(None)
+
+    def test_d20_chargen_sets_armor_class(self):
+        sys = D20System()
+        rogue = GameObject("Rogue")
+        sys.apply_baseline(rogue)
+        (step,) = sys.chargen_steps()
+        step.handle(rogue, "rogue")      # DEX 16
+        sys.finish_chargen(rogue)
+        assert rogue.db.get("armor_class") == 13  # 10 + (16-10)//2
+
+
+@pytest.mark.asyncio
+class TestSystemStamp:
+
+    def _service(self):
+        from realm.server.auth import AuthService
+        from tests.test_olc import MockPersistence
+        return AuthService(MockPersistence()), None
+
+    async def test_creation_stamps_system(self):
+        svc, _ = self._service()
+        player, _ = await svc.create_account("Bob", "pw", system=D20System())
+        assert player.db.get("game_system") == "d20"

@@ -19,6 +19,10 @@ async def cmd_look(ctx: CommandContext) -> None:
 
     Usage: look [target]
            l [target]
+
+    Example:
+        look
+        look statue
     """
     if not ctx.args:
         # Look at the room
@@ -60,6 +64,9 @@ async def cmd_examine(ctx: CommandContext) -> None:
 
     Usage: examine <target>
            ex <target>
+
+    Example:
+        examine statue         (visual-flagged attributes show here)
     """
     if not ctx.args:
         await ctx.session.send("Examine what?")

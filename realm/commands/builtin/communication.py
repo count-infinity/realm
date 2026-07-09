@@ -20,6 +20,9 @@ async def cmd_say(ctx: CommandContext) -> None:
 
     Usage: say <message>
            "<message>
+
+    Example:
+        say Meet me at the jetty.
     """
     if not ctx.args:
         await ctx.session.send("Say what?")
@@ -133,6 +136,9 @@ async def cmd_whisper(ctx: CommandContext) -> None:
     Whisper privately to someone in the room.
 
     Usage: whisper <player> = <message>
+
+    Example:
+        whisper Bob = the key is under the third step
     """
     if not ctx.left_args or not ctx.right_args:
         await ctx.session.send("Usage: whisper <player> = <message>")
@@ -171,6 +177,9 @@ async def cmd_ooc(ctx: CommandContext) -> None:
     Out-of-character speech (clearly marked).
 
     Usage: ooc <message>
+
+    Example:
+        ooc anyone up for the lighthouse run?
     """
     if not ctx.args:
         await ctx.session.send("OOC what?")
@@ -200,6 +209,9 @@ async def cmd_shout(ctx: CommandContext) -> None:
     Shout something loudly (heard in adjacent rooms).
 
     Usage: shout <message>
+
+    Example:
+        shout Fire on the promenade!
     """
     if not ctx.args:
         await ctx.session.send("Shout what?")

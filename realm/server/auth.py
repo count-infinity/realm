@@ -133,6 +133,7 @@ class AuthService:
         player.db.password = hash_password(password)
         if system is not None:
             system.apply_baseline(player)
+            player.db.game_system = system.system_id
         await self._persistence.save(player)
         return player, ""
 

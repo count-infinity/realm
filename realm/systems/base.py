@@ -118,6 +118,18 @@ class GameSystem(ABC):
         """Character points a kill is worth (split across the party)."""
         return max(1, int(victim.db.get('points') or 10) // 10)
 
+    # --- Skill resolution ---
+    #
+    # A GameSystem owns how NON-COMBAT skill checks resolve, not just
+    # combat. The server installs this at startup via set_check_resolver,
+    # so `d20` really rolls d20 for stealth/persuade/search — not only
+    # for combat. Default: the engine's GURPS-shaped 3d6 roll-under.
+
+    def resolve_check(self, obj: GameObject, skill: str, modifier: int):
+        """Return a CheckResult for one skill check. Override per system."""
+        from realm.core.checks import default_resolver
+        return default_resolver(obj, skill, modifier)
+
     # --- Character creation ---
 
     def apply_baseline(self, player: GameObject) -> None:

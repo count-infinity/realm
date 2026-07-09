@@ -62,6 +62,9 @@ async def cmd_open(ctx: CommandContext) -> None:
     Open a door or container.
 
     Usage: open <target>
+
+    Example:
+        open trapdoor
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Open what?")
@@ -79,6 +82,9 @@ async def cmd_close(ctx: CommandContext) -> None:
     Close a door or container.
 
     Usage: close <target>
+
+    Example:
+        close trapdoor
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Close what?")
@@ -107,6 +113,9 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
     Lock a door or container (requires the matching key).
 
     Usage: lock <target>
+
+    Example:
+        lock chest             (needs the matching key in hand)
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Lock what?")
@@ -134,6 +143,9 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
     Unlock a door or container with a carried key.
 
     Usage: unlock <target>
+
+    Example:
+        unlock trapdoor
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Unlock what?")
@@ -159,6 +171,9 @@ async def cmd_pick(ctx: CommandContext) -> None:
     another skill via db.lock_skill — e.g. electronics).
 
     Usage: pick <target>
+
+    Example:
+        pick chest             (lockpicking check; carry lockpicks)
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Pick what?")
@@ -202,6 +217,10 @@ async def cmd_use(ctx: CommandContext) -> None:
     A keycard (db.unlocks) used on its matching lock (db.key_id)
     toggles the lock. Everything else propagates item:on_use for
     behaviors and ON_USE softcode to react to.
+
+    Example:
+        use lever
+        use keycard on door
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Use what?")
@@ -259,6 +278,9 @@ async def cmd_wear(ctx: CommandContext) -> None:
     db.grants_tags (e.g. nightvision goggles).
 
     Usage: wear <item>
+
+    Example:
+        wear nightvision goggles
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Wear what?")
@@ -305,6 +327,9 @@ async def cmd_unwear(ctx: CommandContext) -> None:
     Take off a worn item (its granted abilities go with it).
 
     Usage: remove <item>
+
+    Example:
+        remove goggles
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Remove what?")

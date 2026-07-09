@@ -30,20 +30,29 @@ class TestSession:
         session = Session(session_id="my-custom-id")
         assert session.id == "my-custom-id"
 
-    def test_idle_time(self):
-        """Session tracks idle time."""
+    def test_idle_time(self, monkeypatch):
+        """Session tracks idle time from creation."""
+        import time as _time
+        clock = {"t": 500.0}
+        monkeypatch.setattr(_time, "monotonic", lambda: clock["t"])
         session = Session()
-        # Idle time should be very small right after creation
-        assert session.idle_time >= 0
-        assert session.idle_time < 1
+        assert session.idle_time == 0.0
+        clock["t"] = 502.5
+        assert session.idle_time == 2.5
 
-    def test_touch_updates_activity(self):
-        """touch() updates last activity timestamp."""
-        session = Session()
-        initial_idle = session.idle_time
-        session.touch()
-        # After touch, idle time should reset
-        assert session.idle_time <= initial_idle
+    def test_touch_updates_activity(self, monkeypatch):
+        """touch() resets idle_time to the elapsed time since touch."""
+        import time as _time
+        clock = {"t": 1000.0}
+        monkeypatch.setattr(_time, "monotonic", lambda: clock["t"])
+
+        session = Session()          # created + last_activity = 1000.0
+        clock["t"] = 1005.0
+        assert session.idle_time == 5.0   # 5s idle, deterministically
+
+        session.touch()              # last_activity = 1005.0
+        clock["t"] = 1006.0
+        assert session.idle_time == 1.0   # reset: only 1s since touch
 
     @pytest.mark.asyncio
     async def test_send_and_receive(self):

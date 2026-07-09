@@ -49,6 +49,10 @@ async def cmd_get(ctx: CommandContext) -> None:
 
     Usage: get <object>
            get <object> from <container>
+
+    Example:
+        get coin
+        get key from chest
     """
     if not ctx.args:
         await ctx.session.send("Get what?")
@@ -147,6 +151,10 @@ async def cmd_drop(ctx: CommandContext) -> None:
 
     Usage: drop <object>
            drop all
+
+    Example:
+        drop coin
+        drop all
     """
     if not ctx.args:
         await ctx.session.send("Drop what?")
@@ -208,6 +216,9 @@ async def cmd_give(ctx: CommandContext) -> None:
 
     Usage: give <object> to <player>
            give <object> = <player>
+
+    Example:
+        give medkit to Alice
     """
     # Parse arguments
     item_name = ""
@@ -248,6 +259,9 @@ async def cmd_put(ctx: CommandContext) -> None:
     Put an object in a container.
 
     Usage: put <object> in <container>
+
+    Example:
+        put gem in chest
     """
     if ' in ' not in ctx.args.lower():
         await ctx.session.send("Usage: put <object> in <container>")

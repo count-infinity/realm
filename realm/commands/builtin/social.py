@@ -40,6 +40,9 @@ async def cmd_greet(ctx: CommandContext) -> None:
     never interacted, then shows their attitude.
 
     Usage: consider <npc>       (alias: con)
+
+    Example:
+        consider merchant
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Consider whom?")
@@ -62,6 +65,9 @@ async def cmd_persuade(ctx: CommandContext) -> None:
     attempt per person per cooldown.
 
     Usage: persuade <npc>
+
+    Example:
+        persuade merchant      (success is permanent goodwill)
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Persuade whom?")
@@ -109,6 +115,9 @@ async def cmd_fasttalk(ctx: CommandContext) -> None:
     permanently.
 
     Usage: fasttalk <npc>
+
+    Example:
+        fasttalk guard         (+2 goodwill that WEARS OFF; caught = -1)
     """
     if not ctx.player or not ctx.args:
         await ctx.session.send("Fast-talk whom?")
@@ -156,6 +165,9 @@ async def cmd_follow(ctx: CommandContext) -> None:
 
     Usage: follow <target>
            follow          (stop following)
+
+    Example:
+        follow Alice
     """
     from realm.core.party import leader_id, set_following
 
