@@ -5,8 +5,8 @@ for building text-based multiplayer games (MUDs, MUSHes), with the
 complexity of a MU* wrapped up so games are written in *softcode*, live,
 from inside the game.
 
-Async (asyncio) + SQLite. No Django, no Twisted, no external services.
-Python 3.11+.
+Async (asyncio) with SQLite persistence — a single process, with no
+external services to stand up. Python 3.11+.
 
 ```python
 # The whole stack in five in-game lines — no world files, no restart:
