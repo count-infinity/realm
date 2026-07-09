@@ -110,9 +110,17 @@ async def cmd_dig(ctx: CommandContext) -> None:
             'northwest': 'southeast', 'southeast': 'northwest',
         }
 
+        from realm.commands.base import exit_named
         current_room = ctx.player.location
         out_name = names[0]
         back_name = names[1] if len(names) > 1 else exit_pairs.get(out_name)
+
+        if exit_named(current_room, out_name):
+            await ctx.session.send(
+                f"An exit '{out_name}' already exists here — pick another "
+                f"name (room '{new_room.name}' was created, use @open to link).")
+            await save_object(ctx, new_room)
+            return
 
         exit_out = GameObject(
             name=out_name,
@@ -124,7 +132,7 @@ async def cmd_dig(ctx: CommandContext) -> None:
         await save_object(ctx, exit_out)
         await ctx.session.send(f"  Exit '{out_name}' created -> {new_room.name}")
 
-        if back_name:
+        if back_name and not exit_named(new_room, back_name):
             exit_back = GameObject(
                 name=back_name,
                 location=new_room,

@@ -236,6 +236,51 @@ class ScriptEngine:
         await self._execute_trigger(match, enactor or obj, location=obj.location)
         return True
 
+    async def run_code(
+        self,
+        executor: GameObject,
+        code: str,
+        *,
+        enactor: GameObject | None = None,
+    ) -> tuple:
+        """
+        Execute arbitrary softcode AS ``executor`` (the @eval / think<<>>
+        primitive). Returns (result, error_or_None). Side-effect commands
+        (pemit/say/move/force...) and queued world ops are delivered like
+        any script. Depth- and halt-guarded.
+        """
+        from realm.scripting.sandbox import ScriptContext
+
+        if executor.has_tag('halt') or self._depth >= self.MAX_SCRIPT_DEPTH:
+            return None, "halted or too deep"
+
+        script_ctx = ScriptContext(
+            enactor=enactor or executor,
+            executor=executor,
+            location=executor.location,
+        )
+        functions = ScriptFunctions(
+            enactor=enactor or executor,
+            executor=executor,
+            location=executor.location,
+            persistence=self._persistence,
+        )
+        self._depth += 1
+        try:
+            try:
+                result, output = await self.sandbox.execute_async(
+                    code, script_ctx, functions=functions.to_dict())
+            except ScriptError as e:
+                return None, str(e)
+            for line in output:
+                line = line.strip()
+                if line:
+                    await self._run_script_command(executor, line)
+            await self._deliver_queued(functions)
+            return result, None
+        finally:
+            self._depth -= 1
+
     async def _fire_event_triggers(
         self,
         action: Action,

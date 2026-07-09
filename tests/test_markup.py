@@ -136,3 +136,43 @@ class TestProtocolEdges:
         out = render_room(room, viewer)
         assert "|cKeep|n" in out and "|ggate|n" in out
         assert "\x1b[" not in out   # rendering happens at the edge, not here
+
+
+@pytest.mark.asyncio
+class TestEncoding:
+    """Output/input codec is configurable; UTF-8 is the default."""
+
+    def _telnet(self, encoding="utf-8"):
+        from realm.gateway.session import Session
+        from realm.gateway.telnet import TelnetProtocol
+
+        class FakeTransport:
+            def __init__(self):
+                self.data = b""
+
+            def is_closing(self):
+                return False
+
+            def write(self, b):
+                self.data += b
+
+        proto = TelnetProtocol(session_manager=None, on_command=None,
+                               encoding=encoding)
+        proto.transport = FakeTransport()
+        proto.session = Session(protocol="telnet", address="1.1.1.1")
+        return proto
+
+    async def test_utf8_default_sends_multibyte(self):
+        proto = self._telnet()
+        await proto._write_to_client("soldier — tough")   # em dash
+        assert "soldier — tough".encode("utf-8") in proto.transport.data
+
+    async def test_configured_codec_used(self):
+        proto = self._telnet(encoding="latin-1")
+        await proto._write_to_client("café")
+        assert "café".encode("latin-1") in proto.transport.data
+
+    async def test_config_defaults_to_utf8(self):
+        from realm.config.loader import Settings
+
+        assert Settings().encoding == "utf-8"

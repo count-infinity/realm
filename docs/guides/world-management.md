@@ -134,6 +134,24 @@ Both forms carry attributes (softcode included — it's just strings),
 tags, locks, behaviors, and references. Passwords are always stripped;
 for a full backup, copying the SQLite file is simplest.
 
+## Builder power tools
+
+```text
+@eval <code>              run softcode ad-hoc, report the result
+                          (@eval result = len(search_world(tag='npc')))
+@foreach <search> = <cmd> run a command per match (%o = each #id)
+                          (@foreach tag:rat = @teleport %o = The Cellar)
+@stats                    live metrics: tick interval, behavior load,
+                          scheduled waits, active combat — check when laggy
+@rolls on|off             echo your skill-check dice for debugging
+quell / unquell           drop to (and restore from) mortal perception
+                          and authority — test dark/hidden as a player
+```
+
+Admins bypass ALL perception (dark, hidden, invisible) and authority —
+which is why the superuser sees a hidden key. `quell` is how you test a
+scene honestly as a mortal without making a second character.
+
 ## Ownership and safety valves
 
 - `controls()` is the one authority predicate: self, owner, admins,

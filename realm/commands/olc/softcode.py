@@ -28,8 +28,13 @@ async def cmd_behavior(ctx: CommandContext) -> None:
 
     Usage: @behavior <object>                       (list attached)
            @behavior <object> = <id>[, key:value...]  (attach)
+           @behavior/set <object> = <id>, key:value    (edit params in place)
            @behavior/remove <object> = <id>           (detach)
            @behavior/list                             (all registered ids)
+
+    Multiple tickers are fine — give each its own attr and interval:
+        @behavior bell = script_ticker, interval:2, attr:on_fast
+        @behavior bell = script_ticker, interval:20, attr:on_slow
 
     Parameter values parse like @set values (numbers, booleans, JSON).
 
@@ -57,7 +62,9 @@ async def cmd_behavior(ctx: CommandContext) -> None:
     if ctx.right_args and not await require_control(ctx, target):
         return
 
-    removing = bool(ctx.switches and ctx.switches[0].lower() in ('remove', 'del'))
+    switch = ctx.switches[0].lower() if ctx.switches else ""
+    removing = switch in ('remove', 'del')
+    setting = switch == 'set'   # edit an attached behavior's params in place
 
     if not ctx.right_args:
         if removing:
@@ -76,8 +83,18 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         await ctx.session.send("\n".join(lines))
         return
 
-    parts = [p.strip() for p in ctx.right_args.split(',')]
-    behavior_id = parts[0]
+    # Split on commas, but a comma INSIDE a value (a taunt with a comma)
+    # shouldn't start a new param — only a "key:" prefix does.
+    import re as _re
+    raw_segs = ctx.right_args.split(',')
+    behavior_id = raw_segs[0].strip()
+    param_segs: list[str] = []
+    for seg in raw_segs[1:]:
+        if _re.match(r'\s*\w+\s*:', seg):
+            param_segs.append(seg)
+        elif param_segs:
+            param_segs[-1] += ',' + seg
+    parts = [behavior_id, *param_segs]
 
     if removing:
         for behavior in target.get_behaviors():
@@ -105,6 +122,21 @@ async def cmd_behavior(ctx: CommandContext) -> None:
             return
         key, value = part.split(':', 1)
         params[key.strip()] = _parse_value(value.strip())
+
+    if setting:
+        # Update an already-attached behavior's params (e.g. a new
+        # ticker interval) without detach/reattach losing its db state.
+        for behavior in target.get_behaviors():
+            if behavior.behavior_id == behavior_id:
+                behavior.params.update(params)
+                await save_object(ctx, target)
+                await ctx.session.send(
+                    f"Updated '{behavior_id}' on {target.name}: "
+                    f"{json.dumps(behavior.params)}.")
+                return
+        await ctx.session.send(
+            f"{target.name} has no '{behavior_id}' to set — attach it first.")
+        return
 
     behavior = BehaviorRegistry.create(behavior_id, **params)
     target.add_behavior(behavior)

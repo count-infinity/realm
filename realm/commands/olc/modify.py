@@ -454,6 +454,8 @@ async def cmd_detail(ctx: CommandContext) -> None:
 
     Usage: @detail <object> = <condition> -> <text>
            @detail <object> = <text>            (shown to everyone)
+           @detail <object>                     (list, numbered)
+           @detail/remove <object> = <n>        (remove one by number)
            @detail/clear <object>
 
     Conditions are safe expressions over the VIEWER:
@@ -482,6 +484,24 @@ async def cmd_detail(ctx: CommandContext) -> None:
         target.db.delete(DETAILS_ATTR)
         await save_object(ctx, target)
         await ctx.session.send(f"Details cleared from {target.name}.")
+        return
+
+    if ctx.switches and ctx.switches[0].lower() in ('remove', 'del'):
+        extras = list(target.db.get(DETAILS_ATTR) or [])
+        try:
+            idx = int((ctx.right_args or ctx.args or "").strip())
+        except ValueError:
+            await ctx.session.send("Usage: @detail/remove <object> = <number>")
+            return
+        if not (1 <= idx <= len(extras)):
+            await ctx.session.send(
+                f"No detail #{idx} (there are {len(extras)}). "
+                f"'@detail {target.name}' lists them.")
+            return
+        removed = extras.pop(idx - 1)
+        target.db.set(DETAILS_ATTR, extras) if extras else target.db.delete(DETAILS_ATTR)
+        await save_object(ctx, target)
+        await ctx.session.send(f"Removed detail #{idx}: {removed[1]}")
         return
 
     if not ctx.right_args:

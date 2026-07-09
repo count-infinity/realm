@@ -81,6 +81,7 @@ class GameServer:
         enable_scripting: bool = True,
         flush_interval: float = 30.0,
         tick_interval: float = 4.0,
+        encoding: str = "utf-8",
         combat_ruleset: str | None = None,
         game_system: str = "gurps",
         combat_beat_min: float = 4.0,
@@ -99,6 +100,7 @@ class GameServer:
         self.enable_scripting = enable_scripting
         self.flush_interval = flush_interval
         self.tick_interval = tick_interval
+        self.encoding = encoding
         self.combat_ruleset = combat_ruleset
         self.game_system_name = game_system
         self.game_system = None
@@ -162,6 +164,7 @@ class GameServer:
             enable_scripting=settings.enable_scripting,
             flush_interval=settings.flush_interval,
             tick_interval=settings.tick_interval,
+            encoding=getattr(settings, 'encoding', 'utf-8'),
             combat_ruleset=settings.combat_ruleset,
             game_system=getattr(settings, 'game_system', 'gurps'),
             combat_beat_min=settings.combat_beat_min,
@@ -265,6 +268,7 @@ class GameServer:
 
         # Set up dispatcher handlers and services
         self.dispatcher.set_login_handler(self._handle_login)
+        self.dispatcher.server = self  # @stats reads tick_interval etc.
         self.dispatcher.set_unknown_handler(self._handle_unknown)
         self.dispatcher.persistence = self.persistence
         self.dispatcher.session_manager = self.session_manager
@@ -339,6 +343,7 @@ class GameServer:
                 self._on_command,
                 host=self.telnet_host,
                 port=self.telnet_port,
+                encoding=self.encoding,
             )
             await self._telnet_server.start()
 

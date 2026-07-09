@@ -72,11 +72,19 @@ class TestPerceptionRules:
         GameObject("torch", location=cellar, tags=["thing", "light"])
         assert room_is_lit(cellar)
 
-    def test_carried_light_source_lights_room(self):
+    def test_wielded_light_source_lights_room(self):
         cellar = GameObject("Cellar", tags=["room", "dark"])
         carrier, _ = make_player("Alice", location=cellar)
-        GameObject("torch", location=carrier, tags=["thing", "light"])
+        # A held-up (wielded) torch lights the way...
+        GameObject("torch", location=carrier, tags=["thing", "light", "wielded"])
         assert room_is_lit(cellar)
+
+    def test_carried_but_unwielded_light_does_not_light(self):
+        cellar = GameObject("Cellar", tags=["room", "dark"])
+        carrier, _ = make_player("Alice", location=cellar)
+        # ...but a lantern buried in the pack does not.
+        GameObject("lantern", location=carrier, tags=["thing", "light"])
+        assert not room_is_lit(cellar)
 
     def test_nightvision_sees_dark_room(self):
         cellar = GameObject("Cellar", tags=["room", "dark"])
@@ -202,7 +210,7 @@ class TestDarknessRendering:
         cellar = GameObject("Cellar", tags=["room", "dark"])
         GameObject("gem", location=cellar, tags=["thing"])
         alice, _ = make_player("Alice", location=cellar)
-        GameObject("torch", location=alice, tags=["thing", "light"])
+        GameObject("torch", location=alice, tags=["thing", "light", "wielded"])
 
         assert "a gem" in render_room(cellar, alice)
 
@@ -279,3 +287,33 @@ class TestSightGatedTargeting:
         moved = await move_through_exit(alice, room_b, exit_obj=bookcase)
         assert moved is True
         assert alice.location is room_b
+
+
+class TestDisplayMarkers:
+    """CoffeeMud-style (glowing)/(magic)/(hidden) markers in room listings."""
+
+    def test_glowing_shown_to_all(self):
+        from realm.core.perception import display_markers
+        torch = GameObject("torch", tags=["thing", "glowing"])
+        bob = GameObject("Bob", tags=["player"])
+        assert display_markers(torch, bob) == " (glowing)"
+
+    def test_magic_only_with_detection(self):
+        from realm.core.perception import display_markers
+        wand = GameObject("wand", tags=["thing", "magic"])
+        mundane = GameObject("Mundane", tags=["player"])
+        mage = GameObject("Mage", tags=["player", "detect_magic"])
+        assert display_markers(wand, mundane) == ""
+        assert display_markers(wand, mage) == " (magic)"
+
+    def test_hidden_marker_for_admin_only(self):
+        from realm.core.perception import display_markers
+        key = GameObject("key", tags=["thing", "hidden"])
+        admin = GameObject("Ada", tags=["player", "admin"])
+        assert display_markers(key, admin) == " (hidden)"
+
+    def test_room_render_shows_markers(self):
+        room = GameObject("Cave", tags=["room"])
+        GameObject("crystal", location=room, tags=["thing", "glowing"])
+        bob = GameObject("Bob", tags=["player"], location=room)
+        assert "(glowing)" in render_room(room, bob)

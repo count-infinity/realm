@@ -46,13 +46,17 @@ class TelnetProtocol(asyncio.Protocol):
     - Session lifecycle
     """
 
+    encoding: str = "utf-8"   # default for __new__-based construction
+
     def __init__(
         self,
         session_manager: SessionManager,
         on_command: callable,
+        encoding: str = "utf-8",
     ):
         self.session_manager = session_manager
         self.on_command = on_command  # Callback for received commands
+        self.encoding = encoding      # text codec (config ENCODING)
 
         self.transport: asyncio.Transport | None = None
         self.session: Session | None = None
@@ -230,7 +234,7 @@ class TelnetProtocol(asyncio.Protocol):
             return
 
         try:
-            line = self._buffer.decode('utf-8', errors='replace').strip()
+            line = self._buffer.decode(self.encoding, errors='replace').strip()
         except Exception:
             line = ""
 
@@ -263,7 +267,7 @@ class TelnetProtocol(asyncio.Protocol):
         message = message.replace('\n', '\r\n')
 
         try:
-            self.transport.write(message.encode('utf-8'))
+            self.transport.write(message.encode(self.encoding, errors='replace'))
         except Exception as e:
             logger.error(f"Error writing to telnet client: {e}")
 
@@ -288,11 +292,13 @@ class TelnetServer:
         on_command: callable,
         host: str = "0.0.0.0",
         port: int = 4000,
+        encoding: str = "utf-8",
     ):
         self.session_manager = session_manager
         self.on_command = on_command
         self.host = host
         self.port = port
+        self.encoding = encoding
         self._server: asyncio.Server | None = None
 
     async def start(self) -> None:
@@ -300,7 +306,8 @@ class TelnetServer:
         loop = asyncio.get_running_loop()
 
         def protocol_factory():
-            return TelnetProtocol(self.session_manager, self.on_command)
+            return TelnetProtocol(self.session_manager, self.on_command,
+                                  encoding=self.encoding)
 
         self._server = await loop.create_server(
             protocol_factory,

@@ -135,18 +135,21 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
         else:
             things.append(obj)
 
+    from realm.core.perception import display_markers
+
     if things:
         lines.append("")
         lines.append("You see:")
         lines.extend(
-            f"  {_group_formatter(rep, count)}"
+            f"  {_group_formatter(rep, count)}{display_markers(rep, viewer)}"
             for rep, count in group_contents(things)
         )
 
     if players:
         lines.append("")
         lines.append("Players here:")
-        lines.extend(f"  {obj.name}" for obj in players)
+        lines.extend(f"  {obj.name}{display_markers(obj, viewer)}"
+                     for obj in players)
 
     lines.append("")
     if exits:

@@ -326,6 +326,46 @@ Design sketch:
 
 ## Completed
 
+- [x] **LIGHTHOUSE-TUTORIAL FEEDBACK: 19 fixes (2026-07-09).** 892
+  tests (16 new). From playtesting the tutorial:
+  - **Bugs**: @dig/@open reject a duplicate exit name in a room;
+    `search` finds concealed OBJECTS via a flat Observation check vs
+    `conceal_difficulty` (was a nonsense Stealth contest against a
+    statless item — you could never find the key); @behavior tolerates
+    commas inside param values (a taunt with a comma no longer breaks).
+  - **Builder tools**: `@eval <code>` (arbitrary softcode, the Penn
+    think<<>> — via new ScriptEngine.run_code); `@foreach <search> =
+    <cmd>` (bulk ops, %o = each #id); `@stats` (tick interval, behavior
+    load, waits, encounters — lag visibility); `@rolls on/off` (echo
+    check dice); `quell`/`unquell` (drop to mortal perception+authority
+    for honest testing — get_role returns PLAYER when `quelled`);
+    `@detail/remove <obj> = <n>`; `@behavior/set` (edit params in
+    place, e.g. a new ticker interval); exit prefix matching
+    (`trapd`→`trapdoor`, dispatcher `_find_exit` now uses the tiered
+    matcher).
+  - **Design**: a CARRIED light must be `wielded` to illuminate (a
+    lantern in the pack no longer lights); CoffeeMud-style perception
+    markers `(glowing)`/`(magic)`/`(hidden)` in room listings via
+    `display_markers` (gated by looker capability; kept OUT of message
+    substitution so speech stays clean).
+  - Answered: `detect_lies` exists (IQ-6); `@examine` already shows raw
+    description + attrs; multiple `script_ticker`s work via distinct
+    `attr`+`interval`. Tutorial corrected (down not down/south, conceal
+    the key, quell to test) and docs updated.
+  - Deferred (documented): ON_ENTER script output arrives before the
+    room render — use `wait 0` to defer an effect a beat; a proper
+    render-ordering pass is future work.
+- [x] **CONFIGURABLE TEXT ENCODING (2026-07-09).** 877 tests (3 new).
+  User saw garbled glyphs (em-dash in the chargen menu) on a non-UTF-8
+  client. The server was ALWAYS sending correct UTF-8; the garble is
+  client-side charset. Per user direction (keep UTF-8, don't dumb
+  output down to ASCII): telnet output encode + input decode now use a
+  config `ENCODING` setting, **default "utf-8"**, threaded config →
+  GameServer → TelnetServer → TelnetProtocol (GMCP stays UTF-8 per
+  spec; errors='replace' so a bad byte never crashes the writer).
+  config.py.template documents it (set your client to UTF-8; latin-1/
+  cp437 only for legacy playerbases). Live-verified the em-dash
+  round-trips as its 3 UTF-8 bytes.
 - [x] **AREAS SYNC LIKE TERRAFORM + two real flakes killed
   (2026-07-07).** 874 tests (8 new); 20 consecutive clean full-suite
   runs.

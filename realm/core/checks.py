@@ -182,7 +182,13 @@ def check(obj: GameObject, skill: str, modifier: int = 0) -> CheckResult:
     are folded in here, upstream of the resolver, so every ruleset and
     injected test resolver inherits them.
     """
-    return _resolver(obj, skill, modifier + condition_modifier(obj, skill))
+    result = _resolver(obj, skill, modifier + condition_modifier(obj, skill))
+    # Roll visibility (@rolls on): echo the dice to a curious builder.
+    if obj.db.get('show_rolls'):
+        obj.msg(f"[roll {result.skill}: {result.roll} vs {result.effective} "
+                f"-> {'success' if result.success else 'failure'} "
+                f"(margin {result.margin:+d})]")
+    return result
 
 
 def contest(

@@ -79,6 +79,11 @@ def get_role(obj: GameObject | None) -> Role:
     if obj is None:
         return Role.GUEST
 
+    # A quelled admin voluntarily acts as a mortal (Evennia-style) — for
+    # honest testing of perception (dark/hidden/invisible) and authority.
+    if obj.has_tag('quelled'):
+        return Role.PLAYER
+
     # Check tags in order of highest privilege
     if obj.has_tag('god'):
         return Role.GOD

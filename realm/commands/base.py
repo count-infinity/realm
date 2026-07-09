@@ -19,6 +19,15 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
+def exit_named(room: GameObject, name: str) -> GameObject | None:
+    """An existing exit in a room by exact (case-insensitive) name."""
+    lower = name.strip().lower()
+    for obj in room.contents:
+        if obj.has_tag('exit') and obj.name.lower() == lower:
+            return obj
+    return None
+
+
 async def require_control(ctx: CommandContext, target: GameObject) -> bool:
     """
     Gate for mutating builder commands: caller must control the target

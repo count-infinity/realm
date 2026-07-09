@@ -196,6 +196,7 @@ def escape(text: str) -> str:
     return text.replace(MARKER, MARKER + MARKER)
 
 
+
 # --- Terminal (SGR) encoding ---------------------------------------------------
 
 def _sgr_params(style: Style) -> str:

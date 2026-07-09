@@ -51,7 +51,9 @@ def _is_admin(viewer: GameObject) -> bool:
 def room_is_lit(room: GameObject | None) -> bool:
     """
     Whether a room has light: not tagged ``dark``, or containing a
-    ``light`` source — directly or carried by someone present.
+    ``light`` source — sitting in the room, or WIELDED by someone present
+    (you must hold a torch up; a lantern buried in your pack doesn't
+    light the way).
     """
     if room is None or not room.has_tag(DARK_TAG):
         return True
@@ -59,7 +61,7 @@ def room_is_lit(room: GameObject | None) -> bool:
         if obj.has_tag(LIGHT_TAG):
             return True
         for carried in obj.contents:
-            if carried.has_tag(LIGHT_TAG):
+            if carried.has_tag(LIGHT_TAG) and carried.has_tag('wielded'):
                 return True
     return False
 
@@ -98,12 +100,38 @@ def can_see(viewer: GameObject | None, obj: GameObject) -> bool:
     return True
 
 
+def display_markers(obj: GameObject, looker: GameObject | None) -> str:
+    """
+    CoffeeMud-style parenthetical dispositions appended to a name —
+    ``a torch (glowing)``, ``a rusty key (hidden)`` — each shown only to
+    a looker who can perceive it:
+
+        glowing   anyone (a ``glowing`` tag; ambient light cue)
+        magic     lookers tagged ``detect_magic`` (or admins)
+        hidden    only admins/those who can see a still-hidden thing —
+                  so a builder sees WHY an item is special
+        invisible likewise, for a see_invisible looker
+    """
+    marks = []
+    if obj.has_tag('glowing'):
+        marks.append('glowing')
+    if obj.has_tag('magic') and looker is not None and (
+            looker.has_tag('detect_magic') or _is_admin(looker)):
+        marks.append('magic')
+    if obj.has_tag(HIDDEN_TAG) and looker is not None and _is_admin(looker):
+        marks.append('hidden')
+    if obj.has_tag('invisible') and looker is not None and (
+            looker.has_tag('see_invisible') or _is_admin(looker)):
+        marks.append('invisible')
+    return f" ({', '.join(marks)})" if marks else ""
+
+
 def perceived_name(obj: GameObject, looker: GameObject | None = None) -> str:
     """
-    The name the looker knows this object by.
-
-    The real name when visible; "Someone" for unseen people and NPCs,
-    "something" for unseen things.
+    The name the looker knows this object by — used in MESSAGES, so it
+    stays clean (no markers): the real name when visible, else "Someone"/
+    "something". Perception markers are a LOOK concern — see
+    ``display_markers``, applied by the room renderer.
     """
     if looker is None or can_see(looker, obj):
         return obj.name
@@ -151,6 +179,7 @@ __all__ = [
     "INVISIBLE_TAG",
     "SEE_INVISIBLE_TAG",
     "HIDDEN_TAG",
+    "display_markers",
     "LOUD_ACTIONS",
     "room_is_lit",
     "can_see_room",

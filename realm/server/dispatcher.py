@@ -386,17 +386,23 @@ class CommandDispatcher:
         return matches
 
     def _find_exit(self, room: GameObject, name: str) -> GameObject | None:
-        """Find an exit in a room by name."""
+        """Find an exit by exact name, alias, or unambiguous prefix."""
         name_lower = name.lower()
-        for obj in room.contents:
-            if obj.has_tag('exit'):
-                if obj.name.lower() == name_lower:
-                    return obj
-                # Check aliases stored on exit
-                aliases = obj.db.get('aliases', [])
-                if name_lower in [a.lower() for a in aliases]:
-                    return obj
-        return None
+        exits = [o for o in room.contents if o.has_tag('exit')]
+        # Exact name or explicit alias first.
+        for obj in exits:
+            if obj.name.lower() == name_lower:
+                return obj
+            aliases = obj.db.get('aliases', [])
+            if name_lower in [a.lower() for a in aliases]:
+                return obj
+        # Then a unique prefix ("trapd" -> "trapdoor") — but never a
+        # substring, so 'or' won't match 'north'.
+        from realm.core.search import AmbiguousMatchError, match_one
+        try:
+            return match_one(name, exits, allow_substring=False)
+        except AmbiguousMatchError:
+            return None
 
     async def _handle_exit(self, ctx: CommandContext, exit_obj: GameObject) -> None:
         """Handle movement through an exit."""

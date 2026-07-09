@@ -17,6 +17,12 @@ GAME_NAME = "{game_name}"
 # Enable debug logging
 DEBUG = False
 
+# Text encoding for telnet output and input. UTF-8 is the default and
+# recommended (set your MUD client to UTF-8 to see em-dashes, accents,
+# and box-drawing correctly). Use "latin-1" or "cp437" only for a
+# playerbase on legacy clients that can't do UTF-8.
+ENCODING = "utf-8"
+
 # Rules package — the whole game system: chargen, skill checks,
 # advancement, combat, and currency. Ships with "gurps" and "d20".
 # IMPORTANT: choose this ONCE, before the first character is created.

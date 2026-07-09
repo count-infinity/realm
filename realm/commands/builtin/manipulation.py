@@ -393,14 +393,24 @@ async def cmd_search(ctx: CommandContext) -> None:
         if obj is ctx.player:
             continue
         if obj.has_tag('hidden'):
-            if contest(ctx.player, 'observation', obj, 'stealth'):
+            is_character = obj.has_tag('player') or obj.has_tag('npc')
+            if is_character:
+                # A hidden PERSON opposes with their Stealth.
+                won = contest(ctx.player, 'observation', obj, 'stealth')
+            else:
+                # A concealed OBJECT has no Stealth — a flat Observation
+                # check against its conceal_difficulty (default 0).
+                diff = int(obj.db.get('conceal_difficulty') or 0)
+                won = check(ctx.player, 'observation', -diff).success
+            if won:
                 obj.remove_tag('hidden')
                 found.append(obj.get_display_name(ctx.player))
-                obj.msg(f"{ctx.player.name} spots you!")
-                room.msg_contents(
-                    f"{ctx.player.name} spots {obj.name} hiding!",
-                    exclude=[ctx.player, obj],
-                )
+                if is_character:
+                    obj.msg(f"{ctx.player.name} spots you!")
+                    room.msg_contents(
+                        f"{ctx.player.name} spots {obj.name} hiding!",
+                        exclude=[ctx.player, obj],
+                    )
         elif obj.has_tag('invisible') and obj.db.get('conceal_difficulty') is not None:
             result = check(ctx.player, 'observation',
                            -int(obj.db.get('conceal_difficulty') or 0))

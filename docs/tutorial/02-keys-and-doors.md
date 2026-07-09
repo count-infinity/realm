@@ -19,7 +19,7 @@ Try it: `open trapdoor` — refused. A `closed` exit must be opened; a
 ## The key, hidden in plain sight
 
 Remember the scratched arrow and T-I-D-E from part 1? Pay it off.
-Back on the Jetty (`down`, `south`):
+Back on the Jetty (`down`):
 
 ```text
 @create tide-worn key
@@ -27,10 +27,13 @@ Back on the Jetty (`down`, `south`):
 @set tide-worn key/description = Rust in the shape of luck. The wards match a heavy lock.
 drop tide-worn key
 @tag tide-worn key = hidden
+@set tide-worn key/conceal_difficulty = 2
 ```
 
 A `hidden` object doesn't show in the room — players find it with
-`search` (an observation check). The detail line you wrote is the
+`search` (an Observation check against its `conceal_difficulty`; higher
+= harder). As the superuser you'd *see* the key regardless — to test as
+a real player, `quell` first (and `unquell` to restore your powers). The detail line you wrote is the
 clue that makes searching *here* feel earned.
 
 ## The happy path, as a player

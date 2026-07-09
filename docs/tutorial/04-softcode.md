@@ -60,6 +60,12 @@ plus builtins (`rand`, `now`, `check_roll`...) compose into anything.
 @set the keeper/on_tick = pose stares out to sea.
 ```
 
+To see a description's raw source (the `[[...]]` code, not the
+rendered result), use `@examine here` — the builder examine dumps raw
+attribute values. And to run softcode ad-hoc, `@eval` executes anything
+as you: `@eval result = len(search_world(tag='npc'))`, or drive many
+objects at once with `@foreach tag:rat = @teleport %o = The Cellar`.
+
 !!! info "Learn more"
     Scripts run *as their object* with its owner's authority — you can
     read and write your own objects' attributes, never a stranger's.

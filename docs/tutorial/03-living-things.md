@@ -20,8 +20,18 @@ engine's kit:
 ```
 
 Wait a few beats and it skitters off through an open exit (locks and
-closed doors apply to it like anyone). `@behavior/list` shows every
+closed doors apply to it like anyone). It moves on the server heartbeat
+— `@stats` shows the tick interval and how many behaviors are ticking;
+`wandering` only rolls a move every `pause` ticks with a
+`wander_chance` (0.25), so give it time. `@behavior/list` shows every
 brain in the kit; `@behavior harbor rat` shows what's attached.
+
+To stop a busy object: `@tag harbor rat = halt` freezes all its
+scripts, `@behavior/remove harbor rat = wandering` detaches the brain,
+and `@behavior/set harbor rat = wandering, pause:1` re-tunes it in
+place. An object can carry several `script_ticker`s at once — give each
+its own `attr` and `interval` for different effects on different
+clocks.
 
 ## Clone it
 
