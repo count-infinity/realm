@@ -44,7 +44,7 @@ from realm.persistence.manager import PersistenceManager, set_active_manager
 from realm.scripting.engine import ScriptEngine, set_script_engine
 from realm.server.auth import AuthService
 from realm.server.dispatcher import CommandContext, CommandDispatcher
-from realm.systems import GameSystemRegistry, GurpsSystem, set_game_system
+from realm.systems import resolve_game_system, set_game_system
 
 if TYPE_CHECKING:
     from realm.config.loader import Settings
@@ -83,7 +83,7 @@ class GameServer:
         tick_interval: float = 4.0,
         encoding: str = "utf-8",
         combat_ruleset: str | None = None,
-        game_system: str = "gurps",
+        game_system: str = "realm.systems.GurpsSystem",
         combat_beat_min: float = 4.0,
         combat_beat_max: float = 120.0,
         combat_beat_default: float = 15.0,
@@ -102,7 +102,10 @@ class GameServer:
         self.tick_interval = tick_interval
         self.encoding = encoding
         self.combat_ruleset = combat_ruleset
-        self.game_system_name = game_system
+        # A dotted import path to a GameSystem subclass (e.g.
+        # "rules.GameRules") — or an already-resolved class/instance;
+        # resolved at boot by resolve_game_system.
+        self.game_system_spec = game_system
         self.game_system = None
         self.combat_beat_min = combat_beat_min
         self.combat_beat_max = combat_beat_max
@@ -166,7 +169,7 @@ class GameServer:
             tick_interval=settings.tick_interval,
             encoding=getattr(settings, 'encoding', 'utf-8'),
             combat_ruleset=settings.combat_ruleset,
-            game_system=getattr(settings, 'game_system', 'gurps'),
+            game_system=getattr(settings, 'game_system', 'realm.systems.GurpsSystem'),
             combat_beat_min=settings.combat_beat_min,
             combat_beat_max=settings.combat_beat_max,
             combat_beat_default=settings.combat_beat_default,
@@ -291,8 +294,7 @@ class GameServer:
         # The game system is the swappable rules package (GURPS/D20/...):
         # it supplies skill defaults, chargen, advancement, and the combat
         # ruleset (explicit COMBAT_RULESET config overrides it).
-        self.game_system = (GameSystemRegistry.create(self.game_system_name)
-                            or GurpsSystem())
+        self.game_system = resolve_game_system(self.game_system_spec)
         set_game_system(self.game_system)
         from realm.core.checks import set_check_resolver, set_skill_defaults
         set_skill_defaults(self.game_system.skill_defaults())

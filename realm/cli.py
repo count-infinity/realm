@@ -79,7 +79,6 @@ def cmd_init(args: argparse.Namespace) -> int:
     config_content = render_template(
         "config.py.template",
         game_name=display_name,
-        system_id=system_id,
     )
     (project_dir / "config.py").write_text(config_content)
     print("  Created config.py")

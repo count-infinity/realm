@@ -815,7 +815,7 @@ class TestCombatChannels:
         room = GameObject("Arena", tags=["room"])
         imp = GameObject("imp", location=room)
         alice, _sess = make_player("Alice", room)
-        bob = GameObject("Bob", tags=["player"], location=room)
+        GameObject("Bob", tags=["player"], location=room)
         imp.db.on_meddle = "start_combat('Alice', 'Bob')"
 
         engine = ScriptEngine()
@@ -1191,7 +1191,7 @@ class TestForce:
 
         room = GameObject("Stage", tags=["room"])
         bob, sess = make_player("Bob", room)
-        imp = GameObject("imp", tags=["npc"], location=room)
+        GameObject("imp", tags=["npc"], location=room)
 
         ctx = make_context(bob, left_args="imp", right_args="say Obey!")
         ctx.dispatcher = self._dispatcher()
@@ -1203,7 +1203,7 @@ class TestForce:
 
         room = GameObject("Stage", tags=["room"])
         bob, _ = make_player("Bob", room)
-        alice = GameObject("Alice", tags=["player"], location=room)
+        GameObject("Alice", tags=["player"], location=room)
 
         ctx = make_context(bob, left_args="Alice", right_args="say I obey")
         ctx.dispatcher = self._dispatcher()
@@ -1227,12 +1227,12 @@ class TestForce:
                    for m in drain(sess))
 
     async def test_forced_npc_cannot_run_builder_commands(self):
-        from realm.commands.olc.softcode import cmd_force
         from realm.commands.olc import register_olc_commands
+        from realm.commands.olc.softcode import cmd_force
 
         room = GameObject("Stage", tags=["room"])
         bob, _ = make_player("Bob", room)
-        imp = GameObject("imp", tags=["npc"], location=room)
+        GameObject("imp", tags=["npc"], location=room)
 
         d = self._dispatcher()
         register_olc_commands(d)
@@ -1243,13 +1243,13 @@ class TestForce:
         assert bob.db.get("hacked") is None  # imp lacks builder permission
 
     async def test_softcode_force(self):
-        from realm.scripting.engine import ScriptEngine
         from realm.core.propagation import get_engine
+        from realm.scripting.engine import ScriptEngine
 
         room = GameObject("Crypt", tags=["room"])
         _alice, sess = make_player("Alice", room)
         master = GameObject("puppetmaster", location=room)
-        minion = GameObject("minion", tags=["npc"], location=room)
+        GameObject("minion", tags=["npc"], location=room)
         master.db.on_command = "force('minion', 'say Yes, master.')"
 
         engine = ScriptEngine(persistence=self.persistence)

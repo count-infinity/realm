@@ -24,9 +24,8 @@ to return the sequence you want:
 ```python
 # rules.py  (created by `realm init`)
 from realm.systems.gurps import GurpsSystem
-from realm.systems.base import GameSystemRegistry, ChoiceStep
+from realm.systems.base import ChoiceStep
 
-@GameSystemRegistry.register
 class GameRules(GurpsSystem):
     system_id = "mygame"          # your project's id, set by realm init
 

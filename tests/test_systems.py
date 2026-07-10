@@ -9,19 +9,24 @@ import pytest
 
 from realm.core.objects import GameObject
 from realm.server.auth import hash_password, verify_password
-from realm.systems import D20System, GameSystemRegistry, GurpsSystem
-from realm.systems.base import ChoiceStep
+from realm.systems import D20System, GurpsSystem
+from realm.systems.base import ChoiceStep, resolve_game_system
 
 
-class TestRegistry:
+class TestResolveGameSystem:
+    """GAME_SYSTEM is a dotted import path to a GameSystem subclass."""
 
-    def test_builtin_systems_registered(self):
-        assert set(GameSystemRegistry.list_all()) >= {"gurps", "d20"}
+    def test_resolve_builtin_paths(self):
+        assert isinstance(
+            resolve_game_system("realm.systems.GurpsSystem"), GurpsSystem)
+        assert isinstance(
+            resolve_game_system("realm.systems.D20System"), D20System)
 
-    def test_create_by_id(self):
-        assert isinstance(GameSystemRegistry.create("gurps"), GurpsSystem)
-        assert isinstance(GameSystemRegistry.create("d20"), D20System)
-        assert GameSystemRegistry.create("fate") is None
+    def test_bad_path_raises(self):
+        with pytest.raises(ValueError):
+            resolve_game_system("realm.systems.FateSystem")   # no such class
+        with pytest.raises(ValueError):
+            resolve_game_system("gurps")                      # not dotted
 
 
 class TestChoiceStep:
@@ -156,8 +161,8 @@ class TestAuthService:
         return AuthService(pers, **kw), pers
 
     async def _account(self, pers, name="Bob", password="s2"):
-        from realm.server.auth import hash_password
         from realm.core.objects import GameObject
+        from realm.server.auth import hash_password
         p = GameObject(name, tags=["player"])
         p.db.password = hash_password(password)
         pers.add(p)
@@ -224,8 +229,10 @@ class TestCheckResolution:
         # A high skill almost always succeeds; a low one almost never —
         # over many rolls, roll-under behaviour.
         sys = GurpsSystem()
-        pro = GameObject("Pro"); pro.db.skill_stealth = 16
-        oaf = GameObject("Oaf"); oaf.db.skill_stealth = 4
+        pro = GameObject("Pro")
+        pro.db.skill_stealth = 16
+        oaf = GameObject("Oaf")
+        oaf.db.skill_stealth = 4
         pro_wins = sum(sys.resolve_check(pro, "stealth", 0).success for _ in range(200))
         oaf_wins = sum(sys.resolve_check(oaf, "stealth", 0).success for _ in range(200))
         assert pro_wins > 180 and oaf_wins < 20
@@ -234,8 +241,10 @@ class TestCheckResolution:
         sys = D20System()
         # skill "level" is a BONUS under d20: +10 clears DC 15 most rolls,
         # +0 rarely does.
-        ace = GameObject("Ace"); ace.db.skill_stealth = 10
-        joe = GameObject("Joe"); joe.db.skill_stealth = 0
+        ace = GameObject("Ace")
+        ace.db.skill_stealth = 10
+        joe = GameObject("Joe")
+        joe.db.skill_stealth = 0
         ace_wins = sum(sys.resolve_check(ace, "stealth", 0).success for _ in range(200))
         joe_wins = sum(sys.resolve_check(joe, "stealth", 0).success for _ in range(200))
         assert ace_wins > joe_wins
@@ -248,7 +257,8 @@ class TestCheckResolution:
         from realm.core.checks import check, set_check_resolver
         try:
             set_check_resolver(D20System().resolve_check)
-            hero = GameObject("Hero"); hero.db.skill_stealth = 30  # auto-clears DC
+            hero = GameObject("Hero")
+            hero.db.skill_stealth = 30  # auto-clears DC
             assert check(hero, "stealth").success is True
             assert check(hero, "stealth").roll <= 20  # a d20, not 3d6
         finally:

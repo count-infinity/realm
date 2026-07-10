@@ -329,7 +329,9 @@ class TestChownHalts:
         eve = GameObject("Eve", tags=["player"], location=room)
         trap = GameObject("music box", location=room, owner=eve)
         trap.db.on_look = "set_attr(me, 'sprung', True)"
-        pers.add(admin); pers.add(eve); pers.add(trap)
+        pers.add(admin)
+        pers.add(eve)
+        pers.add(trap)
 
         ctx = make_context(admin, left_args="music box", right_args="Ada")
         await cmd_chown(ctx)

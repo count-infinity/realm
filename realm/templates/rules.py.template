@@ -7,28 +7,33 @@ characters are made and how skills work. Out of the box it behaves
 customize by uncommenting the hooks below; you never edit the `realm`
 package itself, so upgrading REALM can't clobber your game.
 
-`config.py` already imports this file and points `GAME_SYSTEM` at it.
+`config.py` selects this class with `GAME_SYSTEM = "rules.GameRules"` (a
+dotted import path), so THIS file is the single place your rules are
+decided. The base class GameRules subclasses is the choice: `GurpsSystem`
+here for GURPS, or `D20System` (from realm.systems.d20) for D20.
 
 Learn the model:
   - Concepts → "How a Character Is Born"
   - How-To   → "Add a Character Class"
   - How-To   → "Customize Character Creation"
 
-Prefer stock rules with no changes? Delete this file and set
-`GAME_SYSTEM = "gurps"` (or `"d20"`) in config.py.
+Prefer a built-in with no changes? Delete this file and set
+`GAME_SYSTEM = "realm.systems.GurpsSystem"` (or `".D20System"`) in
+config.py.
 """
 
 from __future__ import annotations
 
-from realm.systems.base import GameSystemRegistry
 from realm.systems.gurps import GurpsSystem
 
 
-@GameSystemRegistry.register
 class GameRules(GurpsSystem):
-    """Your game's rules. Inherits GURPS; override the hooks to customize."""
+    """Your game's rules. Inherits GURPS; override the hooks to customize.
 
-    system_id = "__GAME_ID__"        # selected by GAME_SYSTEM in config.py
+    Swap the base to `D20System` (from realm.systems.d20) to build on D20
+    instead — that one word is the whole choice."""
+
+    system_id = "__GAME_ID__"        # labels characters' saved sheets
 
     # --- Add or change character classes -----------------------------------
     #

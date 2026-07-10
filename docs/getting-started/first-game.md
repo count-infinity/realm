@@ -30,9 +30,10 @@ create Keeper mypassword
 
 **The first character created on a fresh database is the superuser** —
 you'll be told so at creation. You'll then pick a character background
-and a bonus skill (the default rules package is GURPS-flavored; set
-`GAME_SYSTEM = "d20"` in config.py for classes instead) and arrive in
-**The Void**, REALM's Limbo. You have every builder and admin command;
+and a bonus skill (your `rules.py` builds on GURPS by default; to build
+on D20 instead, change the base class in `rules.py` — see
+[Game Systems](../guides/game-systems.md)) and arrive in **The Void**,
+REALM's Limbo. You have every builder and admin command;
 characters created after you are ordinary players (promote them with
 `@tag <name> = builder`).
 

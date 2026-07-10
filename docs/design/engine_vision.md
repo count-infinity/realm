@@ -105,7 +105,8 @@ with an instruction budget. Tracked in BACKLOG.
 ## Ruleset packages (the GURPS/D20 story) — GameSystem, SHIPPED 2026-07-04
 
 `realm/systems/` is the system-package seam: a **GameSystem** (Abstract
-Factory + Registry, `GAME_SYSTEM = "gurps"` in config) bundles the
+Factory, selected by a dotted import path — `GAME_SYSTEM = "rules.GameRules"`
+or `"realm.systems.GurpsSystem"` in config) bundles the
 combat ruleset name, skill definitions/defaults, advancement costs
 (`improve_cost`), baseline stats, and the chargen flow. Chargen is a
 Template Method: the server owns the prompt→answer→advance loop

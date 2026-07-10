@@ -190,7 +190,8 @@ class TestAction:
 
     def test_format_message_handles_missing(self):
         a = Action(actor=None, target=None, action_type="x")
-        assert a.format_message("{actor} -> {target} ({tool})") == "Someone -> something (something)"
+        assert (a.format_message("{actor} -> {target} ({tool})")
+                == "Someone -> something (something)")
 
 
 # --- Engine basics --------------------------------------------------------

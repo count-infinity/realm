@@ -88,8 +88,8 @@ class TestWidthHelpers:
 class TestProtocolEdges:
 
     def _telnet(self):
-        from realm.gateway.telnet import TelnetProtocol
         from realm.gateway.session import Session
+        from realm.gateway.telnet import TelnetProtocol
 
         class FakeTransport:
             def __init__(self):
@@ -165,7 +165,7 @@ class TestEncoding:
     async def test_utf8_default_sends_multibyte(self):
         proto = self._telnet()
         await proto._write_to_client("soldier — tough")   # em dash
-        assert "soldier — tough".encode("utf-8") in proto.transport.data
+        assert "soldier — tough".encode() in proto.transport.data
 
     async def test_configured_codec_used(self):
         proto = self._telnet(encoding="latin-1")

@@ -7,13 +7,20 @@ the engine never asks "is this GURPS?".
 
 ## Choosing one
 
-One line in `config.py`, set **before the first character is created**:
+`config.py` sets `GAME_SYSTEM` **before the first character is created**.
+It's a **dotted import path** to a GameSystem subclass — one greppable
+value a developer can follow straight to the source:
 
 ```python
-GAME_SYSTEM = "gurps"   # or "d20"
+GAME_SYSTEM = "rules.GameRules"            # your own system — the scaffolded default
+GAME_SYSTEM = "realm.systems.GurpsSystem"  # a built-in, unmodified (or ".D20System")
 ```
 
-Two ship in-box:
+`realm init` writes the first form: the path points at your `GameRules`
+class in `rules.py`, so what it subclasses is the *only* place the rules
+are decided — there's no id string to fall out of sync with it.
+
+Two systems ship in-box:
 
 | | **GURPS** (`gurps`) | **D20** (`d20`) |
 |---|---|---|
@@ -47,12 +54,14 @@ once.
 
 ## Writing your own
 
-Subclass `GameSystem`, register it, select it by id:
+If you want rules unlike GURPS or D20, subclass `GameSystem` directly
+instead of a built-in. Put it in `rules.py` (replacing the scaffolded
+`GameRules`) and point `config.py` at it — same as any game system:
 
 ```python
-from realm.systems.base import GameSystem, GameSystemRegistry, ChoiceStep
+# rules.py
+from realm.systems.base import GameSystem, ChoiceStep
 
-@GameSystemRegistry.register
 class SavageSystem(GameSystem):
     system_id = "savage"
     ruleset_name = "d20"          # reuse a combat ruleset, or ship your own
@@ -75,7 +84,12 @@ class SavageSystem(GameSystem):
                            self._apply)]
 ```
 
+```python
+# config.py
+GAME_SYSTEM = "rules.SavageSystem"
+```
+
 The `resolve_check`, `improve_cost`, `death_award`, and `chargen_steps`
-methods are the seams; everything else inherits sensible GURPS-shaped
-defaults. Ship a custom combat ruleset by registering it with
-`RulesetRegistry` and pointing `ruleset_name` at it.
+methods are the seams; everything else inherits sensible defaults. Ship a
+custom combat ruleset by registering it with `RulesetRegistry` and
+pointing `ruleset_name` at it.

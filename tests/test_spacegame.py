@@ -27,7 +27,7 @@ class TestSpaceCharacters:
         from examples.spacegame.characters import CharacterRole, SpaceCharacter
 
         obj = GameObject(id="test_player", name="Test")
-        char = SpaceCharacter.create(obj, CharacterRole.MARINE, "Test Marine")
+        SpaceCharacter.create(obj, CharacterRole.MARINE, "Test Marine")
 
         assert obj.name == "Test Marine"
         assert obj.has_tag("player")
@@ -140,6 +140,7 @@ class TestSpaceships:
         # Remaining 15 - armor goes to hull
         expected_hull_damage = max(0, 15 - armor)
         assert result["hull_damage"] == expected_hull_damage
+        assert ship.hull == initial_hull - expected_hull_damage
 
     @pytest.mark.asyncio
     async def test_ship_repair(self):

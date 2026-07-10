@@ -13,8 +13,10 @@ Factory bundling every rules decision in one object:
 Patterns, deliberately:
 - **Abstract Factory / Strategy**: GameSystem supplies the parts; the
   engine never branches on "is this GURPS?".
-- **Registry** (same shape as BehaviorRegistry): systems register by id,
-  config picks one by name (``GAME_SYSTEM = "gurps"``).
+- **Dotted-path selection**: ``GAME_SYSTEM`` is an import path to a
+  GameSystem subclass (``"rules.GameRules"``, ``"realm.systems.GurpsSystem"``),
+  resolved by ``resolve_game_system`` — one greppable value that leads
+  straight to the source, no registry indirection.
 - **Template Method**: the chargen *flow* (prompt → answer → advance →
   finish) lives here once; systems supply the steps. ChoiceStep covers
   menu-style steps today; point-buy steps later are just new
@@ -25,6 +27,7 @@ Patterns, deliberately:
 
 from __future__ import annotations
 
+import importlib
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -153,24 +156,53 @@ class GameSystem(ABC):
         return "Character creation complete."
 
 
-class GameSystemRegistry:
-    """Registry of game systems, keyed by system_id."""
+def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem:
+    """
+    Resolve a ``GAME_SYSTEM`` config value to a live GameSystem.
 
-    _systems: dict[str, type[GameSystem]] = {}
+    The config form is a **dotted import path** to a GameSystem subclass —
+    a value a developer can follow straight to the source, with no registry
+    lookup to reverse-engineer:
 
-    @classmethod
-    def register(cls, system_class: type[GameSystem]) -> type[GameSystem]:
-        cls._systems[system_class.system_id] = system_class
-        return system_class
+        GAME_SYSTEM = "rules.GameRules"            # your scaffolded rules.py
+        GAME_SYSTEM = "realm.systems.GurpsSystem"  # a built-in, unmodified
 
-    @classmethod
-    def create(cls, system_id: str) -> GameSystem | None:
-        system_class = cls._systems.get(system_id)
-        return system_class() if system_class else None
-
-    @classmethod
-    def list_all(cls) -> list[str]:
-        return list(cls._systems.keys())
+    The path is imported and instantiated. A bad path raises rather than
+    falling back, so a typo fails loudly instead of quietly running the
+    wrong rules. (An already-resolved class or instance is also accepted,
+    for programmatic callers — it's simply passed through.)
+    """
+    if isinstance(spec, GameSystem):
+        return spec
+    if isinstance(spec, type) and issubclass(spec, GameSystem):
+        return spec()
+    if isinstance(spec, str):
+        module_path, _, class_name = spec.rpartition(".")
+        if not module_path:
+            raise ValueError(
+                f"GAME_SYSTEM = {spec!r} must be a dotted import path to a "
+                "GameSystem subclass, e.g. 'rules.GameRules' or "
+                "'realm.systems.GurpsSystem'."
+            )
+        try:
+            module = importlib.import_module(module_path)
+            cls = getattr(module, class_name)
+        except (ImportError, AttributeError) as exc:
+            raise ValueError(
+                f"GAME_SYSTEM = {spec!r} could not be imported ({exc}). Use a "
+                "dotted path to a GameSystem subclass, e.g. 'rules.GameRules' "
+                "or 'realm.systems.GurpsSystem'."
+            ) from exc
+        if not (isinstance(cls, type) and issubclass(cls, GameSystem)):
+            raise TypeError(
+                f"GAME_SYSTEM = {spec!r} resolved to {cls!r}, which is not a "
+                "GameSystem subclass."
+            )
+        return cls()
+    raise TypeError(
+        "GAME_SYSTEM must be a dotted import-path string (or a GameSystem "
+        f"class/instance); got {type(spec).__name__}."
+    )
 
 
 # --- Ambient accessor (set by GameServer) ------------------------------------
@@ -191,7 +223,7 @@ __all__ = [
     "ChargenStep",
     "ChoiceStep",
     "GameSystem",
-    "GameSystemRegistry",
+    "resolve_game_system",
     "set_game_system",
     "get_game_system",
 ]

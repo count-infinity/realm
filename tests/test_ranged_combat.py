@@ -7,7 +7,6 @@ test_combat_encounters.
 from __future__ import annotations
 
 # ruff: noqa: F811  (pytest fixture params shadow the imported fixture)
-
 import pytest
 
 from realm.combat.maneuver import QueuedAction

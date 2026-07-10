@@ -466,8 +466,10 @@ class TestOnCommandFlushesAllSessions:
         register_all_commands(server.dispatcher)
 
         room = GameObject("Tavern", tags=["room"])
-        alice = GameObject("Alice", location=room); alice.add_tag("player")
-        bob = GameObject("Bob", location=room); bob.add_tag("player")
+        alice = GameObject("Alice", location=room)
+        alice.add_tag("player")
+        bob = GameObject("Bob", location=room)
+        bob.add_tag("player")
 
         sess_a = Session(protocol="test", address="1.1.1.1")
         sess_b = Session(protocol="test", address="2.2.2.2")

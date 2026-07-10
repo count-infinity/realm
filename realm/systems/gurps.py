@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.systems.base import ChoiceStep, GameSystem, GameSystemRegistry
+from realm.systems.base import ChoiceStep, GameSystem
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -71,7 +71,6 @@ def _apply_bonus_skill(player: GameObject, name: str) -> None:
         player.db.set(attr, int(current) + 1)
 
 
-@GameSystemRegistry.register
 class GurpsSystem(GameSystem):
     """GURPS 4e-lite: 3d6 roll-under, 4 CP per skill level."""
 

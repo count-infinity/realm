@@ -206,7 +206,7 @@ class TestBuiltinCommands:
     @pytest.mark.asyncio
     async def test_inventory_with_items(self):
         """inventory shows items."""
-        sword = GameObject("sword", tags=['thing'], location=self.player)
+        GameObject("sword", tags=['thing'], location=self.player)
 
         await self.dispatcher.dispatch(self.session, "i")
 
@@ -276,7 +276,7 @@ class TestBuiltinCommands:
     @pytest.mark.asyncio
     async def test_whisper_command(self):
         """whisper command sends private message."""
-        other = GameObject("OtherPlayer", tags=['player'], location=self.room)
+        GameObject("OtherPlayer", tags=['player'], location=self.room)
 
         await self.dispatcher.dispatch(self.session, "whisper OtherPlayer = secret")
 

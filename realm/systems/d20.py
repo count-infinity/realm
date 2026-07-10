@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.systems.base import ChoiceStep, GameSystem, GameSystemRegistry
+from realm.systems.base import ChoiceStep, GameSystem
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -36,7 +36,6 @@ def _apply_class(player: GameObject, name: str) -> None:
     player.db.character_class = name
 
 
-@GameSystemRegistry.register
 class D20System(GameSystem):
     """d20-flavored rules package."""
 

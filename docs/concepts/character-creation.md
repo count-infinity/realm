@@ -16,12 +16,18 @@ and `realm init` gives every new project its own `GameRules` subclass in
 
 ```python
 # config.py (scaffolded)
-import rules              # registers your GameRules system
-GAME_SYSTEM = "mygame"    # ...and selects it (or "gurps" / "d20" for stock)
+GAME_SYSTEM = "rules.GameRules"   # a dotted import path — follow it to the source
 ```
 
-Out of the box `GameRules` *is* GURPS — it subclasses it. `rules.py` is
-simply the blessed place to change the rules without touching the engine.
+`GAME_SYSTEM` is a **dotted import path** to a GameSystem subclass — one
+greppable value that leads a developer straight to `rules.py`, with no
+registry lookup to reverse-engineer. The base class you pick in
+`rules.py` is the **only** place the rules are decided; there's no
+separate id to fall out of sync with it. Out of the box `GameRules` *is*
+GURPS (it subclasses it); `rules.py` is simply the blessed place to
+change the rules without touching the engine. (Want a built-in with no
+`rules.py`? Point straight at it: `GAME_SYSTEM = "realm.systems.GurpsSystem"`
+or `"realm.systems.D20System"`.)
 
 The GameSystem answers a small, fixed set of questions:
 

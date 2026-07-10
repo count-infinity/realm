@@ -23,9 +23,9 @@ A GURPS class is a `name → (blurb, stats, skills)` entry, the same shape
 as the in-box `TEMPLATES`. In your `rules.py`:
 
 ```python
-# rules.py  (created by `realm init` — already imported & selected)
+# rules.py  (created by `realm init` — already selected by config.py)
 from realm.systems.gurps import GurpsSystem, TEMPLATES
-from realm.systems.base import GameSystemRegistry, ChoiceStep
+from realm.systems.base import ChoiceStep
 
 MY_TEMPLATES = {
     **TEMPLATES,                       # keep the in-box classes (optional)
@@ -47,8 +47,7 @@ def _apply(player, name):
     player.db.template = name
 
 
-@GameSystemRegistry.register           # already present in the scaffold
-class GameRules(GurpsSystem):          # your game's system (id from config)
+class GameRules(GurpsSystem):          # the class the scaffold already defines
     system_id = "mygame"
 
     def chargen_steps(self):
@@ -62,10 +61,10 @@ class GameRules(GurpsSystem):          # your game's system (id from config)
         return steps
 ```
 
-Nothing else to wire — `config.py` already `import rules` and sets
-`GAME_SYSTEM` to your game's id. (If you *didn't* use `realm init`, that
-one-time wiring is: `import rules` in `config.py`, then
-`GAME_SYSTEM = "your_id"`.) Restart and create a character to see it:
+Nothing else to wire — `config.py` already has
+`GAME_SYSTEM = "rules.GameRules"`, a dotted path pointing straight at
+this class. (If you *didn't* use `realm init`, that's the one line to
+add.) Restart and create a character to see it:
 
 ```text
 create Maverick topgun
