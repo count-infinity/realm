@@ -23,12 +23,18 @@ DEBUG = False
 # playerbase on legacy clients that can't do UTF-8.
 ENCODING = "utf-8"
 
+# Your game's rules package. Importing rules.py registers your GameRules
+# system (which subclasses the built-in GURPS rules — customize it there,
+# not in the engine). To use the stock rules directly instead, delete
+# rules.py and set GAME_SYSTEM = "gurps" (or "d20").
+import rules  # noqa: F401  (imported for its @register side effect)
+
 # Rules package — the whole game system: chargen, skill checks,
-# advancement, combat, and currency. Ships with "gurps" and "d20".
+# advancement, combat, and currency.
 # IMPORTANT: choose this ONCE, before the first character is created.
 # It is a deployment choice, not a live toggle — characters are stamped
 # with the system they were made under, and there is no migration.
-GAME_SYSTEM = "gurps"
+GAME_SYSTEM = "{system_id}"
 
 
 # =============================================================================

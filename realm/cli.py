@@ -25,7 +25,7 @@ from pathlib import Path
 
 from realm.config.loader import load_config
 from realm.server.game import GameServer
-from realm.templates import render_template
+from realm.templates import get_template, render_template
 
 # Examples directory (for --template option)
 EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
@@ -71,18 +71,33 @@ def cmd_init(args: argparse.Namespace) -> int:
     project_dir.mkdir(exist_ok=True)
     (project_dir / "data").mkdir(exist_ok=True)
 
+    display_name = game_name.replace("_", " ").title()
+    # A Python-safe id for this game's registered rules package.
+    system_id = _sanitize_system_id(game_name)
+
     # Create config.py from template
     config_content = render_template(
         "config.py.template",
-        game_name=game_name.replace("_", " ").title(),
+        game_name=display_name,
+        system_id=system_id,
     )
     (project_dir / "config.py").write_text(config_content)
     print("  Created config.py")
 
+    # Create rules.py — the game's own GameSystem subclass, pre-wired and
+    # selected by config.py. This is where the user shapes chargen/skills.
+    rules_content = (
+        get_template("rules.py.template")
+        .replace("__GAME_NAME__", display_name)
+        .replace("__GAME_ID__", system_id)
+    )
+    (project_dir / "rules.py").write_text(rules_content)
+    print("  Created rules.py")
+
     # Create welcome.txt from template
     welcome_content = render_template(
         "welcome.txt.template",
-        game_name=game_name.replace("_", " ").title(),
+        game_name=display_name,
     )
     (project_dir / "data" / "welcome.txt").write_text(welcome_content)
     print("  Created data/welcome.txt")
@@ -92,9 +107,18 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"  cd {game_name}")
     print("  realm start")
     print()
-    print("Edit config.py to customize your game.")
+    print("Customize your rules in rules.py; other settings in config.py.")
 
     return 0
+
+
+def _sanitize_system_id(game_name: str) -> str:
+    """A valid, lowercase Python identifier for the game's system id."""
+    cleaned = "".join(c if c.isalnum() else "_" for c in game_name.lower())
+    cleaned = cleaned.strip("_") or "game"
+    if cleaned[0].isdigit():
+        cleaned = f"g_{cleaned}"
+    return cleaned
 
 
 def _init_from_template(game_name: str, project_dir: Path, template: str) -> int:
@@ -103,7 +127,8 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
 
     if not template_dir.exists():
         print(f"Error: Template '{template}' not found.")
-        available = [d.name for d in EXAMPLES_DIR.iterdir() if d.is_dir() and not d.name.startswith("_")]
+        available = [d.name for d in EXAMPLES_DIR.iterdir()
+                     if d.is_dir() and not d.name.startswith("_")]
         if available:
             print(f"Available templates: {', '.join(sorted(available))}")
         return 1

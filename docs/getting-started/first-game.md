@@ -10,9 +10,11 @@ cd mygame
 realm start
 ```
 
-`config.py` holds your settings (ports, game name, tick rate, which
-rules package to use); `data/` holds the SQLite database and welcome
-screen. The server is now listening on telnet port 4000.
+This scaffolds a small project: `config.py` holds your settings (ports,
+game name, tick rate); **`rules.py`** is your own game system (character
+creation, skills, advancement) — pre-wired and ready to customize; and
+`data/` holds the SQLite database and welcome screen. The server is now
+listening on telnet port 4000.
 
 ## Connect and become the superuser
 

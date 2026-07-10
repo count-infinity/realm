@@ -9,7 +9,10 @@ To just add a class to the existing menu, see
 [Add a Character Class](add-a-class.md) — that's the smaller change.
 
 The whole flow comes from one method, `chargen_steps()`, on your
-[GameSystem](game-systems.md). Override it and you own creation.
+[GameSystem](game-systems.md) — which `realm init` already scaffolded for
+you as `GameRules` in **`rules.py`**. Override the method there and you
+own creation. Every example below is a body for that scaffolded class;
+`config.py` already imports and selects it.
 
 ## Reshape the flow: add or reorder questions
 
@@ -19,13 +22,13 @@ else (a name prompt, point-buy, a dice roll). Override `chargen_steps()`
 to return the sequence you want:
 
 ```python
-# mygame/mysystem.py
+# rules.py  (created by `realm init`)
 from realm.systems.gurps import GurpsSystem
 from realm.systems.base import GameSystemRegistry, ChoiceStep
 
 @GameSystemRegistry.register
-class MyGurps(GurpsSystem):
-    system_id = "mygurps"
+class GameRules(GurpsSystem):
+    system_id = "mygame"          # your project's id, set by realm init
 
     def chargen_steps(self):
         steps = super().chargen_steps()          # template + bonus skill
@@ -69,21 +72,14 @@ class NameStep(ChargenStep):
 
 ## Skip it entirely: instant characters
 
-Return an empty list and creation is a single step — `create` drops the
-player straight into the world with just their baseline stats:
+Return an empty list from your `GameRules.chargen_steps()` and creation
+is a single step — `create` drops the player straight into the world
+with just their baseline stats:
 
 ```python
-@GameSystemRegistry.register
-class SandboxSystem(GurpsSystem):
-    system_id = "sandbox"
-
+# rules.py
     def chargen_steps(self):
         return []          # no menu; everyone starts identical
-```
-
-```python
-# config.py
-GAME_SYSTEM = "sandbox"
 ```
 
 ## The "drop into a training school" start
@@ -93,14 +89,12 @@ in-world academy with a pool of points to spend using the ordinary
 `points` / `improve` commands. Nothing new to build — three pieces you
 already have:
 
-**1. No menu, and grant starting points.** Override `apply_baseline` to
-seed a character-point pool on every fresh sheet:
+**1. No menu, and grant starting points.** In your `GameRules`, return no
+steps and override `apply_baseline` to seed a character-point pool on
+every fresh sheet:
 
 ```python
-@GameSystemRegistry.register
-class AcademySystem(GurpsSystem):
-    system_id = "academy"
-
+# rules.py
     def chargen_steps(self):
         return []
 

@@ -10,12 +10,18 @@ are the turn-by-turn directions.
 ## The one object that owns the rules
 
 Every rules decision lives in a single swappable object called the
-**[GameSystem](../guides/game-systems.md)**. GURPS and D20 ship in-box;
-you pick one with a line in `config.py`:
+**[GameSystem](../guides/game-systems.md)**. GURPS and D20 ship in-box,
+and `realm init` gives every new project its own `GameRules` subclass in
+**`rules.py`** — pre-registered and already selected by `config.py`:
 
 ```python
-GAME_SYSTEM = "gurps"   # or "d20", or your own id
+# config.py (scaffolded)
+import rules              # registers your GameRules system
+GAME_SYSTEM = "mygame"    # ...and selects it (or "gurps" / "d20" for stock)
 ```
+
+Out of the box `GameRules` *is* GURPS — it subclasses it. `rules.py` is
+simply the blessed place to change the rules without touching the engine.
 
 The GameSystem answers a small, fixed set of questions:
 
@@ -88,30 +94,35 @@ TEMPLATES = {
 — and an `apply` function writes the chosen template's stats and skills
 onto the character. So:
 
-- **Adding a class** = adding a dict entry. It appears in the menu
-  automatically. → [Add a Character Class](../guides/add-a-class.md)
 - **A "class" is data, not a type.** Nothing in the engine knows a
   soldier from a face; both are a bag of attributes on a `GameObject`.
   This is why swapping to D20's class list, or a point-buy flow, or no
   flow at all, changes nothing else.
+- **You add classes in your own game, not here.** `TEMPLATES` is where
+  the *in-box* classes live; you define your own the same way — in a
+  subclass registered from `config.py` — and never patch the package.
+  → [Add a Character Class](../guides/add-a-class.md)
 
 ## The four levers, from smallest to largest
 
 When you want to change an initial decision, reach for the smallest
-lever that does the job:
+lever that does the job. Every one of these lives in *your* game — a
+subclass registered from `config.py`, which the engine imports at boot —
+and never edits the `realm/` package:
 
-1. **Change the options** — edit the `TEMPLATES` (GURPS) or `CLASSES`
-   (D20) dict. New backgrounds, different stats.
-2. **Change the questions** — subclass the system, override
-   `chargen_steps()`: add a point-buy step, ask for a homeworld, reorder.
+1. **Change the options** — subclass the system and supply your own
+   class list to the template/class step. New backgrounds, different
+   stats. → [Add a Character Class](../guides/add-a-class.md)
+2. **Change the questions** — override `chargen_steps()`: add a
+   point-buy step, ask for a homeworld, reorder.
 3. **Remove the questions** — `chargen_steps()` returns `[]`. Instant
    characters, or send players to an in-world academy to spend points
    with `improve`.
 4. **Replace the rules wholesale** — subclass `GameSystem`, register it,
    point `config.py` at it. Your dice, your currency, your advancement.
 
-Levers 2–4 never touch the `realm/` package: a game author registers
-their system from `config.py`, which the engine imports at boot.
+The in-box `gurps`/`d20` systems are worked examples to read and mirror,
+not files to patch.
 
 ## Where to go next
 
