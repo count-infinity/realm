@@ -198,9 +198,103 @@ def pose_action(poser: GameObject, pose_text: str) -> Action:
     return action
 
 
+def emit_action(actor: GameObject, message: str) -> Action:
+    """The canonical @emit shape — raw text to the actor's room, shown
+    identically to everyone including the emitter."""
+    from realm.core.propagation import ROOM_TARGET_CHAIN
+    action = Action(
+        actor=actor,
+        target=actor.location,
+        action_type="event:emit",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"message": message},
+    )
+    action.add_message("actor", message, success_only=True)
+    action.add_message("room", message, success_only=True)
+    return action
+
+
+def whisper_action(
+    speaker: GameObject, target: GameObject, message: str
+) -> Action:
+    """The canonical whisper shape — used by cmd_whisper and scripted
+    whispers so the target/room/actor lines can never drift apart."""
+    action = Action(
+        actor=speaker,
+        target=target,
+        action_type="event:whisper",
+        extra={"message": message},
+    )
+    action.add_message(
+        "actor", f'You whisper to {{target}}, "{message}"', success_only=True)
+    action.add_message(
+        "target", f'{{actor}} whispers, "{message}"', success_only=True)
+    action.add_message(
+        "room", "{actor} whispers something to {target}.", success_only=True)
+    return action
+
+
+async def do_say(
+    actor: GameObject, message: str, *, scripted: bool = False
+) -> Action | None:
+    """Speak aloud. Guard, build, propagate — the one say pathway for a
+    player command, a scripted say, and an NPC. Returns the propagated
+    action (check ``.blocked``), or None if the actor has nowhere to
+    speak from."""
+    if actor.location is None:
+        return None
+    return await _speak(speech_action(actor, message), scripted)
+
+
+async def do_pose(
+    actor: GameObject, pose_text: str, *, scripted: bool = False
+) -> Action | None:
+    """Emote/pose — the one pose pathway. Returns the action or None."""
+    if actor.location is None:
+        return None
+    return await _speak(pose_action(actor, pose_text), scripted)
+
+
+async def do_emit(
+    actor: GameObject, message: str, *, scripted: bool = False
+) -> Action | None:
+    """Emit raw room text — the one @emit pathway. Returns the action
+    or None."""
+    if actor.location is None:
+        return None
+    return await _speak(emit_action(actor, message), scripted)
+
+
+async def do_whisper(
+    actor: GameObject, target: GameObject, message: str, *,
+    scripted: bool = False,
+) -> Action | None:
+    """Whisper to an already-resolved ``target`` — the one whisper
+    pathway. Callers do their own (perception-aware) target lookup and
+    pass the object here. Returns the action or None."""
+    if actor.location is None or target is None or target is actor:
+        return None
+    return await _speak(whisper_action(actor, target, message), scripted)
+
+
+async def _speak(action: Action, scripted: bool) -> Action:
+    """Tag (if scripted) and propagate a speech-family action."""
+    from realm.core.propagation import propagate
+    if scripted:
+        action.tags.add("scripted")
+    await propagate(action)
+    return action
+
+
 __all__ = [
     "speech_action",
     "pose_action",
+    "emit_action",
+    "whisper_action",
+    "do_say",
+    "do_pose",
+    "do_emit",
+    "do_whisper",
     "gate_item_action",
     "do_get",
     "do_drop",

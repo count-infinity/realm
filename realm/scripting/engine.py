@@ -27,7 +27,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.core.propagation import Action
 from realm.scripting.functions import ScriptFunctions
 from realm.scripting.sandbox import (
     ScriptContext,
@@ -705,39 +705,19 @@ class ScriptEngine:
         await self.run_object_script(target, attr_name, enactor=executor)
 
     async def _emit_speech(self, speaker: GameObject, message: str) -> None:
-        """Scripted say — mirrors cmd_say's action shape."""
-        if speaker.location is None:
-            return
-        from realm.core.verbs import speech_action
-        action = speech_action(speaker, message)
-        action.tags.add("scripted")
-        await propagate(action)
+        """Scripted say — same pathway as cmd_say."""
+        from realm.core.verbs import do_say
+        await do_say(speaker, message, scripted=True)
 
     async def _emit_pose(self, poser: GameObject, pose_text: str) -> None:
-        """Scripted pose — mirrors cmd_pose's action shape."""
-        if poser.location is None:
-            return
-        from realm.core.verbs import pose_action
-        action = pose_action(poser, pose_text)
-        action.tags.add("scripted")
-        await propagate(action)
+        """Scripted pose — same pathway as cmd_pose."""
+        from realm.core.verbs import do_pose
+        await do_pose(poser, pose_text, scripted=True)
 
     async def _emit_raw(self, executor: GameObject, message: str) -> None:
-        """Scripted @emit — raw text to the executor's room."""
-        location = executor.location
-        if location is None:
-            return
-        action = Action(
-            actor=executor,
-            target=location,
-            action_type="event:emit",
-            chain=ROOM_TARGET_CHAIN,
-            tags={"scripted"},
-            extra={"message": message},
-        )
-        action.add_message("actor", message, success_only=True)
-        action.add_message("room", message, success_only=True)
-        await propagate(action)
+        """Scripted @emit — same pathway as cmd_emit."""
+        from realm.core.verbs import do_emit
+        await do_emit(executor, message, scripted=True)
 
     async def _emit_whisper(
         self,
@@ -745,31 +725,25 @@ class ScriptEngine:
         target_spec: str,
         message: str,
     ) -> None:
-        """Scripted whisper — mirrors cmd_whisper's action shape."""
-        location = speaker.location
-        if location is None:
+        """Scripted whisper — same pathway as cmd_whisper. Target is
+        resolved perception-aware against the speaker's room, like every
+        other name lookup in the engine (no more exact-match divergence)."""
+        if speaker.location is None:
             return
-
-        target = None
-        target_lower = target_spec.lower()
-        for obj in location.contents:
-            if obj.name.lower() == target_lower:
-                target = obj
-                break
-        if target is None or target == speaker:
+        from realm.core.perception import can_see
+        from realm.core.search import AmbiguousMatchError, match_one
+        try:
+            target = match_one(
+                target_spec,
+                [o for o in speaker.location.contents
+                 if o is not speaker and can_see(speaker, o)],
+            )
+        except AmbiguousMatchError:
+            return  # a script whisper to an ambiguous name is a no-op
+        if target is None:
             return
-
-        action = Action(
-            actor=speaker,
-            target=target,
-            action_type="event:whisper",
-            tags={"scripted"},
-            extra={"message": message},
-        )
-        action.add_message("actor", f'You whisper to {{target}}, "{message}"', success_only=True)
-        action.add_message("target", f'{{actor}} whispers, "{message}"', success_only=True)
-        action.add_message("room", "{actor} whispers something to {target}.", success_only=True)
-        await propagate(action)
+        from realm.core.verbs import do_whisper
+        await do_whisper(speaker, target, message, scripted=True)
 
     async def _deliver_queued(self, functions: ScriptFunctions) -> None:
         """

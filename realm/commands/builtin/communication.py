@@ -27,15 +27,13 @@ async def cmd_say(ctx: CommandContext) -> None:
     if not ctx.args:
         await ctx.session.send("Say what?")
         return
-    location = ctx.player.location
-    if location is None:
+    if ctx.player.location is None:
         await ctx.session.send("You have nowhere to speak from.")
         return
 
-    from realm.core.verbs import speech_action
-    action = speech_action(ctx.player, ctx.args)
-    await propagate(action)
-    if action.blocked:
+    from realm.core.verbs import do_say
+    action = await do_say(ctx.player, ctx.args)
+    if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't speak here.")
 
 
@@ -52,14 +50,12 @@ async def cmd_pose(ctx: CommandContext) -> None:
     if not ctx.args:
         await ctx.session.send("Pose what?")
         return
-    location = ctx.player.location
-    if location is None:
+    if ctx.player.location is None:
         return
 
-    from realm.core.verbs import pose_action
-    action = pose_action(ctx.player, ctx.args)
-    await propagate(action)
-    if action.blocked:
+    from realm.core.verbs import do_pose
+    action = await do_pose(ctx.player, ctx.args)
+    if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't emote here.")
 
 
@@ -111,23 +107,12 @@ async def cmd_emit(ctx: CommandContext) -> None:
     if not ctx.args:
         await ctx.session.send("Emit what?")
         return
-    location = ctx.player.location
-    if location is None:
+    if ctx.player.location is None:
         return
 
-    message = ctx.args
-    action = Action(
-        actor=ctx.player,
-        target=location,
-        action_type="event:emit",
-        chain=ROOM_TARGET_CHAIN,
-        extra={"message": message},
-    )
-    # @emit shows the same raw message to everyone, including the emitter.
-    action.add_message("actor", message, success_only=True)
-    action.add_message("room", message, success_only=True)
-    await propagate(action)
-    if action.blocked:
+    from realm.core.verbs import do_emit
+    action = await do_emit(ctx.player, ctx.args)
+    if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't emit here.")
 
 
@@ -155,20 +140,11 @@ async def cmd_whisper(ctx: CommandContext) -> None:
         await ctx.session.send("Talking to yourself?")
         return
 
-    # Default chain — actor → room → bystanders → target. Bystanders see the
-    # vague "X whispers something to Y" via the room audience; the target
-    # gets the actual whisper via the target audience.
-    action = Action(
-        actor=ctx.player,
-        target=target,
-        action_type="event:whisper",
-        extra={"message": message},
-    )
-    action.add_message("actor", f'You whisper to {{target}}, "{message}"', success_only=True)
-    action.add_message("target", f'{{actor}} whispers, "{message}"', success_only=True)
-    action.add_message("room", "{actor} whispers something to {target}.", success_only=True)
-    await propagate(action)
-    if action.blocked:
+    # do_whisper builds the actor/target/room lines and propagates; the
+    # bystander room audience sees the vague "X whispers something to Y".
+    from realm.core.verbs import do_whisper
+    action = await do_whisper(ctx.player, target, message)
+    if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't whisper here.")
 
 

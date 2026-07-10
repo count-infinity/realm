@@ -179,6 +179,42 @@ class TestListenTriggers:
         combined = drain(sess_a) + drain(sess_b)
         assert not any("I know your secret" in line for line in combined)
 
+    async def test_scripted_whisper_resolves_target_by_partial_name(self):
+        """A scripted whisper shares cmd_whisper's pathway (do_whisper) and
+        resolves its target perception-aware — so a partial name works,
+        where the old exact-match actuator required the full name."""
+        room = GameObject("Cantina", tags=["room"])
+        npc = GameObject("Zeke", location=room)
+        # $tip triggers a scripted whisper to a partial name.
+        npc.db.cmd_tip = "$tip:whisper Alic = the vault code is 1234"
+        alice, sess_a = make_player("Alice", location=room)
+        _bob, sess_b = make_player("Bob", location=room)
+
+        engine = wired_engine()
+        handled = await engine.handle_unknown_command(make_ctx(sess_a, "tip"))
+
+        assert handled is True
+        a_out = drain(sess_a)
+        assert any("Zeke whispers" in line and "1234" in line for line in a_out)
+        # Bob only sees the vague room line, never the secret.
+        b_out = drain(sess_b)
+        assert not any("1234" in line for line in b_out)
+        assert any("whispers something to Alice" in line for line in b_out)
+
+    async def test_scripted_whisper_to_unseen_target_is_noop(self):
+        """No perceivable target by that name → the whisper is dropped, no
+        crash (the guarded match replaces the old bare exact-match loop)."""
+        room = GameObject("Cantina", tags=["room"])
+        npc = GameObject("Zeke", location=room)
+        npc.db.cmd_tip = "$tip:whisper Ghost = nobody home"
+        alice, sess_a = make_player("Alice", location=room)
+
+        engine = wired_engine()
+        handled = await engine.handle_unknown_command(make_ctx(sess_a, "tip"))
+
+        assert handled is True
+        assert not any("nobody home" in line for line in drain(sess_a))
+
     async def test_listen_recursion_is_depth_limited(self):
         """Two NPCs whose listens answer each other must not loop forever."""
         from realm.commands.builtin.communication import cmd_say
