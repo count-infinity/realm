@@ -1,69 +1,62 @@
 # REALM
 
-**Real-time Event-Action Layered MUD framework**
+**Real-time Event-Action Layered MUD framework** — a modern Python
+framework for building MUDs, MUSHes, and other text-based multiplayer
+games. One asyncio process, SQLite persistence, and a sandboxed
+in-game scripting layer so builders create *without a restart*.
 
-REALM is a modern Python framework for building Multi-User Dungeons (MUDs), MUSHes, and other text-based multiplayer games.
-
-## Features
-
-- **Async-first** - one asyncio process; SQLite (WAL) persistence with dirty-sweep saves
-- **Action propagation** - every game action flows through one two-pass, vetoable pipeline
-- **Softcode** - a Turing-complete, sandboxed scripting layer builders use *in-game*
-  (`$`-commands, triggers, tickers, inline `[[...]]` in descriptions), with a real authority model
-- **Swappable rules** - GameSystem packages (GURPS and D20 ship in-box): chargen,
-  skills, advancement, combat rulesets
-- **Playable out of the box** - beat combat (melee + ranged), NPCs with brains,
-  shops, dispositions, followers, zones
-- **Protocol agnostic** - telnet (with GMCP), WebSocket, custom protocols
-
-## Quick Example
+## Start here
 
 ```bash
-pip install -e .          # from a git clone, for now
+git clone https://github.com/realm-mud/realm.git && cd realm
+python -m venv venv && source venv/bin/activate
+pip install -e .
+
 realm init mygame && cd mygame
-realm start               # telnet localhost 4000; first character = superuser
+realm start                 # telnet localhost 4000 — first character is superuser
 ```
 
 Then build from inside the game:
 
 ```text
 @dig The Garden = north, south
-@detail here = check('observation') -> A glint of metal in the roses.
 @create parrot
 @behavior parrot = script_ticker, interval:8
 @set parrot/on_tick = say Pieces of eight!
 ```
 
-## Getting Started
+New here? Read **[Installation](getting-started/installation.md)** →
+**[Quick Start](getting-started/quickstart.md)**, then build a full
+adventure in **[the tutorial](tutorial/index.md)**.
 
-- [Installation](getting-started/installation.md) - Set up your development environment
-- [Quick Start](getting-started/quickstart.md) - Run your first REALM server
-- [Your First Game](getting-started/first-game.md) - Build a simple game world
-- [Tutorial: The Abandoned Lighthouse](tutorial/index.md) - a complete adventure, built in-game
-- [World Management](guides/world-management.md) - search, zones, attribute flags, import/export
-- [Interactive Prompts (Wizards)](guides/wizards.md) - stop-and-ask dialogues, in hardcode and softcode
-- [Softcode Reference](reference/softcode.md) - every function, trigger, and script command
+## Finding your way around
 
-## Architecture
+| If you want to… | Go to |
+|---|---|
+| **Follow a worked example** end to end | [Tutorials](tutorial/index.md) — the Abandoned Lighthouse |
+| **Do a specific task** ("add a class", "manage a world") | [How-To Guides](guides/game-systems.md) |
+| **Understand how something works** and why | [Concepts](concepts/character-creation.md) & [Architecture](architecture/overview.md) |
+| **Look up a function, trigger, or API** | [Reference](reference/softcode.md) |
+| **Hack on REALM itself** | [Contributing](development/contributing.md) |
 
-- [Overview](architecture/overview.md) - How REALM components fit together
-- [Session Lifecycle](architecture/sessions.md) - Connection states and flow
-- [Action Propagation](architecture/events.md) - the engine's one message pathway
-- [Command Dispatch](architecture/commands.md) - How commands are processed
+## What you get out of the box
 
-## For Developers
+- **Action propagation** — every game action flows through one two-pass,
+  vetoable pipeline (perception, locks, behaviors, triggers all ride it)
+- **Softcode** — a Turing-complete, sandboxed scripting layer builders
+  use in-game (`$`-commands, triggers, tickers, inline `[[...]]`), with a
+  real authority model
+- **Swappable rules** — [GameSystem](guides/game-systems.md) packages
+  (GURPS and D20 ship in-box): chargen, skills, advancement, combat
+- **Playable immediately** — beat combat (melee + ranged), NPCs with
+  brains, shops, dispositions, followers, zones
+- **Protocol agnostic** — telnet (with GMCP), WebSocket, or your own
 
-- [Adding a Protocol](protocols/adding-protocol.md) - Integrate new connection types
-- [Contributing](development/contributing.md) - How to contribute to REALM
+## Design lineage
 
-## Design Philosophy
-
-REALM draws inspiration from three battle-tested MU* implementations:
-
-| Framework | Inspiration |
-|-----------|-------------|
-| **PennMUSH** | Permission systems, softcode concepts, lock system |
-| **Evennia** | Command parsing, typeclass system, Django integration patterns |
-| **CoffeeMud** | Combat formulas, economy systems, area templates |
-
-We aim to combine the best ideas from each while providing a clean, modern Python API.
+REALM draws on three battle-tested MU* implementations — PennMUSH
+(permissions, softcode, locks), Evennia (command parsing, object model),
+and CoffeeMud (combat, economy, area templates) — while providing a
+clean, modern Python API. The [Engine Vision](design/engine_vision.md)
+lays out the north star: *the engine hides MU\* complexity; games are
+built in softcode.*

@@ -1,3 +1,13 @@
+> **Historical document.** This is REALM's original pre-implementation
+> plan, kept for provenance. It describes intentions from before the
+> engine was built and is **not** kept in sync with the code. For the
+> current state of the project see `BACKLOG.md` in the repository root
+> and the [design notes](engine_vision.md); for how things actually work,
+> the [Concepts](../concepts/character-creation.md) and
+> [Architecture](../architecture/overview.md) docs are authoritative.
+
+---
+
 # REALM Framework Implementation Plan
 
 ## Vision

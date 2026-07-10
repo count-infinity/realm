@@ -56,40 +56,42 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Your First Game: getting-started/first-game.md
-  - Guides:
-    - Game Systems: guides/game-systems.md
-    - World Management: guides/world-management.md
-    - Interactive Prompts (Wizards): guides/wizards.md
-    - Color: guides/color.md
-  - Reference:
-    - Softcode: reference/softcode.md
-  - "Tutorial: The Abandoned Lighthouse":
-    - Overview: tutorial/index.md
+  - Tutorials:
+    - The Abandoned Lighthouse: tutorial/index.md
     - 1. The Island: tutorial/01-the-island.md
     - 2. Keys and Doors: tutorial/02-keys-and-doors.md
     - 3. Living Things: tutorial/03-living-things.md
     - 4. Softcode: tutorial/04-softcode.md
     - 5. The Banshee: tutorial/05-the-banshee.md
-  - Architecture:
-    - Overview: architecture/overview.md
+  - How-To Guides:
+    - Game Systems: guides/game-systems.md
+    - Add a Character Class: guides/add-a-class.md
+    - Customize Character Creation: guides/custom-chargen.md
+    - World Management: guides/world-management.md
+    - Interactive Prompts (Wizards): guides/wizards.md
+    - Color: guides/color.md
+  - Concepts:
+    - How a Character Is Born: concepts/character-creation.md
+    - Architecture Overview: architecture/overview.md
     - Session Lifecycle: architecture/sessions.md
     - Action Propagation: architecture/events.md
     - Command Dispatch: architecture/commands.md
-  - Protocols:
-    - Overview: protocols/overview.md
-    - Adding a Protocol: protocols/adding-protocol.md
-  - Development:
+    - Protocols: protocols/overview.md
+  - Reference:
+    - Softcode: reference/softcode.md
+    - "API: Core Objects": api/objects.md
+    - "API: Sessions": api/sessions.md
+    - "API: Propagation": api/events.md
+  - Contributing:
     - Contributing: development/contributing.md
     - Testing: development/testing.md
-  - Design:
+    - Adding a Protocol: protocols/adding-protocol.md
+  - Design Notes:
     - Engine Vision: design/engine_vision.md
     - Adventure Coverage: design/adventure_coverage.md
     - Combat: design/combat.md
     - Simplicity Review: design/simplicity_review.md
-  - API Reference:
-    - Core Objects: api/objects.md
-    - Sessions: api/sessions.md
-    - Propagation: api/events.md
+    - Original Plan (historical): design/original_plan.md
 
 extra:
   social:
