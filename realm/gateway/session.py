@@ -68,6 +68,8 @@ class Session:
         '_last_activity',
         '_account_name',
         '_data',
+        'input_handler',
+        '_prompt_future',
     )
 
     def __init__(
@@ -88,6 +90,12 @@ class Session:
         self._oob_writer: Callable[[str, dict], None] | None = None
         self.oob_supports: dict = {}
         self._closer: Callable[[], Any] | None = None
+
+        # Active input capture: an async (session, line) -> bool handler.
+        # When set, incoming lines route here (a prompt/wizard) instead of
+        # the command dispatcher. None = normal command mode.
+        self.input_handler: Callable[..., Awaitable[bool]] | None = None
+        self._prompt_future: Any = None
 
         self._protocol = protocol
         self._address = address
@@ -223,6 +231,87 @@ class Session:
         """Set session-specific data."""
         self._data[key] = value
 
+    # --- Interactive prompts (wizards) ---
+
+    #: commands that still work while a prompt is pending (escape hatches).
+    DEFAULT_ALLOW = frozenset({'help', 'quit', 'exit'})
+
+    async def prompt(
+        self,
+        text: str,
+        *,
+        choices: list[str] | None = None,
+        allow: frozenset[str] | None = None,
+        allow_abort: bool = True,
+    ) -> str | None:
+        """
+        Ask the player a question and await their next line — the async
+        wizard primitive. Returns the line, or None if aborted.
+
+        ``choices`` re-prompts until the answer is one of them (prefix
+        match). ``allow`` names commands that still pass through to the
+        dispatcher while pending (default help/quit/exit); ``abort``
+        always cancels unless ``allow_abort=False``.
+        """
+        import asyncio as _asyncio
+
+        allowed = self.DEFAULT_ALLOW if allow is None else allow
+        future: _asyncio.Future = _asyncio.get_event_loop().create_future()
+        self._prompt_future = future
+
+        async def handler(_session, line: str) -> bool:
+            word = line.split()[0].lower() if line.split() else ""
+            if allow_abort and word == 'abort':
+                self._end_prompt(None)
+                return True
+            if word in allowed:
+                return False  # pass through to the dispatcher; prompt stays
+            if choices is not None:
+                matches = [c for c in choices if c.lower().startswith(line.lower())]
+                if len(matches) != 1:
+                    await self.send(
+                        f"Please answer one of: {', '.join(choices)} "
+                        f"(or 'abort').")
+                    return True
+                line = matches[0]
+            self._end_prompt(line)
+            return True
+
+        self.input_handler = handler
+        await self.send(text)
+        return await future
+
+    def _end_prompt(self, value) -> None:
+        """Resolve the pending prompt future and release capture."""
+        self.input_handler = None
+        fut, self._prompt_future = self._prompt_future, None
+        if fut is not None and not fut.done():
+            fut.set_result(value)
+
+    async def confirm(self, text: str) -> bool:
+        """Yes/no prompt. 'abort' counts as no."""
+        answer = await self.prompt(f"{text} (yes/no)", choices=["yes", "no"])
+        return answer == "yes"
+
+    async def choose(self, text: str, options: list[str]) -> str | None:
+        """Numbered menu; returns the chosen option (or None if aborted)."""
+        menu = [text] + [f"  {i}. {o}" for i, o in enumerate(options, 1)]
+        while True:
+            raw = await self.prompt("\n".join(menu))
+            if raw is None:
+                return None
+            raw = raw.strip()
+            if raw.isdigit() and 1 <= int(raw) <= len(options):
+                return options[int(raw) - 1]
+            hits = [o for o in options if o.lower().startswith(raw.lower())]
+            if len(hits) == 1:
+                return hits[0]
+            await self.send("Pick a number or name from the list (or 'abort').")
+
+    def cancel_prompt(self) -> None:
+        """Drop any active input capture and unblock its task (disconnect)."""
+        self._end_prompt(None)
+
     def link_player(self, player: GameObject) -> None:
         """Link this session to a player object and wire output delivery."""
         self.player = player
@@ -344,6 +433,7 @@ class SessionManager:
         if session.id not in self._sessions:
             return
         session.state = SessionState.DISCONNECTING
+        session.cancel_prompt()  # resolve any awaiting wizard so its task ends
 
         # Notify callbacks
         for callback in self._on_disconnect:

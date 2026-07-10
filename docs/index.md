@@ -41,6 +41,7 @@ Then build from inside the game:
 - [Your First Game](getting-started/first-game.md) - Build a simple game world
 - [Tutorial: The Abandoned Lighthouse](tutorial/index.md) - a complete adventure, built in-game
 - [World Management](guides/world-management.md) - search, zones, attribute flags, import/export
+- [Interactive Prompts (Wizards)](guides/wizards.md) - stop-and-ask dialogues, in hardcode and softcode
 - [Softcode Reference](reference/softcode.md) - every function, trigger, and script command
 
 ## Architecture

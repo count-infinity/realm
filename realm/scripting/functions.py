@@ -864,6 +864,26 @@ class ScriptFunctions:
 
     # --- Scheduling ---
 
+    def prompt(self, target, text: str, callback: str,
+               persistent: bool = False) -> bool:
+        """
+        Ask a player a question; their next line runs the ``callback``
+        attribute (on the executor) with the answer as arg0 — a softcode
+        wizard. Chain by prompting again inside the callback.
+        ``persistent=True`` survives a reboot. Requires the executor to
+        control the target's own object (self/owned/admin).
+
+        Example: prompt(enactor, 'What is your name?', 'on_name')
+        """
+        who = self._resolve(target)
+        if who is None or not who.has_tag('player'):
+            return False
+        self.command_queue.append(
+            ('prompt', who, (str(text), str(callback),
+                             self.executor.id if self.executor else None,
+                             bool(persistent))))
+        return True
+
     def wait(self, seconds: float, command: str) -> None:
         """
         Run a script command as the executor ~seconds from now (one-shot,
@@ -1282,6 +1302,7 @@ class ScriptFunctions:
             'clear_lock': self.clear_lock,
             'test_lock': self.test_lock,
             'wait': self.wait,
+            'prompt': self.prompt,
             'eval_attr': self.eval_attr,
             'force': self.force,
             # String functions

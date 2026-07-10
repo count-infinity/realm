@@ -59,6 +59,7 @@ nav:
   - Guides:
     - Game Systems: guides/game-systems.md
     - World Management: guides/world-management.md
+    - Interactive Prompts (Wizards): guides/wizards.md
     - Color: guides/color.md
   - Reference:
     - Softcode: reference/softcode.md

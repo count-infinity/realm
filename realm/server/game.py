@@ -281,6 +281,7 @@ class GameServer:
             get_propagation_engine().add_observer(self.script_engine.handle_action)
             set_script_engine(self.script_engine)
             self.script_engine.dispatcher = self.dispatcher
+            self.script_engine.session_manager = self.session_manager
 
         # Loud actions break stealth, whoever performs them.
         get_propagation_engine().add_observer(stealth_observer)
@@ -587,6 +588,14 @@ class GameServer:
 
     async def _on_command(self, session: Session, command: str) -> None:
         """Called when a command is received from a session."""
+        # An active prompt/wizard captures input (unless it passes an
+        # escape command like help/quit through to the dispatcher).
+        if session.input_handler is not None:
+            consumed = await session.input_handler(session, command)
+            if consumed:
+                await session.flush_output()
+                return
+
         # Mid-chargen input goes to the chargen flow, not the dispatcher.
         if (session.player is not None
                 and session.player.db.get('chargen_step') is not None):
@@ -647,6 +656,14 @@ class GameServer:
 
         # Link player to session
         self.session_manager.link_player_to_session(session, player)
+
+        # A persistent softcode prompt outstanding from before a reboot
+        # resumes: the player's next line runs its callback again.
+        pending = player.db.get('input_prompt')
+        if pending and self.script_engine is not None:
+            self.script_engine._install_softcode_prompt(
+                player, "(resuming...)", pending.get('callback'),
+                pending.get('executor'), True)
 
         # Warn if the character was made under a different rules package
         # (config is boot-time-fixed; a mid-life swap leaves old sheets

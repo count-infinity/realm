@@ -81,6 +81,7 @@ function defs — under time/call/output limits.
 | `oob` | `(target: 'GameObject \| str', package: 'str', data: 'dict') -> 'None'` | Send structured out-of-band data (GMCP) to a player's client — | `oob(enactor, 'Ship.Status', {'hull': 87})` |
 | `owner` | `(obj: 'GameObject \| str \| None') -> 'GameObject \| None'` | Get an object's owner. | `owner(me) == enactor` |
 | `pemit` | `(target: 'GameObject \| str', message: 'str') -> 'None'` | Send a private message to a target (delivered after the script). | `pemit(enactor, 'A voice only you can hear...')` |
+| `prompt` | `(target, text: 'str', callback: 'str', persistent: 'bool' = False) -> 'bool'` | Ask a player a question; their next line runs the ``callback`` | `prompt(enactor, 'What is your name?', 'on_name')` |
 | `rand` | `(low: 'int' = 0, high: 'int' = 100) -> 'int'` | Random integer between low and high (inclusive). | `rand(1, 100)` |
 | `reaction_roll` | `(npc, other=None, modifier: 'int' = 0) -> 'int'` | Memoized first-impression roll (npc must be in executor's reach). | `reaction_roll(me)` |
 | `remit` | `(room: 'GameObject \| str', message: 'str') -> 'None'` | Emit a message to everyone in a room (delivered after the script). | `remit(here, 'The ground trembles.')` |

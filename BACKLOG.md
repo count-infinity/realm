@@ -1290,3 +1290,24 @@ Design sketch:
   - Deleted `Event` / `EventBus` / `EventType`
   - Removed legacy `validate_event`/`handle_event` from `Behavior` and `on_event_validate`/`on_event_execute` from `GameObject`
   - Deleted `tests/test_events.py`; updated `test_behaviors.py`, `test_persistence.py`, `test_spacegame.py`, `test_scripting.py`
+
+- [x] Interactive prompts / wizards (EvMenu-analog: stop-and-ask dialogues)
+  - Hardcode: `session.prompt(text, *, choices, allow, allow_abort)` awaits the
+    player's next line (deadlock-free — telnet runs each line as its own task);
+    `confirm()` (yes/no bool) and `choose()` (numbered menu) built on it.
+    Single `session.input_handler` intercepts the next line before dispatch;
+    `_prompt_future` resolves the await. `DEFAULT_ALLOW={help,quit,exit}` pass
+    through mid-prompt; `abort` always cancels (unless `allow_abort=False`).
+    `destroy_session` cancels pending prompts (await returns None).
+  - Softcode: `prompt(target, text, callback, persistent=False)` — queues a
+    `('prompt', ...)` op drained in the engine (mirrors `wait`), installs the
+    session handler; the player's next line runs the `callback` attribute
+    with the answer bound as `arg0`/`%0`. Runs AS the executor (builder's
+    authority — can't rewrite the player; that's the security boundary), so
+    NPC dialogue trees chain by prompting again inside the callback.
+  - `persistent=True` writes `db.input_prompt` (callback+executor) — reboot-safe
+    like chargen; `_do_connect` re-installs the handler on reconnect.
+  - Docs: docs/guides/wizards.md (both layers, escape hatch, authority rule);
+    softcode reference regenerated. Tests: tests/test_prompts.py (10 passing —
+    await/abort/help-passthrough/choices/confirm/choose/disconnect-cancel +
+    softcode callback + persistent marker). Full suite 901.

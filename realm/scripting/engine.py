@@ -236,6 +236,57 @@ class ScriptEngine:
         await self._execute_trigger(match, enactor or obj, location=obj.location)
         return True
 
+    def _install_softcode_prompt(self, player, text, callback,
+                                 executor_id, persistent):
+        """Capture a player's next line into a softcode callback script."""
+        from realm.persistence.manager import get_active_manager
+
+        session = getattr(player, '_session', None) or self._session_for(player)
+        if session is None:
+            return
+        if persistent:
+            player.db.input_prompt = {
+                'callback': callback, 'executor': executor_id}
+
+        async def handler(sess, line: str) -> bool:
+            word = line.split()[0].lower() if line.split() else ""
+            if word in ('help', 'quit', 'exit'):
+                return False
+            sess.input_handler = None
+            player.db.delete('input_prompt')
+            manager = get_active_manager()
+            executor = manager.get_cached(executor_id) if (
+                manager and executor_id) else player
+            if executor is None:
+                executor = player
+            # Run the callback AS the executor, answer bound as arg0/%0.
+            await self._run_named_with_args(executor, callback, [line],
+                                            enactor=player)
+            return True
+
+        session.input_handler = handler
+        # asyncio can't await here (drain is sync-ish); send via msg.
+        player.msg(text)
+
+    def _session_for(self, player):
+        """Find a player's live session, if any."""
+        mgr = getattr(self, 'session_manager', None)
+        if mgr is None:
+            return None
+        for s in mgr.all_sessions():
+            if s.player is player:
+                return s
+        return None
+
+    async def _run_named_with_args(self, obj, attr_name, args, *, enactor=None):
+        """run_object_script but with positional args bound as captures."""
+        code = obj.db.get(attr_name) or obj.db.get(str(attr_name).upper())
+        if not isinstance(code, str) or not code.strip():
+            return
+        match = TriggerMatch(trigger=None, captures=[str(a) for a in args],
+                             full_match=attr_name, obj=obj, action=code)
+        await self._execute_trigger(match, enactor or obj, location=obj.location)
+
     async def run_code(
         self,
         executor: GameObject,
@@ -765,6 +816,10 @@ class ScriptEngine:
             elif kind == 'wait':
                 seconds, command = message
                 self.schedule_wait(obj, seconds, command)
+            elif kind == 'prompt':
+                text, callback, executor_id, persistent = message
+                self._install_softcode_prompt(
+                    obj, text, callback, executor_id, persistent)
             elif kind == 'force':
                 if self.dispatcher is not None:
                     from realm.server.puppet import force_command
