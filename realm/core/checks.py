@@ -14,21 +14,13 @@ e.g. stealth defaults to DX-5.
 
 from __future__ import annotations
 
-import random
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from realm.core.dice import CheckResult, margin_under, roll
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
-
-
-# skill -> (attribute name, default penalty). The active GameSystem
-# installs its full table over this at server start (set_skill_defaults);
-# the seed is just the engine floor so bare library use still works.
-SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
-    "flee": ("dexterity", -2),
-}
 
 
 # Skills the ENGINE itself rolls (combat flee checks, movement gates).
@@ -37,6 +29,12 @@ SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
 ENGINE_SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
     "flee": ("dexterity", -2),
 }
+
+
+# skill -> (attribute name, default penalty). The active GameSystem
+# installs its full table over this at server start (set_skill_defaults);
+# the seed is the engine floor so bare library use still works.
+SKILL_DEFAULTS: dict[str, tuple[str, int]] = dict(ENGINE_SKILL_DEFAULTS)
 
 
 def set_skill_defaults(defaults: dict[str, tuple[str, int]]) -> None:
@@ -53,20 +51,6 @@ def set_skill_defaults(defaults: dict[str, tuple[str, int]]) -> None:
 DEFAULT_ATTRIBUTE = 10
 
 
-@dataclass
-class CheckResult:
-    """Outcome of a skill check."""
-
-    success: bool
-    margin: int        # effective - roll; positive = succeeded by that much
-    roll: int
-    effective: int     # skill level after modifiers
-    skill: str
-
-    def __bool__(self) -> bool:
-        return self.success
-
-
 def skill_level(obj: GameObject, skill: str) -> int:
     """
     An object's level in a skill.
@@ -78,30 +62,72 @@ def skill_level(obj: GameObject, skill: str) -> int:
     if trained is not None:
         return int(trained)
 
-    attr, penalty = SKILL_DEFAULTS.get(skill, ("intelligence", -5))
+    # Untrained: the governing attribute + penalty come from the active
+    # system's table (data it owns). A skill the table doesn't list gets a
+    # neutral floor — NOT a hardcoded humanoid stat, so a ship or door isn't
+    # silently rated off an "intelligence" it doesn't have.
+    entry = SKILL_DEFAULTS.get(skill)
+    if entry is None:
+        return DEFAULT_ATTRIBUTE - 5
+    attr, penalty = entry
     base = obj.db.get(attr)
     base = int(base) if base is not None else DEFAULT_ATTRIBUTE
     return base + penalty
 
 
 def default_resolver(obj: GameObject, skill: str, modifier: int) -> CheckResult:
-    """3d6 roll-under vs effective skill (GURPS-style)."""
+    """A **neutral** zero-config fallback: 3d6 roll-under vs effective
+    skill, with no game-specific policy (no criticals — those belong to a
+    ruleset). It exists only so ``check()`` works before a game system is
+    installed; every real game installs its own resolver (GURPS crits live
+    in GurpsSystem, D20's rule in D20System, or a softcode ``resolve_rule``
+    — see resolve_with_rule). The kernel does not encode a game's rules."""
     effective = skill_level(obj, skill) + modifier
-    roll = sum(random.randint(1, 6) for _ in range(3))
-    # Criticals: 3-4 always succeed, 17-18 always fail.
-    if roll <= 4:
-        success = True
-    elif roll >= 17:
-        success = False
-    else:
-        success = roll <= effective
-    return CheckResult(
-        success=success,
-        margin=effective - roll,
-        roll=roll,
-        effective=effective,
-        skill=skill,
-    )
+    return margin_under(roll("3d6"), effective, skill=skill)
+
+
+def resolve_with_rule(
+    obj: GameObject, skill: str, modifier: int, rule: str
+) -> CheckResult:
+    """
+    Resolve a check by evaluating a **softcode resolution rule** — the
+    "game system as data" path. The rule is an expression over the dice
+    primitives (see realm.core.dice), evaluated with the entity's data
+    bound *by name* (so a ship's ``gunnery`` and a person's ``skill`` use
+    the identical resolver):
+
+        margin_under(roll('3d6'), skill() + mod)     # GURPS
+        net_successes(attr('pool'), attr('tn'))      # a dice-pool system
+
+    Names in scope: the reducers (``margin_under``/``margin_over``/
+    ``net_successes``/``highest``/``band``) and ``roll``; ``skill(name=…)``
+    (this skill's level, or a named one), ``attr(name)`` (a raw attribute),
+    and ``mod`` (the folded modifier). The rule must return a CheckResult
+    (a reducer) — or a bare number, read as a success margin.
+    """
+    from realm.core import dice
+    from realm.core.safe_eval import eval_expression
+
+    namespace = {
+        "roll": dice.roll,
+        "margin_under": dice.margin_under,
+        "margin_over": dice.margin_over,
+        "net_successes": dice.net_successes,
+        "highest": dice.highest,
+        "band": dice.band,
+        "skill": lambda name=skill: skill_level(obj, name),
+        "attr": lambda name: obj.db.get(name) or 0,
+        "mod": modifier,
+        "skill_name": skill,
+    }
+    result = eval_expression(rule, namespace)
+    if isinstance(result, CheckResult):
+        if not result.skill:
+            result.skill = skill
+        return result
+    # A bare number is read as a margin (>0 = success by that much).
+    margin = int(result)
+    return CheckResult(margin > 0, margin, margin, 0, skill)
 
 
 CheckResolver = Callable[["GameObject", str, int], CheckResult]
@@ -219,6 +245,7 @@ __all__ = [
     "SKILL_DEFAULTS",
     "CheckResult",
     "default_resolver",
+    "resolve_with_rule",
     "skill_level",
     "check",
     "contest",

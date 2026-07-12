@@ -87,12 +87,21 @@ def _remap_value(value: Any, id_map: dict[str, str]) -> Any:
     return value
 
 
-async def import_objects(data: dict, persistence) -> list[GameObject]:
+async def import_objects(data: dict, persistence, *,
+                         preserve_ids: bool = False) -> list[GameObject]:
     """
-    Recreate exported objects with fresh ids. References to ids OUTSIDE
-    the file resolve against the live world when present (an area whose
-    rooms link back to an existing hub keeps working) and drop to None
-    otherwise.
+    Recreate exported objects. By default each gets a **fresh id** (a clone
+    — so the same area can be imported repeatedly as copies); reference
+    fields are remapped to match. References to ids OUTSIDE the file resolve
+    against the live world when present (an area whose rooms link back to an
+    existing hub keeps working) and drop to None otherwise.
+
+    ``preserve_ids=True`` keeps each object's authored id instead. Use it
+    for a canonical first-boot load of a fixed world: it's the only way
+    softcode that hardcodes an absolute id (``get('#nexagen_floor46')``)
+    keeps working, since ids embedded *inside* a softcode string are not
+    remapped. The caller must ensure the ids don't collide with the live
+    world (i.e. an empty or non-overlapping database).
     """
     from realm.core.behaviors import BehaviorRegistry
     from realm.core.objects import GameObject as GameObjectCls
@@ -101,7 +110,10 @@ async def import_objects(data: dict, persistence) -> list[GameObject]:
         raise ValueError("Area file is from a newer REALM — upgrade first.")
 
     entries = data.get('objects') or []
-    id_map = {e['id']: str(uuid.uuid4()) for e in entries}
+    if preserve_ids:
+        id_map = {e['id']: e['id'] for e in entries}
+    else:
+        id_map = {e['id']: str(uuid.uuid4()) for e in entries}
 
     # Pass 1: create everything (fresh ids, remapped attrs).
     created: dict[str, GameObject] = {}

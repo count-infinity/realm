@@ -34,12 +34,14 @@ function defs — under time/call/output limits.
 
 | Function | Signature | Notes | Example |
 |---|---|---|---|
+| `act` | `(target: 'GameObject \| str', message: 'str' = '', targeting: 'str' = 'remote', action_type: 'str' = 'event:act') -> 'bool'` | Fire a PROPAGATED action that can reach BEYOND your own room — |  |
 | `add_tag` | `(obj: 'GameObject \| str \| None', tag: 'str') -> 'bool'` | Add a tag to an object the executor controls. | `add_tag(me, 'glowing')` |
 | `adjust_credits` | `(obj: 'GameObject \| str \| None', delta: 'int') -> 'bool'` | Mint or burn money on an object the executor controls. | `adjust_credits(me, 100)` |
 | `adjust_disposition` | `(npc, other, delta: 'int') -> 'bool'` | Shift an NPC's attitude. Authority: the executor must control | `adjust_disposition(me, enactor, 1)` |
 | `ansi` | `(codes: 'str', text: 'str') -> 'str'` | Penn-style color: ansi('rh', 'My thing') — lowercase letters = | `ansi('rh', 'DANGER')` |
 | `apply_effect` | `(obj: 'GameObject \| str \| None', effect_id: 'str', **params: 'Any') -> 'bool'` | Attach an effect (modifier_effect / damage_over_time / | `apply_effect(enactor, 'modifier_effect', kind='fear',` |
 | `attach_behavior` | `(obj: 'GameObject \| str \| None', behavior_id: 'str', **params: 'Any') -> 'bool'` | Attach a registered behavior to an object the executor controls. | `attach_behavior('golem', 'script_ticker', interval=5)` |
+| `band` | `(value: 'int', *thresholds: 'int', skill: 'str' = '') -> 'CheckResult'` | Tiered outcome (PbtA): tier = how many ascending thresholds |  |
 | `behaviors` | `(obj: 'GameObject \| str \| None') -> 'list[str]'` | Behavior ids attached to an object. | `'wandering' in behaviors('rat')` |
 | `capstr` | `(text: 'str') -> 'str'` | Capitalize each word. | `capstr('the iron king')   # 'The Iron King'` |
 | `ceil` | `(value: 'float') -> 'int'` | Round up to integer. | `ceil(7.1)                 # 8` |
@@ -68,14 +70,18 @@ function defs — under time/call/output limits.
 | `has_attr` | `(obj: 'GameObject \| str \| None', attr_name: 'str') -> 'bool'` | Check if an object has an attribute. | `has_attr(me, 'charged')` |
 | `has_tag` | `(obj: 'GameObject \| str \| None', tag: 'str') -> 'bool'` | Check if an object has a tag. | `has_tag(enactor, 'player')` |
 | `heal` | `(obj: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Restore HP (capped at max_hp) to something in the executor's room. | `heal(enactor, 5)` |
+| `highest` | `(pool: 'int', *, sides: 'int' = 6, skill: 'str' = '') -> 'CheckResult'` | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), |  |
 | `if_else` | `(condition: 'bool', true_val: 'Any', false_val: 'Any') -> 'Any'` | Conditional expression. | `if_else(credits(enactor) >= 10, 'Welcome!', 'No coin, no entry.')` |
 | `last` | `(lst: 'list \| str', delimiter: 'str' = ' ') -> 'str'` | Get last element. | `last('north south east')  # 'east'` |
 | `lcfirst` | `(text: 'str') -> 'str'` | Lowercase first character. | `lcfirst('Hello')          # 'hello'` |
 | `left` | `(text: 'str', length: 'int') -> 'str'` | Get leftmost N characters. | `left('lighthouse', 5)     # 'light'` |
 | `loc` | `(obj: 'GameObject \| str \| None') -> 'GameObject \| None'` | Get an object's location. | `loc(enactor)` |
+| `margin_over` | `(rolled: 'int', target: 'int', *, skill: 'str' = '') -> 'CheckResult'` | Roll-over (D20): success if ``rolled >= target``; margin is how far |  |
+| `margin_under` | `(rolled: 'int', target: 'int', *, skill: 'str' = '') -> 'CheckResult'` | Roll-under (GURPS, CoC): success if ``rolled <= target``; margin is |  |
 | `member` | `(item: 'str', lst: 'list \| str', delimiter: 'str' = ' ') -> 'int'` | Find position of item in list (1-indexed, 0 if not found). | `member('south', 'north south east')  # 2` |
 | `mid` | `(text: 'str', start: 'int', length: 'int') -> 'str'` | Extract substring (1-indexed like MUSH). | `mid('lighthouse', 5, 5)   # 'house'` |
 | `name` | `(obj: 'GameObject \| str \| None') -> 'str'` | Get an object's name. | `name(enactor)` |
+| `net_successes` | `(pool: 'int', tn: 'int', *, sides: 'int' = 6, explode: 'bool' = True, skill: 'str' = '') -> 'CheckResult'` | Dice-pool success-counting (Shadowrun, WoD): roll ``pool`` dice, |  |
 | `now` | `() -> 'int'` | Current time as epoch seconds — cache expiry, cooldowns. | `now() - get_attr(me, 'lit_at', 0) > 300` |
 | `oemit` | `(exclude: 'GameObject \| str', message: 'str') -> 'None'` | Emit to the executor's room, excluding one object. | `oemit(enactor, 'Bob vanishes in smoke.')` |
 | `oob` | `(target: 'GameObject \| str', package: 'str', data: 'dict') -> 'None'` | Send structured out-of-band data (GMCP) to a player's client — | `oob(enactor, 'Ship.Status', {'hull': 87})` |
@@ -91,6 +97,7 @@ function defs — under time/call/output limits.
 | `replace` | `(text: 'str', old: 'str', new: 'str') -> 'str'` | Replace all occurrences of old with new. | `replace(arg0, 'gold', 'lead')` |
 | `rest` | `(lst: 'list \| str', delimiter: 'str' = ' ') -> 'str \| list'` | Get all but first element. | `rest('north south east')  # 'south east'` |
 | `right` | `(text: 'str', length: 'int') -> 'str'` | Get rightmost N characters. | `right('lighthouse', 5)    # 'house'` |
+| `roll` | `(expr: 'str \| int') -> 'int'` | Roll a dice expression to a total. Supports ``NdS`` / ``dS``, Fudge |  |
 | `search_world` | `(tag=None, attr=None, value=None, name=None, limit: 'int' = 100)` | Query the world: search_world(tag='zone:castle'), | `search_world(tag='zone:castle')` |
 | `set_attr` | `(obj: 'GameObject \| str \| None', attr_name: 'str', value: 'Any') -> 'bool'` | Set an attribute on an object the executor controls. | `set_attr(me, 'visits', get_attr(me, 'visits', 0) + 1)` |
 | `set_lock` | `(obj: 'GameObject \| str \| None', lock_type: 'str', expression: 'str') -> 'bool'` | Set a lock on an object the executor controls (validated). | `set_lock(me, 'basic', "caller.has_tag('keyholder')")` |

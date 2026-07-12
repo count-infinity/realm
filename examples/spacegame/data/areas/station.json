@@ -1,0 +1,1249 @@
+{
+  "realm_format": 1,
+  "objects": [
+    {
+      "id": "room_docking_bay",
+      "name": "Docking Bay Alpha-1",
+      "description": "",
+      "tags": [
+        "indoor",
+        "room",
+        "start_room",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "You stand in a cavernous docking bay, its metallic walls humming with the\nconstant thrum of environmental systems. Massive airlocks line the eastern\nwall, currently sealed against the vacuum of space. Cargo containers are\nstacked neatly in designated zones, and a few small shuttles rest in their\nberths.\n\nA corridor leads NORTH to the station's interior. A security checkpoint\nguards the way SOUTH to the restricted areas."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "room_promenade",
+      "name": "Station Promenade",
+      "description": "",
+      "tags": [
+        "indoor",
+        "room",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "The promenade is the social heart of Space Station Alpha. Holographic\nadvertisements flicker overhead, hawking everything from ship upgrades to\nexotic alien cuisine. Vendors have set up kiosks along the curved walkway,\nand the distant stars are visible through reinforced viewports.\n\nThe docking bay lies to the SOUTH. A cantina beckons to the WEST, while\nthe medical bay is to the EAST. NORTH leads to the station command center."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "room_cantina",
+      "name": "The Void's Edge Cantina",
+      "description": "",
+      "tags": [
+        "indoor",
+        "room",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "Dim lighting and the smell of recycled air mixed with exotic spices greet\nyou. The cantina is a favorite gathering spot for spacers, traders, and\nthose who prefer not to answer too many questions. A long bar runs along\none wall, tended by a grizzled human bartender. Booths line the opposite\nwall, offering privacy for deals both legal and otherwise.\n\nMusic from a dozen worlds plays softly from hidden speakers."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "room_medbay",
+      "name": "Medical Bay",
+      "description": "",
+      "tags": [
+        "indoor",
+        "room",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "Sterile white walls and the sharp scent of antiseptic define the station's\nmedical facility. Diagnostic beds with holographic readouts line one wall,\nwhile medical supply cabinets occupy another. An autodoc unit stands ready\nin the corner, its robotic arms folded in standby mode.\n\nA sign reads: \"Dr. Vex - Chief Medical Officer\""
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "room_command",
+      "name": "Station Command Center",
+      "description": "",
+      "tags": [
+        "indoor",
+        "restricted",
+        "room",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "The nerve center of Space Station Alpha hums with activity. Banks of\ndisplays show sensor readouts, ship traffic, and system status. Officers\nmonitor their stations with practiced efficiency, and the station\ncommander's chair dominates the center of the room.\n\nA tactical holotable displays the local sector in three dimensions.",
+        "lock_enter": "caller.has_tag('crew') or caller.has_tag('admin')"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_dock_north",
+      "name": "north",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_promenade",
+        "aliases": [
+          "n"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_docking_bay",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_prom_south",
+      "name": "south",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_docking_bay",
+        "aliases": [
+          "s"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_promenade",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_prom_west",
+      "name": "west",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_cantina",
+        "aliases": [
+          "w"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_promenade",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_cantina_east",
+      "name": "east",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_promenade",
+        "aliases": [
+          "e",
+          "out"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_cantina",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_prom_east",
+      "name": "east",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_medbay",
+        "aliases": [
+          "e"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_promenade",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_med_west",
+      "name": "west",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_promenade",
+        "aliases": [
+          "w",
+          "out"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_medbay",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_prom_north",
+      "name": "north",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_command",
+        "aliases": [
+          "n"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_promenade",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_cmd_south",
+      "name": "south",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_promenade",
+        "aliases": [
+          "s",
+          "out"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_command",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "npc_bartender",
+      "name": "Zeke the Bartender",
+      "description": "",
+      "tags": [
+        "npc",
+        "shopkeeper",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "A grizzled human with cybernetic eyes and a mechanical left arm. Zeke has\nbeen tending bar on this station longer than most can remember. His face\nis weathered but his eyes are sharp, missing nothing that happens in his\nestablishment.",
+        "strength": 11,
+        "dexterity": 12,
+        "intelligence": 13,
+        "health": 11,
+        "skill_melee": 12,
+        "hp": 11,
+        "max_hp": 11,
+        "damage_resistance": 0,
+        "dodge": 9,
+        "cmd_greet": "$greet*:say Welcome to The Void's Edge. What'll it be?",
+        "cmd_buy": "$buy *:say That'll be 5 credits for a %0.",
+        "listen_trouble": "^*trouble*:say We don't want any trouble here, friend."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_cantina",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "npc_doctor",
+      "name": "Dr. Vex",
+      "description": "",
+      "tags": [
+        "crew",
+        "healer",
+        "npc",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "Dr. Vex is a tall, thin Centauran with pale blue skin and four slender\narms. Her multitasking ability makes her an excellent surgeon, and her\ncalm demeanor puts patients at ease. She wears a pristine white medical\ncoat with the station's insignia.",
+        "strength": 9,
+        "dexterity": 14,
+        "intelligence": 15,
+        "health": 10,
+        "skill_medicine": 16,
+        "hp": 9,
+        "max_hp": 9,
+        "cmd_heal": "$heal:say Let me take a look at you...",
+        "cmd_treatment": "$treatment:say I can heal your wounds. Just say 'heal' when you're ready."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_medbay",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "npc_guard",
+      "name": "Security Officer Chen",
+      "description": "",
+      "tags": [
+        "crew",
+        "guard",
+        "npc",
+        "zone:station_alpha"
+      ],
+      "attrs": {
+        "description": "A stern-faced human in station security armor. Officer Chen stands at\nattention near the command center entrance, her hand never far from the\nstunner at her hip. A security badge identifies her as the shift commander.",
+        "strength": 12,
+        "dexterity": 13,
+        "intelligence": 11,
+        "health": 12,
+        "skill_melee": 14,
+        "skill_ranged": 13,
+        "hp": 12,
+        "max_hp": 12,
+        "damage_resistance": 2,
+        "dodge": 10,
+        "parry": 10,
+        "cmd_id": "$show id:say Let me see your credentials...",
+        "listen_threat": "^*attack*:say I'd advise against that, civilian."
+      },
+      "locks": {},
+      "behaviors": [
+        {
+          "behavior_id": "guard",
+          "params": {
+            "guard_tags": [
+              "player"
+            ],
+            "allow_tags": [
+              "crew",
+              "admin",
+              "god"
+            ],
+            "challenge_message": "Halt! This area is restricted to authorized personnel only."
+          }
+        }
+      ],
+      "location": "room_command",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_plaza",
+      "name": "Nexagen Corporate Plaza",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "Nexagen Tower rises fifty stories above the plaza, a monolith of dark\nglass and corporate ambition. At this hour the plaza is deserted; light\nspills from the lobby to the north. A service alley yawns to the east,\nand the tram back to the station hums behind you."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_alley",
+      "name": "Service Alley",
+      "description": "",
+      "tags": [
+        "dark",
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "Dumpsters and steam vents crowd this narrow alley along the tower's\neast face. A rusted fire escape zigzags up the wall, its lowest ladder\nretracted well out of easy reach."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_lobby",
+      "name": "Nexagen Tower Lobby",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "Polished marble and a five-meter holographic Nexagen logo dominate the\nlobby. The reception desk is shuttered for the night. A security\nstation guards the stairwell entrance to the north."
+      },
+      "locks": {},
+      "behaviors": [
+        {
+          "behavior_id": "spawner",
+          "params": {
+            "key": "door_guard",
+            "respawn_ticks": 150,
+            "announce": "A relief guard steps out of the security office.",
+            "prototype": {
+              "name": "Nexagen door guard",
+              "description": "Broad, bored, and armored in corporate polyweave. Her eyes sweep the lobby in a practiced rhythm.",
+              "tags": [
+                "npc",
+                "zone:nexagen"
+              ],
+              "attrs": {
+                "strength": 12,
+                "dexterity": 11,
+                "intelligence": 10,
+                "health": 12,
+                "hp": 12,
+                "max_hp": 12,
+                "skill_observation": 12,
+                "skill_melee": 12,
+                "dodge": 8,
+                "points": 60,
+                "listen_help": "^*help*:say Move along. Tower's closed."
+              },
+              "behaviors": [
+                {
+                  "behavior_id": "watchful",
+                  "params": {
+                    "challenge": "Building's closed. Authorized personnel only.",
+                    "spot_msg": "Hey! You there \u2014 step out where I can see you!"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_stair_low",
+      "name": "Stairwell: Lower Floors",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "Bare concrete stairs switchback upward into the tower's service core.\nEmergency lighting paints everything a dim green. A utility room door\nis set into the east wall."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_stair_mid",
+      "name": "Stairwell: Floor 23",
+      "description": "",
+      "tags": [
+        "dark",
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "The lights on this landing are dead \u2014 someone smashed the fixture, and\nmaintenance never came. A service door leads west onto the maintenance\nlanding."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_maintenance",
+      "name": "Maintenance Landing",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "A cramped landing littered with cable spools and solvent drums. The\nfire-escape door hangs ajar, night air leaking in from the alley far\nbelow. A battered supply locker stands bolted to the wall."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_stair_high",
+      "name": "Stairwell: Floor 46",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "The stairwell dead-ends at a heavy fire door stenciled 46: EXECUTIVE.\nThe air conditioning up here whispers money."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_floor46",
+      "name": "Executive Corridor, Floor 46",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "Deep carpet swallows every footstep. Brushed-steel doors line the\ncorridor, each bearing a VP's nameplate; the largest, at the north end,\nreads R. VOSS \u2014 VP, SPECIAL PROJECTS. A reception desk guards the\napproach."
+      },
+      "locks": {},
+      "behaviors": [
+        {
+          "behavior_id": "spawner",
+          "params": {
+            "key": "exec_guard",
+            "respawn_ticks": 150,
+            "announce": "The service lift chimes: a fresh guard steps out.",
+            "prototype": {
+              "name": "executive floor guard",
+              "description": "Lean and unsmiling, with a patrol route worn into the carpet and a stunner on his hip.",
+              "tags": [
+                "npc",
+                "zone:nexagen"
+              ],
+              "attrs": {
+                "strength": 11,
+                "dexterity": 12,
+                "intelligence": 11,
+                "health": 11,
+                "hp": 11,
+                "max_hp": 11,
+                "skill_observation": 13,
+                "skill_melee": 13,
+                "dodge": 9,
+                "points": 80,
+                "combat_strategy": [
+                  [
+                    "!me.hp_percent < 25",
+                    "flee"
+                  ],
+                  [
+                    "",
+                    "attack"
+                  ]
+                ]
+              },
+              "behaviors": [
+                {
+                  "behavior_id": "watchful",
+                  "params": {
+                    "spot_msg": "Contact! Intruder on forty-six!",
+                    "hostile": true
+                  }
+                },
+                {
+                  "behavior_id": "patrol",
+                  "params": {
+                    "route": [
+                      "west",
+                      "east"
+                    ],
+                    "pause": 4
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_vp_office",
+      "name": "VP Voss's Office",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "Floor-to-ceiling windows frame the station's glittering sprawl fifty\nstories down. A vast desk of real Earth mahogany dominates the room.\nOn the wall hangs a garish corporate painting: 'SYNERGY', oil on\ncanvas."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_utility",
+      "name": "Utility Room",
+      "description": "",
+      "tags": [
+        "room",
+        "zone:nexagen"
+      ],
+      "attrs": {
+        "description": "Conduit and breaker boxes cover every wall. A master power panel for\nthe executive floors blinks amber, its maintenance override helpfully\nunlocked."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_room_promenade_tram",
+      "name": "tram",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_plaza",
+        "aliases": [
+          "nexagen"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "room_promenade",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_plaza_tram",
+      "name": "tram",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "room_promenade",
+        "aliases": [
+          "station"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_plaza",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_plaza_north",
+      "name": "north",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_lobby",
+        "aliases": [
+          "n"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_plaza",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_lobby_south",
+      "name": "south",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_plaza",
+        "aliases": [
+          "s",
+          "out"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_lobby",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_plaza_east",
+      "name": "east",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_alley",
+        "aliases": [
+          "e"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_plaza",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_alley_west",
+      "name": "west",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_plaza",
+        "aliases": [
+          "w"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_alley",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_alley_fire_escape",
+      "name": "fire escape",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_maintenance",
+        "aliases": [
+          "up",
+          "climb"
+        ],
+        "check_skill": "climbing",
+        "check_difficulty": 2,
+        "check_fail_msg": "You leap for the retracted ladder, miss, and land hard among the dumpsters."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_alley",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_maintenance_fire_escape",
+      "name": "fire escape",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_alley",
+        "aliases": [
+          "down"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_maintenance",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_lobby_north",
+      "name": "north",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_low",
+        "aliases": [
+          "n"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_lobby",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_low_south",
+      "name": "south",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_lobby",
+        "aliases": [
+          "s"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_low",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_low_up",
+      "name": "up",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_mid",
+        "aliases": [
+          "u"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_low",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_mid_down",
+      "name": "down",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_low",
+        "aliases": [
+          "d"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_mid",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_mid_up",
+      "name": "up",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_high",
+        "aliases": [
+          "u"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_mid",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_high_down",
+      "name": "down",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_mid",
+        "aliases": [
+          "d"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_high",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_mid_west",
+      "name": "west",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_maintenance",
+        "aliases": [
+          "w"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_mid",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_maintenance_east",
+      "name": "east",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_mid",
+        "aliases": [
+          "e"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_maintenance",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_low_east",
+      "name": "east",
+      "description": "",
+      "tags": [
+        "closed",
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_utility",
+        "aliases": [
+          "e"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_low",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_utility_west",
+      "name": "west",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_low",
+        "aliases": [
+          "w"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_utility",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_stair_high_east",
+      "name": "east",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_floor46",
+        "aliases": [
+          "e"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_stair_high",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_floor46_west",
+      "name": "west",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_stair_high",
+        "aliases": [
+          "w"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_floor46",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_floor46_suite_door",
+      "name": "suite door",
+      "description": "",
+      "tags": [
+        "closed",
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_vp_office",
+        "aliases": [
+          "north",
+          "n",
+          "door"
+        ],
+        "locked": true,
+        "key_id": "nexagen_vp_suite",
+        "lock_skill": "electronics",
+        "lock_difficulty": 3,
+        "locked_msg": "The suite door's badge reader blinks red: ACCESS DENIED."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_floor46",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "exit_nexagen_vp_office_suite_door",
+      "name": "suite door",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "destination": "nexagen_floor46",
+        "aliases": [
+          "south",
+          "s",
+          "out"
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_vp_office",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_locker",
+      "name": "supply locker",
+      "description": "",
+      "tags": [
+        "closed",
+        "no_group",
+        "thing"
+      ],
+      "attrs": {
+        "container": true,
+        "description": "A dented steel locker stenciled NEXAGEN FACILITIES."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_maintenance",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_goggles",
+      "name": "nightvision goggles",
+      "description": "",
+      "tags": [
+        "thing",
+        "wearable"
+      ],
+      "attrs": {
+        "slot": "eyes",
+        "grants_tags": [
+          "nightvision"
+        ],
+        "description": "Surplus military optics. The dark holds no secrets."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_locker",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_lockpicks",
+      "name": "lockpick set",
+      "description": "",
+      "tags": [
+        "lockpicks",
+        "thing"
+      ],
+      "attrs": {
+        "description": "Tension wrenches and rakes in a leather roll."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_locker",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_lamp",
+      "name": "work lamp",
+      "description": "",
+      "tags": [
+        "light",
+        "thing"
+      ],
+      "attrs": {
+        "description": "A battery work lamp, still serviceable."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_maintenance",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_desk",
+      "name": "reception desk",
+      "description": "",
+      "tags": [
+        "closed",
+        "no_group",
+        "thing"
+      ],
+      "attrs": {
+        "container": true,
+        "description": "A curved slab of pale composite. A drawer sits beneath the top."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_floor46",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_keycard",
+      "name": "executive keycard",
+      "description": "",
+      "tags": [
+        "thing"
+      ],
+      "attrs": {
+        "unlocks": "nexagen_vp_suite",
+        "description": "R. VOSS, VP embossed over the Nexagen logo."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_desk",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_painting",
+      "name": "corporate painting",
+      "description": "",
+      "tags": [
+        "no_group",
+        "thing"
+      ],
+      "attrs": {
+        "description": "'SYNERGY': a gold spiral devouring a smaller silver spiral. It hangs a little proud of the wall, as if mounted on hinges."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_vp_office",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_safe",
+      "name": "wall safe",
+      "description": "",
+      "tags": [
+        "closed",
+        "invisible",
+        "no_group",
+        "thing"
+      ],
+      "attrs": {
+        "conceal_difficulty": 2,
+        "reveal_msg": "The painting swings aside on hidden hinges, revealing a wall safe!",
+        "container": true,
+        "locked": true,
+        "key_id": "nexagen_safe",
+        "lock_difficulty": 5,
+        "locked_msg": "The safe's combination dial doesn't budge.",
+        "description": "A Krupp-Yamada wall safe, combination model."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_vp_office",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_documents",
+      "name": "Nexagen documents",
+      "description": "",
+      "tags": [
+        "thing"
+      ],
+      "attrs": {
+        "article": "the",
+        "description": "A sealed folio stamped PROJECT LONGSHADOW \u2014 BOARD EYES ONLY. This is what you came for."
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_safe",
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "nexagen_panel",
+      "name": "power panel",
+      "description": "",
+      "tags": [
+        "no_group",
+        "thing"
+      ],
+      "attrs": {
+        "description": "Breakers for floors 40-50. The EXECUTIVE LIGHTING master is not even locked out.",
+        "on_use": "if has_tag(get('#nexagen_floor46'), 'dark'):\n    remove_tag(get('#nexagen_floor46'), 'dark')\n    remove_tag(get('#nexagen_stair_high'), 'dark')\n    say('The executive floor lighting hums back to life.')\nelse:\n    add_tag(get('#nexagen_floor46'), 'dark')\n    add_tag(get('#nexagen_stair_high'), 'dark')\n    say('Breakers slam open. Floor 46 goes black.')"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "nexagen_utility",
+      "owner": null,
+      "parent": null
+    }
+  ]
+}

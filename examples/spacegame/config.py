@@ -33,30 +33,35 @@ async def init_world(server):
     """
     Initialize the space game world.
 
-    Called on first startup when the database is empty.
+    Called on first startup when the database is empty. The world (Space
+    Station Alpha + Nexagen Tower) is **data** — an importable area file,
+    ``data/areas/station.json``, generated from world.py/nexagen.py by
+    ``scripts/build_spacegame_area.py``. init_world just imports it, the
+    same way a builder would ``@import`` an area or ``@pack`` content.
     """
+    import json
+    from pathlib import Path
+
     from equipment import create_equipment_prototypes
-    from nexagen import create_nexagen
     from ships import create_ship_prototypes
-    from world import create_world
 
-    # Create the world
-    world = await create_world(server.persistence)
+    from realm.persistence.worldio import import_objects
 
-    # Nexagen Tower: the corporate infiltration zone, reached by tram
-    # from the Station Promenade.
-    await create_nexagen(server.persistence, world["promenade"])
+    area = Path(__file__).parent / "data" / "areas" / "station.json"
+    # preserve_ids: this is the canonical first-boot world, and some NPC
+    # softcode references rooms by absolute id (#nexagen_floor46), which a
+    # fresh-id clone would break.
+    created = await import_objects(json.loads(area.read_text()),
+                                   server.persistence, preserve_ids=True)
+    # The area carries its own start room (docking bay, tagged start_room).
+    for obj in created:
+        if obj.has_tag("start_room"):
+            server.startup_room = obj
+            break
 
-    # Mark docking bay as start room
-    docking_bay = world.get("docking_bay")
-    if docking_bay:
-        docking_bay.add_tag("start_room")
-        await server.persistence.save(docking_bay)
-        server.startup_room = docking_bay
-
-    # Create equipment and ship prototypes
+    # Equipment and ship prototypes (a richer standalone example subsystem).
     await create_equipment_prototypes(server.persistence)
     await create_ship_prototypes(server.persistence)
 
-    print(f"Created {len(world)} locations")
+    print(f"Imported {len(created)} world objects from station.json")
     print(f"Starting room: {server.startup_room.name if server.startup_room else 'None'}")

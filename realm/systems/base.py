@@ -128,9 +128,20 @@ class GameSystem(ABC):
     # so `d20` really rolls d20 for stealth/persuade/search — not only
     # for combat. Default: the engine's GURPS-shaped 3d6 roll-under.
 
+    #: Optional softcode resolution rule — an expression over the dice
+    #: primitives (realm.core.dice), e.g.
+    #: ``"margin_under(roll('3d6'), skill() + mod)"``. Set this and the
+    #: whole game system is *data*: a builder can author the resolution
+    #: in-game, no Python. When None, resolve_check falls back to Python.
+    resolve_rule: str | None = None
+
     def resolve_check(self, obj: GameObject, skill: str, modifier: int):
-        """Return a CheckResult for one skill check. Override per system."""
-        from realm.core.checks import default_resolver
+        """Return a CheckResult for one skill check. If ``resolve_rule`` is
+        set, the rule (softcode) resolves it; otherwise the reference
+        default. Override in Python for a hand-tuned resolver."""
+        from realm.core.checks import default_resolver, resolve_with_rule
+        if self.resolve_rule:
+            return resolve_with_rule(obj, skill, modifier, self.resolve_rule)
         return default_resolver(obj, skill, modifier)
 
     # --- Character creation ---
@@ -219,11 +230,27 @@ def get_game_system() -> GameSystem | None:
     return _active_system
 
 
+def reload_rules() -> None:
+    """
+    Re-install the active system's data-driven tables, picking up edits to
+    ``skill_def`` objects made in-game or by an import. Skill defaults are
+    cached (in ``core.checks``), so they need this refresh; chargen classes
+    are read live each character creation and need no reload.
+    """
+    system = get_game_system()
+    if system is None:
+        return
+    from realm.core.checks import set_check_resolver, set_skill_defaults
+    set_skill_defaults(system.skill_defaults())
+    set_check_resolver(system.resolve_check)
+
+
 __all__ = [
     "ChargenStep",
     "ChoiceStep",
     "GameSystem",
     "resolve_game_system",
+    "reload_rules",
     "set_game_system",
     "get_game_system",
 ]

@@ -73,3 +73,52 @@ session = AsyncMock(spec=Session)
 session.player = mock_player
 session.send = AsyncMock()
 ```
+
+## Integration testing with the Simulator
+
+For "run this and see what a player would see," `realm.testing.Simulator`
+wires the *real* engine in-process — propagation, softcode, the command
+dispatcher, and a game system — so you drive a mini-world exactly as a
+live server would, with no sockets or database file.
+
+```python
+import pytest
+from realm.testing import Simulator
+
+@pytest.fixture
+def sim():
+    s = Simulator()               # defaults to the GURPS system
+    try:
+        yield s
+    finally:
+        s.close()                 # restores ambient singletons
+
+@pytest.mark.asyncio
+async def test_npc_greets(sim):
+    room  = sim.room("Cantina")
+    zeke  = sim.obj("Zeke", location=room)
+    alice = sim.player("Alice", location=room)   # gets a live Session
+
+    # Run softcode AS zeke (the @eval path):
+    await sim.eval(zeke, "pemit(enactor, 'Welcome, ' + name(enactor))",
+                   enactor=alice)
+    assert "Welcome, Alice" in sim.seen(alice)   # what Alice received
+
+    # Or run a real player command through the dispatcher:
+    sim.obj("sword", location=room, tags=["thing"])
+    await sim.do(alice, "get sword")
+    assert "You pick up a sword." in sim.seen(alice)
+```
+
+- `sim.room / obj / player` build the world (`player` returns an object
+  with a live session reachable via `seen()`).
+- `sim.eval(obj, code, enactor=…)` runs softcode as `obj`; returns
+  `(result, error)`.
+- `await sim.do(player, "command")` runs a real command through the
+  dispatcher.
+- `sim.seen(player)` drains and returns that player's messages.
+- Choose the ruleset with `Simulator(game_system="realm.systems.D20System")`.
+
+Because both paths go through the real engine, the transcript is exactly
+what happens live — which makes it the natural way to test data-driven
+content (a `class_def`, a `skill_def`, a scripted NPC) end-to-end.

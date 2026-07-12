@@ -41,6 +41,21 @@ async def cmd_eval(ctx: CommandContext) -> None:
         await ctx.session.send("Done.")
 
 
+async def cmd_reload(ctx: CommandContext) -> None:
+    """
+    Re-read the rules from the world. Skills and classes are data
+    (``skill_def`` / ``class_def`` objects); after you @create or edit
+    one, @reload re-installs the skill table so checks pick it up. (New
+    classes appear at the next character creation without a reload.)
+
+    Usage: @reload
+    """
+    from realm.systems import reload_rules
+
+    reload_rules()
+    await ctx.session.send("Rules reloaded from the world.")
+
+
 async def cmd_foreach(ctx: CommandContext) -> None:
     """
     Run a command for every object matching a search — bulk building.
@@ -165,6 +180,9 @@ def register_debug_commands(dispatcher: CommandDispatcher) -> None:
     builder("@eval", cmd_eval, aliases=["@ev"],
             help_text="Run arbitrary softcode and report the result",
             usage="@eval <code>")
+    builder("@reload", cmd_reload,
+            help_text="Re-read data-driven rules (skill_def/class_def) from the world",
+            usage="@reload")
     builder("@foreach", cmd_foreach,
             help_text="Run a command for every matching object (%o = #id)",
             usage="@foreach <search> = <command>", parse_equals=True)

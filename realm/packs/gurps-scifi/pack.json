@@ -1,0 +1,9 @@
+{
+  "name": "gurps-scifi",
+  "description": "GURPS sci-fi content: 6 classes, ship/combat skills, and basic gear. Import whole, or a file at a time.",
+  "files": [
+    "skills.json",
+    "classes.json",
+    "equipment.json"
+  ]
+}

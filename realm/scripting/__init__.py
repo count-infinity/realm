@@ -8,6 +8,11 @@ Provides sandboxed execution of user-defined scripts (softcode) with:
 - Substitution codes (%n, %#, %0-%9, etc.)
 """
 
+from realm.scripting.bindings import (
+    clear_bindings,
+    registered_bindings,
+    softcode_function,
+)
 from realm.scripting.engine import ScriptEngine
 from realm.scripting.functions import ScriptFunctions
 from realm.scripting.sandbox import ScriptError, ScriptSandbox, ScriptTimeout
@@ -32,6 +37,10 @@ __all__ = [
     "TriggerMatch",
     # Functions
     "ScriptFunctions",
+    # Native bindings (the operator/pack-author escape hatch)
+    "softcode_function",
+    "registered_bindings",
+    "clear_bindings",
     # Engine
     "ScriptEngine",
 ]

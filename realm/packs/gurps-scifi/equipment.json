@@ -1,0 +1,84 @@
+{
+  "realm_format": 1,
+  "objects": [
+    {
+      "id": "cf7ce471-e9ff-40b8-9686-54badd949c14",
+      "name": "laser pistol",
+      "description": "A compact energy sidearm.",
+      "tags": [
+        "equipment",
+        "thing",
+        "wieldable"
+      ],
+      "attrs": {
+        "damage": "1d+2",
+        "skill_type": "ranged",
+        "value": 250
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "dfecf916-7ed7-4dcc-81ad-ac784b389046",
+      "name": "combat rifle",
+      "description": "A rugged automatic rifle.",
+      "tags": [
+        "equipment",
+        "thing",
+        "wieldable"
+      ],
+      "attrs": {
+        "damage": "3d",
+        "skill_type": "ranged",
+        "value": 800
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "3d0cd527-ebc4-4194-95ba-6e47789f0cca",
+      "name": "combat armor",
+      "description": "Segmented ballistic plate.",
+      "tags": [
+        "equipment",
+        "thing",
+        "wearable"
+      ],
+      "attrs": {
+        "damage_resistance": 4,
+        "slot": "armor",
+        "value": 1200
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "a3f443dc-0d74-45d5-abc4-aec69a0bf45e",
+      "name": "medkit",
+      "description": "A field trauma kit.",
+      "tags": [
+        "equipment",
+        "thing"
+      ],
+      "attrs": {
+        "heals": "2d",
+        "uses": 3,
+        "value": 150
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    }
+  ]
+}

@@ -108,6 +108,10 @@ onto the character. So:
   the *in-box* classes live; you define your own the same way — in a
   subclass registered from `config.py` — and never patch the package.
   → [Add a Character Class](../guides/add-a-class.md)
+- **Or add them as data, no code at all.** Classes and skills can also be
+  ordinary `class_def` / `skill_def` objects a builder `@create`s in-game
+  or imports as an area — the system reads them, built-ins as fallback.
+  → [Skills & Classes as Data](../guides/data-driven-rules.md)
 
 ## The four levers, from smallest to largest
 

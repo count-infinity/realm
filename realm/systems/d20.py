@@ -27,31 +27,31 @@ CLASSES: dict[str, tuple[str, dict[str, int], dict[str, int]]] = {
 }
 
 
-def _apply_class(player: GameObject, name: str) -> None:
-    _blurb, stats, skills = CLASSES[name]
-    for stat, value in stats.items():
-        player.db.set(stat, value)
-    for skill, level in skills.items():
-        player.db.set(f"skill_{skill}", level)
-    player.db.character_class = name
+# Built-in untrained skill defaults; skill_def objects merge over these.
+BUILTIN_SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
+    "stealth": ("dexterity", -4),
+    "lockpicking": ("dexterity", -4),
+    "athletics": ("strength", -2),
+    "observation": ("intelligence", -2),
+    "lore": ("intelligence", -4),
+    "melee": ("strength", -2),
+}
 
 
 class D20System(GameSystem):
-    """d20-flavored rules package."""
+    """d20-flavored rules package. Skills and classes are data (see
+    realm.systems.definitions): built-ins here, overridden by
+    ``skill_def`` / ``class_def`` objects in the world."""
 
     system_id = "d20"
     ruleset_name = "d20"
     currency_name = "gold"
 
     def skill_defaults(self) -> dict[str, tuple[str, int]]:
-        return {
-            "stealth": ("dexterity", -4),
-            "lockpicking": ("dexterity", -4),
-            "athletics": ("strength", -2),
-            "observation": ("intelligence", -2),
-            "lore": ("intelligence", -4),
-            "melee": ("strength", -2),
-        }
+        from realm.systems.definitions import read_skill_defs
+        defaults = dict(BUILTIN_SKILL_DEFAULTS)
+        defaults.update(read_skill_defs())
+        return defaults
 
     def resolve_check(self, obj, skill: str, modifier: int):
         """d20 + skill bonus vs DC 15 (roll-high). Under d20 a skill
@@ -72,12 +72,26 @@ class D20System(GameSystem):
         # Escalating: higher levels cost more (D&D-ish training).
         return max(2, (current_level - 8) // 2)
 
+    def _class_options(self) -> dict[str, tuple[str, dict, dict]]:
+        # Built-ins, extended/overridden by class_def objects (data wins by
+        # name) — same merge rule as skills.
+        from realm.systems.definitions import read_class_defs
+        classes = dict(CLASSES)
+        classes.update(read_class_defs())
+        return classes
+
     def chargen_steps(self):
+        from realm.systems.definitions import apply_class
+        classes = self._class_options()
+
+        def apply(player: GameObject, name: str) -> None:
+            apply_class(player, classes[name], name, marker="character_class")
+
         return [ChoiceStep(
             "class",
             "Choose your class:",
-            {name: blurb for name, (blurb, _s, _k) in CLASSES.items()},
-            _apply_class,
+            {name: blurb for name, (blurb, _s, _k) in classes.items()},
+            apply,
         )]
 
     def finish_chargen(self, player: GameObject) -> str:

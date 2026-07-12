@@ -1,6 +1,9 @@
 # REALM Engine Vision: the Godot of MU*s
 
-Status: NORTH STAR — steers prioritization for everything in BACKLOG.md.
+Status: capability tracker — the living record of *what softcode can do
+today* and what's left. The durable principles (the invariants every
+change is judged against) live in the root **`VISION.md`**; when this doc
+and VISION.md disagree, VISION.md wins.
 
 ## The thesis
 

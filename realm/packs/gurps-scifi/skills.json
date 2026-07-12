@@ -1,0 +1,396 @@
+{
+  "realm_format": 1,
+  "objects": [
+    {
+      "id": "b697311f-beee-4ca6-ad4b-3e11c9fd62bc",
+      "name": "piloting",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "dexterity",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "14a4d339-a814-4fad-8112-6da761b55a23",
+      "name": "gunnery",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "dexterity",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "a9776168-e3f9-4097-a48c-aff8712ed051",
+      "name": "navigation",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "72ad34ef-40f8-4b2c-b5aa-7a83dbf2293d",
+      "name": "sensors",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "956766e2-ba87-4373-99d2-036fb4a6e6f7",
+      "name": "engineering",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "e8726744-4776-4606-9929-5949331ca496",
+      "name": "electronics",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "503ad5e2-5ca4-41fa-985f-76b303a4a6d0",
+      "name": "mechanics",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "bb398086-d42f-4882-8837-3dfc070db5d6",
+      "name": "computers",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "faa961a6-a8b8-44ff-9dea-6e38c787dad2",
+      "name": "medicine",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "04b0881d-0168-40f6-9b8f-8fbd3516021e",
+      "name": "surgery",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -6
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "4afa6d04-7a65-4ca4-b023-6f298f961c43",
+      "name": "diagnosis",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "0317c2ca-b095-4c97-8b34-2969090a4a75",
+      "name": "first_aid",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "bf395604-e4f0-434a-b27c-5b911898aff1",
+      "name": "tactics",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "cb010b2e-4fc0-4a8a-b7ee-fca7c721af44",
+      "name": "survival",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "4e7d6267-fd06-4f7a-a715-c5933c42a7f4",
+      "name": "tracking",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "eaa0bced-9c89-4c7a-994b-6891d2b135e6",
+      "name": "merchant",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "60febd23-30ff-4ff4-a383-dbc727798d1f",
+      "name": "diplomacy",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "ff4372c4-5424-4897-ab62-a1f4626f34c6",
+      "name": "detect_lies",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -6
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "e34ca257-7b33-4cde-8e7a-5a2d22b61d14",
+      "name": "streetwise",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "b20d77b2-5d50-4adf-9675-d400b453acce",
+      "name": "ranged",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "dexterity",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "54d76ef3-000d-4e58-a41d-cae1687386d0",
+      "name": "melee",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "dexterity",
+        "penalty": -4
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "1a53763f-74d1-4116-8431-fbeca46c5a58",
+      "name": "stealth",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "dexterity",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "e5d6eae4-2f50-469f-a04e-4b4b94808741",
+      "name": "observation",
+      "description": "",
+      "tags": [
+        "skill_def"
+      ],
+      "attrs": {
+        "stat": "intelligence",
+        "penalty": -5
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    }
+  ]
+}

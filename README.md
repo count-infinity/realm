@@ -48,19 +48,15 @@ help                              # every command, grouped and searchable
 
 ## The example game
 
-A GURPS-flavored space station with character generation, an
-infiltration scenario, combat, and shops:
+A GURPS-flavored space station with an infiltration scenario, combat, and
+shops — and it's built the way REALM wants games built: its classes,
+skills, and gear are an importable **content pack** (`gurps-scifi`), and
+its world (Space Station Alpha + Nexagen Tower) is an importable **area
+file** — data, not hardcoded Python.
 
 ```bash
 realm init spacestation --template spacegame
 cd spacestation && realm start
-```
-
-There's also a non-interactive combat simulation (Marine vs. Space
-Pirate on the GURPS 3d6 system):
-
-```bash
-python -m examples.spacegame.game
 ```
 
 ## What's in the box
@@ -71,9 +67,20 @@ python -m examples.spacegame.game
   use *in-game*: `$`-commands, `^listen`, `ON_<EVENT>` triggers, `on_tick`
   behaviors, inline `[[...]]` in descriptions, and a Penn-style function
   library — all under an ownership/authority model (`controls()`).
+- **Data-driven rules** — skills, classes, and even a game system's
+  *resolution rule* are data, editable in-game and shipped as importable
+  **content packs** (`@pack`, `realm pack import`). Resolution composes
+  from neutral dice primitives (`margin_under`, `net_successes`, `band`…)
+  so GURPS, a Shadowrun-style dice pool, and a starship's attack all run
+  through one entity-agnostic resolver; drop to native Python with
+  `@softcode_function` when you need to.
 - **Swappable game systems** — GURPS and D20 ship in-box and swap the
   *whole* rules package (chargen, skill dice, advancement, combat,
-  currency) from one config line; write your own by subclassing.
+  currency) from one config line — a dotted import path to your own
+  subclass in `rules.py`.
+- **Multiroom actions** — actions can reach beyond the room (scry, remote
+  cast, zone alarm) while still running the two-pass engine, so wards at
+  either end veto and occupants react; gated by a `reach` lock.
 - **Combat** — beat-driven encounters, melee + ranged (aim/cover/range
   bands), maneuvers, strategies as NPC AI, effects, loot.
 - **Living worlds** — NPCs with behaviors (wander, guard, patrol,
@@ -100,11 +107,16 @@ builds a searchable HTML site.
   first game, the superuser.
 - **[Tutorial: The Abandoned Lighthouse](docs/tutorial/index.md)** — a
   complete adventure built live, from empty database to opening night.
-- **[Game Systems](docs/guides/game-systems.md)** · **[World
-  Management](docs/guides/world-management.md)** · **[Softcode
+- **[Game Systems](docs/guides/game-systems.md)** · **[Skills & Classes
+  as Data](docs/guides/data-driven-rules.md)** · **[Resolution &
+  Bindings](docs/guides/resolution-and-bindings.md)** · **[Content
+  Packs](docs/guides/content-packs.md)** · **[Multiroom
+  Actions](docs/guides/multiroom-actions.md)**.
+- **[World Management](docs/guides/world-management.md)** · **[Softcode
   Reference](docs/reference/softcode.md)** (auto-generated from the API).
-- **[Engine Vision](docs/design/engine_vision.md)** — the "Godot of
-  MU*s" thesis that steers the design.
+- **[VISION.md](VISION.md)** — the durable architectural invariants ·
+  **[Rules Kernel](docs/design/rules-kernel.md)** — the data-driven
+  microkernel design.
 
 ## Development
 

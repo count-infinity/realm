@@ -11,6 +11,7 @@ from realm.systems.base import (
     ChoiceStep,
     GameSystem,
     get_game_system,
+    reload_rules,
     resolve_game_system,
     set_game_system,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "GurpsSystem",
     "D20System",
     "get_game_system",
+    "reload_rules",
     "resolve_game_system",
     "set_game_system",
 ]

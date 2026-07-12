@@ -1183,6 +1183,33 @@ class ScriptFunctions:
         if exclude_obj is not None:
             self.command_queue.append(('oemit', exclude_obj, str(message)))
 
+    def act(self, target: GameObject | str, message: str = "",
+            targeting: str = "remote", action_type: str = "event:act") -> bool:
+        """
+        Fire a PROPAGATED action that can reach BEYOND your own room —
+        unlike pemit/remit (which just deliver text), this runs the
+        two-pass engine, so behaviors can veto or react at both ends.
+
+        ``targeting`` chooses the audience:
+          - ``'remote'`` — the TARGET's room (a different room from yours):
+            scry, remote cast. A ward in *your* room or the destination can
+            block it, and occupants there witness/react.
+          - ``'zone'`` — every room in the target's zone (an alarm).
+          - ``'room'`` — the target's room, local but propagated.
+
+        The message reaches the far room's occupants (the ``'remote'``
+        audience). Reaching a destination is authority-gated by its
+        ``reach`` lock (open by default, like teleport) — a room or zone can
+        set ``lock_reach`` to lock out remote actions. Example — a scry:
+        ``act(thing, 'A scrying eye blinks open.', targeting='remote')``.
+        """
+        obj = self._resolve(target)
+        if obj is None:
+            return False
+        self.command_queue.append(
+            ('act', obj, (str(message), str(targeting), str(action_type))))
+        return True
+
     def oob(self, target: GameObject | str, package: str, data: dict) -> None:
         """
         Send structured out-of-band data (GMCP) to a player's client —
@@ -1253,7 +1280,10 @@ class ScriptFunctions:
 
     def to_dict(self) -> dict[str, Any]:
         """Export all functions as a dictionary for injection into script namespace."""
-        return {
+        from realm.core import dice
+        from realm.scripting.bindings import registered_bindings
+
+        namespace = {
             # Object functions
             'get': self.get,
             'name': self.name,
@@ -1323,6 +1353,14 @@ class ScriptFunctions:
             'clamp': self.clamp,
             'floor': self.floor,
             'ceil': self.ceil,
+            # Dice & resolution primitives (realm.core.dice) — the pieces a
+            # game system's resolution rule composes from.
+            'roll': dice.roll,
+            'margin_under': dice.margin_under,
+            'margin_over': dice.margin_over,
+            'net_successes': dice.net_successes,
+            'highest': dice.highest,
+            'band': dice.band,
             # List functions
             'first': self.first,
             'rest': self.rest,
@@ -1340,6 +1378,7 @@ class ScriptFunctions:
             'pemit': self.pemit,
             'remit': self.remit,
             'oemit': self.oemit,
+            'act': self.act,
             'oob': self.oob,
             # Comparison
             # Conditional
@@ -1350,3 +1389,7 @@ class ScriptFunctions:
             'here': self.location,
             'enactor': self.enactor,
         }
+        # Native bindings registered by the operator/pack author extend
+        # (and may override) the vocabulary — the trusted escape hatch.
+        namespace.update(registered_bindings())
+        return namespace

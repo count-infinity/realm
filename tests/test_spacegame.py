@@ -2,100 +2,79 @@
 Tests for the space game example.
 """
 
+import json
+from pathlib import Path
 
 import pytest
 
+import realm.behaviors  # noqa: F401  (register the behavior kit for from_dict)
+import realm.combat.behaviors  # noqa: F401
 from realm.core.objects import GameObject
 from realm.persistence.repository import GameObjectRepository
+from realm.persistence.worldio import import_objects
+from realm.testing import Simulator
+
+_STATION = (Path(__file__).resolve().parent.parent
+            / "examples" / "spacegame" / "data" / "areas" / "station.json")
 
 
-class TestSpaceCharacters:
-    """Tests for space game character system."""
+@pytest.mark.asyncio
+class TestStationArea:
+    """The spacegame world is now DATA — an importable area file (init_world
+    imports it instead of building line-by-line). This is the round-trip."""
 
-    def test_character_roles_defined(self):
-        """All character roles should be defined."""
-        from examples.spacegame.characters import TEMPLATES, CharacterRole
+    async def _import(self, sim):
+        data = json.loads(_STATION.read_text())
+        return await import_objects(data, sim.store, preserve_ids=True)
 
-        for role in CharacterRole:
-            assert role in TEMPLATES
-            template = TEMPLATES[role]
-            assert template.role == role
-            assert template.description
+    async def test_area_reconstitutes_the_world(self):
+        sim = Simulator()
+        try:
+            created = await self._import(sim)
+            by_name = {o.name: o for o in created}
+            # Rooms + the start room the area carries.
+            assert "Docking Bay Alpha-1" in by_name
+            assert any(o.has_tag("start_room") for o in created)
+            # Exit connectivity survived (docking bay has a working north exit).
+            dock = by_name["Docking Bay Alpha-1"]
+            north = next(o for o in dock.contents
+                        if o.has_tag("exit") and o.name == "north")
+            assert north.db.get("destination_obj") or north.db.get("destination")
+        finally:
+            sim.close()
 
-    def test_character_creation(self):
-        """Character creation should apply template stats."""
-        from examples.spacegame.characters import CharacterRole, SpaceCharacter
+    async def test_npc_softcode_and_behaviors_survive(self):
+        sim = Simulator()
+        try:
+            created = await self._import(sim)
+            by_name = {o.name: o for o in created}
+            # Bartender keeps its $-command softcode.
+            assert by_name["Zeke the Bartender"].db.get("cmd_greet")
+            # The guard keeps its Guard behavior.
+            guard = by_name["Security Officer Chen"]
+            assert any(type(b).__name__ == "GuardBehavior"
+                       for b in guard.get_behaviors())
+        finally:
+            sim.close()
 
-        obj = GameObject(id="test_player", name="Test")
-        SpaceCharacter.create(obj, CharacterRole.MARINE, "Test Marine")
+    async def test_nexagen_zone_present(self):
+        sim = Simulator()
+        try:
+            created = await self._import(sim)
+            assert any(o.has_tag("zone:nexagen") for o in created)
+        finally:
+            sim.close()
 
-        assert obj.name == "Test Marine"
-        assert obj.has_tag("player")
-        assert obj.has_tag("role:marine")
-
-        # Marine template has higher strength/health
-        assert obj.db.strength == 12
-        assert obj.db.health == 12
-        assert obj.db.get("skill_melee") == 13
-        assert obj.db.get("skill_ranged") == 14
-
-    def test_character_stats(self):
-        """SpaceCharacter should expose stats correctly."""
-        from examples.spacegame.characters import CharacterRole, SpaceCharacter
-
-        obj = GameObject(id="test_player", name="Test")
-        char = SpaceCharacter.create(obj, CharacterRole.PILOT)
-
-        assert char.strength == 10  # Pilot default
-        assert char.dexterity == 12  # Pilot bonus
-        assert char.hp == char.max_hp
-        assert char.credits == 500  # Starting credits
-
-    def test_character_damage_and_healing(self):
-        """Character should track damage and healing."""
-        from examples.spacegame.characters import CharacterRole, SpaceCharacter
-
-        obj = GameObject(id="test_player", name="Test")
-        char = SpaceCharacter.create(obj, CharacterRole.MARINE)
-
-        initial_hp = char.hp
-        damage = char.take_damage(5)
-        assert damage == 5
-        assert char.hp == initial_hp - 5
-        assert char.is_alive()
-
-        healed = char.heal(3)
-        assert healed == 3
-        assert char.hp == initial_hp - 2
-
-    def test_character_credits(self):
-        """Character credits should be modifiable."""
-        from examples.spacegame.characters import CharacterRole, SpaceCharacter
-
-        obj = GameObject(id="test_player", name="Test")
-        char = SpaceCharacter.create(obj, CharacterRole.MERCHANT)
-
-        initial = char.credits
-        new_balance = char.modify_credits(100)
-        assert new_balance == initial + 100
-        assert char.credits == new_balance
-
-        # Can't go negative
-        final = char.modify_credits(-99999)
-        assert final == 0
-
-    def test_character_status_string(self):
-        """Status string should include key info."""
-        from examples.spacegame.characters import CharacterRole, SpaceCharacter
-
-        obj = GameObject(id="test_player", name="Test")
-        char = SpaceCharacter.create(obj, CharacterRole.MEDIC)
-
-        status = char.get_status_string()
-        assert "Test" in status
-        assert "medic" in status.lower()
-        assert "HP:" in status
-        assert "Credits:" in status
+    async def test_softcode_absolute_id_references_resolve(self):
+        # The blackout panel's softcode references rooms by absolute id;
+        # preserve_ids keeps them valid (a fresh-id clone would break them).
+        sim = Simulator()
+        try:
+            await self._import(sim)
+            assert sim.store.get_cached("nexagen_floor46") is not None
+            assert sim.store.get_cached("nexagen_stair_high") is not None
+        finally:
+            sim.close()
 
 
 class TestSpaceships:
@@ -319,73 +298,3 @@ class TestCombatIntegration:
         )
 
         assert combat.ruleset.name == "GURPS 3d6"
-
-    @pytest.mark.asyncio
-    async def test_character_combat(self):
-        """Characters should be able to engage in combat."""
-        from examples.spacegame.characters import CharacterRole, SpaceCharacter
-        from realm.combat.system import create_combat_system
-
-        combat = create_combat_system(ruleset_name="gurps")
-
-        # Create two characters
-        player = GameObject(id="player", name="Hero")
-        SpaceCharacter.create(player, CharacterRole.MARINE)
-
-        enemy = GameObject(id="enemy", name="Villain")
-        enemy.db.strength = 10
-        enemy.db.dexterity = 10
-        enemy.db.skill_melee = 10
-        enemy.db.hp = 10
-        enemy.db.max_hp = 10
-        enemy.db.dodge = 8
-
-        # Perform attack
-        result = await combat.attack(player, enemy)
-
-        # Should have roll results
-        assert result.attack_result is not None
-        assert result.attack_result.roll is not None
-
-        # Messages generated
-        assert "attacker_msg" in result.messages
-
-
-class TestGameSetup:
-    """Tests for full game setup."""
-
-    @pytest.mark.asyncio
-    async def test_setup_game(self):
-        """Full game setup should initialize all systems."""
-        from examples.spacegame.game import setup_game
-
-        game = await setup_game()
-
-        assert "repo" in game
-        assert "combat" in game
-        assert "world" in game
-        assert "equipment" in game
-        assert "ships" in game
-
-        # Combat should be GURPS
-        assert game["combat"].ruleset.name == "GURPS 3d6"
-
-    @pytest.mark.asyncio
-    async def test_create_player(self):
-        """Player creation should work with game world."""
-        from examples.spacegame.game import create_player, setup_game
-
-        game = await setup_game()
-        docking_bay = game["world"]["docking_bay"]
-
-        player = await create_player(
-            game["repo"],
-            "Test Player",
-            "scout",
-            docking_bay,
-        )
-
-        assert player.name == "Test Player"
-        assert player.has_tag("role:scout")
-        assert player.location == docking_bay
-        assert player in docking_bay.contents

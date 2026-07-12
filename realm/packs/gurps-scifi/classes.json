@@ -1,0 +1,173 @@
+{
+  "realm_format": 1,
+  "objects": [
+    {
+      "id": "10cd16ac-74ae-4e61-813c-f82b98056797",
+      "name": "pilot",
+      "description": "expert flyer, master of evasion (DX 12; piloting, navigation)",
+      "tags": [
+        "class_def"
+      ],
+      "attrs": {
+        "blurb": "expert flyer, master of evasion (DX 12; piloting, navigation)",
+        "stats": {
+          "strength": 10,
+          "dexterity": 12,
+          "intelligence": 11,
+          "health": 10
+        },
+        "skills": {
+          "piloting": 14,
+          "navigation": 12,
+          "sensors": 11,
+          "ranged": 10
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "966aee69-693d-4532-8064-8d1c1cac3396",
+      "name": "marine",
+      "description": "shipboard combat specialist (ST 12, HT 12; guns, tactics)",
+      "tags": [
+        "class_def"
+      ],
+      "attrs": {
+        "blurb": "shipboard combat specialist (ST 12, HT 12; guns, tactics)",
+        "stats": {
+          "strength": 12,
+          "dexterity": 11,
+          "intelligence": 10,
+          "health": 12
+        },
+        "skills": {
+          "melee": 13,
+          "ranged": 14,
+          "tactics": 11,
+          "first_aid": 10
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "e7231e1a-7c33-40b9-816c-d83ee4d08433",
+      "name": "engineer",
+      "description": "keeps the ship running (IQ 13; engineering, electronics)",
+      "tags": [
+        "class_def"
+      ],
+      "attrs": {
+        "blurb": "keeps the ship running (IQ 13; engineering, electronics)",
+        "stats": {
+          "strength": 10,
+          "dexterity": 11,
+          "intelligence": 13,
+          "health": 10
+        },
+        "skills": {
+          "engineering": 14,
+          "electronics": 13,
+          "mechanics": 13,
+          "computers": 12
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "fca1842d-60b0-4589-a4ff-e211e0e30a5e",
+      "name": "medic",
+      "description": "field surgeon (IQ 13; medicine, surgery)",
+      "tags": [
+        "class_def"
+      ],
+      "attrs": {
+        "blurb": "field surgeon (IQ 13; medicine, surgery)",
+        "stats": {
+          "strength": 10,
+          "dexterity": 12,
+          "intelligence": 13,
+          "health": 10
+        },
+        "skills": {
+          "medicine": 14,
+          "first_aid": 13,
+          "surgery": 12,
+          "diagnosis": 12
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "e554fb67-72c2-46ae-9224-6ac3802913e9",
+      "name": "merchant",
+      "description": "trader and negotiator (IQ 12; merchant, diplomacy)",
+      "tags": [
+        "class_def"
+      ],
+      "attrs": {
+        "blurb": "trader and negotiator (IQ 12; merchant, diplomacy)",
+        "stats": {
+          "strength": 10,
+          "dexterity": 10,
+          "intelligence": 12,
+          "health": 10
+        },
+        "skills": {
+          "merchant": 14,
+          "diplomacy": 13,
+          "detect_lies": 12,
+          "streetwise": 11
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "9ec4eb85-98f9-4bc1-8746-d9d09042948b",
+      "name": "scout",
+      "description": "recon and survival (DX 12; stealth, observation)",
+      "tags": [
+        "class_def"
+      ],
+      "attrs": {
+        "blurb": "recon and survival (DX 12; stealth, observation)",
+        "stats": {
+          "strength": 10,
+          "dexterity": 12,
+          "intelligence": 11,
+          "health": 10
+        },
+        "skills": {
+          "stealth": 13,
+          "observation": 14,
+          "survival": 12,
+          "ranged": 12
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    }
+  ]
+}

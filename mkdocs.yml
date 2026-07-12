@@ -67,6 +67,10 @@ nav:
     - Game Systems: guides/game-systems.md
     - Add a Character Class: guides/add-a-class.md
     - Customize Character Creation: guides/custom-chargen.md
+    - Skills & Classes as Data: guides/data-driven-rules.md
+    - Resolution & Native Bindings: guides/resolution-and-bindings.md
+    - Multiroom Actions: guides/multiroom-actions.md
+    - Content Packs: guides/content-packs.md
     - World Management: guides/world-management.md
     - Interactive Prompts (Wizards): guides/wizards.md
     - Color: guides/color.md
@@ -90,6 +94,7 @@ nav:
     - Engine Vision: design/engine_vision.md
     - Adventure Coverage: design/adventure_coverage.md
     - Combat: design/combat.md
+    - Rules Kernel (data-driven): design/rules-kernel.md
     - Simplicity Review: design/simplicity_review.md
     - Original Plan (historical): design/original_plan.md
 

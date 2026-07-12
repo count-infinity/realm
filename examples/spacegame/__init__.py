@@ -9,14 +9,16 @@ This is a reference implementation demonstrating REALM's features:
 - OLC commands for building
 """
 
-from examples.spacegame.world import create_world
-from examples.spacegame.characters import SpaceCharacter
-from examples.spacegame.ships import Spaceship
 from examples.spacegame.equipment import create_equipment_prototypes
+from examples.spacegame.ships import Spaceship
+from examples.spacegame.world import create_world
+
+# Character classes/skills are DATA now — the built-in ``gurps-scifi``
+# content pack (realm/packs/gurps-scifi), not a bespoke SpaceCharacter
+# class. Import it with ``realm pack import gurps-scifi`` or ``@pack``.
 
 __all__ = [
     'create_world',
-    'SpaceCharacter',
     'Spaceship',
     'create_equipment_prototypes',
 ]

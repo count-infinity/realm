@@ -798,4 +798,58 @@ class ScriptEngine:
                 if self.dispatcher is not None:
                     from realm.server.puppet import force_command
                     await force_command(self.dispatcher, obj, message)
+            elif kind == 'act':
+                msg, targeting, action_type = message
+                await self._propagate_act(
+                    functions.executor, obj, msg, targeting, action_type)
         functions.command_queue.clear()
+
+    async def _propagate_act(self, actor, target, message, targeting,
+                             action_type):
+        """Drive a softcode act() through propagation with a targeting
+        vocabulary — the multiroom surface (scry, remote cast, zone alarm).
+        Every leg (origin room + each destination) gets the two-pass, so
+        wards can veto anywhere. Reaching a destination is authority-gated
+        by its REACH lock (default-open, like teleport), so a room or zone
+        can lock out remote actions — the permission gate, not a hoped-for
+        ward."""
+        from realm.core.propagation import _room_of, propagate, remote_chain
+        from realm.permissions.locks import LockType, check_lock
+        if actor is None:
+            return
+
+        # Destination rooms this targeting reaches, before the auth gate.
+        if targeting == 'zone':
+            from realm.core.zones import zone_rooms, zone_tags
+            origin = _room_of(target)
+            candidates: dict[str, GameObject] = {}
+            for zone in (zone_tags(origin) if origin else []):
+                for room in zone_rooms(zone):
+                    candidates[room.id] = room
+            dest_rooms = list(candidates.values())
+        elif targeting == 'remote':
+            room = _room_of(target)
+            dest_rooms = [room] if room is not None else []
+        else:  # 'room' — local, no remote leg
+            dest_rooms = []
+
+        if targeting in ('remote', 'zone'):
+            # Permission gate (#4/#5): a destination may lock out remote
+            # reach; denied rooms are dropped entirely (no veto needed).
+            allowed = [r for r in dest_rooms
+                       if check_lock(r, LockType.REACH, actor)]
+            action = Action(
+                actor=actor, target=target, action_type=action_type,
+                chain=remote_chain(lambda a: a.extra.get('remote_rooms') or []),
+                tags={'scripted'},
+                extra={'message': message, 'remote_rooms': allowed},
+            )
+            action.add_message('remote', message, success_only=True)
+        else:  # 'room' — local, but propagated (wards apply)
+            action = Action(
+                actor=actor, target=target, action_type=action_type,
+                tags={'scripted'}, extra={'message': message},
+            )
+            action.add_message('room', message, success_only=True)
+
+        await propagate(action)

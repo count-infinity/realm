@@ -2,7 +2,8 @@
 
 Prioritized list of improvements, features, and technical debt items.
 
-**NORTH STAR: docs/design/engine_vision.md** — REALM is the Godot of
+**NORTH STAR: VISION.md** (root — the durable invariants) + the
+capability tracker **docs/design/engine_vision.md** — REALM is the Godot of
 MU*s: the engine obfuscates MU* complexity, games are softcode.
 Almost all functionality reachable from softcode, with permissions on
 softcode (`controls()` authority model). Every feature ships in two
@@ -135,8 +136,6 @@ same day (see Completed); these remain, roughly by impact:
 - [ ] **Combat ruleset duplication.** Weapon-prop access ×5, DamageType
   coercion ×2, two dice parsers; base `Ruleset.roll_dice`/`get_modifier`
   have zero callers. Shared helpers on the base class.
-- [ ] **Spacegame duplicates Combatant.** `SpaceCharacter.heal/take_damage`
-  vs `Combatant` both write `db.hp` through different paths. Pick one owner.
 - [ ] **Two examine implementations** (`look.py` vs `admin.py`) and a
   ~~hand-maintained help category map~~ (DONE 2026-07-05: Command.category).
 - [ ] **Persistence follow-ups:** N+1 query in `load_all` (per-object

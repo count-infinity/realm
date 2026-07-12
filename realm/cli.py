@@ -138,7 +138,11 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
     shutil.copytree(
         template_dir,
         project_dir,
-        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db", "*.sqlite*"),
+        # __init__.py makes the example an importable package; a scaffolded
+        # game directory isn't a package, and the example's __init__ imports
+        # from ``examples.spacegame`` (wrong in the copy), so skip it.
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db",
+                                      "*.sqlite*", "__init__.py"),
     )
 
     # List what was created
@@ -207,6 +211,44 @@ async def cmd_import(args: argparse.Namespace) -> int:
         print(f"Imported {len(created)} objects from {args.file} "
               f"(fresh ids, references remapped)")
         return 0
+    finally:
+        set_active_manager(None)
+        await persistence.close()
+
+
+async def cmd_pack(args: argparse.Namespace) -> int:
+    """List built-in content packs, or import one into this game's world."""
+    from realm.packs import import_pack, list_packs, pack_manifest
+
+    if args.action == "list":
+        packs = list_packs()
+        if not packs:
+            print("No built-in packs.")
+            return 0
+        for name in packs:
+            print(f"  {name} — {pack_manifest(name).get('description', '')}")
+        return 0
+
+    # import
+    if not args.name:
+        print("Usage: realm pack import <name>")
+        return 1
+
+    from realm.config.loader import load_config
+    from realm.persistence.manager import PersistenceManager, set_active_manager
+
+    settings = load_config()
+    persistence = PersistenceManager(settings.db_path)
+    await persistence.initialize()
+    try:
+        await persistence.load_all()
+        set_active_manager(persistence)
+        created = await import_pack(args.name, persistence)
+        print(f"Imported {len(created)} objects from pack '{args.name}'.")
+        return 0
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"Error: {exc}")
+        return 1
     finally:
         set_active_manager(None)
         await persistence.close()
@@ -299,6 +341,14 @@ def main() -> int:
         "import", help="Import an area file into this game's world")
     import_parser.add_argument("file", help="Area file to import")
 
+    # realm pack list / realm pack import <name>
+    pack_parser = subparsers.add_parser(
+        "pack", help="List or import built-in content packs")
+    pack_parser.add_argument("action", choices=["list", "import"],
+                             help="list the packs, or import one")
+    pack_parser.add_argument("name", nargs="?",
+                             help="pack name (for 'import')")
+
     # realm start
     start_parser = subparsers.add_parser(
         "start",
@@ -328,6 +378,8 @@ def main() -> int:
         return asyncio.run(cmd_export(args))
     elif args.command == "import":
         return asyncio.run(cmd_import(args))
+    elif args.command == "pack":
+        return asyncio.run(cmd_pack(args))
     elif args.command == "version":
         return cmd_version(args)
     else:

@@ -276,6 +276,74 @@ class TargetStep:
             await target.visit_react(action)
 
 
+def _room_of(obj: GameObject | None) -> GameObject | None:
+    """An object's room: its location, or itself if it acts as a room."""
+    if obj is None:
+        return None
+    loc = getattr(obj, "location", None)
+    if loc is not None:
+        return loc
+    if hasattr(obj, "contents"):
+        return obj
+    return None
+
+
+RoomsFn = Callable[[Action], Iterable["GameObject"]]
+
+
+class RemoteStep:
+    """
+    Visit a SET of rooms and their occupants — the far leg of a multiroom
+    action (scry, remote cast, zone alarm). Each room *participates* via
+    ``visit_check`` (a ward there can veto), and its occupants *observe*
+    (they witness and may react). The rooms are resolved from the action on
+    each pass, so one step serves one destination or a whole zone —
+    identical two-pass semantics either way.
+    """
+
+    def __init__(self, get_rooms: RoomsFn):
+        self._get_rooms = get_rooms
+
+    async def _visit(self, action: Action, room_method: str,
+                     obs_method: str) -> None:
+        for room in self._get_rooms(action) or ():
+            if room is None:
+                continue
+            visit = getattr(room, room_method, None)
+            if visit is not None:
+                await visit(action)
+            for obj in list(getattr(room, "contents", ())):
+                if obj is action.actor or obj is action.target:
+                    continue
+                obs = getattr(obj, obs_method, None)
+                if obs is not None:
+                    await obs(action)
+
+    async def on_check(self, action: Action) -> None:
+        await self._visit(action, "visit_check", "visit_observe_check")
+
+    async def on_react(self, action: Action) -> None:
+        await self._visit(action, "visit_react", "visit_observe_react")
+
+
+def _origin_rooms(action: Action) -> list[GameObject]:
+    """The actor's own room — the origin leg (local wards + bystanders)."""
+    room = _room_of(action.actor)
+    return [room] if room is not None else []
+
+
+def remote_chain(get_rooms: RoomsFn) -> list[Step]:
+    """
+    A chain for a **multiroom** action: actor → the actor's own room (local
+    wards + bystanders) → the target itself → the destination room(s) (each
+    room's ward + occupants). Every leg gets the two-pass, so an action can
+    be vetoed at the origin *or* at any destination, and all react. One
+    destination (scry) and many (a zone alarm) are the same mechanism.
+    """
+    return [ActorStep(), RemoteStep(_origin_rooms), TargetStep(),
+            RemoteStep(get_rooms)]
+
+
 # Pre-built chain for actions whose target IS the room itself (broadcasts:
 # speech, emote, on_enter, on_leave, connect/disconnect notifications). The
 # default chain would visit the room twice — once via RoomStep (target.location
@@ -507,6 +575,22 @@ def deliver_messages(action: Action) -> None:
                 for msg in room_msgs:
                     recipient.msg(action.format_message(msg, looker=recipient))
 
+    # 'remote' messages go to the occupants of a far room (multiroom
+    # actions — scry, zone alarm). The room(s) come from extra['remote_rooms']
+    # (a list) or extra['remote_room'] (one).
+    remote_rooms = action.extra.get("remote_rooms")
+    if remote_rooms is None:
+        one = action.extra.get("remote_room")
+        remote_rooms = [one] if one is not None else []
+    if remote_rooms:
+        remote_msgs = audience_messages("remote")
+        for remote_room in remote_rooms:
+            for recipient in list(getattr(remote_room, "contents", ())):
+                if recipient is actor:
+                    continue
+                for msg in remote_msgs:
+                    recipient.msg(action.format_message(msg, looker=recipient))
+
 
 __all__ = [
     "Action",
@@ -515,6 +599,8 @@ __all__ = [
     "RoomStep",
     "RoomContentsStep",
     "TargetStep",
+    "RemoteStep",
+    "remote_chain",
     "ROOM_TARGET_CHAIN",
     "PropagationEngine",
     "get_engine",

@@ -48,6 +48,7 @@ class LockType(str, Enum):
     DROP = "drop"  # Drop this
     COMMAND = "command"  # Trigger commands
     LISTEN = "listen"  # Trigger listen patterns
+    REACH = "reach"  # Reach into this room from afar (scry, remote act)
 
 
 # Default lock expressions (when no lock is set)
@@ -63,6 +64,7 @@ DEFAULT_LOCKS = {
     LockType.DROP: "True",  # Anyone can drop
     LockType.COMMAND: "True",  # Anyone can trigger
     LockType.LISTEN: "True",  # Anyone can trigger listen
+    LockType.REACH: "True",  # Open by default; a room can lock out remote reach
 }
 
 

@@ -139,12 +139,56 @@ async def cmd_import(ctx: CommandContext) -> None:
         f"{summary['orphaned']} orphaned (left in place). @tel {name} to visit.")
 
 
+async def cmd_pack(ctx: CommandContext) -> None:
+    """
+    List built-in content packs, or import one into the world.
+
+    A pack is importable data (classes, skills, equipment); importing it
+    makes its content live — classes appear in chargen, skills in checks.
+
+    Usage: @pack               list the packs
+           @pack <name>        import a pack
+
+    Example:
+        @pack gurps-scifi
+    """
+    from realm.packs import import_pack, list_packs, pack_manifest
+
+    name = (ctx.args or "").strip()
+    if not name:
+        packs = list_packs()
+        if not packs:
+            await ctx.session.send("No built-in packs.")
+            return
+        lines = [f"  {p} — {pack_manifest(p).get('description', '')}"
+                 for p in packs]
+        await ctx.session.send("Content packs:\n" + "\n".join(lines))
+        return
+
+    if not ctx.persistence:
+        await ctx.session.send("No persistence — cannot import.")
+        return
+    try:
+        created = await import_pack(name, ctx.persistence)
+    except (FileNotFoundError, ValueError) as exc:
+        await ctx.session.send(f"Error: {exc}")
+        return
+    from realm.systems import reload_rules
+    reload_rules()   # data-driven skills take effect immediately
+    await ctx.session.send(
+        f"Imported {len(created)} objects from pack '{name}'. "
+        "Its classes and skills are now live.")
+
+
 def register_area_commands(dispatcher: CommandDispatcher) -> None:
     from functools import partial
     register = partial(dispatcher.register, category="building",
                        permission="builder")
     register("@areas", cmd_areas, help_text="List importable area files",
              usage="@areas")
+    register("@pack", cmd_pack,
+             help_text="List or import built-in content packs (classes/skills/gear)",
+             usage="@pack [<name>]")
     register("@export", cmd_export,
              help_text="Export a zone to an area file",
              usage="@export <zone>")
