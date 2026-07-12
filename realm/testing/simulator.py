@@ -95,9 +95,11 @@ class Simulator:
 
         self.engine: ScriptEngine | None = None
         if scripting:
+            from realm.core.objects import set_check_hook
             self.engine = ScriptEngine(persistence=self.store)
             get_engine().add_observer(self.engine.handle_action)
             set_script_engine(self.engine)
+            set_check_hook(self.engine.run_check_hook)   # on_check interception
             self.engine.dispatcher = self.dispatcher
             self.dispatcher.set_unknown_handler(self.engine.handle_unknown_command)
 
@@ -166,11 +168,13 @@ class Simulator:
 
     def close(self) -> None:
         """Tear down ambient singletons this Simulator installed."""
+        from realm.core.objects import set_check_hook
         from realm.persistence.manager import set_active_manager
         from realm.scripting.engine import set_script_engine
         from realm.systems import set_game_system
         set_active_manager(None)
         set_script_engine(None)
+        set_check_hook(None)
         set_game_system(None)
         reset_engine()
 

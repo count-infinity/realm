@@ -70,6 +70,7 @@ nav:
     - Skills & Classes as Data: guides/data-driven-rules.md
     - Resolution & Native Bindings: guides/resolution-and-bindings.md
     - Multiroom Actions: guides/multiroom-actions.md
+    - Wards, Resistance & Armor: guides/interception.md
     - Content Packs: guides/content-packs.md
     - World Management: guides/world-management.md
     - Interactive Prompts (Wizards): guides/wizards.md

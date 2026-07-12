@@ -283,6 +283,9 @@ class GameServer:
             self.script_engine = ScriptEngine(persistence=self.persistence)
             get_propagation_engine().add_observer(self.script_engine.handle_action)
             set_script_engine(self.script_engine)
+            # Data-driven interception: on_check softcode runs in the check pass.
+            from realm.core.objects import set_check_hook
+            set_check_hook(self.script_engine.run_check_hook)
             self.script_engine.dispatcher = self.dispatcher
             self.script_engine.session_manager = self.session_manager
 
@@ -418,6 +421,8 @@ class GameServer:
             get_propagation_engine().remove_observer(self.script_engine.handle_action)
             self.script_engine = None
             set_script_engine(None)
+            from realm.core.objects import set_check_hook
+            set_check_hook(None)
         get_propagation_engine().remove_observer(stealth_observer)
         if self.combat_manager is not None:
             get_propagation_engine().remove_observer(self.combat_manager.hostile_observer)

@@ -82,6 +82,19 @@ class AttributeProxy:
         return dict(attrs)
 
 
+# The check-pass softcode hook — installed by the script engine (dependency
+# inversion, like set_check_resolver). None when scripting is off, so core
+# stays usable on its own. Called during visit_check for an object carrying
+# an ``on_check`` script, letting data/softcode veto or modify an action.
+_check_hook: Any = None
+
+
+def set_check_hook(hook: Any) -> None:
+    """Install (or clear, with None) the softcode check-pass hook."""
+    global _check_hook
+    _check_hook = hook
+
+
 class GameObject:
     """
     Base class for all game objects.
@@ -272,7 +285,9 @@ class GameObject:
 
     async def visit_check(self, action: Action) -> None:
         """
-        Permission pass: enforce locks, then own hook, then behaviors.
+        Permission pass: enforce locks, own hook, behaviors, then the
+        object's ``on_check`` softcode (data-driven interception — wards,
+        resistance, armor).
 
         Locks run first so behaviors observe lock-blocked attempts (both
         propagation passes always complete). Imported lazily so core stays
@@ -283,6 +298,11 @@ class GameObject:
         self.at_action_check(action)
         for behavior in self._behaviors:
             await behavior.on_check(self, action)
+        # Softcode interception: a participant (the target, the room) can
+        # veto or modify the in-flight action from data. Only fires if the
+        # object carries an on_check script and a hook is installed.
+        if _check_hook is not None and self.db.get('on_check'):
+            await _check_hook(self, action)
 
     async def visit_react(self, action: Action) -> None:
         """Reaction pass: run own hook then own behaviors' on_react."""

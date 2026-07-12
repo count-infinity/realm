@@ -1278,6 +1278,39 @@ class ScriptFunctions:
             return cases[-1]
         return None
 
+    #: The subset of the softcode vocabulary that is SAFE on the check
+    #: pass — pure reads, queries, dice, and formatting. Everything that
+    #: mutates or queues world state is deliberately absent, so an
+    #: ``on_check`` script (which runs on the veto path) can decide but not
+    #: act. An allowlist, not a denylist: a new function is excluded from
+    #: check scripts until it's proven read-only and added here.
+    _READONLY = frozenset({
+        # object / attribute / tag reads
+        'get', 'name', 'loc', 'owner', 'contents', 'exits',
+        'get_attr', 'has_attr', 'has_tag', 'tags', 'tag_value', 'tag_values',
+        # world reads
+        'controls', 'search_world', 'zone_rooms', 'zones_of', 'test_lock',
+        'credits', 'disposition',
+        # dice / checks (roll and resolve; no world mutation)
+        'roll', 'margin_under', 'margin_over', 'net_successes', 'highest',
+        'band', 'rand', 'now', 'dice', 'clamp', 'floor', 'ceil',
+        'skill_check', 'contest',
+        # strings
+        'ucfirst', 'lcfirst', 'capstr', 'repeat', 'strlen', 'mid', 'left',
+        'right', 'trim', 'replace', 'ansi', 'escape',
+        # lists
+        'first', 'rest', 'last', 'words', 'member', 'extract',
+        'setunion', 'setinter', 'setdiff',
+        # conditional + context values
+        'if_else', 'switch', 'me', 'here', 'enactor',
+    })
+
+    def readonly_dict(self) -> dict[str, Any]:
+        """The check-pass namespace: only the read/query/dice/format subset
+        of to_dict() (see ``_READONLY``). No mutators, so decision-pass
+        softcode is structurally unable to change the world."""
+        return {k: v for k, v in self.to_dict().items() if k in self._READONLY}
+
     def to_dict(self) -> dict[str, Any]:
         """Export all functions as a dictionary for injection into script namespace."""
         from realm.core import dice

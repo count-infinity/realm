@@ -90,6 +90,14 @@ Pressure-tested against CoffeeMud (d100, breadth) and AwakeMUD/Shadowrun
    armor-reduces-damage, wards, counters). CoffeeMud proves a pure-formula
    effect model can't express these. The others: `recompute` (stat delta),
    `on_tick` (DoT), `on_apply`/`on_expire` (purge/cleanup).
+   **✅ The `allow | modify` hook is built:** an object's `on_check`
+   softcode runs in the propagation check pass with `block()` / `mod()` /
+   `set_adata()` on the in-flight action — data-driven wards, immunity, and
+   armor (see [Interception](../guides/interception.md)). It's the softcode
+   surface on the *existing* two-pass mechanism (Python behaviors already
+   had `on_check` block/modify), and it's decision-only (no side effects in
+   the veto pass). `recompute`/`on_tick`/`on_apply` already exist as the
+   effect behaviors; only the interception hook was missing.
 
 **Subsystems (races, chases, social conflict) are softcode compositions**
 over check + scheduler + propagation, *not* kernel features — confirmed

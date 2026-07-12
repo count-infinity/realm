@@ -236,6 +236,62 @@ class ScriptEngine:
         await self._execute_trigger(match, enactor or obj, location=obj.location)
         return True
 
+    async def run_check_hook(self, obj: GameObject, action: Action) -> None:
+        """
+        Run ``obj``'s ``on_check`` softcode DURING the propagation check
+        pass — giving data/softcode the interception power a Python behavior
+        has there: veto (``block``) and modify (``mod`` / ``set_adata``),
+        bound to the in-flight action. This is how resistance, wards, armor,
+        and counterspells become data (see docs).
+
+        It is **decision-only by construction**: the script runs against a
+        restricted READ-ONLY namespace (``ScriptFunctions.readonly_dict`` —
+        reads, dice, formatting) plus the check verbs, so it cannot mutate
+        or queue world state. Reacting to an action belongs in ``on_react``
+        / ``ON_<EVENT>`` triggers, which run after.
+
+        No shared-depth guard here: a check hook has no way to propagate
+        (its namespace has no act/emit/force/damage), so it can't recurse —
+        and a ward must not silently *fail open* just because an unrelated
+        script chain spent the depth budget. The sandbox's own call/time
+        limits bound it.
+        """
+        if obj.has_tag('halt'):
+            return
+        code = obj.db.get('on_check')
+        if not isinstance(code, str) or not code.strip():
+            return
+        from realm.scripting.sandbox import ScriptContext
+
+        ctx = ScriptContext(enactor=action.actor, executor=obj,
+                            location=obj.location)
+        functions = ScriptFunctions(
+            enactor=action.actor, executor=obj, location=obj.location,
+            persistence=self._persistence)
+        namespace = functions.readonly_dict()
+        namespace.update(self._check_namespace(action))
+        try:
+            await self.sandbox.execute_async(code, ctx, functions=namespace)
+        except ScriptError as exc:
+            logger.warning(f"on_check error on {obj.name}: {exc}")
+
+    @staticmethod
+    def _check_namespace(action: Action) -> dict:
+        """The extra softcode names available to an ``on_check`` script —
+        the in-flight action plus the veto/modify verbs."""
+        return {
+            'atype': action.action_type,       # the action's type string
+            'actor': action.actor,             # who is acting
+            'target': action.target,           # what it targets
+            'has_atag': lambda tag: action.has_tag(str(tag)),
+            'adata': lambda key, default=None: action.extra.get(key, default),
+            'set_adata': lambda key, value: action.extra.__setitem__(
+                str(key), value),
+            'block': lambda reason='': action.block(str(reason)),
+            'mod': lambda value: action.add_modifier(int(value), 'on_check'),
+            'is_blocked': lambda: action.blocked,
+        }
+
     def _install_softcode_prompt(self, player, text, callback,
                                  executor_id, persistent):
         """Capture a player's next line into a softcode callback script."""

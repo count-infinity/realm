@@ -219,8 +219,9 @@ class CombatSystem:
         # Roll damage
         damage_result = self.ruleset.roll_damage(atk, dfn, attack_result, weapon)
 
-        # Propagate damage action — a "ward" or "shield" behavior can block
-        # damage even after a successful hit.
+        # Propagate damage action — a ward/shield/resistance (a behavior or
+        # on_check softcode) can block damage outright, or reduce it via
+        # mod()/set_adata('damage', ...) in the check pass.
         damage_action = await self._propagate_damage(atk, dfn, damage_result)
         if damage_action.blocked:
             return CombatResult(
@@ -231,8 +232,23 @@ class CombatSystem:
                 },
             )
 
+        # Honor a reduced payload: extra['damage'] (mutated) + any modifiers.
+        # This is a reducer applied to the raw damage BEFORE the ruleset's
+        # own DR/multipliers (apply_damage) — it composes with them. Scale
+        # the per-type breakdown and DERIVE total from it, so total and
+        # damage_by_type can never disagree (apply_damage reads the types).
+        final = max(0, int(damage_action.extra.get('damage', damage_result.total))
+                    + damage_action.total_modifier)
+        if final != damage_result.total and damage_result.total > 0:
+            ratio = final / damage_result.total
+            damage_result.damage_by_type = {
+                dtype: max(0, round(amount * ratio))
+                for dtype, amount in damage_result.damage_by_type.items()
+            }
+            damage_result.total = sum(damage_result.damage_by_type.values())
+
         # Apply damage
-        actual_damage = self.ruleset.apply_damage(dfn, damage_result)
+        self.ruleset.apply_damage(dfn, damage_result)
 
         # Check if defeated
         target_defeated = self.ruleset.is_defeated(dfn)
