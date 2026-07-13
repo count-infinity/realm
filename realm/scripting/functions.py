@@ -365,6 +365,56 @@ class ScriptFunctions:
         self.command_queue.append(('save', target, ''))
         return True
 
+    def enter_instance(
+        self,
+        player: GameObject | str | None,
+        template: str,
+        *,
+        mode: str = "solo",
+        return_room: GameObject | str | None = None,
+        idle_ttl: float | None = None,
+    ) -> bool:
+        """
+        Send a player into a private, transient copy of a template area,
+        materializing one on demand — and reusing their own copy (or their
+        leader's, if it's ``shared``) if one already exists. The area opts in
+        by tagging a room ``instance_template``; the copy is reaped when it's
+        sat empty past ``idle_ttl``. The executor must control the player.
+
+        ``mode`` — ``'solo'`` (private) or ``'shared'`` (the owner's
+        followers route into the owner's copy). ``return_room`` — where a
+        straggler is evacuated when the copy is reaped (else their home).
+
+        Example (a portal exit's $-command): enter_instance(enactor, 'crypt')
+        """
+        from realm.core.instances import ENTRY_TAG, TEMPLATE_TAG
+        from realm.permissions.locks import LockType, check_lock
+
+        target = self._resolve(player)
+        if target is None or not self._may_mutate(target):
+            return False
+        template = str(template)
+        # Opt-in gate: only a zone with an instance_template-tagged room can
+        # be instanced.
+        rooms = self.zone_rooms(template)
+        if not any(r.has_tag(TEMPLATE_TAG) for r in rooms):
+            return False
+        # Destination-side authority, exactly like teleport_obj: the template
+        # entry room's ENTER lock (default-open) decides who may be sent in —
+        # so an author can gate a dungeon behind its portal/puzzle instead of
+        # letting any controller of a player drop in by naming the template.
+        entry = (next((r for r in rooms if r.has_tag(ENTRY_TAG)), None)
+                 or next((r for r in rooms if r.has_tag(TEMPLATE_TAG)), None))
+        if (entry is not None and self.executor is not None
+                and not check_lock(entry, LockType.ENTER, self.executor)):
+            return False
+        ret = self._resolve(return_room) if return_room is not None else None
+        ttl = float(idle_ttl) if idle_ttl is not None else None
+        self.command_queue.append(
+            ('enter_instance', target,
+             (template, str(mode), ret.id if ret else None, ttl)))
+        return True
+
     def behaviors(self, obj: GameObject | str | None) -> list[str]:
         """Behavior ids attached to an object.
 
@@ -1339,6 +1389,7 @@ class ScriptFunctions:
             'create_obj': self.create_obj,
             'destroy_obj': self.destroy_obj,
             'teleport_obj': self.teleport_obj,
+            'enter_instance': self.enter_instance,
             'behaviors': self.behaviors,
             'attach_behavior': self.attach_behavior,
             'detach_behavior': self.detach_behavior,

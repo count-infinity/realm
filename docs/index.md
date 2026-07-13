@@ -8,11 +8,11 @@ in-game scripting layer so builders create *without a restart*.
 ## Start here
 
 ```bash
-git clone https://github.com/realm-mud/realm.git && cd realm
+git clone https://github.com/realm-mud/realm.git
 python -m venv venv && source venv/bin/activate
-pip install -e .
+pip install -e realm        # install the engine; stay in the parent directory
 
-realm init mygame && cd mygame
+realm init mygame && cd mygame   # your game — a sibling of the engine clone
 realm start                 # telnet localhost 4000 — first character is superuser
 ```
 

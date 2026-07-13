@@ -96,6 +96,8 @@ nav:
     - Adventure Coverage: design/adventure_coverage.md
     - Combat: design/combat.md
     - Rules Kernel (data-driven): design/rules-kernel.md
+    - Ephemeral Rooms (instances & wilderness): design/ephemeral-rooms.md
+    - Features Roadmap: design/features-roadmap.md
     - Simplicity Review: design/simplicity_review.md
     - Original Plan (historical): design/original_plan.md
 

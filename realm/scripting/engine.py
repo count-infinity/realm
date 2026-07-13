@@ -826,6 +826,17 @@ class ScriptEngine:
                     saved.add(obj.id)
                     await self._persistence.save(obj)
             elif kind == 'destroy':
+                # Evacuation guard: never orphan a player by destroying the
+                # room they stand in — relocate them along the
+                # home → start_room ladder first. (Instance reaping does its
+                # own return_room-aware evacuation in destroy_instance; this
+                # is the general safety net.)
+                if any(c.has_tag('player') for c in obj.contents):
+                    from realm.core.instances import evacuation_room
+                    for occupant in list(obj.contents):
+                        if occupant.has_tag('player'):
+                            occupant.location = evacuation_room(
+                                self._persistence, occupant)
                 obj.location = None
                 if self._persistence is not None:
                     await self._persistence.delete(obj)
@@ -858,6 +869,18 @@ class ScriptEngine:
                 msg, targeting, action_type = message
                 await self._propagate_act(
                     functions.executor, obj, msg, targeting, action_type)
+            elif kind == 'enter_instance':
+                if self._persistence is not None:
+                    from realm.core import instances
+                    template, mode, return_room_id, ttl = message
+                    return_room = (self._persistence.get_cached(return_room_id)
+                                   if return_room_id else None)
+                    kwargs: dict[str, Any] = {
+                        'mode': mode, 'return_room': return_room}
+                    if ttl is not None:
+                        kwargs['idle_ttl'] = ttl
+                    await instances.enter(
+                        template, obj, self._persistence, **kwargs)
         functions.command_queue.clear()
 
     async def _propagate_act(self, actor, target, message, targeting,

@@ -8,14 +8,15 @@ broker.
 
 ```bash
 git clone https://github.com/realm-mud/realm.git
-cd realm
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
-pip install -e .
+pip install -e realm            # install the cloned engine — stay in the parent dir
 ```
 
-`pip install -e .` gives you the `realm` command and lets you pull
-engine updates with a plain `git pull`.
+`pip install -e realm` gives you the `realm` command and lets you pull
+engine updates with a plain `git pull` inside `realm/`. Staying in the
+parent directory means the game you scaffold next (`realm init mygame`)
+lands beside the engine clone, not inside it.
 
 !!! note "Later: pip"
     Once REALM is published this whole page becomes
@@ -33,12 +34,13 @@ found, your virtualenv isn't active.
 
 ## For contributors (optional)
 
-Tests, linting, and this documentation site:
+Working on the engine itself? Do it from inside the clone:
 
 ```bash
-pip install -e ".[dev]"
-pytest                # ~800 tests, a couple of seconds
-mkdocs serve          # these docs at http://127.0.0.1:8000
+cd realm
+pip install -e ".[dev]"   # tests, linting, and this docs site
+pytest                    # ~950 tests, a couple of seconds
+mkdocs serve              # these docs at http://127.0.0.1:8000
 ```
 
 Docs are plain Markdown in `docs/` — readable on GitHub as-is;

@@ -20,11 +20,11 @@ external services to stand up. Python 3.11+.
 ## Install & run
 
 ```bash
-git clone https://github.com/realm-mud/realm.git && cd realm
+git clone https://github.com/realm-mud/realm.git
 python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -e .
+pip install -e realm              # install the cloned engine (stay in the parent dir)
 
-realm init mygame && cd mygame
+realm init mygame && cd mygame    # your game — a sibling of the engine clone, not inside it
 realm start                       # telnet server on port 4000
 ```
 
@@ -43,7 +43,7 @@ help                              # every command, grouped and searchable
 `Ctrl+C` stops the server; everything lives in the SQLite database, so
 `realm start` resumes exactly where you left off.
 
-> `pip install -e .` (editable) is the install for now; once published
+> `pip install -e realm` (editable) is the install for now; once published
 > it becomes `pip install realm`.
 
 ## The example game
@@ -120,9 +120,12 @@ builds a searchable HTML site.
 
 ## Development
 
+Working on the engine itself? Do it from inside the clone:
+
 ```bash
+cd realm
 pip install -e ".[dev]"
-pytest                # ~870 tests, a couple of seconds
+pytest                # ~950 tests, a couple of seconds
 ruff check realm/
 mkdocs serve          # docs at http://127.0.0.1:8000
 ```

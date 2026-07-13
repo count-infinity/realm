@@ -47,6 +47,9 @@ class _Store:
     def add(self, obj: GameObject) -> None:
         self._cache[obj.id] = obj
 
+    def unregister(self, obj: GameObject) -> None:
+        self._cache.pop(obj.id, None)
+
     def get_cached(self, obj_id: str) -> GameObject | None:
         return self._cache.get(obj_id)
 

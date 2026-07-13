@@ -307,6 +307,13 @@ class PersistenceManager:
         if not self._db:
             return
 
+        # Ephemeral objects (instance / wilderness copies) live only in the
+        # in-memory cache — never written to disk, so they don't survive a
+        # reboot and don't accumulate. This is the transient/do-not-persist
+        # flag every save path funnels through. (See realm.core.instances.)
+        if obj.has_tag('ephemeral'):
+            return
+
         data = self._object_to_row(obj)
         await self._db.execute(
             """

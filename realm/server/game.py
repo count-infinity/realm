@@ -265,6 +265,11 @@ class GameServer:
         # Fall back to a default startup room if the world still lacks one.
         await self._ensure_startup_room()
 
+        # Relocate any player whose saved location vanished (e.g. an instance
+        # room that was never persisted) — the reboot half of the evacuation
+        # guard, so nobody logs in to "nowhere".
+        await self._reconcile_orphaned_players()
+
         # Set up session callbacks
         self.session_manager.on_connect(self._on_session_connect)
         self.session_manager.on_disconnect(self._on_session_disconnect)
@@ -511,6 +516,33 @@ class GameServer:
                 break
 
         return len(objects)
+
+    async def _reconcile_orphaned_players(self) -> None:
+        """Kernel bit #2, across the reboot boundary.
+
+        A player mid-instance at shutdown has ``location`` pointing at an
+        ephemeral (instanced) room. That room is never persisted, so on
+        reload the reference resolves to nothing and the player's location
+        is left ``None`` — they'd log in to "You are nowhere." Reconcile
+        each such player down the same ladder the destroy paths use (home,
+        else the start room), loudly. Active destroy/reap evacuate directly;
+        this is the load-time half of the guarantee.
+        """
+        if not self.persistence:
+            return
+        for player in self.persistence.find_cached(tag='player'):
+            if player.location is not None:
+                continue
+            home = self.persistence.get_cached(player.db.get('home'))
+            dest = home or self._startup_room
+            if dest is None:
+                continue
+            player.location = dest
+            await self.persistence.save(player)
+            logger.warning(
+                f"Reconciled orphaned player {player.name} "
+                f"(saved location was gone) -> {dest.name}"
+            )
 
     async def _ensure_startup_room(self) -> None:
         """Create a default startup room when neither the database nor
@@ -842,6 +874,13 @@ class GameServer:
                     await self.script_engine.tick_waits()
                 except Exception:
                     logger.exception("Tick wait error")
+            # Reap idle instanced areas (empty past their idle_ttl).
+            if self.persistence is not None:
+                try:
+                    from realm.core import instances
+                    await instances.reap_idle(self.persistence)
+                except Exception:
+                    logger.exception("Instance reap error")
             for session in self.session_manager.all_sessions():
                 try:
                     await session.flush_output()
