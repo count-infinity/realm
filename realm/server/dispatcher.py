@@ -409,12 +409,26 @@ class CommandDispatcher:
         if not ctx.player:
             return
 
-        from realm.core.movement import move_through_exit, resolve_exit_destination
+        from realm.core.movement import (
+            fire_exit_fail,
+            move_through_exit,
+            resolve_exit_destination,
+        )
         from realm.core.render import render_room
 
         destination = resolve_exit_destination(exit_obj, self.persistence)
         if not destination:
-            await ctx.session.send("That exit leads nowhere you can reach.")
+            # A dead-end exit fires ON_FAIL — an @afail hook may materialize
+            # the room beyond it (wilderness / an instance) and move us in.
+            moved = await fire_exit_fail(
+                ctx.player, exit_obj, 'no_destination',
+                direction=exit_obj.name)
+            if moved:
+                await ctx.session.send(
+                    render_room(ctx.player.location, ctx.player))
+            else:
+                await ctx.session.send(
+                    "That exit leads nowhere you can reach.")
             return
 
         # TODO: Check locks on exit

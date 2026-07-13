@@ -42,11 +42,19 @@ class ScriptFunctions:
         executor: GameObject | None = None,
         location: GameObject | None = None,
         persistence: Any = None,  # PersistenceManager
+        enactor_consent: bool = False,
     ):
         self.enactor = enactor
         self.executor = executor
         self.location = location
         self._persistence = persistence
+        # True ONLY when the enactor deliberately invoked this object —
+        # typed its $-command, or traversed the exit whose ON_FAIL is
+        # running. Grants move_to/enter_instance the right to relocate the
+        # ENACTOR (a portal moving its walker). Merely being overheard
+        # (^listen) or witnessed (ON_ENTER) is NOT consent — those paths
+        # leave this False, so scripts there need real control() authority.
+        self.enactor_consent = enactor_consent
 
         # Deliveries queued by communication functions. Scripts execute in a
         # worker thread, so functions must never touch sessions directly —
@@ -170,6 +178,13 @@ class ScriptFunctions:
         """Scripts run AS the executor; mutations require its authority."""
         from realm.permissions.locks import controls as _controls
         return _controls(self.executor, obj)
+
+    def _may_relocate(self, obj: GameObject | None) -> bool:
+        """Relocation authority — broader than mutation: the executor may
+        also move what stands in a room the executor owns (Penn's
+        room-owner teleport). Used only by movement functions."""
+        from realm.permissions.locks import may_relocate as _may_relocate
+        return _may_relocate(self.executor, obj)
 
     def _controlled(self, obj: GameObject | str | None) -> GameObject | None:
         """Resolve + authority in one step: None means no or not allowed."""
@@ -344,25 +359,59 @@ class ScriptFunctions:
         destination: GameObject | str | None,
     ) -> bool:
         """
-        Move an object the executor controls straight to a destination.
-        The destination's teleport lock is checked against the executor.
+        Move an object the executor controls straight to a destination — the
+        wizard/admin relocation. Now a thin alias for ``move_to(force=True)``:
+        it tunnels past on_check **wards** (a Bound field), but still honors
+        the destination's **locks** (its teleport lock included) and requires
+        control of the object. A forced arrival still fires ``on_enter``.
 
         Example: teleport_obj(enactor, 'The Oubliette')
         """
-        from realm.permissions.locks import LockType, check_lock
+        return self.move_to(obj, destination, force=True)
 
-        target = self._resolve(obj)
+    def move_to(
+        self,
+        target: GameObject | str | None,
+        destination: GameObject | str | None,
+        *,
+        tags: list[str] | None = None,
+        force: bool = False,
+    ) -> bool:
+        """
+        Relocate a player/object to a destination with the movement checks
+        baked in — the one relocation verb. The move is always tagged
+        ``movement``, so a Bound ward (``block() if has_atag('movement')``)
+        stops it; pass extra ``tags`` (e.g. ``['magic']``) so anti-magic wards
+        catch it too. Both the origin and the destination get an event-veto,
+        plus the destination's ENTER/TELEPORT locks. Returns whether the move
+        was *authorized and queued* — wards/locks run after the script ends,
+        and a veto fizzles the move then, delivering the reason to the mover.
+        (``tags`` here = ``extra_tags`` on the core ``movement.move_to``.)
+
+        ``force=True`` (== ``teleport_obj``) skips the on_check **wards** but
+        NOT the **locks** — the wizard bypass. It requires full control of the
+        target; without force, the enactor may also move *themselves* (a
+        ``cast teleport`` moves the caster).
+
+        Example — a teleport spell:
+        ``&spell.teleport = move_to(enactor, 'The Sanctum', tags=['magic'])``
+        """
+        tgt = self._resolve(target)
         dest = self._resolve(destination)
-        if target is None or dest is None or target is dest:
+        if tgt is None or dest is None or tgt is dest:
             return False
-        if not self._may_mutate(target):
+        # Relocation authority (own the target, or own the room it's in) —
+        # broader than mutation, per Penn's tport_control_ok. The checked
+        # path also lets a CONSENTING enactor be moved (they typed this
+        # object's $-command or walked its exit — not merely spoke near it).
+        if force:
+            if not self._may_relocate(tgt):
+                return False
+        elif not (self._may_relocate(tgt)
+                  or (tgt is self.enactor and self.enactor_consent)):
             return False
-        if self.executor is not None and not check_lock(
-            dest, LockType.TELEPORT, self.executor
-        ):
-            return False
-        target.location = dest
-        self.command_queue.append(('save', target, ''))
+        extra = [str(t) for t in (tags or [])]
+        self.command_queue.append(('move_to', tgt, (dest.id, extra, bool(force))))
         return True
 
     def enter_instance(
@@ -384,14 +433,26 @@ class ScriptFunctions:
         ``mode`` — ``'solo'`` (private) or ``'shared'`` (the owner's
         followers route into the owner's copy). ``return_room`` — where a
         straggler is evacuated when the copy is reaped (else their home).
+        Returns whether the entry was *authorized and queued*; the
+        materialize-and-move happens after the script ends.
 
-        Example (a portal exit's $-command): enter_instance(enactor, 'crypt')
+        Callable when the executor controls the player, or the player is the
+        enactor (they walked into the portal). Example — an exit's ON_FAIL:
+        ``&exit ON_FAIL = enter_instance(enactor, 'crypt')``
         """
         from realm.core.instances import ENTRY_TAG, TEMPLATE_TAG
         from realm.permissions.locks import LockType, check_lock
 
         target = self._resolve(player)
-        if target is None or not self._may_mutate(target):
+        if target is None:
+            return False
+        # The executor must have relocation authority over the player (own
+        # them, or own the room they're in) — OR the player is a CONSENTING
+        # enactor: they typed this object's $-command or walked the exit
+        # whose ON_FAIL is running. Being overheard or witnessed is not
+        # consent. Entry is still gated by the template's ENTER lock below.
+        if not (self._may_relocate(target)
+                or (target is self.enactor and self.enactor_consent)):
             return False
         template = str(template)
         # Opt-in gate: only a zone with an instance_template-tagged room can
@@ -399,14 +460,13 @@ class ScriptFunctions:
         rooms = self.zone_rooms(template)
         if not any(r.has_tag(TEMPLATE_TAG) for r in rooms):
             return False
-        # Destination-side authority, exactly like teleport_obj: the template
-        # entry room's ENTER lock (default-open) decides who may be sent in —
-        # so an author can gate a dungeon behind its portal/puzzle instead of
-        # letting any controller of a player drop in by naming the template.
+        # Destination-side authority: the template entry room's ENTER lock
+        # (default-open) decides who may be sent in — checked against the
+        # PLAYER being sent (the walker), matching move_to's convention, so
+        # an author can gate a dungeon behind a key/role the entrant holds.
         entry = (next((r for r in rooms if r.has_tag(ENTRY_TAG)), None)
                  or next((r for r in rooms if r.has_tag(TEMPLATE_TAG)), None))
-        if (entry is not None and self.executor is not None
-                and not check_lock(entry, LockType.ENTER, self.executor)):
+        if entry is not None and not check_lock(entry, LockType.ENTER, target):
             return False
         ret = self._resolve(return_room) if return_room is not None else None
         ttl = float(idle_ttl) if idle_ttl is not None else None
@@ -1389,6 +1449,7 @@ class ScriptFunctions:
             'create_obj': self.create_obj,
             'destroy_obj': self.destroy_obj,
             'teleport_obj': self.teleport_obj,
+            'move_to': self.move_to,
             'enter_instance': self.enter_instance,
             'behaviors': self.behaviors,
             'attach_behavior': self.attach_behavior,

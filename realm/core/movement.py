@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.action_tags import FAILURE, MOVEMENT
 from realm.core.propagation import (
     ROOM_TARGET_CHAIN,
     Action,
@@ -57,6 +58,188 @@ def resolve_exit_destination(
     return None
 
 
+async def fire_exit_fail(
+    actor: GameObject,
+    exit_obj: GameObject | None,
+    reason: str,
+    *,
+    direction: str | None = None,
+    destination: GameObject | None = None,
+) -> bool:
+    """
+    Fire ``event:on_fail`` so ``ON_FAIL`` / ``@afail`` softcode can react to
+    a thwarted move — a locked, closed, or dead-end (no-destination) exit.
+
+    Post-hoc, like PennMUSH's ``@afail``: the move already failed and its
+    message has (or is about to be) shown; witnesses — the exit itself and
+    the room — run their ``ON_FAIL``. The one twist is the **dead-end** case:
+    an exit whose ``ON_FAIL`` *materializes* the room beyond it (a wilderness
+    cell, an instanced dungeon) and moves the actor in. So this returns
+    ``True`` when a handler relocated the actor, letting the caller suppress
+    the default "leads nowhere" line and show the new room instead.
+    """
+    if actor is None:
+        return False
+    origin = actor.location
+    fail = Action(
+        actor=actor,
+        target=exit_obj if exit_obj is not None else destination,
+        action_type="event:on_fail",
+        chain=ROOM_TARGET_CHAIN,
+        extra={"exit": exit_obj, "reason": reason,
+               "direction": direction, "destination": destination},
+        tags={MOVEMENT, FAILURE},
+    )
+    await propagate(fail)
+    return actor.location is not origin and actor.location is not None
+
+
+async def move_to(
+    actor: GameObject,
+    destination: GameObject,
+    *,
+    extra_tags: set[str] | list[str] | None = None,
+    force: bool = False,
+    mover: GameObject | None = None,
+) -> bool:
+    """
+    Relocate ``actor`` to ``destination`` with the movement checks baked in —
+    the one relocation primitive, ``move_and_slide`` style. The caller just
+    names a destination; the engine runs the "physics":
+
+      1. a ``movement``-tagged **leave ward** — the mover/origin room may veto
+         (a Bound ward: ``block() if has_atag('movement')``);
+      2. the destination's **ENTER** and **TELEPORT locks** (this is a direct
+         placement, so a "no teleporting in here" lock applies);
+      3. a ``movement``-tagged **pre-enter ward** on the destination — its
+         event-veto (a magic-shielded sanctum), which a static lock can't
+         express (mirrors Evennia's ``at_pre_object_receive`` / CoffeeMUD's
+         destination ``okMessage``);
+      4. relocate + an informational ``on_enter``.
+
+    ``force`` skips only the on_check **wards** (steps 1 and 3) — the wizard/
+    admin path. It does **not** bypass **locks** (step 2 still runs; only the
+    GOD role bypasses a lock, in ``check_lock``) nor **authority** (that's the
+    caller's gate). So ``teleport_obj`` == ``move_to(force=True)``: it
+    tunnels past a Bound ward but still honors a destination's teleport lock.
+    A forced arrival still fires ``on_enter`` — skip the gates, keep the
+    notification.
+
+    ``mover`` names whoever is PERFORMING a third-party relocation (the
+    @teleport-ing builder, the scripting object). If the mover *controls*
+    the destination, its locks don't apply — Penn's ``controls(player,
+    dest)`` arm — since a controller could simply re-lock the room anyway.
+
+    The engine always tags the move ``movement`` so a ward can't be dodged by
+    an action forgetting to flag itself; callers add domain tags (``magic``
+    for a teleport spell). A direct placement carries no ``exit`` in its
+    ``adata`` — that absence is how a ward tells a teleport from a walk
+    (``has_atag('movement') and not adata('exit')``). Returns ``True`` if the
+    actor moved, ``False`` if a ward or lock fizzled it (reason delivered).
+    """
+    if actor is None or destination is None or actor is destination:
+        return False
+
+    from realm.permissions.locks import LockType
+
+    tags = {MOVEMENT, *(str(t) for t in (extra_tags or ()))}
+    origin = actor.location
+
+    # 1. Leave ward — skipped by force (the wizard bypass).
+    if not force and origin is not None:
+        leave = Action(
+            actor=actor, target=origin, action_type="event:on_leave",
+            chain=ROOM_TARGET_CHAIN, tags=set(tags),
+            extra={"destination": destination},
+        )
+        await propagate(leave, deliver=False)
+        if leave.blocked:
+            actor.msg(leave.block_reason or "You can't leave.")
+            return False
+
+    # 2. Destination LOCKS (Penn's tport_dest_ok). Skipped only when the
+    #    ``mover`` — whoever is performing a third-party relocation (an
+    #    @teleport-ing builder, a scripting object) — has real authority over
+    #    arrivals here: they're ADMIN+, or they genuinely control an OWNED
+    #    destination (they could re-lock it anyway). The ``owner is not None``
+    #    guard is the same world-trusts-world catch as may_relocate — without
+    #    it, any unowned object would "control" any unowned room and tunnel
+    #    its lock. Otherwise the locks are evaluated against the object being
+    #    moved (Penn evaluates the tport lock against the victim). force skips
+    #    wards, never locks.
+    if not _mover_owns_destination(mover, destination):
+        if _lock_denies(actor, destination, LockType.ENTER,
+                        "You can't enter {name}."):
+            return False
+        if _lock_denies(actor, destination, LockType.TELEPORT,
+                        "You can't teleport into {name}."):
+            return False
+
+    # 3. Pre-enter ward — the destination's event-veto; skipped by force.
+    if not force and await _pre_enter_blocked(
+            actor, destination, tags, extra={"from": origin}):
+        return False
+
+    # 4. Relocate, then the informational arrival.
+    actor.location = destination
+    await _fire_arrival(actor, destination, tags, extra={"from": origin})
+    return True
+
+
+def _mover_owns_destination(mover: GameObject | None,
+                            destination: GameObject) -> bool:
+    """Does ``mover`` have authority over who arrives at ``destination`` —
+    so its ENTER/TELEPORT locks yield? True for an ADMIN+ mover, or a mover
+    that genuinely controls an OWNED destination (Penn's ``controls(player,
+    dest)`` arm of tport_dest_ok). The ``owner is not None`` guard keeps
+    world-trusts-world from letting any unowned object tunnel a room's lock.
+    """
+    if mover is None:
+        return False
+    from realm.permissions.locks import controls
+    from realm.permissions.roles import Role, get_role
+    if get_role(mover) >= Role.ADMIN:
+        return True
+    return destination.owner is not None and controls(mover, destination)
+
+
+def _lock_denies(actor: GameObject, obj: GameObject, lock_type,
+                 default_msg: str) -> bool:
+    """Check a lock; on denial, deliver the failure message and return True."""
+    from realm.permissions.locks import check_lock, lock_failure_message
+    if check_lock(obj, lock_type, actor):
+        return False
+    actor.msg(lock_failure_message(obj, lock_type, default_msg))
+    return True
+
+
+async def _pre_enter_blocked(actor: GameObject, destination: GameObject,
+                             tags: set[str], extra: dict) -> bool:
+    """The destination's event-veto: fire ``event:pre_enter`` (check pass
+    only) and report whether a ward blocked the arrival. Both walking and
+    direct placement run this, so a sanctum's ward guards every way in."""
+    pre = Action(
+        actor=actor, target=destination, action_type="event:pre_enter",
+        chain=ROOM_TARGET_CHAIN, tags=set(tags), extra=extra,
+    )
+    await propagate(pre, deliver=False)
+    if pre.blocked:
+        actor.msg(pre.block_reason or "You can't go there.")
+        return True
+    return False
+
+
+async def _fire_arrival(actor: GameObject, destination: GameObject,
+                        tags: set[str], extra: dict) -> None:
+    """The informational ``on_enter`` — the actor has already arrived."""
+    enter = Action(
+        actor=actor, target=destination, action_type="event:on_enter",
+        chain=ROOM_TARGET_CHAIN, tags=set(tags), extra=extra,
+    )
+    enter.add_message("room", "{actor} arrives.")
+    await propagate(enter)
+
+
 async def move_through_exit(
     actor: GameObject,
     destination: GameObject,
@@ -70,14 +253,20 @@ async def move_through_exit(
 
     on_leave runs first with ``deliver=False`` and gates the move: if a behavior
     blocks it, the actor stays put, receives the block reason, and this returns
-    ``False`` (the leave messages are never delivered). Otherwise the actor
-    relocates and on_enter fires — its block flag is advisory and ignored, since
-    the actor has already arrived.
+    ``False`` (the leave messages are never delivered). The destination then
+    gets its own event-veto (``event:pre_enter``, same as ``move_to`` — a
+    sanctum's ward guards walk-ins and teleports alike). Only then does the
+    actor relocate; on_enter is informational, the actor has already arrived.
 
-    Returns ``True`` if the actor moved, ``False`` if blocked at on_leave.
+    Returns ``True`` if the actor moved, ``False`` if blocked.
+
+    Deliberate asymmetries with ``move_to`` (traversal vs direct placement):
+    the in_combat/unconscious gates and follower cascade apply only here —
+    walking is embodied travel; a teleport is the spell's problem — and the
+    TELEPORT lock applies only to ``move_to`` (walking in isn't teleporting).
 
     Destination resolution and room display are the caller's responsibility; this
-    helper owns only the relocation and its two events.
+    helper owns only the relocation and its events.
     """
     if direction is None and exit_obj is not None:
         direction = exit_obj.name
@@ -98,12 +287,11 @@ async def move_through_exit(
     # 'basic' lock controls traversal; the destination's 'enter' lock
     # controls entry. These are checked here (not in the propagation pass)
     # because neither object is the target of the gating on_leave action.
-    from realm.permissions.locks import LockType, check_lock, lock_failure_message
+    from realm.permissions.locks import LockType
 
-    if exit_obj is not None and not check_lock(exit_obj, LockType.BASIC, actor):
-        actor.msg(lock_failure_message(
-            exit_obj, LockType.BASIC, "You can't go {name} — it's locked.",
-        ))
+    if exit_obj is not None and _lock_denies(
+            actor, exit_obj, LockType.BASIC, "You can't go {name} — it's locked."):
+        await fire_exit_fail(actor, exit_obj, 'locked', direction=direction)
         return False
 
     # Physical door state: a 'closed' exit must be opened first.
@@ -111,6 +299,7 @@ async def move_through_exit(
         actor.msg(
             exit_obj.db.get('closed_msg') or f"The {exit_obj.name} is closed."
         )
+        await fire_exit_fail(actor, exit_obj, 'closed', direction=direction)
         return False
 
     # Skill-gated exits (fire escapes, ledges): db.check_skill names the
@@ -130,12 +319,13 @@ async def move_through_exit(
                     f"{actor.get_display_name(None)} tries to go {direction} and fails.",
                     exclude=[actor],
                 )
+            await fire_exit_fail(actor, exit_obj, 'skill', direction=direction)
             return False
 
-    if not check_lock(destination, LockType.ENTER, actor):
-        actor.msg(lock_failure_message(
-            destination, LockType.ENTER, "You can't enter {name}.",
-        ))
+    if _lock_denies(actor, destination, LockType.ENTER,
+                    "You can't enter {name}."):
+        await fire_exit_fail(actor, exit_obj, 'locked_destination',
+                             direction=direction, destination=destination)
         return False
 
     # Phase 1: on_leave gates the move.
@@ -146,30 +336,39 @@ async def move_through_exit(
             action_type="event:on_leave",
             chain=ROOM_TARGET_CHAIN,
             extra={"exit": exit_obj, "destination": destination, "direction": direction},
-            tags={"movement"},
+            tags={MOVEMENT},
         )
         leave.add_message("actor", f"You leave {direction}.")
         leave.add_message("room", f"{{actor}} leaves {direction}.")
         await propagate(leave, deliver=False)
         if leave.blocked:
             actor.msg(leave.block_reason or "You can't go that way.")
+            await fire_exit_fail(actor, exit_obj, 'blocked', direction=direction)
             return False
+
+    # Phase 1.5: the destination's event-veto — the same pre_enter ward
+    # move_to runs, so a warded sanctum stops walk-ins too, not just
+    # teleports. Carries the exit in adata: a ward can still distinguish
+    # a walk (adata('exit')) from a teleport (no exit).
+    if await _pre_enter_blocked(
+            actor, destination, {MOVEMENT},
+            extra={"from": origin, "exit": exit_obj, "direction": direction}):
+        await fire_exit_fail(actor, exit_obj, 'blocked_destination',
+                             direction=direction, destination=destination)
+        return False
+
+    # Leave messages deliver only once BOTH ends have allowed the move —
+    # a destination veto shouldn't announce a departure that never happened.
+    if origin is not None:
         deliver_messages(leave)
 
     # Phase 2: relocate.
     actor.location = destination
 
     # Phase 3: on_enter is informational — the actor has already arrived.
-    enter = Action(
-        actor=actor,
-        target=destination,
-        action_type="event:on_enter",
-        chain=ROOM_TARGET_CHAIN,
-        extra={"from": origin, "exit": exit_obj, "direction": direction},
-        tags={"movement"},
-    )
-    enter.add_message("room", "{actor} arrives.")
-    await propagate(enter)
+    await _fire_arrival(
+        actor, destination, {MOVEMENT},
+        extra={"from": origin, "exit": exit_obj, "direction": direction})
 
     # Structured client data (GMCP Room.Info) — no-op without a client
     # that negotiated OOB.
@@ -190,4 +389,5 @@ async def move_through_exit(
     return True
 
 
-__all__ = ["move_through_exit", "resolve_exit_destination"]
+__all__ = ["move_through_exit", "resolve_exit_destination", "fire_exit_fail",
+           "move_to"]

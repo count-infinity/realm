@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_exit, find_object
+from realm.core.action_tags import VISUAL
 from realm.core.movement import resolve_exit_destination
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 from realm.core.render import render_room
@@ -168,7 +169,7 @@ async def _show_room(ctx: CommandContext) -> None:
         target=room,
         action_type="event:look",
         chain=ROOM_TARGET_CHAIN,
-        tags={"visual"},
+        tags={VISUAL},
     )
     await propagate(look)
 
@@ -185,7 +186,7 @@ async def _show_object(ctx: CommandContext, target) -> None:
             actor=ctx.player,
             target=target,
             action_type="event:look",
-            tags={"visual"},
+            tags={VISUAL},
         )
         await propagate(look)
 

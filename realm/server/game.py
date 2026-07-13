@@ -541,7 +541,7 @@ class GameServer:
             await self.persistence.save(player)
             logger.warning(
                 f"Reconciled orphaned player {player.name} "
-                f"(saved location was gone) -> {dest.name}"
+                f"(no resolvable location) -> {dest.name}"
             )
 
     async def _ensure_startup_room(self) -> None:

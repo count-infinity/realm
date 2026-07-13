@@ -27,6 +27,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from realm.core.action_tags import SCRIPTED
 from realm.core.propagation import Action
 from realm.scripting.functions import ScriptFunctions
 from realm.scripting.sandbox import (
@@ -133,7 +134,11 @@ class ScriptEngine:
             if not check_lock(match.obj, LockType.USE, ctx.player):
                 return False
 
-            await self._execute_trigger(match, ctx.player, session=ctx.session)
+            # Typing an object's $-command is deliberate interaction — the
+            # enactor consents to what the object does to them (a portal's
+            # "enter portal" may relocate them).
+            await self._execute_trigger(match, ctx.player, session=ctx.session,
+                                        enactor_consent=True)
             return True
 
         return False
@@ -425,6 +430,13 @@ class ScriptEngine:
         for obj in candidates:
             if obj.has_tag('halt'):
                 continue
+            # Consent: the actor deliberately walked into THIS exit, and its
+            # ON_FAIL is now running — the one witnessed-event case where
+            # relocating the enactor is consensual (the portal pattern).
+            # Every other witness (a bystander's ON_ENTER, a room's ON_SAY)
+            # gets no such grant.
+            consent = (action.action_type == "event:on_fail"
+                       and obj is action.extra.get("exit"))
             for trigger in self.trigger_manager.get_event_triggers(obj, event_type):
                 match = TriggerMatch(
                     trigger=trigger,  # type: ignore[arg-type]
@@ -433,7 +445,8 @@ class ScriptEngine:
                     obj=obj,
                     action=trigger.action,
                 )
-                await self._execute_trigger(match, action.actor, location=room)
+                await self._execute_trigger(match, action.actor, location=room,
+                                            enactor_consent=consent)
 
         # The mover's own hook: ON_ARRIVE fires on the actor when it enters
         # somewhere new (plan.md: "this object arrives somewhere new").
@@ -482,8 +495,16 @@ class ScriptEngine:
         *,
         session: Session | None = None,
         location: GameObject | None = None,
+        enactor_consent: bool = False,
     ) -> None:
-        """Execute a matched trigger, depth-guarded."""
+        """Execute a matched trigger, depth-guarded.
+
+        ``enactor_consent`` marks the two paths where the enactor
+        deliberately invoked THIS object ($-command typed at it; the exit
+        they traversed firing its ON_FAIL) — granting scripts the right to
+        relocate the enactor. Passive paths (^listen, witnessed ON_<EVENT>)
+        must leave it False; overhearing someone is not a capability to
+        move them."""
         if self._depth >= self.MAX_SCRIPT_DEPTH:
             logger.warning(
                 f"Script depth limit ({self.MAX_SCRIPT_DEPTH}) reached; "
@@ -516,6 +537,7 @@ class ScriptEngine:
                     executor=match.obj,
                     location=location,
                     persistence=self._persistence,
+                    enactor_consent=enactor_consent,
                 )
                 try:
                     _result, output = await self.sandbox.execute_async(
@@ -869,6 +891,20 @@ class ScriptEngine:
                 msg, targeting, action_type = message
                 await self._propagate_act(
                     functions.executor, obj, msg, targeting, action_type)
+            elif kind == 'move_to':
+                if self._persistence is not None:
+                    from realm.core.movement import move_to
+                    dest_id, extra_tags, force = message
+                    dest = self._persistence.get_cached(dest_id)
+                    if dest is not None:
+                        # mover = the scripting object: if IT controls the
+                        # destination, the dest locks yield (Penn dest_ok).
+                        await move_to(obj, dest, extra_tags=extra_tags,
+                                      force=force, mover=functions.executor)
+                    else:
+                        logger.warning(
+                            f"Scripted move_to of {obj.name}: destination "
+                            f"{dest_id} not in cache; move dropped")
             elif kind == 'enter_instance':
                 if self._persistence is not None:
                     from realm.core import instances
@@ -879,8 +915,12 @@ class ScriptEngine:
                         'mode': mode, 'return_room': return_room}
                     if ttl is not None:
                         kwargs['idle_ttl'] = ttl
-                    await instances.enter(
+                    entry = await instances.enter(
                         template, obj, self._persistence, **kwargs)
+                    if entry is None:
+                        logger.warning(
+                            f"enter_instance({template!r}) for {obj.name}: "
+                            f"no entry room materialized; move dropped")
         functions.command_queue.clear()
 
     async def _propagate_act(self, actor, target, message, targeting,
@@ -920,14 +960,14 @@ class ScriptEngine:
             action = Action(
                 actor=actor, target=target, action_type=action_type,
                 chain=remote_chain(lambda a: a.extra.get('remote_rooms') or []),
-                tags={'scripted'},
+                tags={SCRIPTED},
                 extra={'message': message, 'remote_rooms': allowed},
             )
             action.add_message('remote', message, success_only=True)
         else:  # 'room' — local, but propagated (wards apply)
             action = Action(
                 actor=actor, target=target, action_type=action_type,
-                tags={'scripted'}, extra={'message': message},
+                tags={SCRIPTED}, extra={'message': message},
             )
             action.add_message('room', message, success_only=True)
 

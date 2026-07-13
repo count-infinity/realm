@@ -567,6 +567,44 @@ class TestAdminCommands:
         assert "Teleported sword" in ctx.session.messages[0]
 
     @pytest.mark.asyncio
+    async def test_teleport_honors_destination_teleport_lock(self):
+        """@teleport rides move_to(force=True): wards are skipped, but a
+        destination the mover does NOT control still enforces its TELEPORT
+        lock — you can't stuff things into someone else's locked room. (An
+        unowned room would yield: builders control unowned world objects and
+        a controller could re-lock it anyway — Penn's dest_ok arm.)"""
+        rival = GameObject("Rival", tags=['player', 'builder'])
+        self.persistence.add(rival)
+        self.room2.owner = rival                 # someone ELSE's room
+        self.room2.locks["teleport"] = "False"
+
+        builder = GameObject("Bob", tags=['player', 'builder'],
+                             location=self.room)
+        self.persistence.add(builder)
+        gadget = GameObject("gadget", tags=['thing'], location=self.room,
+                            owner=builder)
+        self.persistence.add(gadget)
+
+        ctx = make_context(builder, args="gadget = Other Room",
+                           left_args="gadget", right_args="Other Room")
+        await cmd_teleport(ctx)
+
+        assert gadget.location is self.room     # lock held
+        assert any("Teleport failed" in m for m in ctx.session.messages)
+
+    @pytest.mark.asyncio
+    async def test_admin_teleport_bypasses_the_lock(self):
+        """The same locked destination admits an admin's @teleport."""
+        self.room2.locks["teleport"] = "False"
+        ctx = make_context(
+            self.player,                          # 'Admin' from setup
+            args="sword = Other Room",
+            left_args="sword", right_args="Other Room")
+        await cmd_teleport(ctx)
+
+        assert self.sword.location is self.room2
+
+    @pytest.mark.asyncio
     async def test_teleport_to_me(self):
         """@teleport <object> = me moves object to player inventory."""
         ctx = make_context(

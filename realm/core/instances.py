@@ -10,6 +10,10 @@ instance identity, drop the owner in, bump activity, and GC when idle.
 Keyed per player. ``mode='shared'`` lets the owner's followers route into
 the owner's copy instead of their own; ``mode='solo'`` gives everyone a
 private copy.
+
+Note: the ``instance_template`` opt-in is enforced at the softcode surface
+(``enter_instance``), not here — Python callers of ``enter()`` are trusted
+kernel/game code and may clone any zone.
 """
 
 from __future__ import annotations
@@ -132,6 +136,13 @@ async def enter(
             return_room=return_room, idle_ttl=idle_ttl)
     else:
         entry = persistence.get_cached(master.db.get("entry"))
+        if entry is None:
+            # Stale master — its entry room is gone (partial teardown).
+            # Rebuild rather than silently keeping the corpse alive.
+            await destroy_instance(master, persistence)
+            entry, master = await materialize(
+                template, player, persistence, mode=mode,
+                return_room=return_room, idle_ttl=idle_ttl)
     if entry is not None:
         player.location = entry
     master.db.set("last_active", _clock())

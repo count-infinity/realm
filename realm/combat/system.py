@@ -26,6 +26,7 @@ from realm.combat.ruleset import (
     DamageResult,
     Ruleset,
 )
+from realm.core.action_tags import HOSTILE
 from realm.core.propagation import Action, propagate
 
 if TYPE_CHECKING:
@@ -399,7 +400,7 @@ class CombatSystem:
             target=defender.obj,
             action_type="combat:on_attack",
             tool=weapon if hasattr(weapon, 'name') else None,
-            tags={"hostile"},
+            tags={HOSTILE},
             extra={
                 'weapon': weapon,
                 'attacker_hp': attacker.hp,
@@ -419,7 +420,7 @@ class CombatSystem:
             actor=attacker.obj,
             target=defender.obj,
             action_type="combat:on_damage",
-            tags={"hostile"},
+            tags={HOSTILE},
             extra={
                 'damage': damage.total,
                 'damage_types': {k.value: v for k, v in damage.damage_by_type.items()},

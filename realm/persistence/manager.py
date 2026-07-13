@@ -187,7 +187,12 @@ class PersistenceManager:
             except asyncio.QueueEmpty:
                 break
 
-        dirty = [obj for obj in self._object_cache.values() if obj.is_dirty()]
+        # Ephemeral objects are never written (see _save_object), so leave
+        # them out of the sweep entirely — otherwise a dirty instance room
+        # would be re-swept by every flush pass for its whole life and
+        # inflate the flushed count below.
+        dirty = [obj for obj in self._object_cache.values()
+                 if obj.is_dirty() and not obj.has_tag('ephemeral')]
         if not dirty:
             return
 

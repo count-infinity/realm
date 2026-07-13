@@ -128,6 +128,18 @@ class TestReaping:
         assert reaped == 0
         assert w.store.get_cached(entry.id) is entry
 
+    async def test_reenter_after_reap_materializes_a_fresh_copy(self, world):
+        w = world
+        first = await instances.enter("crypt", w.alice, w.store)
+        w.alice.location = w.hub
+        await instances.reap_idle(w.store, now=time.time() + 10_000)
+
+        second = await instances.enter("crypt", w.alice, w.store)
+
+        assert second is not None
+        assert second is not first          # recreate, don't resurrect
+        assert w.alice.location is second
+
     async def test_fresh_copy_is_not_reaped(self, world):
         w = world
         entry = await instances.enter("crypt", w.alice, w.store)
@@ -262,6 +274,9 @@ async def test_reboot_reconciles_a_player_whose_instance_vanished():
         await pm.save(lost)
         assert lost.location is None
 
+        # __new__ skips __init__ deliberately: _reconcile_orphaned_players
+        # touches only .persistence and ._startup_room, and a full GameServer
+        # would drag in sockets/dispatcher we don't want in a unit test.
         server = GameServer.__new__(GameServer)
         server.persistence = pm
         server._startup_room = start

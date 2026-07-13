@@ -57,12 +57,28 @@ async def cmd_teleport(ctx: CommandContext) -> None:
         await ctx.session.send("Can't teleport something to itself.")
         return
 
-    # Moving something other than yourself is control-level power.
-    if target is not ctx.player and not await require_control(ctx, target):
-        return
+    # Moving something other than yourself needs relocation authority — you
+    # control the object, OR you own the room it's standing in (Penn's
+    # room-owner @teleport), unless it's 'anchored'.
+    if target is not ctx.player:
+        from realm.permissions.locks import may_relocate
+        if not may_relocate(ctx.player, target):
+            await ctx.session.send("Permission denied.")
+            return
 
-    # Move the object
-    target.location = destination
+    # Move through the one relocation core, forced: the builder override
+    # skips on_check wards but still honors the destination's ENTER/TELEPORT
+    # locks (evaluated against the object being moved, Penn-style — admins
+    # bypass locks as always) and fires the informational on_enter.
+    from realm.core.movement import move_to
+
+    moved = await move_to(target, destination, force=True, mover=ctx.player)
+    if not moved:
+        await ctx.session.send(
+            f"Teleport failed — {destination.name} won't admit "
+            f"{'you' if target is ctx.player else target.name}."
+        )
+        return
 
     await save_object(ctx, target)
 

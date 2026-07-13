@@ -1129,7 +1129,7 @@ class TestTier1AuthorityFixes:
                            right_args="Vault")
         await cmd_teleport(ctx)
         assert prize.location is room
-        assert any("don't control" in m for m in ctx.session.messages)
+        assert any("denied" in m.lower() for m in ctx.session.messages)
 
     async def test_destroy_needs_control(self):
         from realm.commands.olc.admin import cmd_destroy

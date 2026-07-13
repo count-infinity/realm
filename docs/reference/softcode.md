@@ -58,6 +58,7 @@ function defs — under time/call/output limits.
 | `detach_behavior` | `(obj: 'GameObject \| str \| None', behavior_id: 'str') -> 'bool'` | Detach a behavior (by id) from an object the executor controls. | `detach_behavior('golem', 'wandering')` |
 | `dice` | `(num: 'int' = 1, sides: 'int' = 6, modifier: 'int' = 0) -> 'int'` | Roll dice: NdS+M | `dice(3, 6)   # 3d6` |
 | `disposition` | `(npc, other=None) -> 'int'` | How npc feels about other (default: the enactor). | `disposition(me, enactor) >= 2` |
+| `enter_instance` | `(player: 'GameObject \| str \| None', template: 'str', *, mode: 'str' = 'solo', return_room: 'GameObject \| str \| None' = None, idle_ttl: 'float \| None' = None) -> 'bool'` | Send a player into a private, transient copy of a template area, |  |
 | `escape` | `(text: 'str') -> 'str'` | Escape color markup in player-provided text (\|\| literals). | `say('They said: ' + escape(arg0))` |
 | `eval_attr` | `(obj, attr_name: 'str', *args)` | Evaluate an attribute as a FUNCTION and return its ``result`` — | `eval_attr(me, 'render_side', n)` |
 | `exits` | `(room: 'GameObject \| str \| None' = None) -> 'list[GameObject]'` | Open exits of a room (default: the executor's location). | `move(name(exits(here)[0]))` |
@@ -80,6 +81,7 @@ function defs — under time/call/output limits.
 | `margin_under` | `(rolled: 'int', target: 'int', *, skill: 'str' = '') -> 'CheckResult'` | Roll-under (GURPS, CoC): success if ``rolled <= target``; margin is |  |
 | `member` | `(item: 'str', lst: 'list \| str', delimiter: 'str' = ' ') -> 'int'` | Find position of item in list (1-indexed, 0 if not found). | `member('south', 'north south east')  # 2` |
 | `mid` | `(text: 'str', start: 'int', length: 'int') -> 'str'` | Extract substring (1-indexed like MUSH). | `mid('lighthouse', 5, 5)   # 'house'` |
+| `move_to` | `(target: 'GameObject \| str \| None', destination: 'GameObject \| str \| None', *, tags: 'list[str] \| None' = None, force: 'bool' = False) -> 'bool'` | Relocate a player/object to a destination with the movement checks |  |
 | `name` | `(obj: 'GameObject \| str \| None') -> 'str'` | Get an object's name. | `name(enactor)` |
 | `net_successes` | `(pool: 'int', tn: 'int', *, sides: 'int' = 6, explode: 'bool' = True, skill: 'str' = '') -> 'CheckResult'` | Dice-pool success-counting (Shadowrun, WoD): roll ``pool`` dice, |  |
 | `now` | `() -> 'int'` | Current time as epoch seconds — cache expiry, cooldowns. | `now() - get_attr(me, 'lit_at', 0) > 300` |
@@ -111,7 +113,7 @@ function defs — under time/call/output limits.
 | `tag_value` | `(obj, prefix: 'str')` | First value of a namespaced tag: tag_value(here, 'zone') | `tag_value(here, 'zone')   # -> 'castle'` |
 | `tag_values` | `(obj, prefix: 'str') -> 'list'` | All values of a namespaced tag: tag_values(here, 'zone') | `tag_values(here, 'zone')  # -> ['castle', 'haunted']` |
 | `tags` | `(obj: 'GameObject \| str \| None') -> 'list[str]'` | Get all tags on an object. | `'npc' in tags(enactor)` |
-| `teleport_obj` | `(obj: 'GameObject \| str \| None', destination: 'GameObject \| str \| None') -> 'bool'` | Move an object the executor controls straight to a destination. | `teleport_obj(enactor, 'The Oubliette')` |
+| `teleport_obj` | `(obj: 'GameObject \| str \| None', destination: 'GameObject \| str \| None') -> 'bool'` | Move an object the executor controls straight to a destination — the | `teleport_obj(enactor, 'The Oubliette')` |
 | `test_lock` | `(obj: 'GameObject \| str \| None', lock_type: 'str', caller: 'GameObject \| str \| None' = None) -> 'bool'` | Would ``caller`` (default: the executor) pass this lock? | `test_lock('vault door', 'enter')` |
 | `transfer_credits` | `(source: 'GameObject \| str \| None', dest: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Move money FROM something the executor controls. | `transfer_credits(me, enactor, 25)` |
 | `trim` | `(text: 'str') -> 'str'` | Remove leading/trailing whitespace. | `trim('  hello  ')` |

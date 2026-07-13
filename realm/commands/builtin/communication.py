@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_player
+from realm.core.action_tags import SOUND
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 
 
@@ -204,7 +205,7 @@ async def cmd_shout(ctx: CommandContext) -> None:
         chain=ROOM_TARGET_CHAIN,
         # 'sound' tag lets behaviors react to any noisy action regardless
         # of whether it's speech, shouting, combat, etc.
-        tags={"sound"},
+        tags={SOUND},
         extra={"message": message},
     )
     action.add_message("actor", f'You shout, "{message}"', success_only=True)

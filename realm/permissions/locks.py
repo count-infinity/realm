@@ -266,6 +266,41 @@ def controls(actor: GameObject | None, obj: GameObject | None,
     return _evaluator.check(obj, LockType.CONTROL, actor)
 
 
+def may_relocate(mover: GameObject | None, target: GameObject | None) -> bool:
+    """
+    May ``mover`` relocate ``target`` — PennMUSH's ``tport_control_ok``.
+
+    Relocation is a *weaker* authority than full control: a room's owner may
+    teleport / shove around what stands in their room without being able to
+    ``@set`` or ``@destroy`` it. So this is broader than ``controls`` in
+    exactly one way — you may move what stands in a room you own:
+
+    1. ``controls(mover, target)`` — you own the target (or admin). (Penn:
+       ``controls(player, victim)`` / ``Tel_Anything``.)
+    2. You own the room the target is in — ``controls(mover, target.location)``
+       — and the target is not ``anchored``. (Penn: ``controls(player, loc)
+       && !Heavy(victim)``.)
+
+    The ``loc.owner is not None`` guard in rule 2 is load-bearing: for an
+    *unowned* world room, ``controls`` would fire the world-trusts-world rule
+    and let ANY co-located object move occupants — the confused-deputy hole.
+    Requiring the room to be owned means only genuine ownership / admin /
+    owner-delegation grants the authority (Penn rooms always have an owner).
+
+    ``anchored`` is Penn's ``HEAVY`` flag: an object opts out of being moved
+    by room-ownership, while its own controller and admins still can (rule 1
+    bypasses the check).
+    """
+    if controls(mover, target):
+        return True
+    if mover is None or target is None:
+        return False
+    loc = target.location
+    if loc is None or target.has_tag('anchored'):
+        return False
+    return loc.owner is not None and controls(mover, loc)
+
+
 def may_trigger(actor: GameObject | None, obj: GameObject | None) -> bool:
     """
     May ``actor`` run ``obj``'s named scripts (@tr / ``trigger``)?
