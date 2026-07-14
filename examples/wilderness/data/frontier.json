@@ -1,0 +1,68 @@
+{
+  "realm_format": 1,
+  "objects": [
+    {
+      "id": "78a4e66b-aa6e-4da4-990e-6709e8f1974c",
+      "name": "Frontier Trailhead",
+      "description": "A weathered signpost marks where the road gives out. Beyond the gate, open frontier rolls to the horizon.",
+      "tags": [
+        "room",
+        "start_room"
+      ],
+      "attrs": {},
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "4a5f29a0-bd29-42cc-ad97-4f7c881f61ca",
+      "name": "frontier",
+      "description": "",
+      "tags": [
+        "wilderness_region"
+      ],
+      "attrs": {
+        "is_valid": "result = 0 <= x <= 20 and 0 <= y <= 20",
+        "cell_name": "kinds = ['Windswept Meadow', 'Pine Forest', 'Rocky Scree', 'Creek Crossing']\nresult = kinds[(x * 7 + y * 13) % 4]",
+        "cell_desc": "descs = ['Knee-high grass bends under a steady wind.', 'Pines crowd close; the light falls in narrow blades.', 'Loose rock shifts underfoot between stubborn thistles.', 'A cold creek chatters over smooth stones.']\nresult = descs[(x * 7 + y * 13) % 4] + ' [' + str(x) + ', ' + str(y) + ']'",
+        "cell_terrain": "result = ['meadow', 'forest', 'rocks', 'creek'][(x * 7 + y * 13) % 4]",
+        "cell_exits": "exits = ['north', 'south', 'east', 'west']\nif x == 10 and y == 10:\n    exits = exits + [{'name': 'trailhead', 'destination': '78a4e66b-aa6e-4da4-990e-6709e8f1974c', 'aliases': ['out']}]\nresult = exits",
+        "edge_msg": "The frontier ends in an impassable wall of bramble.",
+        "start_coord": [
+          10,
+          10
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "fca6ede3-ae4a-4139-b0b3-cdb4fb12e3e3",
+      "name": "gate",
+      "description": "",
+      "tags": [
+        "exit"
+      ],
+      "attrs": {
+        "aliases": [
+          "frontier",
+          "g"
+        ],
+        "dest_resolver": "wilderness",
+        "wild_region": "frontier",
+        "wild_x": 10,
+        "wild_y": 10
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": "78a4e66b-aa6e-4da4-990e-6709e8f1974c",
+      "owner": null,
+      "parent": null
+    }
+  ]
+}

@@ -101,6 +101,11 @@ class PersistenceManager:
         self._flush_task: asyncio.Task[None] | None = None
         self._object_cache: dict[str, GameObject] = {}
         self._running = False
+        # obj_id -> the location_id its row named but the cache couldn't
+        # resolve at load (an ephemeral room that was never persisted, or
+        # a deleted one). Load-time reconcile drains this — R9's backstop
+        # against objects silently reloading at location None.
+        self._dangling_locations: dict[str, str] = {}
 
     #: bump when SCHEMA changes; add a migration step below.
     SCHEMA_VERSION = 1
@@ -319,6 +324,11 @@ class PersistenceManager:
         if obj.has_tag('ephemeral'):
             return
 
+        # Deleted (unregistered) after being swept up by a flush pass —
+        # INSERT OR REPLACE would resurrect its row as permanent limbo.
+        if obj.id not in self._object_cache:
+            return
+
         data = self._object_to_row(obj)
         await self._db.execute(
             """
@@ -449,6 +459,11 @@ class PersistenceManager:
             obj._location = self._object_cache[location_id]
             if obj not in obj._location._contents:
                 obj._location._contents.append(obj)
+        elif location_id:
+            # The row named a room that didn't reload (ephemeral, or
+            # deleted out from under it). Record it so load-time
+            # reconcile can act — never leave a silent location=None.
+            self._dangling_locations[obj.id] = location_id
 
         if parent_id and parent_id in self._object_cache:
             obj.parent = self._object_cache[parent_id]

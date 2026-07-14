@@ -10,6 +10,7 @@ from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_exit
 from realm.core.movement import (
     fire_exit_fail,
+    has_dest_resolver,
     move_through_exit,
     resolve_exit_destination,
 )
@@ -39,15 +40,17 @@ async def cmd_go(ctx: CommandContext) -> None:
         return
 
     dest_obj = resolve_exit_destination(exit_obj, ctx.persistence)
-    if not dest_obj:
+    if not dest_obj and not has_dest_resolver(exit_obj):
         # A dead-end exit fires ON_FAIL — an @afail hook may materialize the
-        # room beyond it (wilderness / an instanced area) and move us in.
+        # room beyond it (an instance portal) and move us in.
         moved = await fire_exit_fail(
             ctx.player, exit_obj, 'no_destination', direction=direction)
         if moved:
             await ctx.session.send(render_room(ctx.player.location, ctx.player))
         else:
-            await ctx.session.send("That exit doesn't lead anywhere.")
+            await ctx.session.send(
+                exit_obj.db.get('fail_msg')
+                or "That exit doesn't lead anywhere.")
         return
 
     moved = await move_through_exit(
@@ -56,8 +59,8 @@ async def cmd_go(ctx: CommandContext) -> None:
     if not moved:
         return
 
-    # Show the new room
-    await ctx.session.send(render_room(dest_obj, ctx.player))
+    # Show the new room (resolved by the traversal for a deferred exit).
+    await ctx.session.send(render_room(ctx.player.location, ctx.player))
 
 
 async def cmd_direction(ctx: CommandContext) -> None:

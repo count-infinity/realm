@@ -475,6 +475,44 @@ class ScriptFunctions:
              (template, str(mode), ret.id if ret else None, ttl)))
         return True
 
+    def enter_wilderness(self, player: GameObject | str | None,
+                         region: str, x, y) -> bool:
+        """
+        Send a player to the wilderness cell at ``(region, x, y)``,
+        materializing it on demand — the scripted seam into a
+        coordinate-keyed region. (Walking between cells needs no softcode:
+        the cells' exits are real exits with deferred destinations.)
+
+        Callable when the executor controls the player, or the player is
+        the consenting enactor. Entry is gated by the region master's
+        ENTER lock, checked against the player being sent. Returns whether
+        the entry was *authorized and queued*; the materialize-and-move
+        happens after the script ends.
+
+        Example: enter_wilderness(enactor, 'wilds', 10, 10)
+        """
+        from realm.core.wilderness import get_region
+        from realm.permissions.locks import LockType, check_lock
+
+        target = self._resolve(player)
+        if target is None:
+            return False
+        if not (self._may_relocate(target)
+                or (target is self.enactor and self.enactor_consent)):
+            return False
+        try:
+            x_i, y_i = int(x), int(y)
+        except (TypeError, ValueError):
+            return False
+        region_obj = get_region(str(region))
+        if region_obj is None:
+            return False
+        if not check_lock(region_obj, LockType.ENTER, target):
+            return False
+        self.command_queue.append(
+            ('wilderness', target, (str(region), x_i, y_i)))
+        return True
+
     def behaviors(self, obj: GameObject | str | None) -> list[str]:
         """Behavior ids attached to an object.
 
@@ -1451,6 +1489,7 @@ class ScriptFunctions:
             'teleport_obj': self.teleport_obj,
             'move_to': self.move_to,
             'enter_instance': self.enter_instance,
+            'enter_wilderness': self.enter_wilderness,
             'behaviors': self.behaviors,
             'attach_behavior': self.attach_behavior,
             'detach_behavior': self.detach_behavior,

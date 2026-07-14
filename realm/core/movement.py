@@ -14,6 +14,7 @@ having forgotten to emit them.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from realm.core.action_tags import FAILURE, MOVEMENT
@@ -25,8 +26,59 @@ from realm.core.propagation import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from realm.core.objects import GameObject
     from realm.persistence.manager import PersistenceManager
+
+logger = logging.getLogger(__name__)
+
+
+class DestinationUnavailableError(Exception):
+    """A deferred-destination resolver failed abnormally (a broken
+    map-provider, not a map edge). The message is shown to the walker —
+    distinct from the authored dead-end line, so a builder's bug never
+    masquerades as world geography."""
+
+
+# Deferred exit destinations (ephemeral-rooms.md kernel bit #3): an exit
+# may name a resolver (``db.dest_resolver``) instead of storing a
+# ``destination``. ``move_through_exit`` consults the registry only after
+# the origin-side gates pass, materializes the room beyond (a wilderness
+# cell), and the traversal proceeds like any door — wards, locks,
+# ``on_enter``, and the follower cascade unchanged.
+_DEST_RESOLVERS: dict[str, Callable[[GameObject, GameObject],
+                                    Awaitable[GameObject | None]]] = {}
+
+
+def register_dest_resolver(name: str, resolver) -> None:
+    """Register an async ``(exit_obj, actor) -> room | None`` resolver
+    under ``name``. An exit opts in with ``db.dest_resolver = name``."""
+    _DEST_RESOLVERS[str(name)] = resolver
+
+
+def has_dest_resolver(exit_obj: GameObject | None) -> bool:
+    """Does this exit defer its destination to a registered resolver?"""
+    return exit_obj is not None and bool(exit_obj.db.get('dest_resolver'))
+
+
+async def _resolve_deferred_destination(
+    exit_obj: GameObject | None, actor: GameObject,
+) -> GameObject | None:
+    if exit_obj is None:
+        return None
+    name = exit_obj.db.get('dest_resolver')
+    if not name:
+        return None
+    resolver = _DEST_RESOLVERS.get(str(name))
+    if resolver is None:
+        # A typo'd resolver name is a builder bug, not world geography —
+        # fail loud, never masquerade as a map edge (vision #10).
+        logger.error(
+            f"Exit {exit_obj.name} ({exit_obj.id}) names unregistered "
+            f"dest_resolver {name!r}")
+        raise DestinationUnavailableError("A strange force bars the way.")
+    return await resolver(exit_obj, actor)
 
 
 def resolve_exit_destination(
@@ -242,7 +294,7 @@ async def _fire_arrival(actor: GameObject, destination: GameObject,
 
 async def move_through_exit(
     actor: GameObject,
-    destination: GameObject,
+    destination: GameObject | None,
     *,
     exit_obj: GameObject | None = None,
     direction: str | None = None,
@@ -265,8 +317,12 @@ async def move_through_exit(
     walking is embodied travel; a teleport is the spell's problem — and the
     TELEPORT lock applies only to ``move_to`` (walking in isn't teleporting).
 
-    Destination resolution and room display are the caller's responsibility; this
-    helper owns only the relocation and its events.
+    ``destination`` may be ``None`` when the exit carries a registered
+    ``dest_resolver`` — the room beyond is materialized on demand, *after*
+    the origin-side gates pass (so a refused walker creates nothing).
+
+    Static destination resolution and room display are the caller's
+    responsibility; this helper owns the relocation and its events.
     """
     if direction is None and exit_obj is not None:
         direction = exit_obj.name
@@ -320,6 +376,30 @@ async def move_through_exit(
                     exclude=[actor],
                 )
             await fire_exit_fail(actor, exit_obj, 'skill', direction=direction)
+            return False
+
+    # Deferred destination (kernel bit #3): the room beyond this exit may
+    # not exist yet — materialize it now, only after every origin-side
+    # gate above has passed. From here on the traversal is
+    # indistinguishable from walking any door.
+    if destination is None:
+        error_msg: str | None = None
+        try:
+            destination = await _resolve_deferred_destination(exit_obj, actor)
+        except DestinationUnavailableError as exc:
+            error_msg = str(exc) or "A strange force bars the way."
+        if destination is None:
+            # The dead-end contract (same as the legacy branch in the
+            # entry points): fire on_fail FIRST — an authored @afail may
+            # relocate the actor, in which case the fail line is
+            # suppressed and the caller renders the new room.
+            reason = 'resolver_error' if error_msg else 'no_destination'
+            if await fire_exit_fail(actor, exit_obj, reason,
+                                    direction=direction):
+                return True
+            fail = error_msg or (
+                exit_obj.db.get('fail_msg') if exit_obj is not None else None)
+            actor.msg(fail or "You can't go that way.")
             return False
 
     if _lock_denies(actor, destination, LockType.ENTER,
@@ -390,4 +470,5 @@ async def move_through_exit(
 
 
 __all__ = ["move_through_exit", "resolve_exit_destination", "fire_exit_fail",
-           "move_to"]
+           "move_to", "register_dest_resolver", "has_dest_resolver",
+           "DestinationUnavailableError"]

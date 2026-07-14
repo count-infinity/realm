@@ -22,11 +22,16 @@ import time
 from typing import TYPE_CHECKING
 
 from realm.core.query import find_objects
+from realm.core.teardown import (
+    EPHEMERAL_TAG,
+    evacuation_room,
+    release_contents,
+    subtree_has_player,
+)
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
-EPHEMERAL_TAG = "ephemeral"          # transient — never persisted (see manager)
 TEMPLATE_TAG = "instance_template"    # opt-in mark on a source area
 MASTER_TAG = "instance_master"        # the per-copy lifecycle object
 ENTRY_TAG = "instance_entry"          # the template room players arrive in
@@ -40,19 +45,6 @@ def _clock() -> float:
 
 def _instance_tag(template: str, owner_id: str) -> str:
     return f"instance:{template}:{owner_id}"
-
-
-def evacuation_room(persistence, occupant: GameObject,
-                    return_room: GameObject | None = None) -> GameObject | None:
-    """Where to send a player displaced by a room's destruction: the
-    instance's ``return_room``, else their ``home``, else the world's start
-    room. The start-room floor means an evacuee is never stranded at
-    ``None`` while a world exists (see vision invariant #10 — fail loud, not
-    into the void)."""
-    home = (persistence.get_cached(occupant.db.get("home"))
-            if persistence else None)
-    floor = next(iter(find_objects(tag="start_room")), None)
-    return return_room or home or floor
 
 
 def _masters(template: str | None = None) -> list[GameObject]:
@@ -150,9 +142,10 @@ async def enter(
 
 
 def _occupied(inst_tag: str) -> bool:
+    # Subtree scan: a player inside a vehicle inside a copied room still
+    # holds the copy open.
     for obj in find_objects(tag=inst_tag):
-        if obj.has_tag("room") and any(
-                c.has_tag("player") for c in obj.contents):
+        if obj.has_tag("room") and subtree_has_player(obj):
             return True
     return False
 
@@ -166,14 +159,16 @@ async def destroy_instance(master: GameObject, persistence) -> None:
                    if master.db.get("return_room") else None)
 
     objects = find_objects(tag=inst_tag)
-    # Evacuate players along the return_room → home → start_room ladder.
+    # R9 disposition for every room's occupants: players evacuated down
+    # the return_room → home → start_room ladder, player-owned property
+    # to its owner's refuge, everything else destroyed loudly. Objects
+    # cloned with the copy (inst-tagged) are deleted below alongside it.
+    doomed = {obj.id for obj in objects} | {master.id}
     for room in objects:
         if not room.has_tag("room"):
             continue
-        for occupant in list(room.contents):
-            if occupant.has_tag("player"):
-                occupant.location = evacuation_room(
-                    persistence, occupant, return_room)
+        await release_contents(room, persistence,
+                               return_room=return_room, doomed_ids=doomed)
 
     # The master carries the instance tag too, so it's already in `objects`;
     # dedupe by id so we don't delete it twice.
@@ -203,6 +198,6 @@ async def reap_idle(persistence, *, now: float | None = None) -> int:
 
 __all__ = [
     "EPHEMERAL_TAG", "TEMPLATE_TAG", "MASTER_TAG", "ENTRY_TAG",
-    "DEFAULT_IDLE_TTL",
+    "DEFAULT_IDLE_TTL", "evacuation_room",
     "instance_for", "materialize", "enter", "destroy_instance", "reap_idle",
 ]

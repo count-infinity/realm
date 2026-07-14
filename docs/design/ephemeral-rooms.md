@@ -1,10 +1,11 @@
 # Ephemeral Rooms — On-Demand Instances & Wilderness
 
-**Status:** Stage 1 (**per-PC instances**) is **shipped** — `realm/core/instances.py`,
-the `ephemeral` transient flag in persistence, the softcode `enter_instance()`
-surface, and the idle reaper on the world tick. The **wilderness** variant
-(formula-resolved exits over coordinate cells) is still design-only. This
-document is both the shipped design and the roadmap for the rest.
+**Status:** both stages **shipped**. Stage 1 (**per-PC instances**) —
+`realm/core/instances.py`, the `ephemeral` transient flag in persistence,
+the softcode `enter_instance()` surface, and the idle reaper on the world
+tick. Stage 2 (**wilderness**) — `realm/core/wilderness.py` over the same
+machinery, keyed by coordinate; see `wilderness-requirements.md` (the
+executable spec) for what shipped. This document is the shared design.
 
 **What's shipped (Stage 1):**
 
@@ -23,8 +24,17 @@ document is both the shipped design and the roadmap for the rest.
   return_room=, idle_ttl=)`, authority-gated (`_may_mutate` + the template
   opt-in), mirroring `act()`/`teleport_obj`.
 
-**Still design-only:** the wilderness keying (kernel #3, formula-resolved
-exit destinations), pooling instead of recreate, and the map-provider layer.
+**Closed gap (fixed with Stage 2):** teardown used to be *player-only* —
+a foreign persistent object (a dropped item, a wandering NPC) in a
+destroyed copy was orphaned with a dangling `location_id`, reloading
+silently at `location=None`. The shared teardown (`realm/core/teardown.py`,
+used by both reapers) now applies the R9 disposition — players evacuated,
+player-owned property to its owner's refuge, everything else destroyed
+loudly — and load-time reconcile covers non-players (see
+`wilderness-requirements.md` R9).
+
+**Still design-only:** pooling instead of recreate (a later optimization,
+only if cell churn gets hot).
 
 Two features that look different are the *same primitive*: a per-party
 **instance** (a private copy of an authored area, so puzzles and loot
@@ -92,7 +102,12 @@ Everything else is convention (below); the kernel only needs:
    an exit's `destination` is a fixed object; allow it to be resolved by
    softcode at traverse time, so a direction exit can *get-or-create the
    room for the neighbor cell* and land you in a **real** room (not a
-   self-loop).
+   self-loop). *Final form:* a **deferred exit destination** — a named
+   resolver the movement kernel consults after the origin-side gates pass,
+   so the traversal stays a normal `move_through_exit` (wards, locks,
+   `on_enter`, followers all unchanged). The `on_fail` dead-end idea was
+   considered and retired for movement (see `wilderness-requirements.md`
+   §4.3).
 
 ## The convention layer (data + behaviors, no new subsystem)
 

@@ -97,6 +97,7 @@ nav:
     - Combat: design/combat.md
     - Rules Kernel (data-driven): design/rules-kernel.md
     - Ephemeral Rooms (instances & wilderness): design/ephemeral-rooms.md
+    - Wilderness Requirements (Stage 2): design/wilderness-requirements.md
     - Features Roadmap: design/features-roadmap.md
     - Action Tags & Movement: design/action-tags.md
     - LambdaMOO Comparison: design/moo-comparison.md

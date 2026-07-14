@@ -642,7 +642,11 @@ class ScriptEngine:
         if not direction or executor.location is None:
             return
 
-        from realm.core.movement import move_through_exit, resolve_exit_destination
+        from realm.core.movement import (
+            has_dest_resolver,
+            move_through_exit,
+            resolve_exit_destination,
+        )
         from realm.core.search import AmbiguousMatchError, match_one
 
         exits = [obj for obj in executor.location.contents if obj.has_tag('exit')]
@@ -658,7 +662,7 @@ class ScriptEngine:
             return
 
         destination = resolve_exit_destination(exit_obj)
-        if destination is None:
+        if destination is None and not has_dest_resolver(exit_obj):
             return
         await move_through_exit(executor, destination, exit_obj=exit_obj)
 
@@ -921,6 +925,16 @@ class ScriptEngine:
                         logger.warning(
                             f"enter_instance({template!r}) for {obj.name}: "
                             f"no entry room materialized; move dropped")
+            elif kind == 'wilderness':
+                if self._persistence is not None:
+                    from realm.core import wilderness
+                    region, x, y = message
+                    cell = await wilderness.enter_cell(
+                        obj, region, x, y, self._persistence)
+                    if cell is None:
+                        logger.warning(
+                            f"enter_wilderness({region!r}, {x}, {y}) for "
+                            f"{obj.name}: no cell materialized; move dropped")
         functions.command_queue.clear()
 
     async def _propagate_act(self, actor, target, message, targeting,

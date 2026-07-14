@@ -468,7 +468,11 @@ class CombatEncounter:
     async def _resolve_flee(self, participant: Participant,
                             action: QueuedAction) -> None:
         from realm.core.checks import check
-        from realm.core.movement import move_through_exit, resolve_exit_destination
+        from realm.core.movement import (
+            has_dest_resolver,
+            move_through_exit,
+            resolve_exit_destination,
+        )
         from realm.core.search import match_objects
 
         obj = participant.obj
@@ -496,7 +500,9 @@ class CombatEncounter:
             return
 
         destination = resolve_exit_destination(exit_obj)
-        if destination is None:
+        if destination is None and not has_dest_resolver(exit_obj):
+            # A deferred exit (a wilderness cell edge) resolves inside
+            # move_through_exit — only a true dead-end blocks the flee.
             obj.msg("There's nowhere to flee!")
             return
 

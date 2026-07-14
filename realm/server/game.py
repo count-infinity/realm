@@ -25,6 +25,10 @@ from typing import TYPE_CHECKING, Any
 # BehaviorRegistry so persisted worlds can rehydrate them.
 import realm.behaviors  # noqa: F401
 import realm.combat.behaviors  # noqa: F401
+
+# Importing wilderness registers its deferred-destination resolver with
+# the movement kernel before any player can walk a wilderness exit.
+import realm.core.wilderness  # noqa: F401
 from realm.combat.manager import CombatManager, set_combat_manager
 from realm.combat.system import create_combat_system
 from realm.core.objects import GameObject
@@ -520,13 +524,18 @@ class GameServer:
     async def _reconcile_orphaned_players(self) -> None:
         """Kernel bit #2, across the reboot boundary.
 
-        A player mid-instance at shutdown has ``location`` pointing at an
-        ephemeral (instanced) room. That room is never persisted, so on
+        A player mid-instance/wilderness at shutdown has ``location``
+        pointing at an ephemeral room. That room is never persisted, so on
         reload the reference resolves to nothing and the player's location
         is left ``None`` — they'd log in to "You are nowhere." Reconcile
         each such player down the same ladder the destroy paths use (home,
         else the start room), loudly. Active destroy/reap evacuate directly;
         this is the load-time half of the guarantee.
+
+        Non-players whose stored location dangled get the R9 disposition
+        (the crash-path backstop — a clean reap already applied it):
+        player-owned property lands in its owner's refuge; everything else
+        is deleted, loudly — never left silently at ``location=None``.
         """
         if not self.persistence:
             return
@@ -543,6 +552,36 @@ class GameServer:
                 f"Reconciled orphaned player {player.name} "
                 f"(no resolvable location) -> {dest.name}"
             )
+
+        from realm.core.teardown import owner_refuge, release_contents
+        dangling = getattr(self.persistence, '_dangling_locations', {})
+        for obj_id, loc_id in list(dangling.items()):
+            dangling.pop(obj_id, None)
+            obj = self.persistence.get_cached(obj_id)
+            if obj is None or obj.location is not None or obj.has_tag('player'):
+                continue
+            owner = obj.owner
+            refuge = None
+            if owner is not None and owner.has_tag('player'):
+                refuge = (owner_refuge(self.persistence, owner)
+                          or self._startup_room)
+            if refuge is not None:
+                obj.location = refuge
+                await self.persistence.save(obj)
+                logger.warning(
+                    f"Reconciled {obj.name} ({obj.id}): stored location "
+                    f"{loc_id} vanished -> {owner.name}'s refuge {refuge.name}"
+                )
+            else:
+                # Empty it first — a player or player-owned property that
+                # reloaded INSIDE this dangling container must not be
+                # deleted out from under (R9 recursion).
+                await release_contents(obj, self.persistence)
+                await self.persistence.delete(obj)
+                logger.warning(
+                    f"Reaped {obj.name} ({obj.id}): stored location "
+                    f"{loc_id} vanished and it has no player owner"
+                )
 
     async def _ensure_startup_room(self) -> None:
         """Create a default startup room when neither the database nor
@@ -881,6 +920,11 @@ class GameServer:
                     await instances.reap_idle(self.persistence)
                 except Exception:
                     logger.exception("Instance reap error")
+                try:
+                    from realm.core import wilderness
+                    await wilderness.reap_wilderness(self.persistence)
+                except Exception:
+                    logger.exception("Wilderness reap error")
             for session in self.session_manager.all_sessions():
                 try:
                     await session.flush_output()

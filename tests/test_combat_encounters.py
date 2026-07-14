@@ -280,6 +280,34 @@ class TestFlee:
         assert alice.location is room
         assert encounter.get(alice.id) is not None
 
+    async def test_flee_works_through_a_deferred_destination_exit(self, manager):
+        """A wilderness cell's exits carry only a dest_resolver — flee must
+        route them into move_through_exit (which resolves after the gates),
+        not bail at 'There's nowhere to flee!'."""
+        from realm.core.movement import register_dest_resolver
+
+        room = GameObject("Wild Cell", tags=["room"])
+        beyond = GameObject("Next Cell", tags=["room"])
+
+        async def stub_resolver(exit_obj, actor):
+            return beyond
+
+        register_dest_resolver("flee-test-stub", stub_resolver)
+        door = GameObject("out", location=room, tags=["exit"])
+        door.db.dest_resolver = "flee-test-stub"      # no destination stored
+
+        alice, _ = make_fighter("Alice", room, dexterity=14)
+        bruiser, _ = make_fighter("Bruiser", room, player=False)
+        encounter = await manager.initiate(alice, bruiser)
+        encounter.queue(alice, QueuedAction("flee", args="out"))
+        encounter.queue(bruiser, QueuedAction("wait"))
+
+        await encounter.resolve_round()
+
+        assert alice.location is beyond
+        assert not alice.has_tag('in_combat')
+        assert encounter.get(alice.id) is None
+
 
 # --- Defeat ----------------------------------------------------------------------
 
