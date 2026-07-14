@@ -305,6 +305,159 @@ class TestReaping:
         assert sword.location is w.town
 
 
+WOLF_POPULATE = (
+    "wolf = {'name': 'a gray wolf', 'tags': ['npc'],"
+    " 'attrs': {'hp': 8, 'max_hp': 8}}\n"
+    "result = [wolf] if (x + y) % 2 == 0 else []"
+)
+
+
+def _npcs(room):
+    return [o for o in room.contents if o.has_tag("npc")]
+
+
+@pytest.mark.asyncio
+class TestPopulation:
+    """Stage 3: cell_populate — prototype dicts spawned at materialize."""
+
+    async def test_populated_cell_has_its_spawns_on_arrival(self, world):
+        w = world
+        w.master.db.set("cell_populate", WOLF_POPULATE)
+        await w.sim.do(w.alice, "wild")               # (2,2): even -> wolf
+
+        wolves = _npcs(w.alice.location)
+        assert len(wolves) == 1
+        wolf = wolves[0]
+        assert wolf.name == "a gray wolf"
+        assert wolf.has_tag("ephemeral")
+        assert wolf.has_tag("zone:wilderness:wilds")
+        assert wolf.db.get("hp") == 8
+
+    async def test_odd_coord_rolls_empty(self, world):
+        w = world
+        w.master.db.set("cell_populate", WOLF_POPULATE)
+        await w.sim.do(w.alice, "wild")
+        await w.sim.do(w.alice, "north")              # (2,3): odd -> none
+        assert _npcs(w.alice.location) == []
+
+    async def test_spawns_die_with_the_reap(self, world):
+        w = world
+        w.master.db.set("cell_populate", WOLF_POPULATE)
+        cell = await wilderness.materialize_cell("wilds", 0, 0, w.store)
+        wolf = _npcs(cell)[0]
+
+        reaped = await wilderness.reap_wilderness(
+            w.store, now=time.time() + 10_000)
+
+        assert reaped == 1                            # wolf held nothing open
+        assert w.store.get_cached(wolf.id) is None
+
+    async def test_denylisted_prototype_tags_are_stripped(self, world):
+        w = world
+        w.master.db.set("cell_populate", (
+            "result = [{'name': 'an impostor',"
+            " 'tags': ['npc', 'player', 'start_room']}]"))
+        cell = await wilderness.materialize_cell("wilds", 0, 0, w.store)
+
+        impostor = _npcs(cell)[0]
+        assert not impostor.has_tag("player")
+        assert not impostor.has_tag("start_room")
+        # And it can't hold the cell open by impersonating a player.
+        reaped = await wilderness.reap_wilderness(
+            w.store, now=time.time() + 10_000)
+        assert reaped == 1
+
+    async def test_mob_cannot_materialize_but_can_pursue(self, world):
+        w = world
+        w.master.db.set("cell_populate", WOLF_POPULATE)
+        cell = await wilderness.materialize_cell("wilds", 2, 2, w.store)
+        wolf = _npcs(cell)[0]
+        north = next(o for o in cell.contents if o.name == "north")
+
+        # A mob at the frontier of the materialized world: dead-end.
+        assert await wilderness.resolve_wilderness_exit(north, wolf) is None
+        assert wilderness.cell_for("wilds", 2, 3) is None
+
+        # A player materializes it; now the mob may follow.
+        neighbor = await wilderness.resolve_wilderness_exit(north, w.alice)
+        assert neighbor is not None
+        assert await wilderness.resolve_wilderness_exit(north, wolf) is neighbor
+
+    async def test_broken_populate_leaves_cell_unpopulated(self, world):
+        w = world
+        w.master.db.set("cell_populate", "result = 1 / 0")
+        cell = await wilderness.materialize_cell("wilds", 0, 0, w.store)
+        assert cell is not None                       # cell still builds
+        assert _npcs(cell) == []
+
+    async def test_wrong_shaped_populate_is_skipped(self, world):
+        w = world
+        w.master.db.set("cell_populate", "result = 7")
+        cell = await wilderness.materialize_cell("wilds", 0, 0, w.store)
+        assert cell is not None
+        assert _npcs(cell) == []
+
+    async def test_concurrent_walkers_share_one_build(self, world):
+        """Two walkers stepping into one unmaterialized coord in the same
+        window must share a single build — not two cells, two wolves, and
+        an un-reapable orphan outside the index."""
+        import asyncio
+        w = world
+        w.master.db.set("cell_populate", WOLF_POPULATE)
+
+        first, second = await asyncio.gather(
+            wilderness.materialize_cell("wilds", 2, 2, w.store),
+            wilderness.materialize_cell("wilds", 2, 2, w.store),
+        )
+
+        assert first is second
+        assert len(_npcs(first)) == 1             # one encounter, not two
+        wolves = [o for o in w.store.find_cached(tag="npc")
+                  if o.has_tag("zone:wilderness:wilds")]
+        assert len(wolves) == 1                   # no orphaned duplicate
+
+    async def test_mob_arrival_does_not_refresh_the_ttl(self, world):
+        """A spawn pacing between cells must not keep them (and itself)
+        alive forever — only a player's arrival is activity."""
+        w = world
+        w.master.db.set("cell_populate", WOLF_POPULATE)
+        origin = await wilderness.materialize_cell("wilds", 2, 2, w.store)
+        neighbor = await wilderness.materialize_cell("wilds", 2, 3, w.store)
+        wolf = _npcs(origin)[0]
+        north = next(o for o in origin.contents if o.name == "north")
+        stale = time.time() - 10_000
+        neighbor.db.set("last_active", stale)
+
+        assert await wilderness.resolve_wilderness_exit(north, wolf) is neighbor
+        assert neighbor.db.get("last_active") == stale      # not refreshed
+
+        assert await wilderness.resolve_wilderness_exit(north, w.alice) is neighbor
+        assert neighbor.db.get("last_active") != stale      # player refreshes
+
+    async def test_patrolling_spawn_walks_deferred_exits(self, world):
+        w = world
+        w.master.db.set("cell_populate", (
+            "wolf = {'name': 'a gray wolf', 'tags': ['npc'], 'behaviors':"
+            " [{'behavior_id': 'patrol',"
+            "   'params': {'route': ['north', 'south'], 'pause': 0}}]}\n"
+            "result = [wolf] if x == 2 and y == 2 else []"))
+        origin = await wilderness.materialize_cell("wilds", 2, 2, w.store)
+        wolf = _npcs(origin)[0]
+        patrol = wolf.get_behaviors()[0]
+
+        # Frontier of the materialized world: the wolf is refused, no cell.
+        await patrol.tick(wolf, 4.0)
+        assert wolf.location is origin
+        assert wilderness.cell_for("wilds", 2, 3) is None
+
+        # A player opens the terrain; now the patrol proceeds into it.
+        neighbor = await wilderness.materialize_cell("wilds", 2, 3, w.store)
+        wolf.db.set("patrol_wait", 0)
+        wolf.db.set("patrol_index", 0)
+        await patrol.tick(wolf, 4.0)
+        assert wolf.location is neighbor
+
+
 @pytest.mark.asyncio
 class TestReviewRegressions:
     """Pins for the adversarial-review findings (see wilderness spec §6)."""

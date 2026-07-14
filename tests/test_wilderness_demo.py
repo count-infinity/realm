@@ -51,6 +51,12 @@ async def test_frontier_walkabout(world):
     # Walk a few cells; each derives deterministically from its coord.
     await w.sim.do(alice, "north")
     assert alice.location.has_tag("wildcell:frontier:10,11")
+    # (10,11) is pine forest ((x*7+y*13)%4 == 1) — a wolf lives here,
+    # born ephemeral + zone-tagged so it dies with the cell.
+    wolves = [o for o in alice.location.contents if o.has_tag("npc")]
+    assert len(wolves) == 1
+    assert wolves[0].name == "a frontier wolf"
+    assert wolves[0].has_tag("ephemeral")
     await w.sim.do(alice, "east")
     assert alice.location.has_tag("wildcell:frontier:11,11")
 

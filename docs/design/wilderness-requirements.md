@@ -151,6 +151,16 @@ later — one mechanism, two keyings.
     - `cell_terrain` → str tag(s) applied to the cell (optional)
   - `edge_msg` — authored bounds line (R4; a plain string, not softcode),
     stamped as `fail_msg` on the cells' directional exits
+  - `cell_populate` (Stage 3) → list of **prototype dicts** — the exact
+    shape `SpawnerBehavior` already speaks (`name`, `tags`, `attrs`,
+    `behaviors`) — spawned into the cell at materialize time via
+    `spawn_from_prototype`. The kernel injects `ephemeral` + the region
+    zone tag (so spawns die with the cell, R9) and strips
+    identity-bearing tags a spawn must never carry (`player`, `room`,
+    `exit`, `start_room`, …), loudly. Unlike `is_valid`/`cell_exits`,
+    this attr **may** be random — a re-materialized cell re-rolling its
+    encounter table is the genre, not a bug. Errors follow the R10
+    flavor rule: logged, cell still builds, unpopulated.
   - `idle_ttl` — default **120s**, *not* `instances.DEFAULT_IDLE_TTL`
     (900s). An instance TTL amortizes a full zone import; a cell re-derives
     from a few provider evals, so its TTL is only a walk-back-rejoin grace.
@@ -243,6 +253,10 @@ likely ask for anyway).
   y)` mirrors `enter_instance` — authority-gated, queues a `('wilderness',
   …)` op, drained to `wilderness.enter_cell` (a `move_to` placement, so
   teleport semantics apply).
+- **Only players materialize** (Stage 3): the resolver get-or-creates a
+  missing neighbor only for a `player`-tagged walker. A spawned mob may
+  pursue into an *existing* cell, but a missing one is a dead-end for it
+  — otherwise one wandering wolf generates terrain forever.
 
 ### 4.4 Authority & consent (do not regress the audit)
 
@@ -311,6 +325,18 @@ hardened:
 12. **Reap → re-materialize stability** — a cell reaped and re-entered has
     identical validity and open exits (R2 determinism); only `[[...]]`
     viewer flavor may vary.
+13. **Spawned mob lifecycle** — a `cell_populate` spawn is present when
+    the walker arrives, never holds the cell open alone, and dies with
+    the cell at reap; a broken or wrong-shaped `cell_populate` logs and
+    leaves the cell unpopulated (never half-built).
+14. **Mob at the frontier of the materialized world** — a mob walking a
+    direction whose cell doesn't exist gets a dead-end; the same walk by
+    a player materializes it. A mob may follow a fleeing player into a
+    cell that already exists.
+15. **Spawn tag hygiene** — a prototype claiming `player` / `room` /
+    `exit` / `start_room` etc. has those tags stripped with a logged
+    warning; a spawn can't impersonate an evacuation floor or hold cells
+    open.
 
 ## 7. Test plan (`tests/test_wilderness.py`, Simulator-driven)
 
@@ -344,6 +370,11 @@ hardened:
   + a logged error.
 - Determinism: materialize → reap → re-materialize the same coord → same
   validity and open exits.
+- Population: a populated cell has its spawns on arrival (ephemeral +
+  zone-tagged, denylisted tags stripped); spawns die with the reap; a
+  mob-only cell still reaps; a mob can't materialize a neighbor but can
+  enter an existing one; broken/wrong-shaped `cell_populate` → logged,
+  cell unpopulated.
 
 ## 8. Decisions for the implementer (with recommendations)
 
@@ -364,13 +395,15 @@ hardened:
   `import_objects`) but heavier; start with per-attr softcode.
 - **Landmarks → instanced dungeons:** composition (a cell coord whose exit
   `enter_instance`s) — design for it, defer building it.
-- **Population: v1 cells are sterile.** No spawn hook yet; encounters are a
-  follow-up (a `cell_populate` provider attr evaluated at materialize — the
-  `at_prepare_room` analog — feeding `SpawnerBehavior`, its spawn born
-  `ephemeral` + zone-tagged so it dies with the cell). Decide the semantics
-  *now* so nothing regresses later: NPCs never hold a cell open, and at
-  teardown ownership decides their fate like anything else (R9). Softcode
-  that spawns into cells before the hook exists does so at its own risk.
+- **Population (Stage 3 — shipped).** The `cell_populate` provider attr
+  (§4.1) is the `at_prepare_room` analog: prototype dicts spawned at
+  materialize via `spawn_from_prototype` — one vocabulary shared with
+  `SpawnerBehavior`, no parallel spawn system. Spawns are born
+  `ephemeral` + zone-tagged: they never hold a cell open, die with it at
+  teardown (R9; a *player-owned* pet still follows the ownership rule),
+  and there is deliberately no in-cell respawn timer — a cell's whole
+  life is ~one visit, and the reap/re-materialize cycle *is* the respawn
+  (the encounter table re-rolls). Mobs never materialize cells (§4.3).
 - **Non-player contents on teardown:** ownership decides — unowned →
   destroyed loudly; player-owned → the owner's home (R9) — in the *shared*
   helper, so instances get the same fix; this closes a live Stage 1 gap,

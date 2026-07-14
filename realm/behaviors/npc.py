@@ -135,12 +135,18 @@ class PatrolBehavior(Behavior):
             obj.db.patrol_index = index + 1
             return
 
-        from realm.core.movement import move_through_exit, resolve_exit_destination
+        from realm.core.movement import (
+            has_dest_resolver,
+            move_through_exit,
+            resolve_exit_destination,
+        )
         destination = resolve_exit_destination(exit_obj)
-        if destination is None:
+        if destination is None and not has_dest_resolver(exit_obj):
             obj.db.patrol_index = index + 1
             return
 
+        # A deferred exit (wilderness cell edge) resolves inside
+        # move_through_exit; a mob is refused where no cell exists yet.
         moved = await move_through_exit(obj, destination, exit_obj=exit_obj)
         if moved:
             obj.db.patrol_index = index + 1

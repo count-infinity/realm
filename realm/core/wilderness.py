@@ -29,6 +29,7 @@ cache.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import TYPE_CHECKING
@@ -67,12 +68,26 @@ _ALIASES = {
 }
 DEFAULT_EXITS = ["north", "south", "east", "west"]
 
+# Tags a cell_populate spawn must never carry: identity-bearing tags
+# that would let a prototype impersonate a player (hold cells open, get
+# evacuated), a room/exit, or an evacuation floor. Stripped loudly.
+SPAWN_TAG_DENYLIST = frozenset({
+    "player", "room", "exit", "start_room",
+    REGION_TAG, "instance_template", "instance_master", "instance_entry",
+})
+
 # The live-cell index — THE lookup (identity tags are for debugging and
 # zone tooling, never for lookup). Entries are validated against the
 # active persistence cache on read, so a stale world (tests, reboots)
 # can't serve a dead cell.
 _cells: dict[tuple[str, int, int], GameObject] = {}
 _regions: dict[str, GameObject] = {}
+# In-flight builds, keyed by coordinate: the provider evals inside
+# materialize_cell genuinely yield (they run off-loop), so two walkers
+# stepping into one unmaterialized coord in the same window must share
+# a single build — not each get a cell, doubling the encounter and
+# leaking the loser outside the index where no reaper can see it.
+_pending: dict[tuple[str, int, int], asyncio.Task] = {}
 
 
 class ProviderError(Exception):
@@ -105,6 +120,7 @@ def reset() -> None:
     """Drop the module indexes (test hygiene / world teardown)."""
     _cells.clear()
     _regions.clear()
+    _pending.clear()
 
 
 def get_region(region: str) -> GameObject | None:
@@ -196,13 +212,25 @@ async def materialize_cell(
     """Build the ephemeral cell at ``(region, x, y)`` from the region's
     map-provider — or return the live one. ``None`` iff ``is_valid``
     evaluated false; a provider *error* raises :class:`ProviderError`
-    instead (R10 — a builder's bug never masquerades as an ocean)."""
-    from realm.core.objects import GameObject as GameObjectCls
-
-    region_name, x, y = str(region), int(x), int(y)
-    existing = cell_for(region_name, x, y)
+    instead (R10 — a builder's bug never masquerades as an ocean).
+    Concurrent callers for one coordinate share a single build."""
+    key = (str(region), int(x), int(y))
+    existing = cell_for(*key)
     if existing is not None:
         return existing
+    task = _pending.get(key)
+    if task is None:
+        task = asyncio.create_task(
+            _build_cell(key[0], key[1], key[2], persistence))
+        _pending[key] = task
+        task.add_done_callback(lambda _t: _pending.pop(key, None))
+    return await task
+
+
+async def _build_cell(
+    region_name: str, x: int, y: int, persistence,
+) -> GameObject | None:
+    from realm.core.objects import GameObject as GameObjectCls
 
     region_obj = get_region(region_name)
     if region_obj is None:
@@ -272,7 +300,55 @@ async def materialize_cell(
         exit_obj.location = cell
         await persistence.save(exit_obj)
 
+    await _populate_cell(region_obj, cell, x, y, persistence)
     return cell
+
+
+async def _populate_cell(region_obj: GameObject, cell: GameObject,
+                         x: int, y: int, persistence) -> None:
+    """Stage 3: spawn the provider's ``cell_populate`` prototypes into a
+    fresh cell — the same prototype-dict vocabulary ``SpawnerBehavior``
+    speaks. Spawns are born ``ephemeral`` + zone-tagged (they die with
+    the cell, R9, and never hold it open). Unlike ``is_valid``/
+    ``cell_exits``, this attr may be random — the reap/re-materialize
+    cycle re-rolls the encounter table. Errors follow the R10 flavor
+    rule: logged, cell left unpopulated."""
+    if not _provider_set(region_obj, "cell_populate"):
+        return
+    try:
+        protos = await _eval_provider(region_obj, "cell_populate", x, y,
+                                      persistence=persistence)
+    except ProviderError as exc:
+        logger.error(f"{exc} — cell left unpopulated")
+        return
+    if protos is None:
+        return
+    if not isinstance(protos, (list, tuple)):
+        logger.warning(
+            f"map-provider {region_obj.name}.cell_populate returned "
+            f"{type(protos).__name__!r} at ({x},{y}) — expected a list of "
+            f"prototype dicts; cell left unpopulated")
+        return
+
+    from realm.behaviors.spawner import spawn_from_prototype
+
+    zone = _region_zone(str(cell.db.get("wild_region")))
+    for proto in protos:
+        if not isinstance(proto, dict):
+            logger.warning(
+                f"map-provider {region_obj.name}.cell_populate entry "
+                f"{proto!r} at ({x},{y}) is not a prototype dict; skipped")
+            continue
+        spawn = spawn_from_prototype(proto, cell)
+        for tag in SPAWN_TAG_DENYLIST:
+            if spawn.has_tag(tag):
+                logger.warning(
+                    f"cell_populate spawn {spawn.name} at ({x},{y}) "
+                    f"claimed denylisted tag {tag!r}; stripped")
+                spawn.remove_tag(tag)
+        spawn.add_tag(EPHEMERAL_TAG)
+        spawn.add_tag(zone)
+        await persistence.save(spawn)   # registered in cache, skipped from DB
 
 
 def _build_cell_exit(entry, zone: str, edge_msg) -> GameObject | None:
@@ -365,13 +441,21 @@ async def resolve_wilderness_exit(
     try:
         cell = cell_for(region, x, y)
         if cell is None:
+            # Only players materialize terrain: a mob may pursue into an
+            # existing cell, but a missing neighbor is a dead-end for it
+            # — one wandering wolf must not generate cells forever.
+            if not actor.has_tag("player"):
+                return None
             cell = await materialize_cell(region, x, y, persistence)
     except ProviderError as exc:
         logger.error(str(exc))
         from realm.core.movement import DestinationUnavailableError
         raise DestinationUnavailableError(
             "A strange force bars the way.") from exc
-    if cell is not None:
+    if cell is not None and actor.has_tag("player"):
+        # Only a player's arrival is activity: a spawn pacing between
+        # cells must not refresh their TTL and keep itself alive forever
+        # (R6/edge case 13 — NPCs never hold a cell open).
         cell.db.set("last_active", _clock())
     return cell
 

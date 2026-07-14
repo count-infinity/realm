@@ -38,6 +38,18 @@ CELL_TERRAIN = (
 
 EDGE_MSG = "The frontier ends in an impassable wall of bramble."
 
+# Pine-forest cells shelter a wolf (deterministic here; a real game
+# would roll an encounter table — cell_populate MAY be random, unlike
+# is_valid/cell_exits). Passive by default: give it the 'aggressive'
+# behavior for real teeth.
+CELL_POPULATE = (
+    "wolf = {'name': 'a frontier wolf',"
+    " 'description': 'Lean and gray, watching from the treeline.',"
+    " 'tags': ['npc'],"
+    " 'attrs': {'hp': 8, 'max_hp': 8, 'skill_melee': 10}}\n"
+    "result = [wolf] if (x * 7 + y * 13) % 4 == 1 else []"
+)
+
 
 def cell_exits_code(trailhead_id: str) -> str:
     """The open directions — plus, at the start coordinate, the authored
@@ -72,6 +84,7 @@ async def create_frontier(repo) -> dict:
     master.db.set("cell_desc", CELL_DESC)
     master.db.set("cell_terrain", CELL_TERRAIN)
     master.db.set("cell_exits", cell_exits_code(trailhead.id))
+    master.db.set("cell_populate", CELL_POPULATE)
     master.db.set("edge_msg", EDGE_MSG)
     master.db.set("start_coord", [10, 10])
     await repo.save(master)
