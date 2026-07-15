@@ -437,8 +437,13 @@ class ScriptFunctions:
         materialize-and-move happens after the script ends.
 
         Callable when the executor controls the player, or the player is the
-        enactor (they walked into the portal). Example — an exit's ON_FAIL:
-        ``&exit ON_FAIL = enter_instance(enactor, 'crypt')``
+        enactor (they walked into the portal). This is the *scripted* API —
+        a game event opening a dungeon, a puzzle reward. For a portal
+        **exit**, prefer a real deferred-destination exit instead:
+        ``@set exit/dest_resolver = instance`` +
+        ``@set exit/instance_template = crypt`` — a normal traversal, with
+        follower routing. (The legacy dead-end pattern
+        ``&exit ON_FAIL = enter_instance(enactor, 'crypt')`` still works.)
         """
         from realm.core.instances import ENTRY_TAG, TEMPLATE_TAG
         from realm.permissions.locks import LockType, check_lock

@@ -280,6 +280,28 @@ class TestFlee:
         assert alice.location is room
         assert encounter.get(alice.id) is not None
 
+    async def test_flee_refuses_instance_portals(self, manager):
+        """A portal resolves to PRIVATE per-walker space — fleeing through
+        one is an unpursuable teleport into a fresh dungeon import, so it
+        is excluded from flee entirely (registered shared_destination=False)."""
+        import realm.core.instances  # noqa: F401 — registers the resolver
+
+        room = GameObject("Shrine", tags=["room"])
+        portal = GameObject("out", location=room, tags=["exit"])
+        portal.db.dest_resolver = "instance"
+        portal.db.instance_template = "crypt"
+
+        alice, _ = make_fighter("Alice", room, dexterity=14)
+        bruiser, _ = make_fighter("Bruiser", room, player=False)
+        encounter = await manager.initiate(alice, bruiser)
+        encounter.queue(alice, QueuedAction("flee", args="out"))
+        encounter.queue(bruiser, QueuedAction("wait"))
+
+        await encounter.resolve_round()
+
+        assert alice.location is room                 # no escape hatch
+        assert encounter.get(alice.id) is not None    # still in the fight
+
     async def test_flee_works_through_a_deferred_destination_exit(self, manager):
         """A wilderness cell's exits carry only a dest_resolver — flee must
         route them into move_through_exit (which resolves after the gates),

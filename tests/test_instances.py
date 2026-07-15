@@ -186,6 +186,182 @@ class TestEvacuation:
         assert w.alice.location is w.hub
 
 
+def _portal(sim, room, template="crypt", **attrs):
+    """A real portal exit with a deferred instance destination."""
+    portal = sim.obj("portal", location=room, tags=["exit"])
+    portal.db.set("dest_resolver", "instance")
+    portal.db.set("instance_template", template)
+    for key, value in attrs.items():
+        portal.db.set(key, value)
+    return portal
+
+
+@pytest.mark.asyncio
+class TestPortalExit:
+    """Instance portals as real exits (dest_resolver="instance") — the
+    deferred-destination migration; walking is a normal traversal."""
+
+    async def test_walking_the_portal_materializes_and_moves(self, world):
+        w = world
+        _portal(w.sim, w.hub)
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location is not w.hub
+        assert w.alice.location.has_tag("ephemeral")
+        assert w.alice.location.has_tag(f"instance:crypt:{w.alice.id}")
+
+    async def test_return_room_defaults_to_the_portal_room(self, world):
+        w = world
+        _portal(w.sim, w.hub)
+        await w.sim.do(w.alice, "portal")
+        master = instances.instance_for("crypt", w.alice)
+
+        await instances.destroy_instance(master, w.store)
+
+        assert w.alice.location is w.hub      # evacuated to where they entered
+
+    async def test_rewalk_reuses_the_same_copy(self, world):
+        w = world
+        _portal(w.sim, w.hub)
+        await w.sim.do(w.alice, "portal")
+        first = w.alice.location
+        w.alice.location = w.hub
+        await w.sim.do(w.alice, "portal")
+        assert w.alice.location is first
+
+    async def test_two_players_get_separate_solo_copies(self, world):
+        w = world
+        _portal(w.sim, w.hub)
+        await w.sim.do(w.alice, "portal")
+        await w.sim.do(w.bob, "portal")
+        assert w.alice.location is not w.bob.location
+
+    async def test_shared_portal_cascades_followers_into_the_owners_copy(self, world):
+        w = world
+        _portal(w.sim, w.hub, instance_mode="shared")
+        w.bob.db.set("following", w.alice.id)
+        await w.sim.do(w.alice, "portal")
+
+        assert w.bob.location is w.alice.location    # routed, not left behind
+        assert w.bob.location.has_tag(f"instance:crypt:{w.alice.id}")
+
+    async def test_solo_portal_bounces_the_follower_at_the_threshold(self, world):
+        w = world
+        _portal(w.sim, w.hub)                        # mode defaults to solo
+        w.bob.db.set("following", w.alice.id)
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location.has_tag(f"instance:crypt:{w.alice.id}")
+        assert w.bob.location is w.hub               # bounced, no second copy
+        assert instances.instance_for("crypt", w.bob) is None
+
+    async def test_npc_pet_rides_a_shared_copy_but_never_owns_one(self, world):
+        w = world
+        portal = _portal(w.sim, w.hub, instance_mode="shared")
+        pet = w.sim.obj("a loyal hound", location=w.hub, tags=["npc"])
+        pet.db.set("following", w.alice.id)
+        await w.sim.do(w.alice, "portal")
+        assert pet.location is w.alice.location      # routed into the copy
+
+        lone = w.sim.obj("a stray cat", location=w.hub, tags=["npc"])
+        assert await instances.resolve_instance_exit(portal, lone) is None
+        assert instances.instance_for("crypt", lone) is None
+
+    async def test_locked_template_refuses_before_materializing(self, world):
+        from realm.permissions.locks import LockType
+        w = world
+        _portal(w.sim, w.hub)
+        w.entry.locks[LockType.ENTER.value] = "False"
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location is w.hub
+        assert instances.instance_for("crypt", w.alice) is None  # no import
+
+    async def test_non_template_zone_is_loud_not_geography(self, world):
+        w = world
+        _portal(w.sim, w.hub, template="hub")        # never opted in
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location is w.hub
+        assert any("strange force" in line for line in w.sim.seen(w.alice))
+
+    async def test_refused_walker_materializes_nothing(self, world):
+        w = world
+        _portal(w.sim, w.hub)
+        w.alice.add_tag("in_combat")
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location is w.hub
+        assert instances.instance_for("crypt", w.alice) is None
+        w.alice.remove_tag("in_combat")
+
+    async def test_garbage_ttl_falls_back_to_the_default(self, world):
+        w = world
+        _portal(w.sim, w.hub, instance_ttl="soon")
+        await w.sim.do(w.alice, "portal")
+        master = instances.instance_for("crypt", w.alice)
+        assert master.db.get("idle_ttl") == instances.DEFAULT_IDLE_TTL
+
+    async def test_dual_attr_exit_never_splits_the_party(self, world):
+        """An exit carrying BOTH a static destination and a dest_resolver:
+        the static destination wins for every walker — the leader and the
+        followers all land in the same place."""
+        w = world
+        street = w.sim.room("Street")
+        door = _portal(w.sim, w.hub)
+        door.db.set("destination", street.id)        # static wins
+        w.bob.db.set("following", w.alice.id)
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location is street
+        assert w.bob.location is street              # not routed, not blocked
+        assert instances.instance_for("crypt", w.alice) is None
+
+    async def test_transitive_shared_chain_rides_the_owners_copy(self, world):
+        """A follows B follows C: the whole chain lands in C's shared
+        copy, not in per-member private copies."""
+        w = world
+        carol = w.sim.player("Carol", location=w.hub)
+        _portal(w.sim, w.hub, instance_mode="shared")
+        w.bob.db.set("following", w.alice.id)
+        carol.db.set("following", w.bob.id)
+        await w.sim.do(w.alice, "portal")
+
+        assert w.bob.location is w.alice.location
+        assert carol.location is w.alice.location
+        assert instances.instance_for("crypt", carol) is not None
+        assert len(instances._masters("crypt")) == 1  # one copy, one party
+
+    async def test_transitive_solo_chain_bounces_everyone(self, world):
+        w = world
+        carol = w.sim.player("Carol", location=w.hub)
+        _portal(w.sim, w.hub)                        # solo
+        w.bob.db.set("following", w.alice.id)
+        carol.db.set("following", w.bob.id)
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location.has_tag(f"instance:crypt:{w.alice.id}")
+        assert w.bob.location is w.hub
+        assert carol.location is w.hub
+        assert len(instances._masters("crypt")) == 1
+
+    async def test_identity_sensitive_lock_leaves_no_orphan_copy(self, world):
+        """A lock reading the ROOM's identity can pass on the template and
+        deny on the fresh clone (new tags/ids) — the just-imported copy is
+        torn down, not left to linger until the reaper."""
+        from realm.permissions.locks import LockType
+        w = world
+        _portal(w.sim, w.hub)
+        w.entry.locks[LockType.ENTER.value] = "not target.has_tag('ephemeral')"
+        await w.sim.do(w.alice, "portal")
+
+        assert w.alice.location is w.hub
+        assert instances.instance_for("crypt", w.alice) is None
+        ghosts = [o for o in w.store.find_cached(tag="ephemeral")
+                  if o.has_tag("room")]
+        assert ghosts == []                          # nothing lingers
+
+
 @pytest.mark.asyncio
 class TestSoftcodeSurface:
 

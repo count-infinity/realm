@@ -86,17 +86,33 @@ async def bring_followers(
     unconscious, or mid-combat followers stay behind (the same rules
     they'd face walking themselves — locks and guards apply).
     """
-    from realm.core.movement import move_through_exit
+    from realm.core.movement import (
+        has_dest_resolver,
+        move_through_exit,
+        resolve_exit_destination,
+    )
     from realm.core.render import render_room
+
+    # A deferred exit re-resolves PER WALKER: a wilderness cell resolves
+    # to the same (now existing) cell, but an instance portal routes each
+    # follower individually — shared → the leader's copy, solo → bounced
+    # — instead of carrying everyone into the leader's private room.
+    # Only when the LEADER's own destination was resolver-produced,
+    # though: a static destination takes precedence for every walker, so
+    # an exit carrying both never splits the party.
+    deferred = (exit_obj is not None
+                and has_dest_resolver(exit_obj)
+                and resolve_exit_destination(exit_obj) is None)
 
     for obj in followers_of(leader, origin):
         if obj.has_tag('unconscious') or obj.has_tag('in_combat'):
             continue
-        moved = await move_through_exit(obj, destination, exit_obj=exit_obj)
+        moved = await move_through_exit(
+            obj, None if deferred else destination, exit_obj=exit_obj)
         if moved:
             obj.msg(f"You follow {leader.name}.")
             if obj.has_tag('player'):
-                obj.msg(render_room(destination, obj))
+                obj.msg(render_room(obj.location, obj))
 
 
 __all__ = [

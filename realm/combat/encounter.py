@@ -470,14 +470,19 @@ class CombatEncounter:
         from realm.core.checks import check
         from realm.core.movement import (
             has_dest_resolver,
+            has_private_dest_resolver,
             move_through_exit,
             resolve_exit_destination,
         )
         from realm.core.search import match_objects
 
         obj = participant.obj
+        # Instance portals resolve to PRIVATE per-walker space — fleeing
+        # through one isn't an escape, it's an unpursuable teleport into
+        # a freshly imported dungeon. Excluded from flee entirely.
         exits = [o for o in self.room.contents if o.has_tag('exit')
-                 and not o.has_tag('closed')]
+                 and not o.has_tag('closed')
+                 and not has_private_dest_resolver(o)]
         exit_obj = None
         if action.args:
             result = match_objects(action.args, exits, allow_substring=False)

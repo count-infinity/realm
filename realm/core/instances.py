@@ -18,9 +18,11 @@ kernel/game code and may clone any zone.
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import TYPE_CHECKING
 
+from realm.core.movement import register_dest_resolver
 from realm.core.query import find_objects
 from realm.core.teardown import (
     EPHEMERAL_TAG,
@@ -35,8 +37,11 @@ if TYPE_CHECKING:
 TEMPLATE_TAG = "instance_template"    # opt-in mark on a source area
 MASTER_TAG = "instance_master"        # the per-copy lifecycle object
 ENTRY_TAG = "instance_entry"          # the template room players arrive in
+RESOLVER_NAME = "instance"            # portal exits: db.dest_resolver = this
 
 DEFAULT_IDLE_TTL = 900.0              # seconds empty before a copy is reaped
+
+logger = logging.getLogger(__name__)
 
 
 def _clock() -> float:
@@ -54,15 +59,34 @@ def _masters(template: str | None = None) -> list[GameObject]:
     return out
 
 
+def _leader_ids(player: GameObject) -> list[str]:
+    """The follow chain above ``player`` (nearest leader first),
+    cycle-guarded. Routing walks the whole chain: when A follows B
+    follows C, A is party to C's shared copy even though A's direct
+    leader owns nothing."""
+    from realm.persistence.manager import get_active_manager
+    manager = get_active_manager()
+    ids: list[str] = []
+    seen = {player.id}
+    current = player.db.get("following")
+    while current and str(current) not in seen:
+        current = str(current)
+        ids.append(current)
+        seen.add(current)
+        leader = manager.get_cached(current) if manager else None
+        current = leader.db.get("following") if leader is not None else None
+    return ids
+
+
 def instance_for(template: str, player: GameObject) -> GameObject | None:
-    """The instance-master this player should enter for ``template``: their
-    own copy, or — if following someone whose copy is ``shared`` — that
-    owner's copy. None means one must be materialized."""
+    """The instance-master this player should enter for ``template``:
+    their own copy, or — if anyone up their follow chain owns a
+    ``shared`` copy — that owner's copy. None means one must be
+    materialized."""
     for master in _masters(template):
         if master.db.get("owner") == player.id:
             return master
-    leader_id = player.db.get("following")
-    if leader_id:
+    for leader_id in _leader_ids(player):
         for master in _masters(template):
             if (master.db.get("owner") == leader_id
                     and master.db.get("mode") == "shared"):
@@ -114,13 +138,16 @@ async def materialize(
     return entry, master
 
 
-async def enter(
+async def find_or_materialize(
     template: str, player: GameObject, persistence, *,
     mode: str = "solo", return_room: GameObject | None = None,
     idle_ttl: float = DEFAULT_IDLE_TTL,
-) -> GameObject | None:
-    """Find-or-materialize this player's instance of ``template`` and move
-    them into its entry room. Returns the entry room."""
+) -> tuple[GameObject | None, GameObject]:
+    """The router: this player's live copy (their own, or their shared
+    leader's), rebuilt if its entry went stale, else a freshly
+    materialized one. On reuse, ``mode``/``return_room``/``idle_ttl``
+    are ignored — the master keeps its creation-time values. Bumps
+    activity. Returns (entry_room, master)."""
     master = instance_for(template, player)
     if master is None:
         entry, master = await materialize(
@@ -135,9 +162,126 @@ async def enter(
             entry, master = await materialize(
                 template, player, persistence, mode=mode,
                 return_room=return_room, idle_ttl=idle_ttl)
+    master.db.set("last_active", _clock())
+    return entry, master
+
+
+async def enter(
+    template: str, player: GameObject, persistence, *,
+    mode: str = "solo", return_room: GameObject | None = None,
+    idle_ttl: float = DEFAULT_IDLE_TTL,
+) -> GameObject | None:
+    """Find-or-materialize this player's instance of ``template`` and
+    place them in its entry room — the scripted API (softcode
+    ``enter_instance`` drains here; a placement, like ``move_to``).
+    Portal *exits* use :func:`resolve_instance_exit` instead, so the
+    walk is a real traversal. Returns the entry room."""
+    entry, _master = await find_or_materialize(
+        template, player, persistence, mode=mode,
+        return_room=return_room, idle_ttl=idle_ttl)
     if entry is not None:
         player.location = entry
-    master.db.set("last_active", _clock())
+    return entry
+
+
+async def resolve_instance_exit(
+    exit_obj: GameObject, actor: GameObject,
+) -> GameObject | None:
+    """The registered deferred-destination resolver for **instance
+    portals** — a real exit with ``db.dest_resolver = "instance"`` and:
+
+    - ``instance_template`` — the template zone (required);
+    - ``instance_mode`` — ``solo`` (default) | ``shared``;
+    - ``instance_return`` — evacuation room id (default: the portal's
+      own room, so a reaped straggler lands back where they entered);
+    - ``instance_ttl`` — idle seconds before the copy reaps.
+
+    Walking the portal IS the consent — the traversal is a normal
+    ``move_through_exit``, so wards, locks, ``on_enter``, and the
+    follower cascade run unchanged. Followers re-resolve individually
+    (see ``bring_followers``), which makes this the portal-router of
+    ephemeral-rooms.md: the owner gets their copy, a follower of a
+    ``shared`` owner is routed into the owner's copy, a follower of a
+    ``solo`` owner is bounced at the threshold, and a mob never
+    materializes a copy of its own."""
+    from realm.core.zones import zone_rooms
+    from realm.permissions.locks import LockType, check_lock
+    from realm.persistence.manager import get_active_manager
+
+    persistence = get_active_manager()
+    template = exit_obj.db.get("instance_template")
+    if not template or persistence is None:
+        logger.warning(
+            f"instance portal {exit_obj.name} ({exit_obj.id}) has no "
+            f"instance_template; treating as dead-end")
+        return None
+    template = str(template)
+
+    rooms = zone_rooms(template)
+    if not any(r.has_tag(TEMPLATE_TAG) for r in rooms):
+        # A portal into a zone that never opted in is a builder bug, not
+        # geography — fail loud, never clone an arbitrary area.
+        logger.error(
+            f"instance portal {exit_obj.name} ({exit_obj.id}) names zone "
+            f"{template!r}, which has no {TEMPLATE_TAG!r} room")
+        from realm.core.movement import DestinationUnavailableError
+        raise DestinationUnavailableError("A strange force bars the way.")
+
+    # Authored gate, checked pre-materialize against the walker (the
+    # clone re-checks in the move pipeline; refusing here avoids
+    # importing a whole copy just to bounce at its door).
+    template_entry = (next((r for r in rooms if r.has_tag(ENTRY_TAG)), None)
+                      or next((r for r in rooms if r.has_tag(TEMPLATE_TAG)),
+                              None))
+    if template_entry is not None and not check_lock(
+            template_entry, LockType.ENTER, actor):
+        return None
+
+    pre_existing = instance_for(template, actor) is not None
+    if not pre_existing:
+        # No copy to route into. Solo bounce (the ephemeral-rooms.md
+        # decision): a follower of a solo owner — anywhere up the follow
+        # chain — is refused at the threshold, not silently handed a
+        # private copy.
+        chain = _leader_ids(actor)
+        if chain and any(
+                m.db.get("owner") in chain and m.db.get("mode") == "solo"
+                for m in _masters(template)):
+            return None
+        # Copies are per-PLAYER: a mob may be routed into an existing
+        # shared copy above, but never materializes its own.
+        if not actor.has_tag("player"):
+            return None
+
+    return_room = None
+    if exit_obj.db.get("instance_return"):
+        return_room = persistence.get_cached(
+            str(exit_obj.db.get("instance_return")))
+    if return_room is None:
+        return_room = exit_obj.location
+
+    idle_ttl = DEFAULT_IDLE_TTL
+    raw_ttl = exit_obj.db.get("instance_ttl")
+    if raw_ttl is not None:
+        try:
+            idle_ttl = float(raw_ttl)
+        except (TypeError, ValueError):
+            logger.warning(
+                f"instance portal {exit_obj.name} instance_ttl {raw_ttl!r} "
+                f"is not a number; using the {DEFAULT_IDLE_TTL:.0f}s default")
+
+    entry, master = await find_or_materialize(
+        template, actor, persistence,
+        mode=str(exit_obj.db.get("instance_mode") or "solo"),
+        return_room=return_room, idle_ttl=idle_ttl)
+    if entry is not None and not check_lock(entry, LockType.ENTER, actor):
+        # An identity-sensitive lock (one reading the room's tags/ids,
+        # not just the caller) can pass on the template yet deny on the
+        # fresh clone. Don't leave the just-imported copy lingering
+        # until the reaper — tear it down and present a clean dead-end.
+        if not pre_existing:
+            await destroy_instance(master, persistence)
+        return None
     return entry
 
 
@@ -196,8 +340,15 @@ async def reap_idle(persistence, *, now: float | None = None) -> int:
     return reaped
 
 
+# Private space: every walker may land in a different copy, so flee
+# refuses these exits (see register_dest_resolver).
+register_dest_resolver(RESOLVER_NAME, resolve_instance_exit,
+                       shared_destination=False)
+
+
 __all__ = [
     "EPHEMERAL_TAG", "TEMPLATE_TAG", "MASTER_TAG", "ENTRY_TAG",
-    "DEFAULT_IDLE_TTL", "evacuation_room",
-    "instance_for", "materialize", "enter", "destroy_instance", "reap_idle",
+    "RESOLVER_NAME", "DEFAULT_IDLE_TTL", "evacuation_room",
+    "instance_for", "find_or_materialize", "materialize", "enter",
+    "resolve_instance_exit", "destroy_instance", "reap_idle",
 ]

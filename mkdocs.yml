@@ -100,8 +100,16 @@ nav:
     - Wilderness Requirements (Stage 2): design/wilderness-requirements.md
     - Features Roadmap: design/features-roadmap.md
     - Action Tags & Movement: design/action-tags.md
+    - Reference Synthesis (all MU*s): design/reference-synthesis.md
     - LambdaMOO Comparison: design/moo-comparison.md
     - PennMUSH Softcode Inventory: design/pennmush-inventory.md
+    - AresMUSH Comparison: design/aresmush-comparison.md
+    - LDMud Comparison: design/ldmud-comparison.md
+    - SMAUG Comparison: design/smaug-comparison.md
+    - SWR Space Comparison: design/swr-space-comparison.md
+    - SWFOTE Comparison: design/swfote-comparison.md
+    - tbaMUD (DG Scripts) Comparison: design/tbamud-comparison.md
+    - TinyMUX Comparison: design/tinymux-comparison.md
     - Simplicity Review: design/simplicity_review.md
     - Original Plan (historical): design/original_plan.md
 

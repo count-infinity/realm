@@ -410,9 +410,11 @@ hardened:
   not just a wilderness requirement. (Forbidding `drop` in ephemeral rooms
   was considered and rejected — dropping mid-fight is normal play.)
 - **The deferred-destination hook is generic:** registered by name
-  (`dest_resolver = "wilderness"`); migrating instance portals onto it
-  (retiring their `on_fail` pattern) is a natural follow-up, not part of
-  this build.
+  (`dest_resolver = "wilderness"`). Instance portals migrated onto it
+  2026-07-14 (`dest_resolver = "instance"`,
+  `instances.resolve_instance_exit`) — the portal-router of
+  `ephemeral-rooms.md`: followers re-resolve individually, so `shared`
+  routes into the owner's copy and `solo` bounces at the threshold.
 
 ## 9. References
 

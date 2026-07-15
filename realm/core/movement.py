@@ -47,19 +47,37 @@ class DestinationUnavailableError(Exception):
 # the origin-side gates pass, materializes the room beyond (a wilderness
 # cell), and the traversal proceeds like any door — wards, locks,
 # ``on_enter``, and the follower cascade unchanged.
-_DEST_RESOLVERS: dict[str, Callable[[GameObject, GameObject],
-                                    Awaitable[GameObject | None]]] = {}
+_DEST_RESOLVERS: dict[str, tuple[Callable[[GameObject, GameObject],
+                                          Awaitable[GameObject | None]],
+                                 bool]] = {}
 
 
-def register_dest_resolver(name: str, resolver) -> None:
+def register_dest_resolver(name: str, resolver, *,
+                           shared_destination: bool = True) -> None:
     """Register an async ``(exit_obj, actor) -> room | None`` resolver
-    under ``name``. An exit opts in with ``db.dest_resolver = name``."""
-    _DEST_RESOLVERS[str(name)] = resolver
+    under ``name``. An exit opts in with ``db.dest_resolver = name``.
+
+    ``shared_destination=False`` marks a resolver whose product is
+    *private space* (an instance copy): every walker may land somewhere
+    different, so pursuit is impossible — flee refuses such exits
+    (escaping combat into a freshly imported private dungeon is not a
+    flee, it's a teleport)."""
+    _DEST_RESOLVERS[str(name)] = (resolver, bool(shared_destination))
 
 
 def has_dest_resolver(exit_obj: GameObject | None) -> bool:
     """Does this exit defer its destination to a registered resolver?"""
     return exit_obj is not None and bool(exit_obj.db.get('dest_resolver'))
+
+
+def has_private_dest_resolver(exit_obj: GameObject | None) -> bool:
+    """Does this exit resolve to private, per-walker space (an instance
+    portal)? Flee and similar pursuit-semantics paths refuse these."""
+    if exit_obj is None:
+        return False
+    name = exit_obj.db.get('dest_resolver')
+    entry = _DEST_RESOLVERS.get(str(name)) if name else None
+    return entry is not None and not entry[1]
 
 
 async def _resolve_deferred_destination(
@@ -70,15 +88,15 @@ async def _resolve_deferred_destination(
     name = exit_obj.db.get('dest_resolver')
     if not name:
         return None
-    resolver = _DEST_RESOLVERS.get(str(name))
-    if resolver is None:
+    entry = _DEST_RESOLVERS.get(str(name))
+    if entry is None:
         # A typo'd resolver name is a builder bug, not world geography —
         # fail loud, never masquerade as a map edge (vision #10).
         logger.error(
             f"Exit {exit_obj.name} ({exit_obj.id}) names unregistered "
             f"dest_resolver {name!r}")
         raise DestinationUnavailableError("A strange force bars the way.")
-    return await resolver(exit_obj, actor)
+    return await entry[0](exit_obj, actor)
 
 
 def resolve_exit_destination(
@@ -471,4 +489,4 @@ async def move_through_exit(
 
 __all__ = ["move_through_exit", "resolve_exit_destination", "fire_exit_fail",
            "move_to", "register_dest_resolver", "has_dest_resolver",
-           "DestinationUnavailableError"]
+           "has_private_dest_resolver", "DestinationUnavailableError"]

@@ -24,6 +24,16 @@ executable spec) for what shipped. This document is the shared design.
   return_room=, idle_ttl=)`, authority-gated (`_may_mutate` + the template
   opt-in), mirroring `act()`/`teleport_obj`.
 
+**Portal migration (2026-07-14):** instance portals are now *real exits*
+with `dest_resolver = "instance"` (attrs: `instance_template`,
+`instance_mode`, `instance_return` — default the portal's own room —
+and `instance_ttl`), resolved through the same deferred-destination hook
+as wilderness. Walking one is a normal `move_through_exit`, so wards,
+locks, `on_enter`, and the follower cascade apply; the softcode
+`enter_instance()` remains the scripted API (game events opening
+portals), and the old `ON_FAIL` dead-end pattern still works but is no
+longer the recommended portal shape.
+
 **Closed gap (fixed with Stage 2):** teardown used to be *player-only* —
 a foreign persistent object (a dropped item, a wandering NPC) in a
 destroyed copy was orphaned with a dangling `location_id`, reloading
@@ -117,7 +127,7 @@ Everything else is convention (below); the kernel only needs:
 | **`ephemeral` tag** | on materialized copies — transient (kernel #1), reapable | a tag |
 | **Identity tag** | `instance:<template>:<owner-id>` — extends the `zone:` scheme | a tag |
 | **Instance-master** | one object per live copy holding `{template, owner, mode, created_at, last_active_at, return_room}` | a GameObject (mirrors zone-master) |
-| **Portal-router** | on trigger: the owner → their copy; a follower/party-member of an owner (if `shared`) → that owner's copy; else materialize a new copy | a behavior + `move_through_exit` |
+| **Portal-router** | on trigger: the owner → their copy; a follower/party-member of an owner (if `shared`) → that owner's copy; a follower of a `solo` owner → bounced at the threshold; else materialize a new copy | **shipped** — `dest_resolver="instance"` portal exits (`instances.resolve_instance_exit`) over the deferred-destination hook; `bring_followers` re-resolves each follower individually, so the routing applies per walker |
 | **Reaper** | `on_tick`: idle + empty → evacuate to `return_room` → `destroy_obj` the copy + master | a behavior |
 | **Materializer** | clone the template's rooms/contents with fresh ids | `import_objects` (already exists) |
 | **Population** | mobs/items in the copy | `SpawnerBehavior` (already exists) |

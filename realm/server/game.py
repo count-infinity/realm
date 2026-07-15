@@ -26,8 +26,9 @@ from typing import TYPE_CHECKING, Any
 import realm.behaviors  # noqa: F401
 import realm.combat.behaviors  # noqa: F401
 
-# Importing wilderness registers its deferred-destination resolver with
-# the movement kernel before any player can walk a wilderness exit.
+# Importing these registers their deferred-destination resolvers with
+# the movement kernel before any player can walk such an exit.
+import realm.core.instances  # noqa: F401
 import realm.core.wilderness  # noqa: F401
 from realm.combat.manager import CombatManager, set_combat_manager
 from realm.combat.system import create_combat_system
