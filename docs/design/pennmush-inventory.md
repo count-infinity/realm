@@ -74,12 +74,18 @@ paths:
    2026-07-12). `move_through_exit` fires it on every blocked return
    (locked / closed / skill-fail / enter-lock / on_leave-veto), and the two
    dead-end (no-destination) sites fire it too. `ON_FAIL` softcode on the
-   exit or room reacts, post-hoc like Penn's `@afail`. The dead-end case is
-   the **wilderness/portal** primitive: an exit whose `ON_FAIL` materializes
-   the room beyond it and moves the walker in — and the default "leads
-   nowhere" line is suppressed when a handler relocates the actor. So
-   `@afail` and "formula-resolved exit destinations" turned out to be the
-   *same primitive*, and it's this one. (`enter_instance` gained an
+   exit or room reacts, post-hoc like Penn's `@afail`. The dead-end case
+   originally doubled as the **wilderness/portal** primitive (an `ON_FAIL`
+   that materializes the room beyond and moves the walker in — still
+   supported as the legacy pattern), but formula-resolved exit destinations
+   have since shipped as their own primitive: a deferred-destination
+   resolver registry (`register_dest_resolver`,
+   `db.dest_resolver = "wilderness" | "instance"` —
+   `realm/core/movement.py`, `realm/core/wilderness.py`,
+   `realm/core/instances.py`). `move_through_exit` materializes the room
+   after the origin-side gates pass, and the traversal proceeds like any
+   door. `ON_FAIL` remains the post-hoc failure hook, Penn-`@afail` style.
+   (`enter_instance` gained an
    enactor-consent rule so a portal exit — which doesn't *control* the
    walker — may still send the walker who triggered it, gated by the
    template's ENTER lock.)
@@ -93,11 +99,14 @@ paths:
    `startup`-tagged trigger fired after world-load would match it.
 
 **Done (2026-07-12):** **`event:on_fail`** is fired by `move_through_exit`
-(every blocked return) and the two dead-end sites, carrying the exit +
-reason; `ON_FAIL` / `@afail` softcode reacts, and a wilderness/portal exit
-materializes-and-moves there. `realm/core/movement.py:fire_exit_fail`,
-`tests/test_fail_event.py`. The wilderness feature (ephemeral Stage 2) now
-has its trigger.
+(every blocked return, plus its own dead-end branch when a deferred
+resolver yields nothing) and the two entry-point dead-end sites, carrying
+the exit + reason; `ON_FAIL` / `@afail` softcode reacts, and an authored
+`@afail` may still materialize-and-move (the legacy portal pattern).
+`realm/core/movement.py:fire_exit_fail`, `tests/test_fail_event.py`. The
+wilderness feature (ephemeral Stage 2) has since shipped on the separate
+deferred-destination resolver (`realm/core/wilderness.py`), not on this
+trigger.
 
 ---
 
@@ -125,7 +134,10 @@ operators/methods, not functions to port:
 
 That's **~200+ functions REALM gets for free** by being Python. This is the
 core payoff of REALM's language choice and worth stating plainly: Penn needs
-a function library to have data structures; REALM has a language.
+a function library to have data structures; REALM has a language. (REALM
+does expose a small Penn-named convenience subset anyway — `capstr`, `mid`,
+`trim`, `first`, `words`, `setunion`, etc. in
+`realm/scripting/functions.py` — as sugar, not necessity.)
 
 ### Category B — MU\*-domain functions (where parity actually lives)
 
@@ -173,9 +185,11 @@ a function library to have data structures; REALM has a language.
 
 - **Language primitives:** REALM wins by construction — Python subsumes
   ~200 of Penn's functions. Don't port them.
-- **Action attributes:** REALM already has the mechanism (`ON_<EVENT>` +
-  `^listen`); the **one real gap is a failure hook (`@afail`)**, which
-  doubles as the wilderness exit-resolver primitive. Build `event:on_fail`.
+- **Action attributes:** REALM has the full mechanism (`ON_<EVENT>` +
+  `^listen`); the failure hook (`@afail` = `event:on_fail`) shipped
+  2026-07-12. Formula-resolved exit destinations shipped separately as the
+  deferred-destination resolver (`db.dest_resolver`), so the
+  wilderness/portal primitive no longer lives in the failure hook.
 - **Domain functions:** core covered (object/attr/comm/lock/eval/markup);
   worthwhile targets are **vectors** (for future space), **JSON** (for
   clients), attribute-globbing, and time formatting.

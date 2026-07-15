@@ -50,13 +50,13 @@ speculative surface, and (c) rituals that never got a helper.
 - `LockType.PAGE/MAIL/ZONE`: checked nowhere.
 - Dispatcher `@command` decorator + `register_commands` + `min_args`:
   zero uses; two registration idioms, one dead.
-- `Ruleset.roll_saving_throw/calculate_healing/get_attack_range`
-  (+ backlogged roll_dice/get_modifier): no callers; shrink the
-  contract implementers must read.
+- `Ruleset.roll_saving_throw/get_attack_range` (+ backlogged
+  roll_dice/get_modifier): no callers, deleted. `calculate_healing`
+  KEPT — one real caller (combat/system.py healing path).
 - TagSet `has_prefix/get_value/get_all_values`: zero callers while the
   one zone-scan that needs them hand-rolls it. Use or delete.
-- AttributeProxy per-attribute dirty SET (NOT YET DONE): only an
-  object-level bool is consumed. Simplify.
+- AttributeProxy per-attribute dirty SET (DONE 2026-07-05, final
+  sweep): reduced to the object-level bool that was actually consumed.
 - `resolve_attr`: DELETED (with @parent inheritance tests); @parent
   storage remains harmless. Wire real inheritance reads if ever needed.
 
@@ -75,39 +75,14 @@ without editing engine source), Behavior.countdown helper (ticker +
 wanderer converted), DispositionBoost applied-flag moved to owner.db.
 Still pending below (small, cosmetic tier):
 
-- **functions.py**: one resolution idiom (`_resolve` everywhere — 12
-  older methods hand-roll it), one mutate helper (`_controlled` +
-  `_touch`) replacing the ritual copied ~10×; `del_attr` is the one
-  mutator missing its save-queue. Move `_resolve` next to `get`.
-- **78 dead `if not ctx.player` guards**: the dispatcher guarantees a
-  player before any handler runs. Delete guards + unused `has_player`.
 - **find-or-complain helper**: `resolve_or_report(ctx, name)` (~32 call
-  sites across builtin+OLC, two message idioms).
-- **communication.py**: six structurally identical commands → one
-  `_emit_room_action` helper, unified with `gate_action`'s veto idiom.
-- **Speech-shape drift**: engine `_emit_speech/_emit_pose/_emit_whisper`
-  + `_npc_say` hand-mirror cmd_say/pose/whisper Action shapes (3 copies
-  each). Shared action builders.
-- **Behavior.countdown(obj, key, reset)**: five behaviors hand-roll the
-  same db-counter dance with different off-by-one conventions.
-- **DispositionBoostBehavior 'applied' state lives in params**: against
-  the declared behaviors-are-stateless rule; move to owner.db (the
-  `_state_key` machinery exists).
-- **locks.py class layers**: Lock's `_compiled` cache is never used by
-  evaluate (safe_eval's lru_cache does the work); LockEvaluator's
-  `_cache` never read; `check()` builds throwaway Locks. Module
-  functions suffice.
-- **GURPS skill ladder unification**: `GURPSRuleset.get_skill` flat-10
-  fallbacks should fall through to `checks.skill_level()` so combat
-  sees attribute-based defaults (untrained DX-13 attacks at DX-4, not
-  10). Also `checks.SKILL_DEFAULTS` seed table drifted from
-  GurpsSystem's — after Tier 1's engine-floor fix, trim the seed to
-  the floor.
-- **RulesetRegistry** (or `GameSystem.create_ruleset()`): the hardcoded
-  ruleset_map closes the swappable-rules story the registries elsewhere
-  open.
-- **`GameSystem.death_award(victim)`**: CP formula/party split in
-  CombatManager is game policy; one overridable method.
+  sites across builtin+OLC, two message idioms). Still unwritten.
+- **communication.py ooc/shout one-off shapes**: ACCEPTED-AS-IS per the
+  BACKLOG final sweep.
+- **locks.py class layers**: DONE 2026-07-05 final sweep —
+  LockEvaluator's `_cache` and the throwaway Locks in `check()` removed
+  (`eval_bool` direct). Remnant: Lock's `_compiled` stored by
+  `validate()`, unused by evaluate.
 - **engine.py `_run_script_command`** is a second hand-rolled command
   parser (13 verbs, own conventions) — the long-term fix is the
   backlogged headless-session dispatcher access; until then it's the

@@ -134,6 +134,9 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
     if key is None:
         await ctx.session.send("You don't have the key.")
         return
+    if await _gated(ctx, "item:on_lock", target, tool=key,
+                    fail_msg="The lock won't catch.") is None:
+        return
     target.db.locked = True
     ctx.player.msg(f"You lock {target.name} with {key.name}.")
 
@@ -160,6 +163,9 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
     key = _find_key(ctx.player, target)
     if key is None:
         await ctx.session.send("You don't have the key.")
+        return
+    if await _gated(ctx, "item:on_unlock", target, tool=key,
+                    fail_msg="The lock holds fast.") is None:
         return
     target.db.locked = False
     ctx.player.msg(f"You unlock {target.name} with {key.name}.")
@@ -337,6 +343,14 @@ async def cmd_unwear(ctx: CommandContext) -> None:
     item = find_object(ctx, ctx.args.strip(), search_room=False, search_inventory=True)
     if not item or not item.has_tag('worn'):
         await ctx.session.send("You aren't wearing that.")
+        return
+
+    # ON_REMOVE — gated, the mirror of item:on_wear: a cursed item's on_check
+    # can refuse (block) removal.
+    removing = await _gated(
+        ctx, "item:on_remove", item,
+        fail_msg="You can't seem to take it off.")
+    if removing is None:
         return
 
     item.remove_tag('worn')

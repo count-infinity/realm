@@ -8,6 +8,7 @@ import inspect
 import pathlib
 
 from realm.scripting.functions import ScriptFunctions
+from realm.scripting.triggers import STANDARD_EVENTS
 
 HEADER = """# Softcode Reference
 
@@ -38,13 +39,17 @@ function defs — under time/call/output limits.
 |---|---|
 | `$pattern:code` (attr `cmd_*`) | player input matching the pattern (gated by the `use` lock) |
 | `^pattern:code` (attr `listen_*`) | overheard speech (gated by the `listen` lock) |
-| `ON_<EVENT>` attr | propagated actions: ENTER, LEAVE, ARRIVE, LOOK, GET, DROP, GIVE, DEATH, PAYMENT... (zone masters hear member rooms) |
 | `on_tick` attr | via the `script_ticker` behavior |
+| `ON_<EVENT>` attr | a lifecycle event (below); matched by suffix, so any `ON_<name>` works |
 
-## Functions
+### `ON_<EVENT>` lifecycle hooks
 
-| Function | Signature | Notes | Example |
-|---|---|---|---|"""
+An `ON_<NAME>` attribute fires when that event reaches the object (zone
+masters also hear their member rooms). Gated hooks let an `on_check` ward
+veto (a cursed item refusing removal).
+
+| Hook attr | Fires when |
+|---|---|"""
 
 FOOTER = """
 Authority in one line: **reads are open** (except `password` and
@@ -58,6 +63,11 @@ script.
 def main() -> None:
     d = ScriptFunctions().to_dict()
     lines = [HEADER]
+    for name, desc in STANDARD_EVENTS.items():
+        lines.append(f"| `ON_{name}` | {desc} |")
+    lines.append("\n## Functions\n")
+    lines.append("| Function | Signature | Notes | Example |")
+    lines.append("|---|---|---|---|")
     for name in sorted(d):
         fn = d[name]
         if not callable(fn):
@@ -73,7 +83,8 @@ def main() -> None:
             if line.strip().startswith("Example:"):
                 example = line.strip()[len("Example:"):].strip()
                 break
-        esc = lambda t: t.replace("|", chr(92) + "|")
+        def esc(t: str) -> str:
+            return t.replace("|", chr(92) + "|")
         lines.append(f"| `{name}` | `{esc(sig)}` | {esc(doc)} "
                      f"| {('`' + esc(example) + '`') if example else ''} |")
     lines.append(FOOTER)

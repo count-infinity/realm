@@ -1,6 +1,6 @@
 # Adventure Coverage Matrix: can REALM run the classics?
 
-Status: LIVING DOCUMENT (2026-07-04). Nine published TTRPG one-shots /
+Status: LIVING DOCUMENT (2026-07-15). Nine published TTRPG one-shots /
 starter modules, distilled to their load-bearing mechanics, each graded
 against the engine as it stands. Sourced from module knowledge, not a
 web crawl — mechanics are the famous ones, paraphrased.
@@ -13,13 +13,19 @@ Grades:
 - **PARTIAL** — buildable but with a real seam missing; gap named.
 - **NO** — engine change required; gap named.
 
-Summary (94 rows): originally **38 YES / 30 SOFT / 17 PARTIAL / 9 NO**;
+Summary (88 rows): originally **38 YES / 30 SOFT / 17 PARTIAL / 9 NO**;
 after the 2026-07-04 modifier pipeline: **42 YES / 29 SOFT / 14 PARTIAL / 9 NO**;
 after dispositions (same day): **44 YES / 29 SOFT / 12 PARTIAL / 9 NO**;
 after ranged combat (2026-07-05): **46 YES / 29 SOFT / 12 PARTIAL / 7 NO**;
 after the economy kit (same day): **50 YES / 28 SOFT / 9 PARTIAL / 7 NO**;
 after followers/party (same day): **51 YES / 28 SOFT / 9 PARTIAL / 6 NO**;
-after @force/possession (2026-07-05): **53 YES / 28 SOFT / 8 PARTIAL / 5 NO.**
+after @force/possession (2026-07-05): **53 YES / 28 SOFT / 8 PARTIAL / 5 NO**;
+current tables (2026-07-15 audit): **61 YES / 19 SOFT / 6 PARTIAL / 1 NO**
+(+1 YES/SOFT) — the progression figures above were tallied against a
+pre-commit draft and do not sum against the committed tables.
+Wilderness cells + instanced areas (realm/core/wilderness.py,
+realm/core/instances.py) shipped since: no grade changes — they strengthen
+existing YES rows, addressing no open gap.
 Gap clusters at the bottom feed BACKLOG.md.
 
 ---
@@ -108,7 +114,7 @@ Gap clusters at the bottom feed BACKLOG.md.
 | Tournament — jousting/melee with rules | PARTIAL | Combat yes; formal non-lethal victory conditions (yield, points) need a softcode referee — doable, fiddly. |
 | Social standing / knightly reputation | PARTIAL | Per-NPC dispositions + default_disposition DONE; herald-style faction/status propagation remains. |
 | Kidnapping plot investigation | YES | Clue objects, hidden things, $ask dialogue, Observation checks. |
-| Bandits in the forest (hex crawl-ish) | YES | Zone wander + spawners. |
+| Bandits in the forest (hex crawl-ish) | YES | Zone wander + spawners; wilderness regions now give true coordinate hex-crawl cells with cell_populate spawning. |
 | Baron's court audience (etiquette rolls) | SOFT | check('savoir_faire') via $-command scene. |
 | Archery contest | YES | shoot/aim maneuvers + range bands (2026-07-05); contest scoring = softcode referee. |
 
@@ -132,7 +138,7 @@ Gap clusters at the bottom feed BACKLOG.md.
 |---|---|---|
 | Derelict lab ship, airlocks and vacc suits | YES | `grants_tags` suit + rooms lethal without tag (ticker damage) — nightvision-goggles pattern generalizes. |
 | Ship computer terminals with logs | YES | ON_USE softcode terminals (power panel pattern). |
-| Medical horror — infected crew attack | YES | Spawners + aggressive + DamageOverTime infection on hit... on-hit effects need combat:on_hit observer — exists as combat events? PARTIAL: post-hit effect application needs an ON_DAMAGE trigger which exists in STANDARD_EVENTS. Call it YES-with-softcode. |
+| Medical horror — infected crew attack | YES | Spawners + AggressiveBehavior; infection = ON_DAMAGE trigger (STANDARD_EVENTS includes DAMAGE; combat propagates combat:on_damage) applying DamageOverTimeBehavior. |
 | Zero-G sections (skill checks to move) | SOFT | check_skill exits with freefall skill. |
 | Locked labs with keycards | YES | key_id items + electronic lock_skill. |
 | Ship systems to repair (engineering checks) | SOFT | $repair softcode + attr state machines. |

@@ -11,7 +11,6 @@ Users should:
 pip install realm
 realm init mygame
 cd mygame
-realm migrate
 realm start
 ```
 
@@ -29,7 +28,7 @@ Users should NOT need to modify REALM's source code. Everything should be extens
 | Commands | Decorators in user's game code |
 | Behaviors | Attach to objects, loaded from user's game |
 | Events | Subscribe from user code |
-| Welcome screen | config/welcome.txt in user's game directory |
+| Welcome screen | data/welcome.txt in user's game directory (WELCOME_FILE setting) |
 | Database | Config setting for SQLite path or PostgreSQL URL |
 
 ### Anti-Patterns to Avoid
@@ -95,15 +94,36 @@ mkdocs serve -a 0.0.0.0:8000   # Live preview
 mkdocs build                   # Build static site to site/
 ```
 
-## Reference Implementations (Git-ignored)
+## Documentation Discipline (permanent)
 
-These folders contain existing MU* frameworks for reference. They are not part of REALM itself.
+**Every change that adds or alters a feature, softcode function, event hook,
+command, or kernel primitive MUST update its documentation in the same
+change.** Features that aren't written down get lost — treat docs as part of
+"done" (code + tests + docs), not an afterthought. Concretely:
+
+- **Softcode functions & `ON_<EVENT>` hooks are auto-generated.** After
+  touching `ScriptFunctions` or `STANDARD_EVENTS` (`realm/scripting/triggers.py`,
+  the single source of truth for event hooks), run
+  `python scripts/gen_softcode_docs.py` to regenerate
+  `docs/reference/softcode.md`. New hooks/functions then self-document.
+- **Design docs** (`docs/design/`): update the relevant one, and keep
+  `features-roadmap.md` + `reference-synthesis.md` honest — mark shipped
+  features shipped, keep gap lists current. New design docs go in the
+  `mkdocs.yml` nav.
+- **Guides/reference**: if the change touches a builder-facing workflow,
+  update the matching `docs/guides/*` or `docs/reference/*`.
+- **Memory**: record notable shipped features in the project memory so they
+  survive across sessions.
+
+## Reference Implementations (Outside the Repo)
+
+Reference MU* codebases are siblings of this repo in the home directory. They are not part of REALM itself.
 ```
-realm/
-└── _reference/
-    ├── CoffeeMud/           # Java MUD - combat, economy, crafting
-    ├── evennia/             # Python MUD - Django-based, modern
-    └── pennmush/            # C MUSH - softcode, permissions
+~/CoffeeMud/     # Java MUD - combat, economy, crafting
+~/evennia/       # Python MUD - Django-based, modern
+~/pennmush/      # C MUSH - softcode, permissions
+~/tinymux/  ~/tbamud/  ~/SmaugFUSS/  ~/SWRFUSS/  ~/SWFOTEFUSS/
+~/ldmud/  ~/aresmush/  ~/lambdamoo/  ~/GoMud/  ~/DikuMUD3/  ~/AwakeMUD/
 ```
 
 **Do not modify files in these directories.** These are read-only study material.
@@ -114,16 +134,16 @@ When working in these reference framework folders, you may be a subagent focused
 
 **IMPORTANT**: When designing any feature, remember REALM is a library. Users install it via pip and extend it through configuration and their own code. They should never need to modify REALM source.
 
-### If working in _reference/CoffeeMud/
+### If working in ~/CoffeeMud/
 Focus: combat formulas, area/mob templates, economy systems, event-driven behavior system
 CoffeeMud is verbose Java. Look for patterns, not code to copy.
 
-### If working in _reference/evennia/
+### If working in ~/evennia/
 Focus: command parsing, typeclass system, how they handle inheritance, Portal/Server split architecture
 Note what works well and what's over-engineered.
 **Key insight**: Evennia uses entry points and settings.py for extensibility - study this pattern.
 
-### If working in _reference/pennmush/
+### If working in ~/pennmush/
 Focus: permission systems, softcode concepts, flag-based attributes, lock system
 The C is old but the design concepts are battle-tested.
 

@@ -414,6 +414,52 @@ class ScriptFunctions:
         self.command_queue.append(('move_to', tgt, (dest.id, extra, bool(force))))
         return True
 
+    def cast(
+        self,
+        target: GameObject | str | None,
+        ability: str = "",
+        *,
+        tags: list[str] | None = None,
+    ) -> bool:
+        """
+        Direct an ability at a target — the ability analog of ``act``. Fires
+        ``event:on_cast`` at the target with the caller's ``tags`` (a spell
+        passes ``['magic']``, a psi power ``['psi']`` — the kernel forces no
+        genre category), so the target's ``ON_CAST`` reacts AND its
+        ``on_check`` wards resist by category: a magic-shield ring's
+        ``block() if has_atag('magic')`` refuses any incoming magic power,
+        not just damage — the resistance seam a spell can't otherwise reach.
+
+        This fires the ward/reaction pass; it does not itself gate your
+        script (side effects run after it). Use ``contest()`` for the resist
+        *roll*, and ``cast()`` for the ward + ``ON_CAST`` layer:
+        ``&spell.fear = cast(victim, 'fear', tags=['mind'])``
+        """
+        tgt = self._resolve(target)
+        if tgt is None:
+            return False
+        extra = [str(t) for t in (tags or [])]
+        self.command_queue.append(('cast', tgt, (str(ability), extra)))
+        return True
+
+    def expire(self, target: GameObject | str | None, seconds: float) -> bool:
+        """
+        Give an object a lifetime: after ``seconds`` it fires ``ON_EXPIRE``
+        and is destroyed by the world tick (a summoned creature, a smoke
+        cloud, a temp portal). Unlike ``wait()``, the countdown lives on the
+        object and survives across ticks. ``ON_EXPIRE`` may renew the lease
+        by calling ``expire`` again. Requires control of the target.
+
+        Example: expire(create_obj('a wisp of smoke'), 30)
+        """
+        import time as _clock
+        tgt = self._resolve(target)
+        if tgt is None or not self._may_mutate(tgt):
+            return False
+        tgt.db.set('expires_at', _clock.time() + float(seconds))
+        self.command_queue.append(('save', tgt, ''))
+        return True
+
     def enter_instance(
         self,
         player: GameObject | str | None,
@@ -1037,17 +1083,39 @@ class ScriptFunctions:
                              bool(persistent))))
         return True
 
-    def wait(self, seconds: float, command: str) -> None:
+    def wait(self, seconds: float, command: str) -> str | None:
         """
         Run a script command as the executor ~seconds from now (one-shot,
         fired from the server heartbeat; pending waits don't survive a
-        reboot).
+        reboot). Returns a HANDLE id you can pass to ``cancel_wait`` to call
+        the wait off before it fires — a defuse, an abort.
 
-        Example: wait(4, 'say The fuse burns down...')
+        Example:
+            t = wait(30, 'detonate')
+            ... set_attr(me, 'fuse', t) ...          # stash the handle
+            ... if defused: cancel_wait(get_attr(me, 'fuse'))
         """
-        if self.executor is not None:
-            self.command_queue.append(
-                ('wait', self.executor, (float(seconds), str(command))))
+        if self.executor is None:
+            return None
+        import uuid
+        wait_id = uuid.uuid4().hex
+        self.command_queue.append(
+            ('wait', self.executor, (float(seconds), str(command), wait_id)))
+        return wait_id
+
+    def cancel_wait(self, wait_id: str | None) -> bool:
+        """
+        Cancel a pending wait by the handle ``wait()`` returned, before it
+        fires. You must control the object that scheduled it. Returns True if
+        the cancellation was queued (a no-op if the handle is unknown or
+        already fired).
+
+        Example: cancel_wait(get_attr(me, 'fuse'))
+        """
+        if not wait_id:
+            return False
+        self.command_queue.append(('cancel_wait', self.executor, str(wait_id)))
+        return True
 
     # --- String functions ---
 
@@ -1493,6 +1561,8 @@ class ScriptFunctions:
             'destroy_obj': self.destroy_obj,
             'teleport_obj': self.teleport_obj,
             'move_to': self.move_to,
+            'cast': self.cast,
+            'expire': self.expire,
             'enter_instance': self.enter_instance,
             'enter_wilderness': self.enter_wilderness,
             'behaviors': self.behaviors,
@@ -1521,6 +1591,7 @@ class ScriptFunctions:
             'clear_lock': self.clear_lock,
             'test_lock': self.test_lock,
             'wait': self.wait,
+            'cancel_wait': self.cancel_wait,
             'prompt': self.prompt,
             'eval_attr': self.eval_attr,
             'force': self.force,

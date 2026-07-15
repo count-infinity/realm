@@ -249,6 +249,7 @@ class CombatSystem:
             damage_result.total = sum(damage_result.damage_by_type.values())
 
         # Apply damage
+        old_pct = dfn.hp_percent * 100
         self.ruleset.apply_damage(dfn, damage_result)
 
         # Check if defeated
@@ -256,6 +257,19 @@ class CombatSystem:
         if target_defeated:
             dfn.state = CombatState.DEFEATED
             await self._propagate_death(dfn, atk)
+        else:
+            # ON_HITPRCNT — fire once as HP falls THROUGH the defender's
+            # configured threshold (db.hitprcnt, a percent), so an NPC can
+            # flee/enrage/call-for-help at low HP without polling. Not fired
+            # on death (that's ON_DEATH's job).
+            threshold = dfn.obj.db.get('hitprcnt')
+            if threshold is not None:
+                new_pct = dfn.hp_percent * 100
+                if old_pct > float(threshold) >= new_pct:
+                    from realm.core.events import fire_event
+                    await fire_event(atk.obj, dfn.obj, "event:on_hitprcnt",
+                                     extra={"percent": round(new_pct),
+                                            "threshold": int(threshold)})
 
         # Generate messages
         messages = self.ruleset.format_attack_message(atk, dfn, attack_result, damage_result)

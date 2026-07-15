@@ -21,8 +21,9 @@ executable spec) for what shipped. This document is the shared design.
   the materializer (`import_objects`), per-PC / shared-follower keying, and
   the idle reaper — all in `realm/core/instances.py`.
 - **Softcode surface** — `enter_instance(player, template, mode=,
-  return_room=, idle_ttl=)`, authority-gated (`_may_mutate` + the template
-  opt-in), mirroring `act()`/`teleport_obj`.
+  return_room=, idle_ttl=)`, authority-gated (`_may_relocate` or a
+  consenting enactor, + the template opt-in and the entry room's ENTER
+  lock), mirroring `act()`/`teleport_obj`.
 
 **Portal migration (2026-07-14):** instance portals are now *real exits*
 with `dest_resolver = "instance"` (attrs: `instance_template`,
@@ -100,16 +101,16 @@ Everything else is convention (below); the kernel only needs:
 1. **A transient / "do-not-persist" flag.** REALM's in-memory store
    dirty-syncs to SQLite and reloads on boot — an instance would be
    persisted and *resurrect* on reboot. An `ephemeral` tag must (a) exclude
-   the object from the sync and (b) never be reloaded. This is the one
-   thing today's persistence model can't express (CoffeeMud's whole
-   ephemerality is one predicate: `isSavable()==false` for instance
-   children).
+   the object from the sync and (b) never be reloaded. This was the one
+   thing the persistence model couldn't express (now the `ephemeral`
+   early-return in `_save_object`; CoffeeMud's whole ephemerality is one
+   predicate: `isSavable()==false` for instance children).
 2. **An evacuation guard in `destroy_obj`.** Destroying a room that still
    holds a player must relocate them first — to the instance's
    `return_room` if it set one, else the player's **home** — never orphan
    them.
-3. **Formula-resolved exit destinations** (wilderness variant only). Today
-   an exit's `destination` is a fixed object; allow it to be resolved by
+3. **Formula-resolved exit destinations** (wilderness variant only). An
+   exit's `destination` was a fixed object; it can now be resolved by
    softcode at traverse time, so a direction exit can *get-or-create the
    room for the neighbor cell* and land you in a **real** room (not a
    self-loop). *Final form:* a **deferred exit destination** — a named
@@ -126,12 +127,12 @@ Everything else is convention (below); the kernel only needs:
 | **Template tag** | opt-in mark on a source room/area (e.g. `instance_template`) | a tag |
 | **`ephemeral` tag** | on materialized copies — transient (kernel #1), reapable | a tag |
 | **Identity tag** | `instance:<template>:<owner-id>` — extends the `zone:` scheme | a tag |
-| **Instance-master** | one object per live copy holding `{template, owner, mode, created_at, last_active_at, return_room}` | a GameObject (mirrors zone-master) |
+| **Instance-master** | one object per live copy holding `{template, owner, mode, return_room, idle_ttl, entry, last_active}` | a GameObject (mirrors zone-master) |
 | **Portal-router** | on trigger: the owner → their copy; a follower/party-member of an owner (if `shared`) → that owner's copy; a follower of a `solo` owner → bounced at the threshold; else materialize a new copy | **shipped** — `dest_resolver="instance"` portal exits (`instances.resolve_instance_exit`) over the deferred-destination hook; `bring_followers` re-resolves each follower individually, so the routing applies per walker |
-| **Reaper** | `on_tick`: idle + empty → evacuate to `return_room` → `destroy_obj` the copy + master | a behavior |
+| **Reaper** | idle + empty → R9 evacuation (`release_contents`) → delete the copy + master | **shipped** — `instances.reap_idle` / `wilderness.reap_wilderness`, called from the world tick |
 | **Materializer** | clone the template's rooms/contents with fresh ids | `import_objects` (already exists) |
-| **Population** | mobs/items in the copy | `SpawnerBehavior` (already exists) |
-| **Map-provider** (wilderness) | `is_valid(x,y)`, `name(x,y)`, `desc(x,y)`, terrain | a softcode/pack library |
+| **Population** | mobs/items in the copy | `SpawnerBehavior` in cloned instance templates; the provider's `cell_populate` prototypes for wilderness cells |
+| **Map-provider** (wilderness) | `is_valid`, `cell_name`, `cell_desc`, `cell_terrain`, `cell_populate` attrs on the region object | a softcode/pack library |
 
 ## Two keying strategies
 
@@ -182,21 +183,22 @@ data. The materializer doesn't care which: "procgen vs. authored" is just
 **Half of this authoring flow already exists.** Building an area in OLC,
 `@export`-ing it, and cloning it with fresh ids is exactly what `@export` +
 `import_objects` do today (it's how the spacegame station and content packs
-work). What's *not* there yet is the instancing wrapper around that clone:
+work). The instancing wrapper around that clone —
 the `instance_template` tag, the portal-router that materializes on demand
-*per PC*, the `ephemeral` flag so copies aren't persisted, and the reaper.
-So "build → export → use as an instanced area" is precisely the intended
-path — and today it produces a single *persistent* copy; this design is
-what turns that same export into a repeatable, transient, self-reaping
+*per PC*, the `ephemeral` flag so copies aren't persisted, and the reaper —
+is now shipped in `realm/core/instances.py`. So "build → export → use as an
+instanced area" is exactly the path: the same export that once produced a
+single *persistent* copy now backs a repeatable, transient, self-reaping
 instance.
 
 ## Persistence & reboot
 
 Ephemeral copies are **not saved and do not survive a reboot** — only
 templates persist (CoffeeMud makes the same call). A player mid-dungeon at
-reboot is returned to their evacuation target (their instance's
-`return_room` or their home); progress inside a single instance is
-intentionally not durable. If a game needs durable instances
+reboot is returned to their home (else the start room) by the load-time
+reconcile — the instance's `return_room` only applies to live reaps, since
+the master recording it is itself ephemeral; progress inside a single
+instance is intentionally not durable. If a game needs durable instances
 (a persistent player housing plot, say), that's a *different* feature —
 model it as a real, persistent per-owner area, not an ephemeral copy.
 
@@ -226,11 +228,12 @@ are just rooms, so it stays reserved for genuinely continuous space.
 - **One template format** — worldio area-data, produced by OLC-export, a
   hand-written template, or a generator; all feed `import_objects`.
 - **Idle TTL is an attribute, not a design question** — `idle_ttl` on the
-  instance-master (defaulted from the template, overridable at
-  create/import time), checked by the reaper each tick against
-  `now - last_active_at`. Pick a sane default (say 10–15 min) a template can
-  override.
+  instance-master (module default 900 s = 15 min, overridable per
+  `enter_instance` call or per portal via `instance_ttl`), checked by the
+  reaper each tick against `now - last_active`.
 
-No remaining blocking unknowns: this is a thin convention layer over
-`import_objects` plus the three small kernel bits above — ready to build
-when it's prioritized.
+This shipped as designed: a thin convention layer over `import_objects`
+plus the three small kernel bits above — `realm/core/instances.py`,
+`realm/core/wilderness.py`, the `ephemeral` skip in persistence, the
+evacuation guard, and the deferred-destination hook in
+`realm/core/movement.py`.

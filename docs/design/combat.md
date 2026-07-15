@@ -53,7 +53,7 @@ combatant may queue* (GURPS has All-Out Attack and Feint; D20 has its
 own verbs). We capture that as **data, not methods**: each ruleset
 publishes a `maneuvers()` list of descriptors, and the encounter engine
 schedules whatever it's given. Two clean seams — `Ruleset.maneuvers()`
-and `Ruleset.resolve(maneuver, actor, target, ...)` — rather than an
+and `Ruleset.resolve_special_maneuver(...)` — rather than an
 explosion of interacting interface methods.
 
 ```
@@ -79,7 +79,8 @@ class Maneuver:
     name: str                 # display
     aliases: tuple[str, ...]
     needs_target: bool        # target resolution at queue time, revalidated at fire
-    default_msg: str          # for queue confirmation
+    cost: int = 1             # beats consumed
+    help_text: str = ""
     # resolution is ruleset-side, dispatched on key
 ```
 
@@ -91,14 +92,16 @@ is winding up — and a `telegraph` option can show players too).
 ### 2. `Ruleset` additions (backward compatible)
 
 - `maneuvers() -> list[Maneuver]` — base provides `attack`, `defend`,
-  `flee`, `wait`; GURPS overrides to add `all_out_attack`,
-  `all_out_defense`, `aim`, `feint` (v1 subset; see Open Questions).
-- `resolve_maneuver(encounter, actor, action) -> list[SwingResult]` —
-  base implementation maps `attack` → existing `CombatSystem.attack()`
-  flow, `defend` → defense bonus modifier for the round, `flee` →
-  contested disengage. GURPS specializes (AoA = +4/no defense, etc.).
+  `flee`, `wait` plus the ranged vocabulary (`shoot`, `aim`, `close`,
+  `withdraw`, `cover` — a two-band range model: engaged vs at-range,
+  with cover and accumulating aim bonuses); GURPS overrides to add
+  `all_out_attack`, `all_out_defense`, `feint`.
+- `resolve_special_maneuver(combat_system, encounter, actor, action,
+  target)` — base maneuvers (attack, defend, flee, and the ranged set)
+  resolve in the encounter engine itself; rulesets implement this hook
+  only for their own vocabulary (GURPS: AoA/AoD/Feint).
 - Everything already implemented (roll_attack/defense/damage) is
-  untouched — `resolve_maneuver` composes it.
+  untouched — the encounter engine composes it.
 
 ### 3. `realm/combat/encounter.py` — the beat engine (new, the core)
 
@@ -119,7 +122,8 @@ Per beat:
    order — see Open Questions).
 3. For each living participant, determine the action:
    queued → else strategy match → else **default policy** (see Open
-   Questions), then `ruleset.resolve_maneuver(...)`.
+   Questions), then it resolves — base maneuvers in the engine,
+   specials via `ruleset.resolve_special_maneuver(...)`.
 4. Deliver messages (attacker/defender/others through per-looker
    perception — an unseen attacker reads as "Someone").
 5. Prune: dead/fled/disconnected; end the encounter when one side
@@ -141,15 +145,24 @@ rule pending (Open Question 1).
 - `attack <target>` — starts/joins the room's encounter, queues an
   attack. Hostile action: propagates through the normal gate first
   (locks/behaviors can veto starting a fight — pacifist rooms).
-- `queue <maneuver> [target]` (alias per-maneuver: `aoa`, `defend`,
-  `feint <target>`) — sets/replaces the queued action; confirmation
-  shows what will fire and when.
-- `flee [exit]` — queues a disengage attempt (resolved on the beat,
-  contested; auto-moves through the exit on success).
+- `queue <maneuver> [target]` (maneuver aliases like `aoa`, `fire` work
+  inside `queue`; only `defend` is a bare command) — sets/replaces the
+  queued action; confirmation shows what will fire and when.
+- `flee [exit]` — queues a disengage attempt (resolved on the beat as
+  a `flee` skill check — solo, not opposed; auto-moves through the
+  exit on success). Deferred exits (wilderness cell edges) are valid
+  flee routes — the destination resolves during the move; instance
+  portals (private per-walker destinations) are excluded from flee,
+  since fleeing into a freshly imported private dungeon is an
+  unpursuable teleport. An exit that refuses the move (lock, skill
+  gate) drags you back into the fight.
 - `combat` — status: participants, HP bars, your queued action,
   seconds to next beat.
 - `pace <seconds>` — set personal beat preference.
-- `stop`/`yield` — stop attacking (leave encounter if unengaged).
+- `combatdefault <attack|defend|repeat|nothing>`, `wimpy <pct>|off`,
+  `defend` (bare shortcut), `wield`/`unwield`, `firstaid` — shipped. An
+  explicit `stop`/`yield` command did NOT ship; you leave combat via
+  `flee`, defeat, or the fight ending.
 
 ### 5. Strategies (the future-proofed seam, minimal v1)
 
@@ -182,7 +195,8 @@ rule pending (Open Question 1).
 ### 7. Cleanups executed alongside (review debt in touched files)
 
 - Replace `combatant._combatant_cache` module global with per-encounter
-  wrapping (or an ambient accessor consistent with persistence's).
+  wrapping — NOT done; the module-global cache in `combatant.py`
+  remains the live path.
 - Finish/de-stub `combat/behaviors.py` against the encounter API
   (flee/wander stubs become real moves via `move_through_exit`).
 - Drop the always-true `hasattr(ruleset, 'roll_defense')` guard.

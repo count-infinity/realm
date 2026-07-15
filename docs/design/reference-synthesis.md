@@ -37,9 +37,9 @@ So this is a gap-list at the **edges**, not a course correction.
 
 | Gap | What | Sources | Why it's cheap |
 |---|---|---|---|
-| **Missing event hooks** | `WEAR`/`REMOVE` (equip lifecycle — cursed gear, set bonuses), `HITPRCNT`/`FIGHT` (combat-state → low-HP flee/enrage AI), `LOAD` (just-spawned decorate), `CAST` (spell-targeted → the GURPS resistance-roll seam), `DOOR` (exit opened/closed), `MEMORY` (NPC re-sights) | tbaMUD (DG Scripts) | REALM's event stream is **open** — each is a new `act()` / `ON_<EVENT>` **call site, not a language change**. This is the single most actionable finding of the whole sweep. |
-| **Cancelable task handles** | `wait()` returns a handle with `.cancel()`; list/inspect running tasks | LDMud (`call_out`/`remove_call_out`), MOO (`fork`/`kill_task`), TinyMUX (`@halt/pid`, partial) | Cross-referenced by **three** lineages; MOO/MUX only get halfway (list/kill, not first-class) — REALM can aim higher (a returned value). Small addition to the existing `wait()` scheduler. |
-| **Object self-expiry (`TIMER`)** | a per-object countdown that fires independent of any script (today `wait()` dies with its script) | tbaMUD (`OTRIG_TIMER`), SMAUG (`mpsleep`) | a tick-checked `db.expires_at` + an `ON_EXPIRE` event; reuses the reaper pattern already built for ephemerals. |
+| **Missing event hooks** | ✅ **SHIPPED 2026-07-15** (`realm/core/events.py`, `tests/test_event_hooks.py`): `REMOVE`/`WIELD`/`UNWIELD` + `LOCK`/`UNLOCK` (gated), `RECEIVE`, `LOAD`, `HITPRCNT`, `CAST` (a `cast()` primitive + `event:on_cast`), `EXPIRE` (object self-expiry via `reap_expired`). Reconciled `STANDARD_EVENTS`. `WEAR`/`GET`/`DROP`/`OPEN`/`CLOSE`/`USE`/`PUT` already fired — the review overstated the gap. Remaining: `MEMORY` (NPC re-sight), `FIGHT` (per-round). | tbaMUD (DG Scripts) | REALM's event stream is **open** — each was a new `fire_event()` **call site, not a language change**, exactly as predicted. |
+| **Cancelable task handles** | ✅ **SHIPPED 2026-07-15** — `wait(secs, cmd)` returns an opaque handle id; `cancel_wait(id)` calls a pending wait off before it fires (a defuse), gated so only a controller of the scheduling object may cancel. `realm/scripting/engine.py` (id-keyed `_waits`), `tests/test_wait_cancel.py`. | LDMud (`call_out`/`remove_call_out`), MOO (`fork`/`kill_task`), TinyMUX (`@halt/pid`) | Delivered the returned-handle + cancel pair. A `waits()` *list* (queued_tasks/@ps) is the optional follow-up; persistent (reboot-surviving) waits remain a separate backlog item. |
+| **Object self-expiry (`TIMER`)** | ✅ **SHIPPED 2026-07-15** — a tick-checked `db.expires_at` fires `event:on_expire` via `reap_expired` (`realm/core/events.py`); DecayBehavior's `db.decay_left` countdown already covered physical rot | tbaMUD (`OTRIG_TIMER`), SMAUG (`mpsleep`) | reused the reaper pattern already built for ephemerals. |
 
 ## Tier 2 — kernel gaps, real but bigger or opportunistic
 
@@ -48,7 +48,7 @@ So this is a gap-list at the **edges**, not a course correction.
 | **Area-reset / repop primitive** | presence-gated scheduled repopulation of an area's canonical contents; a declarative reset list (`M/O/P/E/G/D/R/T`) | SMAUG (`area_update`/`reset_area`), tbaMUD (`RESET` trigger) — REALM has per-object spawners but no *area-level* reset with an `ON_RESET` hook |
 | **Counting semaphore / cross-task rendezvous** | one task blocks until N others signal (`@wait obj/attr` + `@notify`) | TinyMUX — steal the *idea* as a Pythonic event/condition object, not the attribute-counter |
 | **`reset()` / `clean_up()` lifecycle pair** | periodic self-repop + return-value-driven idle self-GC | LDMud — `clean_up` overlaps the ephemeral reaper; `reset` overlaps area-reset above |
-| **Granular capability vocabulary** | fine-grained powers (`pass_locks`, `tel_anywhere`, `see_queue`…) beneath the role tiers | TinyMUX (~35 powers), LDMud (uid/euid) — only if PLAYER/BUILDER/ADMIN/GOD proves too coarse |
+| **Granular capability vocabulary** | fine-grained powers (`pass_locks`, `tel_anywhere`, `see_queue`…) beneath the role tiers | TinyMUX (~35 powers), LDMud (uid/euid) — only if GUEST/PLAYER/BUILDER/ADMIN/GOD proves too coarse |
 
 ## Tier 3 — small reusable mechanisms (mine, don't port)
 
@@ -85,8 +85,10 @@ ships now and continuous flight bolts on later without reworking interiors.
 - **API-first: business logic is a module function both a thin telnet
   adapter and a thin web adapter call** (`Scenes.emit_pose`). The single
   most stealable *discipline* for REALM's OOB/WebSocket surface. *(AresMUSH)*
-- **`prompt()` is validated** — MUX's `@program` and REALM's coroutine
-  `prompt()` solve the same problem; REALM's preserves scope automatically.
+- **`prompt()` is validated** — MUX's `@program` and REALM's `prompt()`
+  solve the same problem; REALM's native-tier coroutine prompt
+  (`session.prompt`) preserves scope automatically, while the softcode-tier
+  `prompt()` chains via callback attributes, `@program`-style.
   No change needed; confidence gained. *(TinyMUX)*
 - **Path-rewriting security callback** — LDMud's master object returns a
   *rewritten path* from `valid_read`/`valid_write`, not a bool; an idea for
@@ -129,13 +131,14 @@ REALM ever wants to court the MUSH/RP audience, this is one coherent
 
 ## Recommended next actions
 
-1. **Add the Tier-1 event hooks** (`WEAR`/`REMOVE`, `HITPRCNT`/`FIGHT`,
-   `LOAD`, `CAST`, `DOOR`, `MEMORY`) — highest value-to-effort in the whole
-   sweep, and each is one `act()` call site. Pairs naturally with a
-   `TIMER`/`ON_EXPIRE` object-expiry hook.
+1. ✅ **Add the Tier-1 event hooks** — shipped 2026-07-15 (see Tier 1);
+   each was one `fire_event()` call site with its own `<domain>:on_<event>`
+   action_type, as predicted. `MEMORY` and per-round `FIGHT` remain. The
+   paired `TIMER`/`ON_EXPIRE` object-expiry hook shipped alongside.
 2. **Give `wait()` cancelable handles** — three lineages asked for it.
-3. Keep **wilderness / space** on the roadmap with SWR's dual-identity-ship
-   design as the concrete plan for when continuous space is wanted.
+3. Keep **continuous space** on the roadmap with SWR's dual-identity-ship
+   design as the concrete plan (wilderness has since shipped —
+   `realm/core/wilderness.py`; discrete space rides on it).
 4. Bank the Tier-2/3 mechanisms (alignment axis, resource pool, area-reset,
    semaphores) as pack/kernel candidates; none are urgent.
 

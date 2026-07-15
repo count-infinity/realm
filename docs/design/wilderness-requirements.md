@@ -91,14 +91,16 @@ map-provider convention, and directional get-or-create movement.
   from softcode: define a region + provider in-game, and the movement hook
   is softcode on the cells' exits (set by the materializer, not the
   builder). Authority-gated like every relocation.
-- **R9 — Teardown never orphans an object.** The shipped teardown is
-  player-only at every layer: `destroy_instance` evacuates only
+- **R9 — Teardown never orphans an object.** The pre-Stage-2 teardown was
+  player-only at every layer: `destroy_instance` evacuated only
   `player`-tagged occupants, the engine `destroy` op likewise, and reboot
-  reconcile iterates only players. A persistent item dropped in an ephemeral
-  room is today neither evacuated nor deleted — it keeps a location pointing
-  at a dead room and its row is *saved with a dangling `location_id`*,
+  reconcile iterated only players. A persistent item dropped in an ephemeral
+  room was neither evacuated nor deleted — it kept a location pointing
+  at a dead room and its row was *saved with a dangling `location_id`*,
   reloading silently at `location=None`. Wilderness makes dropping things on
-  the ground an everyday path, so this is a blocker, not a nit. Policy:
+  the ground an everyday path, so this was a blocker, not a nit — closed by
+  the shared helper (`realm/core/teardown.py`: `release_contents` applies
+  the disposition below; instances adopted it). Policy:
   - **ownership decides** (one rule for items and NPCs alike): an object
     whose `.owner` is a player is delivered to that player's `home` (else
     the start-room floor), logged; an object with no owner — or a
@@ -106,10 +108,13 @@ map-provider convention, and directional get-or-create movement.
     (`persistence.delete` + a log line) — R7's non-durability applied to
     contents; loud deletion, never silent limbo;
   - **reboot reconcile extends beyond players** (the crash-path backstop):
-    any persistent object reloading with a dangled location goes `home` else
-    the start-room floor, and is logged — never `location=None` silently.
-  Implement in the **shared reap+evacuate helper** (§8) so instances inherit
-  the fix — the gap is live in shipped Stage 1 today.
+    any persistent object reloading with a dangled location gets the same
+    ownership disposition — player-owned → the owner's home (else the
+    start room); anything else is emptied (the R9 recursion) and deleted,
+    logged — never `location=None` silently.
+  Implemented in the **shared reap+evacuate helper** (`realm/core/teardown.py`)
+  so instances inherit the fix — this closed a gap that was live in shipped
+  Stage 1.
 - **R10 — Provider failures are loud, not oceanic.** `eval_attr` returns
   `None` on *any* script error, and `materialize_cell` returns `None` for
   invalid coordinates — naively a syntax error in the provider renders the
@@ -199,7 +204,9 @@ async def materialize_cell(region, x, y, persistence) -> GameObject | None
     # None iff is_valid(x,y) evaluated false; a provider *error* raises
     # ProviderError instead (R10) — never masquerades as "invalid". Else
     # build the ephemeral cell + directional dead-end exits from the
-    # map-provider, tag + attr + index it.
+    # map-provider, tag + attr + index it. Concurrent callers for one
+    # coordinate share a single in-flight build (a _pending task map) —
+    # never two cells for one coord.
 async def resolve_wilderness_exit(exit_obj, actor) -> GameObject | None
     # the registered dest_resolver: region+coord from the exit (dx/dy step
     # off its cell, or absolute wild_x/wild_y — the world-entry seam);
@@ -215,10 +222,10 @@ async def reap_wilderness(persistence, *, now=None) -> int
     # destroyed+logged, NPCs home-or-destroyed), drop from the index.
 ```
 
-Reuse `instances.evacuation_room` and the `ephemeral`/reap patterns verbatim
-— consider extracting the shared reap+evacuate helper so `instances.py` and
-`wilderness.py` don't duplicate it (a small refactor the vision-keeper will
-likely ask for anyway).
+The shared reap+evacuate helper was extracted to `realm/core/teardown.py`
+(`evacuation_room`, `release_contents`, `subtree_has_player`); both
+`instances.py` and `wilderness.py` import it, so the R9 policy cannot drift
+between them.
 
 ### 4.3 The movement trigger — deferred exit destinations
 
@@ -314,8 +321,9 @@ hardened:
    place the cascade lives (§4.3).
 8. **Leaving to the persistent world** — a cell's real-destination exit to a
    town works and the wilderness cell reaps behind them.
-9. **Consent/authority** — the on_fail walker is moved (consented); a
-   co-located scripted object cannot move a co-occupant (guarded).
+9. **Consent/authority** — an authored `on_fail` portal on a true dead-end
+   may relocate the walker (the fail line suppressed, R4); a co-located
+   scripted object cannot move a co-occupant (guarded).
 10. **Contents of a reaped cell** — an unowned object is destroyed
     deliberately and logged; a player-owned object lands in its owner's
     home (R9); nothing is left pointing at the dead cell, and after a
@@ -364,6 +372,8 @@ hardened:
   (dangled locations are reconciled or reaped at load).
 - Followers: leader + follower walk `north` → both stand in the same new
   cell; the follower's arrival doesn't trigger a second materialization.
+- Concurrency: two walkers resolving the same unmaterialized coord in one
+  window share one build (one cell, one encounter roll).
 - R10: a provider whose `is_valid` raises → structured error logged, walker
   doesn't move, message differs from the authored bounds message;
   `cell_name`/`cell_desc` erroring → cell still builds with terse defaults
@@ -442,7 +452,8 @@ hardened:
 - An example region shipped as data (a small pack or a builder script) so
   `sim.do(player, "north")` walks procedurally generated cells.
 - `tests/test_wilderness.py` green (all of §7); full suite green; lint clean.
-- `ephemeral-rooms.md` updated (Stage 2 shipped; kernel bit #3 subsumed by
-  `on_fail`); `features-roadmap.md` wilderness row → shipped.
+- `ephemeral-rooms.md` updated (Stage 2 shipped; kernel bit #3 landed as
+  the deferred-destination hook, the `on_fail` movement trigger retired);
+  `features-roadmap.md` wilderness row → shipped.
 - Vision-keeper audit clean (esp. kernel purity — no terrain/genre in
   `wilderness.py` — and the consent/authority checks of §4.4).

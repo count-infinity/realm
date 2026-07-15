@@ -225,14 +225,14 @@ to *act on the world*. These are REALM's `act()` + softcode functions.
 | `mkill` `mdamage` | `odamage` | `wdamage` | combat → damage softcode fn |
 | `mdoor` | `odoor` | `wdoor` | edit exits/doors → exit mutation |
 | `mtransform` | `otransform` | — | swap a mob/obj's prototype → re-tag/re-parent |
-| `mremember`/`mforget` `mhunt` `mfollow` | — | — | NPC memory/pursuit → **no REALM equivalent** |
+| `mremember`/`mforget` `mhunt` `mfollow` | — | — | `mfollow` → follow chain (`realm/core/party.py`, cascaded by the movement kernel); `mremember`/`mhunt` memory-and-pursuit → **no REALM equivalent** |
 | `mlog` | `olog` | `wlog` | builder log → structured log channels |
 | — | `osetval` `otimer` | — | set obj vals / arm timer → `set_attr` |
 
 Coverage is broad (echo/spawn/move/force/combat/log all map to `act` +
 softcode functions), with the honest gaps being **`mtransform`** (hot-swap a
-running entity's prototype) and the **`mremember`/`mhunt`/`mfollow`** NPC
-memory-and-pursuit trio.
+running entity's prototype) and the **`mremember`/`mhunt`** NPC
+memory-and-pursuit pair.
 
 ---
 

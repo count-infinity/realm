@@ -27,8 +27,48 @@ function defs — under time/call/output limits.
 |---|---|
 | `$pattern:code` (attr `cmd_*`) | player input matching the pattern (gated by the `use` lock) |
 | `^pattern:code` (attr `listen_*`) | overheard speech (gated by the `listen` lock) |
-| `ON_<EVENT>` attr | propagated actions: ENTER, LEAVE, ARRIVE, LOOK, GET, DROP, GIVE, DEATH, PAYMENT... (zone masters hear member rooms) |
 | `on_tick` attr | via the `script_ticker` behavior |
+| `ON_<EVENT>` attr | a lifecycle event (below); matched by suffix, so any `ON_<name>` works |
+
+### `ON_<EVENT>` lifecycle hooks
+
+An `ON_<NAME>` attribute fires when that event reaches the object (zone
+masters also hear their member rooms). Gated hooks let an `on_check` ward
+veto (a cursed item refusing removal).
+
+| Hook attr | Fires when |
+|---|---|
+| `ON_ENTER` | something enters this location |
+| `ON_LEAVE` | something leaves this location |
+| `ON_ARRIVE` | this object arrives somewhere new |
+| `ON_FAIL` | a move was thwarted (dead-end/locked exit) — @afail |
+| `ON_LOOK` | this object is looked at |
+| `ON_USE` | this object is used |
+| `ON_PUSH` | this object is pushed (button, lever) |
+| `ON_GET` | this object is picked up |
+| `ON_DROP` | this object is dropped |
+| `ON_GIVE` | this object is given away |
+| `ON_RECEIVE` | this object is given something (recipient side) |
+| `ON_PUT` | this object is put in a container |
+| `ON_WEAR` | this object is worn |
+| `ON_REMOVE` | this object is taken off (gated: cursed gear can refuse) |
+| `ON_WIELD` | this weapon is readied (gated) |
+| `ON_UNWIELD` | this weapon is lowered (gated) |
+| `ON_OPEN` | this door/container is opened |
+| `ON_CLOSE` | this door/container is closed |
+| `ON_LOCK` | this is locked (gated) |
+| `ON_UNLOCK` | this is unlocked (gated: a sealed door can refuse) |
+| `ON_ATTACK` | this object attacks or is attacked |
+| `ON_DAMAGE` | this object takes damage |
+| `ON_HITPRCNT` | HP fell through this object's db.hitprcnt threshold |
+| `ON_DEATH` | this object dies |
+| `ON_CAST` | an ability is directed at this object (resist via on_check) |
+| `ON_LOAD` | this object was just spawned |
+| `ON_EXPIRE` | this object's db.expires_at elapsed (then it's destroyed) |
+| `ON_TICK` | periodic timer (on_tick behavior) |
+| `ON_CONNECT` | player connects |
+| `ON_DISCONNECT` | player disconnects |
+| `ON_PAYMENT` | this object was paid |
 
 ## Functions
 
@@ -43,7 +83,9 @@ function defs — under time/call/output limits.
 | `attach_behavior` | `(obj: 'GameObject \| str \| None', behavior_id: 'str', **params: 'Any') -> 'bool'` | Attach a registered behavior to an object the executor controls. | `attach_behavior('golem', 'script_ticker', interval=5)` |
 | `band` | `(value: 'int', *thresholds: 'int', skill: 'str' = '') -> 'CheckResult'` | Tiered outcome (PbtA): tier = how many ascending thresholds |  |
 | `behaviors` | `(obj: 'GameObject \| str \| None') -> 'list[str]'` | Behavior ids attached to an object. | `'wandering' in behaviors('rat')` |
+| `cancel_wait` | `(wait_id: 'str \| None') -> 'bool'` | Cancel a pending wait by the handle ``wait()`` returned, before it | `cancel_wait(get_attr(me, 'fuse'))` |
 | `capstr` | `(text: 'str') -> 'str'` | Capitalize each word. | `capstr('the iron king')   # 'The Iron King'` |
+| `cast` | `(target: 'GameObject \| str \| None', ability: 'str' = '', *, tags: 'list[str] \| None' = None) -> 'bool'` | Direct an ability at a target — the ability analog of ``act``. Fires |  |
 | `ceil` | `(value: 'float') -> 'int'` | Round up to integer. | `ceil(7.1)                 # 8` |
 | `clamp` | `(value: 'int \| float', low: 'int \| float', high: 'int \| float') -> 'int \| float'` | Clamp value between low and high. | `clamp(damage, 1, 10)` |
 | `clear_lock` | `(obj: 'GameObject \| str \| None', lock_type: 'str') -> 'bool'` | Clear a lock from an object the executor controls. | `clear_lock(me, 'basic')` |
@@ -59,9 +101,11 @@ function defs — under time/call/output limits.
 | `dice` | `(num: 'int' = 1, sides: 'int' = 6, modifier: 'int' = 0) -> 'int'` | Roll dice: NdS+M | `dice(3, 6)   # 3d6` |
 | `disposition` | `(npc, other=None) -> 'int'` | How npc feels about other (default: the enactor). | `disposition(me, enactor) >= 2` |
 | `enter_instance` | `(player: 'GameObject \| str \| None', template: 'str', *, mode: 'str' = 'solo', return_room: 'GameObject \| str \| None' = None, idle_ttl: 'float \| None' = None) -> 'bool'` | Send a player into a private, transient copy of a template area, |  |
+| `enter_wilderness` | `(player: 'GameObject \| str \| None', region: 'str', x, y) -> 'bool'` | Send a player to the wilderness cell at ``(region, x, y)``, | `enter_wilderness(enactor, 'wilds', 10, 10)` |
 | `escape` | `(text: 'str') -> 'str'` | Escape color markup in player-provided text (\|\| literals). | `say('They said: ' + escape(arg0))` |
 | `eval_attr` | `(obj, attr_name: 'str', *args)` | Evaluate an attribute as a FUNCTION and return its ``result`` — | `eval_attr(me, 'render_side', n)` |
 | `exits` | `(room: 'GameObject \| str \| None' = None) -> 'list[GameObject]'` | Open exits of a room (default: the executor's location). | `move(name(exits(here)[0]))` |
+| `expire` | `(target: 'GameObject \| str \| None', seconds: 'float') -> 'bool'` | Give an object a lifetime: after ``seconds`` it fires ``ON_EXPIRE`` | `expire(create_obj('a wisp of smoke'), 30)` |
 | `extract` | `(lst: 'list \| str', position: 'int', delimiter: 'str' = ' ') -> 'str'` | Get element at position (1-indexed). | `extract('a b c', 2)       # 'b'` |
 | `first` | `(lst: 'list \| str', delimiter: 'str' = ' ') -> 'str'` | Get first element of list or first word of string. | `first('north south east') # 'north'` |
 | `floor` | `(value: 'float') -> 'int'` | Round down to integer. | `floor(7.9)                # 7` |
@@ -118,7 +162,7 @@ function defs — under time/call/output limits.
 | `transfer_credits` | `(source: 'GameObject \| str \| None', dest: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Move money FROM something the executor controls. | `transfer_credits(me, enactor, 25)` |
 | `trim` | `(text: 'str') -> 'str'` | Remove leading/trailing whitespace. | `trim('  hello  ')` |
 | `ucfirst` | `(text: 'str') -> 'str'` | Capitalize first character. | `ucfirst('hello')          # 'Hello'` |
-| `wait` | `(seconds: 'float', command: 'str') -> 'None'` | Run a script command as the executor ~seconds from now (one-shot, | `wait(4, 'say The fuse burns down...')` |
+| `wait` | `(seconds: 'float', command: 'str') -> 'str \| None'` | Run a script command as the executor ~seconds from now (one-shot, |  |
 | `words` | `(text: 'str', delimiter: 'str' = ' ') -> 'int'` | Count words/elements in text. | `words('a b c')            # 3` |
 | `zone_rooms` | `(zone: 'str')` | Rooms tagged into a zone: zone_rooms('castle'). | `zone_rooms('castle')` |
 | `zones_of` | `(obj)` | The zone names an object belongs to (no 'zone:' prefix). | `zones_of(here)` |

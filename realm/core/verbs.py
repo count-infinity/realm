@@ -114,6 +114,12 @@ async def do_give(actor: GameObject, item: GameObject, target: GameObject) -> bo
     action.add_message("target", "{actor} gives you {tool:a}.")
     action.add_message("room", "{actor} gives {tool:a} to {target}.")
     deliver_messages(action)
+
+    # ON_RECEIVE — the recipient's own hook (distinct from the giver-side
+    # give): a shopkeeper reacting to an item pressed into its hands.
+    from realm.core.events import fire_event
+    await fire_event(actor, target, "event:on_receive",
+                     extra={"item": item, "giver": actor})
     return True
 
 

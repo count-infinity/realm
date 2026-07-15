@@ -125,7 +125,7 @@ Working on the engine itself? Do it from inside the clone:
 ```bash
 cd realm
 pip install -e ".[dev]"
-pytest                # ~950 tests, a couple of seconds
+pytest                # ~1100 tests, a couple of seconds
 ruff check realm/
 mkdocs serve          # docs at http://127.0.0.1:8000
 ```

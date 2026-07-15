@@ -69,13 +69,16 @@ splitting it along **two orthogonal axes**, not a pile of ad-hoc functions:
 - **`move_to`** is *direct placement with checks* — not "a teleport" per se
   (teleport is just its commonest use). Its baked-in sequence is the
   `move_and_slide` of REALM: a `movement`-tagged **leave** veto (origin/mover
-  may block) → destination **ENTER lock** → a `movement`-tagged **pre-enter**
-  veto (the *destination's* event-veto, which a static lock can't express,
-  mirroring Evennia's `at_pre_object_receive` / CoffeeMUD's destination
-  `okMessage`) → relocate → informational `on_enter`.
+  may block) → destination **ENTER + TELEPORT locks** → a `movement`-tagged
+  **pre-enter** veto (the *destination's* event-veto, which a static lock
+  can't express, mirroring Evennia's `at_pre_object_receive` / CoffeeMUD's
+  destination `okMessage`) → relocate → informational `on_enter`.
 - **`move_through_exit`** is traversal — the same core movement plus an exit
   preamble (exit lock, closed-door, skill-gate, direction) and the follower
-  cascade.
+  cascade. Its `destination` may be deferred — an exit with a registered
+  `dest_resolver` materializes the room beyond (a wilderness cell, an
+  instance copy) only after the origin-side gates pass; see
+  ephemeral-rooms.md.
 - **`teleport_obj`** is now a thin alias for `move_to(force=True)` — the
   wizard/admin path.
 
@@ -95,7 +98,7 @@ room, `controls` would fire the world-trusts-world rule and let any
 co-located object move occupants (a confused-deputy hole). Requiring
 `loc.owner` means only genuine ownership / admin / owner-delegation counts.
 This reaches both the softcode surface (`move_to`/`teleport_obj`/
-`enter_instance`) and the OLC `@teleport` command.
+`enter_instance`/`enter_wilderness`) and the OLC `@teleport` command.
 
 **The destination side** (Penn's `tport_dest_ok`) is symmetric: `move_to`'s
 optional `mover` names who's performing a third-party relocation, and its
@@ -115,7 +118,7 @@ carefully *not* an all-powerful override — three distinct layers, and
 | Layer | What it is | Bypassed by `force`? |
 |---|---|---|
 | **Authority** | you must *control* the target (or, unforced, be the enactor) | **never** |
-| **Locks** (ENTER, TELEPORT) | the destination's static gates | **no** — only the GOD role bypasses a lock |
+| **Locks** (ENTER, TELEPORT) | the destination's static gates | **no** — only elevated roles bypass a lock (GOD bypasses all; ADMIN all but CONTROL on god-owned objects), in `check_lock` |
 | **Wards** (on_check leave / pre-enter vetoes) | category blocks like a Bound field | **yes** — this is the whole point |
 
 So a wizard's `teleport_obj` tunnels past a Bound ward but **still honors a

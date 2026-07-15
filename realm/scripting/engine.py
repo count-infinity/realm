@@ -100,10 +100,12 @@ class ScriptEngine:
         self._persistence = persistence
         self.dispatcher = None  # set by GameServer; enables force()
         self._depth = 0
-        # One-shot scheduled commands: (fire_at_monotonic, executor, command).
+        # One-shot scheduled commands, keyed by a handle id so softcode can
+        # cancel a pending wait (LDMud call_out/remove_call_out; MOO
+        # fork/kill_task). value = (fire_at_monotonic, executor, command).
         # In-memory only — like MUSH @waits, pending waits don't survive a
         # reboot. Fired from the server heartbeat via tick_waits().
-        self._waits: list[tuple[float, GameObject, str]] = []
+        self._waits: dict[str, tuple[float, GameObject, str]] = {}
 
     # --- Entry point: unknown command fallback ---
 
@@ -715,11 +717,32 @@ class ScriptEngine:
 
     # --- One-shot waits (fired from the server heartbeat) ---
 
-    def schedule_wait(self, executor: GameObject, seconds: float, command: str) -> None:
-        """Queue a script command to run ~seconds from now (in-memory)."""
+    def schedule_wait(self, executor: GameObject, seconds: float, command: str,
+                      *, wait_id: str | None = None) -> str:
+        """Queue a script command to run ~seconds from now (in-memory).
+        Returns the handle id; pass ``wait_id`` to register under a
+        caller-chosen id (so ``wait()`` can hand the id back before the op
+        drains)."""
         import time as _time
+        import uuid
         seconds = max(0.0, min(float(seconds), 3600.0))
-        self._waits.append((_time.monotonic() + seconds, executor, str(command)))
+        wait_id = wait_id or uuid.uuid4().hex
+        self._waits[wait_id] = (_time.monotonic() + seconds, executor,
+                                str(command))
+        return wait_id
+
+    def cancel_wait(self, wait_id: str, *, by: GameObject | None = None) -> bool:
+        """Cancel a pending wait by its handle. When ``by`` is given, only a
+        controller of the wait's executor may cancel it (the id alone is not
+        authority — it may have been stored in a readable attr)."""
+        entry = self._waits.get(wait_id)
+        if entry is None:
+            return False
+        if by is not None:
+            from realm.permissions.locks import controls
+            if not controls(by, entry[1]):
+                return False
+        return self._waits.pop(wait_id, None) is not None
 
     async def tick_waits(self) -> None:
         """Fire due one-shot waits. Called each pulse by the game server."""
@@ -727,11 +750,11 @@ class ScriptEngine:
             return
         import time as _time
         now = _time.monotonic()
-        due = [w for w in self._waits if w[0] <= now]
-        if not due:
-            return
-        self._waits = [w for w in self._waits if w[0] > now]
-        for _at, executor, command in due:
+        due = [(wid, entry) for wid, entry in self._waits.items()
+               if entry[0] <= now]
+        for wid, _entry in due:
+            self._waits.pop(wid, None)
+        for _wid, (_at, executor, command) in due:
             if executor.has_tag('halt'):
                 continue
             await self._run_script_command(executor, command)
@@ -881,8 +904,10 @@ class ScriptEngine:
                 if manager is not None:
                     await manager.initiate(obj, message)
             elif kind == 'wait':
-                seconds, command = message
-                self.schedule_wait(obj, seconds, command)
+                seconds, command, wait_id = message
+                self.schedule_wait(obj, seconds, command, wait_id=wait_id)
+            elif kind == 'cancel_wait':
+                self.cancel_wait(str(message), by=functions.executor)
             elif kind == 'prompt':
                 text, callback, executor_id, persistent = message
                 self._install_softcode_prompt(
@@ -895,6 +920,30 @@ class ScriptEngine:
                 msg, targeting, action_type = message
                 await self._propagate_act(
                     functions.executor, obj, msg, targeting, action_type)
+            elif kind == 'cast':
+                from realm.core.events import fire_event
+                from realm.core.propagation import _room_of
+                from realm.permissions.locks import LockType, check_lock
+                ability, extra_tags = message
+                caster = functions.executor
+                # Remote reach is authority-gated by the target room's REACH
+                # lock, exactly like act(targeting='remote') — a co-located
+                # cast is ward-defended and open. Denied remote casts drop
+                # (the target's room sealed itself against reaching in).
+                target_room = _room_of(obj)
+                reach_ok = (caster is not None
+                            and _room_of(caster) is target_room)
+                if not reach_ok and caster is not None and target_room is not None:
+                    reach_ok = check_lock(target_room, LockType.REACH, caster)
+                if reach_ok:
+                    # No kernel-forced category — 'magic' is genre (a hard-SF
+                    # psi power isn't magic). The caster supplies the tags;
+                    # wards key on those or on atype == 'event:on_cast'.
+                    await fire_event(
+                        caster, obj, "event:on_cast",
+                        tags=set(extra_tags),
+                        extra={"ability": ability, "caster": caster},
+                        gated=True)
             elif kind == 'move_to':
                 if self._persistence is not None:
                     from realm.core.movement import move_to

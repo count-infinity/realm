@@ -926,6 +926,11 @@ class GameServer:
                     await wilderness.reap_wilderness(self.persistence)
                 except Exception:
                     logger.exception("Wilderness reap error")
+                try:
+                    from realm.core.events import reap_expired
+                    await reap_expired(self.persistence)
+                except Exception:
+                    logger.exception("Expiry reap error")
             for session in self.session_manager.all_sessions():
                 try:
                     await session.flush_output()

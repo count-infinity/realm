@@ -147,6 +147,14 @@ class SpawnerBehavior(Behavior):
         if persistence is not None:
             await persistence.save(spawn)
 
+        # ON_LOAD — the freshly spawned object decorates itself (roll stats,
+        # pick a random name, equip). Fired after it's in the world + saved.
+        # actor=None: the spawn reacts to its OWN creation, so it must be the
+        # target (witness), not the excluded-from-witnessing actor.
+        from realm.core.events import fire_event
+        await fire_event(None, spawn, "event:on_load",
+                         extra={"spawner": key})
+
         announce = self.get_param('announce')
         if announce:
             room.msg_contents(str(announce))

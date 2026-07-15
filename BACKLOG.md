@@ -91,18 +91,19 @@ Full-codebase review (3 subsystem passes). The structural tier was fixed the
 same day (see Completed); these remain, roughly by impact:
 
 - [ ] **Scripting follow-ups** (engine wired 2026-07-02; actuators +
-  builder loop 2026-07-04, see Completed): zone objects and the Master
-  Room are still unimplemented in `get_search_objects` (plan.md search
-  order steps 4–5); scripts can emit communication commands plus
+  builder loop 2026-07-04, see Completed): the global Master Room is still
+  unimplemented in `get_search_objects` (docs/design/original_plan.md
+  search order step 5; zone masters — step 4 — shipped, see Completed);
+  scripts can emit communication commands plus
   `move`/`trigger` — `get`/`drop`/`open` and full dispatcher access
   (`@force`) remain; listen triggers hear `extra["message"]` actions
   (say/shout/ooc/emit) but not poses.
 - [ ] **Spacegame content:** the doctor's `$help` softcode is shadowed by
   the builtin `help` command (softcode only sees *unknown* commands) —
   rename the trigger or document the precedence.
-- [ ] **Rewrite or delete `examples/spacegame/commands.py`.** It imports a
-  command API that doesn't exist (`realm.commands.registry`, `context`,
-  `Command`) — cannot be imported. Add an import smoke-test for examples.
+- [x] ~~**Rewrite or delete `examples/spacegame/commands.py`.**~~ DONE
+  2026-07-05: deleted with the legacy set/get_combat_system globals (see
+  Completed TIER 2/3 entry).
 - [x] ~~**Extract auth from GameServer**~~ DONE 2026-07-05:
   AuthService(persistence) with rate limiting; see Completed.
 - [x] ~~**Unify the AST validators.**~~ DONE 2026-07-04:
@@ -175,7 +176,7 @@ same day (see Completed); these remain, roughly by impact:
   - Reason: Cross-platform safety
 
 - [ ] Document `time.monotonic()` migration decision
-  - Location: `PLAN.md` or new `docs/decisions/`
+  - Location: new `docs/decisions/`
   - Reason: Python 3.14 compatibility rationale should be recorded
 
 ### Testing
@@ -186,9 +187,8 @@ same day (see Completed); these remain, roughly by impact:
 ## Priority 2 - Nice to Have
 
 ### Configuration
-- [ ] Make welcome file path configurable via settings
-  - Current: Hardcoded to `config/welcome.txt`
-  - Should come from settings.yaml
+- [x] ~~Make welcome file path configurable~~ DONE: `WELCOME_FILE` in
+  config.py (realm/config/loader.py; default `data/welcome.txt`).
 
 ### Session Output
 - [ ] Out-of-band flush for messages emitted outside command processing
@@ -266,6 +266,28 @@ same day (see Completed); these remain, roughly by impact:
     - Object ownership
     - Default locks
     - Scripting approach (Python entry points vs inline)
+
+### Builder Tools
+- [ ] **In-game multiline text editor** (Evennia `EvEditor` analog)
+  - A stateful line-editor input mode for editing multiline text in-game:
+    room/object descriptions, `[[...]]`/softcode attr bodies, mail, notes,
+    boards. Enter with e.g. `@edit here/desc`; edit over multiple lines;
+    `:w` save, `:q` quit, `:wq`, plus line ops (list `:`, insert, delete,
+    replace/search, undo). Also seen as `ed`/`wedit`/`beginedit` in
+    LDMud/DikuMUD3 and CoffeeMud's genEd prompt-editor — a near-universal
+    builder QoL tool the catalog surfaced (docs/design/command-catalog.md).
+  - **Build on what exists**: the session input-capture already powering
+    `prompt()` (`session.input_handler` / `_prompt_future`, single-line);
+    an editor is a richer, persistent input mode over the same choke point —
+    it intercepts each line, maintains a text buffer + cursor, and commits
+    the buffer back to the target attr on `:w`. Reboot-safety like chargen
+    (persist the buffer + re-install on reconnect) is a nice-to-have.
+  - **Authority**: gate writes through the same path as `@set`/`@desc`
+    (`controls()` / attribute permissions) — the editor is just an input UI
+    over an authorized attribute write, no new permission surface.
+  - Softcode surface: a way to open the editor on an attr from softcode
+    (mirrors how `prompt()` is exposed), so builders can wire "edit this"
+    affordances.
 
 ## Questions for Product Manager
 
@@ -492,8 +514,9 @@ Design sketch:
     any `zone_master`-tagged object sharing the tag is the area brain.
     THREE seams wired: trigger search step 4 (zone-wide $-commands and
     ^listens — the Penn Zone Master Room, finally implemented from
-    plan.md), event witnessing (the master's ON_ENTER/ON_DEATH fire
-    for events in member rooms), and `zone_property(room, name)` —
+    docs/design/original_plan.md), event witnessing (the master's
+    ON_ENTER/ON_DEATH fire for events in member rooms), and
+    `zone_property(room, name)` —
     numeric policy where overlapping zones take max; the death award
     consults `xp_multiplier` (`@set Castle Zone/xp_multiplier = 1.2`
     is the user's +20% XP zone, one attribute, no scripts per kill).
@@ -1224,7 +1247,8 @@ Design sketch:
     autofixes (130: import order, unused imports, f-strings) + pytest green.
 - [x] Auto-flush welcome screen on connection (telnet)
 - [x] Auto-flush welcome screen on connection (websocket)
-- [x] Configurable welcome screen via `config/welcome.txt`
+- [x] Configurable welcome screen via `data/welcome.txt` (`WELCOME_FILE`
+  setting)
 - [x] Python 3.14 asyncio compatibility (`time.monotonic()`)
 - [x] Pass writer to `create_session()` for protocol-agnostic flush
 - [x] Update venv instructions in `CLAUDE.md`

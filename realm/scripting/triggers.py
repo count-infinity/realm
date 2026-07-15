@@ -176,24 +176,50 @@ class EventTrigger:
 # Mapping of event types to attribute prefix
 EVENT_ATTR_PREFIX = 'ON_'
 
-# Standard event triggers from plan.md
+# The lifecycle events the engine fires, keyed by the ``ON_<name>`` a witness
+# reacts with, with a one-line description. DOCUMENTARY — matching is by
+# suffix, so an ``ON_<anything>`` attribute works if some code (or ``act()``)
+# fires an ``…:<name>`` action. This is the single source of truth: the
+# softcode reference (`scripts/gen_softcode_docs.py`) renders it, so a new
+# hook self-documents. Kept grouped, in sync with the real fire sites.
 STANDARD_EVENTS = {
-    'ENTER',      # Something enters this location
-    'LEAVE',      # Something leaves this location
-    'ARRIVE',     # This object arrives somewhere new
-    'LOOK',       # This object is looked at
-    'GET',        # This object is picked up
-    'DROP',       # This object is dropped
-    'GIVE',       # This object is given away
-    'RECEIVE',    # This object receives something
-    'ATTACK',     # This object attacks or is attacked
-    'DAMAGE',     # This object takes damage
-    'DEATH',      # This object dies
-    'KILL',       # This object kills something
-    'CONNECT',    # Player connects
-    'DISCONNECT', # Player disconnects
-    'TICK',       # Periodic timer
-    'USE',        # This object is used
+    # Movement / location
+    'ENTER':      "something enters this location",
+    'LEAVE':      "something leaves this location",
+    'ARRIVE':     "this object arrives somewhere new",
+    'FAIL':       "a move was thwarted (dead-end/locked exit) — @afail",
+    # Perception / interaction
+    'LOOK':       "this object is looked at",
+    'USE':        "this object is used",
+    'PUSH':       "this object is pushed (button, lever)",
+    # Item lifecycle
+    'GET':        "this object is picked up",
+    'DROP':       "this object is dropped",
+    'GIVE':       "this object is given away",
+    'RECEIVE':    "this object is given something (recipient side)",
+    'PUT':        "this object is put in a container",
+    'WEAR':       "this object is worn",
+    'REMOVE':     "this object is taken off (gated: cursed gear can refuse)",
+    'WIELD':      "this weapon is readied (gated)",
+    'UNWIELD':    "this weapon is lowered (gated)",
+    'OPEN':       "this door/container is opened",
+    'CLOSE':      "this door/container is closed",
+    'LOCK':       "this is locked (gated)",
+    'UNLOCK':     "this is unlocked (gated: a sealed door can refuse)",
+    # Combat
+    'ATTACK':     "this object attacks or is attacked",
+    'DAMAGE':     "this object takes damage",
+    'HITPRCNT':   "HP fell through this object's db.hitprcnt threshold",
+    'DEATH':      "this object dies",
+    'CAST':       "an ability is directed at this object (resist via on_check)",
+    # Existence
+    'LOAD':       "this object was just spawned",
+    'EXPIRE':     "this object's db.expires_at elapsed (then it's destroyed)",
+    'TICK':       "periodic timer (on_tick behavior)",
+    # Session
+    'CONNECT':    "player connects",
+    'DISCONNECT': "player disconnects",
+    'PAYMENT':    "this object was paid",
 }
 
 

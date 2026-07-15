@@ -352,6 +352,11 @@ async def cmd_wield(ctx: CommandContext) -> None:
         await ctx.session.send(f"You aren't carrying '{ctx.args.strip()}'.")
         return
 
+    from realm.core.events import fire_event
+    wielding = await fire_event(ctx.player, weapon, "item:on_wield", gated=True)
+    if wielding.blocked:
+        ctx.player.msg(wielding.block_reason or f"You can't ready {weapon.name}.")
+        return
     for item in ctx.player.contents:
         if item.has_tag('wielded') and item is not weapon:
             item.remove_tag('wielded')
@@ -369,8 +374,15 @@ async def cmd_unwield(ctx: CommandContext) -> None:
 
     Usage: unwield
     """
+    from realm.core.events import fire_event
     for item in ctx.player.contents:
         if item.has_tag('wielded'):
+            lowering = await fire_event(ctx.player, item, "item:on_unwield",
+                                        gated=True)
+            if lowering.blocked:
+                ctx.player.msg(
+                    lowering.block_reason or f"You can't lower {item.name}.")
+                return
             item.remove_tag('wielded')
             await ctx.session.send(f"You lower {item.name}.")
             return

@@ -30,7 +30,7 @@ The two-layer rule for every new feature:
 A feature that ships without its softcode surface is half-shipped;
 track the other half in BACKLOG.md.
 
-## The softcode platform today (2026-07-04)
+## The softcode platform today (2026-07-15)
 
 Turing-complete: YES — sandbox scripts are restricted Python (loops,
 comprehensions, function defs) under resource limits (time / calls /
@@ -44,11 +44,11 @@ recursion / output). What varies is API surface:
 | Read world | get/name/loc/owner/contents/tags/attrs | SHIPPED |
 | Mutate attrs/tags | set_attr/del_attr/add_tag/remove_tag | SHIPPED (authority-gated) |
 | Move self | `move <exit>` — full movement pathway | SHIPPED |
-| Chain scripts | `trigger obj/attr`, `@tr` | SHIPPED |
+| Chain scripts | `trigger obj/attr`, `@tr`, `eval_attr()` (Penn's u() — call an attr as a function) | SHIPPED |
 | Duplicate | `@clone`, spawner prototypes | SHIPPED |
 | Skill system | skill_check / contest | SHIPPED |
 | Create/destroy objects | create_obj / destroy_obj | SHIPPED (authority-gated) |
-| Teleport objects | teleport_obj | SHIPPED (authority-gated) |
+| Teleport objects | move_to (ward/lock-checked, tags for anti-magic) / teleport_obj (= move_to force=True, ward bypass) | SHIPPED (authority-gated) |
 | Behaviors from scripts | behaviors / attach_behavior / detach_behavior | SHIPPED (authority-gated) |
 | Locks from scripts | set_lock / clear_lock / test_lock | SHIPPED (authority-gated, validated) |
 | Combat from scripts | damage / heal (proximity authority, death path), start_combat | SHIPPED |
@@ -60,6 +60,10 @@ recursion / output). What varies is API surface:
 | World queries | search_world(tag/attr/value/name) capped; zone_rooms/zones_of; protected attrs | SHIPPED (2026-07-07) |
 | Client OOB (GMCP) | oob(target, package, data) + msg_oob; Room.Info/Char.Vitals built-in | SHIPPED (2026-07-06) |
 | Scheduling beyond ticks | `wait(sec, cmd)` / `wait <sec> <cmd>` one-shots on the heartbeat | SHIPPED (in-memory, like MUSH @waits) |
+| NPC disposition | disposition / adjust_disposition / reaction_roll (per-character -5..+5 bands) | SHIPPED (2026-07-04) |
+| Ask player for input | prompt(target, text, callback) — response fires the named callback attr | SHIPPED (2026-07-09) |
+| Instanced areas | enter_instance(player, template, mode='solo'/'shared') — private transient copies of a template area, reaped when idle; instance portals + follower routing built in | SHIPPED (2026-07-12) |
+| Wilderness regions | enter_wilderness(player, region, x, y) — cells materialize on demand; cell exits are real exits with deferred destinations, so walking needs no softcode | SHIPPED (2026-07-14) |
 
 ## Permissions on softcode (the authority model)
 
@@ -118,4 +122,6 @@ systems supply `ChargenStep`s. `ChoiceStep` covers menus (GURPS
 templates, D20 classes); point-buy steps later are new step classes,
 no flow changes. Remaining for a full "asset-store" story: effect
 vocabulary per system, softcode access to system queries, chargen
-authored IN softcode, distribution/packaging.
+authored IN softcode, distribution/packaging for ruleset packages
+(area-level @pack/@export/@import shipped 2026-07-09; system packages
+still pending).

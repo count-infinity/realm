@@ -56,7 +56,7 @@ is addressed by a global integer **vnum**. A room carries inline **resets**
 | Prototype vs instance | `MOB_INDEX_DATA` prototype → `create_mobile()` clones instances (`db.c:2660`); objs likewise | data-driven definitions instantiated into objects |
 | Stats storage | fixed struct fields + bitvector flag words (`Actflags`, `Affected`, `WFlags`) | open `db` attribute bag + tags |
 | Room→behavior link | `#MUDPROG` block attached to mob/obj/room by vnum | triggers/behaviors attached to the object |
-| Repopulation | **area reset** — timed re-run of the reset list (`area_update` `db.c:2602`, `reset_area` `reset.c:912`) | (no direct analog — see steal-list) |
+| Repopulation | **area reset** — timed re-run of the reset list (`area_update` `db.c:2602`, `reset_area` `reset.c:912`) | (per-room spawner behavior only — see steal-list) |
 | Building | in-game **OLC**: `do_redit` (`build.c:4725`), `do_medit`, `do_oset` (`build.c:3108`), `do_aset` (`build.c:7128`), `do_mpedit` (`build.c:7693`) | OLC + softcode `dig`/`open`/`create_obj` |
 | Persistence | flat text files, hand-parsed with KEY macros | SQLite |
 
@@ -305,8 +305,10 @@ Sorted by what's actually a **mechanism gap** vs a **pack REALM will write**:
    (`db.c:2602`, `reset.c:912`) — a periodic, declarative respawn of an
    area's canonical contents, gated on player presence, with a warning
    message. REALM's `worldio` imports areas but has no *reset loop*. This is
-   a real primitive (a scheduled, data-declared repopulation program) with no
-   REALM analog.
+   a real primitive with no *area-level* REALM analog — per-room
+   `SpawnerBehavior` and wilderness `cell_populate` respawn from prototype
+   dicts, but nothing resets a whole area's canonical contents on a
+   presence-gated schedule.
 2. **Declarative reset language.** The `M/O/P/E/G/D/R/T` reset commands are a
    tiny placement DSL (put-in-container nesting, equip, door-state,
    randomize-exits). Worth adopting as area data.
