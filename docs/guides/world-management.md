@@ -52,6 +52,31 @@ The master is consulted three ways:
 Rooms may belong to several zones; a room's masters are whoever shares
 its zone tags.
 
+### Area reset (repop)
+
+A zone can **return to its authored state on a timer, but only while no
+player is inside** — the whole area repops at once when nobody's watching
+(unlike per-room spawners, which top up while you stand there). Two
+attributes on the master, set with plain `@set`:
+
+```text
+@set Castle Brain/reset_interval = 300     try to reset every 5 min
+@set Castle Brain/reset_spec = [{"prototype": {"name": "a guard", "tags": ["npc"], "attrs": {"hp": 20}}, "room": "#castle_gate", "count": 2}]
+```
+
+Each tick, a due zone with **no players present** tops every `reset_spec`
+entry back up to `count` (a killed guard is back next reset — but never pops
+on top of you), then fires **`ON_RESET`** on the master for everything else:
+
+```text
+@set Castle Brain/ON_RESET = trigger me/reseal_doors
+```
+
+`reset_spec` entries use the spawner's prototype vocabulary; `room` is an
+object id (`#castle_gate`) or a room tag. Reset-spawns are persistent
+canonical contents (not ephemeral). An occupied zone simply defers — it
+resets the instant it empties.
+
 ## Attribute flags
 
 Attributes are **readable by default** (game mechanics depend on it —

@@ -215,6 +215,7 @@ STANDARD_EVENTS = {
     # Existence
     'LOAD':       "this object was just spawned",
     'EXPIRE':     "this object's db.expires_at elapsed (then it's destroyed)",
+    'RESET':      "this zone master resets (empty + due) — repop, re-lock doors",
     'TICK':       "periodic timer (on_tick behavior)",
     # Session
     'CONNECT':    "player connects",

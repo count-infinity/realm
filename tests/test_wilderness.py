@@ -367,6 +367,23 @@ class TestPopulation:
             w.store, now=time.time() + 10_000)
         assert reaped == 1
 
+    async def test_crewed_vehicle_materializes_but_empty_one_is_becalmed(self, world):
+        """A boat CARRYING a player materializes terrain — the players
+        inside are doing the traveling. An empty drifting boat is a mob
+        for gate purposes: dead-end at the frontier."""
+        w = world
+        cell = await wilderness.materialize_cell("wilds", 2, 2, w.store)
+        boat = w.sim.obj("a rowboat", location=cell)
+        north = next(o for o in cell.contents if o.name == "north")
+
+        assert await wilderness.resolve_wilderness_exit(north, boat) is None
+        assert wilderness.cell_for("wilds", 2, 3) is None
+
+        w.alice.location = boat                       # crew aboard
+        neighbor = await wilderness.resolve_wilderness_exit(north, boat)
+        assert neighbor is not None
+        assert neighbor.has_tag("wildcell:wilds:2,3")
+
     async def test_mob_cannot_materialize_but_can_pursue(self, world):
         w = world
         w.master.db.set("cell_populate", WOLF_POPULATE)

@@ -261,9 +261,12 @@ between them.
   …)` op, drained to `wilderness.enter_cell` (a `move_to` placement, so
   teleport semantics apply).
 - **Only players materialize** (Stage 3): the resolver get-or-creates a
-  missing neighbor only for a `player`-tagged walker. A spawned mob may
-  pursue into an *existing* cell, but a missing one is a dead-end for it
-  — otherwise one wandering wolf generates terrain forever.
+  missing neighbor only for a walker that *is* — or *carries* — a
+  player (`subtree_has_player`), so a crewed boat rows into fresh ocean
+  while an empty drifting one is becalmed at the frontier. A spawned
+  mob may pursue into an *existing* cell, but a missing one is a
+  dead-end for it — otherwise one wandering wolf generates terrain
+  forever.
 
 ### 4.4 Authority & consent (do not regress the audit)
 
@@ -403,8 +406,13 @@ hardened:
   generator that emits full worldio
   area-data per cell is a *possible* alternative (composes with
   `import_objects`) but heavier; start with per-attr softcode.
-- **Landmarks → instanced dungeons:** composition (a cell coord whose exit
-  `enter_instance`s) — design for it, defer building it.
+- **Landmarks → instanced dungeons:** composition, shipped — a
+  `cell_exits` dict entry carries an `attrs` map, so a landmark
+  coordinate's exit can be an instance portal
+  (`{"name": "wreck", "attrs": {"dest_resolver": "instance",
+  "instance_template": ..., "instance_return": <a persistent room —
+  the cell itself reaps>}}`). The evacuation ladder already tolerates a
+  dead `return_room`.
 - **Population (Stage 3 — shipped).** The `cell_populate` provider attr
   (§4.1) is the `at_prepare_room` analog: prototype dicts spawned at
   materialize via `spawn_from_prototype` — one vocabulary shared with

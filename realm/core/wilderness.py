@@ -367,6 +367,11 @@ def _build_cell_exit(entry, zone: str, edge_msg) -> GameObject | None:
             exit_obj.db.set("destination", str(entry["destination"]))
         if entry.get("aliases"):
             exit_obj.db.set("aliases", [str(a) for a in entry["aliases"]])
+        # Arbitrary exit attrs — the landmark composition (a coordinate
+        # whose exit is an instance portal: attrs carry dest_resolver +
+        # instance_template), authored messages, locks-by-attr, etc.
+        for key, value in (entry.get("attrs") or {}).items():
+            exit_obj.db.set(str(key), value)
         return exit_obj
 
     direction = str(entry).lower()
@@ -384,6 +389,13 @@ def _build_cell_exit(entry, zone: str, edge_msg) -> GameObject | None:
     if edge_msg:
         exit_obj.db.set("fail_msg", str(edge_msg))
     return exit_obj
+
+
+def _travels_as_player(actor: GameObject) -> bool:
+    """Is this walker a player, or a container carrying one (a crewed
+    boat, a ridden mount)? Such walkers materialize terrain and refresh
+    cell TTLs; everything else is a mob."""
+    return actor.has_tag("player") or subtree_has_player(actor)
 
 
 def _target_coords(exit_obj: GameObject) -> tuple[str, int, int] | None:
@@ -441,10 +453,12 @@ async def resolve_wilderness_exit(
     try:
         cell = cell_for(region, x, y)
         if cell is None:
-            # Only players materialize terrain: a mob may pursue into an
-            # existing cell, but a missing neighbor is a dead-end for it
-            # — one wandering wolf must not generate cells forever.
-            if not actor.has_tag("player"):
+            # Only players materialize terrain — including a crewed
+            # vehicle (the players inside are doing the traveling). A
+            # mob or an empty drifting boat may pursue into an existing
+            # cell, but a missing neighbor is a dead-end for it — one
+            # wandering wolf must not generate cells forever.
+            if not _travels_as_player(actor):
                 return None
             cell = await materialize_cell(region, x, y, persistence)
     except ProviderError as exc:
@@ -452,10 +466,11 @@ async def resolve_wilderness_exit(
         from realm.core.movement import DestinationUnavailableError
         raise DestinationUnavailableError(
             "A strange force bars the way.") from exc
-    if cell is not None and actor.has_tag("player"):
-        # Only a player's arrival is activity: a spawn pacing between
-        # cells must not refresh their TTL and keep itself alive forever
-        # (R6/edge case 13 — NPCs never hold a cell open).
+    if cell is not None and _travels_as_player(actor):
+        # Only a player's arrival (afoot or aboard) is activity: a spawn
+        # pacing between cells must not refresh their TTL and keep
+        # itself alive forever (R6/edge case 13 — NPCs never hold a
+        # cell open).
         cell.db.set("last_active", _clock())
     return cell
 

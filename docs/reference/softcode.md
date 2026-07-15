@@ -65,6 +65,7 @@ veto (a cursed item refusing removal).
 | `ON_CAST` | an ability is directed at this object (resist via on_check) |
 | `ON_LOAD` | this object was just spawned |
 | `ON_EXPIRE` | this object's db.expires_at elapsed (then it's destroyed) |
+| `ON_RESET` | this zone master resets (empty + due) — repop, re-lock doors |
 | `ON_TICK` | periodic timer (on_tick behavior) |
 | `ON_CONNECT` | player connects |
 | `ON_DISCONNECT` | player disconnects |

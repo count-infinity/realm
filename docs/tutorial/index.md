@@ -15,13 +15,28 @@ section adds one layer:
 5. **[The Banshee](05-the-banshee.md)** — fear, combat, loot, and the
    ferryman who can be bribed. Opening night.
 
+**Act II — Across the Gullwater.** The lamp is lit, but the keeper's
+chart went down with his supply ship. The sequel trades one island
+for an ocean — and shows the engine's big machinery:
+
+6. **[The Gullwater](06-the-gullwater.md)** — a procedural sea from
+   one region object: wilderness cells that materialize underfoot
+   and evaporate behind you.
+7. **[The Ferry](07-the-ferry.md)** — a boat is not a system:
+   containment, movement, and three softcode commands.
+8. **[Overboard](08-overboard.md)** — build drowning from primitives
+   in one line; the boat is your waterworthiness.
+9. **[The Wreck](09-the-wreck.md)** — a per-party dungeon behind a
+   door on the seabed: instances, landmarks, and the finale.
+
 The premise (all public-domain folklore): the light on Gullwing Isle
 went dark three winters ago. The keeper never came ashore. The
 villagers pay a ferryman to keep people *away* — but you've heard
 there's something in the lighthouse worth the climb.
 
-Total time: about an hour. Type everything yourself — the point is
-that a whole adventure is buildable *from inside the game*.
+Total time: about an hour for Act I, half that for Act II. Type
+everything yourself — the point is that a whole adventure is
+buildable *from inside the game*.
 
 !!! tip "When you want more"
     Each page ends with a **Learn more** box pointing at the deeper

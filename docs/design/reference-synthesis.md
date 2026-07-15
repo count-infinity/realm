@@ -45,7 +45,7 @@ So this is a gap-list at the **edges**, not a course correction.
 
 | Gap | What | Sources |
 |---|---|---|
-| **Area-reset / repop primitive** | presence-gated scheduled repopulation of an area's canonical contents; a declarative reset list (`M/O/P/E/G/D/R/T`) | SMAUG (`area_update`/`reset_area`), tbaMUD (`RESET` trigger) — REALM has per-object spawners but no *area-level* reset with an `ON_RESET` hook |
+| **Area-reset / repop primitive** | ✅ **SHIPPED 2026-07-15** — `realm/core/area_reset.py`: `reset_zones` on the world tick repops each due, **empty** zone master's `reset_spec` (declarative `{prototype, room, count}` list, idempotent top-up) and fires `ON_RESET` for the rest (doors/litter). Config via `@set` on the master. `tests/test_area_reset.py`. | SMAUG (`area_update`/`reset_area`), tbaMUD (`RESET` trigger) | The presence gate ("only reset while nobody's watching") is the point vs per-room spawners. |
 | **Counting semaphore / cross-task rendezvous** | one task blocks until N others signal (`@wait obj/attr` + `@notify`) | TinyMUX — steal the *idea* as a Pythonic event/condition object, not the attribute-counter |
 | **`reset()` / `clean_up()` lifecycle pair** | periodic self-repop + return-value-driven idle self-GC | LDMud — `clean_up` overlaps the ephemeral reaper; `reset` overlaps area-reset above |
 | **Granular capability vocabulary** | fine-grained powers (`pass_locks`, `tel_anywhere`, `see_queue`…) beneath the role tiers | TinyMUX (~35 powers), LDMud (uid/euid) — only if GUEST/PLAYER/BUILDER/ADMIN/GOD proves too coarse |
