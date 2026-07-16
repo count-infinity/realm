@@ -931,11 +931,8 @@ class GameServer:
                     await reap_expired(self.persistence)
                 except Exception:
                     logger.exception("Expiry reap error")
-                try:
-                    from realm.core.area_reset import reset_zones
-                    await reset_zones(self.persistence)
-                except Exception:
-                    logger.exception("Area reset error")
+                # (Zone reset is a ZoneResetBehavior on the master — it ticks
+                # with the other behaviors above, no separate sweep here.)
             for session in self.session_manager.all_sessions():
                 try:
                     await session.flush_output()

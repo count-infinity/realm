@@ -17,10 +17,12 @@ from realm.behaviors.npc import PatrolBehavior, WatchfulBehavior
 from realm.behaviors.shop import ShopkeeperBehavior
 from realm.behaviors.spawner import SpawnerBehavior
 from realm.behaviors.ticker import ScriptTickerBehavior
+from realm.behaviors.zone_reset import ZoneResetBehavior
 
 __all__ = [
     "ScriptTickerBehavior",
     "SpawnerBehavior",
+    "ZoneResetBehavior",
     "ShopkeeperBehavior",
     "WatchfulBehavior",
     "PatrolBehavior",

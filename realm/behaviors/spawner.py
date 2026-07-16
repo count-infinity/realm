@@ -67,6 +67,24 @@ def spawn_from_prototype(prototype: dict[str, Any],
     return obj
 
 
+async def spawn_tracked(prototype: dict[str, Any], room: GameObject,
+                        marker: str, persistence, **load_extra: Any) -> GameObject:
+    """Spawn a prototype into ``room``, tag it ``marker``, persist, and fire
+    ``ON_LOAD``. The one shared spawn primitive for the room spawner and the
+    zone reset — so "instantiate a prototype into the world" lives in one
+    place."""
+    from realm.core.events import fire_event
+    spawn = spawn_from_prototype(prototype, room)
+    spawn.add_tag(marker)
+    if persistence is not None:
+        await persistence.save(spawn)
+    # actor=None: the spawn reacts to its OWN creation, so it's the witnessed
+    # target, not the excluded-from-witnessing actor.
+    await fire_event(None, spawn, "event:on_load",
+                     extra={"marker": marker, **load_extra})
+    return spawn
+
+
 @BehaviorRegistry.register
 class SpawnerBehavior(Behavior):
     """
@@ -136,24 +154,13 @@ class SpawnerBehavior(Behavior):
             room.db.set(timer_attr, timer - 1)
             return
 
-        # Spawn one.
-        spawn = spawn_from_prototype(prototype, room)
-        spawn.add_tag(f"spawned:{key}")
+        # Spawn one (shared spawn+tag+save+ON_LOAD core).
+        spawn = await spawn_tracked(prototype, room, f"spawned:{key}",
+                                    persistence, spawner=key)
         alive.append(spawn.id)
         room.db.set(ids_attr, alive)
         room.db.set(f"spawner_{key}_seeded", True)
         room.db.delete(timer_attr)
-
-        if persistence is not None:
-            await persistence.save(spawn)
-
-        # ON_LOAD — the freshly spawned object decorates itself (roll stats,
-        # pick a random name, equip). Fired after it's in the world + saved.
-        # actor=None: the spawn reacts to its OWN creation, so it must be the
-        # target (witness), not the excluded-from-witnessing actor.
-        from realm.core.events import fire_event
-        await fire_event(None, spawn, "event:on_load",
-                         extra={"spawner": key})
 
         announce = self.get_param('announce')
         if announce:
@@ -161,4 +168,4 @@ class SpawnerBehavior(Behavior):
         logger.info(f"Spawner '{key}' spawned {spawn.name} in {room.name}")
 
 
-__all__ = ["SpawnerBehavior", "spawn_from_prototype"]
+__all__ = ["SpawnerBehavior", "spawn_from_prototype", "spawn_tracked"]

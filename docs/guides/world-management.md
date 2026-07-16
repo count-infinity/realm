@@ -56,17 +56,19 @@ its zone tags.
 
 A zone can **return to its authored state on a timer, but only while no
 player is inside** — the whole area repops at once when nobody's watching
-(unlike per-room spawners, which top up while you stand there). Two
-attributes on the master, set with plain `@set`:
+(unlike per-room spawners, which top up while you stand there). Attach the
+`zone_reset` behavior to the master and configure it with plain `@set`:
 
 ```text
-@set Castle Brain/reset_interval = 300     try to reset every 5 min
+@behavior Castle Brain = zone_reset        the master repops its zone
+@set Castle Brain/reset_interval = 300      try to reset every 5 min
 @set Castle Brain/reset_spec = [{"prototype": {"name": "a guard", "tags": ["npc"], "attrs": {"hp": 20}}, "room": "#castle_gate", "count": 2}]
 ```
 
-Each tick, a due zone with **no players present** tops every `reset_spec`
-entry back up to `count` (a killed guard is back next reset — but never pops
-on top of you), then fires **`ON_RESET`** on the master for everything else:
+When the zone is due and holds **no players**, the master **clears its prior
+spawns and reloads the `reset_spec` fresh** (so a killed guard is back — but
+never pops on top of you, and mobs from a since-removed entry vanish), then
+fires **`ON_RESET`** for everything the spec doesn't cover:
 
 ```text
 @set Castle Brain/ON_RESET = trigger me/reseal_doors
@@ -75,7 +77,8 @@ on top of you), then fires **`ON_RESET`** on the master for everything else:
 `reset_spec` entries use the spawner's prototype vocabulary; `room` is an
 object id (`#castle_gate`) or a room tag. Reset-spawns are persistent
 canonical contents (not ephemeral). An occupied zone simply defers — it
-resets the instant it empties.
+resets the instant it empties (by design: an area never returns to canonical
+while someone's watching).
 
 ## Attribute flags
 
