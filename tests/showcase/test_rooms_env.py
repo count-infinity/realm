@@ -159,13 +159,14 @@ WEATHER_BUILD = [
     "@set Harbor Sky/on_tick = states = get_attr(me, 'wx_states', []); "
     "i = member(get_attr(me, 'weather', 'clear'), states) - 1; "
     "j = clamp(i + rand(0, 2) - 1, 0, len(states) - 1); "
-    "(set_attr(me, 'weather', states[j]), [remit(r, get_attr(me, 'wx_msgs', "
-    "{}).get(states[j], '')) for r in zone_rooms('harbor')]) "
-    "if i >= 0 and j != i else None",
+    "(set_attr(me, 'weather', states[j]), [(set_attr(r, 'wx_line', "
+    "get_attr(me, 'wx_descs', {}).get(states[j], '')), remit(r, "
+    "get_attr(me, 'wx_msgs', {}).get(states[j], ''))) for r in "
+    "zone_rooms('harbor')]) if i >= 0 and j != i else None",
     "@behavior Harbor Sky = script_ticker, interval:15",
+    "@set here/wx_line = Sunlight hammers the tin roofs.",
     "@desc here = Tarred pilings, drying nets, gulls arguing over fish "
-    "heads. [[result = get_attr('Harbor Sky', 'wx_descs', {}).get("
-    "get_attr('Harbor Sky', 'weather', 'clear'), '')]]",
+    "heads. [[result = get_attr(me, 'wx_line', '')]]",
 ]
 
 
@@ -243,13 +244,15 @@ DAYNIGHT_BUILD = [
     "@set town clock/hour = 8",
     "@set town clock/on_tick = h = (get_attr(me, 'hour', 0) + 1) % 24; "
     "set_attr(me, 'hour', h); night = h >= 21 or h < 6; "
-    "[(add_tag(r, 'dark') if night else remove_tag(r, 'dark')) "
-    "for r in zone_rooms('town') if has_tag(r, 'outdoors')]",
+    "dp = 'night' if night else ('morning' if h < 12 else 'afternoon'); "
+    "[(set_attr(r, 'daypart', dp), (add_tag(r, 'dark') if night else "
+    "remove_tag(r, 'dark'))) for r in zone_rooms('town') "
+    "if has_tag(r, 'outdoors')]",
     "@behavior town clock = script_ticker, interval:1",
-    "@desc here = A worn sundial crowns the plaza. [[h = get_attr("
-    "'town clock', 'hour', 12); result = 'Lamplight pools on the cobbles, "
-    "and the gnomon points at nothing.' if h >= 21 or h < 6 else "
-    "('Long morning shadows sweep the dial.' if h < 12 else "
+    "@desc here = A worn sundial crowns the plaza. [[dp = get_attr(me, "
+    "'daypart', 'morning'); result = 'Lamplight pools on the cobbles, "
+    "and the gnomon points at nothing.' if dp == 'night' else "
+    "('Long morning shadows sweep the dial.' if dp == 'morning' else "
     "'The gnomon leans into the afternoon light.')]]",
 ]
 
@@ -665,9 +668,9 @@ HAZARD_BUILD = [
     "@set Reactor Brain/rad_level = 1",
     "@desc here = A steel catwalk rings the exposed core. The air is warm "
     "and tastes of foil. [[result = 'Your dosimeter ticks ' + ('lazily.' "
-    "if get_attr('Reactor Brain', 'rad_level', 1) < 3 else 'without "
-    "pause.')]]",
+    "if get_attr(me, 'rad_sv', 1) < 3 else 'without pause.')]]",
     "@set here/on_tick = sv = get_attr('Reactor Brain', 'rad_level', 1); "
+    "set_attr(me, 'rad_sv', sv); "
     "[(pemit(o, 'Heat prickles across your skin; you ride it out.') if "
     "skill_check(o, 'fortitude', -sv) else (damage(o, roll('1d6')), "
     "pemit(o, 'Nausea doubles you over. The core is cooking you.'))) "
@@ -697,15 +700,16 @@ class TestHazardRoom:
                 in "\n".join(sim.seen(bilda)))
         assert bilda.db.get("hp") == 12
 
-        # Crank the zone master: every tick now burns.
+        # Crank the zone master: the next sweep burns AND re-stamps
+        # the dosimeter label the desc reads.
         await do(sim, bilda, "@set Reactor Brain/rad_level = 3")
-        out = await do(sim, bilda, "look")
-        assert "Your dosimeter ticks without pause." in out
         pinned_rand["value"] = 4          # roll('1d6') -> 4
         await tick(gallery, 2)            # countdown skip + fire
         assert ("Nausea doubles you over. The core is cooking you."
                 in "\n".join(sim.seen(bilda)))
         assert bilda.db.get("hp") == 8
+        out = await do(sim, bilda, "look")
+        assert "Your dosimeter ticks without pause." in out
 
         # The hazard ends at the hatch.
         await do(sim, bilda, "out")

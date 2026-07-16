@@ -98,9 +98,9 @@ Now melt something down:
 
 ```text
 @set Reactor Brain/rad_level = 3
+  Nausea doubles you over. The core is cooking you.     <- next sweep: HT at -3, bleeding hp
 look
-  ... Your dosimeter ticks without pause.
-  Nausea doubles you over. The core is cooking you.     <- HT at -3: bleeding hp now
+  ... Your dosimeter ticks without pause.               <- the sweep re-stamped the label
 ```
 
 Watch your hp fall tick by tick (`points` / your prompt), and step

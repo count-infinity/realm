@@ -18,9 +18,10 @@ Weather is *zone state*, so it lives where zone state belongs: on the
 **zone master** — one object tagged into the zone with `@zone/master`.
 Rooms join the zone with `@zone here = harbor`; the master carries a
 single `weather` attribute plus the tables that describe each state.
-Attribute reads are open to every script and every `[[...]]` block, so
-one attribute drives the whole area — the same one-clock-many-readers
-move as the town clock in [tutorial 068](068_npc_schedule.md).
+Attribute reads are open to every script, so one attribute drives the
+whole area — the same one-clock-many-readers move as the town clock in
+[tutorial 068](068_npc_schedule.md); any hazard tick or NPC script can
+ask the sky what it's doing.
 
 Three pieces:
 
