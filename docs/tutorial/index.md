@@ -29,13 +29,32 @@ for an ocean — and shows the engine's big machinery:
 9. **[The Wreck](09-the-wreck.md)** — a per-party dungeon behind a
    door on the seabed: instances, landmarks, and the finale.
 
+**Act III — Saltmarsh.** The chart is delivered and the ferryman owes
+you a crossing. The town on the far shore is where the engine's
+*social* machinery lives — money, opinions, crime, magic, and the law:
+
+10. **[The Crossing](10-the-crossing.md)** — an NPC runs a timed,
+    stateful, cancellable action sequence: `wait` + `trigger` +
+    `force`, and the ferryman rows you to town.
+11. **[Market Day](11-market-day.md)** — a shop from one behavior;
+    prices that read dispositions; persuasion as a discount.
+12. **[The Cutpurse](12-the-cutpurse.md)** — add a pickpocket skill
+    to the *rules as data*, hang the verb on a zone, and let a
+    forced shout summon the law.
+13. **[The Enthrall Spell](13-the-enthrall-spell.md)** — mind-magic
+    from an item: `cast()`, will contests, wards that refuse, and
+    thralls that wear off.
+14. **[The Reading of the Will](14-the-reading-of-the-will.md)** —
+    a notary runs the finale: multi-condition gates, a witness
+    errand, and a `prompt()` you answer in your own words.
+
 The premise (all public-domain folklore): the light on Gullwing Isle
 went dark three winters ago. The keeper never came ashore. The
 villagers pay a ferryman to keep people *away* — but you've heard
 there's something in the lighthouse worth the climb.
 
-Total time: about an hour for Act I, half that for Act II. Type
-everything yourself — the point is that a whole adventure is
+Total time: about an hour for Act I, half that for each act after.
+Type everything yourself — the point is that a whole adventure is
 buildable *from inside the game*.
 
 !!! tip "When you want more"

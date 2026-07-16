@@ -42,6 +42,22 @@ function defs — under time/call/output limits.
 | `on_tick` attr | via the `script_ticker` behavior |
 | `ON_<EVENT>` attr | a lifecycle event (below); matched by suffix, so any `ON_<name>` works |
 
+## Configurable surface syntax
+
+The sigils and delimiters above are game settings in `config.py`; this
+reference (and every example in the docs) uses the defaults.
+
+| Setting | Default | Governs |
+|---|---|---|
+| `COMMAND_SIGIL` | `$` | the `$pattern:code` command-trigger prefix (any length 1-16) |
+| `LISTEN_SIGIL` | `^` | the `^pattern:code` listen-trigger prefix (any length 1-16) |
+| `INLINE_OPEN` / `INLINE_CLOSE` | `[[` / `]]` | inline description blocks — the code inside nests freely (`fn1(fn2(x))`, `words[idx[0]]`, quoted closers); pick a bracket-final closer (`}`, `]`, `)`) so nesting tracking applies |
+| `MARKUP_MARKER` | `\\|` | color markup (`\\|r`, `\\|n`, …) — remap it (`~`, `%%`, any length 1-16) to keep literal pipes in prose; the doubled-marker escape follows it |
+
+Sigils and the marker take any non-alphanumeric, non-space characters;
+sigils additionally exclude `:` (the pattern:action separator). A bad
+value raises at boot, never mid-render.
+
 ### `ON_<EVENT>` lifecycle hooks
 
 An `ON_<NAME>` attribute fires when that event reaches the object (zone

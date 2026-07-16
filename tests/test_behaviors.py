@@ -84,7 +84,8 @@ class TestBehavior:
     def test_default_tick_interval(self):
         # 0 = tick on every server pulse; behaviors override for slower cadence
         b = SimpleBehavior()
-        assert b.tick_interval == 0.0
+        from realm.core.behaviors import WORLD_TICK
+        assert b.tick_interval == WORLD_TICK
 
     def test_ticking_behavior(self):
         b = TickingBehavior(interval=0.5)

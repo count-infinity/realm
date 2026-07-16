@@ -39,7 +39,7 @@ with the full version — compass everywhere, the way home at the
 harbor mouth, and at (3, 3) a portal down (one line, `JETTY` twice):
 
 ```text
-@set gullwater/cell_exits = result = ['north', 'south', 'east', 'west'] + ([{'name': 'jetty', 'destination': 'JETTY', 'aliases': ['out']}] if x == 0 and y == 0 else []) + ([{'name': 'wreck', 'attrs': {'dest_resolver': 'instance', 'instance_template': 'wreck', 'instance_mode': 'shared', 'instance_return': 'JETTY'}} if x == 3 and y == 3 else [])
+@set gullwater/cell_exits = result = ['north', 'south', 'east', 'west'] + ([{'name': 'jetty', 'destination': 'JETTY', 'aliases': ['out']}] if x == 0 and y == 0 else []) + ([{'name': 'wreck', 'attrs': {'dest_resolver': 'instance', 'instance_template': 'wreck', 'instance_mode': 'shared', 'instance_return': 'JETTY'}}] if x == 3 and y == 3 else [])
 ```
 
 That `attrs` block makes the landmark's exit an **instance portal**:

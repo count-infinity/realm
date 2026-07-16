@@ -30,6 +30,22 @@ function defs — under time/call/output limits.
 | `on_tick` attr | via the `script_ticker` behavior |
 | `ON_<EVENT>` attr | a lifecycle event (below); matched by suffix, so any `ON_<name>` works |
 
+## Configurable surface syntax
+
+The sigils and delimiters above are game settings in `config.py`; this
+reference (and every example in the docs) uses the defaults.
+
+| Setting | Default | Governs |
+|---|---|---|
+| `COMMAND_SIGIL` | `$` | the `$pattern:code` command-trigger prefix (any length 1-16) |
+| `LISTEN_SIGIL` | `^` | the `^pattern:code` listen-trigger prefix (any length 1-16) |
+| `INLINE_OPEN` / `INLINE_CLOSE` | `[[` / `]]` | inline description blocks — the code inside nests freely (`fn1(fn2(x))`, `words[idx[0]]`, quoted closers); pick a bracket-final closer (`}`, `]`, `)`) so nesting tracking applies |
+| `MARKUP_MARKER` | `\|` | color markup (`\|r`, `\|n`, …) — remap it (`~`, `%%`, any length 1-16) to keep literal pipes in prose; the doubled-marker escape follows it |
+
+Sigils and the marker take any non-alphanumeric, non-space characters;
+sigils additionally exclude `:` (the pattern:action separator). A bad
+value raises at boot, never mid-render.
+
 ### `ON_<EVENT>` lifecycle hooks
 
 An `ON_<NAME>` attribute fires when that event reaches the object (zone
@@ -163,7 +179,7 @@ veto (a cursed item refusing removal).
 | `transfer_credits` | `(source: 'GameObject \| str \| None', dest: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Move money FROM something the executor controls. | `transfer_credits(me, enactor, 25)` |
 | `trim` | `(text: 'str') -> 'str'` | Remove leading/trailing whitespace. | `trim('  hello  ')` |
 | `ucfirst` | `(text: 'str') -> 'str'` | Capitalize first character. | `ucfirst('hello')          # 'Hello'` |
-| `wait` | `(seconds: 'float', command: 'str') -> 'str \| None'` | Run a script command as the executor ~seconds from now (one-shot, |  |
+| `wait` | `(seconds: 'float', command: 'str') -> 'str \| None'` | Run a script command as the executor exactly ``seconds`` from now |  |
 | `words` | `(text: 'str', delimiter: 'str' = ' ') -> 'int'` | Count words/elements in text. | `words('a b c')            # 3` |
 | `zone_rooms` | `(zone: 'str')` | Rooms tagged into a zone: zone_rooms('castle'). | `zone_rooms('castle')` |
 | `zones_of` | `(obj)` | The zone names an object belongs to (no 'zone:' prefix). | `zones_of(here)` |

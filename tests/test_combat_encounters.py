@@ -561,13 +561,13 @@ class TestTimedEffects:
         alice.add_behavior(bleed)
         assert alice.has_tag("bleeding")
 
-        await bleed.tick(alice, 4.0)
+        await bleed.on_beat(alice)
         assert int(alice.db.get('hp')) == 8
 
-        await bleed.tick(alice, 4.0)
+        await bleed.on_beat(alice)
         assert int(alice.db.get('hp')) == 6
 
-        await bleed.tick(alice, 4.0)  # duration exhausted -> expires
+        await bleed.on_beat(alice)  # duration exhausted -> expires
         assert not alice.has_tag("bleeding")
         assert bleed not in alice.get_behaviors()
         assert any("bleeding stops" in line for line in drain(sess))
@@ -581,7 +581,7 @@ class TestTimedEffects:
         poison = DamageOverTimeBehavior(kind="poisoned", damage=3, duration=10)
         thug.add_behavior(poison)
 
-        await poison.tick(thug, 4.0)
+        await poison.on_beat(thug)
 
         corpses = [o for o in room.contents if o.name.startswith("corpse of")]
         assert len(corpses) == 1 and loot.location is corpses[0]
@@ -594,7 +594,7 @@ class TestTimedEffects:
         poison = DamageOverTimeBehavior(kind="poisoned", damage=2, duration=10)
         alice.add_behavior(poison)
 
-        await poison.tick(alice, 4.0)
+        await poison.on_beat(alice)
 
         assert alice.has_tag('unconscious')
         assert alice.location is room
@@ -608,10 +608,10 @@ class TestTimedEffects:
         regen = RegenerationBehavior(heal=3, duration=0)  # innate
         troll.add_behavior(regen)
 
-        await regen.tick(troll, 4.0)
+        await regen.on_beat(troll)
         assert int(troll.db.get('hp')) == 10  # capped at max
 
-        await regen.tick(troll, 4.0)
+        await regen.on_beat(troll)
         assert int(troll.db.get('hp')) == 10
         assert regen in troll.get_behaviors()  # permanent
 

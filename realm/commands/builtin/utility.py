@@ -222,8 +222,10 @@ async def cmd_color(ctx: CommandContext) -> None:
         await ctx.session.send(f"Color is {state}. Usage: color on|off")
         return
     ctx.player.db.set("color", want == "on")
+    from realm.core.markup import wrap
     await ctx.session.send(
-        f"Color {want}." + (" |gLike this.|n" if want == "on" else ""))
+        f"Color {want}." + (" " + wrap('g', 'Like this.')
+                            if want == "on" else ""))
 
 
 def register_utility_commands(dispatcher: CommandDispatcher) -> None:

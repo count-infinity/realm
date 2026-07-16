@@ -106,7 +106,8 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
     if not can_see_room(viewer, room):
         return "It is pitch black here. You can't see a thing."
 
-    lines = ["", f"|c{room.name}|n", "-" * len(room.name)]
+    from realm.core.markup import wrap
+    lines = ["", wrap('c', room.name), "-" * len(room.name)]
 
     desc = room_description(room)
     if desc:
@@ -153,7 +154,8 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
 
     lines.append("")
     if exits:
-        lines.append(f"Exits: {', '.join('|g' + e.name + '|n' for e in exits)}")
+        lines.append(
+            f"Exits: {', '.join(wrap('g', e.name) for e in exits)}")
     else:
         lines.append("Exits: None")
     lines.append("")

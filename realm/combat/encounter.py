@@ -226,6 +226,18 @@ class CombatEncounter:
         self._resolving = True
         self.round_number += 1
 
+        # Beat-driven effects (poison, bleed, buffs, regen) advance one
+        # COMBAT beat this round — so slowing the fight (a long `pace`, a
+        # Time-Lord's dilation) slows them with it. Combatants carry the
+        # 'in_combat' tag, so the ambient beat driver skips them; the
+        # encounter is their sole beat source (no double-tick).
+        from realm.core.beats import deliver_beat
+        for participant in list(self.participants.values()):
+            try:
+                await deliver_beat(participant.obj)
+            except Exception:
+                logger.exception("Beat effect error in combat")
+
         # Revert last round's stance modifiers, then promote deferred
         # ones (a feint's opening applies during THIS round).
         for participant in self.participants.values():

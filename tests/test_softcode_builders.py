@@ -13,6 +13,8 @@ wandering NPC entirely in-game:
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from realm.behaviors.ticker import ScriptTickerBehavior
@@ -932,6 +934,7 @@ class TestWaits:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
+        engine.defer_waits = True   # virtual clock: fire on tick_waits()
         from realm.core.propagation import get_engine
         get_engine().add_observer(engine.handle_action)
 
@@ -948,6 +951,7 @@ class TestWaits:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
+        engine.defer_waits = True   # virtual clock: fire on tick_waits()
         from realm.core.propagation import get_engine
         get_engine().add_observer(engine.handle_action)
 
@@ -961,6 +965,7 @@ class TestWaits:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
+        engine.defer_waits = True   # virtual clock: fire on tick_waits()
         from realm.core.propagation import get_engine
         get_engine().add_observer(engine.handle_action)
 
@@ -972,9 +977,40 @@ class TestWaits:
     async def test_future_wait_not_due_yet(self):
         crier = GameObject("crier")
         engine = ScriptEngine()
+        engine.defer_waits = True   # virtual clock: fire on tick_waits()
         engine.schedule_wait(crier, 300, "say Way later")
         await engine.tick_waits()
         assert len(engine._waits) == 1
+
+    async def test_real_timer_wait_fires_exactly(self):
+        # Production path (no defer): each wait is its own asyncio timer and
+        # fires on the event loop's clock, not a heartbeat pump. Mutating an
+        # attr (not say) keeps this off the global propagation engine.
+        crier = GameObject("crier")
+        crier.db.boom = "set_attr(me, 'fired', 1)"
+
+        engine = ScriptEngine()   # defer_waits stays False -> real timers
+        try:
+            engine.schedule_wait(crier, 0.02, "trigger me/boom")
+            assert crier.db.get("fired") is None            # not yet
+            await asyncio.sleep(0.06)
+            assert crier.db.get("fired") == 1               # fired on its timer
+        finally:
+            engine.shutdown_waits()
+
+    async def test_cancel_stops_real_timer(self):
+        crier = GameObject("crier")
+        crier.db.boom = "set_attr(me, 'fired', 1)"
+
+        engine = ScriptEngine()   # real timers
+        try:
+            wid = engine.schedule_wait(crier, 0.05, "trigger me/boom")
+            assert engine.cancel_wait(wid) is True
+            await asyncio.sleep(0.08)
+            assert crier.db.get("fired") is None            # defused
+            assert len(engine._waits) == 0
+        finally:
+            engine.shutdown_waits()
 
 
 # --- The banshee-wail pipeline: condition modifiers ------------------------------
@@ -1026,8 +1062,8 @@ class TestConditionModifiers:
         assert bob.has_tag("fear")
         assert condition_modifier(bob, "melee") == -2
 
-        await effect.tick(bob, 4.0)   # duration 2 -> 1
-        await effect.tick(bob, 4.0)   # expires
+        await effect.on_beat(bob)   # duration 2 -> 1
+        await effect.on_beat(bob)   # expires
         assert not bob.has_tag("fear")
         assert condition_modifier(bob, "melee") == 0
         assert bob.get_behaviors() == []

@@ -212,6 +212,102 @@ class TestInlineSoftcode:
         assert "small hole" in eval_inline(room.description, room, thief)
         assert "small hole" not in eval_inline(room.description, room, mook)
 
+    def test_nested_calls_and_subscripts_inside_a_block(self):
+        """Softcode is Python — fn1(fn2(x), y) composes, and nested
+        subscripts' ']]' must not terminate the block early (the old
+        lazy-regex scanner cut at the first ']]')."""
+        from realm.scripting.inline import eval_inline
+
+        room, thief, _ = self._cellar()
+        room.db.set("words", ["dim", "bright"])
+        room.db.set("idx", [1])
+        room.description = (
+            "An orb glows "
+            "[[result = capstr(get_attr(me, 'words')[get_attr(me, 'idx')[0]])]]."
+        )
+        assert eval_inline(room.description, room, thief) == \
+            "An orb glows Bright."
+
+    def test_double_bracket_inside_a_string_literal(self):
+        from realm.scripting.inline import eval_inline
+
+        room, thief, _ = self._cellar()
+        room.description = "Sign: [[result = 'reads ]] here' + '!']] done"
+        assert eval_inline(room.description, room, thief) == \
+            "Sign: reads ]] here! done"
+
+    def test_unterminated_block_stays_literal(self):
+        from realm.scripting.inline import eval_inline
+
+        room, thief, _ = self._cellar()
+        room.description = "Broken [[result = 'never closed"
+        assert eval_inline(room.description, room, thief) == \
+            "Broken [[result = 'never closed"
+
+    def test_two_blocks_with_nested_brackets_each(self):
+        from realm.scripting.inline import eval_inline
+
+        room, thief, _ = self._cellar()
+        room.db.set("pair", [3, 4])
+        room.description = (
+            "[[result = str(get_attr(me, 'pair')[0])]] and "
+            "[[result = str(get_attr(me, 'pair')[1])]]"
+        )
+        assert eval_inline(room.description, room, thief) == "3 and 4"
+
+    def test_configurable_delimiters_dollar_brace(self):
+        """A game that prefers ${ } gets it — and the depth tracking
+        follows the configured closer, so dict literals inside a
+        ${...} block don't terminate it early."""
+        from realm.scripting.inline import (
+            eval_inline,
+            set_inline_delimiters,
+        )
+
+        room, thief, _ = self._cellar()
+        set_inline_delimiters("${", "}")
+        try:
+            room.description = (
+                "Moods: ${result = {'grim': 'dark', 'warm': 'cozy'}['grim']}."
+            )
+            assert eval_inline(room.description, room, thief) == \
+                "Moods: dark."
+            # And the old delimiters are now just literal text.
+            room.description = "Raw [[not code]] here"
+            assert eval_inline(room.description, room, thief) == \
+                "Raw [[not code]] here"
+        finally:
+            set_inline_delimiters()
+
+    def test_configurable_delimiters_non_bracket_closer(self):
+        from realm.scripting.inline import (
+            eval_inline,
+            set_inline_delimiters,
+        )
+
+        room, thief, _ = self._cellar()
+        set_inline_delimiters("<<", ">>")
+        try:
+            room.description = "Depth: <<result = 'ten >> feet'[:3]>> down"
+            assert eval_inline(room.description, room, thief) == \
+                "Depth: ten down"
+        finally:
+            set_inline_delimiters()
+
+    def test_bad_delimiters_fail_loud_at_config_time(self):
+        from realm.scripting.inline import set_inline_delimiters
+
+        with pytest.raises(ValueError):
+            set_inline_delimiters("", "]]")
+        with pytest.raises(ValueError):
+            set_inline_delimiters("%%", "%%")
+
+    def test_settings_carry_inline_delimiters(self):
+        from realm.config.loader import Settings
+
+        settings = Settings()
+        assert (settings.inline_open, settings.inline_close) == ("[[", "]]")
+
     def test_state_writes_respect_authority(self):
         from realm.scripting.inline import eval_inline
 

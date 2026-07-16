@@ -687,7 +687,8 @@ class ScriptFunctions:
 
     # Effect behaviors softcode may apply with proximity (not control)
     # authority — a banshee can frighten whoever hears the wail.
-    EFFECT_BEHAVIOR_IDS = ('modifier_effect', 'damage_over_time', 'regeneration')
+    EFFECT_BEHAVIOR_IDS = ('modifier_effect', 'damage_over_time',
+                           'regeneration', 'disposition_boost')
 
     def apply_effect(
         self,
@@ -697,7 +698,8 @@ class ScriptFunctions:
     ) -> bool:
         """
         Attach an effect (modifier_effect / damage_over_time /
-        regeneration) to something in the executor's room.
+        regeneration / disposition_boost) to something in the
+        executor's room.
 
             apply_effect(enactor, 'modifier_effect', kind='fear',
                          duration=8, check_mods={'all': -2},
@@ -874,6 +876,7 @@ class ScriptFunctions:
 
         Example: ansi('rh', 'DANGER')
         """
+        from realm.core import markup as _markup
         fg = None
         bg = None
         bright = False
@@ -886,17 +889,17 @@ class ScriptFunctions:
             elif ch == 'h':
                 bright = True
             elif ch == 'u':
-                flags += '|u'
+                flags += _markup.MARKER + 'u'
             elif ch == 'i':
-                flags += '|v'   # Penn 'i' = inverse video
+                flags += _markup.MARKER + 'v'   # Penn 'i' = inverse video
         markup = ''
         if fg:
-            markup += '|' + (fg.upper() if bright else fg)
+            markup += _markup.MARKER + (fg.upper() if bright else fg)
         elif bright:
-            markup += '|h'
+            markup += _markup.MARKER + 'h'
         if bg:
-            markup += '|[' + bg
-        return f"{markup}{flags}{text}|n"
+            markup += _markup.MARKER + '[' + bg
+        return f"{markup}{flags}{text}{_markup.MARKER}n"
 
     @staticmethod
     def escape(text: str) -> str:
@@ -1085,10 +1088,11 @@ class ScriptFunctions:
 
     def wait(self, seconds: float, command: str) -> str | None:
         """
-        Run a script command as the executor ~seconds from now (one-shot,
-        fired from the server heartbeat; pending waits don't survive a
-        reboot). Returns a HANDLE id you can pass to ``cancel_wait`` to call
-        the wait off before it fires — a defuse, an abort.
+        Run a script command as the executor exactly ``seconds`` from now
+        (one-shot, its own timer — a 0.15s fuse fires at 0.15s, not quantized
+        to the heartbeat; pending waits don't survive a reboot). Returns a
+        HANDLE id you can pass to ``cancel_wait`` to call the wait off before
+        it fires — a defuse, an abort.
 
         Example:
             t = wait(30, 'detonate')

@@ -47,6 +47,17 @@ class Settings:
     # Softcode scripting ($commands, ^listens, ON_EVENT triggers)
     enable_scripting: bool = True
 
+    # Inline-block delimiters in descriptions ("[[ ... ]]" by default;
+    # a game may prefer "${ ... }" etc.)
+    inline_open: str = "[["
+    inline_close: str = "]]"
+
+    # Softcode sigils and the color-markup marker — all game-tunable
+    # for worlds where the defaults collide with prose conventions.
+    command_sigil: str = "$"
+    listen_sigil: str = "^"
+    markup_marker: str = "|"
+
     # Paths (resolved to absolute)
     db_path: Path = field(default_factory=lambda: Path("data/game.db"))
     welcome_file: Path = field(default_factory=lambda: Path("data/welcome.txt"))
@@ -55,8 +66,18 @@ class Settings:
     # Persistence
     flush_interval: float = 30.0
 
-    # World heartbeat (seconds between behavior ticks; 0 disables)
-    tick_interval: float = 4.0
+    # Real-time heartbeat: seconds between server pulses (0 disables). Fine by
+    # design (~0.1s) so waits, one-shots and reapers land promptly; behaviors
+    # and effects keep their own cadence (world_beat / beats) regardless. See
+    # docs/design/time-and-beats.md.
+    tick_interval: float = 0.1
+    # The ambient (out-of-combat) beat length — how long one "round" of poison,
+    # bleed, regen etc. lasts when a creature isn't fighting. Also the default
+    # cadence for pulse-counting world behaviors (WORLD_TICK).
+    world_beat: float = 4.0
+    # Coarse housekeeping cadence (idle instances, wilderness cells, expired
+    # objects), on its own task off the fast pulse.
+    reap_interval: float = 5.0
 
     # Combat
     encoding: str = "utf-8"
@@ -141,11 +162,18 @@ def load_config(game_dir: Path | None = None) -> Settings:
         enable_telnet=config.get('ENABLE_TELNET', True),
         enable_websocket=config.get('ENABLE_WEBSOCKET', False),
         enable_scripting=config.get('ENABLE_SCRIPTING', True),
+        inline_open=config.get('INLINE_OPEN', '[['),
+        inline_close=config.get('INLINE_CLOSE', ']]'),
+        command_sigil=config.get('COMMAND_SIGIL', '$'),
+        listen_sigil=config.get('LISTEN_SIGIL', '^'),
+        markup_marker=config.get('MARKUP_MARKER', '|'),
         db_path=_resolve_path(game_dir, config.get('DB_PATH', 'data/game.db')),
         welcome_file=_resolve_path(game_dir, config.get('WELCOME_FILE', 'data/welcome.txt')),
         game_dir=game_dir,
         flush_interval=config.get('FLUSH_INTERVAL', 30.0),
-        tick_interval=config.get('TICK_INTERVAL', 4.0),
+        tick_interval=config.get('TICK_INTERVAL', 0.1),
+        world_beat=config.get('WORLD_BEAT', 4.0),
+        reap_interval=config.get('REAP_INTERVAL', 5.0),
         encoding=config.get('ENCODING', 'utf-8'),
         combat_ruleset=config.get('COMBAT_RULESET'),
         game_system=config.get('GAME_SYSTEM', 'realm.systems.GurpsSystem'),

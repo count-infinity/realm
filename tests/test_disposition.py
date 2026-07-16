@@ -137,8 +137,8 @@ class TestDispositionConsumers:
         guard.add_behavior(boost)
         assert get_disposition(guard, bob) == 2
 
-        await boost.tick(guard, 4.0)
-        await boost.tick(guard, 4.0)  # expires, reverses
+        await boost.on_beat(guard)
+        await boost.on_beat(guard)  # expires, reverses
         assert get_disposition(guard, bob) == 0
         assert guard.get_behaviors() == []
 

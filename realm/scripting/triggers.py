@@ -29,6 +29,40 @@ if TYPE_CHECKING:
     from realm.core.propagation import Action
 
 
+# Trigger sigils are game settings (COMMAND_SIGIL / LISTEN_SIGIL in
+# config.py) — '$' and '^' by default, for worlds where those collide
+# with prose or house conventions. Ambient module state, wired at
+# server construction like the other singletons.
+DEFAULT_COMMAND_SIGIL = '$'
+DEFAULT_LISTEN_SIGIL = '^'
+_command_sigil = DEFAULT_COMMAND_SIGIL
+_listen_sigil = DEFAULT_LISTEN_SIGIL
+
+
+def set_trigger_sigils(command: str = DEFAULT_COMMAND_SIGIL,
+                       listen: str = DEFAULT_LISTEN_SIGIL) -> None:
+    """Install the trigger sigils (game config). Any length (1-16
+    characters); no whitespace, no letters/digits (a sigil of 'go'
+    would swallow ordinary values), and no ':' — the colon is the
+    pattern:action separator, so a sigil containing one would break
+    every trigger it prefixes. A bad sigil is a config error and
+    raises at boot, not mid-parse."""
+    global _command_sigil, _listen_sigil
+    for name, sigil in (("command", str(command)), ("listen", str(listen))):
+        if (not sigil or len(sigil) > 16
+                or any(c.isalnum() or c.isspace() or c == ':'
+                       for c in sigil)):
+            raise ValueError(
+                f"{name} sigil must be 1-16 non-alphanumeric, non-space "
+                f"characters with no ':' (got {sigil!r})")
+    _command_sigil = str(command)
+    _listen_sigil = str(listen)
+
+
+def get_trigger_sigils() -> tuple[str, str]:
+    return _command_sigil, _listen_sigil
+
+
 @dataclass
 class TriggerMatch:
     """Result of a successful trigger match."""
@@ -291,14 +325,15 @@ class TriggerManager:
         """
         Parse a command trigger attribute value.
 
-        Format: $pattern: action
+        Format: $pattern: action   (the sigil is a game setting —
+        COMMAND_SIGIL in config.py; '$' by default)
         Example: $greet *: say Hello, %0!
         """
         if not isinstance(value, str):
             return None
 
         value = value.strip()
-        if not value.startswith('$'):
+        if not value.startswith(_command_sigil):
             return None
 
         # Find the colon separator
@@ -306,7 +341,7 @@ class TriggerManager:
         if colon_pos == -1:
             return None
 
-        pattern = value[1:colon_pos].strip()  # Remove $ prefix
+        pattern = value[len(_command_sigil):colon_pos].strip()
         action = value[colon_pos + 1:].strip()
 
         if not pattern or not action:
@@ -318,21 +353,22 @@ class TriggerManager:
         """
         Parse a listen trigger attribute value.
 
-        Format: ^pattern: action
+        Format: ^pattern: action   (the sigil is a game setting —
+        LISTEN_SIGIL in config.py; '^' by default)
         Example: ^*treasure*: whisper %# I know where treasure is...
         """
         if not isinstance(value, str):
             return None
 
         value = value.strip()
-        if not value.startswith('^'):
+        if not value.startswith(_listen_sigil):
             return None
 
         colon_pos = value.find(':')
         if colon_pos == -1:
             return None
 
-        pattern = value[1:colon_pos].strip()  # Remove ^ prefix
+        pattern = value[len(_listen_sigil):colon_pos].strip()
         action = value[colon_pos + 1:].strip()
 
         if not pattern or not action:

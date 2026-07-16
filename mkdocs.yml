@@ -67,6 +67,11 @@ nav:
     - 7. The Ferry: tutorial/07-the-ferry.md
     - 8. Overboard: tutorial/08-overboard.md
     - 9. The Wreck: tutorial/09-the-wreck.md
+    - 10. The Crossing: tutorial/10-the-crossing.md
+    - 11. Market Day: tutorial/11-market-day.md
+    - 12. The Cutpurse: tutorial/12-the-cutpurse.md
+    - 13. The Enthrall Spell: tutorial/13-the-enthrall-spell.md
+    - 14. The Reading of the Will: tutorial/14-the-reading-of-the-will.md
   - How-To Guides:
     - Game Systems: guides/game-systems.md
     - Add a Character Class: guides/add-a-class.md
@@ -104,6 +109,7 @@ nav:
     - Wilderness Requirements (Stage 2): design/wilderness-requirements.md
     - Features Roadmap: design/features-roadmap.md
     - Action Tags & Movement: design/action-tags.md
+    - Time, Ticks & Beats: design/time-and-beats.md
     - Reference Synthesis (all MU*s): design/reference-synthesis.md
     - Command & Function Catalog (14 MU*s): design/command-catalog.md
     - LambdaMOO Comparison: design/moo-comparison.md

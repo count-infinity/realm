@@ -2,10 +2,13 @@
 Timed effects as tickable behaviors: bleeding, poison, regeneration.
 
 An effect IS a behavior — attached at runtime (by combat, softcode, a
-trapped chest, a venomous bite), ticking on the server heartbeat, and
-detaching itself when it expires. Because behaviors serialize through
-the BehaviorRegistry, a poisoned character is still poisoned after a
-reboot, with the remaining duration intact in ``db.*``.
+trapped chest, a venomous bite), advancing on **beats** (not the real-time
+heartbeat: see ``realm.core.beats`` and docs/design/time-and-beats.md), and
+detaching itself when it expires. A beat is the encounter's adjustable round
+while its owner is fighting and the ambient ``WORLD_TICK`` otherwise, so
+slowing a fight slows its poisons in lockstep. Because behaviors serialize
+through the BehaviorRegistry, a poisoned character is still poisoned after a
+reboot, with the remaining duration (in beats) intact in ``db.*``.
 
     victim.add_behavior(DamageOverTimeBehavior(
         kind="poison", damage=1, interval=2, duration=10,
@@ -22,7 +25,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.beats import BeatBehavior
+from realm.core.behaviors import BehaviorRegistry
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -34,17 +38,20 @@ def _state_key(kind: str, suffix: str) -> str:
     return f"effect_{kind}_{suffix}"
 
 
-class TimedEffectBehavior(Behavior):
+class TimedEffectBehavior(BeatBehavior):
     """
-    Base for expiring effects.
+    Base for expiring effects — a **beat**-driven behavior (see
+    ``realm.core.beats``). It advances one beat at a time: the encounter's
+    beat while its owner is fighting, the ambient beat otherwise. Slow the
+    fight and the poison slows with it.
 
     Params:
         kind (str): effect name ("bleeding", "poison", "regen"...); also
             mirrored as a tag on the owner while active, so perception,
             locks, strategies (``me`` views later) and softcode can see it.
-        interval (int): ticks between pulses (default 1 = every tick).
-        duration (int): total ticks before the effect expires
-            (default 15 ≈ one minute at 4s ticks). 0 = permanent.
+        interval (int): beats between pulses (default 1 = every beat).
+        duration (int): total beats (= rounds) before the effect expires
+            (default 15). 0 = permanent.
         expire_msg (str): message to the owner when it wears off.
 
     State lives in owner.db (persists): effect_<kind>_left,
@@ -54,16 +61,25 @@ class TimedEffectBehavior(Behavior):
     behavior_id = "timed_effect"
 
     @property
-    def should_tick(self) -> bool:
-        return True
-
-    @property
     def kind(self) -> str:
         return str(self.get_param('kind', self.behavior_id))
 
     def attach(self, obj: GameObject) -> None:
         super().attach(obj)
         obj.add_tag(self.kind)
+        # Phase jitter: multi-beat effects (interval > 1) seed a random initial
+        # wait in [0, interval-1] so a roomful of poisoned NPCs don't all pulse
+        # on the same beat. Per-beat effects (interval 1, the combat default)
+        # get no jitter and thus exact, unchanged pulse counts. Opt out with
+        # jitter=False for a deterministic phase. Seeded ONCE (only when the
+        # key is absent) so a reboot re-attach keeps the original phase, not a
+        # fresh roll.
+        interval = int(self.get_param('interval', 1))
+        wait_key = _state_key(self.kind, 'wait')
+        if (interval > 1 and self.get_param('jitter', True)
+                and obj.db.get(wait_key) is None):
+            import random
+            obj.db.set(wait_key, random.randint(0, interval - 1))
         # Any timed effect can carry check modifiers ("blinding poison"):
         # its entry in db.check_mods lives exactly as long as the effect.
         check_mods = self.get_param('check_mods')
@@ -84,7 +100,7 @@ class TimedEffectBehavior(Behavior):
                 obj.db.delete('check_mods')
         super().detach(obj)
 
-    async def tick(self, obj: GameObject, delta: float) -> None:
+    async def on_beat(self, obj: GameObject) -> None:
         duration = int(self.get_param('duration', 15))
         if duration > 0:
             left = obj.db.get(_state_key(self.kind, 'left'))

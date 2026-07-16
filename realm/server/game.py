@@ -85,7 +85,9 @@ class GameServer:
         enable_websocket: bool = False,  # Requires aiohttp
         enable_scripting: bool = True,
         flush_interval: float = 30.0,
-        tick_interval: float = 4.0,
+        tick_interval: float = 0.1,
+        world_beat: float = 4.0,
+        reap_interval: float = 5.0,
         encoding: str = "utf-8",
         combat_ruleset: str | None = None,
         game_system: str = "realm.systems.GurpsSystem",
@@ -94,6 +96,11 @@ class GameServer:
         combat_beat_default: float = 15.0,
         game_name: str = "REALM",
         welcome_file: str | Path | None = None,
+        inline_open: str = "[[",
+        inline_close: str = "]]",
+        command_sigil: str = "$",
+        listen_sigil: str = "^",
+        markup_marker: str = "|",
     ):
         self.db_path = Path(db_path)
         self.telnet_port = telnet_port
@@ -105,6 +112,10 @@ class GameServer:
         self.enable_scripting = enable_scripting
         self.flush_interval = flush_interval
         self.tick_interval = tick_interval
+        # The ambient (out-of-combat) beat length and the coarse reap cadence,
+        # both in seconds — distinct from the fast real-time heartbeat above.
+        self.world_beat = world_beat
+        self.reap_interval = reap_interval
         self.encoding = encoding
         self.combat_ruleset = combat_ruleset
         # A dotted import path to a GameSystem subclass (e.g.
@@ -117,6 +128,17 @@ class GameServer:
         self.combat_beat_default = combat_beat_default
         self.game_name = game_name
         self.welcome_file = Path(welcome_file) if welcome_file else None
+
+        # Softcode surface syntax — inline-block delimiters, trigger
+        # sigils, and the color-markup marker are all game settings
+        # (ambient module state, like the other singletons). A bad
+        # value raises here, at boot, not mid-render.
+        from realm.core.markup import set_markup_marker
+        from realm.scripting.inline import set_inline_delimiters
+        from realm.scripting.triggers import set_trigger_sigils
+        set_inline_delimiters(inline_open, inline_close)
+        set_trigger_sigils(command=command_sigil, listen=listen_sigil)
+        set_markup_marker(markup_marker)
 
         # Core components
         self.session_manager = SessionManager()
@@ -144,6 +166,7 @@ class GameServer:
         # State
         self._running = False
         self._tick_task: asyncio.Task[None] | None = None
+        self._reap_task: asyncio.Task[None] | None = None
         self._startup_room: GameObject | None = None
         self._settings: Settings | None = None
 
@@ -176,6 +199,8 @@ class GameServer:
             enable_scripting=settings.enable_scripting,
             flush_interval=settings.flush_interval,
             tick_interval=settings.tick_interval,
+            world_beat=getattr(settings, 'world_beat', 4.0),
+            reap_interval=getattr(settings, 'reap_interval', 5.0),
             encoding=getattr(settings, 'encoding', 'utf-8'),
             combat_ruleset=settings.combat_ruleset,
             game_system=getattr(settings, 'game_system', 'realm.systems.GurpsSystem'),
@@ -184,6 +209,11 @@ class GameServer:
             combat_beat_default=settings.combat_beat_default,
             game_name=settings.game_name,
             welcome_file=settings.welcome_file,
+            inline_open=getattr(settings, 'inline_open', '[['),
+            inline_close=getattr(settings, 'inline_close', ']]'),
+            command_sigil=getattr(settings, 'command_sigil', '$'),
+            listen_sigil=getattr(settings, 'listen_sigil', '^'),
+            markup_marker=getattr(settings, 'markup_marker', '|'),
         )
         server._settings = settings
 
@@ -279,6 +309,10 @@ class GameServer:
         # guard, so nobody logs in to "nowhere".
         await self._reconcile_orphaned_players()
 
+        # Encounters don't survive a reboot, but the in_combat tag does —
+        # clear it so mid-fight-saved creatures rejoin the ambient beat.
+        await self._scrub_stale_combat_state()
+
         # Set up session callbacks
         self.session_manager.on_connect(self._on_session_connect)
         self.session_manager.on_disconnect(self._on_session_disconnect)
@@ -329,11 +363,18 @@ class GameServer:
         set_combat_manager(self.combat_manager)
         get_propagation_engine().add_observer(self.combat_manager.hostile_observer)
 
+        # Pin the world tempo (ambient beat length + default behavior cadence)
+        # before the loops start reading it. WORLD_TICK is a process global.
+        from realm.core.beats import set_world_tick
+        set_world_tick(self.world_beat)
+
         # The world's heartbeat: drives tickable behaviors (patrols, AI)
         # and flushes sessions so NPC-initiated output reaches players
-        # without waiting for them to type something.
+        # without waiting for them to type something. Reaping runs on its own
+        # coarse task so a slow sweep never stalls the heartbeat.
         if self.tick_interval > 0:
             self._tick_task = asyncio.create_task(self._tick_loop())
+            self._reap_task = asyncio.create_task(self._reap_loop())
 
         # Imported here, not at module top: realm.commands re-exports from
         # realm.server.dispatcher, so a top-level import would be circular.
@@ -420,19 +461,22 @@ class GameServer:
             except Exception as e:
                 logger.error(f"Error in stop callback: {e}")
 
-        # Stop the heartbeat before tearing anything else down.
-        if self._tick_task is not None:
-            self._tick_task.cancel()
-            try:
-                await self._tick_task
-            except asyncio.CancelledError:
-                pass
-            self._tick_task = None
+        # Stop the heartbeat and the reap loop before tearing anything down.
+        for attr in ("_tick_task", "_reap_task"):
+            task = getattr(self, attr)
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                setattr(self, attr, None)
 
         # Detach observers from the (module-singleton) propagation engine
         # so a later server instance doesn't double-fire.
         if self.script_engine is not None:
             get_propagation_engine().remove_observer(self.script_engine.handle_action)
+            self.script_engine.shutdown_waits()   # cancel in-memory wait timers
             self.script_engine = None
             set_script_engine(None)
             from realm.core.objects import set_check_hook
@@ -587,6 +631,24 @@ class GameServer:
                     f"Reaped {obj.name} ({obj.id}): stored location "
                     f"{loc_id} vanished and it has no player owner"
                 )
+
+    async def _scrub_stale_combat_state(self) -> None:
+        """Encounters are runtime-only — a reboot ends every fight. But the
+        ``in_combat`` tag persists, so a creature saved mid-fight reloads still
+        tagged with no encounter to drive it: the ambient beat driver would
+        skip it forever (its poison/bleed frozen) and it couldn't leave the
+        room (movement blocks on ``in_combat``). Clear the tag and any queued
+        action on load so those objects rejoin the ambient beat and can be
+        re-engaged cleanly."""
+        if not self.persistence:
+            return
+        for obj in list(self.persistence.find_cached(tag='in_combat')):
+            obj.remove_tag('in_combat')
+            if obj.db.get('combat_queued') is not None:
+                obj.db.combat_queued = None
+            await self.persistence.save(obj)
+            logger.info(f"Cleared stale in_combat on {obj.name} (no encounter "
+                        "survives reboot)")
 
     async def _ensure_startup_room(self) -> None:
         """Create a default startup room when neither the database nor
@@ -886,62 +948,99 @@ class GameServer:
         actions must reach players without a player command in flight.
         A failing behavior is logged and skipped; the pulse survives.
         """
+        import random
         import time as _time
         import weakref
 
+        from realm.core.beats import (
+            WORLD_TICK,
+            ambient_beat_targets,
+            deliver_beat,
+        )
         from realm.core.behaviors import behavior_owners
+
         last_ticked: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+        next_pulse = _time.monotonic()
+        # Start the ambient-beat clock now, so the first beat lands one
+        # WORLD_TICK after boot rather than immediately on pulse one.
+        last_world_beat = _time.monotonic()
         while True:
-            await asyncio.sleep(self.tick_interval)
+            # Drift-correcting sleep: aim for a fixed grid, and if a heavy
+            # pulse made us late, resync to now instead of spiralling.
+            next_pulse += self.tick_interval
+            delay = next_pulse - _time.monotonic()
+            if delay > 0:
+                await asyncio.sleep(delay)
+            else:
+                next_pulse = _time.monotonic()
             now = _time.monotonic()
+
+            # --- Real-time behaviors (spawners, decay, wander, tickers) ---
+            # Each fires on its own tick_interval (default WORLD_TICK), so the
+            # fast heartbeat never changes their pacing.
             for obj in behavior_owners():
                 for behavior in obj.get_behaviors():
                     if not behavior.should_tick:
                         continue
                     interval = behavior.tick_interval
                     previous = last_ticked.get(behavior)
-                    if interval > 0 and previous is not None \
-                            and now - previous < interval:
+                    if previous is None:
+                        # Start-phase jitter: seed a random point within the
+                        # interval so simultaneous behaviors don't lockstep.
+                        last_ticked[behavior] = now - random.random() * interval
+                        continue
+                    if interval > 0 and now - previous < interval:
                         continue
                     last_ticked[behavior] = now
                     try:
-                        await behavior.tick(
-                            obj, now - previous if previous else self.tick_interval,
-                        )
+                        await behavior.tick(obj, now - previous)
                     except Exception:
                         logger.exception(
                             f"Tick error in {behavior.behavior_id} on {obj.name}"
                         )
-            # One-shot softcode waits ride the same heartbeat.
-            if self.script_engine is not None:
-                try:
-                    await self.script_engine.tick_waits()
-                except Exception:
-                    logger.exception("Tick wait error")
-            # Reap idle instanced areas (empty past their idle_ttl).
-            if self.persistence is not None:
-                try:
-                    from realm.core import instances
-                    await instances.reap_idle(self.persistence)
-                except Exception:
-                    logger.exception("Instance reap error")
-                try:
-                    from realm.core import wilderness
-                    await wilderness.reap_wilderness(self.persistence)
-                except Exception:
-                    logger.exception("Wilderness reap error")
-                try:
-                    from realm.core.events import reap_expired
-                    await reap_expired(self.persistence)
-                except Exception:
-                    logger.exception("Expiry reap error")
-                # (Zone reset is a ZoneResetBehavior on the master — it ticks
-                # with the other behaviors above, no separate sweep here.)
+
+            # --- Ambient beat: out-of-combat objects advance one beat every
+            # WORLD_TICK. Combatants are driven by their encounter instead
+            # (the double-tick guard), so they're skipped here. ---
+            if now - last_world_beat >= WORLD_TICK:
+                last_world_beat = now
+                for obj in ambient_beat_targets(behavior_owners()):
+                    try:
+                        await deliver_beat(obj)
+                    except Exception:
+                        logger.exception(f"Ambient beat error on {obj.name}")
+
+            # --- Output flush every pulse (near-real-time NPC/room output). ---
             for session in self.session_manager.all_sessions():
                 try:
                     await session.flush_output()
                 except Exception:
                     logger.exception("Tick flush error")
+
+    async def _reap_loop(self) -> None:
+        """Coarse housekeeping on its OWN cadence (``reap_interval``, ~5s),
+        decoupled from the fast heartbeat so a slow sweep never stalls the
+        pulse, the ambient beat, or output flush (like the persistence flush
+        loop)."""
+        import asyncio as _asyncio
+        while True:
+            await _asyncio.sleep(self.reap_interval)
+            if self.persistence is not None:
+                await self._reap()
+
+    async def _reap(self) -> None:
+        """Slow housekeeping — idle instances, wilderness cells, expired
+        objects — off the fast pulse (zone reset is a behavior on the
+        master, not here)."""
+        from realm.core import instances, wilderness
+        from realm.core.events import reap_expired
+        for fn, label in ((instances.reap_idle, "Instance"),
+                          (wilderness.reap_wilderness, "Wilderness"),
+                          (reap_expired, "Expiry")):
+            try:
+                await fn(self.persistence)
+            except Exception:
+                logger.exception(f"{label} reap error")
 
     async def _handle_unknown(self, ctx: CommandContext) -> None:
         """Handle unknown commands: softcode $-command fallback."""

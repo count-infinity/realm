@@ -212,13 +212,16 @@ async def _drop_all(ctx: CommandContext) -> None:
 
 async def cmd_give(ctx: CommandContext) -> None:
     """
-    Give an object to someone.
+    Give an object to someone — a player or an NPC. The recipient's
+    ON_RECEIVE softcode fires (a shopkeeper taking stock, a bribe
+    pressed into a guard's hands).
 
-    Usage: give <object> to <player>
-           give <object> = <player>
+    Usage: give <object> to <someone>
+           give <object> = <someone>
 
     Example:
         give medkit to Alice
+        give smoked herring to Mother Salt
     """
     # Parse arguments
     item_name = ""
@@ -245,8 +248,15 @@ async def cmd_give(ctx: CommandContext) -> None:
         await ctx.session.send(f"You aren't carrying '{item_name}'.")
         return
 
-    # Find the target player
+    # Find the recipient: a player, or a visible NPC (do_give and
+    # ON_RECEIVE are recipient-agnostic; only this lookup ever was not).
     target = find_player(ctx, target_name)
+    if not target and ctx.player.location:
+        from realm.core.perception import can_see
+        from realm.core.search import match_one
+        npcs = [obj for obj in ctx.player.location.contents
+                if obj.has_tag('npc') and can_see(ctx.player, obj)]
+        target = match_one(target_name, npcs)
     if not target:
         await ctx.session.send(f"You don't see '{target_name}' here.")
         return

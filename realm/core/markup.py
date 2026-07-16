@@ -29,8 +29,38 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-MARKER = '|'
+# The markup marker is a game setting (MARKUP_MARKER in config.py) —
+# '|' by default, '~' or similar for worlds that want literal pipes in
+# their prose (ASCII tables). Every scanner/emitter here reads the
+# module global at call time; engine code emits through wrap() so a
+# changed marker never leaks stale literals.
+DEFAULT_MARKER = '|'
+MARKER = DEFAULT_MARKER
 _FG = {c: 30 + i for i, c in enumerate('xrgybmcw')}
+
+
+def set_markup_marker(marker: str = DEFAULT_MARKER) -> None:
+    """Install the markup marker (game config). Any length from one
+    character ('|', '~') to a longer token ('%%', '@@@') — every
+    character must be non-alphanumeric and non-space, or the marker
+    would swallow prose. A bad marker is a config error and raises at
+    boot rather than mangling every string in the game. The escape
+    rule follows it: a doubled marker is a literal."""
+    global MARKER
+    marker = str(marker)
+    if (not marker or len(marker) > 16
+            or any(c.isalnum() or c.isspace() for c in marker)):
+        raise ValueError(
+            f"markup marker must be 1-16 non-alphanumeric, non-space "
+            f"characters (got {marker!r})")
+    MARKER = marker
+
+
+def wrap(codes: str, text: str) -> str:
+    """Color ``text`` with markup ``codes``, closing with a reset —
+    the one way engine code should emit markup, so it always uses the
+    configured marker: ``wrap('c', name)`` == ``|c<name>|n``."""
+    return f"{MARKER}{codes}{text}{MARKER}n"
 
 
 @dataclass(frozen=True)
@@ -84,38 +114,41 @@ def parse(text: str) -> list[tuple[Style, str]]:
             segments.append((style, ''.join(buf)))
             buf.clear()
 
+    # The marker may be any length (a game setting); offsets are all
+    # relative to it. mk_len == 1 with the default '|'.
+    mk_len = len(MARKER)
     while i < n:
-        ch = text[i]
-        if ch != MARKER:
-            buf.append(ch)
+        if not text.startswith(MARKER, i):
+            buf.append(text[i])
             i += 1
             continue
-        if i + 1 >= n:          # dangling pipe: literal
+        if i + mk_len >= n:     # dangling marker: literal
             buf.append(MARKER)
             break
-        code = text[i + 1]
-        if code == MARKER:      # || escape
+        if text.startswith(MARKER, i + mk_len):   # doubled marker: escape
             buf.append(MARKER)
-            i += 2
+            i += 2 * mk_len
             continue
+        code = text[i + mk_len]
         if code == 'n':
             flush()
             style = DEFAULT_STYLE
-            i += 2
+            i += mk_len + 1
             continue
         if code == '/':
             buf.append('\n')
-            i += 2
+            i += mk_len + 1
             continue
-        if code == '[' and i + 2 < n and text[i + 2].lower() in _FG:
+        if (code == '[' and i + mk_len + 1 < n
+                and text[i + mk_len + 1].lower() in _FG):
             flush()
-            style = replace(style, bg=text[i + 2])
-            i += 3
+            style = replace(style, bg=text[i + mk_len + 1])
+            i += mk_len + 2
             continue
         if code.lower() in _FG:
             flush()
             style = replace(style, fg=code)
-            i += 2
+            i += mk_len + 1
             continue
         if code in 'huiv':
             flush()
@@ -124,12 +157,12 @@ def parse(text: str) -> list[tuple[Style, str]]:
                             underline=style.underline or code == 'u',
                             italic=style.italic or code == 'i',
                             reverse=style.reverse or code == 'v')
-            i += 2
+            i += mk_len + 1
             continue
         # Unknown code: literal, typo stays visible.
         buf.append(MARKER)
         buf.append(code)
-        i += 2
+        i += mk_len + 1
     flush()
     return segments
 

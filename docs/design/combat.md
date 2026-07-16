@@ -253,7 +253,12 @@ the steals and anti-lessons that adjust this plan.
   dispatcher; combat adds commands, never replaces the set. An
   explicit `yield`/end path is designed in, not patched in.
 - Dual condition clocks (round-ticks in combat, delay-ticks outside)
-  caused double-tick bugs — REALM has exactly one heartbeat.
+  caused double-tick bugs. REALM runs one real-time heartbeat that *mints*
+  beats (the encounter's round in combat, the ambient beat outside), and a
+  single `in_combat` guard (`beats.ambient_beat_targets`) ensures a
+  combatant's effects advance from exactly one source — its encounter — never
+  also from the ambient driver. One clock, one owner per object. See
+  [Time, Ticks & Beats](time-and-beats.md).
 - Data/rules disconnects (weapon YAML parsed but ignored; hit-location
   plumbing with no producer) — anything Phase 1 doesn't consume, it
   doesn't parse.

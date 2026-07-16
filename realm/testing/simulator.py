@@ -100,6 +100,9 @@ class Simulator:
         if scripting:
             from realm.core.objects import set_check_hook
             self.engine = ScriptEngine(persistence=self.store)
+            # Virtual clock: waits fire when the test pumps tick_waits(), not on
+            # wall-clock timers — deterministic like the rest of the Simulator.
+            self.engine.defer_waits = True
             get_engine().add_observer(self.engine.handle_action)
             set_script_engine(self.engine)
             set_check_hook(self.engine.run_check_hook)   # on_check interception
@@ -175,6 +178,8 @@ class Simulator:
         from realm.persistence.manager import set_active_manager
         from realm.scripting.engine import set_script_engine
         from realm.systems import set_game_system
+        if self.engine is not None:
+            self.engine.shutdown_waits()   # cancel any pending wait timers
         set_active_manager(None)
         set_script_engine(None)
         set_check_hook(None)

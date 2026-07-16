@@ -217,7 +217,9 @@ async def test_hitprcnt_fires_once_on_threshold_cross():
                 break
 
         assert len(fired) == 1                     # once, on the crossing
-        assert fired[0].extra["percent"] < 90
+        # Fires as HP crosses to at-or-below the threshold — damage can land
+        # HP exactly on 90% (10 of 100), so the reported percent is <= 90.
+        assert fired[0].extra["percent"] <= 90
         assert fired[0].target is goblin
     finally:
         reset_engine()

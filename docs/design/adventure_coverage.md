@@ -26,6 +26,15 @@ pre-commit draft and do not sum against the committed tables.
 Wilderness cells + instanced areas (realm/core/wilderness.py,
 realm/core/instances.py) shipped since: no grade changes — they strengthen
 existing YES rows, addressing no open gap.
+2026-07-16: tutorial Act III (Saltmarsh) exercises the social kit
+end-to-end (NPC-piloted vehicle sequences, disposition-priced shops,
+skill_def rules-data, cast/ward mind magic, prompt()-driven quest
+gates) — plus two small seams closed: `give` now accepts NPC
+recipients (ON_RECEIVE was already recipient-agnostic; quest hand-ins
+and shop stocking work as typed), and `disposition_boost` joined the
+softcode `apply_effect` allowlist (charm effects that wear off are
+one line). No grade changes; several SOFT rows (bribes, gifts, court
+audiences) got easier to build honestly.
 Gap clusters at the bottom feed BACKLOG.md.
 
 ---
