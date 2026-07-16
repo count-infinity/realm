@@ -35,10 +35,17 @@ Three pieces:
    the transition line to each. Rooms added to the zone later get
    weather for free — membership is the tag, not a wiring step.
 
-3. **Descriptions read the shared state.** A `[[...]]` block in any
-   room desc reads `get_attr('Harbor Sky', 'weather', 'clear')` and
-   substitutes the matching line from `wx_descs`. Look twice across a
-   change and the room reads differently — no per-room ticker needed.
+3. **Descriptions are stamped, not fetched.** When the state changes,
+   the master also writes the matching standing line from `wx_descs`
+   onto each zone room as a `wx_line` attribute; every room desc then
+   carries a `[[...]]` block that just reads `get_attr(me, 'wx_line',
+   '')`. Push-on-change beats pull-per-look: the remote table lookup
+   happens **once per transition, on the ticker** (which runs on its
+   own worker stack), while the block that runs on *every look, per
+   viewer, on the look's own call stack* stays a single cheap local
+   read. Keep render-time blocks local and shallow as a habit — deep
+   chains of remote reads (`get_attr('<name>', ...)` inside `.get(...)`)
+   at render time are where inline blocks hit the sandbox's limits.
 
 The tick cadence is one number on the behavior: `interval:15` runs the
 drift roughly once a minute at the default 4-second world tick. Turn it
@@ -74,17 +81,23 @@ drop Harbor Sky
 The drift itself. `member()` finds the current state's position
 (1-indexed, so `- 1`), `rand(0, 2) - 1` is the step, `clamp` pins it to
 the table, and nothing at all happens on a no-change tick — that's the
-spam discipline half of a weather system:
+spam discipline half of a weather system. On a real change, each zone
+room gets the transition *announced* (`remit`) and its standing line
+*stamped* (`set_attr` — the master controls the rooms by owner
+delegation):
 
 ```text
-@set Harbor Sky/on_tick = states = get_attr(me, 'wx_states', []); i = member(get_attr(me, 'weather', 'clear'), states) - 1; j = clamp(i + rand(0, 2) - 1, 0, len(states) - 1); (set_attr(me, 'weather', states[j]), [remit(r, get_attr(me, 'wx_msgs', {}).get(states[j], '')) for r in zone_rooms('harbor')]) if i >= 0 and j != i else None
+@set Harbor Sky/on_tick = states = get_attr(me, 'wx_states', []); i = member(get_attr(me, 'weather', 'clear'), states) - 1; j = clamp(i + rand(0, 2) - 1, 0, len(states) - 1); (set_attr(me, 'weather', states[j]), [(set_attr(r, 'wx_line', get_attr(me, 'wx_descs', {}).get(states[j], '')), remit(r, get_attr(me, 'wx_msgs', {}).get(states[j], ''))) for r in zone_rooms('harbor')]) if i >= 0 and j != i else None
 @behavior Harbor Sky = script_ticker, interval:15
 ```
 
-Finally, make the quay's description read the sky:
+Finally, seed the quay's standing line (stamps arrive with the *next*
+transition; the seed covers the weather it was built under) and make
+the description read it — one local attribute, nothing else:
 
 ```text
-@desc here = Tarred pilings, drying nets, gulls arguing over fish heads. [[result = get_attr('Harbor Sky', 'wx_descs', {}).get(get_attr('Harbor Sky', 'weather', 'clear'), '')]]
+@set here/wx_line = Sunlight hammers the tin roofs.
+@desc here = Tarred pilings, drying nets, gulls arguing over fish heads. [[result = get_attr(me, 'wx_line', '')]]
 ```
 
 ## Try it
@@ -105,8 +118,9 @@ look
 
 A friend standing in Fishmarket Row hears every transition; someone
 outside the zone hears nothing. `@examine Harbor Sky` shows the current
-state in plain attributes — `@set Harbor Sky/weather = storm` is a GM
-override that the next look already reflects.
+state in plain attributes — and `@set Harbor Sky/weather = storm` is a
+GM override: the rooms re-stamp and announce at the next real
+transition (nudge one with `@tr Harbor Sky/on_tick`).
 
 ## Going further
 

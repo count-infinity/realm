@@ -38,9 +38,14 @@ with the meter removed and a *policy dial* added:
    attributes the same way — `xp_multiplier` on a master changes kill
    awards zone-wide; `rad_level` is your own policy in the same slot.)
 
-4. **The desc reads the dial too.** A `[[...]]` block turns the same
-   attribute into a dosimeter line, so players get a fair warning that
-   scales with the danger — look before you loiter.
+4. **The desc reads the dial too — at one remove.** Each sweep also
+   stamps the severity it just used onto the room (`rad_sv`), and a
+   `[[...]]` block turns *that* into a dosimeter line — fair warning
+   that scales with the danger, one sweep behind the dial. The
+   indirection is deliberate: the tick already reads the master (on
+   its own worker stack), so the block that runs on every look stays
+   a cheap local `me`-read — the push-on-change habit from
+   [tutorial 036](036_weather_system.md).
 
 ## Build it
 
@@ -67,11 +72,12 @@ drop Reactor Brain
 ```
 
 The warning label and the hazard sweep — every other world tick,
-everyone present resists at minus the current severity:
+everyone present resists at minus the current severity, and the sweep
+stamps that severity onto the room for the desc to read:
 
 ```text
-@desc here = A steel catwalk rings the exposed core. The air is warm and tastes of foil. [[result = 'Your dosimeter ticks ' + ('lazily.' if get_attr('Reactor Brain', 'rad_level', 1) < 3 else 'without pause.')]]
-@set here/on_tick = sv = get_attr('Reactor Brain', 'rad_level', 1); [(pemit(o, 'Heat prickles across your skin; you ride it out.') if skill_check(o, 'fortitude', -sv) else (damage(o, roll('1d6')), pemit(o, 'Nausea doubles you over. The core is cooking you.'))) for o in contents(me) if has_tag(o, 'player')]
+@desc here = A steel catwalk rings the exposed core. The air is warm and tastes of foil. [[result = 'Your dosimeter ticks ' + ('lazily.' if get_attr(me, 'rad_sv', 1) < 3 else 'without pause.')]]
+@set here/on_tick = sv = get_attr('Reactor Brain', 'rad_level', 1); set_attr(me, 'rad_sv', sv); [(pemit(o, 'Heat prickles across your skin; you ride it out.') if skill_check(o, 'fortitude', -sv) else (damage(o, roll('1d6')), pemit(o, 'Nausea doubles you over. The core is cooking you.'))) for o in contents(me) if has_tag(o, 'player')]
 @behavior here = script_ticker, interval:2
 ```
 
