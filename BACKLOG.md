@@ -85,6 +85,81 @@ The propagation engine, `GameObject.msg()` wiring, the EventBus retirement, the
 builtin command migration, and unified movement events are all done. The action
 framework is fully in place.
 
+### Entitlement-based security: roles carry granular grants (requested 2026-07-16)
+
+Today privilege is a five-rung `IntEnum` ladder (GUEST < PLAYER <
+BUILDER < ADMIN < GOD, assigned by player tags) and every privileged
+code path is a rung comparison. That conflates capabilities: `>=
+Role.ADMIN` simultaneously means see-through-darkness, bypass-locks,
+teleport-anywhere, and control-everything — you cannot grant one
+without the rest. The AWS policy model (documents, conditions,
+resources) is more than we need; the right middle is one hop simpler:
+**players have roles; a role is a named set of granular entitlements;
+call sites ask for the entitlement they actually mean** —
+`has_entitlement(actor, 'FORCE_ALL')` — and never compare rungs.
+
+Design sketch:
+
+- **Entitlement** = a namespaced string constant from a small registry
+  (typo-guarded at boot, like behavior ids). **Role** = a named
+  entitlement set. Role *assignment* stays exactly as it is (tags on
+  the player; multiple role tags = union of their entitlements).
+- **Built-in roles reproduce today's ladder verbatim** (guest ⊂ player
+  ⊂ builder ⊂ admin ⊂ god as nested grant sets), so the cut-over has
+  zero behavior change and the ladder remains the zero-config default.
+- **Roles as data**, like `skill_def`: a `role_def` object (name +
+  entitlement list) merges over the builtins at `@reload`, so a game
+  mints custom staff ranks in-world — a "warden" who can
+  `TELEPORT_ANY` but not `CONTROL_ALL`, an "architect" who builds
+  without seeing invisible. This is the whole payoff of the refactor.
+- **`controls()` keeps its ownership/delegation model** (self, owner,
+  world-trusts-world, Penn delegation, control lock) — only its role
+  rungs become entitlement checks. Same for lock evaluation.
+- **Quell** already resolves to PLAYER; under entitlements, quelled =
+  "resolve with the player role's set". Unchanged semantics.
+- **Two layers, per the vision**: engine mechanism + softcode surface
+  (`has_entitlement(obj, 'X')` read-only in scripts; lock DSL grows
+  `caller.has_entitlement('x')`).
+
+Call-site inventory — the entire ladder surface today (small, which is
+what makes this cheap):
+
+- [ ] `permissions/locks.py:178` — GOD bypasses all locks →
+      `LOCK_BYPASS_ALL`
+- [ ] `permissions/locks.py:182` — ADMIN bypasses locks, except
+      CONTROL of god-owned objects → `LOCK_BYPASS` (keep the
+      rival-authority carve-out: a bypass entitlement never beats an
+      owner holding `LOCK_BYPASS_ALL`)
+- [ ] `permissions/locks.py:254` — ADMIN controls everything →
+      `CONTROL_ALL` (this is the `FORCE_ALL` example: @force,
+      possession, and mutation all ride `controls()`)
+- [ ] `permissions/locks.py:256` — BUILDER controls unowned non-player
+      objects → `CONTROL_UNOWNED`
+- [ ] `core/movement.py:271` — ADMIN tunnels destination locks →
+      `TELEPORT_ANY`
+- [ ] `core/perception.py:48` — ADMIN sees in darkness / through
+      invisibility → `SEE_ALL`
+- [ ] `server/dispatcher.py` — `Command.permission` tier strings
+      (`"player"/"builder"/"admin"/"god"`) become a required
+      entitlement per command (`BUILD` for OLC, `ADMIN_TOOLS`, ...);
+      `has_permission()` / `PERMISSION_LEVELS` retire with it
+- [ ] Migration tests: (a) ladder-equivalence — every existing
+      permission test passes unmodified with the default role table;
+      (b) decoupling proof — a custom `role_def` granting exactly one
+      entitlement gets that capability and no other
+
+Open questions (product pass before building):
+
+- Deny/negative grants? Lean **no** — additive-only sets keep
+  reasoning and the union rule trivial; AWS-style deny is where the
+  complexity we're avoiding lives.
+- Per-player one-off grants without a role? Lean **no** — mint a role;
+  it keeps the audit surface ("who can force players?") one query.
+- Entitlement naming: `FORCE_ALL` flat constants vs `force.all`
+  namespacing — decide once, registry-enforced either way.
+- NPCs rank as PLAYER today (possession work, 2026-07-05) — keep, via
+  the player role's set.
+
 ### Maintainability review findings (2026-07-02) — not yet fixed
 
 Full-codebase review (3 subsystem passes). The structural tier was fixed the
@@ -1346,3 +1421,97 @@ Design sketch:
     softcode reference regenerated. Tests: tests/test_prompts.py (10 passing —
     await/abort/help-passthrough/choices/confirm/choose/disconnect-cancel +
     softcode callback + persistent marker). Full suite 901.
+
+## Showcase-discovered engine gaps (filed 2026-07-16)
+
+Found while implementing the showcase arcs (`docs/showcase/`); each verified
+against source by the implementing session. Workarounds are documented in the
+named tutorials, so none of these block showcase progress.
+
+- [ ] **Sandbox: call-free loops escape the time budget.** The 1500 ms limit is
+  enforced in `ScriptSandbox._wrap_function`, so `while True: pass` (no
+  function calls) is never interrupted and pins its worker thread. An
+  instruction-count guard or tracing hook would close it.
+  (`docs/showcase/250_player_scripting.md`)
+- [ ] **`ON_<EVENT>` scripts get no action payload** — e.g. `ON_PAYMENT` cannot
+  read the amount; witnessed events also fire on every bystander with the hook,
+  indistinguishably. Three arcs independently re-derived the balance-delta
+  "ledger/till" idiom (001, 002, 064, 067). A bound payload
+  (amount/actor/target) would remove the workaround.
+- [ ] **`SpawnerBehavior` liveness is deletion-based** (`persistence.get_cached(id)`)
+  — a sold/relocated item still counts as alive, so a spawner can never restock
+  a shop; only destroyed populations repopulate. Audit had recommended spawner
+  for shop restock — correction: use `script_ticker` meanwhile.
+  (`docs/showcase/063_shopkeeper.md`)
+- [ ] **Things have no softcode-visible description fallback** — `look` reads
+  only the engine description field for things
+  (`realm/commands/builtin/look.py:94-96,195-196`); rooms fall back to
+  `db.description` (`realm/core/render.py:86`) but things don't, so
+  `create_obj()` goods are name-only. (`docs/showcase/002_vending_machine.md`)
+- [ ] **Keycard fast-path and `pick` mutate `locked` without propagating**
+  (`realm/commands/builtin/manipulation.py:256-261, 205`) — `ON_LOCK`/`ON_UNLOCK`
+  hooks can't observe those paths; `lock`/`unlock` propagate fine.
+  (`docs/showcase/025_lockable_door.md`)
+- [ ] **`start_combat()` same-room check runs at call time while moves are still
+  queued** — teleport-then-fight silently fails; `force(npc, 'attack …')` works
+  because it executes after the queued teleport. (`docs/showcase/071_guard_response.md`)
+- [ ] **`exits()` documented as "open exits" but returns closed exits too**
+  (`realm/scripting/functions.py:298`) — fix the docstring and regenerate
+  softcode docs, or add an `only_open` flag. (`docs/showcase/048_gas_bomb.md`
+  filters `closed` explicitly.)
+- [ ] **Simulator doesn't wire the `prompt()` seam** (`engine.session_manager` /
+  `player._session`) — tests using `prompt()` re-wire it by hand; a Simulator
+  convenience would help test authors. (`tests/showcase/test_heist.py`)
+- [ ] **Master Room** for global `$`-commands is a live TODO
+  (`get_search_objects`) — ~10 showcase items use the `zone:world` master
+  workaround meanwhile. (`docs/showcase/capability_audit.md`)
+
+## Showcase wave-2 engine gaps (filed 2026-07-16, categories 1-5)
+
+- [ ] **Softcode `on_check` wards are participant-only — exits and bystanders
+  never run them.** `visit_observe_check` (realm/core/objects.py:313-317) runs
+  behaviors only; the softcode `_check_hook` runs solely in `visit_check`
+  (actor/target/room-as-target). Two consequences, both verified: (a) an exit's
+  ward never fires for traversal — movement gates on the rooms, so per-exit
+  access logic must be a room ward keyed by `adata('exit')` (026, 030, 034,
+  035); (b) a bystander object cannot veto actions it merely witnesses (053).
+  Possible fix: run the check hook for the exit named in a movement action's
+  extra, and/or give softcode wards an opt-in observe pass.
+- [ ] **`eval_attr` absent from the check-pass allowlist** (`ScriptFunctions.
+  _READONLY`) though read-only — wards can't honor computed conventions (e.g.
+  a weight function); only plain data attrs. (017_bag_of_holding.md)
+- [ ] **`create_obj(..., location=<other player>)` silently returns `None`**
+  (deliberate no-seeding rule) and downstream `set_attr(None, ...)` swallows it
+  — fails invisibly. Suggest: raise a script error naming the rule. Workaround:
+  create at self, `teleport_obj` to recipient. (022_coat_check.md)
+- [ ] **No per-exit movement message overrides** — stock leave/arrive lines
+  always print; `leave_msg`/`arrive_msg` attrs don't exist, and room
+  ON_ENTER/ON_LEAVE can't see which exit carried the mover. (028_one_way_exit.md)
+- [ ] **`ON_FAIL` can't read the failure reason** (`extra['reason']` not bound)
+  — e.g. fall damage on a lockable climbing exit would also fire when bounced
+  off the lock. (034_climbing_exit.md)
+- [ ] **`look <name>` has no fallback to named `desc_extras` details** — builtin
+  look resolves objects only and dispatches before `$`-triggers, so named
+  details need a `$study *` verb. A small cmd_look fallback would make item 42
+  fully native. (042_room_details.md)
+- [ ] **`oemit()` silently no-ops for room executors** — `_deliver_queued` reads
+  `functions.executor.location`, `None` for rooms. Workaround: queue the move
+  first, then `remit`. (040_zero_g_room.md, 047_falling.md)
+- [ ] **`eval_attr()` stringifies its args** (`captures=[str(a) for a in args]`)
+  — GameObjects can't be passed; callers pass `o.id` and re-resolve. Doc nit or
+  enhancement. (039_underwater_room.md)
+- [ ] **`zone_property()`/`zone_masters()` not exposed to softcode** though the
+  audit names them — worked around via `get_attr('<master>', ...)`.
+  (043_hazard_room.md)
+- [ ] **DX note: builtin unique-prefix matching silently shadows `$`-verbs**
+  (`$read` can never fire — prefix-matches builtin `ready`). Suggest a builder
+  diagnostic (warn on shadowed trigger registration). (010_typewriter.md)
+- [ ] **Addendum to the payload-binding gap (wave 1):** a moved item is not a
+  witness to its own `item:on_put`/`item:on_get` (witnesses = room + contents +
+  zone masters + target), so no hook can name the item involved even indirectly.
+  (018_refrigerator.md, 019_trash_incinerator.md)
+
+Audit corrections recorded by implementers (no engine change): row 53's
+victim-tag recipe must route through `apply_effect` kind-tags; rows 39/43 need a
+`skill_def` (stat=health), bare `skill_check(o,'health')` gets the unlisted-skill
+floor; row 63's spawner-restock recipe superseded (see wave-1 spawner gap).

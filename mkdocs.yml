@@ -123,6 +123,16 @@ nav:
     - TinyMUX Comparison: design/tinymux-comparison.md
     - Simplicity Review: design/simplicity_review.md
     - Original Plan (historical): design/original_plan.md
+  - Showcase:
+    - Overview: showcase/index.md
+    - Checklist (250 builds): showcase/checklist.md
+    - Capability Audit: showcase/capability_audit.md
+    - Conventions: showcase/CONVENTIONS.md
+    - "Arc: First Builds": showcase/arc_first_builds.md
+    - "Arc: The Heist": showcase/arc_heist.md
+    - "Arc: Living NPCs": showcase/arc_living_npcs.md
+    - "Arc: Working Economy": showcase/arc_economy.md
+    - "Arc: Softcode for Builders": showcase/arc_softcode.md
 
 extra:
   social:
