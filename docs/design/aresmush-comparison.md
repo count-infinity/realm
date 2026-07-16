@@ -232,7 +232,12 @@ microkernel, so several tempting items are explicitly flagged as *not kernel*.
    (`posing.rb:35`, `pose_cmd.rb:44`, `add_scene_pose_handler.rb:53`). REALM
    already has a propagation core; the lesson is to make sure the **GMCP/OOB
    surface calls the same action primitives the telnet parser does**, never a
-   parallel path. Pure discipline, zero kernel bloat. Adopt.
+   parallel path. Pure discipline, zero kernel bloat. **Adopted
+   2026-07-16**: protocols decode bytes → `Session.submit_input()` (the
+   common representation) → one per-session pump → the one server funnel;
+   `Session.send_oob()` is the protocol-blind structured push (GMCP on
+   telnet, `{'type': 'oob'}` frames on websocket, both directions). See
+   `realm/gateway/` + `tests/test_gateway_funnel.py`.
 2. **A documented, authenticated request/webhook protocol for the OOB
    surface.** AresMUSH's `{cmd, args, api_key, auth}` + per-player API key +
    `enactor` resolution (`web_request.rb`, `engine_api_server.rb:81-92`) is a

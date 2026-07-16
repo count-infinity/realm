@@ -6,6 +6,7 @@ Provides a WebSocket interface for web clients using aiohttp.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from typing import TYPE_CHECKING, Any
@@ -24,11 +25,42 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def make_ws_writer(ws: Any) -> callable:
+    """The one text writer for a WebSocket client, used from the very
+    first byte (the welcome screen included). Markup ships as structured
+    segments — the client styles them (no ANSI-to-HTML archaeology);
+    plain text stays plain."""
+
+    async def write_to_client(message: str) -> None:
+        if ws.closed:
+            return
+        from realm.core.markup import MARKER, parse, strip
+        try:
+            if MARKER in message:
+                try:
+                    segments = [[style.key(), seg]
+                                for style, seg in parse(message)]
+                    await ws.send_json({'type': 'text',
+                                        'text': strip(message),
+                                        'segments': segments})
+                    return
+                except Exception:
+                    message = strip(message)
+            await ws.send_str(message)
+        except Exception as e:
+            logger.error(f"Error writing to WebSocket: {e}")
+
+    return write_to_client
+
+
 class WebSocketHandler:
     """
     Handles a single WebSocket connection.
 
     Messages can be plain text (commands) or JSON for structured data.
+    Every command line — plain or JSON-wrapped — lands in the session's
+    input funnel (``submit_input``), the same common representation the
+    telnet adapter produces. There is no parallel dispatch path.
     """
 
     def __init__(
@@ -41,17 +73,15 @@ class WebSocketHandler:
         self.ws = ws
         self.session = session
         self.session_manager = session_manager
-        self.on_command = on_command
-        self._running = False
+        self.on_command = on_command  # unused by the pump path; kept for
+        #                               custom-protocol API symmetry
+        self._oob_tasks: set = set()
 
     async def run(self) -> None:
         """Run the WebSocket handler loop."""
-        self._running = True
-
-        # Note: Writer is now set in _handle_websocket before create_session()
-        # to ensure welcome screen flushes immediately. We update it here to
-        # use the handler's method which checks self._running for cleaner shutdown.
-        self.session.set_writer(self._write_to_client)
+        # Structured push parity with telnet+GMCP: msg_oob() events
+        # (Room.Info, vitals) reach web clients as {'type': 'oob'} frames.
+        self.session.set_oob_writer(self._send_oob)
 
         try:
             async for msg in self.ws:
@@ -68,7 +98,6 @@ class WebSocketHandler:
                     logger.error(f"WebSocket error: {self.ws.exception()}")
                     break
         finally:
-            self._running = False
             await self.session_manager.destroy_session(self.session)
 
     async def _handle_text(self, text: str) -> None:
@@ -86,58 +115,45 @@ class WebSocketHandler:
             except json.JSONDecodeError:
                 pass
 
-        # Plain text command
-        self.session.push_input_nowait(text)
-        await self.on_command(self.session, text)
+        # Plain text command → the common input representation.
+        self.session.submit_input(text)
 
     async def _handle_json(self, data: dict[str, Any]) -> None:
         """Handle a JSON message from the client."""
         msg_type = data.get('type', 'command')
 
         if msg_type == 'command':
-            command = data.get('command', '').strip()
-            if command:
-                self.session.push_input_nowait(command)
-                await self.on_command(self.session, command)
+            self.session.submit_input(str(data.get('command', '')))
+
+        elif msg_type == 'oob':
+            # Inbound structured data — the websocket twin of inbound
+            # GMCP (Core.Supports etc.): remember what the client told us.
+            package = data.get('package')
+            if package:
+                self.session.oob_supports[str(package)] = data.get('data')
 
         elif msg_type == 'ping':
             await self._send_json({'type': 'pong'})
 
         elif msg_type == 'resize':
-            # Window size update
-            width = data.get('width', 80)
-            height = data.get('height', 24)
-            self.session.set_data('terminal_width', width)
-            self.session.set_data('terminal_height', height)
+            # Window size update — same session data telnet NAWS sets.
+            self.session.set_data('terminal_width', data.get('width', 80))
+            self.session.set_data('terminal_height', data.get('height', 24))
 
-    async def _write_to_client(self, message: str) -> None:
-        """Write a message to the WebSocket client.
-
-        Markup ships as structured segments — the client styles them
-        (no ANSI-to-HTML archaeology); plain text stays plain.
-        """
-        if not self._running or self.ws.closed:
+    def _send_oob(self, package: str, data: dict) -> None:
+        """Outbound structured event (session.send_oob → here). Sync
+        signature per the oob-writer contract; the send is scheduled."""
+        if self.ws.closed:
             return
-
-        from realm.core.markup import MARKER, parse, strip
-        if MARKER in message:
-            try:
-                segments = [[style.key(), seg] for style, seg in parse(message)]
-                await self._send_json({'type': 'text',
-                                       'text': strip(message),
-                                       'segments': segments})
-                return
-            except Exception:
-                message = strip(message)
-
-        try:
-            await self.ws.send_str(message)
-        except Exception as e:
-            logger.error(f"Error writing to WebSocket: {e}")
+        task = asyncio.create_task(
+            self._send_json({'type': 'oob', 'package': package,
+                             'data': data}))
+        self._oob_tasks.add(task)
+        task.add_done_callback(self._oob_tasks.discard)
 
     async def _send_json(self, data: dict[str, Any]) -> None:
         """Send a JSON message to the client."""
-        if not self._running or self.ws.closed:
+        if self.ws.closed:
             return
 
         try:
@@ -209,21 +225,13 @@ class WebSocketServer:
         peername = request.transport.get_extra_info('peername') if request.transport else None
         address = f"{peername[0]}:{peername[1]}" if peername else "unknown"
 
-        # Create writer function that captures the ws object.
-        # This must be created BEFORE create_session() so the welcome
-        # screen can be flushed immediately (same pattern as telnet).
-        async def write_to_client(message: str) -> None:
-            if not ws.closed:
-                try:
-                    await ws.send_str(message)
-                except Exception as e:
-                    logger.error(f"Error writing to WebSocket: {e}")
-
-        # Create session with writer so welcome screen flushes immediately
+        # The one writer, installed BEFORE create_session() so the
+        # welcome screen flushes immediately — with the same markup
+        # rendering every later message gets (no raw-pipe leak window).
         session = await self.session_manager.create_session(
             protocol="websocket",
             address=address,
-            writer=write_to_client,
+            writer=make_ws_writer(ws),
         )
         # ws.close() returns an awaitable; close_connection awaits it.
         session.set_closer(ws.close)

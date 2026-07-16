@@ -202,7 +202,14 @@ class TelnetProtocol(asyncio.Protocol):
             return
         if payload[0] == 201:  # GMCP: "Package.Sub JSON"
             self._handle_gmcp(payload[1:])
-        # NAWS and others: ignored for now.
+        elif payload[0] == 31 and len(payload) >= 5:  # NAWS: w16 h16
+            # Same session data the websocket 'resize' message sets —
+            # window size is protocol-agnostic once it's in the session.
+            if self.session is not None:
+                self.session.set_data(
+                    'terminal_width', (payload[1] << 8) | payload[2])
+                self.session.set_data(
+                    'terminal_height', (payload[3] << 8) | payload[4])
 
     def _handle_gmcp(self, payload: bytes) -> None:
         """Inbound GMCP from the client (Core.Hello, Core.Supports...)."""
@@ -234,18 +241,17 @@ class TelnetProtocol(asyncio.Protocol):
             return
 
         try:
-            line = self._buffer.decode(self.encoding, errors='replace').strip()
+            line = self._buffer.decode(self.encoding, errors='replace')
         except Exception:
             line = ""
 
         self._buffer.clear()
 
-        if line:
-            # Push to session input queue
-            self.session.push_input_nowait(line)
-
-            # Notify command handler
-            asyncio.create_task(self.on_command(self.session, line))
+        # The adapter's whole input job ends here: decoded text into the
+        # session's common input representation. The per-session pump
+        # delivers it to the server funnel in order — no per-line tasks,
+        # no protocol-specific dispatch semantics.
+        self.session.submit_input(line)
 
     async def _write_to_client(self, message: str) -> None:
         """Write a message to the client (markup renders HERE)."""

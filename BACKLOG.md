@@ -182,7 +182,10 @@ same day (see Completed); these remain, roughly by impact:
 ### Testing
 - [ ] Add tests for welcome screen auto-flush functionality
 - [ ] Add integration tests for protocol connection lifecycle
-- [ ] Add tests for websocket welcome screen parity
+- [x] ~~Add tests for websocket welcome screen parity~~ DONE 2026-07-16:
+  `make_ws_writer` renders markup segments from the first byte (the old
+  pre-handler writer leaked raw pipe markup on the welcome screen);
+  pinned in tests/test_gateway_funnel.py.
 
 ## Priority 2 - Nice to Have
 
@@ -224,11 +227,20 @@ same day (see Completed); these remain, roughly by impact:
   - `TelnetProtocol.send_gmcp(package, data)` method
   - Track `gmcp_enabled` per connection
 
-- [ ] Protocol-agnostic structured data API (Option 1)
-  - `Session.send_structured(package, data)` method
-  - Telnet: sends via GMCP
-  - WebSocket: sends as JSON message with type field
-  - Allows game code to send data without knowing protocol
+- [x] ~~Protocol-agnostic structured data API (Option 1)~~ DONE
+  2026-07-16: `Session.send_oob(package, data)` is the protocol-blind
+  call — telnet ships it as GMCP, websocket as `{'type': 'oob'}` JSON
+  frames (the websocket half was missing; web clients silently got no
+  Room.Info/vitals). Inbound is symmetric: GMCP subnegotiation and
+  `{'type': 'oob'}` messages both land in `session.oob_supports`. The
+  same pass unified INPUT: protocols decode bytes →
+  `session.submit_input()` → a per-session pump drains the one input
+  funnel (`_on_command`) in arrival order — no more per-line tasks
+  (telnet) vs awaited-inline (websocket) divergence, and the dead
+  double-write to the input queue is gone. Telnet NAWS now feeds the
+  same `terminal_width/height` session data as websocket `resize`.
+  AresMUSH steal-list #1 (aresmush-comparison.md). Tests:
+  tests/test_gateway_funnel.py.
 
 - [ ] Common GMCP packages
   - `Char.Vitals` - HP, mana, stamina updates

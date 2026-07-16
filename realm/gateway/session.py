@@ -57,6 +57,7 @@ class Session:
         'state',
         'player',
         '_input_queue',
+        '_input_task',
         '_output_queue',
         '_writer',
         '_oob_writer',
@@ -83,6 +84,7 @@ class Session:
         self.player: GameObject | None = None
 
         self._input_queue: asyncio.Queue[str] = asyncio.Queue()
+        self._input_task: asyncio.Task | None = None
         self._output_queue: asyncio.Queue[str] = asyncio.Queue()
         self._writer: Callable[[str], Awaitable[None]] | None = None
         # Out-of-band channel (GMCP on telnet, JSON envelope on
@@ -185,7 +187,9 @@ class Session:
             logger.warning(f"Session {self.id}: output queue full, dropping message")
 
     async def receive(self) -> str:
-        """Receive a command from the player."""
+        """Receive a command from the player. (For pump-less custom
+        protocols that drain the queue themselves — never mix with
+        ``start_input_pump``.)"""
         return await self._input_queue.get()
 
     def receive_nowait(self) -> str | None:
@@ -207,6 +211,55 @@ class Session:
             self._input_queue.put_nowait(command)
         except asyncio.QueueFull:
             logger.warning(f"Session {self.id}: input queue full, dropping command")
+
+    # --- The protocol-agnostic input funnel ---
+    #
+    # A protocol adapter's whole input job is: decode bytes however its
+    # wire format demands, then call submit_input() with a text line —
+    # the COMMON REPRESENTATION every layer above this one sees. A
+    # per-session pump drains the queue through the server's input sink
+    # (prompt capture → chargen → dispatcher), one line at a time, so
+    # every protocol gets identical ordering and backpressure semantics.
+
+    def submit_input(self, raw: str) -> None:
+        """Normalize a decoded line of client input and queue it for the
+        pump. The single entry point protocol adapters should use."""
+        line = raw.strip()
+        if not line:
+            return
+        self.touch()
+        try:
+            self._input_queue.put_nowait(line)
+        except asyncio.QueueFull:
+            logger.warning(f"Session {self.id}: input queue full, dropping command")
+
+    def start_input_pump(
+        self, sink: Callable[[Session, str], Awaitable[None]],
+    ) -> None:
+        """Start the pump draining this session's input through ``sink``
+        — one line at a time, in arrival order. Idempotent."""
+        if self._input_task is not None and not self._input_task.done():
+            return
+        self._input_task = asyncio.create_task(self._pump_input(sink))
+
+    def stop_input_pump(self) -> None:
+        """Cancel the input pump (session teardown)."""
+        if self._input_task is not None:
+            self._input_task.cancel()
+            self._input_task = None
+
+    async def _pump_input(
+        self, sink: Callable[[Session, str], Awaitable[None]],
+    ) -> None:
+        while True:
+            line = await self._input_queue.get()
+            try:
+                await sink(self, line)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception(
+                    f"Session {self.id}: error processing input {line!r}")
 
     async def flush_output(self) -> None:
         """Flush all pending output to the writer."""
@@ -344,12 +397,18 @@ class SessionManager:
     __slots__ = (
         '_sessions', '_by_player', '_by_address',
         '_on_connect', '_on_disconnect', '_pending_destroys',
+        '_input_sink',
     )
 
     def __init__(self):
         self._sessions: dict[str, Session] = {}
         self._by_player: dict[str, Session] = {}  # player.id -> session
         self._by_address: dict[str, list[Session]] = {}  # address -> sessions
+
+        # The server's one input funnel (prompt capture → chargen →
+        # dispatcher). When set, every created session gets an input
+        # pump draining submit_input() lines through it.
+        self._input_sink: Callable[[Session, str], Awaitable[None]] | None = None
 
         # Callbacks
         self._on_connect: list[Callable[[Session], Awaitable[None]]] = []
@@ -358,6 +417,13 @@ class SessionManager:
         # Strong refs to in-flight destroy tasks — a bare create_task() can
         # be garbage-collected before it runs.
         self._pending_destroys: set[asyncio.Task] = set()
+
+    def set_input_sink(
+        self, sink: Callable[[Session, str], Awaitable[None]] | None,
+    ) -> None:
+        """Install the server's input funnel. Sessions created after
+        this get a pump routing ``submit_input`` lines through it."""
+        self._input_sink = sink
 
     def on_connect(self, callback: Callable[[Session], Awaitable[None]]) -> None:
         """Register a callback for new connections."""
@@ -405,6 +471,9 @@ class SessionManager:
         if writer is not None:
             session.set_writer(writer)
 
+        if self._input_sink is not None:
+            session.start_input_pump(self._input_sink)
+
         self._sessions[session.id] = session
 
         # Track by address
@@ -433,6 +502,7 @@ class SessionManager:
         if session.id not in self._sessions:
             return
         session.state = SessionState.DISCONNECTING
+        session.stop_input_pump()
         session.cancel_prompt()  # resolve any awaiting wizard so its task ends
 
         # Notify callbacks

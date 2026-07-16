@@ -120,6 +120,10 @@ class GameServer:
 
         # Core components
         self.session_manager = SessionManager()
+        # The one input funnel: every protocol adapter's submit_input()
+        # drains through _on_command via a per-session pump — prompts,
+        # chargen, and dispatch see identical input from any protocol.
+        self.session_manager.set_input_sink(self._on_command)
         self.dispatcher = CommandDispatcher()
         self.persistence: PersistenceManager | None = None
         self.auth: AuthService | None = None
