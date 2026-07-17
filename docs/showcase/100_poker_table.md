@@ -81,14 +81,14 @@ Folding — and the last player standing takes it without showing:
 The evaluator and its narrator:
 
 ```text
-@set the poker table/score = cs = arg0.split(); vs = sorted([member(c[:-1], '2 3 4 5 6 7 8 9 10 J Q K A') for c in cs], reverse=True); n = {v: vs.count(v) for v in vs}; shape = sorted(n.values(), reverse=True); cat = 7 if shape[0] == 4 else (6 if shape == [3, 2] else (3 if shape[0] == 3 else (2 if shape[:2] == [2, 2] else (1 if shape[0] == 2 else 0)))); result = [cat] + sorted(vs, key=lambda v: (n[v], v), reverse=True)
+@set the poker table/score = cs = arg0.split(); vs = sorted([member(c[:-1], '2 3 4 5 6 7 8 9 10 J Q K A') for c in cs], reverse=True); n = {v: vs.count(v) for v in vs}; shape = sorted(n.values(), reverse=True); cat = 7 if shape[0] == 4 else (6 if shape == [3, 2] else (3 if shape[0] == 3 else (2 if shape[:2] == [2, 2] else (1 if shape[0] == 2 else 0)))); result = [cat] + [pr[1] for pr in sorted([[n[v], v] for v in vs], reverse=True)]
 @set the poker table/catname = result = switch(int(arg0), 7, 'four of a kind', 6, 'a full house', 3, 'three of a kind', 2, 'two pair', 1, 'a pair', 'high card')
 ```
 
 Showdown — guard, reveal every live hand, crown the best score:
 
 ```text
-@set the poker table/cmd_showdown = $showdown: p = get_attr(me, 'players', []); f = get_attr(me, 'folded', []); b = get_attr(me, 'bets', {}); live = [pid for pid in p if pid not in f]; h = get_attr(me, 'hands', {}); n = get_attr(me, 'names', {}); ok = get_attr(me, 'phase') == 'betting' and enactor.id in live and len(set(b[pid] for pid in live)) == 1 and b[live[0]] > 0; sc = {pid: eval_attr(me, 'score', ' '.join(h[pid])) for pid in live} if ok else {}; best = max(sc.values()) if ok else None; w = [pid for pid in live if sc[pid] == best] if ok else []; [remit(here, n.get(pid, '?') + ' shows ' + ' '.join(h[pid]) + ' -- ' + eval_attr(me, 'catname', str(sc[pid][0])) + '.') for g in [ok] if g for pid in live]; eval_attr(me, 'settle', ' '.join(w)) if ok else pemit(enactor, 'Not yet -- betting still open (all live stakes must match and be above zero).')
+@set the poker table/cmd_showdown = $showdown: p = get_attr(me, 'players', []); f = get_attr(me, 'folded', []); b = get_attr(me, 'bets', {}); live = [pid for pid in p if pid not in f]; h = get_attr(me, 'hands', {}); n = get_attr(me, 'names', {}); ok = get_attr(me, 'phase') == 'betting' and enactor.id in live and len(set([b[pid] for pid in live])) == 1 and b[live[0]] > 0; sc = {pid: eval_attr(me, 'score', ' '.join(h[pid])) for pid in live} if ok else {}; best = max(sc.values()) if ok else None; w = [pid for pid in live if sc[pid] == best] if ok else []; [remit(here, n.get(pid, '?') + ' shows ' + ' '.join(h[pid]) + ' -- ' + eval_attr(me, 'catname', str(sc[pid][0])) + '.') for g in [ok] if g for pid in live]; eval_attr(me, 'settle', ' '.join(w)) if ok else pemit(enactor, 'Not yet -- betting still open (all live stakes must match and be above zero).')
 ```
 
 Settlement — split the pot among the winner ids it's handed, reset the
@@ -96,7 +96,7 @@ machine, re-sync the ledger. An odd chip that won't split stays on the
 felt for the next pot:
 
 ```text
-@set the poker table/settle = w = arg0.split(); pot = get_attr(me, 'pot', 0); share = pot // len(w); n = get_attr(me, 'names', {}); [transfer_credits(me, get('#' + pid), share) for pid in w]; remit(here, 'The pot -- ' + str(pot) + ' credits -- goes to ' + ', '.join(n.get(pid, '?') for pid in w) + '.'); set_attr(me, 'pot', pot - share * len(w)); set_attr(me, 'phase', 'lobby'); set_attr(me, 'players', []); set_attr(me, 'hands', {}); set_attr(me, 'ledger', credits(me)); result = 1
+@set the poker table/settle = w = arg0.split(); pot = get_attr(me, 'pot', 0); share = pot // len(w); n = get_attr(me, 'names', {}); [transfer_credits(me, get('#' + pid), share) for pid in w]; remit(here, 'The pot -- ' + str(pot) + ' credits -- goes to ' + ', '.join([n.get(pid, '?') for pid in w]) + '.'); set_attr(me, 'pot', pot - share * len(w)); set_attr(me, 'phase', 'lobby'); set_attr(me, 'players', []); set_attr(me, 'hands', {}); set_attr(me, 'ledger', credits(me)); result = 1
 ```
 
 ## Try it

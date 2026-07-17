@@ -52,6 +52,13 @@ other implementers' files, or anything in the reference repos (`~/CoffeeMud`,
 - `on_check` wards gate actions; admin-owned masters may write other players'
   sheets (owner authority); sandboxed Python `[[...]]` allows loops.
 - GMCP is live (telnet option 201 + websocket): `oob()`.
+- **Keep `[[...]]` inline blocks cheap and local** — they run per look, per
+  viewer, on the look's own call stack, and the sandbox recursion cap is
+  currently absolute (filed defect), so deep blocks (remote `get_attr('<name>',
+  …)` chains) can fail closed depending on dispatch depth. The robust idiom is
+  **push-on-change**: tickers (worker-stack) compute and stamp state onto the
+  object; the desc block does one shallow `get_attr(me, …)` read. See
+  036_weather_system.md.
 - Instances, wilderness, zone-reset, shopkeeper, combat (cover + range bands),
   `ON_HITPRCNT`, prompt wizards, packs, and `@import` plan-apply all exist.
 

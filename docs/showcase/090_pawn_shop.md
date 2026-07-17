@@ -51,8 +51,10 @@ handler `me` is the **tag**, in the counter's pockets — so it emits with
 
 **The rack closes the loop.** Forfeited goods are ordinary escrowed
 items with a `forfeit` tag; `rack` lists them at full `value` and
-`pawn buy` sells them — the shop "sells anything back," including what
-its debtors abandoned.
+`rack buy` sells them — the shop "sells anything back," including what
+its debtors abandoned. (Not `pawn buy`: `$`-patterns are tried in
+attribute order, so the earlier `$pawn *` would swallow it — keep a
+verb family's prefixes from shadowing each other.)
 
 ## Build it
 
@@ -81,7 +83,7 @@ and mint the expiring tag (the `for g, l in [[ok, loan]] if g` opener is
 the standard comprehension-binding trick):
 
 ```text
-@set the Pawn Counter/cmd_pawn = $pawn *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; val = (get_attr(itm[0], 'value', 0) or get_attr(me, 'fallback', 5)) if itm else 0; loan = max(1, val * get_attr(me, 'rate', 60) // 100); ok = bool(itm) and transfer_credits(me, enactor, loan); [(move_to(o, me), set_attr(me, 'pledge_' + o.id, {'owner': enactor.id, 'owner_name': name(enactor), 'loan': l, 'due': now() + get_attr(me, 'window', 300)}), set_attr(t, 'item', o.id), set_attr(t, 'on_expire', get_attr(me, 'tag_expire')), expire(t, get_attr(me, 'window', 300)), pemit(enactor, 'Yaro counts out ' + str(l) + ' credits against your ' + name(o) + '. Redeem it for ' + str(l + max(1, l // 10)) + ' within ' + str(get_attr(me, 'window', 300)) + ' seconds.')) for g, l in [[ok, loan]] if g for o in [itm[0]] for t in [create_obj('a pawn tag (' + name(itm[0]) + ')', tags=['thing', 'pawn_tag'], location=me)]]; pemit(enactor, 'You are not carrying that, or the counter cannot cover the loan.') if not ok else None
+@set the Pawn Counter/cmd_pawn = $pawn *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; val = (get_attr(itm[0], 'value', 0) or get_attr(me, 'fallback', 5)) if itm else 0; loan = max(1, val * get_attr(me, 'rate', 60) // 100); ok = bool(itm) and transfer_credits(me, enactor, loan); [(move_to(o, me), set_attr(me, 'pledge_' + o.id, {'owner': enactor.id, 'owner_name': name(enactor), 'loan': l, 'due': now() + get_attr(me, 'window', 300)}), set_attr(t, 'item', o.id), set_attr(t, 'on_expire', get_attr(me, 'tag_expire')), expire(t, get_attr(me, 'window', 300)), pemit(enactor, 'Yaro counts out ' + str(l) + ' credits against your ' + name(o) + '. Redeem it for ' + str(l + max(1, l // 10)) + ' within ' + str(get_attr(me, 'window', 300)) + ' seconds.')) for g, l, lst in [[ok, loan, itm]] if g for o in [lst[0]] for t in [create_obj('a pawn tag (' + name(o) + ')', tags=['thing', 'pawn_tag'], location=me)]]; pemit(enactor, 'You are not carrying that, or the counter cannot cover the loan.') if not ok else None
 ```
 
 `redeem <item>` — your pledge, inside the window, loan plus vig. The
@@ -98,7 +100,7 @@ The sale rack — browse and buy forfeits at full value:
 
 ```text
 @set the Pawn Counter/cmd_rack = $rack:pemit(enactor, 'On the sale rack:'); [pemit(enactor, '  ' + name(o) + ' - ' + str(max(1, get_attr(o, 'value', 0) or get_attr(me, 'fallback', 5))) + ' credits') for o in contents(me) if has_tag(o, 'forfeit')]
-@set the Pawn Counter/cmd_buyrack = $pawn buy *:itm = [o for o in contents(me) if has_tag(o, 'forfeit') and name(o).lower() == arg0.strip().lower()]; price = max(1, get_attr(itm[0], 'value', 0) or get_attr(me, 'fallback', 5)) if itm else 0; ok = bool(itm) and transfer_credits(enactor, me, price); [(remove_tag(o, 'forfeit'), teleport_obj(o, enactor), pemit(enactor, 'Yours for ' + str(p) + ' credits. No refunds.')) for g, p in [[ok, price]] if g for o in [itm[0]]]; pemit(enactor, 'Not on the rack, or you cannot cover it.') if not ok else None
+@set the Pawn Counter/cmd_buyrack = $rack buy *:itm = [o for o in contents(me) if has_tag(o, 'forfeit') and name(o).lower() == arg0.strip().lower()]; price = max(1, get_attr(itm[0], 'value', 0) or get_attr(me, 'fallback', 5)) if itm else 0; ok = bool(itm) and transfer_credits(enactor, me, price); [(remove_tag(o, 'forfeit'), teleport_obj(o, enactor), pemit(enactor, 'Yours for ' + str(p) + ' credits. No refunds.')) for g, p, lst in [[ok, price, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Not on the rack, or you cannot cover it.') if not ok else None
 ```
 
 ## Try it
@@ -107,14 +109,14 @@ With a `value = 40` chrono watch in your pack:
 
 ```text
 pawn a chrono watch     -> "Yaro counts out 24 credits against your
-                            a chrono watch. Redeem it for 27 within 300 seconds."
-redeem a chrono watch   -> "You redeem your a chrono watch for 27 credits."
+                            a chrono watch. Redeem it for 26 within 300 seconds."
+redeem a chrono watch   -> "You redeem your a chrono watch for 26 credits."
 ```
 
-The watch is back; Yaro kept the 3-credit vig. Pawn it again and let the
+The watch is back; Yaro kept the 2-credit vig. Pawn it again and let the
 window lapse: the tag's timer fires, the room hears "Yaro shrugs and
 moves a chrono watch to the sale rack," and your `redeem` now gets "the
-window has closed." `rack` lists it at 40; anyone can `pawn buy a chrono
+window has closed." `rack` lists it at 40; anyone can `rack buy a chrono
 watch` — including you, at the full sting.
 
 An unvalued item ("a mystery box") pawns against the fallback: 3 credits

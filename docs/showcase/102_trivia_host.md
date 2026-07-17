@@ -63,7 +63,7 @@ The asking engine — one helper that either poses the next question
 winner:
 
 ```text
-@set Quizmaster Quill/ask = qs = get_attr(me, 'questions', []); i = get_attr(me, 'idx', 0); sc = get_attr(me, 'scores', {}); top = max(sc.values()) if sc else 0; champs = ', '.join(sorted(nm for nm, pts in sc.items() if pts == top)) if sc else 'nobody'; (set_attr(me, 'open', 1), set_attr(me, 'deadline', now() + get_attr(me, 'window', 20)), remit(here, 'Question ' + str(i + 1) + ': ' + qs[i]['q']), wait(get_attr(me, 'window', 20), 'trigger me/times_up')) if i < len(qs) else (set_attr(me, 'running', 0), remit(here, 'That is the game! Top score: ' + champs + ' with ' + str(top) + '.')); result = 1
+@set Quizmaster Quill/ask = qs = get_attr(me, 'questions', []); i = get_attr(me, 'idx', 0); sc = get_attr(me, 'scores', {}); top = max(sc.values()) if sc else 0; champs = ', '.join(sorted([nm for nm, pts in sc.items() if pts == top])) if sc else 'nobody'; (set_attr(me, 'open', 1), set_attr(me, 'deadline', now() + get_attr(me, 'window', 20)), remit(here, 'Question ' + str(i + 1) + ': ' + qs[i]['q']), wait(get_attr(me, 'window', 20), 'trigger me/times_up')) if i < len(qs) else (set_attr(me, 'running', 0), remit(here, 'That is the game! Top score: ' + champs + ' with ' + str(top) + '.')); result = 1
 @set Quizmaster Quill/next_q = eval_attr(me, 'ask')
 ```
 

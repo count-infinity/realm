@@ -34,10 +34,14 @@ Two objects share the work:
 - **Foreman Dray** is the employer. His `on_tick` calls a `post`
   routine: while fewer than two jobs are open, pick a template from his
   `templates` data attribute at random, stamp it onto the board (he's
-  admin-owned, like the board — masters may write masters), and shout
-  it to the room. NPCs *posting* content on a heartbeat is the same
-  muscle as the shopkeeper restocking shelves (063) — the world authors
-  itself.
+  admin-owned, like the board — masters may write masters), and post
+  it to the room with `remit`. NPCs *posting* content on a heartbeat is
+  the same muscle as the shopkeeper restocking shelves (063) — the world
+  authors itself. (Note the `remit`, not `say`: `post` is invoked
+  through `eval_attr`, and a routine run that way has its *output lines*
+  — `say`/`pose`/`emit` — discarded; only the queued emitters
+  `remit`/`pemit` survive back to the caller. Reach for the emitter,
+  not the speech verb, inside anything you call with `eval_attr`.)
 
 **Verification is the hand-in.** The engine's `give` accepts NPC
 recipients and fires the recipient's `ON_RECEIVE` *after* the item
@@ -82,7 +86,7 @@ The posting routine and its heartbeat — post while fewer than two jobs
 are open:
 
 ```text
-@set Foreman Dray/post = board = get('the job board'); open_jobs = [i for i in range(1, get_attr(board, 'next_job', 1)) if get_attr(board, 'job_' + str(i))]; rows = get_attr(me, 'templates', []); pick = rows[rand(0, len(rows) - 1)] if rows else None; [(set_attr(board, 'job_' + str(n), {'want': p[0], 'reward': p[1], 'text': p[2], 'taken': '', 'taken_name': ''}), set_attr(board, 'next_job', n + 1), say('Work posted: ' + p[2] + ' Pays ' + str(p[1]) + ' credits.')) for g, p in [[len(open_jobs) < 2 and pick is not None, pick]] if g for n in [get_attr(board, 'next_job', 1)]]; result = 1
+@set Foreman Dray/post = board = get('the job board'); open_jobs = [i for i in range(1, get_attr(board, 'next_job', 1)) if get_attr(board, 'job_' + str(i))]; rows = get_attr(me, 'templates', []); pick = rows[rand(0, len(rows) - 1)] if rows else None; [(set_attr(brd, 'job_' + str(n), {'want': p[0], 'reward': p[1], 'text': p[2], 'taken': '', 'taken_name': ''}), set_attr(brd, 'next_job', n + 1), remit(here, 'Foreman Dray chalks a notice. Work posted: ' + p[2] + ' Pays ' + str(p[1]) + ' credits.')) for g, p, brd in [[len(open_jobs) < 2 and pick is not None, pick, board]] if g for n in [get_attr(brd, 'next_job', 1)]]; result = 1
 @behavior Foreman Dray = script_ticker, interval:45
 @set Foreman Dray/on_tick = eval_attr(me, 'post')
 ```
@@ -99,14 +103,14 @@ against the giver's claimed jobs; pay and close on a hit, push back on
 a miss:
 
 ```text
-@set Foreman Dray/on_receive = board = get('the job board'); stuff = [o for o in contents(me)]; it = stuff[0] if stuff else None; hits = [[i, j] for i in range(1, get_attr(board, 'next_job', 1)) for j in [get_attr(board, 'job_' + str(i))] if j and j['taken'] == enactor.id and it is not None and name(it) == j['want']]; paid = bool(hits) and transfer_credits(me, enactor, hits[0][1]['reward']); [(del_attr(board, 'job_' + str(i)), destroy_obj(x), say('Good work, ' + name(enactor) + '. ' + str(j['reward']) + ' credits, as posted.')) for g in [paid] if g for i, j in [hits[0]] for x in [it]]; (teleport_obj(it, enactor), say('That is not what any job of yours calls for.')) if it is not None and not paid else None
+@set Foreman Dray/on_receive = board = get('the job board'); stuff = [o for o in contents(me)]; it = stuff[0] if stuff else None; hits = [[i, j] for brd, itx in [[board, it]] for i in range(1, get_attr(brd, 'next_job', 1)) for j in [get_attr(brd, 'job_' + str(i))] if j and j['taken'] == enactor.id and itx is not None and name(itx) == j['want']]; paid = bool(hits) and transfer_credits(me, enactor, hits[0][1]['reward']); [(del_attr(brd, 'job_' + str(i)), destroy_obj(x), say('Good work, ' + name(enactor) + '. ' + str(j['reward']) + ' credits, as posted.')) for g, row, x, brd in [[paid, hits[0] if hits else None, it, board]] if g for i, j in [row]]; (teleport_obj(it, enactor), say('That is not what any job of yours calls for.')) if it is not None and not paid else None
 ```
 
 ## Try it
 
 Trigger a posting (or wait for the tick): `@tr Foreman Dray/on_tick` —
-Dray calls out, say, "Work posted: Cull the dock rats: bring me a rat
-pelt. Pays 15 credits." Then, as Bob:
+the room reads "Foreman Dray chalks a notice. Work posted: Cull the
+dock rats: bring me a rat pelt. Pays 15 credits." Then, as Bob:
 
 ```text
 jobs                            -> #1 ... Pays 15. OPEN

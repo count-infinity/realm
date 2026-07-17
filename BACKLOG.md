@@ -1515,3 +1515,17 @@ Audit corrections recorded by implementers (no engine change): row 53's
 victim-tag recipe must route through `apply_effect` kind-tags; rows 39/43 need a
 `skill_def` (stat=health), bare `skill_check(o,'health')` gets the unlisted-skill
 floor; row 63's spawner-restock recipe superseded (see wave-1 spawner gap).
+
+- [ ] **Engine defect: inline `[[...]]` blocks inherit the caller's stack, making
+  the sandbox recursion cap depth-dependent.** `ScriptSandbox.execute` sets an
+  absolute `sys.setrecursionlimit(min(max_recursion+10, 100))` = 60 frames
+  (realm/scripting/sandbox.py:294); every other consumer enters via
+  `execute_async` on a ~7-frame worker stack, but `eval_inline`
+  (realm/scripting/inline.py) runs synchronously on the render call stack
+  (~47-49 frames under pytest, plausibly deeper in production). Result: an
+  inline block's survival depends on where `look` was dispatched from — the
+  same block can render in one context and fail closed in another. Fix: make
+  the guard relative to entry depth (`entry_depth + max_recursion`), or route
+  eval_inline through the worker thread like everything else. Measured
+  headroom per block class and the interim "push-on-change" idiom are
+  documented in docs/showcase/036_weather_system.md (also 037, 043).
