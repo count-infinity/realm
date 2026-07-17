@@ -126,15 +126,69 @@ def display_markers(obj: GameObject, looker: GameObject | None) -> str:
     return f" ({', '.join(marks)})" if marks else ""
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+#: Per-looker name overrides, in registration order. See
+#: :func:`register_name_resolver`.
+_name_resolvers: list = []
+
+
+def register_name_resolver(fn) -> None:
+    """Register an override for the name a looker sees an object by.
+
+    Called ``fn(obj, looker, current) -> str`` while ``obj``'s name is
+    being resolved *for* ``looker``, with ``current`` the best name so far
+    (starting from ``obj.name``). Return a replacement, or ``current`` to
+    pass. This is the seam for recognition and disguise:
+
+    - **short-descs / introductions** — return ``obj.db.sdesc`` ("a tall
+      woman") until ``looker`` has been introduced, then the real name.
+    - **disguise** — return the assumed identity to a looker who hasn't
+      seen through it.
+
+    Because speech attribution flows through the same resolver
+    (``{actor}`` → ``get_display_name(looker)``), a disguise covers a
+    character's *voice* for free — item 84 falls out of item 134.
+
+    Resolvers run **only when the looker can see the object** (an unseen
+    actor is "Someone" regardless), and only on narration and listings —
+    NOT on ``@examine``, owner/parent readouts or logs, which must show
+    the truth. A disguise that fooled ``@examine`` would be a grief tool.
+
+    Compose in order, each seeing the previous one's output. A resolver
+    must not raise; one that does is logged and skipped, keeping the last
+    good name — a cosmetic override that breaks must not blank a name.
+    """
+    _name_resolvers.append(fn)
+
+
+def clear_name_resolvers() -> None:
+    """Drop all registered name resolvers (tests, game teardown)."""
+    _name_resolvers.clear()
+
+
 def perceived_name(obj: GameObject, looker: GameObject | None = None) -> str:
     """
     The name the looker knows this object by — used in MESSAGES, so it
-    stays clean (no markers): the real name when visible, else "Someone"/
-    "something". Perception markers are a LOOK concern — see
-    ``display_markers``, applied by the room renderer.
+    stays clean (no markers): the real (or resolved) name when visible,
+    else "Someone"/"something". Perception markers are a LOOK concern —
+    see ``display_markers``, applied by the room renderer.
+
+    When visible, the name passes through any registered name resolvers
+    (recognition, disguise — see :func:`register_name_resolver`). With no
+    resolvers registered this returns ``obj.name`` exactly as before.
     """
     if looker is None or can_see(looker, obj):
-        return obj.name
+        name = obj.name
+        for fn in _name_resolvers:
+            try:
+                name = fn(obj, looker, name)
+            except Exception as exc:   # noqa: BLE001 - never blank a name
+                logger.error("name resolver %r failed: %s",
+                             getattr(fn, "__name__", fn), exc)
+        return name
     if obj.has_tag('player') or obj.has_tag('npc'):
         return "Someone"
     return "something"

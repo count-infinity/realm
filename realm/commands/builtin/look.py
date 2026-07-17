@@ -190,7 +190,10 @@ async def _show_object(ctx: CommandContext, target) -> None:
         )
         await propagate(look)
 
-    await ctx.session.send(f"\n{target.name}")
+    # Play-facing look: name the target as the looker knows them (a
+    # disguise or an unintroduced stranger reads by their assumed name).
+    # `@examine` deliberately does NOT — it shows the truth.
+    await ctx.session.send(f"\n{target.get_display_name(ctx.player)}")
 
     if target.description:
         desc = target.description

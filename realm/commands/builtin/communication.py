@@ -86,9 +86,11 @@ async def cmd_semipose(ctx: CommandContext) -> None:
         chain=ROOM_TARGET_CHAIN,
         extra={"pose": pose_text},
     )
-    # No space between name and action — pre-format here so {actor} substitution
-    # doesn't insert a leading space.
-    line = f"{ctx.player.name}{pose_text}"
+    # No space between name and action — the name is pre-formatted here so
+    # {actor} substitution doesn't insert a leading space. The pose text
+    # stays a {speech} token: it is player input, so it must not be
+    # token-substituted, and renderers need a handle on it.
+    line = f"{ctx.player.name}{{speech}}"
     action.add_message("actor", line, success_only=True)
     action.add_message("room", line, success_only=True)
     await propagate(action)
@@ -173,7 +175,12 @@ async def cmd_ooc(ctx: CommandContext) -> None:
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
-    line = f"[OOC] {ctx.player.name}: {message}"
+    # The body is a token like every other speech-family action, so player
+    # text is never token-substituted. Renderers still see it — and a
+    # language garbler should check `atype` and leave `event:ooc` alone:
+    # out-of-character talk is the player speaking, not the character, so
+    # it has no language and takes no accent.
+    line = f"[OOC] {ctx.player.name}: {{speech}}"
     action.add_message("actor", line, success_only=True)
     action.add_message("room", line, success_only=True)
     await propagate(action)
@@ -208,8 +215,8 @@ async def cmd_shout(ctx: CommandContext) -> None:
         tags={SOUND},
         extra={"message": message},
     )
-    action.add_message("actor", f'You shout, "{message}"', success_only=True)
-    action.add_message("room", f'{{actor}} shouts, "{message}"', success_only=True)
+    action.add_message("actor", 'You shout, "{speech}"', success_only=True)
+    action.add_message("room", '{actor} shouts, "{speech}"', success_only=True)
     await propagate(action)
     if action.blocked:
         ctx.player.msg(action.block_reason or "You can't speak here.")

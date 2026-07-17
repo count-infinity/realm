@@ -25,6 +25,39 @@ class GameObject:
     def get_display_name(looker)     # perception/disguise hook
 ```
 
+### The display-name seam (recognition & disguise)
+
+`get_display_name(looker)` → `perceived_name` is the one place "who does
+this person appear to be?" is decided. Register overrides with
+`realm.core.perception.register_name_resolver(fn)`:
+
+```python
+from realm.core.perception import register_name_resolver
+
+def recognition(obj, looker, current):
+    """Strangers read by their sdesc until introduced."""
+    sdesc = obj.db.get('sdesc')
+    if sdesc and looker and looker is not obj \
+            and looker.id not in (obj.db.get('recognized_by') or []):
+        return sdesc
+    return current
+
+register_name_resolver(recognition)
+```
+
+`fn(obj, looker, current) -> str` runs only when `looker` can see `obj`
+(an unseen actor is always "Someone"), composes in registration order,
+and must not raise (a broken one is logged and skipped). With none
+registered, names are unchanged.
+
+Every **narration and listing** surface routes through it — speech
+attribution (`{actor}` in a message), the room's "Players here" list,
+and `look <player>` — so a disguise or an unintroduced stranger is named
+consistently everywhere in play, *including their voice* (item 84 falls
+out of the same seam). Deliberately **not** routed: `@examine`, owner /
+parent / location readouts, and logs, which show the truth — a disguise
+that fooled `@examine` would be a grief tool.
+
 ### Creating Objects
 
 ```python

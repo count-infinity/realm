@@ -21,8 +21,8 @@ action = Action(
     chain=ROOM_TARGET_CHAIN,
     extra={"message": "hello"},
 )
-action.add_message("actor", 'You say, "hello"', success_only=True)
-action.add_message("room", '{actor} says, "hello"', success_only=True)
+action.add_message("actor", 'You say, "{speech}"', success_only=True)
+action.add_message("room", '{actor} says, "{speech}"', success_only=True)
 await propagate(action)
 ```
 
@@ -30,6 +30,60 @@ Messages address audiences (``actor`` / ``target`` / ``room``), render
 **per looker** (perception applies — an unseen speaker narrates as
 "Someone"), and ``success_only`` messages are suppressed when the
 action is blocked.
+
+### Message tokens
+
+``format_message`` substitutes, for each of ``actor`` / ``target`` /
+``tool``: ``{actor}`` (bare name), ``{actor:a}`` (indefinite),
+``{actor:the}`` (definite). Each is named via ``get_display_name(looker)``,
+which is what makes rendering perception-aware.
+
+``{speech}`` is the **spoken body** — the player's own words, taken from
+``extra['message']`` (or ``extra['pose']``). It is deliberately resolved
+**last**, after the participant tokens, and that ordering carries weight:
+
+- **Player text is never token-substituted.** Bake the body into the
+  template (``f'{{actor}} says, "{message}"'``) and a player typing
+  ``say meet {actor}`` reads back as *"meet Alice"*. As a token it stays
+  literal.
+- **It is the seam for per-listener speech.** Because ``{speech}`` is
+  resolved once per recipient, transforms registered with
+  ``register_speech_renderer`` can garble it for a listener who lacks the
+  language, leak fragments of a whisper to a bystander, or slur it for a
+  drunk speaker — see below.
+
+Any new speech-family action should carry its body as ``{speech}`` rather
+than interpolating it, for both reasons.
+
+### Per-listener speech renderers
+
+```python
+from realm.core.propagation import register_speech_renderer
+
+def garble(body, action, looker):
+    if action.action_type != "event:speech":
+        return body
+    tongue = action.actor.db.get('speaking')
+    if tongue and looker and tongue not in (looker.db.get('languages') or []):
+        return f"<something in {tongue}>"
+    return body
+
+register_speech_renderer(garble)
+```
+
+Called once per recipient while their copy of the message is rendered, in
+registration order, each seeing the previous one's output (a drunk speaker
+of a foreign tongue slurs *and* garbles). ``looker`` is None when nobody
+in particular is addressed.
+
+A renderer transforms only the **spoken words**, never the narration around
+them — the room still reads "Alice says," in the game's own voice.
+
+A renderer must not raise; one that does is logged and skipped, keeping the
+last good body. That is the opposite of an ``on_check`` ward, which fails
+*closed*, and the difference is the hook's job: a ward exists to **deny**,
+so "it errored" must never read as "it allowed"; a renderer only rephrases,
+so swallowing the sentence would be the worse failure.
 
 ## Who sees an action
 

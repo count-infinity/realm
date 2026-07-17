@@ -153,7 +153,10 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
     if players:
         lines.append("")
         lines.append("Players here:")
-        lines.extend(f"  {obj.name}{display_markers(obj, viewer)}"
+        # Through the seam, so a disguised or not-yet-introduced character
+        # is listed as the viewer knows them, matching how they're named in
+        # speech and narration.
+        lines.extend(f"  {obj.get_display_name(viewer)}{display_markers(obj, viewer)}"
                      for obj in players)
 
     lines.append("")

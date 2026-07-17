@@ -34,6 +34,55 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+#: Transforms applied to a spoken body on its way to ONE listener, in
+#: registration order. See :func:`register_speech_renderer`.
+_speech_renderers: list[Callable[..., str]] = []
+
+
+def register_speech_renderer(fn: Callable[..., str]) -> None:
+    """Register a per-listener transform of the spoken body.
+
+    Called as ``fn(body, action, looker) -> body`` once per recipient,
+    while a speech-family message is being rendered for that recipient.
+    The whole point is that each listener may get different words:
+
+    - **languages** — garble the body unless ``looker`` knows the tongue
+    - **overheard whispers** — hand a bystander fragments, the addressee
+      the whole line
+    - **intoxication** — slur it on the way out (same for every listener,
+      but the same seam)
+
+    ``looker`` is None when nobody in particular is being addressed.
+    Renderers run in registration order, each seeing the previous one's
+    output — a drunk speaker of a foreign tongue slurs *and* garbles.
+
+    A renderer must not raise. If one does it is logged and **skipped**,
+    keeping the last good body: a cosmetic transform that breaks must not
+    swallow the line. (Note this is the opposite of an ``on_check`` ward,
+    which fails *closed* — the difference is that a ward's job is to
+    DENY, so "it errored" must not read as "it allowed"; a renderer only
+    rephrases, so failing open costs fidelity, not safety.)
+    """
+    _speech_renderers.append(fn)
+
+
+def clear_speech_renderers() -> None:
+    """Drop all registered renderers (tests, and game teardown)."""
+    _speech_renderers.clear()
+
+
+def render_speech(body: str, action: Action,
+                  looker: GameObject | None) -> str:
+    """Run the registered transforms over a spoken body for one listener."""
+    for fn in _speech_renderers:
+        try:
+            body = fn(body, action, looker)
+        except Exception as exc:      # noqa: BLE001 - never eat the line
+            logger.error("speech renderer %r failed: %s",
+                         getattr(fn, "__name__", fn), exc)
+    return body
+
+
 @dataclass
 class Action:
     """
@@ -166,6 +215,22 @@ class Action:
                       .replace(f"{{{token}:the}}", definite)
                       .replace(f"{{{token}}}", bare)
             )
+
+        # The spoken body goes in LAST, deliberately.
+        #
+        # Two things fall out of that ordering. Player text can no longer be
+        # token-substituted — `say meet {actor}` used to render as "meet
+        # Alice", because the body was f-string-baked into the template
+        # before this ran. And because the body is now resolved per looker,
+        # a transform has somewhere to stand: languages garble it for a
+        # listener who lacks the tongue, an overheard whisper leaks
+        # fragments of it, drink slurs it on the way out.
+        if "{speech}" in result:
+            body = self.extra.get("message")
+            if body is None:
+                body = self.extra.get("pose", "")
+            result = result.replace(
+                "{speech}", render_speech(str(body), self, looker))
         return result
 
 

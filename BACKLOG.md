@@ -1576,7 +1576,7 @@ findings below are facets of one fix — bind the action's target + payload into
   `ON_CONNECT`/`ON_DISCONNECT` roster master. Suggest a `connected()` primitive
   or engine-maintained online tag. (083_message_in_bottle; also the [small]
   presence-surface gap group 180/188/197)
-- [ ] **Softcode cannot set the `description` slot** — `.description` is written
+- [ ] **Softcode cannot set the `description` slot** *(this is the ROOT of "Things have no softcode-visible description fallback" above — one fix closes both)* — `.description` is written
   only by `@desc`; `set_attr(obj,'description',…)` writes an unrelated attr and
   doesn't render. Softcode's only description surface is `desc_extras`. A
   `set_desc()` (or routing that attr to the slot) would remove the sharp edge
@@ -1602,7 +1602,7 @@ few precise engine facts:
   wave-3 finding that softcode `damage()`/DoT kills also skip the event, there is
   no reliable "X died/fell" hook for softcode. Clone bays, bounty boards, and
   recorders must poll. (140_death_cloning, 114_bounty_board)
-- [ ] **Airlock mirror pattern cross-fires for co-located door faces** — a direct
+- [x] **Airlock mirror pattern cross-fires for co-located door faces — RESOLVED 2026-07-17.** It was a symptom of the payload gap: with no `target`, a mirror couldn't tell which door was opened. `target` now exists; 032's eight mirror hooks guard on `target == me` and the live invariant bug (the chamber holds a face of BOTH doors, so opening one unsealed the other's hull face — never caught because tests only opened from the deck) is fixed with regression tests. Was: — a direct
   consequence of `ON_<EVENT>` carrying no target: two doors in one room both run
   their mirror on any open. 032_airlock now documents the limit; the fix for
   co-located faces is the single-panel raw-write cycle (used by 164_small_spaceship).
@@ -1618,7 +1618,7 @@ few precise engine facts:
 - [ ] **Sandbox forbids `isinstance`/`type`** and disallows `_` as a loop var —
   world-audit/auto-map idioms use `len(str(v))` and named vars instead.
   (172_world_audit, 174_auto_map)
-- [ ] **Test-harness convenience:** `realm.testing.Simulator` doesn't wire
+- [ ] **(DUPLICATE of the `prompt()` seam entry above — same issue, filed twice.)** `realm.testing.Simulator` doesn't wire
   `engine.session_manager`, so every `prompt()`-based showcase test hand-shims it
   (heist, gadgets, quests, character-systems, scripting-extras all do). Wiring a
   default into the Simulator would remove ~repeated boilerplate. (Not an engine
@@ -2488,3 +2488,119 @@ deliberately asserts the foot-gun so nobody "simplifies" the guard away.
 damage), on 029's pending count (unset means zero — the door would never
 close), and on 082's issue counter (guarded — it walked on empty ticks). Three
 separate agents proved these by applying the change and watching tests fail.
+
+## SHIPPED 2026-07-17: per-listener speech renderers (`{speech}` token + hook)
+
+**The scoping surprise: per-recipient rendering already existed.** I had this
+filed as the big architectural seam ("build it once, unlocks 4 items + i18n").
+Wrong on both counts. `deliver_messages` has always formatted per individual
+recipient — `action.format_message(msg, looker=recipient)` — which is why
+perception already works per viewer ("Someone picks up an apple").
+
+The real blocker was one line's shape: the spoken body was f-string-baked into
+the template at construction, so nothing could touch it per listener:
+
+    action.add_message("room", f'{{actor}} says, "{message}"')
+
+**Change:** the body is now a `{speech}` token, resolved from
+`extra['message']` (or `extra['pose']`) **last**, after the participant
+tokens. Applied across the whole family: say, pose, emit, whisper, shout, ooc,
+semipose. `register_speech_renderer(fn)` / `clear_speech_renderers()` take
+`fn(body, action, looker) -> body`, run once per recipient in registration
+order, each seeing the previous one's output.
+
+**A live bug fixed as a side effect.** Because the body sat inside a
+token-substituted string, players could inject: `say meet {target} at {actor}`
+rendered as *"meet Hall at Alice"*. Resolving `{speech}` last makes player text
+inert by construction — verified for say, pose, ooc and semipose.
+
+**Failure policy — deliberately the opposite of an `on_check` ward.** A broken
+renderer is logged and skipped, keeping the last good body. The distinction is
+the hook's job: a ward exists to **deny**, so "it errored" must never read as
+"it allowed" (hence fail closed); a renderer only rephrases, so swallowing the
+sentence is the worse failure. Both rules are now stated where they live.
+
+**Tests:** `tests/test_speech_rendering.py` — 13. Written characterization-first
+(pinning the exact strings players read, so the refactor is provably
+output-identical), then the payoff: a language garbler, a slur, composition
+order, and a broken renderer that doesn't eat the line.
+
+### Unblocked, precisely
+
+- **79 languages** — garble per listener. Buildable now.
+- **139 intoxication** — slur. Buildable now. (Not per-listener, but the same
+  seam serves.)
+
+### NOT unblocked, and why (do not mark these done)
+
+- **80 overheard whispers.** A renderer can tell addressee from bystander, but
+  a whisper's ROOM line carries no body to redact — it is
+  `"{actor} whispers something to {target}."` Adding `{speech}` there would
+  make every whisper **public by default**, audible to the room unless a
+  redactor happened to be registered. That is a fiction-and-privacy decision
+  (does the engine ship a default redactor, or the game?) and it should be made
+  deliberately, not slipped in behind a refactor.
+- **84 voice disguise** — wants *attribution*, not body. Its seam is
+  `get_display_name(looker)`, already documented as "the override point for
+  recognition/disguise systems". Same seam as 85/133/134: one identity-layer
+  change lands all four.
+
+### Correction to my own priority pitch
+
+I argued this was i18n's foundation ("build the per-recipient hook once and
+both land"). That was wrong: per-recipient rendering already existed, so it was
+never i18n's blocker. Engine strings go out through `session.send`/`msg` and
+never reach `format_message`. i18n needs its own delivery-time hook. The honest
+overlap is the *pattern*, not the code.
+
+## SHIPPED 2026-07-17: identity layer (recognition & disguise seam)
+
+`get_display_name(looker)` -> `perceived_name` now runs a resolver registry
+(`register_name_resolver` / `clear_name_resolvers`), mirroring the speech-
+renderer pattern: `fn(obj, looker, current) -> str`, compose in order, run only
+when the looker can see the object, fail open and loud (a broken resolver is
+logged and skipped, never blanks a name). Empty registry = names unchanged, so
+zero behavior change by default.
+
+**The load-bearing part was unification, not the hook.** Names reached players
+through several `.name` sites that would each leak a disguise. They split on a
+principled line, now enforced:
+- **Narration & listings** route through the seam: speech attribution
+  (`{actor}` -> `get_display_name(looker)`, already true after the speech
+  work), the room's "Players here" list (`render.py`), and `look <player>`
+  (`_show_object`). A disguise/unintroduced stranger is named consistently
+  everywhere in play.
+- **Introspection stays on `.name`**: `@examine`, owner/parent/location
+  readouts, logs. A disguise that fooled `@examine` would be a grief vector —
+  the boundary is a security feature, not a shortcut. Pinned by a test.
+
+**Tests:** `tests/test_identity_layer.py` (12). Recognition (sdesc → real name
+on introduce) proven across all three narration surfaces; disguise likewise;
+`@examine` proven to ignore it; composition; fail-open; and "unseen actor is
+Someone regardless" (perception wins before any resolver).
+
+### Unblocked — buildable now (mark done when the tutorial lands)
+- **133 short-descs & introductions** — a recognition resolver + an
+  `introduce` command; the whole resolver is ~6 lines (in the test).
+- **134 disguises** — a disguise resolver + a see-through contest.
+- **84 voice disguise** — **falls out for free.** Speech attribution flows
+  through the same seam, so a disguise covers the voice with no speech-specific
+  code. Demonstrated in the tests.
+
+### NOT finished — and the honest reason (do not mark done)
+- **85 rich emote parser.** The seam supplies the *hard* half — each referenced
+  person rendered by the name THIS viewer knows — but there is no `pemote`
+  command that parses `/name` references and builds a per-viewer message from
+  them. `format_message` only knows `actor`/`target`/`tool`; a rich emote
+  references arbitrarily many people. So 85 needs a small new communication
+  command on top of this seam. Buildable, not built. (I pitched "one change
+  lands all four" — that was optimistic; it lands three, and hands the fourth
+  its foundation.)
+
+### Also worth noting (rough edge, filed not fixed)
+Some one-shot combat/movement broadcasts build a single string with
+`get_display_name(None)` (real name) and `msg_contents` it to the room — they
+render ONCE, not per looker, so they show the true name to everyone regardless
+of disguise. Converting them to per-looker `add_message` actions (like speech)
+is the general fix; out of scope here. The main play surfaces (speech, room
+list, look) are covered.

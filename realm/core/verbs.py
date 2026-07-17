@@ -184,8 +184,8 @@ def speech_action(speaker: GameObject, message: str) -> Action:
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
-    action.add_message("actor", f'You say, "{message}"', success_only=True)
-    action.add_message("room", f'{{actor}} says, "{message}"', success_only=True)
+    action.add_message("actor", 'You say, "{speech}"', success_only=True)
+    action.add_message("room", '{actor} says, "{speech}"', success_only=True)
     return action
 
 
@@ -199,8 +199,8 @@ def pose_action(poser: GameObject, pose_text: str) -> Action:
         chain=ROOM_TARGET_CHAIN,
         extra={"pose": pose_text},
     )
-    action.add_message("actor", f"{{actor}} {pose_text}", success_only=True)
-    action.add_message("room", f"{{actor}} {pose_text}", success_only=True)
+    action.add_message("actor", "{actor} {speech}", success_only=True)
+    action.add_message("room", "{actor} {speech}", success_only=True)
     return action
 
 
@@ -215,8 +215,8 @@ def emit_action(actor: GameObject, message: str) -> Action:
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
-    action.add_message("actor", message, success_only=True)
-    action.add_message("room", message, success_only=True)
+    action.add_message("actor", "{speech}", success_only=True)
+    action.add_message("room", "{speech}", success_only=True)
     return action
 
 
@@ -232,9 +232,9 @@ def whisper_action(
         extra={"message": message},
     )
     action.add_message(
-        "actor", f'You whisper to {{target}}, "{message}"', success_only=True)
+        "actor", 'You whisper to {target}, "{speech}"', success_only=True)
     action.add_message(
-        "target", f'{{actor}} whispers, "{message}"', success_only=True)
+        "target", '{actor} whispers, "{speech}"', success_only=True)
     action.add_message(
         "room", "{actor} whispers something to {target}.", success_only=True)
     return action
