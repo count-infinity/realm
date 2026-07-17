@@ -1529,3 +1529,111 @@ floor; row 63's spawner-restock recipe superseded (see wave-1 spawner gap).
   eval_inline through the worker thread like everything else. Measured
   headroom per block class and the interim "push-on-change" idiom are
   documented in docs/showcase/036_weather_system.md (also 037, 043).
+
+## Showcase wave-3 engine gaps (filed 2026-07-16, categories 6-11)
+
+The dominant theme this wave: **event-trigger namespaces are too thin.** Many
+findings below are facets of one fix — bind the action's target + payload into
+`ON_<EVENT>` script namespaces the way `on_check` wards already receive `adata`.
+
+- [ ] **`combat:on_death` only propagates from the combat-swing path**
+  (`CombatSystem._propagate_death`); `CombatManager.handle_death` — reached by
+  softcode `damage()` / `damage_over_time` kills — makes the corpse WITHOUT
+  firing the event. So `ON_DEATH` witnesses can't verify poison/grenade/trap
+  kills (breaks bounty verification, arena recorders, replay logs).
+  (114_bounty_board, 111_grenades, 115_arena_spectators, 120_combat_replay)
+- [ ] **`ON_<EVENT>` triggers expose only `enactor`** — no target, amount, or
+  hit/miss (unlike `on_check`'s `adata`/target). Reconfirmed from many angles:
+  armor wear can't be booked defender-side (117), damage narration can't name
+  the defender (115, 120), emote/wield reactions can't read content (072),
+  ON_PAYMENT can't read the amount (all economy). This is the single
+  highest-leverage engine fix for softcode expressiveness.
+- [ ] **`^listen` never hears poses/emotes** — `LISTENABLE_ACTIONS = {speech,
+  shout, ooc, emit}` excludes `event:emote`, so content-keyed reactions to poses
+  are impossible. (072_npc_reactions)
+- [ ] **`eval_attr` discards a called routine's `say`/`pose`/`emit` output**
+  (functions.py:1059 returns `result`, drops `_output`) — only queued emitters
+  (`remit`/`pemit`) reach the caller. (094_job_board)
+- [ ] **No graded, condition-modified check in softcode.** `skill_check()` /
+  `contest()` return bare bools; the full-pipeline `CheckResult` (with margin,
+  crit bands, and `check_mods` folded in) is unreachable. The `margin_under(
+  roll('3d6'), get_attr(actor,'skill_X',8))` idiom recovers margin but reads the
+  trained level RAW — buffs/debuffs (fear, meal buffs, darkness) silently don't
+  apply to hand-rolled margins. A `check_roll(obj, skill, mod) -> CheckResult`
+  surface would close it. Affects crafting quality, dice roller, darts,
+  arm-wrestling. (125_quality_tiers, 129_cooking_buffs, 098_dice_roller, 107_dart_board)
+- [ ] **Sandbox comprehension-scoping defect.** Scripts run `exec(code, globals,
+  locals)` with separate dicts. Under PEP 709 (Py 3.12+; env is 3.13) list/set/
+  dict comprehensions are inlined and see script-locals, but **generator
+  expressions and lambdas are NOT** — their bodies `LOAD_GLOBAL` and NameError
+  on any script-local. Silently breaks `set(x for x in ...)`, `sorted(g for
+  ...)`, `lambda v: local[v]`. A single-namespace exec would erase the
+  distinction. Interim idioms (wrap genexprs as `[...]`, use bound methods)
+  documented on 100_poker_table. (also 101, 102, 105)
+- [ ] **No presence query in softcode** — nothing answers "who is online"
+  (`who` is builtin-only; sessions invisible to the sandbox). Blocks
+  deliver-to-random-online-player and channel/PA rosters. Worked around with an
+  `ON_CONNECT`/`ON_DISCONNECT` roster master. Suggest a `connected()` primitive
+  or engine-maintained online tag. (083_message_in_bottle; also the [small]
+  presence-surface gap group 180/188/197)
+- [ ] **Softcode cannot set the `description` slot** — `.description` is written
+  only by `@desc`; `set_attr(obj,'description',…)` writes an unrelated attr and
+  doesn't render. Softcode's only description surface is `desc_extras`. A
+  `set_desc()` (or routing that attr to the slot) would remove the sharp edge
+  behind the wave-1 "spawned things are name-only" gap. (082_newspaper, 008_camera)
+- [ ] **No enactor-consent path for `set_attr` on a player** — `move_to` honors
+  `enactor_consent` but attribute writes require `controls()`, so a self-service
+  blueprint/trainer can't sign its own reader's sheet; must use an admin-owned
+  master. (126_blueprints, 131_chemistry_poisons)
+- [ ] **No native yield/`stop_combat`, `throw`, or forgiving `roll()`** — small
+  ergonomic gaps: an NPC can behave surrendered (strategy=wait) but can't be
+  removed from an encounter (119); thrown weapons are a softcode pattern with no
+  native `throw` to tie them into range bands (111); `roll()` raises on
+  malformed notation instead of offering a `valid_roll()` predicate (098).
+
+## Showcase wave-4 findings (filed 2026-07-16, categories 12-22 — all 223 [now] items done)
+
+Wave 4 added no new *blocking* gaps — every [now] item builds on existing
+primitives. Findings reinforce the wave-3 theme (thin event namespaces) and add a
+few precise engine facts:
+
+- [ ] **No player death event.** `CombatManager.handle_death` tags a player
+  `unconscious` and emits nothing — no `combat:on_death`. Combined with the
+  wave-3 finding that softcode `damage()`/DoT kills also skip the event, there is
+  no reliable "X died/fell" hook for softcode. Clone bays, bounty boards, and
+  recorders must poll. (140_death_cloning, 114_bounty_board)
+- [ ] **Airlock mirror pattern cross-fires for co-located door faces** — a direct
+  consequence of `ON_<EVENT>` carrying no target: two doors in one room both run
+  their mirror on any open. 032_airlock now documents the limit; the fix for
+  co-located faces is the single-panel raw-write cycle (used by 164_small_spaceship).
+- [ ] **No attribute-enumeration function in softcode** (no `lattr()`-equivalent)
+  — objects can't scan their own `skill_*`/`topic_*` attrs, so index-carrying
+  objects (a `skills`/`topics` list attr) are the idiom. Affects score screens,
+  help/guide boards, snapshot/restore. (190_score_screen, 182_snapshot_restore)
+- [ ] **`@parent` does not propagate attribute reads** — the link is stored and
+  shown in `@examine`, but `get_attr(child,x)` never falls through to the parent.
+  Blocks native prototype/room-template inheritance; worked around with dict-merge
+  and `@clone`. `@clone` additionally refuses rooms (use a `$stamp` minting verb).
+  (165_prototype_library, 168_room_templates)
+- [ ] **Sandbox forbids `isinstance`/`type`** and disallows `_` as a loop var —
+  world-audit/auto-map idioms use `len(str(v))` and named vars instead.
+  (172_world_audit, 174_auto_map)
+- [ ] **Test-harness convenience:** `realm.testing.Simulator` doesn't wire
+  `engine.session_manager`, so every `prompt()`-based showcase test hand-shims it
+  (heist, gadgets, quests, character-systems, scripting-extras all do). Wiring a
+  default into the Simulator would remove ~repeated boilerplate. (Not an engine
+  gap — a DX improvement for game authors writing tests.)
+
+**Latent risk, not currently failing:** the absolute-recursion-cap defect (filed
+above) produced *non-deterministic* RecursionError across the showcase suite while
+10 agents wrote files concurrently (stack depth varies with collection). With the
+tree settled, `pytest tests/showcase/` and the full suite are deterministic (570
+and 1734 passed, repeatably). But deeper production call stacks could resurface it
+for any inline `[[...]]` block — the depth-relative-guard fix remains worthwhile.
+
+Also worth folding into softcode docs (recurring builder footguns, taught across
+tutorials, not gaps): builtins (and their unique-prefix abbreviations, and
+n/s/e/w/diagonal direction aliases) dispatch before `$`-triggers, so custom verbs
+must dodge builtin names/prefixes; `get('<bare-id>')` returns None (use `#id`);
+`eval_attr` stringifies args and keeps the caller's executor (re-resolve the home
+master by name); `:` breaks `^listen`/`$` pattern splitting.

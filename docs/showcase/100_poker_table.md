@@ -131,3 +131,16 @@ engine-private: `@eval result = get_attr(get('the poker table'),
 - **A dealer NPC:** move `$deal cards` onto a croupier with a
   `script_ticker` that opens a fresh hand whenever the lobby has two
   seated players — the [casino floor](108_casino_floor.md) seats one.
+
+**Engine gaps:** one sandbox sharp edge, worth knowing before you write
+your own tables. Scripts run under `exec(code, globals, locals)` with
+*separate* dicts, and on Python 3.12+ **list/set/dict comprehensions are
+inlined** (they see script locals) but **generator expressions and
+`lambda`s are not** — their bodies resolve free names against `globals`
+and raise `NameError` on any script-local. So `set(b[pid] for pid in
+live)` fails where `set([b[pid] for pid in live])` works, and
+`sorted(vs, key=lambda v: n[v])` fails where `sorted([[n[v], v] for v in
+vs])` works. Rule of thumb: wrap genexprs in `[...]`, and reach for a
+bound method (`max(d, key=d.get)`) or a threaded list-comp instead of a
+`lambda` that closes over a local. Filed for the integrator; a
+single-namespace exec would erase the distinction.

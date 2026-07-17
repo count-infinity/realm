@@ -122,3 +122,12 @@ the gap between true odds and chalked odds, is how he affords the coat.
 - **Announce zone-wide:** swap the `remit` calls for `act(here, ...,
   targeting='zone')` so the whole fairground hears the call — the
   [slot machine](001_slot_machine.md)'s jackpot trick.
+
+**Engine gaps:** the leader is found with `max(upd, key=upd.get)` — a
+bound method — rather than `sorted(upd, key=lambda nm: -upd[nm])`,
+because a `lambda` that closes over the script-local `upd` `NameError`s
+in the sandbox. Scripts exec with split `globals`/`locals`, and on
+Python 3.12+ `lambda`s and generator expressions (unlike list/set/dict
+comprehensions) aren't inlined, so they can't see script locals. Reach
+for a bound method or a threaded list-comp; filed for the integrator
+(full note on item 100).

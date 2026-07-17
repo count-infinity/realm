@@ -132,6 +132,16 @@ same mirrored truth. Cycle back with `cycle in` from the chamber.
 `@examine` any face mid-sequence: at no instant are both doors ever
 untagged `closed`.
 
+> **Caveat — co-located door faces.** The mirror hooks here copy `closed`
+> onto a *named* partner. If two doors share one room (e.g. a ship airlock
+> where both hatches open into the same chamber), an `ON_OPEN` fires for
+> *every* door in the room and — because `ON_<EVENT>` hooks can't read the
+> action's target — each door's mirror runs on every open, cross-firing.
+> This demo is safe only because the two faces live in different rooms.
+> For co-located faces, drive the state from a single panel with the
+> **raw-write cycle** idiom (seal-all-then-open-one), which needs no target
+> info; the [spaceship](164_small_spaceship.md) capstone does exactly this.
+
 ## Going further
 
 - **Vacuum consequences** — put an `ON_ENTER` on the hull that

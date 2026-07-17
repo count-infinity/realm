@@ -113,3 +113,12 @@ own speaker, so reading out an answer can't award him the point.
 - **Category picks:** between questions, `prompt()` the current leader
   to choose the next category — prompts for the one decision that *is*
   single-player, listens for the race.
+
+**Engine gaps:** the champion line is built with
+`', '.join(sorted([nm for nm, pts in sc.items() if pts == top]))` — a
+*list* comprehension, because a bare generator (`sorted(nm for ...)`)
+`NameError`s on the script-local `top` inside its filter. The sandbox
+execs with split `globals`/`locals`, and on Python 3.12+ genexprs and
+`lambda`s (unlike list/set/dict comprehensions) aren't inlined, so their
+bodies can't see script locals. Wrap genexprs in `[...]`; filed for the
+integrator (full note on item 100).

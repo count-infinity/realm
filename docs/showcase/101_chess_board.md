@@ -113,3 +113,12 @@ works from the opening.
   client-side board via GMCP.
 - **Clocks:** stamp `now()` each move and a `script_ticker` that
   forfeits the seat whose total exceeds ten minutes.
+
+**Engine gaps:** the path-clearance check is written
+`all([... for i in range(1, steps)])`, a *list* comprehension, not the
+tidier generator `all(... for i in range(1, steps))`. The sandbox execs
+scripts with separate `globals`/`locals` dicts, and on Python 3.12+ only
+list/set/dict comprehensions are inlined to see script locals —
+generator expressions and `lambda`s resolve free names against
+`globals` and `NameError` on locals like `b`, `fr`, `sc`. Wrap genexprs
+in `[...]`; filed for the integrator (see item 100 for the full note).

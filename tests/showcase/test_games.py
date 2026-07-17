@@ -481,9 +481,8 @@ class TestPokerTable:
 
         # A bystander's payment bounces straight back.
         await grant(sim, vala, vala, 50)
-        await do(sim, vala, "pay 5 to the poker table")
-        assert any("The table returns your credits" in line
-                   for line in sim.seen(vala))
+        out = await do(sim, vala, "pay 5 to the poker table")
+        assert any("The table returns your credits" in line for line in out)
         assert get_credits(vala) == 50
 
         drain_all(sim, vala, kess, bob)
