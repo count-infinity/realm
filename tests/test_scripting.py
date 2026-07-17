@@ -115,9 +115,14 @@ class TestScriptSandbox:
         result, _ = sandbox.execute("result = enactor.name", ctx)
         assert result == "TestPlayer"
 
-    def test_recursion_limit(self):
-        """Recursion limit is enforced."""
-        sandbox = ScriptSandbox(limits=ScriptLimits(max_recursion=10))
+    def test_runaway_recursion_surfaces_as_script_error(self):
+        """A runaway script trips the interpreter-wide limit and is converted.
+
+        Depth is bounded process-wide (set_interpreter_recursion_limit), not
+        per script — see that function's docstring for why. What a script
+        author sees is unchanged: a ScriptError, not a server crash.
+        """
+        sandbox = ScriptSandbox()
         ctx = ScriptContext()
 
         with pytest.raises(ScriptError):
@@ -126,6 +131,28 @@ def recurse(n):
     return recurse(n + 1)
 recurse(0)
 """, ctx)
+
+    def test_execute_does_not_touch_the_global_recursion_limit(self):
+        """The regression: execute() must leave interpreter state alone.
+
+        It used to lower the limit around exec(); because that setting is
+        interpreter-global and scripts run on worker threads, it capped the
+        main thread mid-flight and crashed unrelated engine code.
+        """
+        import sys
+        sandbox = ScriptSandbox()
+        ctx = ScriptContext()
+
+        before = sys.getrecursionlimit()
+        sandbox.execute("result = 1 + 1", ctx)
+        assert sys.getrecursionlimit() == before
+
+        # ...and it stays put even when the script blows up.
+        with pytest.raises(ScriptError):
+            sandbox.execute(
+                "def r(n):\n    return r(n + 1)\nr(0)", ctx
+            )
+        assert sys.getrecursionlimit() == before
 
 
 class TestSimpleScriptRunner:

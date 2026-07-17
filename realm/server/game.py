@@ -101,6 +101,7 @@ class GameServer:
         command_sigil: str = "$",
         listen_sigil: str = "^",
         markup_marker: str = "|",
+        recursion_limit: int = 1000,
     ):
         self.db_path = Path(db_path)
         self.telnet_port = telnet_port
@@ -135,10 +136,14 @@ class GameServer:
         # value raises here, at boot, not mid-render.
         from realm.core.markup import set_markup_marker
         from realm.scripting.inline import set_inline_delimiters
+        from realm.scripting.sandbox import set_interpreter_recursion_limit
         from realm.scripting.triggers import set_trigger_sigils
         set_inline_delimiters(inline_open, inline_close)
         set_trigger_sigils(command=command_sigil, listen=listen_sigil)
         set_markup_marker(markup_marker)
+        # Process-wide, every thread — including this one. Set once, here,
+        # never per script (see set_interpreter_recursion_limit's docstring).
+        set_interpreter_recursion_limit(recursion_limit)
 
         # Core components
         self.session_manager = SessionManager()
@@ -214,6 +219,7 @@ class GameServer:
             command_sigil=getattr(settings, 'command_sigil', '$'),
             listen_sigil=getattr(settings, 'listen_sigil', '^'),
             markup_marker=getattr(settings, 'markup_marker', '|'),
+            recursion_limit=getattr(settings, 'recursion_limit', 1000),
         )
         server._settings = settings
 

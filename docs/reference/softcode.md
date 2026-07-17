@@ -2,7 +2,9 @@
 
 Auto-generated from the live API (`python scripts/gen_softcode_docs.py`
 regenerates). Scripts are sandboxed Python: loops, comprehensions,
-function defs — under time/call/output limits.
+function defs, and **f-strings** — under time/call/output limits. Prefer
+f-strings for readable output: `say(f"{name(enactor)} owes {V('debt',0)} cr")`
+reads better than string concatenation.
 
 ## Context names
 
@@ -14,6 +16,28 @@ function defs — under time/call/output limits.
 | `viewer` | the looker (inline `[[...]]` blocks and @detail conditions) |
 | `arg0..argN` / `%0..%9` | wildcard captures |
 | `result` | what an inline `[[...]]` block substitutes |
+
+## Substitutions (`%` tokens)
+
+Text-substituted into the script *before* it compiles, so a token must
+land where its value is valid (usually inside a string). The namespace
+variables above (`enactor`, `me`, …) are usually clearer; `%` tokens are
+the terse PennMUSH-style shorthand.
+
+| Token | Expands to |
+|---|---|
+| `%#` | enactor id (`enactor.id`) |
+| `%!` | executor id (`me.id`) |
+| `%n` | enactor name |
+| `%l` | location id (`here.id`) |
+| `%0`..`%9` | wildcard captures (same as `arg0..arg9`) |
+
+## Readability helpers
+
+| Instead of | Write |
+|---|---|
+| `get_attr(me, 'cost', 10)` | `V('cost', 10)` |
+| `set_attr(me, k, get_attr(me, k, 0) + 1)` | `incr(k)` (returns the new value; `incr(k, n)` / `decr(k)` too) |
 
 ## Script commands (simple scripts / `cmd()` / `output()` lines)
 
@@ -91,6 +115,7 @@ veto (a cursed item refusing removal).
 
 | Function | Signature | Notes | Example |
 |---|---|---|---|
+| `V` | `(attr_name: 'str', default: 'Any' = None) -> 'Any'` | Read an attribute off ``me`` (the executor) — the common case. | `V('cost', 10)   # == get_attr(me, 'cost', 10)` |
 | `act` | `(target: 'GameObject \| str', message: 'str' = '', targeting: 'str' = 'remote', action_type: 'str' = 'event:act') -> 'bool'` | Fire a PROPAGATED action that can reach BEYOND your own room — |  |
 | `add_tag` | `(obj: 'GameObject \| str \| None', tag: 'str') -> 'bool'` | Add a tag to an object the executor controls. | `add_tag(me, 'glowing')` |
 | `adjust_credits` | `(obj: 'GameObject \| str \| None', delta: 'int') -> 'bool'` | Mint or burn money on an object the executor controls. | `adjust_credits(me, 100)` |
@@ -112,6 +137,7 @@ veto (a cursed item refusing removal).
 | `create_obj` | `(name: 'str', tags: 'list[str] \| None' = None, location: 'GameObject \| str \| None' = None) -> 'GameObject \| None'` | Create a new thing, owned by the executor's owner (or the | `sword = create_obj('iron sword')` |
 | `credits` | `(obj: 'GameObject \| str \| None') -> 'int'` | An object's balance. | `credits(enactor) >= 10` |
 | `damage` | `(obj: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Deal damage to something in the executor's room. Lethal damage | `damage(enactor, 3)` |
+| `decr` | `(attr_name: 'str', by: 'Any' = 1) -> 'Any'` | Decrement a numeric attribute on ``me`` and return the new value. | `decr('ammo')          # -1, returns the new count` |
 | `del_attr` | `(obj: 'GameObject \| str \| None', attr_name: 'str') -> 'bool'` | Delete an attribute from an object the executor controls. | `del_attr(me, 'charged')` |
 | `destroy_obj` | `(obj: 'GameObject \| str \| None') -> 'bool'` | Destroy an object the executor controls (players never). | `destroy_obj('slag')` |
 | `detach_behavior` | `(obj: 'GameObject \| str \| None', behavior_id: 'str') -> 'bool'` | Detach a behavior (by id) from an object the executor controls. | `detach_behavior('golem', 'wandering')` |
@@ -134,6 +160,7 @@ veto (a cursed item refusing removal).
 | `heal` | `(obj: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Restore HP (capped at max_hp) to something in the executor's room. | `heal(enactor, 5)` |
 | `highest` | `(pool: 'int', *, sides: 'int' = 6, skill: 'str' = '') -> 'CheckResult'` | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), |  |
 | `if_else` | `(condition: 'bool', true_val: 'Any', false_val: 'Any') -> 'Any'` | Conditional expression. | `if_else(credits(enactor) >= 10, 'Welcome!', 'No coin, no entry.')` |
+| `incr` | `(attr_name: 'str', by: 'Any' = 1) -> 'Any'` | Increment a numeric attribute on ``me`` and return the new value. | `incr('visits')        # +1, returns the new count` |
 | `last` | `(lst: 'list \| str', delimiter: 'str' = ' ') -> 'str'` | Get last element. | `last('north south east')  # 'east'` |
 | `lcfirst` | `(text: 'str') -> 'str'` | Lowercase first character. | `lcfirst('Hello')          # 'hello'` |
 | `left` | `(text: 'str', length: 'int') -> 'str'` | Get leftmost N characters. | `left('lighthouse', 5)     # 'light'` |

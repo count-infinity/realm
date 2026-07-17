@@ -251,6 +251,44 @@ class ScriptFunctions:
             return True
         return False
 
+    def V(self, attr_name: str, default: Any = None) -> Any:
+        """Read an attribute off ``me`` (the executor) — the common case.
+
+        Shorthand for ``get_attr(me, attr_name, default)`` (PennMUSH ``v()``
+        parity). Honors the same read flags as get_attr.
+
+        Example: V('cost', 10)   # == get_attr(me, 'cost', 10)
+        """
+        return self.get_attr(self.executor, attr_name, default)
+
+    def incr(self, attr_name: str, by: Any = 1) -> Any:
+        """Increment a numeric attribute on ``me`` and return the new value.
+
+        Shorthand for ``set_attr(me, k, get_attr(me, k, 0) + by)`` that also
+        hands back the result. Returns None if the write is refused (no
+        authority or the attribute is not writable). Non-numeric current
+        values are treated as 0.
+
+        Example: incr('visits')        # +1, returns the new count
+                 incr('charge', 5)
+        """
+        current = self.get_attr(self.executor, attr_name, 0)
+        if not isinstance(current, (int, float)):
+            current = 0
+        new_value = current + by
+        if self.set_attr(self.executor, attr_name, new_value):
+            return new_value
+        return None
+
+    def decr(self, attr_name: str, by: Any = 1) -> Any:
+        """Decrement a numeric attribute on ``me`` and return the new value.
+
+        The mirror of :meth:`incr`. Returns None if the write is refused.
+
+        Example: decr('ammo')          # -1, returns the new count
+        """
+        return self.incr(attr_name, -by)
+
     # --- Tag operations ---
 
     def has_tag(self, obj: GameObject | str | None, tag: str) -> bool:
@@ -1512,7 +1550,7 @@ class ScriptFunctions:
     _READONLY = frozenset({
         # object / attribute / tag reads
         'get', 'name', 'loc', 'owner', 'contents', 'exits',
-        'get_attr', 'has_attr', 'has_tag', 'tags', 'tag_value', 'tag_values',
+        'get_attr', 'V', 'has_attr', 'has_tag', 'tags', 'tag_value', 'tag_values',
         # world reads
         'controls', 'search_world', 'zone_rooms', 'zones_of', 'test_lock',
         'credits', 'disposition',
@@ -1553,6 +1591,9 @@ class ScriptFunctions:
             'set_attr': self.set_attr,
             'has_attr': self.has_attr,
             'del_attr': self.del_attr,
+            'V': self.V,
+            'incr': self.incr,
+            'decr': self.decr,
             # Tag functions
             'has_tag': self.has_tag,
             'tags': self.tags,

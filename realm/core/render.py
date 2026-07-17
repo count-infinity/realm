@@ -104,7 +104,11 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
     from realm.core.perception import can_see, can_see_room
 
     if not can_see_room(viewer, room):
-        return "It is pitch black here. You can't see a thing."
+        # A room may override the default with its own db.dark_msg — set it
+        # to theme the darkness ("The mine shaft swallows all light.").
+        return room.db.get(
+            'dark_msg', "It is pitch black here. You can't see a thing."
+        )
 
     from realm.core.markup import wrap
     lines = ["", wrap('c', room.name), "-" * len(room.name)]

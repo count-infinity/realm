@@ -14,7 +14,9 @@ HEADER = """# Softcode Reference
 
 Auto-generated from the live API (`python scripts/gen_softcode_docs.py`
 regenerates). Scripts are sandboxed Python: loops, comprehensions,
-function defs — under time/call/output limits.
+function defs, and **f-strings** — under time/call/output limits. Prefer
+f-strings for readable output: `say(f"{name(enactor)} owes {V('debt',0)} cr")`
+reads better than string concatenation.
 
 ## Context names
 
@@ -26,6 +28,28 @@ function defs — under time/call/output limits.
 | `viewer` | the looker (inline `[[...]]` blocks and @detail conditions) |
 | `arg0..argN` / `%0..%9` | wildcard captures |
 | `result` | what an inline `[[...]]` block substitutes |
+
+## Substitutions (`%` tokens)
+
+Text-substituted into the script *before* it compiles, so a token must
+land where its value is valid (usually inside a string). The namespace
+variables above (`enactor`, `me`, …) are usually clearer; `%` tokens are
+the terse PennMUSH-style shorthand.
+
+| Token | Expands to |
+|---|---|
+| `%#` | enactor id (`enactor.id`) |
+| `%!` | executor id (`me.id`) |
+| `%n` | enactor name |
+| `%l` | location id (`here.id`) |
+| `%0`..`%9` | wildcard captures (same as `arg0..arg9`) |
+
+## Readability helpers
+
+| Instead of | Write |
+|---|---|
+| `get_attr(me, 'cost', 10)` | `V('cost', 10)` |
+| `set_attr(me, k, get_attr(me, k, 0) + 1)` | `incr(k)` (returns the new value; `incr(k, n)` / `decr(k)` too) |
 
 ## Script commands (simple scripts / `cmd()` / `output()` lines)
 

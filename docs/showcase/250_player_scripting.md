@@ -27,10 +27,14 @@ in this arc, builder or player, already ran inside these walls:
    dunder escape hatches). One validator (`realm.core.safe_eval`) serves
    scripts, locks, and strategy conditions — one threat model, one place
    to fix a hole.
-2. **Resource limits.** Each run gets a budget: 1500 ms wall time,
-   25,000 function calls, recursion depth 50, 10,000 characters of
-   output. Blow any of them and the script dies cleanly — the world op
-   that would have followed never happens.
+2. **Resource limits.** Each run gets a per-script budget: 1500 ms wall
+   time, 25,000 function calls, 10,000 characters of output. Blow any of
+   them and the script dies cleanly — the world op that would have
+   followed never happens. Recursion is bounded too, but by the
+   *process-wide* Python limit (`RECURSION_LIMIT`, default 1000), not a
+   per-script one: user scripts recurse in real Python frames the engine
+   can't count. A bottomless recursion still dies with a clean
+   "recursion limit exceeded" rather than taking the server with it.
 3. **Owner authority.** A script runs *as its object*, with its owner's
    authority. Every mutating function (`set_attr`, `move_to`,
    `destroy_obj`, `force`, ...) passes through one predicate —
@@ -130,7 +134,8 @@ program cube = for i in range(5000): say('spam')
 use cube
 ```
 
-Silence. Bottomless recursion dies at depth 50 the same way:
+Silence. Bottomless recursion dies the same way (at the process-wide
+`RECURSION_LIMIT`, default 1000):
 
 ```text
 program cube = f = lambda: f(); f(); pemit(enactor, 'bottomless')

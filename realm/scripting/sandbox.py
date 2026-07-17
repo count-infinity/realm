@@ -2,7 +2,9 @@
 Sandboxed script execution for REALM.
 
 Provides safe execution of user-defined scripts with:
-- Resource limits (CPU time, recursion depth, function calls)
+- Per-script resource limits (CPU time, function calls, output size)
+- A process-wide recursion limit, set once at boot from config
+  (see set_interpreter_recursion_limit — it is NOT per-script)
 - Restricted built-ins (no file I/O, no imports, no exec/eval)
 - Safe globals with game-specific functions
 
@@ -102,12 +104,60 @@ SAFE_BUILTINS = {
 }
 
 
+#: Floor for the interpreter recursion limit. The engine's own main thread
+#: (asyncio + dispatcher + propagation) runs far deeper than a script does;
+#: anything below this bricks the server, not just softcode.
+MIN_RECURSION_LIMIT = 100
+#: Ceiling — CPython segfaults rather than raising if the limit outruns the
+#: real C stack. Boot-time validation is the place to catch that.
+MAX_RECURSION_LIMIT = 100_000
+
+DEFAULT_RECURSION_LIMIT = 1000  # CPython's own default
+
+
+def set_interpreter_recursion_limit(limit: int = DEFAULT_RECURSION_LIMIT) -> None:
+    """Set the **process-wide** Python recursion limit (a game setting).
+
+    This is NOT a per-script limit and must never be called per execution.
+    ``sys.setrecursionlimit`` is interpreter-global: it applies to *every*
+    thread. Scripts run on worker threads (``execute_async`` ->
+    ``run_in_executor``), so lowering it around a single script also caps
+    the main thread mid-flight — which raised RecursionError in unrelated
+    engine code (see BACKLOG, 2026-07-17). Hence: set once, at boot, from
+    config, alongside the other process-wide ambient settings.
+
+    What still bounds a runaway script: this limit (a RecursionError inside
+    ``exec`` is converted to ScriptRecursionError), plus the per-script
+    call-count and time budgets in :class:`ScriptLimits`.
+
+    Raises ValueError on a bad value — at boot, not mid-render.
+    """
+    import sys
+
+    if not isinstance(limit, int) or isinstance(limit, bool):
+        raise ValueError(f"recursion_limit must be an int, got {limit!r}")
+    if not (MIN_RECURSION_LIMIT <= limit <= MAX_RECURSION_LIMIT):
+        raise ValueError(
+            f"recursion_limit must be between {MIN_RECURSION_LIMIT} and "
+            f"{MAX_RECURSION_LIMIT} (got {limit}); it is process-wide and the "
+            f"engine's own call stack lives under it."
+        )
+    sys.setrecursionlimit(limit)
+
+
 @dataclass
 class ScriptLimits:
-    """Resource limits for script execution."""
+    """Per-script resource limits.
+
+    These are per-execution and thread-safe. Note recursion depth is NOT
+    here: it is bounded process-wide by
+    :func:`set_interpreter_recursion_limit` (a game setting), because
+    user scripts recurse in real CPython frames the engine cannot count.
+    See BACKLOG for the per-execution AST-counter idea that would let a
+    true per-script depth limit return.
+    """
 
     max_time_ms: int = 1500  # Maximum execution time
-    max_recursion: int = 50  # Maximum recursion depth
     max_function_calls: int = 25000  # Maximum function invocations
     max_output_chars: int = 10000  # Maximum output length
 
@@ -289,18 +339,16 @@ class ScriptSandbox:
         local_vars: dict[str, Any] = {}
 
         try:
-            import sys
-            old_limit = sys.getrecursionlimit()
-            sys.setrecursionlimit(min(self.limits.max_recursion + 10, 100))
-
-            try:
-                exec(compiled, safe_globals, local_vars)
-            finally:
-                sys.setrecursionlimit(old_limit)
+            # No recursion-limit fiddling here: it is process-wide state, set
+            # once at boot (set_interpreter_recursion_limit). Doing it per
+            # execution capped every other thread too. A runaway script still
+            # trips the interpreter limit and surfaces as ScriptRecursionError.
+            exec(compiled, safe_globals, local_vars)
 
         except RecursionError as e:
+            import sys
             raise ScriptRecursionError(
-                f"Exceeded recursion limit ({self.limits.max_recursion})"
+                f"Exceeded recursion limit ({sys.getrecursionlimit()})"
             ) from e
         except ScriptError:
             raise

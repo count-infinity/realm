@@ -68,6 +68,23 @@ WELCOME_FILE = "data/welcome.txt"
 
 
 # =============================================================================
+# SOFTCODE LIMITS
+# =============================================================================
+
+# PROCESS-WIDE Python recursion limit. This is NOT a per-script setting: it
+# applies to every thread, including the engine's own main loop, which runs
+# far deeper than any script. It is the backstop that turns a runaway
+# recursive script into a "recursion limit exceeded" error instead of a
+# crash. Raise it if legitimate softcode nests deeply; the engine rejects
+# values below 100 (which would brick the server) or above 100000 (which
+# risks a C-stack segfault) at boot.
+#
+# Per-script budgets (time, call count, output size) are separate and live
+# in ScriptLimits — those are per-execution and safe to tune per game.
+RECURSION_LIMIT = 1000
+
+
+# =============================================================================
 # CALLBACKS (Optional)
 # =============================================================================
 # Uncomment and implement these functions to customize behavior.

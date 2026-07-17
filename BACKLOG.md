@@ -1637,3 +1637,308 @@ n/s/e/w/diagonal direction aliases) dispatch before `$`-triggers, so custom verb
 must dodge builtin names/prefixes; `get('<bare-id>')` returns None (use `#id`);
 `eval_attr` stringifies args and keeps the caller's executor (re-resolve the home
 master by name); `:` breaks `^listen`/`$` pattern splitting.
+
+## Softcode ergonomics & builder-experience backlog (filed 2026-07-17)
+
+User-requested batch (deferred — capture only). Current state verified against
+source. Two turned out to already work; the rest split absent / partial. Grouped by
+the user's numbering.
+
+### 1. Making the one-line Python pattern readable
+
+- [x] **1b. `%#` enactor substitution — ALREADY WORKS.** `ScriptSandbox.
+  expand_substitutions` (realm/scripting/sandbox.py:151-178, dup at :378-398)
+  supports the full Penn table: `%#`=enactor id, `%!`=executor id, `%n`=enactor
+  name, `%l`=location id, `%0`-`%9`=captures. `arg0..argN`, `me`, `here`,
+  `enactor`, `viewer` are also namespace vars. → **DOCS task:** teach `%#` in the
+  softcode reference; showcase tutorials wrote the longer `enactor.id`. Caveat:
+  `%#` is raw text-substituted, so it must land in a string/valid-token position.
+- [x] **1c. Python f-strings — ALREADY WORK.** The sandbox validator is a DENYLIST
+  (`FORBIDDEN_NODES` = Import/ImportFrom/Global/Nonlocal only; realm/core/
+  safe_eval.py:30-70), so `JoinedStr`/`FormattedValue` compile and run;
+  `say(f"...")` is explicitly fine. → **DOCS task:** f-strings are the single
+  biggest readability win available *today* — teach them; tutorials avoided them
+  by idiom (favoring concatenation/`ansi()`), not because of a ban.
+- [ ] **1a. `V('cost', 10)` alias for `get_attr(me, 'cost', 10)`.** Absent. The
+  most-repeated call in every tutorial. Sketch: register `V` in `ScriptFunctions`
+  as `lambda name, default=None: get_attr(me, name, default)` bound to the
+  executor's `me`. (PennMUSH `v()` parity; pairs naturally with 1d.)
+- [ ] **1d. `++('key')` increment sugar** for `set_attr(me, k, get_attr(me,k,0)+1)`.
+  Absent. Also very frequent (ledgers, cooldowns, tallies). Sketch: `incr(name,
+  by=1)` / `decr(...)` functions returning the new value; optionally target-aware
+  `incr(obj, name, by)`.
+- [ ] **1e. Multi-line attribute editor (`@edit obj/attr`).** ABSENT — no
+  EvEditor analog. `@set obj/attr = value` is single-line (`_parse_value`,
+  realm/commands/olc/modify.py:407-434); the `@desc` `\`-continuation is
+  documented but unimplemented. Newlines only survive as JSON `"\n"` literals.
+  Sketch: a session line-buffer state machine (accumulate until a `.` terminator),
+  store joined text with `\n`. Solves the telnet newline=command limit.
+
+### 2. Friendlier object ids
+
+- [ ] **Human-friendly id (`name#<shorthash>`) alongside uuid.** Currently
+  `id = str(uuid.uuid4())` (realm/core/objects.py:148); `get('#<id>')` needs the
+  FULL uuid (exact cache-key lookup, persistence/manager.py:220). Sketch: keep
+  uuid as canonical, add a short-prefix index (first 6-8 hex) + a `#name~shorthash`
+  parse branch in `get()`/`get_cached`; collisions fall back to full-uuid or
+  disambiguation. Keeps uuid uniqueness, adds legibility.
+
+### 3. `get()` collision handling + filters
+
+- [ ] **Refine `get()` candidates by tag/attr.** Today `get('name')` is
+  first-match, local-first, never raises on ambiguity (`functions.py:69-110`);
+  `search_world(tag=,attr=,value=,name=,limit=)` has filters but **equality only**
+  (`core/query.py:20-62`). `get('name', tag='armor', ...)` refinement is absent
+  (and `'ac'>=5` isn't valid kwarg syntax). Sketch: add `tag=`/`attr=` kwargs to
+  `get()` that pre-filter candidates before the matcher; add operator support to
+  `find_objects` via tuple form `value=('>=', 5)`. Would also let `get` optionally
+  raise/disambiguate on ambiguity like the command-path `match_one`.
+
+### 4. Regex trigger/command patterns
+
+- [ ] **Opt-in regex patterns.** Currently glob-only: `*`→`(.*)`, `?`→`(.)`, rest
+  escaped/anchored (realm/scripting/triggers.py:117-127, 161-167). No Penn-style
+  `@set attr = regex` facility. Sketch: a prefix (e.g. pattern starting `~`)
+  compiles the remainder as a real `re` with numbered groups → the same `%0..%9`
+  captures. Opt-in keeps existing glob patterns intact.
+
+### 5. Attribute locks / system attributes
+
+- [ ] **A `system`/read-only attribute tier for core stats.** PARTIAL today: a
+  flag system exists (`secret`/`visual`/`safe`/`no_clone`; realm/core/attrflags.py)
+  and `password` is hard-protected (`PROTECTED_ATTRS`). BUT core stats
+  (hp/str/dex/con) live in the same `db` namespace as ordinary attrs with NO
+  default protection — softcode `set_attr`/`@set` can write them unless a builder
+  flags each `safe`. Enforcement: `functions.py:200-223`, `modify.py:134-137`.
+  Sketch: either seed default `attr_flags` marking core stats `safe`, or add a
+  `system` tier that even controllers can't `@set` (only ruleset code writes).
+  Directly strengthens the sandbox-safety story (see showcase 250).
+
+### 6. NO_SPOOF flag
+
+- [ ] **`no_spoof` source-reveal.** ABSENT. Attribution today is visibility-based
+  (`perceived_name`, realm/core/perception.py:129-140) — real name if visible else
+  "Someone"; no "really from X" reveal, and softcode `pemit`/`remit`/`oemit`
+  deliver plain untagged text. (Confirms showcase 084 voice-disguise gap.) Sketch:
+  a `no_spoof` viewer tag that appends `[from <realname>]` when message source ≠
+  perceived name, threaded through the propagation message builder. Pairs with the
+  deferred speech-pipeline gap (items 79/80/84).
+
+### 7. `hold` vs `wield`
+
+- [ ] **A `held`/off-hand slot distinct from `wielded`.** Today `wield` is a single
+  `wielded` tag; a new wield strips it from all other items (one active weapon, no
+  slots). Light sources REUSE `wielded` (why flashlight 006 "wields" a torch).
+  Worn armor is separate (`wearable` + `db.slot`). Refs: combat.py:335-386,
+  manipulation.py:304-311, perception.py:51-66. Sketch: add a `held`/`offhand`
+  slot (own tag + `item:on_hold` event) for shields/torches/tools, and split
+  light-source readiness off the weapon `wielded` tag so you can hold a torch
+  without it being your weapon.
+
+### 8. Customizable dark-room message
+
+- [ ] **Per-room dark message.** HARDCODED: "It is pitch black here. You can't see
+  a thing." (realm/core/render.py:108; gate perception.py:69-75). Sketch: read an
+  optional `db.dark_msg` on the room (fallback to the constant) at render.py:108,
+  or expose a `set_dark_message()` hook mirroring the existing `set_group_formatter`
+  pattern. Trivial, improves every dark-area build (showcase 038).
+
+### 9. Expression-valued behavior params
+
+- [ ] **`interval:[[expr]]` in `@behavior`.** ABSENT — params are literal-only
+  (`_parse_value`: JSON→bool→numeric→str; olc/softcode.py:118-124). Sketch: in the
+  value-coercion step, detect an inline `[[...]]` wrapper and run it through
+  `eval_inline`, coercing the result to int; or accept a `key:=expr` form.
+  Lets tick rates/counts derive from object state.
+
+### 10. `@amhear`-style self-listen
+
+- [ ] **Opt-in self-hearing.** ABSENT by design: `handle_speech` skips any match
+  where `match.obj == speaker` (realm/scripting/engine.py:202-205), confirmed by
+  showcase 007. Sketch: an opt-in `^^`/`AMHEAR_` prefix (or a `self_hear` tag) that
+  removes the speaker-skip for those patterns, kept depth-guarded to avoid feedback
+  loops. Lets an object react to its own emissions (PennMUSH `@amhear` parity).
+
+## ~~URGENT~~ RESOLVED 2026-07-17: the sandbox recursion guard was process-global
+
+Sharpens the earlier "inline blocks inherit the caller's stack" entry — same
+root cause, **higher severity than first filed**, now reproduced against the
+engine suite (not just showcase).
+
+**Root cause:** `ScriptSandbox.execute` guards recursion with
+`sys.setrecursionlimit(min(max_recursion + 10, 100))` (= 60) around its `exec`
+(realm/scripting/sandbox.py:291-299). `sys.setrecursionlimit` is **interpreter-
+global — it applies to every thread**, not just the caller. But `execute_async`
+runs `execute` on a worker thread (`run_in_executor`). So for the duration of
+ANY softcode execution, the whole process is capped at 60 frames.
+
+**Two consequences, both observed:**
+1. *Cross-thread crashes (new, production-severity).* While a worker runs a
+   script, the main thread — asyncio event loop + dispatcher + engine, routinely
+   deeper than 60 frames — raises `RecursionError` on its next call, in code
+   that has nothing to do with softcode. Captured traceback bottoms out in
+   `threading.py:368` (lock wait) during a normal test. In a live game this
+   means any softcode execution can randomly crash concurrent main-loop work.
+   Reproduces as a ~20-40% flake: `pytest tests/showcase/test_containers.py`
+   (TestLootCrate::test_first_open_seeds_from_the_table_tail) fails
+   intermittently *in isolation*, timing-dependent.
+2. *Depth-dependent inline blocks (already filed).* `eval_inline` additionally
+   runs `execute` synchronously on the render call stack, so a `[[...]]` block's
+   survival depends on how deep `look` was dispatched.
+
+**Correction to an earlier claim:** I previously reported the showcase suite as
+"deterministic, 1734 passed, repeatably" on the strength of five clean runs.
+That was wrong — the wave-2/3/4 implementer agents reported this flake
+repeatedly and they were right. It is a real, pre-existing race; clean runs are
+luck.
+
+**Fix (needs a design call — do not paper over):** stop using
+`sys.setrecursionlimit` as a per-script guard; it is global state and cannot be
+made thread-safe. Options, roughly in order of preference:
+- Enforce recursion at the AST/compile layer (reject unbounded self-recursion)
+  and rely on the existing per-script **call-count** budget
+  (`max_function_calls`) + timeout for runaway depth — no global state at all.
+- Use a per-thread `sys.settrace`/`threading.setprofile` depth counter scoped to
+  the executing thread.
+- If a global limit must be kept, serialize sandbox executions behind a lock AND
+  set the limit relative to the executing thread's entry depth
+  (`entry_depth + max_recursion`) — still cross-thread unsafe, so weakest option.
+
+Note the interaction with the separate "call-free loops escape the time budget"
+entry: whatever replaces this guard should close both (a `while True: pass` with
+no calls is currently uninterruptible).
+
+## i18n: route hardcoded system messages through a translation layer (filed 2026-07-17)
+
+Every engine-authored player-facing string is a hardcoded literal today —
+`T('It is pitch black here.')`-style marking would make the engine
+translatable/rebrandable.
+
+**Scope (surveyed 2026-07-17):** ~175 literal `return`/`send`/`msg`/`pemit`
+strings + ~145 f-string variants ≈ **320 sites**, no existing gettext/locale
+infrastructure anywhere. Densest: `commands/builtin/manipulation.py` (21),
+`builtin/combat.py` (18), `olc/modify.py` (15), `olc/admin.py` (14),
+`combat/encounter.py` (14), `olc/softcode.py` (11), `builtin/social.py` (10),
+then a long tail across olc/*, builtin/*, core/render.py, core/perception.py,
+server/game.py.
+
+**Design notes (the non-obvious parts):**
+
+- **Translate the template, never the interpolated result.** ~145 sites are
+  f-strings (`f"You put {item} in {container}."`). Naively wrapping them
+  (`T(f"...")`) produces one catalog entry per runtime value and is useless.
+  They must become `T("You put {item} in {container}.").format(item=…, …)` —
+  i.e. mark the template, interpolate after lookup. That refactor is the bulk
+  of the work, not the T() function itself.
+- **Engine strings vs game content — draw the line explicitly.** `T()` covers
+  strings the *engine* authors. It must NOT touch builder/player-authored
+  content: room descs, `desc_extras`, softcode `say`/`pemit` output, and the
+  new per-room `db.dark_msg` override (see the 2026-07-17 ergonomics batch).
+  Precedent worth stating in the docs: `dark_msg` is *content customization*
+  (this room reads differently); `T()` is *locale* (this player reads a
+  different language). A room that sets `dark_msg` opts out of the translated
+  default by design.
+- **Per-recipient rendering is the crux — and it's shared.** A string returned
+  from a command has one recipient, so call-time locale resolution works. But
+  `remit`/`act` deliver one message to a room of players who may not share a
+  locale, so the message must stay *unrendered* until delivery (a lazy/deferred
+  `T` object resolved per-session, or a render hook in the propagation
+  delivery step). **This is the same seam the already-filed speech-pipeline
+  gap needs** (showcase items 79 languages / 80 whispers / 84 voice disguise,
+  which want per-listener message transforms). Build the per-recipient
+  rendering hook ONCE and both land — worth sequencing them together.
+- **Session locale:** needs a `locale` on the session/player (default from
+  config), settable in-game, and honored by the delivery hook.
+
+**Sketch (incremental, each step shippable):**
+1. Add `T(msg, **kwargs)` as an identity/format passthrough + a `locale` config
+   default. Zero behavior change, but it *marks* strings.
+2. Mechanically wrap the ~320 sites (template-then-format for the f-strings).
+   Mostly rote; do it module-by-module against the density list above.
+3. Add catalog extraction (a script scanning `T(...)` call sites → a `.po`/JSON
+   catalog) + `scripts/gen_*`-style regeneration, wired like
+   `gen_softcode_docs.py`.
+4. Add the per-recipient deferred-render hook in propagation delivery (jointly
+   with the speech-pipeline gap), then per-session locale resolution.
+5. Ship one non-English catalog as the proof + a test asserting a translated
+   session sees translated engine strings while content strings pass through.
+
+### Resolution (2026-07-17)
+
+**Fixed.** `ScriptSandbox.execute` no longer touches the recursion limit. The
+limit is now a **process-wide game setting** applied once at boot, in the same
+place as the other ambient singletons (sigils/markup), where its scope is
+self-evident:
+
+- `set_interpreter_recursion_limit(limit)` (realm/scripting/sandbox.py) — the
+  only caller-facing entry, with a docstring stating it is interpreter-global,
+  affects every thread, and must never be called per execution. Validates and
+  raises at boot: floor `MIN_RECURSION_LIMIT = 100` (below it the engine's own
+  main thread bricks — the old effective value was 60, i.e. the bug), ceiling
+  `MAX_RECURSION_LIMIT = 100_000` (above it CPython segfaults instead of
+  raising).
+- `RECURSION_LIMIT = 1000` in config (Settings.recursion_limit, documented in
+  the config template under SOFTCODE LIMITS), threaded through
+  `GameServer.__init__`.
+- `ScriptLimits.max_recursion` **removed** — it advertised a per-script depth
+  limit the engine cannot actually enforce (user scripts recurse in real
+  CPython frames the engine never sees). Its docstring now points here.
+  Runaway recursion still surfaces as `ScriptRecursionError`: the interpreter
+  raises `RecursionError` inside `exec` and it is converted as before.
+
+**Verification:** the flake is gone by construction (the global mutation no
+longer exists), and empirically: `tests/showcase/test_containers.py` 15/15 clean
+(was ~20% failing in isolation), full suite 6/6 clean at 1759 passed (was ~30%
+failing). Regression test pinned:
+`test_execute_does_not_touch_the_global_recursion_limit` asserts
+`sys.getrecursionlimit()` is unchanged across both a normal and an exploding
+script.
+
+**Still open (see next entry):** a *true per-script* depth limit. The floor/
+ceiling only bound the process; one script can still nest to 1000.
+
+## Per-execution recursion counting via AST injection (filed 2026-07-17)
+
+The way to get a real per-script depth limit back — Penn's model, adapted.
+Penn counts its own interpreter's recursion in per-execution state
+(`pe_info->fun_recursions`, incremented/decremented around `process_expression`,
+checked at parse.c:2843) because *all* Penn softcode recursion flows through
+Penn's evaluator. REALM can't do that directly: scripts are real Python, so
+user recursion happens in CPython frames the engine never sees — which is why
+it reached for the (global, broken) recursion limit.
+
+**Idea:** instrument the AST before compile. Walk the tree with an
+`ast.NodeTransformer` and rewrite every `FunctionDef` body from `<body>` to
+roughly:
+
+    __ctx.enter()          # increments; raises ScriptRecursionError over limit
+    try:
+        <body>
+    finally:
+        __ctx.exit()       # decrements
+
+with `__ctx` injected into the script globals (a per-execution counter object,
+like `pe_info`) and `ast.fix_missing_locations()` after the rewrite. That gives
+Penn's exact semantics: per-execution, no global state, thread-safe, and it can
+carry Penn's dual counter (per-script + a global ceiling at N×) and Penn's
+graceful degradation.
+
+**Viable — with caveats worth knowing before starting:**
+- **Lambdas can't be instrumented** (a lambda body is an expression, not
+  statements). The self-passing-lambda recursion idiom the showcase teaches
+  (`f = lambda self, n: ...`; see 017/024) would slip straight through. So the
+  process-wide limit must REMAIN as the backstop — this is defense in depth,
+  not a replacement.
+- Comprehensions/generators/async defs each need their own handling.
+- Only counts user-defined function calls, which is exactly the blind spot —
+  engine-mediated re-entry is already counted Penn-style at
+  functions.py:1033 (`_eval_depth >= 8`).
+- Cost is one counter call per user function call: far cheaper than
+  `sys.settrace`, which is the only other per-thread-safe option.
+- Doesn't bound C-level recursion (deep `repr`, etc.) — again, the process
+  limit backstops.
+
+Sequence it with the "call-free loops escape the time budget" entry: the same
+`__ctx` object could carry an instruction/loop-iteration counter (Penn's
+`call_limit` per queue cycle is the precedent), closing both holes with one
+mechanism.

@@ -58,6 +58,12 @@ class Settings:
     listen_sigil: str = "^"
     markup_marker: str = "|"
 
+    # PROCESS-WIDE Python recursion limit (not per-script!). Applies to every
+    # thread including the engine's own main loop, so it must stay well above
+    # the engine's call depth — see set_interpreter_recursion_limit. Raising it
+    # lets softcode nest deeper; lowering it below the floor is rejected at boot.
+    recursion_limit: int = 1000
+
     # Paths (resolved to absolute)
     db_path: Path = field(default_factory=lambda: Path("data/game.db"))
     welcome_file: Path = field(default_factory=lambda: Path("data/welcome.txt"))
