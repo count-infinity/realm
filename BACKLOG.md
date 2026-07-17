@@ -1465,6 +1465,17 @@ named tutorials, so none of these block showcase progress.
 - [ ] **Master Room** for global `$`-commands is a live TODO
   (`get_search_objects`) — ~10 showcase items use the `zone:world` master
   workaround meanwhile. (`docs/showcase/capability_audit.md`)
+- [ ] **`apply_effect` silently stacks same-kind effects — design question.**
+  `add_behavior` de-dups with `behavior not in self._behaviors`, but `Behavior`
+  has no `__eq__` (only `GameObject` does), so the check is identity-based and
+  `apply_effect` (which mints a fresh instance per call) always appends. Eating
+  two stews / drinking twice runs two `modifier_effect`s at once, both applying
+  their `check_mods`. Two tutorials (129, 139) assumed re-apply refreshes; both
+  now `remove_effect` first. Decide: should `apply_effect` refresh-by-`kind` by
+  default (find existing `TimedEffectBehavior` with same `kind`, replace it), or
+  is stacking intended and the softcode `stack=False` opt-in the answer? Until
+  then the documented idiom is `remove_effect(x, kind)` before re-applying.
+  (`docs/showcase/129_cooking_buffs.md`, `139_intoxication.md`)
 
 ## Showcase wave-2 engine gaps (filed 2026-07-16, categories 1-5)
 
@@ -2604,3 +2615,77 @@ render ONCE, not per looker, so they show the true name to everyone regardless
 of disguise. Converting them to per-looker `add_message` actions (like speech)
 is the general fix; out of scope here. The main play surfaces (speech, room
 list, look) are covered.
+
+## SHIPPED 2026-07-17: rich emote command (finishes item 85)
+
+The rich-emote parser the identity-layer entry flagged as "buildable, not
+built" is now built. `pose`/`:` (and scripted poses) resolve `/name`
+references to room objects and render each **per viewer** through the same
+`get_display_name(looker)` seam: the referenced person reads "you", a viewer
+who knows a disguised actor by their fake name reads that, a stranger reads an
+sdesc. An unmatched `/word` is left literal (so `3/4`, `and/or`, a bare slash
+survive), and player text still can't inject participant tokens (the body
+rides `{speech}`).
+
+- **`EMOTE_SIGIL`** ('/' default) is a game setting wired exactly like the
+  trigger sigils / markup marker: `Settings.emote_sigil` -> `GameServer` ->
+  `realm.core.verbs.set_emote_sigil`, validated at boot (1-16 non-alnum,
+  non-space). Documented in the softcode reference's configurable-syntax table.
+- `parse_emote_refs(poser, text) -> (body, refs)` resolves references from the
+  poser's view once; `format_message` renders the private `﷐i﷐`
+  markers per looker (after `{speech}`, so they survive the speech transforms).
+- **Tests:** `tests/test_rich_emote.py` (16) — per-viewer "you"/name/disguise,
+  multiple refs, unmatched-slash-literal, plain-pose-unchanged, token-injection
+  inert, possessive `/Bob's`, and the configurable sigil.
+
+**Item 85's *capability* now works out of the box with zero config** (unlike
+84/133/134, which still need a game to register a name resolver). The checklist
+item stays unchecked only because it wants a showcase *tutorial*; the engine
+feature is done.
+
+## SHIPPED 2026-07-17: voice-only disguise (`db.voice_as`) — finishes item 84's real seam
+
+The identity-layer entry above claimed 84 "falls out for free" through the name
+resolver. That is true only for a **full** disguise: routing attribution through
+`get_display_name(looker)` masks the voice *and the face together*, because the
+resolver governs the room list and `look` too. A voice **modulator** — altered
+voice, *known* face — could not be expressed: there was no way to change only the
+speech attribution.
+
+**Change:** `format_message` checks `actor.db.voice_as` for the speech family
+(`_SPEECH_ACTIONS` = speech/emote/whisper/shout/ooc/semipose) and, for every
+listener but the speaker, reskins the `{actor}` tokens to that string. `look`,
+the "Players here" list, and `@examine` are untouched — it is deliberately
+narrower than a name resolver. The speaker always hears their own true
+attribution. Pure attr convention, no registration.
+
+This makes 84 and 134 the two clean halves of concealment: `voice_as` hides the
+voice with a known face; a name resolver hides the face while the voice can give
+you away. Documented in `docs/architecture/events.md` ("Voice-only disguise").
+
+## SHIPPED 2026-07-17: identity & speech tutorials landed (items 79/84/85/133/134/139)
+
+The six tutorials the four seam-entries above flagged "buildable, mark done when
+the tutorial lands" are written, tested, and checked off — **checklist now
+229/250**. Each pairs the deploy-time native half (a name resolver / speech
+renderer, ≤10 lines, shown in the doc and registered in its test fixture) with
+in-game softcode driven straight from the doc's Build-it lines:
+
+- **133** short-descs & introductions (recognition resolver + `$introduce`)
+- **134** disguises (disguise resolver + `check_roll` see-through `$study`)
+- **84** voice disguise (`db.voice_as` modulator — masked voice, known face)
+- **79** languages (`register_speech_renderer` garble per listener)
+- **139** intoxication (`modifier_effect` penalty + slur renderer, drink-scaled)
+- **85** rich emotes (pure builtin `pose /name`, no native half)
+
+Capability-audit gaps **G3 closed** (85/133/134) and **G2 down to item 80 only**
+(80 overheard whispers still wants the whisper ROOM line to carry a body).
+
+**Finding filed while building 139 (not an engine change):** `apply_effect`
+*stacks* same-kind effects — `add_behavior`'s `behavior not in self._behaviors`
+guard is identity-based (`Behavior` has no `__eq__`), and `apply_effect` mints a
+fresh instance each call — so re-eating/re-drinking runs two effects at once.
+Two tutorials (129 cooking, then 139) assumed "same kind re-tags, doesn't stack";
+both docs are now corrected to `remove_effect`-then-`apply_effect` (refresh) or
+gate on a tag. See the showcase-gaps list below for the design question (should
+the engine de-dup by kind?).

@@ -57,6 +57,8 @@ class Settings:
     command_sigil: str = "$"
     listen_sigil: str = "^"
     markup_marker: str = "|"
+    # Reference sigil for rich emotes: `pose waves at /Bob`.
+    emote_sigil: str = "/"
 
     # PROCESS-WIDE Python recursion limit (not per-script!). Applies to every
     # thread including the engine's own main loop, so it must stay well above

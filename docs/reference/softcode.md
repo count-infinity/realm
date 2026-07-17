@@ -155,6 +155,7 @@ reference (and every example in the docs) uses the defaults.
 | `LISTEN_SIGIL` | `^` | the `^pattern:code` listen-trigger prefix (any length 1-16) |
 | `INLINE_OPEN` / `INLINE_CLOSE` | `[[` / `]]` | inline description blocks — the code inside nests freely (`fn1(fn2(x))`, `words[idx[0]]`, quoted closers); pick a bracket-final closer (`}`, `]`, `)`) so nesting tracking applies |
 | `MARKUP_MARKER` | `\|` | color markup (`\|r`, `\|n`, …) — remap it (`~`, `%%`, any length 1-16) to keep literal pipes in prose; the doubled-marker escape follows it |
+| `EMOTE_SIGIL` | `/` | rich-emote reference prefix — `pose waves at /Bob` names Bob per viewer (each reader sees the name they know; Bob reads "you"). An unmatched `/word` stays literal |
 
 Sigils and the marker take any non-alphanumeric, non-space characters;
 sigils additionally exclude `:` (the pattern:action separator). A bad

@@ -179,13 +179,13 @@ the ranked gap list below.
 | 76 | Bulletin boards | now | board object: posts as attrs with timestamps; `on_tick` expiry sweep |
 | 77 | Handheld radios | now | radio `^*:` relays via `search_world(attr='freq', value=…)` + `pemit()` to holders |
 | 78 | Station PA system | now | `for r in zone_rooms('station'): remit(r, msg)` |
-| 79 | Languages | **small** | **G2 speech pipeline**: per-listener transform hook to garble by listener skill (builtins can't be shadowed) |
+| 79 | Languages | ~~small~~ **SHIPPED 2026-07-17** (`register_speech_renderer` garbles the `{speech}` body per listener; tutorial [079_languages](079_languages.md)) | **G2 speech pipeline**: per-listener transform hook to garble by listener skill (builtins can't be shadowed) |
 | 80 | Overheard whispers | **small** | **G2 speech pipeline**: per-bystander Per leak roll on `whisper` (engine emits a fixed vague line today) |
 | 81 | Graffiti | now | room-owned `$scrawl` appends a `desc_extras` detail (`set_attr(me,…)` runs as the room) |
 | 82 | Newspaper | now | issue compiled into attrs; kiosk `ON_PAYMENT` dispenses `create_obj()` copy; `on_tick` release |
 | 83 | Message in a bottle | now | bottle logged on an ocean master; `on_tick` random delay → deliver via mail pattern / `pemit` |
-| 84 | Voice disguise | ~~small~~ **NOW BUILDABLE 2026-07-17** | **G2 speech pipeline**: speaker-attribution override (say's name line is engine-fixed) |
-| 85 | Rich emote parser | **small (partly unblocked)** | **G3 identity layer**: per-viewer name substitution in emotes (perceived_name has no sdesc hook) |
+| 84 | Voice disguise | ~~small~~ **SHIPPED 2026-07-17** (`db.voice_as` reskins the speech `{actor}` only; face/room-list unaffected; tutorial [084_voice_disguise](084_voice_disguise.md)) | **G2 speech pipeline**: speaker-attribution override (say's name line is engine-fixed) |
+| 85 | Rich emote parser | ~~small~~ **SHIPPED 2026-07-17** (native `pose /name` command; per-viewer rendering, configurable EMOTE_SIGIL) | **G3 identity layer**: per-viewer name substitution in emotes (perceived_name has no sdesc hook) |
 
 ### 8. Economy & Commerce (86–97)
 
@@ -258,13 +258,13 @@ the ranked gap list below.
 | # | Item | Class | Primitives / gap |
 |---|---|---|---|
 | 132 | Chargen walkthrough | now | GameSystem ChargenSteps (`rules.py`) *or* an admin-owned clerk `prompt()` wizard writing the sheet live |
-| 133 | Short-descs & introductions | ~~small~~ **NOW BUILDABLE 2026-07-17** | **G3 identity layer**: per-viewer naming (sdesc/recog) hook in `perceived_name` |
-| 134 | Disguises | ~~small~~ **NOW BUILDABLE 2026-07-17** | **G3 identity layer**: apparent-name override + softcode rename (no `set_name()` today) |
+| 133 | Short-descs & introductions | ~~small~~ **SHIPPED 2026-07-17** (`register_name_resolver` sdesc/recog seam; tutorial [133_short_descs](133_short_descs.md)) | **G3 identity layer**: per-viewer naming (sdesc/recog) hook in `perceived_name` |
+| 134 | Disguises | ~~small~~ **SHIPPED 2026-07-17** (disguise resolver + `check_roll` see-through contest; tutorial [134_disguises](134_disguises.md)) | **G3 identity layer**: apparent-name override + softcode rename (no `set_name()` today) |
 | 135 | Injury & treatment | now | `modifier_effect` conditions; `firstaid`; `regeneration` behavior; recovery timers |
 | 136 | Encumbrance effects | now | weight-sum softcode on `ON_GET`/`ON_DROP` → `modifier_effect` DX penalty (effects are proximity-gated) |
 | 137 | Hunger & thirst | now | `on_tick` meter attrs; consumable `ON_USE` resets; toggle via zone policy |
 | 138 | Sleep & rest | now | `$rest`/`$sleep` tags; `regeneration` boost; vulnerability via ward/lockout |
-| 139 | Intoxication | **small → NOW BUILDABLE (2026-07-17)** | stacking `modifier_effect`s work today; slurring now has its seam — `register_speech_renderer` |
+| 139 | Intoxication | ~~small~~ **SHIPPED 2026-07-17** (`modifier_effect` penalty + `register_speech_renderer` slur, both scaling with a drink counter; tutorial [139_intoxication](139_intoxication.md)) | stacking `modifier_effect`s work today; slurring now has its seam — `register_speech_renderer` |
 | 140 | Death & cloning | now | `ON_DEATH` + engine unconsciousness/corpses; clone-bay `teleport_obj()` + fees |
 | 141 | Character sheet display | now | `stats` built in; custom `$sheet` via `eval_attr()` layout functions |
 | 142 | Traits in play | now | `class_def`/`skill_def` data + triggers/effects (phobia = `ON_*` + ward; reflexes = modifier) |
@@ -437,8 +437,8 @@ L = a real subsystem.
 | Rank | Gap | What it is | Unblocks | Count | Size |
 |---|---|---|---|---|---|
 | G1 | **Web layer** | HTTP site + REST API over the live world (views, auth, serialization, submission pipeline) | 230, 231, 234, 237, 239 | 5 | L |
-| G2 | **Speech pipeline hooks** — ~~gap~~ **PARTLY SHIPPED 2026-07-17**: `register_speech_renderer(fn)` transforms the spoken body per listener (the body is now a `{speech}` token resolved per recipient), which lands **79 languages** and **139 intoxication**. Still open: **84 voice disguise** wants attribution, whose seam is `get_display_name(looker)` (already the documented override point), and **80 overheard whispers** needs the whisper ROOM line to carry a body it currently lacks. Original note: | per-listener transform + speaker-attribution override + leak rolls in `do_say`/`do_whisper` delivery (builtins dispatch before softcode, so speech can't be intercepted today) | 79, 80, 84, 139 | 4 | M |
-| G3 | **Identity layer** | per-viewer naming (sdesc/recog) hook in `perceived_name` + a softcode `set_name()`/apparent-name | 85, 133, 134 | 3 | M |
+| G2 | **Speech pipeline hooks** — ~~gap~~ **MOSTLY SHIPPED 2026-07-17**: `register_speech_renderer(fn)` transforms the spoken `{speech}` body per listener (lands **79 languages**, **139 intoxication**), and `db.voice_as` overrides the speech `{actor}` attribution (lands **84 voice disguise**). Still open: **80 overheard whispers** needs the whisper ROOM line to carry a body it currently lacks. | per-listener transform + speaker-attribution override + leak rolls in `do_say`/`do_whisper` delivery (builtins dispatch before softcode, so speech can't be intercepted today) | 80 | 1 | S |
+| G3 | **Identity layer** — ~~gap~~ **SHIPPED 2026-07-17**: `register_name_resolver(fn)` is the per-viewer naming (sdesc/recog/disguise) seam in `perceived_name`, and `pose /name` renders emote references per viewer. Lands **85, 133, 134**. (A softcode `set_name()` was not needed — the resolver chain covers apparent-name.) | per-viewer naming (sdesc/recog) hook in `perceived_name` + a softcode `set_name()`/apparent-name | — | 0 | done |
 | G4 | **Presence & session surface** | `online_players()`/`idle_seconds()` softcode functions, perception-aware `who`, auto-AFK hook | 180, 188, 197 | 3 | S |
 | G5 | **External bridges** | Discord relay + SMTP email digests (long-lived external-service connectors) | 232, 236 | 2 | L |
 | G6 | **HTTP connector primitives** | config-declared event→webhook POST sink; allowlisted feed-fetch behavior | 233, 238 | 2 | M |
@@ -489,8 +489,9 @@ and unlocks its whole cluster.
    (remaining `[now]` items in categories 7, 10, 12, 15, 16, 17, 18,
    20, 22 + item 235).** Includes the capstones (108 casino, 164
    spaceship, 216 escape room, 250 sandbox tour).
-5. **Wave 5 — Small-gap unlocks.** Ship gaps in bang-for-buck order:
-   G4 (→ 180, 188, 197), G2 (→ 79, 80, 84, 139), G3 (→ 85, 133, 134),
+5. **Wave 5 — Small-gap unlocks.** ~~G2 (→ 79, 84, 139)~~ and ~~G3 (→ 85,
+   133, 134)~~ shipped 2026-07-17. Remaining, in bang-for-buck order:
+   G4 (→ 180, 188, 197), the last of G2 (→ 80 overheard whispers),
    G7 (→ 194, 195), then the singletons G8–G13 (→ 110, 116, 187, 192,
    178, 185) and G6 (→ 233, 238). Each gap's tutorial lands with the
    engine change (docs discipline: same change).

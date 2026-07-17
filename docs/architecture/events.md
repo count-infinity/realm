@@ -85,6 +85,26 @@ last good body. That is the opposite of an ``on_check`` ward, which fails
 so "it errored" must never read as "it allowed"; a renderer only rephrases,
 so swallowing the sentence would be the worse failure.
 
+### Voice-only disguise (`db.voice_as`)
+
+An actor with a `voice_as` attribute is *attributed* by that name in
+speech — say, pose, whisper, shout, ooc, semipose — for every listener but
+themselves:
+
+```
+Ada.db.voice_as = "a distorted voice"
+Ada: say who goes there
+  Bob hears:  a distorted voice says, "who goes there"
+  Ada hears:  You say, "who goes there"
+  Bob's `look` still lists:  Ada          # face unaffected
+```
+
+This is deliberately narrower than a disguise (which changes
+`get_display_name` everywhere): `voice_as` touches only the `{actor}` of a
+*speech* action, so a modulator can hide a voice while leaving the face
+known, or a mask can hide the face — via a name resolver — while the voice
+gives you away. The speaker always hears their own true attribution.
+
 ## Who sees an action
 
 - **Behaviors** on the actor, target, and room contents get

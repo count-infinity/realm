@@ -47,6 +47,13 @@ async def cmd_pose(ctx: CommandContext) -> None:
 
     Example: pose waves hello.
              -> "YourName waves hello."
+
+    Reference someone with /name — they read "you", everyone else reads
+    the name they know them by:
+        pose slides the datapad to /Kade.
+             -> Kade reads "Ada slides the datapad to you."
+             -> others read "Ada slides the datapad to Kade."
+    A /word that matches no one in the room is left as typed.
     """
     if not ctx.args:
         await ctx.session.send("Pose what?")

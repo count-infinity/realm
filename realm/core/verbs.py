@@ -10,10 +10,79 @@ NPC just drops the line) and return False.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from realm.core.language import singular_name
 from realm.core.propagation import Action, deliver_messages, gate_action
+
+
+# --- Emote references -------------------------------------------------------
+# A rich emote references people/things with a sigil — `pose waves at /Bob` —
+# and each reference is rendered per viewer, so everyone reads the name THEY
+# know (a disguise, an unintroduced stranger) and the referenced person reads
+# "you". The sigil is a game setting (EMOTE_SIGIL), '/' by default.
+
+DEFAULT_EMOTE_SIGIL = '/'
+_emote_sigil = DEFAULT_EMOTE_SIGIL
+_emote_ref_re = re.compile(re.escape(DEFAULT_EMOTE_SIGIL) + r"(\w+)")
+
+# A private, unspellable delimiter for a resolved reference in the pose body:
+# U+FDD0 is a Unicode noncharacter — never valid in text, so a player cannot
+# type it and it cannot collide with a name. format_message swaps
+# ``﷐<i>﷐`` for the i-th referenced object, named for the looker.
+_EMOTE_REF = "﷐{}﷐"
+
+
+def set_emote_sigil(sigil: str = DEFAULT_EMOTE_SIGIL) -> None:
+    """Install the emote-reference sigil (game config).
+
+    Any 1-16 non-alphanumeric, non-space characters (an alphanumeric sigil
+    would swallow ordinary words mid-emote). A bad value raises at boot,
+    not mid-emote.
+    """
+    global _emote_sigil, _emote_ref_re
+    s = str(sigil)
+    if not s or len(s) > 16 or any(c.isalnum() or c.isspace() for c in s):
+        raise ValueError(
+            f"emote sigil must be 1-16 non-alphanumeric, non-space "
+            f"characters (got {sigil!r})")
+    _emote_sigil = s
+    _emote_ref_re = re.compile(re.escape(s) + r"(\w+)")
+
+
+def get_emote_sigil() -> str:
+    return _emote_sigil
+
+
+def parse_emote_refs(poser: GameObject, text: str) -> tuple[str, list]:
+    """Resolve ``<sigil>word`` references in an emote to room objects.
+
+    Returns ``(body, refs)`` where ``body`` has each resolved reference
+    replaced by a private marker and ``refs`` is the objects in marker
+    order. A reference that matches nothing is left exactly as typed
+    (so ``and/or`` or a stray slash survives untouched) — resolution is
+    from the *poser's* view; rendering is per viewer, later.
+    """
+    from realm.core.search import match_objects
+
+    candidates: list = []
+    room = poser.location
+    if room is not None:
+        candidates.extend(room.contents)
+    candidates.extend(poser.contents)
+    candidates.append(poser)
+
+    refs: list = []
+
+    def _sub(m: re.Match) -> str:
+        matches = match_objects(m.group(1), candidates).matches
+        if not matches:
+            return m.group(0)            # not a reference — leave literal
+        refs.append(matches[0])
+        return _EMOTE_REF.format(len(refs) - 1)
+
+    return _emote_ref_re.sub(_sub, text), refs
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -190,15 +259,27 @@ def speech_action(speaker: GameObject, message: str) -> Action:
 
 
 def pose_action(poser: GameObject, pose_text: str) -> Action:
-    """The canonical pose shape."""
+    """The canonical pose shape.
+
+    Rich by default: ``/name`` references in the text resolve to room
+    objects and render per viewer (each reader sees the name they know;
+    the referenced person reads "you"). Plain poses with no references are
+    unchanged — an unmatched ``/word`` is left literal.
+    """
     from realm.core.propagation import ROOM_TARGET_CHAIN
+    body, refs = parse_emote_refs(poser, pose_text)
     action = Action(
         actor=poser,
         target=poser.location,
         action_type="event:emote",
         chain=ROOM_TARGET_CHAIN,
-        extra={"pose": pose_text},
+        extra={"pose": body},
     )
+    # `emote_refs` is an internal render aid (the resolved reference
+    # objects), not a builder-facing `adata` payload — attached after
+    # construction so the documented `pose` key stays the visible one.
+    if refs:
+        action.extra["emote_refs"] = refs
     action.add_message("actor", "{actor} {speech}", success_only=True)
     action.add_message("room", "{actor} {speech}", success_only=True)
     return action

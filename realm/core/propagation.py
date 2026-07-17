@@ -24,6 +24,7 @@ to prevent runaway chain reactions.
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
@@ -32,6 +33,13 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 logger = logging.getLogger(__name__)
+
+#: Action types whose `{actor}` is a *voice* — subject to `db.voice_as`
+#: (a voice-only disguise). Look/room-list name resolution is unaffected.
+_SPEECH_ACTIONS = frozenset({
+    "event:speech", "event:emote", "event:whisper", "event:shout",
+    "event:ooc", "event:semipose",
+})
 
 
 #: Transforms applied to a spoken body on its way to ONE listener, in
@@ -191,6 +199,17 @@ class Action:
         """
         from realm.core.language import definite_name, singular_name
 
+        # Voice-only disguise: a modulator sets `db.voice_as`, which reskins
+        # the actor's name in SPEECH — say/pose/whisper/shout — without
+        # touching how they look (that stays get_display_name). So a masked
+        # voice ("a distorted voice says...") can hide a face everyone still
+        # recognises, and vice versa. The speaker always hears their own real
+        # attribution; only other listeners get the alias.
+        voice_as = None
+        if (self.actor is not None and looker is not self.actor
+                and self.action_type in _SPEECH_ACTIONS):
+            voice_as = self.actor.db.get('voice_as')
+
         result = msg
         for token, obj, missing in (
             ("actor", self.actor, "Someone"),
@@ -201,6 +220,8 @@ class Action:
                 continue
             if obj is None:
                 bare = indefinite = definite = missing
+            elif token == "actor" and voice_as:
+                bare = indefinite = definite = str(voice_as)
             else:
                 bare = obj.get_display_name(looker)
                 if bare == obj.name:
@@ -231,6 +252,21 @@ class Action:
                 body = self.extra.get("pose", "")
             result = result.replace(
                 "{speech}", render_speech(str(body), self, looker))
+
+        # Emote references (`pose waves at /Bob`): each resolved reference is a
+        # private ﷐i﷐ marker in the body, swapped here for the i-th referenced
+        # object named FOR THIS LOOKER — the disguise/recognition seam again —
+        # and "you" when the reference is the looker themselves. Done after the
+        # body lands so it survives the speech transforms above.
+        refs = self.extra.get("emote_refs")
+        if refs and "﷐" in result:
+            def _ref(m: "re.Match") -> str:
+                i = int(m.group(1))
+                if 0 <= i < len(refs):
+                    obj = refs[i]
+                    return "you" if obj is looker else obj.get_display_name(looker)
+                return m.group(0)
+            result = re.sub("﷐(\\d+)﷐", _ref, result)
         return result
 
 
