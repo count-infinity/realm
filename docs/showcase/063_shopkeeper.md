@@ -32,10 +32,13 @@ inventory.
 The tip jar rides the payment event: the `pay` builtin propagates
 `event:payment`, and any witness's `ON_PAYMENT` softcode fires. The
 keeper's thanks the payer and shifts disposition — so a 10-credit tip
-measurably lowers every price on the list. (Note that *every* witness
-with an `ON_PAYMENT` hears every payment in the room; if two paid NPCs
-share a room, gate on your own balance, like the classic bribed-ogre
-script does.)
+measurably lowers every price on the list. Vex has the room to himself,
+so his hook can stay this short; note that *every* witness with an
+`ON_PAYMENT` hears every payment in the room, so the moment a second
+paid NPC moves in, gate on the action's own data — `target == me` is
+"the coins are mine", and `adata('amount')` is how many (items
+[64](064_bartender.md) and [67](067_dialogue_tree_npc.md) share a
+tavern and do exactly that).
 
 **Engine gaps:** the capability audit suggests the `spawner` behavior for
 restock, but its liveness check is deletion-based (an ID that still
@@ -124,6 +127,6 @@ been filling. A shop that never sells anything eventually can't buy.
 - **Market-linked pricing.** Once the commodity board (tutorial 092)
   exists, have the tick re-price stock:
   `set_attr(o, 'value', ...)` from the board's current index.
-- **A choosier tip jar.** The bribed-ogre pattern: only thank payments
-  that push your balance over a threshold, and `remove_tag(me, 'hostile')`
-  when they do.
+- **A choosier tip jar.** The bribed-ogre pattern: gate the hook on
+  `adata('amount', 0) >= 10` so small change buys no goodwill, and
+  `remove_tag(me, 'hostile')` when a tip clears the bar.

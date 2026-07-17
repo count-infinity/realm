@@ -56,6 +56,22 @@ Set them with `@lock[/type] <obj> = <expr>`; the command validates the
 expression at write time and refuses `import`, dunders, and syntax
 errors, so a broken lock never reaches storage.
 
+**Wards fail closed too.** An `on_check` ward — the softcode gate a
+[landmine](049_landmine.md) or a [keycard door](026_keycard_door.md) uses
+where a boolean lock isn't expressive enough — obeys the same rule: if the
+script
+*errors*, and it is a ward that could have said no, the action is denied
+and the ward's owner is told `Ward error on <obj>: <exc>`. "The ward
+errored" and "the ward allowed it" must never be the same outcome, or one
+typo silently unlocks the vault. A ward that only `mod()`s or
+`set_adata()`s can't open a hole by failing, so those stay open (loudly) —
+an armour calculation that raises must not veto the swing. And because a
+ward is an attribute, `@set` checks it as you write it: a script that
+won't parse gets `Warning: <obj>/<attr> will not run — <error>` on the
+spot rather than months later. It warns rather than refuses — placeholders
+and `@import` are legitimate — and the runtime is what actually holds the
+line.
+
 ### 3. controls() is the one mutation authority
 
 Every mutating softcode function — `set_attr`, `move_to`, `destroy_obj`,

@@ -10,8 +10,10 @@ world — realm.testing.Simulator wires the same store/propagation/
 scripting/dispatcher stack a live GameServer does — with the tutorials'
 EXACT command lines (raw input in, session output out).
 
-The build transcripts below are copied verbatim from the docs' "Build
-it" sections; the sync test at the bottom keeps them from drifting.
+Every build transcript is read straight out of its markdown's "Build
+it" section and driven through the real dispatcher, so a doc edit that
+breaks the build breaks this suite — drift is impossible rather than
+merely detectable.
 Timers are driven deterministically: script_ticker scripts via
 `@tr <obj>/on_tick`, wait() chains via engine.tick_waits() after
 zeroing the tempo/delay data attribute, prompt() wizards by invoking
@@ -23,12 +25,15 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+import re
 
 import pytest
 
 import realm.behaviors  # noqa: F401 — registers script_ticker
 from realm.core.economy import get_credits
 from realm.testing import Simulator
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
 # Output that must never appear while running a "Build it" transcript —
 # catches typos, permission problems, and validation failures in any
@@ -42,6 +47,18 @@ BUILD_FAILURE_MARKERS = (
     "Eval error",
     "error",
 )
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text(encoding="utf-8")
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 @pytest.fixture
@@ -113,40 +130,7 @@ def find_one(sim, name):
 # 003. Jukebox — docs/showcase/003_jukebox.md
 # =========================================================================
 
-JUKEBOX_BUILD = [
-    "@create jukebox",
-    "drop jukebox",
-    "@desc jukebox = A chrome-and-neon jukebox from a more optimistic "
-    "century. [[t = V('tracks', []); n = V('spinning', None); "
-    'result = f"The window card reads: '
-    "{t[n]['title'] if n is not None and n < len(t) else 'SILENCE'}"
-    '."]]',
-    '@set jukebox/tracks = [{"title": "Stardust Rag", "lines": '
-    '["the void don\'t care, but baby I do", '
-    '"every orbit brings me back to you"]}, '
-    '{"title": "Vacuum Blues", "lines": '
-    '["got a hull full of nothing and nowhere to be"]}]',
-    "@set jukebox/menu = t = V('tracks', []); result = "
-    "'Pick a track: ' + ' '.join(f\"[{i + 1}] {tr['title']}\" "
-    "for i, tr in enumerate(t)) + ' -- or anything else to walk away.'",
-    "@set jukebox/cmd_play = $play: prompt(enactor, eval_attr(me, "
-    "'menu'), 'on_pick')",
-    "@set jukebox/on_pick = t = V('tracks', []); w = "
-    "trim(arg0); n = int(w) if w.isdigit() else 0; ok = 1 <= n <= "
-    "len(t); (set_attr(me, 'spinning', n - 1), set_attr(me, 'cursor', "
-    "0), remit(here, f\"The jukebox whirs, and the arm drops on "
-    "{t[n - 1]['title']}.\")) if ok else pemit(enactor, 'The jukebox "
-    "clunks and returns your choice unplayed.')",
-    "@behavior jukebox = script_ticker, interval:4",
-    "@set jukebox/on_tick = n = V('spinning', None); t = "
-    "V('tracks', []); i = V('cursor', 0); lines = "
-    "t[n]['lines'] if n is not None and n < len(t) else []; "
-    "(remit(here, f'~ {lines[i]} ~'), incr('cursor')) "
-    "if n is not None and i < len(lines) else None; "
-    "(del_attr(me, 'spinning'), remit(here, 'The record hisses into "
-    "the run-out groove, and the arm lifts.')) if n is not None and "
-    "i >= len(lines) else None",
-]
+JUKEBOX_BUILD = build_lines("003_jukebox.md")
 
 
 class TestJukebox:
@@ -211,50 +195,7 @@ class TestJukebox:
 # 004. ATM / bank terminal — docs/showcase/004_atm_terminal.md
 # =========================================================================
 
-ATM_BUILD_CORE = [
-    "@create BankNet Core",
-    "drop BankNet Core",
-    "@set BankNet Core/net_balance = bank = get('BankNet Core'); "
-    'pemit(enactor, f"BANKNET -- account balance: '
-    "{get_attr(bank, 'acct_' + enactor.id, 0)} credits.\"); "
-    "result = 1",
-    "@set BankNet Core/net_deposit = bank = get('BankNet Core'); "
-    "amt = int(arg0) if arg0.isdigit() else 0; ok = amt > 0 and "
-    "transfer_credits(enactor, bank, amt); k = f'acct_{enactor.id}'; "
-    "bal = get_attr(bank, k, 0) + amt; set_attr(bank, k, bal) if ok "
-    "else None; pemit(enactor, f'Deposit accepted. Balance: "
-    "{bal} credits.' if ok else 'The terminal buzzes: your "
-    "wallet cannot cover that.'); result = 1",
-    "@set BankNet Core/net_withdraw = bank = get('BankNet Core'); "
-    "amt = int(arg0) if arg0.isdigit() else 0; "
-    "k = f'acct_{enactor.id}'; bal = get_attr(bank, k, 0); "
-    "ok = 0 < amt <= bal and "
-    "transfer_credits(bank, enactor, amt); set_attr(bank, k, "
-    "bal - amt) if ok else None; pemit(enactor, f'Notes whir out of "
-    "the slot. Balance: {bal - amt} credits.' if ok else "
-    "'The terminal buzzes: insufficient funds on account.'); result = 1",
-]
-
-ATM_BUILD_TERMINAL = [
-    "@create atm terminal",
-    "drop atm terminal",
-    "@desc atm terminal = A steel kiosk with a scratched screen and a "
-    'cash slot polished by thumbs. [[result = f"The screen glows: ACCT '
-    "{get_attr(get('BankNet Core'), 'acct_' + viewer.id, 0)} CR.\"]]",
-    "@set atm terminal/cmd_atm = $atm: eval_attr(get('BankNet Core'), "
-    "'net_balance')",
-    "@set atm terminal/cmd_deposit = $deposit *: "
-    "eval_attr(get('BankNet Core'), 'net_deposit', trim(arg0))",
-    "@set atm terminal/cmd_withdraw = $withdraw *: "
-    "eval_attr(get('BankNet Core'), 'net_withdraw', trim(arg0))",
-]
-
-ATM_BUILD_BRANCH = [
-    "@dig The Docks Concourse = gangway, plaza",
-    "gangway",
-    "@clone atm terminal",
-    "plaza",
-]
+ATM_BUILD = build_lines("004_atm_terminal.md")
 
 
 def bank_plaza_and_admin(sim):
@@ -270,9 +211,7 @@ class TestAtmTerminal:
 
     async def _built(self, sim):
         plaza, vala = bank_plaza_and_admin(sim)
-        await build(sim, vala, ATM_BUILD_CORE)
-        await build(sim, vala, ATM_BUILD_TERMINAL)
-        await build(sim, vala, ATM_BUILD_BRANCH)
+        await build(sim, vala, ATM_BUILD)
         assert vala.location is plaza
         docks = find_one(sim, "The Docks Concourse")
         return plaza, docks, vala
@@ -333,28 +272,7 @@ class TestAtmTerminal:
 # 006. Flashlight — docs/showcase/006_flashlight.md
 # =========================================================================
 
-FLASHLIGHT_BUILD = [
-    "@create flashlight",
-    "@set flashlight/battery = 3",
-    "@set flashlight/cmd_click = $click: lit = has_tag(me, 'light'); "
-    "b = V('battery', 0); (remove_tag(me, 'light'), "
-    "pemit(enactor, 'Click. The beam dies.')) if lit else "
-    "((add_tag(me, 'light'), pemit(enactor, 'Click. A hard white beam "
-    "snaps on.')) if b > 0 else pemit(enactor, 'Click. Click. Nothing. "
-    "The battery is dead.'))",
-    "@behavior flashlight = script_ticker, interval:10",
-    "@set flashlight/on_tick = lit = has_tag(me, 'light'); b = "
-    "V('battery', 0); left = b - 1 if lit else b; "
-    "decr('battery') if lit else None; remove_tag(me, "
-    "'light') if lit and left <= 0 else None; msg = 'The flashlight "
-    "flickers; its battery is nearly spent.' if lit and left == 1 else "
-    "('The flashlight gutters and dies.' if lit and left <= 0 else "
-    "''); h = loc(me); (pemit(h, msg) if has_tag(h, 'player') else "
-    "remit(h, msg)) if msg and h else None",
-    "@dig The Undercroft = down, up",
-    "down",
-    "@tag here = dark",
-]
+FLASHLIGHT_BUILD = build_lines("006_flashlight.md")
 
 
 class TestFlashlight:
@@ -425,27 +343,7 @@ class TestFlashlight:
 # 007. Voice recorder — docs/showcase/007_voice_recorder.md
 # =========================================================================
 
-RECORDER_BUILD = [
-    "@create voice recorder",
-    "drop voice recorder",
-    "@desc voice recorder = A palm-sized deck of scuffed bakelite with "
-    "one spinning reel. [[n = len(V('transcript', [])); "
-    "result = f'The counter reads {n} line' + ('' if n == 1 "
-    "else 's') + ('; the REC lamp burns red.' if V('recording', 0) "
-    "else '.')]]",
-    "@set voice recorder/cmd_record = $record: (set_attr(me, "
-    "'recording', 1), set_attr(me, 'transcript', []), remit(here, "
-    "'The voice recorder clicks; a red REC lamp lights.'))",
-    "@set voice recorder/listen_all = ^*: set_attr(me, 'transcript', "
-    "(V('transcript', []) + [f'{name(enactor)}: {escape(arg0)}'])"
-    "[-20:]) if V('recording', 0) else None",
-    "@set voice recorder/cmd_stop = $stop: (set_attr(me, 'recording', "
-    "0), remit(here, 'The REC lamp dims.'))",
-    "@set voice recorder/cmd_play = $play: rows = V('transcript', []); "
-    "pemit(enactor, 'The tape is blank.') if not "
-    "rows else remit(here, 'The voice recorder crackles and plays:'); "
-    "[remit(here, '  > ' + r) for r in rows]",
-]
+RECORDER_BUILD = build_lines("007_voice_recorder.md")
 
 
 class TestVoiceRecorder:
@@ -508,24 +406,7 @@ class TestVoiceRecorder:
 # 008. Camera — docs/showcase/008_camera.md
 # =========================================================================
 
-CAMERA_BUILD = [
-    "@desc here = Dust hangs in the light of one caged bulb.",
-    "@create box camera",
-    "@set box camera/cmd_snap = $snap: room = loc(enactor); people = "
-    "[name(o) for o in contents(room) if has_tag(o, 'player') or "
-    "has_tag(o, 'npc')]; props = [name(o) for o in contents(room) if "
-    "not (has_tag(o, 'player') or has_tag(o, 'npc') or has_tag(o, "
-    "'exit'))]; rows = [['', 'A stiff glossy print, edges still warm "
-    "from the developer.'], ['', f'The scene: {name(room)}.']] + "
-    "([['', room.description]] if room.description else []) + "
-    "([['', f\"Pictured: {', '.join(people)}.\"]] if people else []) + "
-    "([['', f\"Scattered about: {', '.join(props)}.\"]] if props "
-    "else []); photo = create_obj(f'a photograph of {name(room)}', "
-    "tags=['thing', 'no_group'], location=enactor); set_attr(photo, "
-    "'desc_extras', rows); set_attr(photo, 'taken_at', now()); "
-    "remit(here, 'FLASH. The box camera whirs and spits out a "
-    "photograph.')",
-]
+CAMERA_BUILD = build_lines("008_camera.md")
 
 
 class TestCamera:
@@ -576,26 +457,7 @@ class TestCamera:
 # 009. Music box — docs/showcase/009_music_box.md
 # =========================================================================
 
-MUSICBOX_BUILD = [
-    "@create music box",
-    "drop music box",
-    "@set music box/tempo = 5",
-    '@set music box/notes = ["a bright, glassy arpeggio", "three '
-    'descending notes, like rain off a roof", "a tiny waltz figure, '
-    'slightly out of tune"]',
-    "@set music box/cmd_wind = $wind music box: t = V('turns', 0); "
-    "(set_attr(me, 'turns', min(t + 3, 9)), pose(f'clicks "
-    "softly as {name(enactor)} winds the brass key.'), "
-    "(wait(V('tempo', 5), 'trigger me/play_note') if t == 0 "
-    "else None))",
-    "@set music box/play_note = t = V('turns', 0); notes = "
-    "V('notes', []); i = V('cursor', 0); "
-    "(pose(f'plays {notes[i % len(notes)]}.'), incr('cursor'), "
-    "decr('turns'), "
-    "(wait(V('tempo', 5), 'trigger me/play_note') if "
-    "t - 1 > 0 else pose('slows... and stops with a final, drooping "
-    "plink.'))) if t > 0 and notes else None",
-]
+MUSICBOX_BUILD = build_lines("009_music_box.md")
 
 
 class TestMusicBox:
@@ -662,52 +524,7 @@ class TestMusicBox:
 # 010. Typewriter & paper — docs/showcase/010_typewriter.md
 # =========================================================================
 
-TYPEWRITER_BUILD = [
-    "@create brass typewriter",
-    "drop brass typewriter",
-    "@set brass typewriter/cmd_type = $type *: title = trim(arg0); "
-    "busy = V('sheet', ''); (pemit(enactor, 'A sheet is "
-    "already in the roller; you pick up where the last typist left "
-    "off.'), prompt(enactor, 'Next line (PAGE / DONE):', 'on_line')) "
-    "if busy else None; pemit(enactor, 'Give the sheet a title: type "
-    "<title>.') if not title and not busy else None; s = "
-    "create_obj(f'a typed sheet: {title}', tags=['thing', 'document'], "
-    "location=enactor) if title and not busy else None; (set_attr(s, "
-    "'title', title), set_attr(s, 'pages', 1), set_attr(me, 'sheet', "
-    "s.id), remit(here, f'{name(enactor)} feeds a fresh sheet into "
-    "the brass typewriter.'), prompt(enactor, 'The keys wait. Type a "
-    "line (PAGE starts a new page; DONE pulls the sheet):', "
-    "'on_line')) if s else None",
-    '@set brass typewriter/on_line = s = get(f"#{V(\'sheet\', \'\')}"); '
-    "w = trim(arg0); n = get_attr(s, 'pages', 1) if s "
-    "else 0; (set_attr(me, 'sheet', ''), pemit(enactor, 'The platen "
-    "ratchets back and you pull the finished sheet free.')) if not s "
-    "or w == 'DONE' else ((set_attr(s, 'pages', n + 1), "
-    "prompt(enactor, f'A fresh page rolls in. [page {n + 1}] "
-    "Next line (PAGE / DONE):', 'on_line')) if w == 'PAGE' else "
-    "(set_attr(s, f'page_{n}', get_attr(s, f'page_{n}', []) "
-    "+ [escape(arg0)]), prompt(enactor, f'[page {n}] Next "
-    "line (PAGE / DONE):', 'on_line')))",
-    "@set brass typewriter/cmd_peruse = $peruse *: s = "
-    "get(trim(arg0)); ok = s is not None and has_tag(s, 'document'); "
-    "pemit(enactor, 'There is no document by that name here.') if not "
-    "ok else pemit(enactor, 'The type reads, page by page:'); "
-    "[pemit(enactor, line) for g in [ok] if g for p in range(1, "
-    "get_attr(s, 'pages', 1) + 1) for line in [f'--- page {p} ---'] "
-    "+ [str(x) for x in get_attr(s, f'page_{p}', [])]]",
-    "@set brass typewriter/cmd_sign = $sign *: s = get(trim(arg0)); "
-    "ok = s is not None and has_tag(s, 'document') and loc(s) is "
-    "enactor; already = str(get_attr(s, 'signed_by', '')) if ok else "
-    "''; pemit(enactor, 'Hold the document you mean to sign.') if not "
-    "ok else None; pemit(enactor, f'It already bears a signature: "
-    "{already}.') if ok and already else None; "
-    "k = f\"page_{get_attr(s, 'pages', 1)}\" if ok else ''; "
-    "(set_attr(s, k, "
-    "get_attr(s, k, []) + [f'Signed in a firm hand: "
-    "{name(enactor)}']), set_attr(s, 'signed_by', name(enactor)), "
-    "remit(here, f'{name(enactor)} signs {name(s)} with a "
-    "flourish.')) if ok and not already else None",
-]
+TYPEWRITER_BUILD = build_lines("010_typewriter.md")
 
 
 class TestTypewriter:
@@ -789,23 +606,7 @@ class TestTypewriter:
 # 011. Mirror — docs/showcase/011_mirror.md
 # =========================================================================
 
-MIRROR_BUILD = [
-    "@create tall mirror",
-    "drop tall mirror",
-    "@desc tall mirror = A tall oval of old glass in a tarnished brass "
-    'frame; whatever stands before it, it returns. [[result = f"In the '
-    "glass: {name(viewer)} -- {viewer.description or 'a "
-    "face the silver cannot quite fix.'}\"]] [[worn = [name(o) for o in "
-    "contents(viewer) if has_tag(o, 'worn')]; "
-    "result = f\"Worn: {', '.join(worn)}.\" if worn else '']]",
-    "@set tall mirror/on_look = oemit(enactor, "
-    "f'{name(enactor)} pauses to study the tall mirror.')",
-]
-
-MIRROR_PROPS = [
-    "@create woolen scarf",
-    "@tag woolen scarf = wearable",
-]
+MIRROR_BUILD = build_lines("011_mirror.md")
 
 
 class TestMirror:
@@ -814,7 +615,6 @@ class TestMirror:
         room, bilda = workshop_and_builder(sim)
         kess = sim.player("Kess", location=room)
         await build(sim, bilda, MIRROR_BUILD)
-        await build(sim, bilda, MIRROR_PROPS)
 
         await do(sim, bilda, "@desc me = Tall, wiry, one chipped tooth.")
         out = await do(sim, bilda, "look tall mirror")
@@ -848,37 +648,7 @@ class TestMirror:
 # 012. Gift box — docs/showcase/012_gift_box.md
 # =========================================================================
 
-GIFTBOX_BUILD = [
-    "@create gift box",
-    "@set gift box/container = true",
-    "drop gift box",
-    "@desc gift box = A crisp white box under a red ribbon. "
-    "[[to = V('for_name', ''); "
-    'result = f"The tag reads: for {to}, from '
-    "{V('from_name', 'a secret admirer')}.\" "
-    "if to else 'The ribbon hangs loose; the tag is blank.']]",
-    "@create silver locket",
-    "put silver locket in gift box",
-    "close gift box",
-    "@set gift box/cmd_address = $address * to *: who = "
-    "get(trim(arg1)); ok = who is not None and has_tag(who, "
-    "'player'); (set_attr(me, 'for_id', who.id), set_attr(me, "
-    "'for_name', name(who)), set_attr(me, 'from_name', "
-    "name(enactor)), remit(here, f'{name(enactor)} ties the ribbon "
-    "tight and pens a name on the tag.')) if ok else pemit(enactor, "
-    "'You find no one by that name to address it to.')",
-    "@set gift box/on_check = mine = atype == 'item:on_open' and "
-    "target is me; to = V('for_id', ''); block(f\"The ribbon "
-    "is charmed shut. The tag reads: for {V('for_name', '')} only.\") "
-    "if mine and to and actor.id != to else None",
-    "@set gift box/on_open = to = V('for_id', ''); inside "
-    "= ', '.join(name(o) for o in contents(me)); (oemit(enactor, f'The "
-    "ribbon leaps free as {name(enactor)} opens the gift "
-    "box!'), pemit(enactor, f\"The ribbon leaps free! Inside: {inside} "
-    "-- with love from {V('from_name', 'a secret admirer')}.\"), "
-    "del_attr(me, 'for_id'), del_attr(me, "
-    "'for_name'), del_attr(me, 'from_name')) if to else None",
-]
+GIFTBOX_BUILD = build_lines("012_gift_box.md")
 
 
 class TestGiftBox:
@@ -940,33 +710,7 @@ class TestGiftBox:
 # 013. Fortune teller booth — docs/showcase/013_fortune_teller.md
 # =========================================================================
 
-FORTUNE_BUILD = [
-    "@create Zoltar",
-    "drop Zoltar",
-    "@desc Zoltar = A glass cabinet housing a turbaned automaton, its "
-    'waxen hand hovering over a deck of cards. [[result = f"The brass '
-    "counter reads {V('told', 0)} fortunes told.\"]]",
-    "@set Zoltar/cost = 5",
-    '@set Zoltar/fortunes = ["You will take a journey your boots '
-    'already suspect.", "Beware a door that is polite to you.", '
-    '"Money finds you when you stop watching for it.", "An old debt '
-    'returns wearing a new face."]',
-    "@set Zoltar/on_payment = cost = V('cost', 5); paid = "
-    "credits(me) - V('ledger', 0); f = V('fortunes', []); "
-    "ok = paid >= cost and bool(f); "
-    "(transfer_credits(me, enactor, paid - cost), incr('told'), "
-    "remit(here, \"Zoltar's "
-    "eyes flare. Gears grind behind the glass, and a stiff card drops "
-    "into the brass tray.\"), [(set_attr(c, 'desc_extras', [['', "
-    "'ZOLTAR SPEAKS:'], ['', chr(34) + f[rand(0, len(f) - 1)] + "
-    "chr(34)], ['', f'Lucky numbers: {rand(1, 99)} and "
-    "{rand(1, 99)}.']]), pemit(enactor, 'You lift the fortune "
-    "card from the tray.')) for c in [create_obj('a printed fortune "
-    "card', tags=['thing', 'no_group'], location=enactor)]]) if ok "
-    "else (transfer_credits(me, enactor, paid), pemit(enactor, f'A "
-    "fortune costs {cost} credits. The coins clatter "
-    "back.')); set_attr(me, 'ledger', credits(me))",
-]
+FORTUNE_BUILD = build_lines("013_fortune_teller.md")
 
 
 class TestFortuneTeller:
@@ -1018,34 +762,3 @@ class TestFortuneTeller:
         # Each card is its own object with its own fortune.
         cards = sim.store.find_cached(name="a printed fortune card")
         assert len(cards) == 2
-
-
-# =========================================================================
-# Docs <-> tests sync — the transcripts above must match the tutorials
-# =========================================================================
-
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
-
-DOC_TRANSCRIPTS = {
-    "003_jukebox.md": JUKEBOX_BUILD,
-    "004_atm_terminal.md": ATM_BUILD_CORE + ATM_BUILD_TERMINAL
-    + ATM_BUILD_BRANCH,
-    "006_flashlight.md": FLASHLIGHT_BUILD,
-    "007_voice_recorder.md": RECORDER_BUILD,
-    "008_camera.md": CAMERA_BUILD,
-    "009_music_box.md": MUSICBOX_BUILD,
-    "010_typewriter.md": TYPEWRITER_BUILD,
-    "011_mirror.md": MIRROR_BUILD + MIRROR_PROPS,
-    "012_gift_box.md": GIFTBOX_BUILD,
-    "013_fortune_teller.md": FORTUNE_BUILD,
-}
-
-
-def test_tutorial_docs_contain_the_exact_tested_command_lines():
-    """Every Build-it line exercised above appears verbatim in its doc,
-    so the tutorials can never drift from what the tests prove works."""
-    for doc_name, lines in DOC_TRANSCRIPTS.items():
-        text = (DOCS / doc_name).read_text(encoding="utf-8")
-        for line in lines:
-            assert line in text, (
-                f"{doc_name} is missing a tested tutorial line:\n{line}")

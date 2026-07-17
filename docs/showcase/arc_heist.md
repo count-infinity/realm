@@ -100,9 +100,12 @@ cd ~/realm && source venv/bin/activate
 pytest tests/showcase/test_heist.py
 ```
 
-`tests/showcase/test_heist.py` drives every Build-it line of all six
-tutorials through the real dispatcher as a builder player, then plays
-each Try-it flow (16 tests). Dice are removed via the pluggable check
+`tests/showcase/test_heist.py` reads every Build-it line of all six
+tutorials **out of these markdown files** and drives it through the
+real dispatcher as a builder player, then plays each Try-it flow
+(16 tests). Nothing is transcribed into the test, so a build that stops
+working here is a build that stopped working in the tutorial — the two
+cannot drift. Dice are removed via the pluggable check
 resolver — a check succeeds iff effective skill >= 10 — the same
 convention as `tests/test_infiltration.py`, so contests go to the higher
 skill, deterministically.

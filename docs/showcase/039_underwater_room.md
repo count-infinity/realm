@@ -26,6 +26,13 @@ Five design decisions, each an engine seam:
    (only admin-owned masters get sheet-writing power), but it can
    remember anything it likes about them on itself. `on_leave` deletes
    the key, so surfacing resets you and the room never hoards state.
+   Deleting the key is also what makes the meter's *unset* value
+   load-bearing: a diver with no `breath_<id>` has full lungs, not
+   empty ones. `decr(k, default=V('breath_max', 3))` says exactly that —
+   an unset meter counts as `breath_max`, and the first failed roll
+   takes it to 2. The default is an ordinary argument, so it can be a
+   *lookup* rather than a literal: retune `breath_max` on the room and
+   every meter's starting point moves with it.
 
 3. **Swimming is data.** GURPS swims on HT; REALM's skill table extends
    from inside the game: a `skill_def` object named `swimming` with
@@ -77,7 +84,7 @@ and you spend nothing; fail and your meter drops; at zero the water
 comes in — 1d6 per failed tick:
 
 ```text
-@set here/soak = o = get('#' + arg0); k = 'breath_' + o.id; pemit(o, 'You pace your strokes and hold what air you have.') if skill_check(o, 'swimming') else (set_attr(me, k, V(k, V('breath_max', 3)) - 1), pemit(o, 'Your chest heaves. You are running out of air!') if V(k, 0) > 0 else (damage(o, roll('1d6')), pemit(o, 'Water forces its way in. You are drowning!')))
+@set here/soak = o = get('#' + arg0); k = 'breath_' + o.id; pemit(o, 'You pace your strokes and hold what air you have.') if skill_check(o, 'swimming') else (decr(k, default=V('breath_max', 3)), pemit(o, 'Your chest heaves. You are running out of air!') if V(k, 0) > 0 else (damage(o, roll('1d6')), pemit(o, 'Water forces its way in. You are drowning!')))
 @set here/on_tick = [eval_attr(me, 'soak', o.id) for o in contents(me) if has_tag(o, 'player')]
 @behavior here = script_ticker, interval:1
 surface

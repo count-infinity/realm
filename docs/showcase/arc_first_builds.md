@@ -10,8 +10,10 @@ every later tutorial in the showcase reuses without re-explaining.
 
 Work through them in order, standing in any room you may build in
 (a fresh `@dig The Workshop` works fine). Every command line in every
-tutorial is exercised verbatim against a live in-process world by
-`tests/showcase/test_first_builds.py`.
+tutorial is exercised against a live in-process world by
+`tests/showcase/test_first_builds.py` — which reads those lines
+*straight out of these markdown files*, so what the tests prove and
+what you are told to type cannot drift apart.
 
 ## The learning path
 
@@ -26,10 +28,12 @@ an attribute, script reading it).
 **2. [Slot machine](001_slot_machine.md)** *(checklist 1)* — money.
 Scripts can spend their object's credits but never a player's, so the
 wager arrives by consent via the built-in `pay` and the machine's
-`ON_PAYMENT` hook — introducing the **ledger idiom** for reading the
-paid amount, `transfer_credits()` payouts, a `rand()`+`switch()`
-weighted payout table, and the house-edge arithmetic that makes the
-machine a currency sink. Also the actor/room messaging etiquette
+`ON_PAYMENT` hook — introducing the **event namespace** every
+`ON_<EVENT>` script gets (`adata('amount')` for the sum paid, plus
+`atype`/`target`/`actor`), `transfer_credits()` payouts, a
+`rand()`+`switch()` weighted payout table, and the house-edge
+arithmetic that makes the machine a currency sink. Also the actor/room
+messaging etiquette
 (`pemit` you, `oemit` everyone else) and a living `[[...]]`
 description that reads the hopper.
 
@@ -70,11 +74,13 @@ The pattern reuses everywhere two objects must share state.
 - Scripts as one-line sandboxed Python: `;` statements, conditional
   expressions, comprehensions, `me`/`enactor`/`here`, `arg0` captures
 - The economy contract: `pay` + `ON_PAYMENT` in, `transfer_credits()`
-  out, the ledger idiom for amounts, and house-edge arithmetic
+  out, `adata('amount')` for the sum, and house-edge arithmetic
 - Prototype-attributes + `create_obj()` — data that becomes objects
 - `[[...]]` living descriptions, `pemit`/`oemit`/`remit` audiences
 - `ON_<EVENT>` reactions vs. `on_check` wards — after-the-fact
-  narration vs. before-the-fact veto with `block()`
+  narration vs. before-the-fact veto with `block()`; both read the same
+  event namespace (`atype`/`target`/`actor`/`adata`), and `block()` is
+  what only the ward gets
 - Door and container state conventions (`closed`, `locked`, `key_id`,
   `unlocks`, `container`, summed `weight`), and the mirror pattern for
   shared state

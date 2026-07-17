@@ -10,8 +10,10 @@ in-process world — realm.testing.Simulator wires the same store/
 propagation/scripting/dispatcher stack a live GameServer does — with
 the tutorials' EXACT command lines (raw input in, session output out).
 
-The build transcripts below are copied verbatim from the docs' "Build
-it" sections; a sync test at the bottom keeps them from drifting.
+Every build transcript is read straight out of its markdown's "Build
+it" section and driven through the real dispatcher, so a doc edit that
+breaks the build breaks this suite — drift is impossible rather than
+merely detectable.
 
 Determinism:
 - rand() is pinned by patching random.randint (loot crate), the same
@@ -27,6 +29,7 @@ Determinism:
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 
@@ -35,6 +38,8 @@ import pytest
 from realm.core.checks import CheckResult, set_check_resolver, skill_level
 from realm.core.events import reap_expired
 from realm.testing import Simulator
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
 # Output that must never appear while running a "Build it" transcript —
 # catches typos, permission problems, and validation failures in any
@@ -55,6 +60,18 @@ def level_resolver(obj, skill, modifier):
     effective = skill_level(obj, skill) + modifier
     return CheckResult(success=effective >= 10, margin=effective - 10,
                        roll=10, effective=effective, skill=skill)
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text(encoding="utf-8")
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 @pytest.fixture
@@ -126,24 +143,7 @@ def ticker(obj):
 # 015. Locked chest & key — docs/showcase/015_locked_chest.md
 # =========================================================================
 
-CHEST_BUILD = [
-    "@create sea chest",
-    "@set sea chest/container = true",
-    "drop sea chest",
-    "@create string of pearls",
-    "put string of pearls in sea chest",
-    "close sea chest",
-    "@set sea chest/key_id = chest_silver",
-    "@set sea chest/locked_msg = The hasp holds fast. A silver keyhole "
-    "winks at you.",
-    "@set sea chest/lock_skill = lockpicking",
-    "@set sea chest/lock_difficulty = 2",
-    "@set sea chest/on_unlock = remit(loc(me), 'The lock springs with a "
-    "bright click.')",
-    "@create silver key",
-    "@set silver key/unlocks = chest_silver",
-    "lock sea chest",
-]
+CHEST_BUILD = build_lines("015_locked_chest.md")
 
 
 class TestLockedChest:
@@ -218,42 +218,7 @@ class TestLockedChest:
 # 017. Bag of holding — docs/showcase/017_bag_of_holding.md
 # =========================================================================
 
-BAG_BUILD = [
-    "@create cargo scale",
-    "drop cargo scale",
-    "@desc cargo scale = A freight scale with a brass needle the size of "
-    "a sword blade.",
-    "@set cargo scale/cmd_weigh = $weigh *: w = lambda w, o: "
-    "get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else "
-    "get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); "
-    "it = get(trim(arg0)); pemit(enactor, f'The needle settles at "
-    "{w(w, it)} lbs.') if it else pemit(enactor, 'Nothing by "
-    "that name to weigh.')",
-    "@create porter's satchel",
-    "@set porter's satchel/container = true",
-    "drop porter's satchel",
-    "@set porter's satchel/weight_limit = 10",
-    "@set porter's satchel/on_check = mine = atype == 'item:on_put' and "
-    "target is me; w = lambda w, o: get_attr(o, 'carry_weight') if "
-    "has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + "
-    "sum([w(w, c) for c in contents(o)]); adding = w(w, adata('item')) "
-    "if mine else 0; load = w(w, me) if mine else 0; "
-    "limit = V('weight_limit', 10); block(f'At {adding} "
-    "lbs that would overload the {name(me)} ({load} "
-    "of {limit} lbs used).') if mine and load + adding > "
-    "limit else None",
-    "@create iron anvil",
-    "@set iron anvil/weight = 12",
-    "@create canvas duffel",
-    "@set canvas duffel/container = true",
-    "@create bag of holding",
-    "@set bag of holding/container = true",
-    "@set bag of holding/carry_weight = 2",
-    "@desc bag of holding = Plain oiled leather, far too light in the "
-    "hand. [[n = len(contents(me)); result = 'It holds ' + str(n) + "
-    "' item' + ('' if n == 1 else 's') + ' and hangs like an empty "
-    "purse regardless.']]",
-]
+BAG_BUILD = build_lines("017_bag_of_holding.md")
 
 
 class TestBagOfHolding:
@@ -312,37 +277,7 @@ class TestBagOfHolding:
 # 018. Refrigerator — docs/showcase/018_refrigerator.md
 # =========================================================================
 
-PEACH_TICK = (
-    "f = V('freshness', 6) - get_attr(loc(me), 'decay_rate', 1); "
-    "set_attr(me, 'freshness', f); (remit(here, f'The {name(me)} "
-    "collapses into a slick of brown mush.'), create_obj('a slick of "
-    "brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None"
-)
-
-FRIDGE_BUILD = [
-    "@create icebox",
-    "@set icebox/container = true",
-    "drop icebox",
-    "@set icebox/decay_rate = 0.25",
-    "@desc icebox = An enameled chest humming to itself. Frost feathers "
-    "the seams.",
-    "@create ripe peach",
-    "@set ripe peach/freshness = 6",
-    "@desc ripe peach = [[f = V('freshness', 6); result = "
-    "'Bursting with juice.' if f > 4 else ('Going soft and winey.' "
-    "if f > 0 else 'Compost.')]]",
-    "@set ripe peach/on_tick = " + PEACH_TICK,
-    "@behavior ripe peach = script_ticker, interval:1",
-    "@create twin peach",
-    "@set twin peach/freshness = 6",
-    "@desc twin peach = [[f = V('freshness', 6); result = "
-    "'Bursting with juice.' if f > 4 else ('Going soft and winey.' "
-    "if f > 0 else 'Compost.')]]",
-    "@set twin peach/on_tick = " + PEACH_TICK,
-    "@behavior twin peach = script_ticker, interval:1",
-    "drop ripe peach",
-    "put twin peach in icebox",
-]
+FRIDGE_BUILD = build_lines("018_refrigerator.md")
 
 
 class TestRefrigerator:
@@ -401,29 +336,7 @@ class TestRefrigerator:
 # 019. Trash bin / incinerator — docs/showcase/019_trash_incinerator.md
 # =========================================================================
 
-BIN_BUILD = [
-    "@create rubbish bin",
-    "@set rubbish bin/container = true",
-    "drop rubbish bin",
-    "@desc rubbish bin = A dented municipal bin. Stenciled on the lid: "
-    "CONTENTS INCINERATED WITHOUT NOTICE.",
-    "@set rubbish bin/grace = 60",
-    '@set rubbish bin/on_put = pemit(enactor, f"It lands with a clang. '
-    "You have {V('grace', 60)} seconds to change "
-    "your mind: rummage <item>.\"); wait(0, 'trigger me/do_sweep')",
-    "@set rubbish bin/do_sweep = [expire(o, V('grace', 60)) "
-    "for o in contents(me) if not has_attr(o, 'expires_at')]",
-    "@set rubbish bin/cmd_rummage = $rummage *: found = [o for o in "
-    "contents(me) if trim(arg0).lower() in name(o).lower()]; it = "
-    "found[0] if found else None; (del_attr(it, 'expires_at'), "
-    "teleport_obj(it, enactor), pemit(enactor, f'You fish the "
-    "{name(it)} back out. Reprieved.')) if it else pemit(enactor, "
-    "'You paw through the muck and come up empty.')",
-    "@set rubbish bin/on_expire = remit(loc(me), 'The bin belches a "
-    "gout of flame. Something is gone for good.')",
-    "@create banana peel",
-    "@create broken hourglass",
-]
+BIN_BUILD = build_lines("019_trash_incinerator.md")
 
 
 class TestTrashIncinerator:
@@ -487,36 +400,7 @@ class TestTrashIncinerator:
 # 020. Bookshelf — docs/showcase/020_bookshelf.md
 # =========================================================================
 
-SHELF_BUILD = [
-    "@create walnut bookshelf",
-    "@set walnut bookshelf/container = true",
-    "drop walnut bookshelf",
-    "@desc walnut bookshelf = A tall walnut case, shelves bowed under "
-    "years of paper. [[n = len([o for o in contents(me) if has_tag(o, "
-    "'book')]); result = f'{n} volume' + ('' if n == 1 else 's') + "
-    "' stand in a ragged row. A card taped to the shelf reads: "
-    "BROWSE.']]",
-    "@set walnut bookshelf/cmd_browse = $browse: books = sorted([o for "
-    "o in contents(me) if has_tag(o, 'book')], key=lambda o: "
-    "str(get_attr(o, 'title', name(o))).lower()); pemit(enactor, "
-    "'Spines on the shelf:' if books else 'The shelf holds nothing "
-    "readable.'); [pemit(enactor, f\"  {i + 1}. "
-    "{get_attr(o, 'title', name(o))}\") for i, o in enumerate(books)]",
-    "@create dog-eared novel",
-    "@tag dog-eared novel = book",
-    "@set dog-eared novel/title = The Gullwater Wreck",
-    "put dog-eared novel in walnut bookshelf",
-    "@create thick cookbook",
-    "@tag thick cookbook = book",
-    "@set thick cookbook/title = Ninety Soups",
-    "put thick cookbook in walnut bookshelf",
-    "@create ships atlas",
-    "@tag ships atlas = book",
-    "@set ships atlas/title = An Atlas of Drowned Coasts",
-    "put ships atlas in walnut bookshelf",
-    "@create lost mitten",
-    "put lost mitten in walnut bookshelf",
-]
+SHELF_BUILD = build_lines("020_bookshelf.md")
 
 
 class TestBookshelf:
@@ -555,25 +439,7 @@ class TestBookshelf:
 # 021. Ammo pouch — docs/showcase/021_ammo_pouch.md
 # =========================================================================
 
-POUCH_BUILD = [
-    "@create ammo pouch",
-    "@set ammo pouch/container = true",
-    "drop ammo pouch",
-    "@desc ammo pouch = Stiff leather, the loops and slots inside sized "
-    "exactly for charge cells.",
-    "@set ammo pouch/on_check = mine = atype == 'item:on_put' and "
-    "target is me; item = adata('item'); block(f'The loops inside the "
-    "{name(me)} fit ammunition and nothing else - the "
-    "{name(item)} stays out.') if mine and not has_tag(item, 'ammo') "
-    "else None",
-    "@set ammo pouch/on_put = pemit(enactor, f'Slotted. The {name(me)} "
-    "now carries {len(contents(me)) + 1} rounds.')",
-    "@create charge cell",
-    "@tag charge cell = ammo",
-    "@create spare charge cell",
-    "@tag spare charge cell = ammo",
-    "@create dried fig",
-]
+POUCH_BUILD = build_lines("021_ammo_pouch.md")
 
 
 class TestAmmoPouch:
@@ -605,38 +471,7 @@ class TestAmmoPouch:
 # 022. Coat check — docs/showcase/022_coat_check.md
 # =========================================================================
 
-COAT_BUILD = [
-    "@create Coat-Check Golem",
-    "@tag Coat-Check Golem = npc",
-    "drop Coat-Check Golem",
-    "@desc Coat-Check Golem = Brass and patience. A rack of numbered "
-    "hooks glitters behind it.",
-    "@set Coat-Check Golem/on_receive = tk = [o for o in contents(me) "
-    "if has_tag(o, 'claim_ticket')]; new = [o for o in contents(me) if "
-    "not has_tag(o, 'claim_ticket') and not has_attr(o, 'checked')]; "
-    "it = new[0] if new else None; n = V('counter', 0) + 1 "
-    "if it else 0; t = create_obj(f'claim ticket {n}', "
-    "['claim_ticket'], me) if it else None; (teleport_obj(tk[0], "
-    'enactor), pemit(enactor, f"The golem taps the ticket and hands it '
-    "back: just say claim {get_attr(tk[0], 'claim_no')}.\")) "
-    "if tk else None; (set_attr(me, 'counter', n), set_attr(it, "
-    "'checked', n), set_attr(me, f'held_{n}', '#' + it.id), "
-    "set_attr(t, 'claim_no', n), teleport_obj(t, enactor), "
-    "pemit(enactor, f'The golem stows your {name(it)} on hook "
-    "{n} and punches ticket {n}.')) if it else None",
-    "@set Coat-Check Golem/cmd_claim = $claim *: tick = [o for o in "
-    "contents(enactor) if has_tag(o, 'claim_ticket') and "
-    "str(get_attr(o, 'claim_no')) == trim(arg0)]; "
-    "held = V('held_' + trim(arg0)); it = get(held) if held else None; "
-    "(teleport_obj(it, enactor), del_attr(it, 'checked'), del_attr(me, "
-    "'held_' + trim(arg0)), destroy_obj(tick[0]), pemit(enactor, f'The "
-    "golem lifts your {name(it)} off hook {trim(arg0)} and "
-    "retires the ticket.')) if tick and it else pemit(enactor, 'The "
-    "golem shows you two empty brass palms: no matching ticket in your "
-    "hand.' if not tick else f'The golem stares at hook {trim(arg0)}"
-    ", which is bare. Curious.')",
-    "@create wool greatcoat",
-]
+COAT_BUILD = build_lines("022_coat_check.md")
 
 
 class TestCoatCheck:
@@ -712,31 +547,7 @@ class TestCoatCheck:
 # 023. Conveyor belt — docs/showcase/023_conveyor_belt.md
 # =========================================================================
 
-BELT_TICK = (
-    "n = len(contents(me)); [teleport_obj(o, V('next_stop')) "
-    "for o in contents(me)]; remit(loc(me), 'The belt clatters; the "
-    "cargo slides out of sight.') if n else None"
-)
-
-BELT_BUILD = [
-    "@create belt alpha",
-    "@set belt alpha/container = true",
-    "drop belt alpha",
-    "@set belt alpha/on_tick = " + BELT_TICK,
-    "@behavior belt alpha = script_ticker, interval:1",
-    "@dig Packing Floor = downline, upline",
-    "downline",
-    "@create belt beta",
-    "@set belt beta/container = true",
-    "drop belt beta",
-    "@set belt beta/on_tick = " + BELT_TICK,
-    "@behavior belt beta = script_ticker, interval:1",
-    "@dig Loading Dock = downline, upline",
-    "@eval a = get('belt alpha'); b = get('belt beta'); set_attr(a, "
-    "'next_stop', '#' + b.id); set_attr(b, 'next_stop', '#' + "
-    "get('Loading Dock').id); result = 'belt line wired'",
-    "upline",
-]
+BELT_BUILD = build_lines("023_conveyor_belt.md")
 
 
 class TestConveyorBelt:
@@ -804,23 +615,7 @@ class TestConveyorBelt:
 # 024. Loot crate — docs/showcase/024_loot_crate.md
 # =========================================================================
 
-CRATE_BUILD = [
-    "@create supply crate",
-    "@set supply crate/container = true",
-    "drop supply crate",
-    "@desc supply crate = A scuffed drop-crate. Stenciled across the "
-    "lid: CONTENTS RANDOMIZED AT DEPOT.",
-    "close supply crate",
-    '@set supply crate/loot = [["a rusty gear", 60], '
-    '["a sealed med kit", 30], ["a plasma core", 10]]',
-    "@set supply crate/on_open = draw = lambda draw, t, r: t[0][0] if "
-    "r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); "
-    "(set_attr(me, 'seeded', 1), create_obj(draw(draw, V('loot'), "
-    "rand(1, 100)), [], me), create_obj(draw(draw, "
-    "V('loot'), rand(1, 100)), [], me), remit(loc(me), "
-    "'Something rattles and settles inside the crate as the seal "
-    "breaks.')) if not V('seeded', 0) else None",
-]
+CRATE_BUILD = build_lines("024_loot_crate.md")
 
 # The documented odds: name -> weight, summing to 100.
 CRATE_TABLE = {"a rusty gear": 60, "a sealed med kit": 30,
@@ -867,32 +662,3 @@ class TestLootCrate:
         out = await do(sim, bilda, "open supply crate")
         assert not any("rattles and settles" in line for line in out)
         assert [o.name for o in crate.contents] == ["a sealed med kit"]
-
-
-# =========================================================================
-# Docs <-> tests sync — the transcripts above must match the tutorials
-# =========================================================================
-
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
-
-DOC_TRANSCRIPTS = {
-    "015_locked_chest.md": CHEST_BUILD,
-    "017_bag_of_holding.md": BAG_BUILD,
-    "018_refrigerator.md": FRIDGE_BUILD,
-    "019_trash_incinerator.md": BIN_BUILD,
-    "020_bookshelf.md": SHELF_BUILD,
-    "021_ammo_pouch.md": POUCH_BUILD,
-    "022_coat_check.md": COAT_BUILD,
-    "023_conveyor_belt.md": BELT_BUILD,
-    "024_loot_crate.md": CRATE_BUILD,
-}
-
-
-def test_tutorial_docs_contain_the_exact_tested_command_lines():
-    """Every Build-it line exercised above appears verbatim in its doc,
-    so the tutorials can never drift from what the tests prove works."""
-    for doc_name, lines in DOC_TRANSCRIPTS.items():
-        text = (DOCS / doc_name).read_text(encoding="utf-8")
-        for line in lines:
-            assert line in text, (
-                f"{doc_name} is missing a tested tutorial line:\n{line}")

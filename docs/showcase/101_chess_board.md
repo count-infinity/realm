@@ -68,7 +68,7 @@ The parsing and legality helpers:
 
 ```text
 @set a chessboard/sq = f = member(arg0[0], 'a b c d e f g h'); r = int(arg0[1]) if arg0[1].isdigit() else 0; result = [8 - r, f - 1] if f and 1 <= r <= 8 else None
-@set a chessboard/legal = b = V('state', []); p = arg0; fr = int(arg1); fc = int(arg2); tr = int(arg3); tc = int(arg4); dr = tr - fr; dc = tc - fc; k = p.lower(); fwd = -1 if p.isupper() else 1; start = 6 if p.isupper() else 1; tgt = b[tr][tc]; steps = max(abs(dr), abs(dc)); sr = (dr > 0) - (dr < 0); sc = (dc > 0) - (dc < 0); clear = all([b[fr + sr * i][fc + sc * i] == '.' for i in range(1, steps)]); result = (dc == 0 and tgt == '.' and (dr == fwd or (fr == start and dr == 2 * fwd and clear)) or (abs(dc) == 1 and dr == fwd and tgt != '.')) if k == 'p' else ((dr == 0 or dc == 0) and clear if k == 'r' else (abs(dr) == abs(dc) and clear if k == 'b' else ((dr == 0 or dc == 0 or abs(dr) == abs(dc)) and clear if k == 'q' else (steps == 1 if k == 'k' else sorted([abs(dr), abs(dc)]) == [1, 2]))))
+@set a chessboard/legal = b = V('state', []); p = arg0; fr = int(arg1); fc = int(arg2); tr = int(arg3); tc = int(arg4); dr = tr - fr; dc = tc - fc; k = p.lower(); fwd = -1 if p.isupper() else 1; start = 6 if p.isupper() else 1; tgt = b[tr][tc]; steps = max(abs(dr), abs(dc)); sr = (dr > 0) - (dr < 0); sc = (dc > 0) - (dc < 0); clear = all(b[fr + sr * i][fc + sc * i] == '.' for i in range(1, steps)); result = (dc == 0 and tgt == '.' and (dr == fwd or (fr == start and dr == 2 * fwd and clear)) or (abs(dc) == 1 and dr == fwd and tgt != '.')) if k == 'p' else ((dr == 0 or dc == 0) and clear if k == 'r' else (abs(dr) == abs(dc) and clear if k == 'b' else ((dr == 0 or dc == 0 or abs(dr) == abs(dc)) and clear if k == 'q' else (steps == 1 if k == 'k' else sorted([abs(dr), abs(dc)]) == [1, 2]))))
 ```
 
 The move — seat, turn, ownership, target, geometry, then the pure
@@ -114,10 +114,13 @@ works from the opening.
 - **Clocks:** stamp `now()` each move and a `script_ticker` that
   forfeits the seat whose total exceeds ten minutes.
 
-**~~Engine gaps~~ — FIXED 2026-07-17.** The path-clearance check is written
-`all([... for i in range(1, steps)])`, a *list* comprehension, rather than
-the tidier generator `all(... for i in range(1, steps))`. That was forced:
-the sandbox used to exec scripts with separate `globals`/`locals` dicts, so
-generator expressions and `lambda`s `NameError`ed on locals like `b`, `fr`,
-`sc`. Scripts now share one namespace and the bare generator works. The
-`[...]` form is left as written and remains correct (see item 100).
+**~~Engine gaps~~ — FIXED 2026-07-17.** The path-clearance check used to be
+written `all([... for i in range(1, steps)])`, a *list* comprehension,
+rather than the tidier generator now above. That was forced: the sandbox
+exec'd scripts with separate `globals`/`locals` dicts, so generator
+expressions and `lambda`s `NameError`ed on locals like `b`, `fr`, `sc`.
+Scripts now share one namespace and the bare generator works (see item
+100) — and it is the better tool here for a reason beyond tidiness: a
+generator **short-circuits**. `all(...)` stops at the first occupied
+square instead of testing the whole path and then throwing the list
+away, which on a queen's eight-square slide is most of the work saved.

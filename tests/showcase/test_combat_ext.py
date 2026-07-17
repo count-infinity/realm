@@ -6,10 +6,12 @@ Items: 109 cover system, 111 grenades, 112 non-lethal takedowns,
 117 armor degradation, 118 bleeding & first aid, 119 NPC morale,
 120 combat replay log.
 
-Every command line in each tutorial's "Build it" section is driven
-through the real dispatcher (raw input in -> session output out),
-exactly as typed in the docs; the plays then exercise the tutorials'
-"Try it" flows and assert outcomes.
+Every command line in each tutorial's "Build it" section is read
+straight out of its markdown (docs/showcase/NNN_*.md) and driven through
+the real dispatcher (raw input in -> session output out), so the tests
+execute what the docs actually say: a doc edit that breaks a build breaks
+this suite. The plays then exercise the tutorials' "Try it" flows and
+assert outcomes.
 
 Determinism: skill checks use the level resolver (success iff effective
 skill >= 10, contests go to the higher skill, ties to the opponent);
@@ -21,6 +23,8 @@ out-of-combat effect beats advance via deliver_beat().
 
 from __future__ import annotations
 
+from pathlib import Path
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -45,215 +49,51 @@ def level_resolver(obj, skill, modifier):
 
 
 class SteadyRuleset(GURPSRuleset):
-    """GURPS with the dice removed: 3d6 always 10, damage a flat 3."""
+    """GURPS with the dice removed: 3d6 always 10, damage a flat
+    ``per_hit`` (3 unless a test dials it — item 117's armor spends
+    damage points, so its arithmetic needs a knob)."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.per_hit = 3
 
     def roll_3d6(self):
         return 10, [3, 3, 4]
 
     def roll_damage(self, attacker, defender, attack_result, weapon=None):
         from realm.combat.ruleset import DamageResult, DamageType
-        return DamageResult(total=3, damage_by_type={DamageType.PHYSICAL: 3})
+        return DamageResult(
+            total=self.per_hit,
+            damage_by_type={DamageType.PHYSICAL: self.per_hit})
 
 
-# --- Build transcripts (the tutorials' exact "Build it" lines) -----------------
+# --- Build transcripts (read out of the tutorials themselves) ------------------
 
-# docs/showcase/109_cover_system.md
-BUILD_109 = [
-    "@dig The Killhouse = killhouse, out",
-    "killhouse",
-    "@create overturned dropship hull",
-    "drop overturned dropship hull",
-    "@desc overturned dropship hull = Half a cargo dropship, belly-up, its plating scorched and buckled. Good cover -- while it lasts.",
-    "@tag overturned dropship hull = cover",
-    "@create laser carbine",
-    "@set laser carbine/damage_dice = 2d",
-    "@set laser carbine/damage_type = burning",
-    "@set laser carbine/skill_type = ranged",
-    "@set laser carbine/acc = 2",
-    "@tag laser carbine = ranged",
-    "drop laser carbine",
-    "@set overturned dropship hull/plating = 2",
-    "@set overturned dropship hull/cmd_shred = $shred hull: p = V('plating', 0) - 1; (pemit(enactor, 'The hull is already scrap.') if not has_tag(me, 'cover') else ((set_attr(me, 'plating', 0), remove_tag(me, 'cover'), remit(loc(me), name(enactor) + ' blasts the hull apart -- it is cover for no one now!')) if p <= 0 else (set_attr(me, 'plating', p), remit(loc(me), name(enactor) + ' tears chunks off the hull. It will not stand much more.'))))",
-]
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
-# docs/showcase/111_grenades.md
-BUILD_111 = [
-    "@dig The Bunker = bunker, out",
-    "bunker",
-    "@dig The Trench = trench, bunker",
-    "@create reflexes",
-    "@tag reflexes = skill_def",
-    "@set reflexes/stat = dexterity",
-    "@set reflexes/penalty = 0",
-    "@create throwing",
-    "@tag throwing = skill_def",
-    "@set throwing/stat = dexterity",
-    "@set throwing/penalty = 0",
-    "@reload",
-    "@create frag grenade",
-    "@set frag grenade/fuse = 6",
-    "@set frag grenade/cmd_pull = $pull pin: pemit(enactor, 'Pick it up first -- you do not arm a grenade you are not holding.') if loc(me) != enactor else (pemit(enactor, 'The pin is already out!') if V('armed', 0) else (set_attr(me, 'armed', 1), remit(loc(enactor), name(enactor) + ' pulls the pin. The spoon pings away.'), wait(V('fuse', 6), 'trigger me/boom')))",
-    "@set frag grenade/cmd_throw = $throw grenade *: doors = [e for e in exits(loc(enactor)) if not has_tag(e, 'closed')]; aimed = [e for e in doors if name(e) == trim(arg0)]; (pemit(enactor, 'You are not holding the grenade.') if loc(me) != enactor else (pemit(enactor, 'No open exit called ' + trim(arg0) + ' here.') if not aimed else eval_attr(me, 'fly', aimed[0].id)))",
-    "@set frag grenade/fly = e = get('#' + arg0); good = skill_check(enactor, 'throwing'); others = [x for x in exits(loc(enactor)) if not has_tag(x, 'closed') and x != e]; pick = e if good or not others else others[rand(0, len(others) - 1)]; d = get('#' + str(get_attr(pick, 'destination', ''))); (None if not d else (remit(loc(enactor), name(enactor) + ' hurls the grenade through the ' + name(pick) + ' exit' + ('!' if pick == e else ' -- no, wide! It caroms off the frame and skips the wrong way!')), teleport_obj(me, d), remit(d, 'A grenade bounces in and skitters across the floor!')))",
-    "@set frag grenade/boom = spot = loc(me); held = spot != None and not has_tag(spot, 'room'); (remit(loc(spot), 'The live grenade slips through ' + name(spot) + \"'s fingers!\"), teleport_obj(me, loc(spot)), wait(0, 'trigger me/boom')) if held else eval_attr(me, 'blast')",
-    "@set frag grenade/blast = room = loc(me); del_attr(me, 'armed'); (None if not room else (remit(room, 'WHUMP. The grenade goes off in a fist of smoke and shrapnel!'), [pemit(o, 'You dive clear of the blast!') if skill_check(o, 'reflexes', -1) else (pemit(o, 'Shrapnel tears into you!'), damage(o, roll('2d6'))) for o in contents(room) if has_tag(o, 'player') or has_tag(o, 'npc')], destroy_obj(me)))",
-    "drop frag grenade",
-]
 
-# docs/showcase/112_nonlethal_takedowns.md
-BUILD_112 = [
-    "@dig The Brig = brig, out",
-    "brig",
-    "@create fortitude",
-    "@tag fortitude = skill_def",
-    "@set fortitude/stat = health",
-    "@set fortitude/penalty = 0",
-    "@reload",
-    "@create leather cosh",
-    "drop leather cosh",
-    "@desc leather cosh = A sand-filled sock of a weapon. SAP someone with it -- quietly.",
-    "@set leather cosh/cmd_sap = $sap *: t = get(trim(arg0)); (pemit(enactor, 'No sign of them in reach.') if not (t and loc(t) == loc(enactor) and (has_tag(t, 'player') or has_tag(t, 'npc'))) else (pemit(enactor, 'They are already out cold.') if has_tag(t, 'unconscious') else ((remit(loc(enactor), name(enactor) + ' saps ' + name(t) + ' behind the ear -- they fold up like wet paper.'), apply_effect(t, 'modifier_effect', kind='unconscious', duration=8, apply_msg='A starburst of white -- then nothing.', expire_msg='You come to with a skull full of gravel.')) if contest(enactor, 'melee', t, 'fortitude') else remit(loc(enactor), name(t) + ' twists away from ' + name(enactor) + \"'s cosh!\"))))",
-    "@create iron binders",
-    "drop iron binders",
-    "@desc iron binders = Rimed iron cuffs on a short chain. BIND the unconscious; RELEASE the forgiven.",
-    "@set iron binders/cmd_bind = $bind *: t = get(trim(arg0)); (pemit(enactor, 'No sign of them in reach.') if not (t and loc(t) == loc(enactor)) else (pemit(enactor, 'They are wide awake -- put them down first.') if not has_tag(t, 'unconscious') else (pemit(enactor, 'They are already in irons.') if has_tag(t, 'restrained') else (apply_effect(t, 'modifier_effect', kind='restrained', duration=0), remit(loc(enactor), name(enactor) + ' snaps iron binders around ' + name(t) + \"'s wrists.\")))))",
-    "@set iron binders/cmd_release = $release *: t = get(trim(arg0)); (remove_effect(t, 'restrained'), remit(loc(enactor), name(enactor) + ' unlocks the binders.')) if t and loc(t) == loc(enactor) and has_tag(t, 'restrained') else pemit(enactor, 'They are not in your irons.')",
-    "@set here/on_check = block('The binders hold -- you are going nowhere.') if atype == 'event:on_leave' and has_tag(actor, 'restrained') else None",
-]
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
-# docs/showcase/113_dueling.md
-BUILD_113 = [
-    "@dig The Ring = ring, out",
-    "ring",
-    "@set here/on_check = block('The Ring hosts sanctioned duels only -- DUEL <name> to issue a challenge.') if atype == 'combat:on_attack' and not (has_tag(actor, 'duelist') and has_tag(target, 'duelist')) else None",
-    "@create dueling stone",
-    "drop dueling stone",
-    "@desc dueling stone = A waist-high basalt block, its top hollowed into a coin bowl. DUEL <name> to put money on your grievance.",
-    "@set dueling stone/stake = 25",
-    "@set dueling stone/cmd_duel = $duel *: t = get(trim(arg0)); s = V('stake', 25); (pemit(enactor, 'A duel is already in the making. Wait for it to settle.') if V('challenged') else (pemit(enactor, 'They are not here to face you.') if not (t and has_tag(t, 'player') and loc(t) == loc(me) and t != enactor) else (pemit(enactor, 'One of you cannot cover the ' + str(s) + '-credit stake.') if credits(enactor) < s or credits(t) < s else (set_attr(me, 'challenger', enactor.id), set_attr(me, 'challenged', t.id), remit(loc(me), name(enactor) + ' lays a gauntlet on the dueling stone before ' + name(t) + '.'), prompt(t, name(enactor) + ' challenges you to a duel for ' + str(s) + ' credits. Type ACCEPT to fight -- anything else declines.', 'answer')))))",
-    "@set dueling stone/answer = a = get('#' + str(V('challenger', ''))); b = get('#' + str(V('challenged', ''))); s = V('stake', 25); (None if not (a and b and enactor == b) else ((del_attr(me, 'challenger'), del_attr(me, 'challenged'), remit(loc(me), name(b) + ' declines the duel. The gauntlet is returned.')) if trim(arg0).lower() != 'accept' else (transfer_credits(a, me, s), transfer_credits(b, me, s), add_tag(a, 'duelist'), add_tag(b, 'duelist'), remit(loc(me), 'The stakes -- ' + str(2 * s) + ' credits -- rattle into the stone. FIGHT!'), start_combat(a, b))))",
-    "@set dueling stone/on_death = a = get('#' + str(V('challenger', ''))); b = get('#' + str(V('challenged', ''))); s = V('stake', 25); w = enactor; (None if not (a and b and w and (w == a or w == b) and has_tag(w, 'duelist')) else (transfer_credits(me, w, 2 * s), remove_tag(a, 'duelist'), remove_tag(b, 'duelist'), del_attr(me, 'challenger'), del_attr(me, 'challenged'), remit(loc(me), name(w) + ' stands over a fallen rival. The stone pays out ' + str(2 * s) + ' credits.')))",
-]
 
-# docs/showcase/114_bounty_board.md
-BUILD_114 = [
-    "@dig The Bounty Office = office, out",
-    "office",
-    "@zone here = badlands",
-    "@dig Rattler Gulch = gulch, office",
-    "gulch",
-    "@zone here = badlands",
-    "office",
-    "@create bounty board",
-    "drop bounty board",
-    "@desc bounty board = Sun-cracked cork and yellowed paper. POST <name> to draft a contract, then PAY this board to stake it. BOUNTIES lists what is open.",
-    "@zone/master bounty board = badlands",
-    "@set bounty board/cmd_post = $post *: set_attr(me, 'pending_' + enactor.id, trim(arg0)); pemit(enactor, 'Contract drafted on ' + trim(arg0) + '. Now stake the reward: PAY <amount> TO bounty board.')",
-    "@set bounty board/on_payment = paid = credits(me) - V('till', 0); set_attr(me, 'till', credits(me)); nm = V('pending_' + enactor.id, ''); led = V('ledger') or []; pot = paid + sum([e[1] for e in led if e[0] == nm]); (pemit(enactor, 'Draft a contract first: POST <name>.') if not nm else (set_attr(me, 'ledger', [e for e in led if e[0] != nm] + [[nm, pot]]), del_attr(me, 'pending_' + enactor.id), act(me, 'The office crier bellows: ' + str(pot) + ' credits on the head of ' + nm + '!', targeting='zone')))",
-    "@set bounty board/cmd_bounties = $bounties: led = V('ledger') or []; (pemit(enactor, 'The board is bare. The badlands sleep easy.') if not led else [pemit(enactor, '[WANTED] ' + e[0] + ' -- ' + str(e[1]) + ' credits.') for e in led])",
-    "@set bounty board/on_death = led = V('ledger') or []; heads = [o for o in contents(here) if get_attr(o, 'hp', 1) <= 0 and name(o) in [e[0] for e in led]]; pot = sum([e[1] for e in led if e[0] in [name(o) for o in heads]]); (None if not (heads and pot and enactor and has_tag(enactor, 'player')) else (transfer_credits(me, enactor, pot), set_attr(me, 'ledger', [e for e in led if e[0] not in [name(o) for o in heads]]), act(me, 'BOUNTY CLAIMED: ' + name(enactor) + ' collects ' + str(pot) + ' credits for ' + ', '.join([name(o) for o in heads]) + '.', targeting='zone')))",
-    "gulch",
-    "@create Dreg Farrow",
-    "@tag Dreg Farrow = npc",
-    "@set Dreg Farrow/hp = 6",
-    "@set Dreg Farrow/max_hp = 6",
-    "@set Dreg Farrow/skill_melee = 10",
-    "@set Dreg Farrow/dodge = 0",
-    "drop Dreg Farrow",
-    "office",
-]
-
-# docs/showcase/115_arena_spectators.md
-BUILD_115 = [
-    "@dig The Fight Pit = pit, out",
-    "pit",
-    "@dig The Stands = seats, pit",
-    "pit",
-    "@create ringside bell",
-    "drop ringside bell",
-    "@desc ringside bell = A brass bell on a rope, sized to be heard over a crowd. It rings itself when blood is up.",
-    "@set ringside bell/stands = The Stands",
-    "@set ringside bell/relay = s = get(V('stands', '')); (remit(s, '[pit] ' + str(arg0)) if s else None)",
-    "@set ringside bell/tally = result = ' -- '.join([f'{name(o)} {get_attr(o, \"hp\", 0)}/{get_attr(o, \"max_hp\", 0)}' for o in contents(loc(me)) if has_tag(o, 'in_combat')])",
-    "@set ringside bell/on_attack = eval_attr(me, 'relay', name(enactor) + ' wades in! ' + eval_attr(me, 'tally'))",
-    "@set ringside bell/on_damage = eval_attr(me, 'relay', name(enactor) + ' draws blood! ' + eval_attr(me, 'tally'))",
-    "@set ringside bell/on_death = eval_attr(me, 'relay', 'THE CROWD ROARS -- ' + name(enactor) + ' takes the pit!')",
-    "@set ringside bell/listen_taunt = ^*: eval_attr(me, 'relay', name(enactor) + ' bellows: ' + escape(arg0)) if enactor else None",
-]
-
-# docs/showcase/117_armor_degradation.md (an ADMIN build)
-BUILD_117 = [
-    "@dig The Outfitter = outfitter, out",
-    "outfitter",
-    "@create flak vest",
-    "@tag flak vest = wearable",
-    "@set flak vest/slot = torso",
-    "@set flak vest/dr = 3",
-    "@set flak vest/condition = 3",
-    "@desc flak vest = Ceramic plates in a webbing carrier. [[c = V('condition', 0); result = 'The plates look factory-fresh.' if c >= 3 else ('Cracks spider across the plates.' if c > 0 else 'The carrier is full of ceramic gravel. It will stop nothing.')]]",
-    "@set flak vest/on_wear = c = V('condition', 0); (pemit(enactor, 'The vest is shredded -- it will stop nothing until it is repaired.') if c <= 0 else (set_attr(enactor, 'damage_resistance', V('dr', 3)), set_attr(enactor, 'armor_condition', c), set_attr(enactor, 'on_damage', V('degrade')), pemit(enactor, 'You cinch the flak vest tight. (DR ' + str(V('dr', 3)) + ', ' + str(c) + ' plates)')))",
-    "@set flak vest/degrade = c = V('armor_condition', 0); (None if c <= 0 else ((set_attr(me, 'armor_condition', 0), set_attr(me, 'damage_resistance', 0), pemit(me, 'Your vest takes the brunt -- and comes apart at the seams. It will stop nothing more.')) if c <= 1 else pemit(me, 'Your vest soaks the worst of it. (' + str(decr('armor_condition')) + ' plates left)')))",
-    "@set flak vest/on_remove = set_attr(me, 'condition', get_attr(enactor, 'armor_condition', 0)); set_attr(enactor, 'damage_resistance', 0); del_attr(enactor, 'armor_condition'); del_attr(enactor, 'on_damage'); pemit(enactor, 'You shrug out of the vest.')",
-    "drop flak vest",
-    "@create mending bench",
-    "drop mending bench",
-    "@desc mending bench = A scarred workbench of clamps and rivet guns. Drop armor here and REPAIR VEST.",
-    "@set mending bench/cmd_repair = $repair vest: v = get('flak vest'); (pemit(enactor, 'Lay the vest on the bench first -- drop it here.') if not (v and loc(v) == loc(me)) else ((set_attr(v, 'condition', 3), remit(loc(me), name(enactor) + ' hammers the plating flat and rivets in fresh ceramic.')) if skill_check(enactor, 'armoury') else pemit(enactor, 'You bend a plate the wrong way. No good.')))",
-]
-
-# docs/showcase/118_bleeding_first_aid.md
-BUILD_118 = [
-    "@dig The Red Yard = yard, out",
-    "yard",
-    "@create triage post",
-    "drop triage post",
-    "@desc triage post = A leaning pole flying a faded red cross. It has seen worse days than yours.",
-    "@set triage post/on_damage = [apply_effect(o, 'damage_over_time', kind='bleeding', damage=1, interval=1, duration=8, tick_msg='Your wound runs red -- the blood keeps coming.', room_msg='{name} is losing blood.', expire_msg='The wound finally clots.') for o in contents(here) if (has_tag(o, 'player') or has_tag(o, 'npc')) and not has_tag(o, 'bleeding') and not has_tag(o, 'unconscious') and get_attr(o, 'hp', 0) > 0 and get_attr(o, 'hp', 0) < get_attr(o, 'max_hp', 0)]",
-    "@create field satchel",
-    "drop field satchel",
-    "@desc field satchel = Rolled dressings, a bone needle, gut thread. BANDAGE <name> to stop a bleed.",
-    "@set field satchel/cmd_bandage = $bandage *: t = get(trim(arg0)); (pemit(enactor, 'No patient by that name here.') if not (t and loc(t) == loc(enactor)) else (pemit(enactor, 'They are not bleeding.') if not has_tag(t, 'bleeding') else ((remove_effect(t, 'bleeding'), heal(t, 1), remit(loc(enactor), name(enactor) + ' ties off ' + name(t) + \"'s wound. The bleeding stops.\")) if skill_check(enactor, 'first_aid') else pemit(enactor, 'The dressing soaks through. It will not hold.'))))",
-]
-
-# docs/showcase/119_npc_morale.md
-BUILD_119 = [
-    "@dig Raider Lair = lair, out",
-    "lair",
-    "@create nerve",
-    "@tag nerve = skill_def",
-    "@set nerve/stat = health",
-    "@set nerve/penalty = 0",
-    "@reload",
-    "@create Vex",
-    "@tag Vex = npc",
-    "@set Vex/hp = 12",
-    "@set Vex/max_hp = 12",
-    "@set Vex/skill_melee = 12",
-    "@set Vex/dodge = 0",
-    "@set Vex/health = 8",
-    "@set Vex/dexterity = 14",
-    "drop Vex",
-    '@behavior Vex = aggressive, taunt:"Your boots -- I want them."',
-    "@set Vex/hitprcnt = 50",
-    "@set Vex/on_hitprcnt = detach_behavior(me, 'aggressive'); (say('I yield! I yield -- the loot is yours, only stop!'), set_attr(me, 'combat_strategy', [['', 'wait']]), add_tag(me, 'surrendered'), adjust_disposition(me, enactor, 5)) if not skill_check(me, 'nerve') else (say('Not like this!'), attach_behavior(me, 'fleeing', flee_percent=99))",
-]
-
-# docs/showcase/120_combat_replay.md
-BUILD_120 = [
-    "@dig The Fight Cage = cage, out",
-    "cage",
-    "@create match chronicle",
-    "drop match chronicle",
-    "@desc match chronicle = A brass automaton hunched over a ledger, pen scratching by itself. REPLAY reads the record back; the owner may WIPE LEDGER.",
-    "@set match chronicle/scribe = rows = (V('log') or []) + [[now(), str(arg0)]]; set_attr(me, 'log', rows[-30:])",
-    "@set match chronicle/tally = result = ' / '.join([f'{name(o)} {get_attr(o, \"hp\", 0)}:{get_attr(o, \"max_hp\", 0)}' for o in contents(loc(me)) if has_tag(o, 'in_combat')])",
-    "@set match chronicle/on_attack = eval_attr(me, 'scribe', name(enactor) + ' presses the attack. [' + eval_attr(me, 'tally') + ']')",
-    "@set match chronicle/on_damage = eval_attr(me, 'scribe', name(enactor) + ' lands a telling blow. [' + eval_attr(me, 'tally') + ']')",
-    "@set match chronicle/on_death = eval_attr(me, 'scribe', 'FINISH -- ' + name(enactor) + ' ends it.')",
-    "@set match chronicle/listen_words = ^*: eval_attr(me, 'scribe', name(enactor) + ' shouts: ' + escape(arg0)) if enactor else None",
-    "@set match chronicle/cmd_replay = $replay: rows = V('log') or []; (pemit(enactor, 'The ledger is blank.') if not rows else [pemit(enactor, f'[{now() - r[0]}s ago] {r[1]}') for r in rows])",
-    "@set match chronicle/cmd_wipe = $wipe ledger: (del_attr(me, 'log'), pemit(enactor, 'You tear out the used pages. The automaton dips its pen.')) if enactor == owner(me) else pemit(enactor, 'The automaton clutches its ledger jealously.')",
-]
+BUILD_109 = build_lines("109_cover_system.md")
+BUILD_111 = build_lines("111_grenades.md")
+BUILD_112 = build_lines("112_nonlethal_takedowns.md")
+BUILD_113 = build_lines("113_dueling.md")
+BUILD_114 = build_lines("114_bounty_board.md")
+BUILD_115 = build_lines("115_arena_spectators.md")
+BUILD_117 = build_lines("117_armor_degradation.md")   # an ADMIN build
+BUILD_118 = build_lines("118_bleeding_first_aid.md")
+BUILD_119 = build_lines("119_npc_morale.md")
+BUILD_120 = build_lines("120_combat_replay.md")
 
 BUILD_RED_FLAGS = (
     "Unknown command", "Usage:", "not found", "Script error",
@@ -687,6 +527,85 @@ class TestBountyBoard:
         await sim.do(builder, "bounties")
         assert "The board is bare." in text(sim, builder)
 
+    async def test_a_poisoned_mark_pays_the_poisoner(self, sim, combat):
+        """Poisoning a mark collects the bounty.
+
+        Both halves had to land for this. `combat:on_death` fires from
+        EVERY death, so the board hears a poison kill at all (it used to
+        hear only swings) -- and `apply_effect` now stamps `source_id`
+        with whoever applied the effect, so the tick can name a killer.
+        Before, the board heard the death, found `enactor` None, and had
+        nobody to pay: the mark died and the contract stayed open."""
+        builder = await build(sim, BUILD_114)
+        gulch = room(sim, "Rattler Gulch")
+        board = obj(sim, "bounty board")
+        dreg = obj(sim, "Dreg Farrow")
+        hunter = fighter(sim, "Ryn", gulch, credits=0)
+
+        await run_lines(sim, builder, ["@set me/credits = 200"])
+        await sim.do(builder, "post Dreg Farrow")
+        await sim.do(builder, "pay 60 to bounty board")
+        assert board.db.get("ledger") == [["Dreg Farrow", 60]]
+        sim.seen(builder)
+
+        # A damage_over_time effect ticking on out-of-combat beats: no
+        # encounter, no swing, no CombatSystem.attack anywhere. (Dosed
+        # from the gulch -- get() reaches the local room only.)
+        await run_lines(sim, builder, [
+            "gulch",
+            "@eval apply_effect(get('Dreg Farrow'), 'damage_over_time', "
+            "kind='gulch_venom', damage=2, interval=1, duration=8, "
+            "tick_msg='The venom burns.'); result = 1",
+            "office",
+        ])
+        assert dreg.has_tag("gulch_venom"), "the mark was never dosed"
+        assert combat.encounter_of(dreg) is None
+        sim.seen(builder)
+
+        for _ in range(3):                             # 6 -> 4 -> 2 -> 0
+            await deliver_beat(dreg)
+
+        # The death happened, the shared path announced it...
+        assert int(dreg.db.get("hp")) <= 0
+        assert [o for o in gulch.contents if o.name.startswith("corpse of")]
+        # ...and the tick named its poisoner, so the contract settles.
+        # The builder dosed the mark, so the builder collects — the hunter
+        # who never touched it does not.
+        assert "BOUNTY CLAIMED" in text(sim, builder)
+        assert int(hunter.db.get("credits")) == 0
+        assert board.db.get("ledger") == []                      # struck
+        assert int(board.db.get("credits")) == 0                 # escrow paid out
+
+    async def test_a_neighbours_payment_never_stakes_a_contract(
+            self, sim, combat):
+        """The board is a ZONE MASTER, so its ON_PAYMENT hears every
+        payment in every badlands room -- not just its own. Without
+        `target == me`, buying a drink two rooms away would eat the
+        buyer's pending draft and post a contract for nothing. Drop the
+        guard from the doc and this test fails."""
+        builder = await build(sim, BUILD_114)
+        board = obj(sim, "bounty board")
+        await run_lines(sim, builder, ["@set me/credits = 200"])
+
+        # An unrelated payee, out in the gulch, a room away from the board.
+        await run_lines(sim, builder, [
+            "gulch", "@create a vending machine", "drop a vending machine",
+        ])
+        await sim.do(builder, "post Dreg Farrow")      # a draft, pending
+        sim.seen(builder)
+
+        await sim.do(builder, "pay 25 to a vending machine")
+        assert not board.db.get("ledger")              # nothing staked
+        assert int(board.db.get("credits") or 0) == 0  # no escrow
+        assert "crier bellows" not in text(sim, builder)
+        # The draft survives, because the board never saw a payment.
+        assert board.db.get("pending_" + builder.id) == "Dreg Farrow"
+
+        # ...and a real stake still works.
+        await run_lines(sim, builder, ["office"])
+        await sim.do(builder, "pay 60 to bounty board")
+        assert board.db.get("ledger") == [["Dreg Farrow", 60]]
+
     async def test_paying_without_a_draft_is_refused(self, sim, combat):
         builder = await build(sim, BUILD_114)
         await run_lines(sim, builder, ["@set me/credits = 50"])
@@ -711,9 +630,10 @@ class TestArenaSpectators:
         await sim.do(ace, "attack Bruce")
         await rounds(combat, ace)
         feed = text(sim, sal)
-        assert "[pit] Ace wades in!" in feed
+        assert "[pit] Ace wades in on Bruce!" in feed  # the hook's target
         assert "Bruce 6/20" in feed                    # the open-read tally
-        assert "[pit] Ace draws blood!" in feed
+        # adata('damage'): the call quotes the blow, not an HP delta.
+        assert "[pit] Ace draws blood -- 3 on Bruce!" in feed
 
         await sim.do(bruce, "say is that ALL")
         assert "[pit] Bruce bellows: is that ALL" in text(sim, sal)
@@ -721,7 +641,8 @@ class TestArenaSpectators:
         await rounds(combat, ace)
         feed = text(sim, sal)
         assert "Bruce 3/20" in feed                    # last round's toll
-        assert "THE CROWD ROARS -- Ace takes the pit!" in feed
+        assert "THE CROWD ROARS -- Ace puts Bruce down and takes the pit!" \
+            in feed
 
         # Ringside vs pit: fighters never see the relay tag...
         assert "[pit]" not in text(sim, ace)
@@ -746,19 +667,23 @@ class TestArmorDegradation:
 
         await sim.do(nia, "get flak vest")
         await sim.do(nia, "wear flak vest")
-        assert "You cinch the flak vest tight. (DR 3, 3 plates)" in text(sim, nia)
+        assert ("You cinch the flak vest tight. (DR 3, 9 points of plating)"
+                in text(sim, nia))
         assert int(nia.db.get("damage_resistance")) == 3
-        assert int(nia.db.get("armor_condition")) == 3
+        assert int(nia.db.get("armor_plating")) == 9
         assert nia.db.get("on_damage")                 # the ledger hook
 
+        # The thug swings for 3 against DR 3: the vest stops all 3 and is
+        # billed exactly 3 points of ceramic -- adata('damage') in action.
         await sim.do(nia, "attack pit thug")
         await rounds(combat, nia)                      # hit 1: fully soaked
-        assert "Your vest soaks the worst of it. (2 plates left)" in text(sim, nia)
+        assert ("Your vest soaks 3 -- 6 points of plating left."
+                in text(sim, nia))
         assert int(nia.db.get("hp")) == 20
         await rounds(combat, nia)                      # hit 2: fully soaked
         assert int(nia.db.get("hp")) == 20
-        assert int(nia.db.get("armor_condition")) == 1
-        await rounds(combat, nia)                      # hit 3: the vest breaks
+        assert int(nia.db.get("armor_plating")) == 3
+        await rounds(combat, nia)                      # hit 3: the ceramic runs out
         assert "comes apart at the seams" in text(sim, nia)
         assert int(nia.db.get("damage_resistance")) == 0
         assert int(nia.db.get("hp")) == 17             # the breaking hit lands
@@ -770,8 +695,8 @@ class TestArmorDegradation:
 
         await sim.do(nia, "remove flak vest")
         assert "You shrug out of the vest." in text(sim, nia)
-        assert int(vest.db.get("condition")) == 0      # wear synced back
-        assert nia.db.get("armor_condition") is None
+        assert int(vest.db.get("plating")) == 0        # wear synced back
+        assert nia.db.get("armor_plating") is None
         assert nia.db.get("on_damage") is None
 
         await sim.do(nia, "wear flak vest")
@@ -782,12 +707,98 @@ class TestArmorDegradation:
         await sim.do(nia, "drop flak vest")
         await sim.do(nia, "repair vest")
         assert "hammers the plating flat" in text(sim, nia)
-        assert int(vest.db.get("condition")) == 3
+        assert int(vest.db.get("plating")) == 9
 
         await sim.do(nia, "get flak vest")
         await sim.do(nia, "wear flak vest")
-        assert "(DR 3, 3 plates)" in text(sim, nia)
+        assert "(DR 3, 9 points of plating)" in text(sim, nia)
         assert int(nia.db.get("damage_resistance")) == 3
+
+    async def test_wear_is_billed_per_point_the_ceramic_actually_stopped(
+            self, sim, combat):
+        """The point of adata('damage'): the vest spends min(DR, damage),
+        so a graze is cheap and an overkill costs no more than the DR the
+        vest was ever worth. Neither is visible when every hit happens to
+        land for exactly DR, which is why this test dials the weapon."""
+        builder = await build(sim, BUILD_117, admin=True)
+        outfitter = room(sim, "The Outfitter")
+        vest = obj(sim, "flak vest")
+        nia = fighter(sim, "Nia", outfitter, hp=40, max_hp=40, skill_melee=4)
+        sim.obj("pit thug", location=outfitter, tags=["npc"],
+                hp=99, max_hp=99, skill_melee=16, dodge=0)
+        await sim.do(nia, "get flak vest")
+        await sim.do(nia, "wear flak vest")
+        await sim.do(nia, "attack pit thug")
+
+        # A 1-point graze: DR 3 stops all of it, but only 1 point of
+        # ceramic was ever in the way -- bill 1, not 3, and not a "plate".
+        combat.combat_system.ruleset.per_hit = 1
+        await rounds(combat, nia)
+        assert "Your vest soaks 1 -- 8 points of plating left." in text(sim, nia)
+        assert int(nia.db.get("hp")) == 40                 # fully soaked
+
+        # A 20-point slug: the vest stops 3 of it and is billed 3. The
+        # other 17 go through Nia. Wear tracks what the armor did, not
+        # how hard it was hit.
+        combat.combat_system.ruleset.per_hit = 20
+        await rounds(combat, nia)
+        assert "Your vest soaks 3 -- 5 points of plating left." in text(sim, nia)
+        assert int(nia.db.get("hp")) == 40 - (20 - 3)      # DR still applied
+
+        # Five points left, a 9-point blow: still only 3 of ceramic stood
+        # in the way, so still only 3 is billed. A big weapon does not
+        # chew armor faster than the armor can stop it.
+        combat.combat_system.ruleset.per_hit = 9
+        await rounds(combat, nia)
+        assert "Your vest soaks 3 -- 2 points of plating left." in text(sim, nia)
+        assert int(nia.db.get("hp")) == 23 - (9 - 3)
+
+        # Two points left against another 9: the remainder is less than
+        # the DR, so it breaks -- and the breaking blow lands undefended.
+        await rounds(combat, nia)
+        assert "comes apart at the seams" in text(sim, nia)
+        assert int(nia.db.get("armor_plating")) == 0
+        assert int(nia.db.get("damage_resistance")) == 0
+        assert int(nia.db.get("hp")) == 17 - 9             # no DR left to help
+
+        await sim.do(nia, "remove flak vest")
+        assert int(vest.db.get("plating")) == 0
+
+    async def test_a_bystanders_wounds_never_wear_your_vest(self, sim, combat):
+        """combat:on_damage is a WITNESSED event: it fires the ON_DAMAGE
+        of everything in the room, not just the defender. The wearer's
+        hook is still the wearer's -- `me` is Nia either way -- so only
+        `target == me` separates "I was hit" from "someone near me was
+        hit". Without it a vest rots from other people's wounds. Drop the
+        guard from the doc and this test fails."""
+        builder = await build(sim, BUILD_117, admin=True)
+        outfitter = room(sim, "The Outfitter")
+        nia = fighter(sim, "Nia", outfitter, skill_melee=4)
+        bruce = fighter(sim, "Bruce", outfitter, skill_melee=4)
+        sim.obj("pit thug", location=outfitter, tags=["npc"],
+                hp=99, max_hp=99, skill_melee=16, dodge=0)
+
+        await sim.do(nia, "get flak vest")
+        await sim.do(nia, "wear flak vest")
+        assert int(nia.db.get("armor_plating")) == 9
+        sim.seen(nia)
+
+        # Bruce picks the fight. Nia just stands there wearing the vest.
+        await sim.do(bruce, "attack pit thug")
+        await rounds(combat, bruce, 3)
+        assert int(bruce.db.get("hp")) < 30            # he is definitely taking hits
+        assert int(nia.db.get("armor_plating")) == 9   # her ceramic is untouched
+        assert "Your vest soaks" not in text(sim, nia)
+
+        # Positive control: her own wounds still bill her vest. (The thug
+        # is juggling two opponents, so give it a few beats to swing her way.)
+        await sim.do(nia, "attack pit thug")
+        for _ in range(8):
+            await rounds(combat, nia)
+            if int(nia.db.get("armor_plating")) < 9:
+                break
+        assert int(nia.db.get("armor_plating")) < 9
+        assert "Your vest soaks 3" in text(sim, nia)
 
     async def test_repair_needs_the_vest_on_the_bench(self, sim, combat):
         builder = await build(sim, BUILD_117, admin=True)
@@ -926,18 +937,19 @@ class TestCombatReplay:
         rows = chronicle.db.get("log")
         assert rows and len(rows) <= 30
         joined = "\n".join(r[1] for r in rows)
-        assert "Ace presses the attack. [" in joined
+        # Each head logs its own event: target, damage, weapon (fists here).
+        assert "Ace presses the attack on Bruce barehanded. [" in joined
         assert "Bruce 6:20" in joined                  # the pre-blow tally
-        assert "Ace lands a telling blow." in joined
+        assert "Ace lands 3 on Bruce." in joined
         assert "Bruce shouts: remember this" in joined
-        assert "FINISH -- Ace ends it." in joined
+        assert "FINISH -- Ace ends Bruce." in joined
         assert joined.index("Bruce 6:20") < joined.index("remember this") \
             < joined.index("FINISH")
 
         await sim.do(ace, "replay")
         out = text(sim, ace)
-        assert "s ago] Ace presses the attack." in out
-        assert "s ago] FINISH -- Ace ends it." in out
+        assert "s ago] Ace presses the attack on Bruce" in out
+        assert "s ago] FINISH -- Ace ends Bruce." in out
 
     async def test_wipe_is_owner_only(self, sim, combat):
         builder = await build(sim, BUILD_120)

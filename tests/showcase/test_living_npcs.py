@@ -7,6 +7,12 @@ real in-process world — Simulator wires the actual dispatcher, script
 engine, and propagation engine — then verifies each tutorial's "Try it"
 behavior: raw input in, session output out.
 
+The build transcripts are read *out of the markdown* rather than
+mirrored here as literals: the tutorial is the source of truth, so a
+doc that stops working stops this suite. Only the walks between
+tutorials (the fixture stitches five separate builds into one town) are
+the harness's own.
+
 Determinism: behavior ticks are pumped by calling the attached
 behaviors' tick() directly (no wall-clock heartbeat); item 71 combat
 uses a diceless GURPS ruleset (3d6 always 10, damage flat 2) and
@@ -15,179 +21,27 @@ resolve_round() fired by hand.
 
 from __future__ import annotations
 
+from pathlib import Path
+import re
 from types import SimpleNamespace
 
 import pytest
 
 from realm.testing import Simulator
 
-# --- The tutorials' Build-it transcripts, verbatim -------------------------
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
-BUILD_060 = [
-    "@dig The Square = square, back",
-    "square",
-    "@zone here = town",
-    "@dig Lamplight Lane = lane, square",
-    "@dig The Gates = gates, square",
-    "lane",
-    "@zone here = town",
-    "@dig Back Alley = alley, lane",
-    "alley",
-    "@zone here = town",
-    "@tag here = no_wander",
-    "lane",
-    "square",
-    "@create scamp",
-    "@desc scamp = A scruffy kid, all elbows and pockets.",
-    "@tag scamp = npc",
-    "drop scamp",
-    "@behavior scamp = wandering, pause:2, wander_chance:0.5",
-]
 
-BUILD_064 = [
-    "@dig The Rusty Flagon = flagon, square",
-    "flagon",
-    "@zone here = town",
-    "@create Mira",
-    "@tag Mira = npc",
-    "drop Mira",
-    "@desc Mira = The Flagon's keeper. She polishes a mug and misses nothing.",
-    "@set Mira/listen_tap = ^*on tap*:say Ale, five credits the mug. "
-    "Pay me and it is yours.",
-    "@set Mira/on_payment = paid = credits(me) - V('till', 0); "
-    "((set_attr(me, 'till', credits(me)), "
-    "set_attr(me, 'patron_' + enactor.id, 1), "
-    "say('One ale, coming up.'), trigger('pour')) if paid >= 5 else "
-    "(say('Ale is five credits, love.') if paid > 0 else None))",
-    "@set Mira/pour = mug = create_obj('a mug of ale', location=here); "
-    "set_attr(mug, 'description', 'Cloudy town ale, still foaming.'); "
-    "set_attr(mug, 'cmd_drink', V('drink_script')); "
-    "pose('sets a foaming mug on the bar.')",
-    "@set Mira/drink_script = $drink *:heal(enactor, 1); "
-    "pemit(enactor, 'The ale goes down warm.'); "
-    "oemit(enactor, f'{name(enactor)} drains a mug of ale.'); "
-    "destroy_obj(me)",
-    '@set Mira/rumors = ["They say the old mine did not close for bad air '
-    'alone.", "Verity shuts her shop at nine sharp - and sleeps above it.", '
-    '"Scream on Market Street and count to ten. The watch is faster."]',
-    "@set Mira/listen_rumor = ^*rumor*:r = V('rumors', []); "
-    "i = V('idx_' + enactor.id, 0); "
-    "((say(r[i % len(r)]), incr('idx_' + enactor.id)) "
-    "if V('patron_' + enactor.id, 0) else "
-    "say('Ale first. A wet tongue wags easier - mine included.'))",
-]
-
-BUILD_067 = [
-    "@create Old Moss",
-    "@tag Old Moss = npc",
-    "drop Old Moss",
-    "@desc Old Moss = He has the corner table and a stare that has seen "
-    "the bottom of many mugs.",
-    "@set Old Moss/menu = t = V('town_' + enactor.id, 0); "
-    "m = V('mine_' + enactor.id, 0); "
-    "d = V('drink_' + enactor.id, 0); "
-    "s = V('secret_' + enactor.id, 0); "
-    "result = '[1] Ask about the town.' "
-    "+ (' [2] Ask about the old mine.' if t else '') "
-    "+ (' [3] Press him about the collapse.' if m and d and not s else '') "
-    "+ ' [q] Leave him be.'",
-    "@set Old Moss/cmd_talk = $talk:met = V('met_' + enactor.id, 0); "
-    "set_attr(me, 'met_' + enactor.id, 1); "
-    "say('New face. Name is Moss. Sit, if you like.' if not met else "
-    "f'Back again, {name(enactor)}. Thought so.'); "
-    "prompt(enactor, eval_attr(me, 'menu'), 'node_root')",
-    "@set Old Moss/node_root = a = trim(arg0); "
-    "t = V('town_' + enactor.id, 0); "
-    "m = V('mine_' + enactor.id, 0); "
-    "d = V('drink_' + enactor.id, 0); "
-    "s = V('secret_' + enactor.id, 0); "
-    "((set_attr(me, 'town_' + enactor.id, 1), "
-    "say('Quiet town. Was not always - the mine kept it loud, before the "
-    "collapse.'), prompt(enactor, eval_attr(me, 'menu'), 'node_root')) "
-    "if a == '1' else "
-    "(set_attr(me, 'mine_' + enactor.id, 1), "
-    "say('Closed ten years back. An accident, they ruled.' + ('' if d else "
-    "' Dry work, remembering. Pay 5 to Old Moss and it might come back "
-    "to me.')), prompt(enactor, eval_attr(me, 'menu'), 'node_root')) "
-    "if a == '2' and t else "
-    "(set_attr(me, 'secret_' + enactor.id, 1), "
-    "pemit(enactor, 'Moss leans close: it was no accident. He hauled the "
-    "charges down himself, on watch-house coin. Then he says no more.')) "
-    "if a == '3' and m and d and not s else "
-    "say('Moss waves you off and studies his mug.'))",
-    "@set Old Moss/on_payment = paid = credits(me) - V('tab', 0); "
-    "((set_attr(me, 'tab', credits(me)), "
-    "set_attr(me, 'drink_' + enactor.id, 1), "
-    "pose('drinks deep and wipes his beard.')) if paid >= 5 else "
-    "(say('That will not wet a flea.') if paid > 0 else None))",
-]
-
-BUILD_068 = [
-    "@dig Market Street = market, square",
-    "market",
-    "@zone here = town",
-    "@dig The Loft = upstairs, downstairs",
-    "@create town clock",
-    "drop town clock",
-    "@set town clock/hour = 6",
-    "@set town clock/on_tick = set_attr(me, 'hour', "
-    "(V('hour', 0) + 1) % 24)",
-    "@behavior town clock = script_ticker, interval:1",
-    "@create Verity",
-    "@tag Verity = npc",
-    "drop Verity",
-    "@set Verity/on_tick = h = get_attr('town clock', 'hour', 12); "
-    "trigger('open_up' if 9 <= h < 21 else 'close_down')",
-    "@set Verity/open_up = (move('downstairs') if name(here) != "
-    "'Market Street' else (None if 'shopkeeper' in behaviors(me) else "
-    "(attach_behavior(me, 'shopkeeper', markup=1.2), "
-    "say('Shutters up! Fresh goods at fair prices!'))))",
-    "@set Verity/close_down = ((detach_behavior(me, 'shopkeeper'), "
-    "say('Closing up. Come back at nine.')) if 'shopkeeper' in "
-    "behaviors(me) else (move('upstairs') if name(here) != 'The Loft' "
-    "else None))",
-    "@behavior Verity = script_ticker, interval:1",
-    "@create ration pack",
-    "@set ration pack/value = 8",
-    "give ration pack to Verity",
-]
-
-BUILD_071 = [
-    "@dig Guard Post = post, square",
-    "post",
-    "@zone here = town",
-    "@create Watchman Bren",
-    "@tag Watchman Bren = npc",
-    "@tag Watchman Bren = town_watch",
-    "@set Watchman Bren/hp = 14",
-    "@set Watchman Bren/max_hp = 14",
-    "@set Watchman Bren/skill_melee = 13",
-    "drop Watchman Bren",
-    "@create Town Watch",
-    "@zone/master Town Watch = town",
-    "@set Town Watch/on_attack = crime = not has_tag(enactor, 'town_watch'); "
-    "fresh = now() - V('last_alarm', 0) > 60; "
-    "((set_attr(me, 'last_alarm', now()), "
-    "adjust_disposition('Watchman Bren', enactor, -5), "
-    "teleport_obj('Watchman Bren', here), "
-    "force('Watchman Bren', 'say Town watch! Drop it, NOW!'), "
-    "force('Watchman Bren', 'attack ' + name(enactor))) "
-    "if crime and fresh else None)",
-    "drop Town Watch",
-    "square",
-    "market",
-    "@create dock worker",
-    "@tag dock worker = npc",
-    "@set dock worker/hp = 10",
-    "@set dock worker/max_hp = 10",
-    "@set dock worker/skill_melee = 10",
-    "@set dock worker/combat_default = defend",
-    "drop dock worker",
-    "@create Nettie",
-    "@tag Nettie = npc",
-    "drop Nettie",
-    "@set Nettie/on_attack = say Guards! GUARDS! Blood on Market Street!",
-]
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```(?:text)?\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 # Output fragments that only appear when a typed line failed.
 _ERROR_MARKS = ("not found", "Usage:", "Unknown command", "Bad parameter",
@@ -238,14 +92,15 @@ async def town():
 
     # Items 60 and 64 end where the next begins; 67 needs a walk back to
     # the Square before 68 digs Market Street, and 68 ends on Market
-    # Street one step from where 71 starts.
-    await run(BUILD_060)
-    await run(BUILD_064)
-    await run(BUILD_067)
+    # Street one step from where 71 starts. The walks are the harness's;
+    # everything else is the tutorials', read from their markdown.
+    await run(build_lines("060_wandering_npc.md"))
+    await run(build_lines("064_bartender.md"))
+    await run(build_lines("067_dialogue_tree_npc.md"))
     await run(["square"])
-    await run(BUILD_068)
+    await run(build_lines("068_npc_schedule.md"))
     await run(["square"])
-    await run(BUILD_071)
+    await run(build_lines("071_guard_response.md"))
     assert not errors, errors
 
     try:
@@ -331,7 +186,7 @@ class TestBartender:
         assert mug.db.get("cmd_drink", "").startswith("$drink *:")
         assert mira.db.get("patron_" + tam.id) == 1
         assert tam.db.get("credits") == 35
-        assert mira.db.get("till") == 5
+        assert mira.db.get("credits") == 5
 
         # The consumable: heals, narrates, destroys itself.
         out = await _do(town, "drink ale")

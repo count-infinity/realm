@@ -25,7 +25,9 @@ are reaped with a forged clock.
 
 from __future__ import annotations
 
+import re
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -47,184 +49,31 @@ def level_resolver(obj, skill, modifier):
     )
 
 
-# --- Build transcripts (the tutorials' exact "Build it" lines) -----------------
-
-# docs/showcase/050_tripwire_alarm.md
-BUILD_50 = [
-    "@dig The Curio Shop = shop, out",
-    "shop",
-    "@dig The Stockroom = stockroom, shop",
-    "stockroom",
-    "@create tripwire",
-    "drop tripwire",
-    "@desc tripwire = A hair-fine wire at ankle height, easy to miss.",
-    "@set tripwire/armed = 1",
-    "@set tripwire/conceal_difficulty = 2",
-    "@set tripwire/reveal_msg = A glint at ankle height -- a wire, stretched taut across the doorway!",
-    "@set tripwire/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step over the exposed tripwire.') if not has_tag(me, 'invisible') else (incr('trips'), pemit(owner(me), f'[tripwire] {name(x)} crossed {name(loc(me))}.'))))",
-    "@tag tripwire = invisible",
-    "shop",
-]
-
-# docs/showcase/051_pit_trap.md
-BUILD_51 = [
-    "@dig The Dusty Gallery = gallery, out",
-    "@dig The Oubliette",
-    "gallery",
-    "@create rigged flagstone",
-    "drop rigged flagstone",
-    "@desc rigged flagstone = One flagstone sits a shade lower than its brothers.",
-    "@set rigged flagstone/armed = 1",
-    "@set rigged flagstone/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'A flagstone shifts under your toe -- you step around it just in time.') if skill_check(x, 'observation', -3) else (set_attr(me, 'armed', 0), remit(loc(me), f'{name(x)} vanishes through the floor with a crash!'), pemit(x, 'The floor drops away beneath you!'), teleport_obj(x, 'The Oubliette'), pemit(x, 'You land hard on cold stone, far below.'))))",
-    "@teleport me = The Oubliette",
-    "@desc here = A stone box that smells of old rain. The only light is a grey coin of sky at the top of a rough shaft.",
-    "@open climb = The Dusty Gallery",
-    "@desc climb = A rough shaft, half handholds, half wishful thinking.",
-    "@set climb/check_skill = climbing",
-    "@set climb/check_difficulty = 2",
-    "@set climb/check_fail_msg = You claw halfway up the slick stone and slide back down.",
-    "@teleport me = The Dusty Gallery",
-]
-
-# docs/showcase/052_poison_dart_trap.md
-BUILD_52 = [
-    "@dig The Reliquary = reliquary, out",
-    "reliquary",
-    "@create fortitude",
-    "@tag fortitude = skill_def",
-    "@set fortitude/stat = health",
-    "@set fortitude/penalty = 0",
-    "@reload",
-    "@create jade idol",
-    "drop jade idol",
-    "@desc jade idol = A grinning green figurine on a wall bracket. Its eyes follow you.",
-    "@set jade idol/dart = remit(loc(me), 'A hidden nozzle spits a needle-thin dart!'); damage(enactor, roll('1d2')); (pemit(enactor, 'A cold numbness spreads from the scratch.'), apply_effect(enactor, 'damage_over_time', kind='poison', damage=1, interval=1, duration=6, tick_msg='Venom burns through your veins!', room_msg='{name} shivers, grey-faced and sweating.', expire_msg='The fever finally breaks.')) if not skill_check(enactor, 'fortitude', -2) else pemit(enactor, 'Your head swims for a moment -- then clears. Only a scratch.')",
-    "@set jade idol/cmd_touch = $touch idol: eval_attr(me, 'dart')",
-    "@set jade idol/on_get = eval_attr(me, 'dart')",
-    "@create antidote vial",
-    "drop antidote vial",
-    "@desc antidote vial = A stoppered vial of milky liquid, labeled in a careful hand: AFTER THE IDOL.",
-    "@set antidote vial/cmd_drink = $drink antidote: (remove_effect(enactor, 'poison'), pemit(enactor, 'Bitter warmth washes the numbness out of your blood.'), destroy_obj(me)) if has_tag(enactor, 'poison') else pemit(enactor, 'You are not poisoned. Save it.')",
-]
-
-# docs/showcase/053_snare.md
-BUILD_53 = [
-    "@dig The Game Trail = trail, out",
-    "trail",
-    "@create might",
-    "@tag might = skill_def",
-    "@set might/stat = strength",
-    "@set might/penalty = 0",
-    "@reload",
-    "@create hunting snare",
-    "drop hunting snare",
-    "@desc hunting snare = A whippy sapling, a loop of ground wire, and patience.",
-    "@set hunting snare/armed = 1",
-    "@set hunting snare/skill_hold = 12",
-    "@set hunting snare/on_enter = x = enactor; (set_attr(me, 'armed', 0), remit(loc(me), f\"A wire loop snaps tight around {name(x)}'s ankle!\"), apply_effect(x, 'modifier_effect', kind='snared', duration=0, apply_msg='The world jerks sideways -- you are caught fast!')) if V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me) else None",
-    "@set here/on_check = block('The snare around your ankle jerks taut! (STRUGGLE to break free)') if atype == 'event:on_leave' and has_tag(actor, 'snared') else None",
-    "@set hunting snare/cmd_struggle = $struggle: pemit(enactor, 'You are not caught in anything.') if not has_tag(enactor, 'snared') else ((remove_effect(enactor, 'snared'), remit(loc(me), f'{name(enactor)} tears free of the snare!')) if contest(enactor, 'might', me, 'hold') else (decr('skill_hold'), pemit(enactor, 'You strain against the wire. It gives a little -- and holds.')))",
-]
-
-# docs/showcase/055_motion_sensor.md
-BUILD_55 = [
-    "@dig The Server Vault = vault, out",
-    "vault",
-    "@create motion sensor",
-    "drop motion sensor",
-    "@desc motion sensor = A black dome in the corner. A red LED blinks, twice a second, forever. REVIEW plays back its log.",
-    "@set motion sensor/on_enter = set_attr(me, 'log', ((V('log') or []) + [[name(enactor), 'entered', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None",
-    "@set motion sensor/on_leave = set_attr(me, 'log', ((V('log') or []) + [[name(enactor), 'left', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None",
-    "@set motion sensor/cmd_review = $review: entries = V('log') or []; (pemit(enactor, 'The log is empty.') if not entries else [pemit(enactor, f'[{now() - e[2]}s ago] {e[0]} {e[1]}.') for e in entries])",
-]
-
-# docs/showcase/056_self_destruct.md
-BUILD_56 = [
-    "@dig Reactor Core = core, out",
-    "core",
-    "@zone here = station",
-    "@dig Cargo Bay = bay, core",
-    "bay",
-    "@zone here = station",
-    "core",
-    "@create Station Brain",
-    "drop Station Brain",
-    "@desc Station Brain = A pillar of screens and switches. A red panel reads: SELF DESTRUCT. A smaller one reads: ABORT.",
-    "@zone/master Station Brain = station",
-    "@set Station Brain/interval = 10",
-    "@set Station Brain/code = ZEBRA-9",
-    "@attr Station Brain/code = secret",
-    "@set Station Brain/cmd_selfdestruct = $self destruct: pemit(enactor, 'The console demands command authority.') if enactor != owner(me) else (pemit(enactor, 'The countdown is already running.') if V('pending') else (set_attr(me, 'count', 5), act(me, f'KLAXON: SELF-DESTRUCT SEQUENCE INITIATED. {5 * V(\"interval\", 10)} SECONDS TO ZERO. ABORT requires command code.', targeting='zone'), set_attr(me, 'pending', wait(V('interval', 10), 'trigger me/countdown'))))",
-    "@set Station Brain/countdown = n = V('count', 0) - 1; (eval_attr(me, 'boom') if n <= 0 else (set_attr(me, 'count', n), act(me, f'SELF-DESTRUCT IN {n * V(\"interval\", 10)} SECONDS.', targeting='zone'), set_attr(me, 'pending', wait(V('interval', 10), 'trigger me/countdown'))))",
-    "@set Station Brain/cmd_abort = $abort: prompt(enactor, 'Enter the abort code:', 'abort_check') if V('pending') else pemit(enactor, 'The self-destruct is not armed.')",
-    "@set Station Brain/abort_check = (cancel_wait(V('pending')), del_attr(me, 'pending'), del_attr(me, 'count'), act(me, f'KLAXON: SELF-DESTRUCT ABORTED. Authorization: {name(enactor)}.', targeting='zone')) if trim(arg0) == str(V('code')) else pemit(enactor, 'INVALID CODE. The countdown continues.')",
-    "@set Station Brain/blast_tick = [(pemit(o, 'Fire roars over you!'), damage(o, roll('2d6'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')]",
-    "@set Station Brain/boom = del_attr(me, 'pending'); del_attr(me, 'count'); act(me, 'The deck heaves. Fire tears through every compartment!', targeting='zone'); blasts = [b for b in [create_obj('a sheet of roaring flame', location=r) for r in zone_rooms('station')] if b]; [set_attr(b, 'on_tick', V('blast_tick')) for b in blasts]; [attach_behavior(b, 'script_ticker', interval=1) for b in blasts]; [expire(b, 20) for b in blasts]",
-]
-
-# docs/showcase/057_emp_charge.md
-BUILD_57 = [
-    "@dig The Drone Lab = lab, out",
-    "lab",
-    "@create sweeper drone",
-    "drop sweeper drone",
-    "@tag sweeper drone = electronic",
-    "@desc sweeper drone = A knee-high maintenance drone, rotors idling. PING it for a status check.",
-    "@set sweeper drone/cmd_ping = $ping drone: pemit(enactor, 'The drone chirps: ALL SYSTEMS NOMINAL.') if not has_tag(me, 'disabled') else pemit(enactor, 'The drone lies inert, rotors still.')",
-    "@create wall terminal",
-    "drop wall terminal",
-    "@tag wall terminal = electronic",
-    "@desc wall terminal = A recessed screen glowing standby-green. LOGIN to use it.",
-    "@set wall terminal/cmd_login = $login: pemit(enactor, 'ACCESS GRANTED. Directory listings scroll past.') if not has_tag(me, 'disabled') else pemit(enactor, 'The screen is dead glass.')",
-    "@create EMP charge",
-    "@set EMP charge/cmd_arm = $arm emp: eval_attr(me, 'pulse') if loc(me) and has_tag(loc(me), 'room') else pemit(enactor, 'Not while you are holding it. Set it down first.')",
-    "@set EMP charge/pulse = hit = [o for o in contents(loc(me)) if has_tag(o, 'electronic') and not has_tag(o, 'disabled') and o != me]; [add_tag(o, 'disabled') for o in hit]; set_attr(me, 'hit', [o.id for o in hit]); remit(loc(me), 'A soundless white PULSE. Every status light in the room goes dark.'); expire(me, 30)",
-    "@set EMP charge/on_expire = [remove_tag(get(f'#{i}'), 'disabled') for i in (V('hit') or [])]; remit(loc(me), 'One by one, status lights flicker back to life. The spent EMP casing crumbles to slag.')",
-    "drop EMP charge",
-]
-
-# docs/showcase/058_spreading_fire.md
-BUILD_58 = [
-    "@dig The Hayloft = hayloft, yard",
-    "hayloft",
-    "@dig The Stable = ladder, loft",
-    "ladder",
-    "@dig The Tack Room = tack door, stable",
-    "@tag tack door = closed",
-    "loft",
-    "@tag yard = closed",
-    "@create fire prototype",
-    "@set fire prototype/fire_tick = s = V('stage', 1); ([(pemit(o, 'The blaze sears you!'), damage(o, roll(f'{s - 1}d4'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')] if s >= 2 else remit(loc(me), 'Smoke thickens. Flames crawl wider.')); (eval_attr(me, 'spread') if s >= 3 else None); (set_attr(me, 'stage', s + 1) if s < 3 else None)",
-    "@set fire prototype/fire_spread = proto = get('fire prototype'); dests = [get(f\"#{get_attr(e, 'destination', '')}\") for e in exits(loc(me)) if not has_tag(e, 'closed')]; fresh = [d for d in dests if d and not [o for o in contents(d) if has_tag(o, 'fire')]]; new = [f for f in [create_obj('a hungry fire', ['thing', 'fire'], location=r) for r in fresh] if f]; [set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')) for f in new]; [set_attr(f, 'spread', get_attr(proto, 'fire_spread')) for f in new]; [attach_behavior(f, 'script_ticker', interval=2) for f in new]; [expire(f, 120) for f in new]; [remit(loc(f), 'Fire licks through the doorway -- it catches!') for f in new]",
-    "@create box of matches",
-    "@set box of matches/cmd_light = $light fire: proto = get('fire prototype'); f = create_obj('a hungry fire', ['thing', 'fire'], location=loc(enactor)); (set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')), set_attr(f, 'spread', get_attr(proto, 'fire_spread')), attach_behavior(f, 'script_ticker', interval=2), expire(f, 120), remit(loc(enactor), f'{name(enactor)} drops a lit match into the straw. Flames catch!')) if f else pemit(enactor, 'The match gutters out.')",
-    "@create fire extinguisher",
-    "@set fire extinguisher/cmd_spray = $spray *: fires = [o for o in contents(loc(enactor)) if has_tag(o, 'fire')]; s = get_attr(fires[0], 'stage', 1) if fires else 0; (pemit(enactor, 'Nothing here is burning.') if not fires else ((destroy_obj(fires[0]), remit(loc(enactor), f'{name(enactor)} smothers the last flames in a white cloud. Steam hisses.')) if s <= 1 else (set_attr(fires[0], 'stage', s - 1), remit(loc(enactor), f'{name(enactor)} drives the fire back with a jet of foam!'))))",
-]
-
-# docs/showcase/059_tranquilizer.md
-BUILD_59 = [
-    "@dig The Med Bay = medbay, out",
-    "medbay",
-    "@create fortitude",
-    "@tag fortitude = skill_def",
-    "@set fortitude/stat = health",
-    "@set fortitude/penalty = 0",
-    "@reload",
-    "@create tranq pistol",
-    "drop tranq pistol",
-    "@desc tranq pistol = A snub-nosed gas pistol on a swivel mount by the door, rotary drum full of red-feathered darts. SHOOT someone with it.",
-    "@set tranq pistol/cmd_shoot = $shoot *: t = get(trim(arg0)); (pemit(enactor, 'No sign of them in reach.') if not (t and loc(t) == loc(enactor) and (has_tag(t, 'player') or has_tag(t, 'npc'))) else (remit(loc(enactor), f\"{name(enactor)} plants a red-feathered dart in {name(t)}'s neck!\"), (pemit(t, 'Your vision swims... then steadies. Your neck is numb.') if skill_check(t, 'fortitude', -3) else (apply_effect(t, 'modifier_effect', kind='unconscious', duration=6, apply_msg='The room smears sideways. Then nothing.', expire_msg='You come to, cheek on the cold deck.'), remit(loc(enactor), f'{name(t)} crumples bonelessly to the floor.')))))",
-    "@create stim injector",
-    "drop stim injector",
-    "@desc stim injector = An emergency stim injector in a wall cradle. JAB the sedated with it.",
-    "@set stim injector/cmd_jab = $jab *: t = get(trim(arg0)); (remove_effect(t, 'unconscious'), remit(loc(enactor), f\"{name(enactor)} slams a stim injector against {name(t)}'s arm. They jolt awake.\")) if t and loc(t) == loc(enactor) and has_tag(t, 'unconscious') else pemit(enactor, 'They are not sedated.')",
-]
-
 BUILD_RED_FLAGS = (
     "Unknown command", "Usage:", "not found", "Script error",
     "can't", "don't", "No permission",
 )
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks.
+
+    The build transcript is read out of the markdown rather than mirrored
+    here as a literal, so these tests execute *what the doc actually says*
+    — a doc edit that breaks the build breaks this suite, and there is no
+    second copy to drift from. (Fences in this family are ```text; the
+    NPC tutorials use a bare ```, so the language tag is optional.)
+    """
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```[a-z]*\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 # --- Harness -------------------------------------------------------------------
@@ -252,12 +101,13 @@ async def run_lines(sim, player, lines):
         set_check_resolver(level_resolver)
 
 
-async def build(sim, lines):
-    """Run one tutorial's build transcript as a builder from Limbo."""
+async def build(sim, doc_name):
+    """Run one tutorial's build transcript, read live out of its
+    markdown, as a builder from Limbo."""
     limbo = sim.room("Limbo")
     builder = sim.player("Bob", location=limbo)
     builder.add_tag("builder")
-    await run_lines(sim, builder, lines)
+    await run_lines(sim, builder, build_lines(doc_name))
     out = "\n".join(sim.seen(builder))
     for flag in BUILD_RED_FLAGS:
         assert flag not in out, f"build tripped {flag!r}:\n{out}"
@@ -300,7 +150,7 @@ async def pulse(fire):
 class TestTripwireAlarm:
 
     async def test_silent_alert_reaches_owner_and_not_the_intruder(self, sim):
-        builder = await build(sim, BUILD_50)
+        builder = await build(sim, "050_tripwire_alarm.md")
         assert builder.location is room(sim, "The Curio Shop")
         zeke = sim.player("Zeke", location=room(sim, "The Curio Shop"))
 
@@ -319,7 +169,7 @@ class TestTripwireAlarm:
         assert obj(sim, "tripwire").db.get("trips") == 2  # back in again
 
     async def test_search_reveals_and_a_seen_wire_reports_nothing(self, sim):
-        builder = await build(sim, BUILD_50)
+        builder = await build(sim, "050_tripwire_alarm.md")
         raven = sim.player("Raven", location=room(sim, "The Stockroom"),
                            skill_observation=12)
         sim.seen(builder)
@@ -339,7 +189,7 @@ class TestTripwireAlarm:
         assert (obj(sim, "tripwire").db.get("trips") or 0) == trips_before
 
     async def test_owner_never_pages_themselves(self, sim):
-        builder = await build(sim, BUILD_50)
+        builder = await build(sim, "050_tripwire_alarm.md")
         sim.seen(builder)
         await sim.do(builder, "stockroom")
         assert "[tripwire]" not in text(sim, builder)
@@ -352,7 +202,7 @@ class TestTripwireAlarm:
 class TestPitTrap:
 
     async def test_sharp_eyes_sidestep_dull_eyes_drop(self, sim):
-        builder = await build(sim, BUILD_51)
+        builder = await build(sim, "051_pit_trap.md")
         limbo = room(sim, "Limbo")
         scout = sim.player("Scout", location=limbo, skill_observation=13,
                            hp=13, max_hp=13)
@@ -375,7 +225,7 @@ class TestPitTrap:
         assert obj(sim, "rigged flagstone").db.get("armed") == 0
 
     async def test_climb_out_is_a_skill_gated_exit(self, sim):
-        builder = await build(sim, BUILD_51)
+        builder = await build(sim, "051_pit_trap.md")
         limbo = room(sim, "Limbo")
         mook = sim.player("Mook", location=limbo, skill_observation=6,
                           hp=13, max_hp=13)
@@ -403,7 +253,7 @@ class TestPitTrap:
         assert "floor drops away" not in text(sim, sly)
 
     async def test_owner_walks_their_own_gallery_safely(self, sim):
-        builder = await build(sim, BUILD_51)
+        builder = await build(sim, "051_pit_trap.md")
         sim.seen(builder)
         await sim.do(builder, "out")
         await sim.do(builder, "gallery")
@@ -417,7 +267,7 @@ class TestPitTrap:
 class TestPoisonDartTrap:
 
     async def test_touch_resisted_and_unresisted_with_ticking_venom(self, sim):
-        builder = await build(sim, BUILD_52)
+        builder = await build(sim, "052_poison_dart_trap.md")
         reliquary = room(sim, "The Reliquary")
         raven = sim.player("Raven", location=reliquary,
                            hp=13, max_hp=13, health=13)   # fortitude 13-2=11
@@ -452,7 +302,7 @@ class TestPoisonDartTrap:
         assert zeke.db.get("hp") == hp0 - 5
 
     async def test_grabbing_the_idol_also_darts_you(self, sim):
-        builder = await build(sim, BUILD_52)
+        builder = await build(sim, "052_poison_dart_trap.md")
         reliquary = room(sim, "The Reliquary")
         hawk = sim.player("Hawk", location=reliquary,
                           hp=13, max_hp=13, health=13)
@@ -464,7 +314,7 @@ class TestPoisonDartTrap:
         assert obj(sim, "jade idol").location is hawk      # the grab succeeded
 
     async def test_antidote_cures_and_spends_itself(self, sim):
-        builder = await build(sim, BUILD_52)
+        builder = await build(sim, "052_poison_dart_trap.md")
         reliquary = room(sim, "The Reliquary")
         raven = sim.player("Raven", location=reliquary,
                            hp=13, max_hp=13, health=13)
@@ -494,7 +344,7 @@ class TestPoisonDartTrap:
 class TestSnare:
 
     async def test_snare_holds_movement_until_strength_wins(self, sim):
-        builder = await build(sim, BUILD_53)
+        builder = await build(sim, "053_snare.md")
         limbo = room(sim, "Limbo")
         zeke = sim.player("Zeke", location=limbo, strength=12,
                           hp=13, max_hp=13)
@@ -526,7 +376,7 @@ class TestSnare:
         assert zeke.location is limbo
 
     async def test_sprung_snare_ignores_the_next_walker(self, sim):
-        builder = await build(sim, BUILD_53)
+        builder = await build(sim, "053_snare.md")
         limbo = room(sim, "Limbo")
         zeke = sim.player("Zeke", location=limbo, strength=12,
                           hp=13, max_hp=13)
@@ -550,7 +400,7 @@ class TestSnare:
 class TestMotionSensorLog:
 
     async def test_log_records_walkers_and_review_plays_back(self, sim):
-        builder = await build(sim, BUILD_55)
+        builder = await build(sim, "055_motion_sensor.md")
         limbo = room(sim, "Limbo")
         zeke = sim.player("Zeke", location=limbo)
 
@@ -564,7 +414,7 @@ class TestMotionSensorLog:
         assert "s ago]" in out
 
     async def test_teleport_skips_the_departure_event(self, sim):
-        builder = await build(sim, BUILD_55)
+        builder = await build(sim, "055_motion_sensor.md")
         zeke = sim.player("Zeke", location=room(sim, "The Server Vault"))
 
         await run_lines(sim, builder, ["@teleport me = Limbo"])
@@ -576,7 +426,7 @@ class TestMotionSensorLog:
         assert "Bob left." not in out      # teleport departures are unseen
 
     async def test_log_is_capped_at_twenty_records(self, sim):
-        builder = await build(sim, BUILD_55)
+        builder = await build(sim, "055_motion_sensor.md")
         limbo = room(sim, "Limbo")
         zeke = sim.player("Zeke", location=limbo)
 
@@ -594,7 +444,7 @@ class TestMotionSensorLog:
 class TestSelfDestruct:
 
     async def test_authority_idle_abort_and_double_arm(self, sim):
-        builder = await build(sim, BUILD_56)
+        builder = await build(sim, "056_self_destruct.md")
         raven = sim.player("Raven", location=room(sim, "Cargo Bay"),
                            hp=20, max_hp=20)
 
@@ -612,7 +462,7 @@ class TestSelfDestruct:
         assert "The countdown is already running." in text(sim, builder)
 
     async def test_zone_wide_klaxons_and_coded_abort_from_another_room(self, sim):
-        builder = await build(sim, BUILD_56)
+        builder = await build(sim, "056_self_destruct.md")
         raven = sim.player("Raven", location=room(sim, "Cargo Bay"),
                            hp=20, max_hp=20)
         await run_lines(sim, builder, ["@set Station Brain/interval = 0"])
@@ -658,7 +508,7 @@ class TestSelfDestruct:
         assert own == "ZEBRA-9"
 
     async def test_zero_hour_burns_every_compartment(self, sim):
-        builder = await build(sim, BUILD_56)
+        builder = await build(sim, "056_self_destruct.md")
         raven = sim.player("Raven", location=room(sim, "Cargo Bay"),
                            hp=20, max_hp=20)
         await run_lines(sim, builder, ["@set Station Brain/interval = 0"])
@@ -693,7 +543,7 @@ class TestSelfDestruct:
 class TestEmpCharge:
 
     async def test_pulse_disables_and_expiry_restores(self, sim):
-        builder = await build(sim, BUILD_57)
+        builder = await build(sim, "057_emp_charge.md")
         lab = room(sim, "The Drone Lab")
         raven = sim.player("Raven", location=lab)
 
@@ -748,7 +598,7 @@ def fires_in(sim, where):
 class TestSpreadingFire:
 
     async def test_growth_spread_doors_and_extinguisher(self, sim):
-        builder = await build(sim, BUILD_58)
+        builder = await build(sim, "058_spreading_fire.md")
         hayloft = room(sim, "The Hayloft")
         stable = room(sim, "The Stable")
         tack = room(sim, "The Tack Room")
@@ -810,7 +660,7 @@ class TestSpreadingFire:
 class TestTranquilizer:
 
     async def test_knockout_engine_lockout_and_natural_wakeup(self, sim):
-        builder = await build(sim, BUILD_59)
+        builder = await build(sim, "059_tranquilizer.md")
         medbay = room(sim, "The Med Bay")
         brick = sim.player("Brick", location=medbay,
                            hp=13, max_hp=13, health=13)   # fortitude 13-3=10
@@ -843,7 +693,7 @@ class TestTranquilizer:
         assert zeke.location is room(sim, "Limbo")
 
     async def test_stim_injector_wakes_early_and_misses_gracefully(self, sim):
-        builder = await build(sim, BUILD_59)
+        builder = await build(sim, "059_tranquilizer.md")
         medbay = room(sim, "The Med Bay")
         brick = sim.player("Brick", location=medbay,
                            hp=13, max_hp=13, health=13)
@@ -862,7 +712,7 @@ class TestTranquilizer:
         assert zeke.location is room(sim, "Limbo")
 
     async def test_missing_target_is_a_clean_miss(self, sim):
-        builder = await build(sim, BUILD_59)
+        builder = await build(sim, "059_tranquilizer.md")
         sim.seen(builder)
         await sim.do(builder, "shoot Nobody")
         assert "No sign of them in reach." in text(sim, builder)

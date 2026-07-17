@@ -12,7 +12,7 @@ are separate moments, joined by a timestamp), `expire()` as the
 reboot-safe countdown — the lease lives *on the item* as
 `expires_at`, not in any script's memory — `ON_EXPIRE` as the
 incinerator's voice, and the deferred-sweep idiom for reacting to
-arrivals a hook can't name.
+arrivals *whatever road they came in on*.
 
 ## How it works
 
@@ -29,14 +29,24 @@ carved into the object.
 
 **The deferred sweep.** One timing fact from
 [014](014_basic_container.md): event hooks fire while the action is
-still being gated, *before* the item lands — and an `ON_PUT` script
-has no `adata()` to name the incoming item anyway (only wards see the
-action payload). So the bin's `ON_PUT` does two things: tells the
-depositor the terms, and schedules `wait(0, 'trigger me/do_sweep')` —
-one beat later, the item *is* inside, and the sweep leases everything
-in `contents(me)` that doesn't already have a lease. The `wait` is
-in-memory, but it spans milliseconds; the part that must survive a
-reboot — the countdown itself — is the persistent `expires_at`.
+still being gated, *before* the item lands. So the bin's `ON_PUT` does
+two things: tells the depositor the terms, and schedules
+`wait(0, 'trigger me/do_sweep')` — one beat later, the item *is*
+inside, and the sweep leases everything in `contents(me)` that doesn't
+already have a lease. The `wait` is in-memory, but it spans
+milliseconds; the part that must survive a reboot — the countdown
+itself — is the persistent `expires_at`.
+
+The sweep is a *choice*, not a workaround: `adata('item')` names the
+arrival, so `expire(adata('item'), V('grace', 60))` in the hook would
+sentence it on the spot, one line, no wait. What that one-liner can't
+do is catch anything that got into the bin by some other road — a
+teleport, a conveyor, an admin's `@tele` — because no `ON_PUT` fires
+for those. Sweeping `contents(me)` sentences whatever is actually in
+the bin, however it arrived, and re-sentences nothing (the
+`has_attr(o, 'expires_at')` filter is the whole idempotency). Reach for
+the payload when you need *this* item; reach for the sweep when you
+need *the bin to be right*.
 
 **Rescue is just deleting the timestamp.** `$rummage <item>` clears
 `expires_at` and hands the item back. The bin may do both because of
@@ -112,12 +122,14 @@ countdown was never in RAM.
 
 ## Engine gaps
 
-- Same payload gap as [018](018_refrigerator.md): `ON_PUT` (and
-  `ON_RECEIVE`) scripts cannot reference the arriving item — `adata()`
-  is ward-only — hence the `wait(0)` + sweep idiom instead of leasing
-  the item directly in the hook. A one-beat window where a restart
-  leaves an unleased item in the bin is the cost; the next deposit's
-  sweep picks up any such stragglers.
+- None. (**FIXED** — this build was written when `adata()` was
+  ward-only, so `ON_PUT` could not reference the arriving item and the
+  `wait(0)` + sweep was the only way to reach it. `adata()` is now
+  bound in every `ON_<EVENT>` hook; the sweep stays because it catches
+  arrivals no hook sees, as *How it works* explains.) The known cost is
+  unchanged and small: a one-beat window in which a restart leaves an
+  unleased item in the bin — the next deposit's sweep picks up any such
+  stragglers.
 
 ## Going further
 

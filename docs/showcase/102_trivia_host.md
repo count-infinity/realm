@@ -63,7 +63,7 @@ The asking engine — one helper that either poses the next question
 winner:
 
 ```text
-@set Quizmaster Quill/ask = qs = V('questions', []); i = V('idx', 0); sc = V('scores', {}); top = max(sc.values()) if sc else 0; champs = ', '.join(sorted([nm for nm, pts in sc.items() if pts == top])) if sc else 'nobody'; (set_attr(me, 'open', 1), set_attr(me, 'deadline', now() + V('window', 20)), remit(here, f'Question {i + 1}: {qs[i]["q"]}'), wait(V('window', 20), 'trigger me/times_up')) if i < len(qs) else (set_attr(me, 'running', 0), remit(here, f'That is the game! Top score: {champs} with {top}.')); result = 1
+@set Quizmaster Quill/ask = qs = V('questions', []); i = V('idx', 0); sc = V('scores', {}); top = max(sc.values()) if sc else 0; champs = ', '.join(sorted(nm for nm, pts in sc.items() if pts == top)) if sc else 'nobody'; (set_attr(me, 'open', 1), set_attr(me, 'deadline', now() + V('window', 20)), remit(here, f'Question {i + 1}: {qs[i]["q"]}'), wait(V('window', 20), 'trigger me/times_up')) if i < len(qs) else (set_attr(me, 'running', 0), remit(here, f'That is the game! Top score: {champs} with {top}.')); result = 1
 @set Quizmaster Quill/next_q = eval_attr(me, 'ask')
 ```
 
@@ -114,11 +114,11 @@ own speaker, so reading out an answer can't award him the point.
   to choose the next category — prompts for the one decision that *is*
   single-player, listens for the race.
 
-**~~Engine gaps~~ — FIXED 2026-07-17.** The champion line is built with
-`', '.join(sorted([nm for nm, pts in sc.items() if pts == top]))` — a
-*list* comprehension, because a bare generator (`sorted(nm for ...)`) used
-to `NameError` on the script-local `top` inside its filter: the sandbox
+**~~Engine gaps~~ — FIXED 2026-07-17.** The champion line used to be built
+with `', '.join(sorted([nm for nm, pts in sc.items() if pts == top]))` — a
+*list* comprehension, because the bare generator now above used to
+`NameError` on the script-local `top` inside its filter: the sandbox
 exec'd with split `globals`/`locals`, so genexprs and `lambda`s couldn't
-see script locals. Scripts now share one namespace and the bare generator
-works. The list-comp form is left as written and remains correct (full
-note on item 100).
+see script locals. Scripts now share one namespace and the generator
+works (full note on item 100). The list-comp form was never wrong, only
+forced.

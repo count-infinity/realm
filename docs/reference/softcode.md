@@ -54,22 +54,53 @@ action, so they are unbound there.
 |---|---|
 | `atype` | the action type (`item:on_get`, `event:payment`, `combat:on_damage`, …) |
 | `actor` | who is acting (same object as `enactor`) |
-| `target` | what/who the action targets — how a witness tells "I was paid" from "someone was paid" |
+| `target` | what/who the action targets |
 | `adata(key, default)` | the action's payload |
 | `has_atag(tag)` | orthogonal action tags (`hostile`, `sound`, …) |
+
+### Guard on `target` — events are heard by the whole room
+
+**This is the one that bites.** An `ON_<EVENT>` hook fires on *every*
+object in the room, not only the one the action was aimed at. So `target`
+is not a nicety — it is how a witness tells **"this happened to me"** from
+**"this happened near me"**:
+
+```
+@set pump/on_payment = paid = adata('amount', 0) if target is me else 0; ...
+@set golem/on_receive = it = adata('item') if target is me else None; ...
+```
+
+Without the guard, paying the *vending machine* standing next to your fuel
+pump runs the pump's hook with the machine's `amount`, and it cheerfully
+dispenses free fuel. Anything that reacts to `ON_PAYMENT`, `ON_RECEIVE`,
+`ON_GET`, `ON_DAMAGE` — any event with a target — wants this check unless
+it genuinely means to react to the whole room's traffic.
+
+(Older builds reconstructed the amount by diffing their own balance — the
+"till" idiom. That was accidentally immune, because a neighbour's payment
+moved no money of theirs. Reading `adata` directly is clearer and exact,
+but it hears everything, so the guard comes with it.)
 
 Payloads carried today (read with `adata`):
 
 | Action | Keys |
 |---|---|
 | `event:payment` | `amount` |
-| `item:on_get` / `on_drop` / `on_give` | `item`, `giver` |
+| `item:on_get` / `on_drop` / `on_wield` / `on_unwield` | *(none — the item IS `target`)* |
+| `item:on_give` | `item` (`target` is the recipient; the item also arrives as `tool`) |
+| `item:on_put` | `item` (`target` is the container) |
+| `event:on_receive` | `item`, `giver` |
+| `event:on_leave` | `exit`, `direction`, `destination` |
+| `event:on_fail` | `reason` (`'skill'`, `'closed'`, `'locked'`, …), `exit`, `direction`, `destination` |
+| `event:on_enter` / `pre_enter` / `on_look` / `on_expire` / `on_reset` | *(none — the subject is `target`)* |
+| `event:on_hitprcnt` | `percent`, `threshold` |
+| `event:on_cast` | `ability`, `caster` |
+| `event:connect` | `returning` |
 | `combat:on_damage` | `damage`, `damage_types` |
 | `combat:on_attack` | `weapon`, `attacker_hp`, `defender_hp` |
 | `combat:on_death` | `killer` (a name; the killer *object* is `actor`), `fatal` |
-| `combat:on_hitprcnt` | `percent` |
-| speech / emit | `message`; poses carry `pose` |
-| `event:on_cast` | `ability`, `caster` |
+| `event:speech` / `shout` / `ooc` / `emit` / `whisper` | `message` |
+| `event:emote` / `semipose` | `pose` |
 
 ```
 @set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.
@@ -196,7 +227,7 @@ veto (a cursed item refusing removal).
 | `create_obj` | `(name: 'str', tags: 'list[str] \| None' = None, location: 'GameObject \| str \| None' = None) -> 'GameObject \| None'` | Create a new thing, owned by the executor's owner (or the | `sword = create_obj('iron sword')` |
 | `credits` | `(obj: 'GameObject \| str \| None') -> 'int'` | An object's balance. | `credits(enactor) >= 10` |
 | `damage` | `(obj: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Deal damage to something in the executor's room. Lethal damage | `damage(enactor, 3)` |
-| `decr` | `(attr_name: 'str', by: 'Any' = 1) -> 'Any'` | Decrement a numeric attribute on ``me`` and return the new value. | `decr('ammo')          # -1, returns the new count` |
+| `decr` | `(attr_name: 'str', by: 'Any' = 1, default: 'Any' = 0) -> 'Any'` | Decrement a numeric attribute on ``me`` and return the new value. | `decr('ammo')                  # -1 from 0` |
 | `del_attr` | `(obj: 'GameObject \| str \| None', attr_name: 'str') -> 'bool'` | Delete an attribute from an object the executor controls. | `del_attr(me, 'charged')` |
 | `destroy_obj` | `(obj: 'GameObject \| str \| None') -> 'bool'` | Destroy an object the executor controls (players never). | `destroy_obj('slag')` |
 | `detach_behavior` | `(obj: 'GameObject \| str \| None', behavior_id: 'str') -> 'bool'` | Detach a behavior (by id) from an object the executor controls. | `detach_behavior('golem', 'wandering')` |
@@ -219,7 +250,7 @@ veto (a cursed item refusing removal).
 | `heal` | `(obj: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Restore HP (capped at max_hp) to something in the executor's room. | `heal(enactor, 5)` |
 | `highest` | `(pool: 'int', *, sides: 'int' = 6, skill: 'str' = '') -> 'CheckResult'` | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), |  |
 | `if_else` | `(condition: 'bool', true_val: 'Any', false_val: 'Any') -> 'Any'` | Conditional expression. | `if_else(credits(enactor) >= 10, 'Welcome!', 'No coin, no entry.')` |
-| `incr` | `(attr_name: 'str', by: 'Any' = 1) -> 'Any'` | Increment a numeric attribute on ``me`` and return the new value. | `incr('visits')        # +1, returns the new count` |
+| `incr` | `(attr_name: 'str', by: 'Any' = 1, default: 'Any' = 0) -> 'Any'` | Increment a numeric attribute on ``me`` and return the new value. | `incr('visits')             # +1 from 0, returns the new count` |
 | `last` | `(lst: 'list \| str', delimiter: 'str' = ' ') -> 'str'` | Get last element. | `last('north south east')  # 'east'` |
 | `lcfirst` | `(text: 'str') -> 'str'` | Lowercase first character. | `lcfirst('Hello')          # 'hello'` |
 | `left` | `(text: 'str', length: 'int') -> 'str'` | Get leftmost N characters. | `left('lighthouse', 5)     # 'light'` |

@@ -149,8 +149,10 @@ who can now reach it — tries to make it his:
 drop cube
 ```
 
+Rook types:
+
 ```text
-program cube = pemit(enactor, 'MINE NOW')     <- Rook types this
+program cube = pemit(enactor, 'MINE NOW')
 ```
 
 The `use` lock (`caller == owner`) ignores him: no chime, and the stored

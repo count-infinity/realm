@@ -30,9 +30,10 @@ The structure, four attributes on one NPC:
   player typed; a chained conditional routes it: lore branches set
   their flag, speak, and re-prompt; the secret branch fires once and
   ends the chain; anything else is a polite brush-off.
-- **`on_payment`** — the drink gate, borrowed straight from item 64's
-  balance-delta idiom. Buying Moss a drink is a *real payment*, not a
-  menu fiction: the flag it sets is what unlocks the secret branch.
+- **`on_payment`** — the drink gate, borrowed straight from item 64:
+  `target == me` to be sure the coins were his, `adata('amount')` for
+  how many. Buying Moss a drink is a *real payment*, not a menu
+  fiction: the flag it sets is what unlocks the secret branch.
 
 Memory is nothing but attributes on Moss (`town_<id>`, `mine_<id>`,
 `drink_<id>`, `secret_<id>`), so it persists like everything else and
@@ -79,11 +80,12 @@ The secret goes out on `pemit` — a private line for the one player who
 earned it, not table talk for the room.
 
 **The drink gate.** The same three-way `ON_PAYMENT` as Mira's (serve /
-grumble / ignore a bystander's payment) — vital here, since Moss and
-Mira share a room and both hear every payment event:
+grumble / ignore a bystander's payment) — and the `target == me` check
+is not decoration here: Moss and Mira share a room, so *both* of them
+hear every payment event in the Flagon. Only one of them was paid:
 
 ```
-@set Old Moss/on_payment = paid = credits(me) - V('tab', 0); ((set_attr(me, 'tab', credits(me)), set_attr(me, 'drink_' + enactor.id, 1), pose('drinks deep and wipes his beard.')) if paid >= 5 else (say('That will not wet a flea.') if paid > 0 else None))
+@set Old Moss/on_payment = paid = adata('amount', 0) if target == me else 0; ((set_attr(me, 'drink_' + enactor.id, 1), pose('drinks deep and wipes his beard.')) if paid >= 5 else (say('That will not wet a flea.') if paid > 0 else None))
 ```
 
 ## Try it

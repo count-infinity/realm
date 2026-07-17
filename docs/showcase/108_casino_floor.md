@@ -59,9 +59,43 @@ hands, which takes owner authority). The floor and the cage:
 @create the cashier cage
 drop the cashier cage
 @desc the cashier cage = Brass bars over a marble sill. [[result = f'The reserve holds {credits(me)} credits.']]
-@set the cashier cage/on_payment = paid = credits(me) - V('ledger', 0); c = create_obj('casino chips', tags=['thing', 'chip'], location=enactor) if paid > 0 else None; (set_attr(c, 'chips', paid), pemit(enactor, 'The teller slides ' + str(paid) + ' in chips under the bars.')) if c is not None else None; set_attr(me, 'ledger', credits(me))
-@set the cashier cage/cmd_cashin = $cashin: stacks = [o for o in contents(enactor) if has_tag(o, 'chip')]; total = sum(get_attr(o, 'chips', 0) for o in stacks); ok = total > 0 and transfer_credits(me, enactor, total); [destroy_obj(o) for g in [ok] if g for o in stacks]; pemit(enactor, 'The teller counts ' + str(total) + ' in chips back into credits.' if ok else 'You have no chips, or the cage cannot cover them.'); set_attr(me, 'ledger', credits(me))
+@set the cashier cage/on_payment = paid = adata('amount', 0) if target == me else 0; c = create_obj('casino chips', tags=['thing', 'chip'], location=enactor) if paid > 0 else None; (set_attr(c, 'chips', paid), pemit(enactor, 'The teller slides ' + str(paid) + ' in chips under the bars.')) if c is not None else None
+@set the cashier cage/cmd_cashin = $cashin: stacks = [o for o in contents(enactor) if has_tag(o, 'chip')]; total = sum(get_attr(o, 'chips', 0) for o in stacks); ok = total > 0 and transfer_credits(me, enactor, total); [destroy_obj(o) for g in [ok] if g for o in stacks]; pemit(enactor, 'The teller counts ' + str(total) + ' in chips back into credits.' if ok else 'You have no chips, or the cage cannot cover them.')
 ```
+
+`adata('amount')` is the credits that just landed, and the cage mints
+exactly that many chips — the 1:1 backing is one line, with nothing to
+get out of step. (These two hooks used to carry the **till idiom**: a
+shadow `ledger` attr re-synced at the end of *both*, because the hook
+could only infer a payment from the change in its own balance — and
+`cashin` moves that balance too. A minting cage with a stale till mints
+the wrong number; the invariant this whole tutorial is about would have
+quietly broken. The event carries its own amount now.)
+
+**`if target == me` is not optional, and this floor is why.** An
+`ON_PAYMENT` fires on *every* object in the room, not just the one that
+was paid — it is a witnessed event, like a shout. `enactor` tells you
+who paid; **`target` tells you who was paid**, and that is the entire
+difference between "I was paid" and "someone standing near me was
+paid". A casino is the worst possible room to get this wrong, because
+the whole point of the venue is that a cage, a
+[slot machine](001_slot_machine.md), a
+[poker table](100_poker_table.md) and a bookmaker all share one floor:
+without the guard, dropping 25 credits in the slot machine would have
+the cage cheerfully mint you 25 in chips, backed by nothing, and the
+reserve-equals-chips invariant — the one this tutorial exists to
+teach — breaks on the first pull of the lever.
+
+Guard every payment hook you write:
+
+```text
+paid = adata('amount', 0) if target == me else 0
+```
+
+The old till idiom was accidentally immune (a neighbour's payment moved
+none of *your* credits, so the delta was 0 and the hook no-opped), which
+is exactly the kind of safety you lose when you stop inferring and start
+reading. Read the payload — but read `target` too.
 
 The croupier and her wheel — merge, spin, split:
 

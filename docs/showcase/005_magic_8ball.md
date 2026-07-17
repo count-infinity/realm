@@ -108,7 +108,12 @@ trigger is out of scope and a live server answers `Huh?`. To
 double-check your script without shaking, `@examine oracle ball` dumps
 the raw attributes, and `@tr oracle ball/cmd_shake` is *almost* what
 you want — `@tr` runs plain script attributes, so it's the tool for
-`ON_<EVENT>` hooks you'll meet in the next tutorials.
+`ON_<EVENT>` hooks you'll meet in the next tutorials. One caveat to
+pocket for those: a hook fired by the engine is handed the action that
+fired it (`adata`, `target`, `atype` — see the
+[slot machine](001_slot_machine.md)), and `@tr` has no action behind
+it. A hook that reads the payload can't be `@tr`'d; drive it with the
+real command instead.
 
 ## Going further
 

@@ -303,7 +303,8 @@ class TestTollGate:
         assert "(pay 5 to toll booth)" in out       # ...and the fix
         assert pat.location is road
 
-        # Underpayment is counted and returned (till-delta arithmetic).
+        # Underpayment is counted and returned (the refund reads
+        # adata('amount') off the payment action).
         await sim.do(pat, "pay 3 to toll booth")
         out = text(sim, pat)
         assert "counts 3 and pushes it back" in out
@@ -323,6 +324,36 @@ class TestTollGate:
         # The stamp expires by arithmetic: age it and the gate bars again.
         booth.db.set("pass_" + pat.id, 0)
         sim.seen(pat)
+        await sim.do(pat, "toll gate")
+        assert "the toll is 5 credits" in text(sim, pat)
+        assert pat.location is road
+
+    async def test_the_fare_is_the_payment_not_the_balance(self, sim):
+        """The booth reads what THIS payer handed over, not how fat it
+        has grown. The till-delta this build retired could not tell the
+        difference: it derived the fare from its own balance, so any
+        credit movement it didn't witness (a tip, a refill, an admin
+        adjustment) was silently credited to the next person to walk up."""
+        builder = await build(sim, "030_toll_gate.md")
+        road = room(sim, "Market Road")
+        booth = obj(sim, "toll booth")
+
+        # Money reaches the booth by a route that is not `pay`.
+        await run_lines(
+            sim, builder, ["@eval adjust_credits(get('toll booth'), 100)"])
+        sim.seen(builder)
+        assert booth.db.get("credits") == 100
+
+        pat = sim.player("Pat", location=road, credits=12)
+        await sim.do(pat, "pay 3 to toll booth")
+        out = text(sim, pat)
+        assert "counts 3 and pushes it back" in out     # 3, not 103
+        assert "stamps your wrist" not in out
+        assert booth.db.get("pass_" + pat.id) is None
+        assert booth.db.get("credits") == 100           # refunded in full
+        assert pat.db.get("credits") == 12
+
+        # ...and the gate still bars him.
         await sim.do(pat, "toll gate")
         assert "the toll is 5 credits" in text(sim, pat)
         assert pat.location is road
@@ -453,6 +484,50 @@ class TestAirlock:
         ghost = sim.player("Ghost", location=hull)
         await sim.do(ghost, "open outer door")
         assert "interlock light burns red" in text(sim, ghost)
+
+    async def test_opening_from_the_chamber_does_not_cross_fire(self, sim):
+        """The chamber holds a face of BOTH doors, so `open inner door`
+        there propagates item:on_open to the outer door face as well.
+        Each mirror hook keys on `target == me`, so only the door that
+        was actually opened mirrors itself onto its twin. Without that
+        guard the outer door's hook runs too and unseals its hull face —
+        breaking both the mirror and the airlock's one invariant."""
+        builder, deck, chamber, hull = await self._built(sim)
+        pat = sim.player("Pat", location=chamber)
+
+        await sim.do(pat, "open inner door")
+        # The inner door opened, both faces agreeing...
+        assert all(not f.has_tag("closed")
+                   for f in self._faces(sim, "inner door"))
+        # ...and the outer door is untouched on BOTH sides.
+        assert all(f.has_tag("closed")
+                   for f in self._faces(sim, "outer door"))
+
+        # The invariant is intact, so the hull side still refuses.
+        ghost = sim.player("Ghost", location=hull)
+        await sim.do(ghost, "open outer door")
+        assert "interlock light burns red" in text(sim, ghost)
+        assert ghost.location is hull
+
+    async def test_closing_from_the_chamber_does_not_cross_fire(self, sim):
+        """The same guard on the ON_CLOSE side: hand-closing one door
+        must not drag the other door's faces shut with it."""
+        builder, deck, chamber, hull = await self._built(sim)
+        pat = sim.player("Pat", location=chamber)
+
+        await sim.do(pat, "open inner door")
+        await sim.do(pat, "close inner door")
+        assert all(f.has_tag("closed")
+                   for f in self._faces(sim, "inner door"))
+
+        # With the inner door shut, the outer may now open — and its
+        # own mirror still reaches its twin.
+        await sim.do(pat, "open outer door")
+        assert "interlock light burns red" not in text(sim, pat)
+        assert all(not f.has_tag("closed")
+                   for f in self._faces(sim, "outer door"))
+        assert all(f.has_tag("closed")
+                   for f in self._faces(sim, "inner door"))
 
     async def test_cycle_sequence_walks_deck_to_hull_and_back(self, sim):
         builder, deck, chamber, hull = await self._built(sim)

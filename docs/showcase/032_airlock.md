@@ -35,6 +35,18 @@ face of the other door; a one-line `@eval` wires every face's
 `partner` (its twin) and `other` (the opposite door), plus the panel's
 face lists, so no ids are copied by hand.
 
+**`target == me` is load-bearing on the mirrors.** An `ON_<EVENT>` hook
+fires for every witness in the room, not just the thing that was acted
+on — and the chamber holds a face of **both** doors. So `open inner
+door`, typed in the chamber, runs the outer door's `ON_OPEN` too.
+Reactions are handed the action's payload, so each hook asks whether it
+*is* the target before mirroring: `... if target == me else None`. Drop
+that clause and opening either door from the chamber quietly unseals
+the far face of the *other* one — the mirror desynced and the
+invariant broken, by the very hook that exists to preserve it. The
+wards below key on `target == me` for the same reason; a witness must
+always establish that an event is about *it*.
+
 **The cycle is a raw-write choreography.** The panel's `$cycle in|out`
 seals *all four faces* first (`add_tag` — raw writes don't fire the
 mirrors and don't consult the wards, and both-closed is a legal state,
@@ -76,20 +88,20 @@ it to all four (here: both chamber faces, then the deck face, then the
 hull face):
 
 ```text
-@set inner door/on_open = remove_tag(V('partner'), 'closed')
-@set inner door/on_close = add_tag(V('partner'), 'closed')
+@set inner door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
+@set inner door/on_close = add_tag(V('partner'), 'closed') if target == me else None
 @set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
-@set outer door/on_open = remove_tag(V('partner'), 'closed')
-@set outer door/on_close = add_tag(V('partner'), 'closed')
+@set outer door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
+@set outer door/on_close = add_tag(V('partner'), 'closed') if target == me else None
 @set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
 inner door
-@set inner door/on_open = remove_tag(V('partner'), 'closed')
-@set inner door/on_close = add_tag(V('partner'), 'closed')
+@set inner door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
+@set inner door/on_close = add_tag(V('partner'), 'closed') if target == me else None
 @set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
 inner door
 outer door
-@set outer door/on_open = remove_tag(V('partner'), 'closed')
-@set outer door/on_close = add_tag(V('partner'), 'closed')
+@set outer door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
+@set outer door/on_close = add_tag(V('partner'), 'closed') if target == me else None
 @set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
 outer door
 ```
@@ -132,15 +144,18 @@ same mirrored truth. Cycle back with `cycle in` from the chamber.
 `@examine` any face mid-sequence: at no instant are both doors ever
 untagged `closed`.
 
-> **Caveat — co-located door faces.** The mirror hooks here copy `closed`
-> onto a *named* partner. If two doors share one room (e.g. a ship airlock
-> where both hatches open into the same chamber), an `ON_OPEN` fires for
-> *every* door in the room and — because `ON_<EVENT>` hooks can't read the
-> action's target — each door's mirror runs on every open, cross-firing.
-> This demo is safe only because the two faces live in different rooms.
-> For co-located faces, drive the state from a single panel with the
-> **raw-write cycle** idiom (seal-all-then-open-one), which needs no target
-> info; the [spaceship](164_small_spaceship.md) capstone does exactly this.
+> **Note — co-located door faces.** An `ON_OPEN` fires for *every* door in
+> the room, and this airlock's chamber holds a face of both doors — so the
+> cross-firing case isn't hypothetical here, it's the room you're standing
+> in. The `target == me` clause on each mirror hook is what makes it safe:
+> a hook that can ask "was this event about *me*?" simply declines to
+> mirror someone else's door. (This tutorial once carried a caveat saying
+> co-located faces couldn't be made safe, because `ON_<EVENT>` hooks had no
+> way to read the action's target. They do now — **fixed 2026-07-17** — and
+> the guard above is the whole fix.) The **raw-write cycle** idiom
+> (seal-all-then-open-one) remains the better tool when one panel owns
+> every face and you'd rather not hang a hook on each; the
+> [spaceship](164_small_spaceship.md) capstone does exactly that.
 
 ## Going further
 

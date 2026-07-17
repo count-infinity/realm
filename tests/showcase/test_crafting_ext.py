@@ -10,8 +10,10 @@ realm.testing.Simulator wires the same store/propagation/scripting/
 dispatcher stack a live GameServer does — with the tutorials' EXACT
 command lines (raw input in, session output out).
 
-The build transcripts below are copied verbatim from the docs' "Build
-it" sections; the sync test at the bottom keeps them from drifting.
+Every command line in each tutorial's "Build it" section is read
+straight out of its markdown and driven through the real dispatcher, so
+the tests execute what the docs actually say — a doc edit that breaks a
+build breaks this suite, and there is nothing left to drift.
 Time and dice are deterministic: script_ticker scripts fire via
 `@tr <obj>/on_tick`, wait() chains via engine.tick_waits() after
 zeroing the lull/window attributes (the music-box trick), beat-driven
@@ -23,6 +25,7 @@ roll()/skill_check, realm.scripting.functions for rand()).
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -42,6 +45,20 @@ BUILD_FAILURE_MARKERS = (
     "Script error",
     "Eval error",
 )
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 @pytest.fixture
@@ -118,17 +135,7 @@ def text(out):
 # 121. Gathering nodes — docs/showcase/121_gathering_nodes.md
 # =========================================================================
 
-BUILD_121 = [
-    "@create balthite vein",
-    "drop balthite vein",
-    "@desc balthite vein = A seam of blue-green balthite crystal veining the rock face. [[left = V('ore_left', 0); result = 'It glitters, thick with ore.' if left > 2 else ('Only pale traces remain in the cut.' if left > 0 else 'It is hacked bare -- nothing but scarred rock.')]]",
-    "@set balthite vein/ore_cap = 4",
-    "@set balthite vein/ore_left = 4",
-    "@set balthite vein/regrow_ticks = 3",
-    "@set balthite vein/cmd_mine = $mine vein: left = V('ore_left', 0); res = margin_under(roll('3d6'), get_attr(enactor, 'skill_prospecting', 8)); take = min(left, 1 + max(0, res.margin) // 3); pemit(enactor, 'The vein is hacked bare. Rock heals on its own clock; come back later.') if left < 1 else None; pemit(enactor, 'Sparks, dust, no ore. (rolled ' + str(res.roll) + ' vs prospecting ' + str(res.effective) + ')') if left > 0 and not res.success else None; (decr('ore_left', take), [create_obj('a chunk of balthite ore', ['thing', 'ore'], here) for i in range(take)], remit(here, name(enactor) + ' swings at the vein -- ' + str(take) + ' chunk(s) of balthite clatter free.'), (set_attr(me, 'regrow_left', V('regrow_ticks', 3)), remit(here, 'The seam splits and goes dark, spent.')) if left - take < 1 else None) if left > 0 and res.success else None",
-    "@set balthite vein/on_tick = left = V('ore_left', 0); r = V('regrow_left', 0); (decr('regrow_left') if r > 1 else (set_attr(me, 'ore_left', V('ore_cap', 4)), del_attr(me, 'regrow_left'), remit(here, 'Fresh balthite creeps glittering back across the rock face.'))) if left < 1 else None",
-    "@behavior balthite vein = script_ticker, interval:30",
-]
+BUILD_121 = build_lines("121_gathering_nodes.md")
 
 
 class TestGatheringNodes:
@@ -183,32 +190,7 @@ class TestGatheringNodes:
 # 122. Recipe crafting — docs/showcase/122_recipe_crafting.md
 # =========================================================================
 
-BUILD_122 = [
-    "@create assembly bench",
-    "drop assembly bench",
-    "@desc assembly bench = A scarred steel bench under a rack of torque drivers. A job card is chained to one leg.",
-    "@set assembly bench/menu = [\"valve\"]",
-    "@set assembly bench/recipe_valve = {\"output\": \"a machined pressure valve\", \"tags\": [\"thing\", \"component\"], \"skill\": \"machining\", \"mod\": 0, \"needs\": {\"ingot\": 1, \"gasket\": 1}}",
-    "@set assembly bench/cmd_jobs = $jobs: [pemit(enactor, '  ' + s + ' -> ' "
-    "+ V('recipe_' + s)['output'] + ' (needs: ' + ', '.join(f'{n}x {t}' for "
-    "t, n in V('recipe_' + s)['needs'].items()) + ')') for s in V('menu', [])]",
-    "@set assembly bench/cmd_craft = $craft *: sel = trim(arg0).lower(); r = "
-    "V('recipe_' + sel); carried = contents(enactor) if r else []; short = "
-    "[str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n "
-    "in (r['needs'].items() if r else []) if len([o for o in carried if "
-    "has_tag(o, t)]) < n]; pemit(enactor, 'The job card lists no such "
-    "assembly. Try jobs.') if not r else None; pemit(enactor, 'Short of "
-    "materials: ' + ', '.join(short) + '.') if r and short else None; res = "
-    "margin_under(roll('3d6'), get_attr(enactor, 'skill_' + r['skill'], 8) + "
-    "r['mod']) if r and not short else None; ([destroy_obj(o) for t, n in "
-    "r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], "
-    "(create_obj(r['output'], r['tags'], here), remit(here, f'{name(enactor)} "
-    "works the bench -- {r[\"output\"]} drops into the tray. (margin "
-    "+{res.margin})')) if res.success else (create_obj('a lump of ruined "
-    "scrap', ['thing', 'scrap'], here), remit(here, f'{name(enactor)} botches "
-    "the assembly -- ruined scrap hits the tray. (rolled {res.roll} vs "
-    "{r[\"skill\"]} {res.effective})'))) if r and not short else None",
-]
+BUILD_122 = build_lines("122_recipe_crafting.md")
 
 STOCK_122 = [
     "@set me/skill_machining = 11",
@@ -258,45 +240,7 @@ class TestRecipeCrafting:
 # 123. Refining chain — docs/showcase/123_refining_chain.md
 # =========================================================================
 
-BUILD_123 = [
-    "@dig The Smeltery = smeltway, yard",
-    "smeltway",
-    "@create arc smelter",
-    "drop arc smelter",
-    "@desc arc smelter = A squat induction furnace, crucible glowing the color of a dying sun. Its hopper gapes for raw ore.",
-    "@set arc smelter/eats = ore",
-    "@set arc smelter/eats_count = 2",
-    "@set arc smelter/makes = a duralloy ingot",
-    "@set arc smelter/makes_tags = [\"thing\", \"ingot\"]",
-    "@set arc smelter/makes_count = 1",
-    "@set arc smelter/work_msg = The smelter roars; slag hisses off the pour, and",
-    "@set arc smelter/cmd_refine = $refine: t = V('eats'); n = "
-    "V('eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, "
-    "t)]; k = V('makes_count', 1); pemit(enactor, f'The hopper wants {n}x "
-    "{t}; you carry {len(stock)}.') if len(stock) < n else ([destroy_obj(o) "
-    "for o in stock[:n]], [create_obj(V('makes'), V('makes_tags', ['thing']), "
-    "here) for i in range(k)], remit(here, f'{V(\"work_msg\", \"The station "
-    "cycles, and\")} {k}x {V(\"makes\")} land(s) in the tray.'))",
-    "@dig The Machine Shop = shopway, smeltway",
-    "shopway",
-    "@create parts mill",
-    "drop parts mill",
-    "@desc parts mill = A gantry mill sleeved in coolant mist. A feed clamp waits for ingot stock.",
-    "@set parts mill/eats = ingot",
-    "@set parts mill/eats_count = 1",
-    "@set parts mill/makes = a precision servo part",
-    "@set parts mill/makes_tags = [\"thing\", \"component\"]",
-    "@set parts mill/makes_count = 2",
-    "@set parts mill/work_msg = The mill shrieks through the billet, and",
-    "@set parts mill/cmd_refine = $refine: t = V('eats'); n = V('eats_count', "
-    "1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = "
-    "V('makes_count', 1); pemit(enactor, f'The hopper wants {n}x {t}; you "
-    "carry {len(stock)}.') if len(stock) < n else ([destroy_obj(o) for o in "
-    "stock[:n]], [create_obj(V('makes'), V('makes_tags', ['thing']), here) "
-    "for i in range(k)], remit(here, f'{V(\"work_msg\", \"The station cycles, "
-    "and\")} {k}x {V(\"makes\")} land(s) in the tray.'))",
-    "smeltway",
-]
+BUILD_123 = build_lines("123_refining_chain.md")
 
 
 class TestRefiningChain:
@@ -336,22 +280,7 @@ class TestRefiningChain:
 # 124. Salvage & disassembly — docs/showcase/124_salvage.md
 # =========================================================================
 
-BUILD_124 = [
-    "@create salvage",
-    "@tag salvage = skill_def",
-    "@set salvage/stat = intelligence",
-    "@set salvage/penalty = -2",
-    "@reload",
-    "@create breaker bench",
-    "drop breaker bench",
-    "@desc breaker bench = A waist-high teardown bench: magnetic bit rack, spudgers, a parts tray scarred by ten thousand screws.",
-    "@set breaker bench/parts_gadget = [[\"a coil of copper wire\", 2, [\"thing\", \"wire\"]], [\"an intact microcell\", 1, [\"thing\", \"cell\"]]]",
-    "@set breaker bench/parts_scrap = [[\"a chunk of balthite ore\", 1, [\"thing\", \"ore\"]]]",
-    "@set breaker bench/cmd_salvage = $salvage *: q = trim(arg0).lower(); tgt = ([o for o in contents(enactor) if q in name(o).lower()] + [None])[0]; tabs = [t for t in tags(tgt) if has_attr(me, 'parts_' + t)] if tgt else []; pemit(enactor, 'You carry nothing called ' + q + '.') if not tgt else None; pemit(enactor, 'The scanner shrugs: nothing recoverable in ' + name(tgt) + '.') if tgt and not tabs else None; ok = skill_check(enactor, 'salvage') if tabs else False; tab = V('parts_' + tabs[0], []) if tabs else []; keep = tab if ok else tab[:1]; (destroy_obj(tgt), [create_obj(row[0], row[2], here) for row in keep for i in range(row[1])], remit(here, name(enactor) + ' strips ' + name(tgt) + ' down to: ' + ', '.join(str(row[1]) + 'x ' + row[0] for row in keep) + '.' + ('' if ok else ' (clumsy teardown -- the delicate parts are mangled)'))) if tabs else None",
-    "@create busted med-scanner",
-    "@tag busted med-scanner = gadget",
-    "drop busted med-scanner",
-]
+BUILD_124 = build_lines("124_salvage.md")
 
 
 class TestSalvage:
@@ -398,27 +327,7 @@ class TestSalvage:
 # 125. Quality tiers — docs/showcase/125_quality_tiers.md
 # =========================================================================
 
-BUILD_125 = [
-    "@create finishing lathe",
-    "drop finishing lathe",
-    "@desc finishing lathe = A precision lathe behind a spotless splash guard. A brass plaque grades every blade it releases.",
-    "@set finishing lathe/base_value = 50",
-    "@set finishing lathe/tiers = [[4, \"fine\", 3.0, 18], [0, \"good\", 1.0, 12], [-99, \"shoddy\", 0.4, 6]]",
-    "@set finishing lathe/cmd_forge = $forge blade: stock = [o for o in "
-    "contents(enactor) if has_tag(o, 'ingot')]; pemit(enactor, 'The chuck is "
-    "empty: bring a duralloy ingot.') if not stock else None; res = "
-    "margin_under(roll('3d6'), get_attr(enactor, 'skill_smithing', 8)) if "
-    "stock else None; tier = [row for row in V('tiers', []) if res.margin >= "
-    "row[0]][0] if stock else None; (destroy_obj(stock[0]), [(set_attr(b, "
-    "'quality', tier[1]), set_attr(b, 'value', int(V('base_value', 50) * "
-    "tier[2])), set_attr(b, 'durability', tier[3]), set_attr(b, "
-    "'desc_extras', [['', f'A slender vibro-blade. The maker-stamp grades it "
-    "{tier[1].upper()}.'], ['', f'Edge integrity: {tier[3]}. Trade value: "
-    "{int(V(\"base_value\", 50) * tier[2])} cr.']]), remit(here, "
-    "f'{name(enactor)} draws a {tier[1]} vibro-blade off the lathe. (margin "
-    "{res.margin})')) for b in [create_obj('a duralloy vibro-blade', "
-    "['thing', 'blade'], here)]]) if stock else None",
-]
+BUILD_125 = build_lines("125_quality_tiers.md")
 
 STOCK_125 = [
     "@set me/skill_smithing = 12",
@@ -465,19 +374,7 @@ class TestQualityTiers:
 # 126. Blueprint items — docs/showcase/126_blueprints.md
 # =========================================================================
 
-BUILD_126 = [
-    "@create coil schematic",
-    "drop coil schematic",
-    "@desc coil schematic = A mil-spec data-slate, screen crawling with exploded diagrams of a field coil. STUDY it -- once.",
-    "@set coil schematic/recipe = vector_coil",
-    "@set coil schematic/teach = r = V('recipe'); k = get_attr(enactor, 'known_recipes', []); pemit(enactor, 'You already hold the ' + r + ' pattern.') if r in k else (pemit(enactor, 'The slate flickers: WRITE REFUSED. Only a licensed slate may sign your pattern library.') if not set_attr(enactor, 'known_recipes', k + [r]) else (pemit(enactor, 'The schematic unfolds behind your eyes: the ' + r + ' pattern is yours.'), remit(here, 'The slate chirps once, wipes itself, and crumbles into grey flakes.'), destroy_obj(me)))",
-    "@set coil schematic/cmd_study = $study schematic: eval_attr(me, 'teach')",
-    "@set coil schematic/ON_USE = eval_attr(me, 'teach')",
-    "@create coil fabricator",
-    "drop coil fabricator",
-    "@desc coil fabricator = A sealed lathe-printer. Its status ring idles amber: AWAITING LICENSED PATTERN.",
-    "@set coil fabricator/cmd_fab = $fab *: sel = trim(arg0).lower(); known = get_attr(enactor, 'known_recipes', []); comps = [o for o in contents(enactor) if has_tag(o, 'component')]; pemit(enactor, 'The fabricator blinks: UNLICENSED PATTERN ' + sel + '. Study its schematic first.') if sel not in known else (pemit(enactor, 'The ' + sel + ' pattern calls for 1x component; you carry 0.') if not comps else (destroy_obj(comps[0]), create_obj('a humming vector coil', ['thing', 'coil'], here), remit(here, 'The fabricator sings through the ' + sel + ' pattern; a vector coil rolls into the tray.')))",
-]
+BUILD_126 = build_lines("126_blueprints.md")
 
 # A mortal-built copy: the authority rule made visible (not in the doc's
 # Build-it; the doc explains the refusal in prose).
@@ -550,18 +447,7 @@ class TestBlueprints:
 # 127. Crafting stations — docs/showcase/127_crafting_stations.md
 # =========================================================================
 
-BUILD_127 = [
-    "@create tuning bench",
-    "drop tuning bench",
-    "@desc tuning bench = A vibration-damped bench ruled into a calibration grid. Etched under the lamp: TOOLS MAKE THE MACHINIST.",
-    "@set tuning bench/recipe_gyro = {\"output\": \"a balanced gyro assembly\", \"tags\": [\"thing\", \"gyro\"], \"needs\": {\"component\": 1}, \"tools\": [\"arc_welder\", \"micro_vice\"]}",
-    "@set tuning bench/cmd_tune = $tune *: sel = trim(arg0).lower(); r = V('recipe_' + sel); near = contents(here) + contents(enactor) if r else []; stat = [t + (' (ready)' if [o for o in near if has_tag(o, t)] else ' (MISSING)') for t in r['tools']] if r else []; miss = [t for t in r['tools'] if not [o for o in near if has_tag(o, t)]] if r else []; stock = [o for o in contents(enactor) if has_tag(o, 'component')] if r else []; pemit(enactor, 'No such job is chalked on this bench.') if not r else None; pemit(enactor, 'Tool check -- ' + ', '.join(stat) + ': ' + str(len(r['tools']) - len(miss)) + ' of ' + str(len(r['tools'])) + ' present.') if r and miss else None; pemit(enactor, 'The jig wants 1x component; you carry ' + str(len(stock)) + '.') if r and not miss and not stock else None; (destroy_obj(stock[0]), create_obj(r['output'], r['tags'], here), remit(here, name(enactor) + ' clamps, welds, and spins a gyro assembly true on the bench.')) if r and not miss and stock else None",
-    "@create arc welder",
-    "@tag arc welder = arc_welder",
-    "drop arc welder",
-    "@create micro vice",
-    "@tag micro vice = micro_vice",
-]
+BUILD_127 = build_lines("127_crafting_stations.md")
 
 
 class TestCraftingStations:
@@ -611,19 +497,7 @@ class TestCraftingStations:
 # 128. Hydroponics farming — docs/showcase/128_farming.md
 # =========================================================================
 
-BUILD_128 = [
-    "@create hydro tray",
-    "drop hydro tray",
-    "@desc hydro tray = A chest-high hydroponic vat webbed with drip lines under grow-lamps. [[w = V('water', 0); result = ('Nutrient gauge: ' + str(w) + '/3.') if has_attr(me, 'stage') else 'Its growth bed sits empty, lamps dimmed to standby.']]",
-    "@set hydro tray/stages = [[\"germinating\", 2, \"Pale threads spider through the growth foam.\"], [\"flowering\", 2, \"White blossoms nod under the grow-lamps.\"], [\"fruiting\", 0, \"Fat helio-tomatoes hang glowing faintly orange.\"]]",
-    "@set hydro tray/cmd_plant = $plant *: seeds = [o for o in contents(enactor) if has_tag(o, 'seed')]; pemit(enactor, 'The bed is already planted.') if has_attr(me, 'stage') else (pemit(enactor, 'You carry no seed stock.') if not seeds else (destroy_obj(seeds[0]), set_attr(me, 'stage', 0), set_attr(me, 'stage_left', V('stages')[0][1]), set_attr(me, 'water', 2), set_attr(me, 'desc_extras', [['', V('stages')[0][2]]]), remit(here, name(enactor) + ' beds a seed into the growth foam; the lamps hum up to full.')))",
-    "@set hydro tray/cmd_water = $water tray: pemit(enactor, 'Nothing is planted.') if not has_attr(me, 'stage') else (set_attr(me, 'water', 3), remit(here, 'Nutrient mist hisses through the drip lines.'))",
-    "@set hydro tray/cmd_harvest = $harvest *: s = V('stage', None); st = V('stages', []); ripe = s is not None and s >= len(st) - 1; pemit(enactor, 'Nothing is planted.') if s is None else None; pemit(enactor, 'Not yet -- the crop is still ' + st[s][0] + '.') if s is not None and not ripe else None; ([create_obj('a glowing helio-tomato', ['thing', 'produce'], here) for i in range(3)], del_attr(me, 'stage'), del_attr(me, 'stage_left'), del_attr(me, 'water'), del_attr(me, 'desc_extras'), remit(here, name(enactor) + ' gathers 3 glowing helio-tomatoes; the lamps dim to standby.')) if ripe else None",
-    "@set hydro tray/on_tick = s = V('stage', None); st = V('stages', []); w = V('water', 0); ripe = s is not None and s >= len(st) - 1; go = s is not None and not ripe; (remit(here, 'The hydro tray blinks a dry amber warning.') if w < 1 else (decr('water'), (decr('stage_left') if V('stage_left', 1) > 1 else (incr('stage'), set_attr(me, 'stage_left', st[s + 1][1]), set_attr(me, 'desc_extras', [['', st[s + 1][2]]]), remit(here, 'In the hydro tray: ' + st[s + 1][2]))))) if go else None",
-    "@behavior hydro tray = script_ticker, interval:60",
-    "@create packet of helio-tomato seeds",
-    "@tag packet of helio-tomato seeds = seed",
-]
+BUILD_128 = build_lines("128_farming.md")
 
 
 class TestFarming:
@@ -682,19 +556,7 @@ class TestFarming:
 # 129. Cooking with buffs — docs/showcase/129_cooking_buffs.md
 # =========================================================================
 
-BUILD_129 = [
-    "@create galley range",
-    "drop galley range",
-    "@desc galley range = A blackened four-ring galley range. The menu card wedged over the ignition reads: STEW.",
-    "@set galley range/cook_stew = {\"name\": \"a bowl of ember-root stew\", \"needs\": {\"produce\": 2}, \"buff_kind\": \"hearty\", \"buff_skill\": \"throwing\", \"buff_mod\": 3, \"buff_beats\": 10, \"fresh\": 4}",
-    "@set galley range/eat_code = $eat *: b = V('buff'); pemit(enactor, 'Both hands and a flat spot: set ' + name(me) + ' down somewhere first.') if loc(me) == enactor else ((pemit(enactor, 'One sniff says no -- but hunger wins. It has gone rank.'), apply_effect(enactor, 'damage_over_time', kind='food_poisoning', damage=1, interval=1, duration=3, tick_msg='Your stomach knots and cramps.', expire_msg='Your stomach finally settles.'), destroy_obj(me)) if has_tag(me, 'spoiled') else (apply_effect(enactor, 'modifier_effect', kind=b['kind'], duration=b['beats'], check_mods={b['skill']: b['mod']}, apply_msg='Warmth spreads from your belly: ' + b['kind'] + ' (+' + str(b['mod']) + ' ' + b['skill'] + ' while it lasts).', expire_msg='The warm, well-fed feeling fades.'), remit(here, name(enactor) + ' scrapes the bowl clean.'), destroy_obj(me)))",
-    "@set galley range/spoil_code = sp = has_tag(me, 'spoiled'); f = V('freshness', 4) - get_attr(loc(me), 'decay_rate', 1); (set_attr(me, 'freshness', f), (add_tag(me, 'spoiled'), remit(here, ucfirst(name(me)) + ' films over and goes rank.')) if f <= 0 else None) if not sp else None",
-    "@set galley range/cmd_cook = $cook *: sel = trim(arg0).lower(); r = V('cook_' + sel); carried = contents(enactor) if r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The menu card lists no such dish.') if not r else None; pemit(enactor, 'Short of fixings: ' + ', '.join(short) + '.') if r and short else None; ([destroy_obj(o) for t, n in r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], [(set_attr(m, 'buff', {'kind': r['buff_kind'], 'skill': r['buff_skill'], 'mod': r['buff_mod'], 'beats': r['buff_beats']}), set_attr(m, 'freshness', r['fresh']), set_attr(m, 'cmd_eat', V('eat_code')), set_attr(m, 'on_tick', V('spoil_code')), attach_behavior(m, 'script_ticker', interval=45), set_attr(m, 'desc_extras', [['', 'Chunks of ember-root in a pepper-dark broth, still steaming.']]), remit(here, 'The range flares; ' + r['name'] + ' ladles out onto the counter.')) for m in [create_obj(r['name'], ['thing', 'meal'], here)]]) if r and not short else None",
-    "@create knife board",
-    "drop knife board",
-    "@desc knife board = A scarred target board bolted by the galley door, one painted ring, many old knife scars. THROW KNIFE at it.",
-    "@set knife board/cmd_throw = $throw knife: hit = skill_check(enactor, 'throwing'); remit(here, name(enactor) + (' snaps a knife dead into the painted ring. THOCK.' if hit else ' throws wide; the knife skitters off the plating.'))",
-]
+BUILD_129 = build_lines("129_cooking_buffs.md")
 
 
 class TestCookingBuffs:
@@ -775,32 +637,7 @@ class TestCookingBuffs:
 # 130. Fishing — docs/showcase/130_fishing.md
 # =========================================================================
 
-BUILD_130 = [
-    "@create scum pond",
-    "drop scum pond",
-    "@desc scum pond = A green-skinned catch pool between dock pilings. Now and then something moves under the scum. CAST LINE here.",
-    "@set scum pond/lull = 6",
-    "@set scum pond/window = 4",
-    "@set scum pond/catches = [[\"a mottled mudskipper\", 55, [\"thing\", \"fish\"]], [\"a silver dartfish\", 30, [\"thing\", \"fish\"]], [\"a waterlogged boot\", 15, [\"thing\", \"junk\"]]]",
-    "@set scum pond/cmd_cast = $cast line: pemit(enactor, 'A line is already out. Watch the float; hook when it dips.') if V('line_out', 0) else (set_attr(me, 'line_out', 1), set_attr(me, 'angler', enactor.id), remit(here, name(enactor) + ' casts a line out over the scum.'), wait(V('lull', 6), 'trigger me/bite'))",
-    "@set scum pond/bite = (set_attr(me, 'bite_open', 1), remit(here, 'The float dips hard -- something is on!'), wait(V('window', 4), 'trigger me/slack')) if V('line_out', 0) else None",
-    "@set scum pond/slack = (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), remit(here, 'The water stills. The line drifts back slack, bait gone.')) if V('bite_open', 0) else None",
-    "@set scum pond/cmd_hook = $hook: lined = V('line_out', 0); dip = "
-    "V('bite_open', 0); pemit(enactor, 'No line in the water. cast line "
-    "first.') if not lined else None; (del_attr(me, 'line_out'), del_attr(me, "
-    "'angler'), pemit(enactor, 'You yank at still water; anything under the "
-    "scum is long warned off.')) if lined and not dip else None; res = "
-    "margin_under(roll('3d6'), get_attr(enactor, 'skill_angling', 9)) if "
-    "lined and dip else None; draw = lambda draw, t, r: t[0] if r <= t[0][1] "
-    "or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); c = draw(draw, "
-    "V('catches', []), rand(1, 100)) if lined and dip else None; "
-    "(del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, "
-    "'angler'), (create_obj(c[0], c[2], here), remit(here, f'{name(enactor)} "
-    "hooks it clean -- {c[0]} lands flopping on the dock! (margin "
-    "+{res.margin})')) if res.success else remit(here, f'It spits the hook "
-    "and is gone. (rolled {res.roll} vs angling {res.effective})')) if lined "
-    "and dip else None",
-]
+BUILD_130 = build_lines("130_fishing.md")
 
 # Test-only: collapse the real-time lull/window so tick_waits() drives
 # the bite chain deterministically (the music-box tempo trick).
@@ -898,57 +735,7 @@ class TestFishing:
 # 131. Chemistry & poisons — docs/showcase/131_chemistry_poisons.md
 # =========================================================================
 
-BUILD_131 = [
-    "@create synthesis rig",
-    "drop synthesis rig",
-    "@desc synthesis rig = A fume-hooded synthesis rig of coiled glass and ceramic pumps. Its status ring idles amber. MIX here -- if you are licensed.",
-    "@set synthesis rig/menu = [\"mend\", \"etch\"]",
-    "@set synthesis rig/form_mend = {\"name\": \"a vial of mendicine gel\", \"tags\": [\"thing\", \"medicine\"], \"needs\": {\"biomass\": 1, \"solvent\": 1}, \"min_skill\": 10, \"apply\": true, \"value\": 40, \"blurb\": \"Cold blue gel that knits burns and scrapes. APPLY GEL once it is set down.\"}",
-    "@set synthesis rig/form_etch = {\"name\": \"a flask of kryl etchant\", \"tags\": [\"thing\", \"acid\"], \"needs\": {\"solvent\": 2}, \"min_skill\": 12, \"apply\": false, \"value\": 25, \"blurb\": \"Amber etchant that whispers against its glass. Industrial use only.\"}",
-    "@set synthesis rig/gel_code = $apply gel: pemit(enactor, 'Set the vial down first; the applicator wants a steady base.') if loc(me) == enactor else (remove_effect(enactor, 'chem_burn'), heal(enactor, 2), pemit(enactor, 'The gel knits skin cold and quick; the burning stops.'), remit(here, name(enactor) + ' smooths mendicine gel over the burns.'), destroy_obj(me))",
-    "@set synthesis rig/cmd_formulas = $formulas: [pemit(enactor, '  ' + s + "
-    "' -> ' + V('form_' + s)['name'] + ' (CHEM-' + str(V('form_' + "
-    "s)['min_skill']) + '; needs: ' + ', '.join(f'{n}x {t}' for t, n in "
-    "V('form_' + s)['needs'].items()) + ')') for s in V('menu', [])]",
-    "@set synthesis rig/cmd_mix = $mix *: sel = trim(arg0).lower(); r = "
-    "V('form_' + sel); known = get_attr(enactor, 'known_formulas', []); lvl = "
-    "get_attr(enactor, 'skill_chemistry', 0); carried = contents(enactor) if "
-    "r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) "
-    "+ 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o "
-    "in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The rig lists no "
-    "such formula. Try formulas.') if not r else None; pemit(enactor, f'The "
-    "rig refuses: no verified pathway for {sel} in your neural index.') if r "
-    "and sel not in known else None; pemit(enactor, f'The rig refuses: "
-    "certification CHEM-{r[\"min_skill\"]} required (your chemistry: "
-    "{lvl}).') if r and sel in known and lvl < r['min_skill'] else None; "
-    "pemit(enactor, 'Reagents short: ' + ', '.join(short) + '.') if r and sel "
-    "in known and lvl >= r['min_skill'] and short else None; go = bool(r) and "
-    "sel in known and lvl >= r['min_skill'] and not short; res = "
-    "margin_under(roll('3d6'), lvl) if go else None; ([destroy_obj(o) for t, "
-    "n in r['needs'].items() for o in [x for x in carried if has_tag(x, "
-    "t)][:n]], ([(set_attr(v, 'cmd_apply', V('gel_code')) if r['apply'] else "
-    "None, set_attr(v, 'value', r['value']), set_attr(v, 'desc_extras', [['', "
-    "r['blurb']]]), remit(here, f'The rig cycles green; {r[\"name\"]} fills "
-    "in the cradle. (margin +{res.margin})')) for v in [create_obj(r['name'], "
-    "r['tags'], here)]] if res.success else (remit(here, f'The mix curdles "
-    "into inert sludge. (rolled {res.roll} vs chemistry {res.effective})') if "
-    "res.margin > -5 else (remit(here, 'The rig shrieks -- the mix flashes "
-    "back in a caustic spray!'), damage(enactor, roll('1d2')), "
-    "apply_effect(enactor, 'damage_over_time', kind='chem_burn', damage=1, "
-    "interval=1, duration=4, tick_msg='Caustic residue eats at your skin!', "
-    "room_msg='{name} claws at smoking sleeves.', expire_msg='The last of the "
-    "residue burns itself out.'))))) if go else None",
-    "@create mend formula chip",
-    "drop mend formula chip",
-    "@desc mend formula chip = A ceramic data-chip etched MEND-7G. MEMORIZE CHIP to take the synthesis pathway.",
-    "@set mend formula chip/formula = mend",
-    "@set mend formula chip/cmd_memorize = $memorize chip: f = V('formula'); "
-    "k = get_attr(enactor, 'known_formulas', []); pemit(enactor, f'You "
-    "already hold the {f} pathway.') if f in k else (pemit(enactor, 'The chip "
-    "blinks: WRITE REFUSED (unlicensed chip).') if not set_attr(enactor, "
-    "'known_formulas', k + [f]) else pemit(enactor, f'Cold data blooms behind "
-    "your eyes: the {f} pathway is yours.'))",
-]
+BUILD_131 = build_lines("131_chemistry_poisons.md")
 
 
 class TestChemistry:
@@ -1036,47 +823,3 @@ class TestChemistry:
         assert "The rig lists no such formula. Try formulas." in text(out)
         out = await do(sim, kess, "mix mend")
         assert "Reagents short: 1x biomass, 1x solvent." in text(out)
-
-
-# =========================================================================
-# Docs <-> tests sync — the transcripts above must match the tutorials
-# =========================================================================
-
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
-
-DOC_TRANSCRIPTS = {
-    "121_gathering_nodes.md": BUILD_121,
-    "122_recipe_crafting.md": BUILD_122,
-    "123_refining_chain.md": BUILD_123,
-    "124_salvage.md": BUILD_124,
-    "125_quality_tiers.md": BUILD_125,
-    "126_blueprints.md": BUILD_126,
-    "127_crafting_stations.md": BUILD_127,
-    "128_farming.md": BUILD_128,
-    "129_cooking_buffs.md": BUILD_129,
-    "130_fishing.md": BUILD_130,
-    "131_chemistry_poisons.md": BUILD_131,
-}
-
-
-def _build_it_lines(text):
-    """Every non-blank line inside ```text fences of the Build-it section."""
-    section = text.split("## Build it", 1)[1].split("## Try it", 1)[0]
-    lines = []
-    in_fence = False
-    for line in section.splitlines():
-        if line.strip().startswith("```"):
-            in_fence = not in_fence
-            continue
-        if in_fence and line.strip():
-            lines.append(line.rstrip())
-    return lines
-
-
-def test_tutorial_docs_match_the_exact_tested_command_lines():
-    """The embedded transcripts equal the docs' Build-it sections line for
-    line, so the tutorials can never drift from what the tests prove."""
-    for doc_name, lines in DOC_TRANSCRIPTS.items():
-        doc = (DOCS / doc_name).read_text(encoding="utf-8")
-        assert _build_it_lines(doc) == lines, (
-            f"{doc_name} Build-it lines differ from the tested transcript")

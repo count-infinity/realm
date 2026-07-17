@@ -27,20 +27,23 @@ authority convention as the [coat check](022_coat_check.md) and the
 ...` appends the same letter to both ledgers, each copy carrying the
 full address line so everyone can see who else got it.
 
-**Attachments are escrow, in two moves.** Event hooks carry no
-payload, so `give parcel to Postmaster` can't say "this is for Zeke".
-Instead the `ON_RECEIVE` hook stamps whatever just arrived with
-`escrow = <giver's id>` (the new arrival is whatever in `contents(me)`
-isn't stamped yet — the contents-diff idiom from item 22), and your
-next `send` sweeps everything stamped with *your* id into the letter.
+**Attachments are escrow, in two moves.** `give parcel to Postmaster`
+tells the hook a great deal — `adata('item')` is the parcel,
+`adata('giver')` (here, `enactor`) is you — but it cannot tell it "this
+one is for Zeke": the payload describes the handover, not your
+intentions. So the counter takes your parcel now and asks who it's for
+later. The `ON_RECEIVE` hook stamps the arrival with
+`escrow = <giver's id>`, and your next `send` sweeps everything stamped
+with *your* id into the letter.
 On redemption, `claim <n>` teleports the items out of the master to
 you — legal because anything standing *inside* the master is the
 master's to relocate — and blanks the row's attachment list so a
 second claim finds nothing. Stamps are set to `''` rather than
-deleted when consumed, so already-delivered parcels never look "new"
-to the receive hook again. One honest corner: objects can't be
-duplicated, so on a CC'd letter the parcels ride with the *first*
-recipient only; the copies say so by carrying an empty list.
+deleted when consumed, which is what makes a spent parcel stop
+matching `get_attr(o, 'escrow') == enactor.id` on your next `send`
+without pretending it was never stamped. One honest corner: objects
+can't be duplicated, so on a CC'd letter the parcels ride with the
+*first* recipient only; the copies say so by carrying an empty list.
 
 **"You have mail" is a witnessed event.** When a player connects, the
 engine propagates `event:connect` from their location — the room, its
@@ -82,7 +85,7 @@ drop Postmaster
 The escrow hook — stamp whatever just arrived:
 
 ```text
-@set Postmaster/on_receive = new = [o for o in contents(me) if not has_attr(o, 'escrow')]; [(set_attr(o, 'escrow', enactor.id), pemit(enactor, f'The clerk tags your {name(o)}: it will ride along with your next SEND.')) for o in new]
+@set Postmaster/on_receive = it = adata('item') if target is me else None; (set_attr(it, 'escrow', enactor.id), pemit(enactor, f'The clerk tags your {name(it)}: it will ride along with your next SEND.')) if it is not None else None
 ```
 
 Sending — resolve every name, refuse the lot if any is wrong,

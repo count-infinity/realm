@@ -28,6 +28,16 @@ object's tick script, which is the whole lesson.
    caps at 3. Damage is the fire object's own — proximity authority,
    like the cloud and the mine before it.
 
+   The growth write stays longhand
+   (`set_attr(me, 'stage', s + 1) if s < 3`) on purpose. `incr` takes a
+   `default` now, so `incr('stage', default=1)` reads like the obvious
+   tidy-up — but it writes *unconditionally*, and the `if s < 3` is
+   what makes 3 a ceiling rather than a waypoint. Without the guard the
+   stage climbs forever and `{s - 1}d4` climbs with it. A **guarded
+   write** — one that only happens on one branch — is exactly the case
+   `incr` cannot express; the self-destruct countdown (item 56) keeps
+   its longhand for the same reason.
+
 2. **Spread walks the exits.** `exits(loc(me))`, resolve each
    `destination`, skip `closed` doors — **closed doors hold fire back**,
    same rule as the gas — and skip rooms that already have a

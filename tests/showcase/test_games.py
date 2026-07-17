@@ -8,8 +8,10 @@ realm.testing.Simulator wires the same store/propagation/scripting/
 dispatcher stack a live GameServer does — with the tutorials' EXACT
 command lines (raw input in, session output out).
 
-The BUILD_* lists below are copied verbatim from the docs' "Build it"
-sections; the sync test at the bottom keeps them from drifting.
+Every command line in each tutorial's "Build it" section is read
+straight out of its markdown and driven through the real dispatcher, so
+the tests execute what the docs actually say: a doc edit that breaks a
+build breaks this suite, and there is nothing left to drift.
 Determinism: rand() is pinned via realm.scripting.functions.random,
 the dice kernel (roll/margin_under/skill_check/contest) via
 realm.core.dice.random; wait() chains run on the Simulator's virtual
@@ -21,6 +23,7 @@ economy suites use.
 from __future__ import annotations
 
 from pathlib import Path
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -28,6 +31,8 @@ import pytest
 import realm.behaviors  # noqa: F401 — registers script_ticker
 from realm.core.economy import get_credits
 from realm.testing import Simulator
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
 BUILD_FAILURE_MARKERS = (
     "Unknown command",
@@ -38,6 +43,18 @@ BUILD_FAILURE_MARKERS = (
     "Eval error",
     "error",
 )
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 @pytest.fixture
@@ -136,26 +153,7 @@ async def grant(sim, vala, player, amount):
 # 098. Dice roller — docs/showcase/098_dice_roller.md
 # =========================================================================
 
-DICE_BUILD = [
-    "@create a dice cup",
-    "drop a dice cup",
-    "@desc a dice cup = A leather cup, dice rattling inside. [[result = "
-    "f'Last throw: {V(\"last\", \"--\")}.']]",
-    "@set a dice cup/cmd_roll = $roll *: expr = trim(arg0); total = "
-    "roll(expr); set_attr(me, 'last', f'{expr} = {total}'); remit(here, "
-    "f'{name(enactor)} rattles the cup and throws {expr}: {total}.')",
-    "@set a dice cup/cmd_try = $try *: s = trim(arg0).lower(); lvl = "
-    "get_attr(enactor, 'skill_' + s, get_attr(enactor, 'dexterity', 10) - 5); "
-    "r = margin_under(roll('3d6'), lvl, skill=s); word = 'critically nails' "
-    "if r.margin >= 6 else ('makes' if r.success else ('barely misses' if "
-    "r.margin >= -2 else 'blows')); remit(here, f'{name(enactor)} rolls "
-    "{r.roll} vs {s} {r.effective} -- {word} it (margin {r.margin}).')",
-    "@set a dice cup/cmd_check = $check *: s = trim(arg0).lower(); ok = "
-    "skill_check(enactor, s); pemit(enactor, 'The table holds its "
-    "breath... ' + ('You pull it off.' if ok else 'No dice.')); "
-    "oemit(enactor, name(enactor) + ' tries a ' + s + ' check and ' + "
-    "('makes it.' if ok else 'fumbles.'))",
-]
+DICE_BUILD = build_lines("098_dice_roller.md")
 
 
 class TestDiceRoller:
@@ -220,48 +218,7 @@ class TestDiceRoller:
 # 099. Card deck — docs/showcase/099_card_deck.md
 # =========================================================================
 
-DECK_BUILD = [
-    "@create a deck of cards",
-    "drop a deck of cards",
-    "@desc a deck of cards = Well-worn cards in a battered tin. "
-    "[[result = str(len(V('deck', []))) + "
-    "' cards remain in the tin.']]",
-    "@set a deck of cards/fresh = result = [r + s for s in ['s', 'h', "
-    "'d', 'c'] for r in ['A', '2', '3', '4', '5', '6', '7', '8', '9', "
-    "'10', 'J', 'Q', 'K']]",
-    "@set a deck of cards/hands = {}",
-    "@attr a deck of cards/hands = secret",
-    "@set a deck of cards/cmd_shuffle = $shuffle: d = eval_attr(me, "
-    "'fresh'); p = [d.pop(rand(0, len(d) - 1)) for i in range(len(d))]; "
-    "set_attr(me, 'deck', p); set_attr(me, 'hands', {}); set_attr(me, "
-    "'table', []); remit(here, name(enactor) + ' shuffles the deck with "
-    "a riffle and a bridge.')",
-    "@set a deck of cards/cmd_deal = $deal * to *: n = int(trim(arg0)); "
-    "who = get(trim(arg1)); d = V('deck', []); h = "
-    "V('hands', {}); ok = who is not None and loc(who) is "
-    "here and 0 < n <= len(d); (h.update({who.id: h.get(who.id, []) + "
-    "d[:n]}), set_attr(me, 'hands', h), set_attr(me, 'deck', d[n:]), "
-    "remit(here, name(who) + ' is dealt ' + str(n) + ' cards, face "
-    "down.'), pemit(who, 'Your cards: ' + ' '.join(h[who.id]))) if ok "
-    "else pemit(enactor, 'The deck cannot do that -- shuffle first, "
-    "name a player here, and mind the count.')",
-    "@set a deck of cards/cmd_hand = $hand: h = V('hands', "
-    "{}).get(enactor.id, []); pemit(enactor, 'Your hand: ' + "
-    "' '.join(h) if h else 'You hold no cards.'); oemit(enactor, "
-    "name(enactor) + ' fans a hand of cards close to the chest.') if h "
-    "else None",
-    "@set a deck of cards/cmd_play = $play *: c = trim(arg0); h = "
-    "V('hands', {}); mine = h.get(enactor.id, []); pick = "
-    "[x for x in mine if x.lower() == c.lower()]; (mine.remove(pick[0]), "
-    "h.update({enactor.id: mine}), set_attr(me, 'hands', h), "
-    "set_attr(me, 'table', V('table', []) + [pick[0]]), "
-    "remit(here, name(enactor) + ' plays ' + pick[0] + ' onto the "
-    "table.')) if pick else pemit(enactor, 'That card is not in your "
-    "hand.')",
-    "@set a deck of cards/cmd_table = $table: t = V('table', "
-    "[]); pemit(enactor, 'On the table: ' + (' '.join(t) if t else "
-    "'nothing yet.'))",
-]
+DECK_BUILD = build_lines("099_card_deck.md")
 
 
 class TestCardDeck:
@@ -355,89 +312,7 @@ class TestCardDeck:
 # 100. Poker table — docs/showcase/100_poker_table.md
 # =========================================================================
 
-POKER_BUILD = [
-    "@create the poker table",
-    "drop the poker table",
-    "@desc the poker table = Green felt, chip rails, a shaded lamp. "
-    "[[result = 'The pot holds ' + str(V('pot', 0)) + "
-    "' credits.']]",
-    "@set the poker table/hands = {}",
-    "@attr the poker table/hands = secret",
-    "@set the poker table/cmd_sit = $sit: p = V('players', "
-    "[]); n = V('names', {}); ok = V('phase', "
-    "'lobby') == 'lobby' and enactor.id not in p; [(set_attr(me, "
-    "'players', p + [enactor.id]), n.update({enactor.id: "
-    "name(enactor)}), set_attr(me, 'names', n), remit(here, "
-    "name(enactor) + ' takes a seat at the poker table.')) for g in "
-    "[ok] if g]; pemit(enactor, 'You are in. Someone type: deal cards.' "
-    "if ok else 'No seat for you -- a hand is in play, or you are "
-    "already seated.')",
-    "@set the poker table/cmd_deal = $deal cards: p = V("
-    "'players', []); ok = V('phase', 'lobby') == 'lobby' and "
-    "enactor.id in p and len(p) >= 2; d = [r + s for s in ['s', 'h', "
-    "'d', 'c'] for r in ['A', '2', '3', '4', '5', '6', '7', '8', '9', "
-    "'10', 'J', 'Q', 'K']]; sh = [d.pop(rand(0, len(d) - 1)) for i in "
-    "range(len(d))]; [(set_attr(me, 'hands', {pid: sh[i * 5:i * 5 + 5] "
-    "for i, pid in enumerate(p)}), set_attr(me, 'bets', {pid: 0 for pid "
-    "in p}), set_attr(me, 'folded', []), set_attr(me, 'phase', "
-    "'betting'), remit(here, 'Five cards apiece, face down. Betting is "
-    "open: pay the table to bet, fold to quit, showdown when stakes "
-    "match.'), [pemit(get('#' + pid), 'Your hand: ' + ' '.join(sh[i * "
-    "5:i * 5 + 5])) for i, pid in enumerate(p)]) for g in [ok] if g]; "
-    "pemit(enactor, 'Take a seat first, find an opponent, or finish the "
-    "current hand.') if not ok else None",
-    "@set the poker table/on_payment = paid = credits(me) - "
-    "V('ledger', 0); b = V('bets', {}); live = "
-    "V('phase', 'lobby') == 'betting' and enactor.id in b "
-    "and enactor.id not in V('folded', []); [(b.update("
-    "{enactor.id: b[enactor.id] + paid}), set_attr(me, 'bets', b), "
-    "set_attr(me, 'pot', V('pot', 0) + paid), remit(here, "
-    "name(enactor) + ' pushes ' + str(paid) + ' into the pot -- staked "
-    "' + str(b[enactor.id]) + ' this hand.')) for g in [live] if g]; "
-    "(transfer_credits(me, enactor, paid), pemit(enactor, 'The table "
-    "returns your credits: no hand in play for you.')) if not live and "
-    "paid > 0 else None; set_attr(me, 'ledger', credits(me))",
-    "@set the poker table/cmd_fold = $fold: f = V('folded', "
-    "[]); p = V('players', []); ok = V('phase') "
-    "== 'betting' and enactor.id in p and enactor.id not in f; f2 = f + "
-    "[enactor.id]; live = [pid for pid in p if pid not in f2]; "
-    "[(set_attr(me, 'folded', f2), remit(here, name(enactor) + ' "
-    "folds.')) for g in [ok] if g]; eval_attr(me, 'settle', "
-    "' '.join(live)) if ok and len(live) == 1 else None",
-    "@set the poker table/score = cs = arg0.split(); vs = "
-    "sorted([member(c[:-1], '2 3 4 5 6 7 8 9 10 J Q K A') for c in "
-    "cs], reverse=True); n = {v: vs.count(v) for v in vs}; shape = "
-    "sorted(n.values(), reverse=True); cat = 7 if shape[0] == 4 else "
-    "(6 if shape == [3, 2] else (3 if shape[0] == 3 else (2 if "
-    "shape[:2] == [2, 2] else (1 if shape[0] == 2 else 0)))); result = "
-    "[cat] + [pr[1] for pr in sorted([[n[v], v] for v in vs], "
-    "reverse=True)]",
-    "@set the poker table/catname = result = switch(int(arg0), 7, "
-    "'four of a kind', 6, 'a full house', 3, 'three of a kind', 2, "
-    "'two pair', 1, 'a pair', 'high card')",
-    "@set the poker table/cmd_showdown = $showdown: p = V("
-    "'players', []); f = V('folded', []); b = V("
-    "'bets', {}); live = [pid for pid in p if pid not in f]; h = "
-    "V('hands', {}); n = V('names', {}); ok = "
-    "V('phase') == 'betting' and enactor.id in live and "
-    "len(set([b[pid] for pid in live])) == 1 and b[live[0]] > 0; sc = "
-    "{pid: eval_attr(me, 'score', ' '.join(h[pid])) for pid in live} if "
-    "ok else {}; best = max(sc.values()) if ok else None; w = [pid for "
-    "pid in live if sc[pid] == best] if ok else []; [remit(here, "
-    "n.get(pid, '?') + ' shows ' + ' '.join(h[pid]) + ' -- ' + "
-    "eval_attr(me, 'catname', str(sc[pid][0])) + '.') for g in [ok] if "
-    "g for pid in live]; eval_attr(me, 'settle', ' '.join(w)) if ok "
-    "else pemit(enactor, 'Not yet -- betting still open (all live "
-    "stakes must match and be above zero).')",
-    "@set the poker table/settle = w = arg0.split(); pot = V("
-    "'pot', 0); share = pot // len(w); n = V('names', {}); "
-    "[transfer_credits(me, get('#' + pid), share) for pid in w]; "
-    "remit(here, 'The pot -- ' + str(pot) + ' credits -- goes to ' + "
-    "', '.join([n.get(pid, '?') for pid in w]) + '.'); set_attr(me, "
-    "'pot', pot - share * len(w)); set_attr(me, 'phase', 'lobby'); "
-    "set_attr(me, 'players', []); set_attr(me, 'hands', {}); "
-    "set_attr(me, 'ledger', credits(me)); result = 1",
-]
+POKER_BUILD = build_lines("100_poker_table.md")
 
 
 class TestPokerTable:
@@ -518,6 +393,37 @@ class TestPokerTable:
         assert get_credits(kess) == 110
         assert get_credits(bob) == 90
 
+    async def test_a_neighbours_payment_never_reaches_the_pot(self, sim):
+        """ON_PAYMENT is a witnessed event: it fires on every object in
+        the room, not just the one paid. The table's hook must check
+        `target == me` or adata('amount') hands it the bartender's
+        money -- and a seated player buying a drink stakes it by
+        accident. Drop the guard from the doc and this test fails."""
+        room, vala, kess, bob = parlor_and_staff(sim)
+        await build(sim, vala, POKER_BUILD)
+        # A second payable, standing in the same room as the table.
+        await build(sim, vala, [
+            "@create the bartender",
+            "drop the bartender",
+        ])
+        await self._seated_and_dealt(sim, vala, kess, bob)
+        table = find_one(sim, "the poker table")
+        drain_all(sim, vala, kess, bob)
+
+        # Kess is seated and betting -- the exact player the unguarded
+        # hook would misread. She buys a drink instead.
+        await do(sim, kess, "pay 7 to the bartender")
+        assert table.db.get("pot") in (None, 0)       # nothing staked
+        assert table.db.get("bets")[kess.id] == 0
+        saw = "\n".join(sim.seen(bob))
+        assert "into the pot" not in saw
+        assert "returns your credits" not in saw     # nor a spurious refund
+        assert get_credits(kess) == 93               # 100 - the drink, only
+
+        # ...and the table still takes a real bet.
+        await do(sim, kess, "pay 10 to the poker table")
+        assert table.db.get("pot") == 10
+
     async def test_hole_cards_are_engine_private(self, sim):
         room, vala, kess, bob = parlor_and_staff(sim)
         await build(sim, vala, POKER_BUILD)
@@ -531,68 +437,7 @@ class TestPokerTable:
 # 101. Chess board — docs/showcase/101_chess_board.md
 # =========================================================================
 
-CHESS_BUILD = [
-    "@create a chessboard",
-    "drop a chessboard",
-    "@desc a chessboard = Scarred maple, ranks and files burned in. "
-    "[[result = ('White' if V('turn', 'w') == 'w' else "
-    "'Black') + ' to move.']]",
-    "@set a chessboard/fresh = result = [list('rnbqkbnr'), "
-    "list('pppppppp'), list('........'), list('........'), "
-    "list('........'), list('........'), list('PPPPPPPP'), "
-    "list('RNBQKBNR')]",
-    "@set a chessboard/cmd_reset = $chess reset: set_attr(me, 'state', "
-    "eval_attr(me, 'fresh')); set_attr(me, 'turn', 'w'); set_attr(me, "
-    "'white', ''); set_attr(me, 'black', ''); remit(here, 'The "
-    "chessboard resets to the opening position. Claim sides: white / "
-    "black.')",
-    "@set a chessboard/cmd_white = $white: taken = V("
-    "'white', ''); (set_attr(me, 'white', enactor.id), remit(here, "
-    "name(enactor) + ' takes white.')) if not taken else "
-    "pemit(enactor, 'White is taken.')",
-    "@set a chessboard/cmd_black = $black: taken = V("
-    "'black', ''); (set_attr(me, 'black', enactor.id), remit(here, "
-    "name(enactor) + ' takes black.')) if not taken else "
-    "pemit(enactor, 'Black is taken.')",
-    "@set a chessboard/cmd_board = $board: b = V('state', "
-    "[]); pemit(enactor, '  +' + repeat('-', 17) + '+'); "
-    "[pemit(enactor, f'{8 - i} | {\" \".join(b[i])} |') for i "
-    "in range(8)]; pemit(enactor, '  +' + repeat('-', 17) + '+'); "
-    "pemit(enactor, '    a b c d e f g h')",
-    "@set a chessboard/sq = f = member(arg0[0], 'a b c d e f g h'); r = "
-    "int(arg0[1]) if arg0[1].isdigit() else 0; result = [8 - r, f - 1] "
-    "if f and 1 <= r <= 8 else None",
-    "@set a chessboard/legal = b = V('state', []); p = arg0; "
-    "fr = int(arg1); fc = int(arg2); tr = int(arg3); tc = int(arg4); "
-    "dr = tr - fr; dc = tc - fc; k = p.lower(); fwd = -1 if p.isupper() "
-    "else 1; start = 6 if p.isupper() else 1; tgt = b[tr][tc]; steps = "
-    "max(abs(dr), abs(dc)); sr = (dr > 0) - (dr < 0); sc = (dc > 0) - "
-    "(dc < 0); clear = all([b[fr + sr * i][fc + sc * i] == '.' for i in "
-    "range(1, steps)]); result = (dc == 0 and tgt == '.' and (dr == fwd "
-    "or (fr == start and dr == 2 * fwd and clear)) or (abs(dc) == 1 and "
-    "dr == fwd and tgt != '.')) if k == 'p' else ((dr == 0 or dc == 0) "
-    "and clear if k == 'r' else (abs(dr) == abs(dc) and clear if k == "
-    "'b' else ((dr == 0 or dc == 0 or abs(dr) == abs(dc)) and clear if "
-    "k == 'q' else (steps == 1 if k == 'k' else sorted([abs(dr), "
-    "abs(dc)]) == [1, 2]))))",
-    "@set a chessboard/cmd_move = $move * *: b = V('state', "
-    "[]); a = eval_attr(me, 'sq', trim(arg0)); z = eval_attr(me, 'sq', "
-    "trim(arg1)); t = V('turn', 'w'); seat = V("
-    "'white' if t == 'w' else 'black', ''); ok = bool(b) and a is not "
-    "None and z is not None and enactor.id == seat; p = b[a[0]][a[1]] "
-    "if ok else '.'; mine = p != '.' and (p.isupper() if t == 'w' else "
-    "p.islower()); tgt = b[z[0]][z[1]] if ok else '.'; onmine = tgt != "
-    "'.' and (tgt.isupper() if t == 'w' else tgt.islower()); ok2 = ok "
-    "and mine and not onmine and eval_attr(me, 'legal', p, a[0], a[1], "
-    "z[0], z[1]); [(set_attr(me, 'state', [[p if [i, j] == z else ('.' "
-    "if [i, j] == a else b[i][j]) for j in range(8)] for i in "
-    "range(8)]), set_attr(me, 'turn', 'b' if t == 'w' else 'w'), "
-    "remit(here, ('White' if t == 'w' else 'Black') + ' plays ' + "
-    "trim(arg0) + '-' + trim(arg1) + (', taking ' + tgt + '.' if tgt != "
-    "'.' else '.'))) for g in [ok2] if g]; pemit(enactor, 'The pieces "
-    "refuse: not your seat, not your turn, or not a legal move.') if "
-    "not ok2 else None",
-]
+CHESS_BUILD = build_lines("101_chess_board.md")
 
 
 class TestChessBoard:
@@ -669,51 +514,7 @@ class TestChessBoard:
 # 102. Trivia host — docs/showcase/102_trivia_host.md
 # =========================================================================
 
-TRIVIA_BUILD = [
-    "@create Quizmaster Quill",
-    "@tag Quizmaster Quill = npc",
-    "drop Quizmaster Quill",
-    "@desc Quizmaster Quill = A waistcoated fussbudget with index cards "
-    "and a brass bell.",
-    '@set Quizmaster Quill/questions = [{"q": "Which planet wears the '
-    'Great Red Spot?", "a": "jupiter"}, {"q": "How many faces has a '
-    'd20?", "a": "20"}, {"q": "What do you pay a ferryman?", "a": '
-    '"coin"}]',
-    "@set Quizmaster Quill/window = 20",
-    "@set Quizmaster Quill/tempo = 4",
-    "@set Quizmaster Quill/cmd_start = $trivia: ok = not V('running', 0); "
-    "[(set_attr(me, 'running', 1), set_attr(me, 'idx', 0), set_attr(me, "
-    "'scores', {}), remit(here, f'Quill rings his bell: Trivia! Shout your "
-    "answers. {len(V(\"questions\", []))} questions.'), eval_attr(me, 'ask')) "
-    "for g in [ok] if g]; pemit(enactor, 'A game is already running.') if not "
-    "ok else None",
-    "@set Quizmaster Quill/ask = qs = V('questions', []); i = V('idx', 0); sc "
-    "= V('scores', {}); top = max(sc.values()) if sc else 0; champs = ', "
-    "'.join(sorted([nm for nm, pts in sc.items() if pts == top])) if sc else "
-    "'nobody'; (set_attr(me, 'open', 1), set_attr(me, 'deadline', now() + "
-    "V('window', 20)), remit(here, f'Question {i + 1}: {qs[i][\"q\"]}'), "
-    "wait(V('window', 20), 'trigger me/times_up')) if i < len(qs) else "
-    "(set_attr(me, 'running', 0), remit(here, f'That is the game! Top score: "
-    "{champs} with {top}.')); result = 1",
-    "@set Quizmaster Quill/next_q = eval_attr(me, 'ask')",
-    "@set Quizmaster Quill/times_up = qs = V('questions', []); i = V('idx', "
-    "0); (set_attr(me, 'open', 0), incr('idx'), remit(here, f'Time! The "
-    "answer was: {qs[i][\"a\"]}.'), wait(V('tempo', 4), 'trigger me/next_q')) "
-    "if V('open', 0) and now() >= V('deadline', 0) else None",
-    "@set Quizmaster Quill/listen_guess = ^*: qs = V('questions', []); i = "
-    "V('idx', 0); live = V('running', 0) and V('open', 0) and "
-    "has_tag(enactor, 'player') and i < len(qs); hit = live and qs[i]['a'] in "
-    "trim(arg0).lower(); sc = V('scores', {}); [(set_attr(me, 'open', 0), "
-    "incr('idx'), sc.update({name(enactor): sc.get(name(enactor), 0) + 1}), "
-    "set_attr(me, 'scores', sc), remit(here, f'{name(enactor)} has it: "
-    "{qs[i][\"a\"]}! Score: {sc[name(enactor)]}.'), wait(V('tempo', 4), "
-    "'trigger me/next_q')) for g in [hit] if g]",
-    "@set Quizmaster Quill/cmd_scores = $standings: sc = V("
-    "'scores', {}); pemit(enactor, 'Trivia standings:'); "
-    "[pemit(enactor, f'  {nm} -- {pts}') for nm, pts in "
-    "sorted(sc.items(), key=lambda kv: -kv[1])]; pemit(enactor, '  (no "
-    "scores yet)') if not sc else None",
-]
+TRIVIA_BUILD = build_lines("102_trivia_host.md")
 
 
 class TestTriviaHost:
@@ -776,64 +577,7 @@ class TestTriviaHost:
 # 103. Rock-paper-scissors — docs/showcase/103_rock_paper_scissors.md
 # =========================================================================
 
-RPS_BUILD = [
-    "@create the dueling stone",
-    "drop the dueling stone",
-    "@desc the dueling stone = A waist-high basalt block, split by a "
-    "coin slot. [[bt = V('bout', None); result = 'A bout is "
-    "in progress.' if bt else 'The stone waits for a challenge.']]",
-    "@set the dueling stone/choices = {}",
-    "@attr the dueling stone/choices = secret",
-    "@set the dueling stone/cmd_challenge = $challenge * for *: opp = "
-    "get(trim(arg0)); w = int(trim(arg1)); ok = not V("
-    "'bout', None) and opp is not None and has_tag(opp, 'player') and "
-    "loc(opp) is here and opp is not enactor and w > 0; [(set_attr(me, "
-    "'bout', {'a': enactor.id, 'b': opp.id, 'wager': w, 'paid': []}), "
-    "set_attr(me, 'choices', {}), remit(here, name(enactor) + ' "
-    "challenges ' + name(opp) + ' at the dueling stone: "
-    "rock-paper-scissors for ' + str(w) + ' credits. Both must pay ' + "
-    "str(w) + ' to the dueling stone.')) for g in [ok] if g]; "
-    "pemit(enactor, 'The stone is busy, or that is no valid opponent "
-    "or wager.') if not ok else None",
-    "@set the dueling stone/on_payment = paid = credits(me) - "
-    "V('ledger', 0); bt = V('bout', None); ok = "
-    "bt is not None and enactor.id in [bt['a'], bt['b']] and "
-    "enactor.id not in bt['paid'] and paid == bt['wager']; "
-    "[(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), "
-    "pemit(enactor, 'The stone accepts your stake.')) for g in [ok] if "
-    "g]; [(remit(here, 'Both stakes are in. The stone addresses the "
-    "duelists.'), prompt(get('#' + bt['a']), 'The stone hums: rock, "
-    "paper, or scissors?', 'on_throw'), prompt(get('#' + bt['b']), "
-    "'The stone hums: rock, paper, or scissors?', 'on_throw')) for g "
-    "in [ok and len(bt['paid']) == 2] if g]; (transfer_credits(me, "
-    "enactor, paid), pemit(enactor, 'The stone spits your credits "
-    "back: wrong amount, or no bout of yours.')) if not ok and paid > "
-    "0 else None; set_attr(me, 'ledger', credits(me))",
-    "@set the dueling stone/on_throw = c = trim(arg0).lower(); bt = "
-    "V('bout', None); valid = c in ['rock', 'paper', "
-    "'scissors'] and bt is not None and enactor.id in [bt['a'], "
-    "bt['b']]; ch = V('choices', {}); [(ch.update("
-    "{enactor.id: c}), set_attr(me, 'choices', ch), pemit(enactor, "
-    "'The stone sears your choice in silence: ' + c + '.')) for g in "
-    "[valid] if g]; prompt(enactor, 'Rock, paper, or scissors -- "
-    "nothing else:', 'on_throw') if bt is not None and not valid else "
-    "None; eval_attr(me, 'resolve') if valid and len(ch) == 2 else "
-    "None",
-    "@set the dueling stone/resolve = bt = V('bout', {}); "
-    "ch = V('choices', {}); a = bt['a']; b = bt['b']; an = "
-    "name(get('#' + a)); bn = name(get('#' + b)); ca = ch[a]; cb = "
-    "ch[b]; beats = {'rock': 'scissors', 'paper': 'rock', 'scissors': "
-    "'paper'}; w = a if beats[ca] == cb else (b if beats[cb] == ca "
-    "else ''); remit(here, 'The stone flares: ' + an + ' throws ' + ca "
-    "+ '; ' + bn + ' throws ' + cb + '.'); (transfer_credits(me, "
-    "get('#' + a), bt['wager']), transfer_credits(me, get('#' + b), "
-    "bt['wager']), remit(here, 'A tie. The stakes slide back out of "
-    "the slot.')) if not w else (transfer_credits(me, get('#' + w), "
-    "bt['wager'] * 2), remit(here, name(get('#' + w)) + ' takes the "
-    "pot: ' + str(bt['wager'] * 2) + ' credits.')); del_attr(me, "
-    "'bout'); set_attr(me, 'choices', {}); set_attr(me, 'ledger', "
-    "credits(me)); result = 1",
-]
+RPS_BUILD = build_lines("103_rock_paper_scissors.md")
 
 
 class TestRockPaperScissors:
@@ -889,6 +633,32 @@ class TestRockPaperScissors:
                    for line in sim.seen(vala))
         assert get_credits(kess) == 30 and get_credits(bob) == 30
 
+    async def test_a_neighbours_payment_is_not_a_stake(self, sim):
+        """The stone must check `target == me`: unguarded, adata('amount')
+        would hand it a payment made to the tip jar beside it, and a
+        duelist's unrelated 10-credit purchase would silently pay their
+        stake. Drop the guard from the doc and this test fails."""
+        room, vala, kess, bob = parlor_and_staff(sim)
+        await build(sim, vala, RPS_BUILD)
+        await build(sim, vala, ["@create a tip jar", "drop a tip jar"])
+        await grant(sim, vala, kess, 30)
+        await grant(sim, vala, bob, 30)
+        await do(sim, kess, "challenge Bob for 10")
+        stone = find_one(sim, "the dueling stone")
+        drain_all(sim, vala, kess, bob)
+
+        # Exactly the wager, from a listed duelist -- but to the jar.
+        await do(sim, kess, "pay 10 to a tip jar")
+        assert stone.db.get("bout")["paid"] == []       # no stake banked
+        saw = "\n".join(sim.seen(kess))
+        assert "accepts your stake" not in saw
+        assert "spits your credits back" not in saw     # nor a bogus refund
+        assert get_credits(kess) == 20                  # the jar has it
+
+        # The real stake still banks.
+        await do(sim, kess, "pay 10 to the dueling stone")
+        assert stone.db.get("bout")["paid"] == [kess.id]
+
     async def test_stray_payments_bounce(self, sim):
         room, vala, kess, bob = parlor_and_staff(sim)
         await build(sim, vala, RPS_BUILD)
@@ -904,39 +674,7 @@ class TestRockPaperScissors:
 # 104. Scavenger hunt — docs/showcase/104_scavenger_hunt.md
 # =========================================================================
 
-HUNT_BUILD = [
-    "@create the Hunt Board",
-    "drop the Hunt Board",
-    "@desc the Hunt Board = A corkboard headed THE GREAT HUNT, three "
-    "photographs pinned beneath. [[lb = V('leaderboard', "
-    "{}); result = str(len(lb)) + ' hunters on the board.']]",
-    '@set the Hunt Board/finds = ["a shard of driftglass", "a brass '
-    'gear", "a violet feather"]',
-    "@create a shard of driftglass",
-    "@tag a shard of driftglass = hunt",
-    "drop a shard of driftglass",
-    "@create a brass gear",
-    "@tag a brass gear = hunt",
-    "drop a brass gear",
-    "@create a violet feather",
-    "@tag a violet feather = hunt",
-    "drop a violet feather",
-    "@set the Hunt Board/cmd_claim = $claim: want = V('finds', []); carried = "
-    "[name(o) for o in contents(enactor) if has_tag(o, 'hunt')]; got = [nm "
-    "for nm in want if nm in carried]; lb = V('leaderboard', {}); best = "
-    "lb.get(name(enactor), 0); [(lb.update({name(enactor): len(got)}), "
-    "set_attr(me, 'leaderboard', lb)) for g in [len(got) > best] if g]; "
-    "pemit(enactor, f'The board stamps your card: {len(got)} of {len(want)} "
-    "finds.'); [(set_attr(me, 'champions', V('champions', []) + "
-    "[name(enactor)]), remit(here, name(enactor) + ' has found everything on "
-    "the hunt!')) for g in [len(got) == len(want) and name(enactor) not in "
-    "V('champions', [])] if g]",
-    "@set the Hunt Board/cmd_hunters = $hunters: lb = V('leaderboard', {}); "
-    "ch = V('champions', []); pemit(enactor, 'THE GREAT HUNT -- standings:'); "
-    "[pemit(enactor, f'  {nm} -- {k} finds' + (f' [CHAMPION #{ch.index(nm) + "
-    "1}]' if nm in ch else '')) for nm, k in sorted(lb.items(), key=lambda "
-    "kv: -kv[1])]; pemit(enactor, '  (nobody yet)') if not lb else None",
-]
+HUNT_BUILD = build_lines("104_scavenger_hunt.md")
 
 
 class TestScavengerHunt:
@@ -982,62 +720,7 @@ class TestScavengerHunt:
 # 105. NPC races & betting — docs/showcase/105_npc_races.md
 # =========================================================================
 
-RACES_BUILD = [
-    "@create Bookie Barnum",
-    "@tag Bookie Barnum = npc",
-    "drop Bookie Barnum",
-    "@desc Bookie Barnum = Loud coat, louder voice, a chalkboard of "
-    "odds and a pocket that eats credits.",
-    "@eval m = get('Bookie Barnum'); adjust_credits(m, 1000); "
-    "set_attr(m, 'ledger', credits(m)); result = credits(m)",
-    '@set Bookie Barnum/field = {"Comet": 2, "Old Thunder": 3, '
-    '"Rustbucket": 5}',
-    "@set Bookie Barnum/distance = 30",
-    "@set Bookie Barnum/cmd_odds = $odds: f = V('field', {}); pemit(enactor, "
-    "'The chalkboard:'); [pemit(enactor, f'  {nm} -- {od}-to-1') for nm, od "
-    "in sorted(f.items())]; pemit(enactor, 'Pay me your stake, then: back "
-    "<runner>.')",
-    "@set Bookie Barnum/on_payment = paid = credits(me) - V("
-    "'ledger', 0); ok = not V('running', 0) and paid > 0; k "
-    "= 'stake_' + enactor.id; (set_attr(me, k, V(k, 0) + "
-    "paid), pemit(enactor, 'Barnum palms your ' + str(paid) + ' "
-    "credits: now back a runner.')) if ok else (transfer_credits(me, "
-    "enactor, paid), pemit(enactor, 'No bets while they run. Your "
-    "credits, returned.')) if paid > 0 else None; set_attr(me, "
-    "'ledger', credits(me))",
-    "@set Bookie Barnum/cmd_back = $back *: f = V('field', {}); pickl = [nm "
-    "for nm in f if nm.lower() == trim(arg0).lower()]; k = 'stake_' + "
-    "enactor.id; st = V(k, 0); ok = bool(pickl) and st > 0 and not "
-    "V('running', 0); bk = V('book', {}); [(bk.update({enactor.id: {'runner': "
-    "pickl[0], 'stake': st, 'name': name(enactor)}}), set_attr(me, 'book', "
-    "bk), del_attr(me, k), set_attr(me, 'post', V('post', 3)), remit(here, "
-    "f'{name(enactor)} backs {pickl[0]} for {st} at {f[pickl[0]]}-to-1.')) "
-    "for g in [ok] if g]; pemit(enactor, 'Pay your stake first, name a runner "
-    "on the card, and bet before the off.') if not ok else None",
-    "@behavior Bookie Barnum = script_ticker, interval:6",
-    "@set Bookie Barnum/on_tick = eval_attr(me, 'stride') if "
-    "V('running', 0) else (eval_attr(me, 'countdown') if "
-    "V('book', {}) else None)",
-    "@set Bookie Barnum/countdown = c = decr('post'); "
-    "(set_attr(me, 'running', 1), "
-    "set_attr(me, 'positions', {nm: 0 for nm in V('field', "
-    "{})}), remit(here, 'A bell! They are off!')) if c <= 0 else "
-    "remit(here, f'Barnum bawls: post time in {c}!'); "
-    "result = 1",
-    "@set Bookie Barnum/stride = f = V('field', {}); pos = V('positions', "
-    "{}); upd = {nm: pos[nm] + rand(1, 9 - min(f[nm], 7)) for nm in pos}; "
-    "set_attr(me, 'positions', upd); lead = max(upd, key=upd.get); dist = "
-    "V('distance', 30); (remit(here, f'{lead} takes the wire! {lead} wins!'), "
-    "eval_attr(me, 'payout', lead)) if upd[lead] >= dist else remit(here, "
-    "f'{lead} leads at the {upd[lead]} mark.'); result = 1",
-    "@set Bookie Barnum/payout = f = V('field', {}); bk = V('book', {}); "
-    "[(transfer_credits(me, get('#' + pid), b['stake'] * (f[arg0] + 1)), "
-    "pemit(get('#' + pid), f'Barnum counts out {b[\"stake\"] * (f[arg0] + 1)} "
-    "credits. Pleasure doing business.')) for pid, b in bk.items() if "
-    "b['runner'] == arg0]; set_attr(me, 'running', 0); set_attr(me, 'book', "
-    "{}); del_attr(me, 'positions'); del_attr(me, 'post'); set_attr(me, "
-    "'ledger', credits(me)); result = 1",
-]
+RACES_BUILD = build_lines("105_npc_races.md")
 
 
 class TestNpcRaces:
@@ -1091,6 +774,26 @@ class TestNpcRaces:
         assert barnum.db.get("book") == {}
         assert not barnum.db.get("running")
 
+    async def test_a_neighbours_payment_arms_no_stake(self, sim):
+        """Barnum must check `target == me`, or paying the hot-dog cart
+        beside him arms a free bet. Drop the guard and this fails."""
+        room, vala, kess, bob = parlor_and_staff(sim)
+        await build(sim, vala, RACES_BUILD)
+        await build(sim, vala, ["@create a hot-dog cart", "drop a hot-dog cart"])
+        await grant(sim, vala, bob, 50)
+        barnum = find_one(sim, "Bookie Barnum")
+        drain_all(sim, vala, kess, bob)
+
+        await do(sim, bob, "pay 10 to a hot-dog cart")
+        assert barnum.db.get("stake_" + bob.id) is None    # nothing armed
+        assert "palms your" not in "\n".join(sim.seen(bob))
+        out = await do(sim, bob, "back comet")
+        assert any("Pay your stake first" in line for line in out)
+
+        # A real stake still arms.
+        await do(sim, bob, "pay 10 to Bookie Barnum")
+        assert barnum.db.get("stake_" + bob.id) == 10
+
     async def test_backing_without_a_stake_is_refused(self, sim):
         room, vala, kess, bob = parlor_and_staff(sim)
         await build(sim, vala, RACES_BUILD)
@@ -1103,51 +806,7 @@ class TestNpcRaces:
 # 106. Arm wrestling — docs/showcase/106_arm_wrestling.md
 # =========================================================================
 
-WRESTLE_BUILD = [
-    "@create brawn",
-    "@tag brawn = skill_def",
-    "@set brawn/stat = strength",
-    "@set brawn/penalty = 0",
-    "@reload",
-    "@create the wrestling table",
-    "drop the wrestling table",
-    "@desc the wrestling table = Elbow-polished oak, ringed by chalk "
-    "lines and old beer. [[bt = V('bout', None); result = "
-    "'A grudge match is forming.' if bt else 'The chair opposite is "
-    "empty.']]",
-    "@set the wrestling table/cmd_wrestle = $wrestle * for *: opp = "
-    "get(trim(arg0)); w = int(trim(arg1)); ok = not V("
-    "'bout', None) and opp is not None and has_tag(opp, 'player') and "
-    "loc(opp) is here and opp is not enactor and w > 0; [(set_attr(me, "
-    "'bout', {'a': enactor.id, 'b': opp.id, 'wager': w, 'paid': []}), "
-    "remit(here, name(enactor) + ' slaps ' + str(w) + ' credits on the "
-    "table and calls out ' + name(opp) + '. Both: pay ' + str(w) + ' "
-    "to the wrestling table.')) for g in [ok] if g]; pemit(enactor, "
-    "'The table is busy, or that is no valid opponent or wager.') if "
-    "not ok else None",
-    "@set the wrestling table/on_payment = paid = credits(me) - "
-    "V('ledger', 0); bt = V('bout', None); ok = "
-    "bt is not None and enactor.id in [bt['a'], bt['b']] and "
-    "enactor.id not in bt['paid'] and paid == bt['wager']; "
-    "[(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), "
-    "pemit(enactor, 'Your stake hits the wood.')) for g in [ok] if g]; "
-    "(transfer_credits(me, enactor, paid), pemit(enactor, 'The table "
-    "shrugs your credits back: wrong amount, or no bout of yours.')) "
-    "if not ok and paid > 0 else None; set_attr(me, 'ledger', "
-    "credits(me)); eval_attr(me, 'bout_go') if ok and len(bt['paid']) "
-    "== 2 else None",
-    "@set the wrestling table/bout_go = bt = V('bout', {}); "
-    "a = get('#' + bt['a']); b = get('#' + bt['b']); remit(here, "
-    "name(a) + ' and ' + name(b) + ' lock hands over the scarred "
-    "tabletop. The crowd leans in.'); win = a if contest(a, 'brawn', "
-    "b, 'brawn') else b; lose = b if win is a else a; remit(here, "
-    "'Knuckles whiten, the table groans... ' + name(win) + \" slams \" "
-    "+ name(lose) + \"'s arm down! The crowd roars.\"); "
-    "transfer_credits(me, win, bt['wager'] * 2); remit(here, name(win) "
-    "+ ' scoops the pot: ' + str(bt['wager'] * 2) + ' credits.'); "
-    "del_attr(me, 'bout'); set_attr(me, 'ledger', credits(me)); "
-    "result = 1",
-]
+WRESTLE_BUILD = build_lines("106_arm_wrestling.md")
 
 
 class TestArmWrestling:
@@ -1189,6 +848,25 @@ class TestArmWrestling:
         assert table.db.get("bout") is None
         assert get_credits(table) == 0
 
+    async def test_a_neighbours_payment_starts_no_bout(self, sim):
+        """The wrestling table must check `target == me`: unguarded, both
+        duelists paying the bar next to it would start the bout for free.
+        Drop the guard from the doc and this test fails."""
+        room, vala, kess, bob = parlor_and_staff(sim)
+        await build(sim, vala, WRESTLE_BUILD)
+        await build(sim, vala, ["@create a beer tap", "drop a beer tap"])
+        await grant(sim, vala, kess, 20)
+        await grant(sim, vala, bob, 20)
+        await do(sim, kess, "wrestle Bob for 10")
+        table = find_one(sim, "the wrestling table")
+        drain_all(sim, vala, kess, bob)
+
+        await do(sim, kess, "pay 10 to a beer tap")
+        await do(sim, bob, "pay 10 to a beer tap")
+        assert table.db.get("bout")["paid"] == []       # no stakes banked
+        assert "lock hands" not in "\n".join(sim.seen(vala))   # no bout
+        assert get_credits(table) == 0                  # and no escrow
+
     async def test_stray_payment_shrugged_back(self, sim):
         room, vala, kess, bob = parlor_and_staff(sim)
         await build(sim, vala, WRESTLE_BUILD)
@@ -1204,27 +882,7 @@ class TestArmWrestling:
 # 107. Dart board — docs/showcase/107_dart_board.md
 # =========================================================================
 
-DARTS_BUILD = [
-    "@create a dart board",
-    "drop a dart board",
-    "@desc a dart board = Cork and sisal, more hole than board. [[result = "
-    "f'Chalked below: house record {V(\"record\", 0)}.']]",
-    "@set a dart board/cmd_throw = $throw: lvl = get_attr(enactor, "
-    "'skill_darts', get_attr(enactor, 'dexterity', 10) - 4); r = "
-    "margin_under(roll('3d6'), lvl, skill='darts'); m = r.margin; pts = 50 if "
-    "r.success and m >= 6 else (25 if r.success and m >= 3 else (15 if "
-    "r.success and m >= 1 else (5 if r.success else 0))); spot = switch(pts, "
-    "50, 'BULLSEYE', 25, 'the inner ring', 15, 'a fat single', 5, 'the rim', "
-    "'the wall with a sad thunk'); remit(here, f'{name(enactor)} throws -- "
-    "{spot}! ({pts} points)'); t = 'total_' + enactor.id; total = incr(t, "
-    "pts); set_attr(me, 'record', max(V('record', 0), total)); k = "
-    "'practice_' + enactor.id; n = incr(k); (pemit(enactor, f'Your arm is "
-    "learning: darts rises to {lvl + 1}.') if set_attr(enactor, "
-    "'skill_darts', lvl + 1) else None) if n % 10 == 0 else None",
-    "@set a dart board/cmd_chalk = $chalk: pemit(enactor, f'Your chalk line: "
-    "{V(\"total_\" + enactor.id, 0)} points over {V(\"practice_\" + "
-    "enactor.id, 0)} darts.')",
-]
+DARTS_BUILD = build_lines("107_dart_board.md")
 
 
 class TestDartBoard:
@@ -1278,55 +936,7 @@ class TestDartBoard:
 # 108. Casino floor — docs/showcase/108_casino_floor.md
 # =========================================================================
 
-CASINO_BUILD = [
-    "@dig The Casino Floor",
-    "@teleport The Casino Floor",
-    "@create the cashier cage",
-    "drop the cashier cage",
-    "@desc the cashier cage = Brass bars over a marble sill. [[result "
-    "= f'The reserve holds {credits(me)} credits.']]",
-    "@set the cashier cage/on_payment = paid = credits(me) - "
-    "V('ledger', 0); c = create_obj('casino chips', "
-    "tags=['thing', 'chip'], location=enactor) if paid > 0 else None; "
-    "(set_attr(c, 'chips', paid), pemit(enactor, 'The teller slides ' "
-    "+ str(paid) + ' in chips under the bars.')) if c is not None else "
-    "None; set_attr(me, 'ledger', credits(me))",
-    "@set the cashier cage/cmd_cashin = $cashin: stacks = [o for o in "
-    "contents(enactor) if has_tag(o, 'chip')]; total = sum(get_attr(o, "
-    "'chips', 0) for o in stacks); ok = total > 0 and "
-    "transfer_credits(me, enactor, total); [destroy_obj(o) for g in "
-    "[ok] if g for o in stacks]; pemit(enactor, 'The teller counts ' + "
-    "str(total) + ' in chips back into credits.' if ok else 'You have "
-    "no chips, or the cage cannot cover them.'); set_attr(me, "
-    "'ledger', credits(me))",
-    "@create Croupier Hazel",
-    "@tag Croupier Hazel = npc",
-    "drop Croupier Hazel",
-    "@desc Croupier Hazel = Green visor, quick hands, a wheel of "
-    "numbered brass. Hand her chips to play double-or-nothing.",
-    "@set Croupier Hazel/on_receive = stakes = [o for o in "
-    "contents(me) if has_tag(o, 'chip') and not get_attr(o, 'house', "
-    "0)]; w = sum(get_attr(o, 'chips', 0) for o in stakes); rack = [o "
-    "for o in contents(me) if has_tag(o, 'chip') and get_attr(o, "
-    "'house', 0)]; f = rack[0] if rack else None; ok = w > 0 and f is "
-    "not None; short = ok and get_attr(f, 'chips', 0) < w; "
-    "[(move_to(o, enactor), pemit(enactor, 'Hazel pushes your chips "
-    "back: the rack cannot cover that.')) for g in [short] if g for o "
-    "in stakes]; play = ok and not short; [(set_attr(f, 'chips', "
-    "get_attr(f, 'chips', 0) + w), [destroy_obj(o) for o in stakes], "
-    "set_attr(me, 'spin', rand(1, 100))) for g in [play] if g]; win = "
-    "play and V('spin', 100) <= 45; [(set_attr(f, 'chips', "
-    "get_attr(f, 'chips', 0) - 2 * w), set_attr(create_obj('casino "
-    "chips', tags=['thing', 'chip'], location=enactor), 'chips', 2 * "
-    "w), remit(here, 'Hazel spins the wheel... ' + name(enactor) + ' "
-    "doubles up! ' + str(2 * w) + ' in chips slide back.')) for g in "
-    "[win] if g]; remit(here, 'Hazel spins the wheel... the house "
-    "rakes ' + str(w) + ' in chips.') if play and not win else None",
-    "@eval adjust_credits(me, 500); result = credits(me)",
-    "pay 500 to the cashier cage",
-    "@set casino chips/house = 1",
-    "give casino chips to Croupier Hazel",
-]
+CASINO_BUILD = build_lines("108_casino_floor.md")
 
 
 def chips_outstanding(sim):
@@ -1369,6 +979,35 @@ class TestCasinoFloor:
 
         out = await do(sim, bob, "cashin")
         assert any("You have no chips" in line for line in out)
+
+    async def test_a_payment_to_a_neighbour_mints_no_chips(self, sim):
+        """The floor deliberately puts several payment-takers in one
+        room, and ON_PAYMENT fires on all of them. Unguarded, paying the
+        slot machine would have the cage mint chips backed by nothing --
+        breaking reserve == chips-outstanding, the invariant this whole
+        tutorial is about. Remove `if target == me` and this fails."""
+        room, vala, kess, bob = parlor_and_staff(sim)
+        floor = await self._floor(sim, vala, kess, bob)
+        cage = find_one(sim, "the cashier cage")
+        await build(sim, vala, [
+            "@create a slot machine",
+            "drop a slot machine",
+        ])
+        await grant(sim, vala, bob, 200)
+        before = get_credits(cage)
+        assert before == chips_outstanding(sim)
+        drain_all(sim, vala, kess, bob)
+
+        await do(sim, bob, "pay 25 to a slot machine")
+        assert not [o for o in bob.contents if o.has_tag("chip")]
+        assert get_credits(cage) == before == chips_outstanding(sim)
+        assert get_credits(bob) == 175
+
+        # The cage itself still works.
+        await do(sim, bob, "pay 100 to the cashier cage")
+        stacks = [o for o in bob.contents if o.has_tag("chip")]
+        assert len(stacks) == 1 and stacks[0].db.get("chips") == 100
+        assert get_credits(cage) == before + 100 == chips_outstanding(sim)
 
     async def test_wheel_win_pays_from_the_float(self, sim, pinned_rand):
         room, vala, kess, bob = parlor_and_staff(sim)
@@ -1427,34 +1066,3 @@ class TestCasinoFloor:
         stacks = [o for o in bob.contents if o.has_tag("chip")]
         assert len(stacks) == 1 and stacks[0].db.get("chips") == 600
         assert get_credits(cage) == 1100 == chips_outstanding(sim)
-
-
-# =========================================================================
-# Docs <-> tests sync — the transcripts above must match the tutorials
-# =========================================================================
-
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
-
-DOC_TRANSCRIPTS = {
-    "098_dice_roller.md": DICE_BUILD,
-    "099_card_deck.md": DECK_BUILD,
-    "100_poker_table.md": POKER_BUILD,
-    "101_chess_board.md": CHESS_BUILD,
-    "102_trivia_host.md": TRIVIA_BUILD,
-    "103_rock_paper_scissors.md": RPS_BUILD,
-    "104_scavenger_hunt.md": HUNT_BUILD,
-    "105_npc_races.md": RACES_BUILD,
-    "106_arm_wrestling.md": WRESTLE_BUILD,
-    "107_dart_board.md": DARTS_BUILD,
-    "108_casino_floor.md": CASINO_BUILD,
-}
-
-
-def test_tutorial_docs_contain_the_exact_tested_command_lines():
-    """Every Build-it line exercised above appears verbatim in its doc,
-    so the tutorials can never drift from what the tests prove works."""
-    for doc_name, lines in DOC_TRANSCRIPTS.items():
-        text = (DOCS / doc_name).read_text(encoding="utf-8")
-        for line in lines:
-            assert line in text, (
-                f"{doc_name} is missing a tested tutorial line:\n{line}")

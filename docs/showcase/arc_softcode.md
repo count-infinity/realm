@@ -35,7 +35,9 @@ transcript through a real in-process world).
 2. **[240. Builder trigger system](240_builder_triggers.md)** — the
    world acts back: `ON_ENTER`/`ON_GET` lifecycle hooks, `^listen`
    speech patterns, `on_tick` heartbeats, `@tr` test-firing, the `halt`
-   kill-switch, and the full standard-event table.
+   kill-switch, and the full standard-event table. Hooks are handed the
+   action itself — `target`, `adata('amount')`, `atype` — so a witness
+   reacts to *what happened*, not merely that something did.
 3. **[241. Response scripting in data](241_yaml_responses.md)** —
    because triggers are attributes, they are *data*: an NPC's
    conversation repertoire round-trips through `@export`, a text editor,
@@ -64,6 +66,13 @@ control, escape hatches are unparseable, and budgets bound every run.
 That is why the escalation from "a builder's jukebox" to "a player's
 programmable gadget" costs the game nothing new — by item 250 the only
 thing that changes is who owns the object.
+
+Note what the walls are *not*: a cut-down language. Scripts run as real
+Python in one namespace, so lambdas, generator expressions and
+comprehensions read the variables you just assigned; loops, dice,
+timers, prompts and the whole function library are on the table. The
+budget is on what a script may *spend* and the `controls()` predicate on
+what it may *touch* — never on what it may express.
 
 The mechanisms also compose literally: the capstone cube is *programmed*
 through a 243-style `$`-verb, *fires* through a 240-style `ON_USE` hook,

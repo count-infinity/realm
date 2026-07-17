@@ -6,10 +6,12 @@ Items: 74 custom channel, 75 in-game mail, 76 bulletin boards,
 83 message in a bottle.  (79/80/84/85 are [small] speech-pipeline gaps
 and are not covered here.)
 
-Every command line in each tutorial's "Build it" section is driven
+Every command line in each tutorial's "Build it" section is read
+straight out of its markdown (docs/showcase/NNN_*.md) and driven
 through the real dispatcher (raw input in -> session output out) by a
-builder player, exactly as typed in the docs; the plays then exercise
-the tutorials' "Try it" flows and assert outcomes.
+builder player, exactly as typed in the docs — so a doc edit that
+breaks the build breaks this suite. The plays then exercise the
+tutorials' "Try it" flows and assert outcomes.
 
 Time is virtual: script_ticker heartbeats are ticked by hand and
 expire() lifetimes are reaped with a forged clock (reap_expired).
@@ -20,6 +22,8 @@ login/logout.
 
 from __future__ import annotations
 
+from pathlib import Path
+import re
 import time
 
 import pytest
@@ -27,172 +31,20 @@ import pytest
 from realm.core.events import fire_event, reap_expired
 from realm.testing import Simulator
 
-# --- Build transcripts (the tutorials' exact "Build it" lines) -----------------
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
-# docs/showcase/074_custom_channel.md
-BUILD_74 = [
-    "@dig The Docking Ring = ring, out",
-    "ring",
-    "@zone here = world",
-    "@dig The Observation Deck = deck, ring",
-    "deck",
-    "@zone here = world",
-    "ring",
-    "@create Comms Nexus",
-    "drop Comms Nexus",
-    "@desc Comms Nexus = A humming rack of relays. JOIN PUB subscribes; +pub <message> talks; HISTORY PUB replays; MUTE PUB / UNMUTE PUB quiet it.",
-    "@zone/master Comms Nexus = world",
-    "@set Comms Nexus/cmd_join = $join pub: subs = V('subs') or []; (pemit(enactor, 'You are already tuned to [pub].') if enactor.id in subs else (set_attr(me, 'subs', subs + [enactor.id]), pemit(enactor, 'You tune in to [pub]. Talk with +pub <message>.')))",
-    "@set Comms Nexus/cmd_leave = $leave pub: set_attr(me, 'subs', [i for i in (V('subs') or []) if i != enactor.id]); set_attr(me, 'quiet', [i for i in (V('quiet') or []) if i != enactor.id]); pemit(enactor, 'You drop off [pub].')",
-    "@set Comms Nexus/speak = subs = V('subs') or []; line = f'[pub] {name(enactor)}: {escape(str(arg0))}'; (pemit(enactor, 'You are not tuned to [pub]. JOIN PUB first.') if enactor.id not in subs else (set_attr(me, 'hist', ((V('hist') or []) + [line])[-20:]), [pemit(get('#' + str(i)), line) for i in subs if i not in (V('quiet') or [])]))",
-    "@set Comms Nexus/cmd_pub = $+pub *: eval_attr(me, 'speak', arg0)",
-    "@set Comms Nexus/cmd_p = $+p *: eval_attr(me, 'speak', arg0)",
-    "@set Comms Nexus/cmd_hist = $history pub: rows = V('hist') or []; pemit(enactor, '[pub] Nothing has been said yet.') if not rows else [pemit(enactor, r) for r in rows]",
-    "@set Comms Nexus/cmd_mute = $mute pub: q = V('quiet') or []; (set_attr(me, 'quiet', q if enactor.id in q else q + [enactor.id]), pemit(enactor, '[pub] muted. HISTORY PUB still works; UNMUTE PUB resumes delivery.'))",
-    "@set Comms Nexus/cmd_unmute = $unmute pub: set_attr(me, 'quiet', [i for i in (V('quiet') or []) if i != enactor.id]); pemit(enactor, '[pub] unmuted.')",
-]
 
-# docs/showcase/075_ingame_mail.md
-BUILD_75 = [
-    "@dig The Post Office = post, out",
-    "post",
-    "@zone here = world",
-    "@dig The Promenade = walk, post",
-    "walk",
-    "@zone here = world",
-    "post",
-    "@create Postmaster",
-    "@tag Postmaster = npc",
-    "drop Postmaster",
-    "@desc Postmaster = A clerk of brass and patience behind a grille. SEND <names> = <message> posts a letter (commas CC extras); MAIL lists yours; MAIL <n> reads one; CLAIM <n> collects parcels. GIVE it an item first to attach it.",
-    "@zone/master Postmaster = world",
-    "@set Postmaster/on_receive = new = [o for o in contents(me) if not has_attr(o, 'escrow')]; [(set_attr(o, 'escrow', enactor.id), pemit(enactor, f'The clerk tags your {name(o)}: it will ride along with your next SEND.')) for o in new]",
-    "@set Postmaster/cmd_send = $send * = *: names = [trim(n) for n in trim(arg0).split(',') if trim(n)]; rcpts = [get(n) for n in names]; ok = [p for p in rcpts if p and has_tag(p, 'player')]; parcels = [o for o in contents(me) if get_attr(o, 'escrow') == enactor.id]; (pemit(enactor, 'The clerk taps the address line: no such citizen on the rolls.') if len(ok) < len(names) or not ok else ([set_attr(me, 'mail_' + p.id, (V('mail_' + p.id) or []) + [[name(enactor), escape(trim(arg1)), [o.id for o in parcels] if p is ok[0] else [], escape(trim(arg0))]]) for p in ok], [set_attr(o, 'escrow', '') for o in parcels], [pemit(p, f'The postal wire clicks: a letter from {name(enactor)} has arrived for you.') for p in ok], pemit(enactor, f'The clerk stamps the letter for {len(ok)} recipient(s)' + (f' with {len(parcels)} parcel(s) attached' if parcels else '') + '.')))",
-    "@set Postmaster/cmd_mail = $mail: rows = V('mail_' + enactor.id) or []; pemit(enactor, 'The clerk checks the pigeonholes: nothing for you.') if not rows else [pemit(enactor, f'{i + 1}. From {r[0]} (to {r[3]})' + (f' [{len(r[2])} parcel(s)]' if r[2] else '')) for i, r in enumerate(rows)]",
-    "@set Postmaster/cmd_mailn = $mail *: rows = V('mail_' + enactor.id) or []; k = int(trim(arg0)) if trim(arg0).isdigit() else 0; pemit(enactor, f'No letter numbered {trim(arg0)}.') if not (1 <= k <= len(rows)) else (pemit(enactor, f'From {rows[k-1][0]}, to {rows[k-1][3]}:'), pemit(enactor, f'  {rows[k-1][1]}'), (pemit(enactor, f'{len(rows[k-1][2])} parcel(s) wait behind the grille. CLAIM {k} collects them.') if rows[k-1][2] else None))",
-    "@set Postmaster/cmd_claim = $claim *: rows = V('mail_' + enactor.id) or []; k = int(trim(arg0)) if trim(arg0).isdigit() else 0; items = [get('#' + str(i)) for i in (rows[k-1][2] if 1 <= k <= len(rows) else [])]; live = [o for o in items if o and loc(o) == me]; (pemit(enactor, 'The clerk turns up empty palms: nothing to collect under that number.') if not live else ([teleport_obj(o, enactor) for o in live], set_attr(me, 'mail_' + enactor.id, [r if j != k - 1 else [r[0], r[1], [], r[3]] for j, r in enumerate(rows)]), pemit(enactor, f'The clerk slides {len(live)} parcel(s) under the grille.')))",
-    "@set Postmaster/on_connect = n = len(V('mail_' + enactor.id) or []); pemit(enactor, f'The postal wire hums: {n} letter(s) wait for you at the Post Office.') if n else None",
-]
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
-# docs/showcase/076_bulletin_boards.md
-BUILD_76 = [
-    "@dig The Tavern Commons = tavern, out",
-    "tavern",
-    "@create notice board",
-    "drop notice board",
-    "@desc notice board = Cork and thumbtacks. POST <text> pins a notice for a while; BOARD reads what has not yet curled off.",
-    "@set notice board/ttl = 120",
-    "@set notice board/sweep = rows = V('posts') or []; keep = [p for p in rows if p[2] > now()]; (set_attr(me, 'posts', keep), remit(loc(me), f'{len(rows) - len(keep)} curled notice(s) drop off the {name(me)}.')) if len(keep) < len(rows) else None",
-    "@set notice board/cmd_post = $post *: eval_attr(me, 'sweep'); set_attr(me, 'posts', (V('posts') or []) + [[name(enactor), escape(arg0), now() + V('ttl', 120)]]); remit(loc(me), f'{name(enactor)} pins a notice to the {name(me)}.')",
-    "@set notice board/cmd_board = $board: eval_attr(me, 'sweep'); rows = V('posts') or []; pemit(enactor, 'The board is bare cork.') if not rows else [pemit(enactor, f'{i + 1}. {r[1]} --{r[0]} ({r[2] - now()}s left)') for i, r in enumerate(rows)]",
-    "@set notice board/on_tick = eval_attr(me, 'sweep')",
-    "@behavior notice board = script_ticker, interval:30",
-    "@dig The Docks = docks, tavern",
-    "@clone notice board = harbor board",
-    "get harbor board",
-    "docks",
-    "drop harbor board",
-    "@desc harbor board = Salt-stained planks and a few nails. POST and BOARD work here too, on this dock's own notices.",
-    "tavern",
-]
-
-# docs/showcase/077_handheld_radios.md
-BUILD_77 = [
-    "@dig The Warehouse Floor = floor, out",
-    "floor",
-    "@dig The Rooftop = roof, floor",
-    "@create field radio",
-    "@desc field radio = A brick of olive plastic with a stubby antenna and a worn send key. [[result = f\"The dial is set to {V('freq', 'static')}\"]].",
-    "@tag field radio = radio",
-    "@set field radio/freq = alpha",
-    "@set field radio/power = 1",
-    "@set field radio/xmit = f = str(V('freq', '')); [(pemit(loc(r), '[' + f + '] ' + str(arg0)) if has_tag(loc(r), 'player') else remit(loc(r), name(r) + ' crackles: [' + f + '] ' + str(arg0))) for r in search_world(tag='radio', attr='freq', value=V('freq', '')) if r != me and get_attr(r, 'power', 1) and loc(r)]",
-    "@set field radio/cmd_radio = $radio *: (pemit(enactor, 'Pick the radio up first; the send key is on the grip.') if loc(me) != enactor else (pemit(enactor, f\"You key the mic: [{V('freq', '')}] {name(enactor)}: {escape(arg0)}\"), eval_attr(me, 'xmit', f'{name(enactor)}: {escape(arg0)}')))",
-    "@set field radio/cmd_tune = $tune *: (pemit(enactor, 'Hold the radio to work the dial.') if loc(me) != enactor else (set_attr(me, 'freq', trim(arg0)), pemit(enactor, f'You click the dial over to [{trim(arg0)}].')))",
-    "@set field radio/vox = 0",
-    "@set field radio/cmd_vox = $vox *: (set_attr(me, 'vox', 1 if trim(arg0).lower() == 'on' else 0), pemit(enactor, f'You flip the VOX toggle {trim(arg0).lower()}. It only matters while the set is put down somewhere.'))",
-    "@set field radio/listen_vox = ^*: eval_attr(me, 'xmit', f'{name(enactor)} (open mic): {escape(arg0)}') if enactor and V('vox', 0) and V('power', 1) else None",
-    "@clone field radio = spare radio",
-]
-
-# docs/showcase/078_pa_system.md
-BUILD_78 = [
-    "@dig Operations = ops, out",
-    "ops",
-    "@zone here = station",
-    "@dig The Mess Hall = mess, ops",
-    "mess",
-    "@zone here = station",
-    "@dig The Brig = brig, mess",
-    "brig",
-    "@zone here = station",
-    "mess",
-    "ops",
-    "@create PA console",
-    "drop PA console",
-    "@desc PA console = A gooseneck microphone over a punchboard of room switches. ANNOUNCE <message> pages the whole station.",
-    "@zone/master PA console = station",
-    "@set PA console/cmd_announce = $announce *: (pemit(enactor, 'The console wants the station master. It ignores you.') if enactor != owner(me) else ([remit(r, ansi('yh', 'BONG-bong. ') + escape(arg0) + ansi('c', ' (PA)')) for r in zone_rooms('station')], pemit(enactor, 'Your voice rolls out of every speaker on the station.')))",
-]
-
-# docs/showcase/081_graffiti.md
-BUILD_81 = [
-    "@dig The Underpass = underpass, out",
-    "underpass",
-    "@desc here = Sodium light and old concrete. The long wall invites comment.",
-    "@set here/cmd_scrawl = $scrawl *: rows = V('desc_extras') or []; (pemit(enactor, 'No bare concrete left. The wall is full; someone with the deed must SCRUB it.') if len(rows) >= 8 else (set_attr(me, 'desc_extras', rows + [['', f'Scrawled on the wall: \"{escape(arg0)}\" --{name(enactor)}']]), remit(me, f'{name(enactor)} shakes a marker and writes on the wall.')))",
-    "@set here/cmd_scrub = $scrub wall: (pemit(enactor, 'Only whoever holds the deed scrubs this wall.') if enactor != owner(me) else (del_attr(me, 'desc_extras'), remit(me, f'{name(enactor)} scrubs the wall back to bare concrete.')))",
-]
-
-# docs/showcase/082_newspaper.md
-BUILD_82 = [
-    "@dig The Gazette Office = office, out",
-    "office",
-    "@zone here = market",
-    "@dig Market Square = square, office",
-    "square",
-    "@zone here = market",
-    "office",
-    "@create Gazette Bureau",
-    "drop Gazette Bureau",
-    "@desc Gazette Bureau = Ink, brass, and a thundering press. SUBMIT <text> files a story for the next issue.",
-    "@zone/master Gazette Bureau = market",
-    "@set Gazette Bureau/cmd_submit = $submit *: set_attr(me, 'queue', (V('queue') or []) + [f'{escape(arg0)} --{name(enactor)}']); pemit(enactor, 'The desk editor spikes your copy for the next issue.')",
-    "@set Gazette Bureau/publish = q = V('queue') or []; n = V('issue', 0) + 1; (set_attr(me, 'issue', n), set_attr(me, 'issue_' + str(n), q), set_attr(me, 'queue', []), [remit(r, f'A paperboy hollers: GAZETTE No. {n}! {len(q)} stories! Fresh at the kiosk!') for r in zone_rooms('market')]) if q else None",
-    "@set Gazette Bureau/on_tick = eval_attr(me, 'publish')",
-    "@behavior Gazette Bureau = script_ticker, interval:60",
-    "square",
-    "@create news kiosk",
-    "drop news kiosk",
-    "@desc news kiosk = A tin shed papered with old front pages. PAY 5 TO KIOSK for the latest Gazette.",
-    "@set news kiosk/price = 5",
-    "@set news kiosk/ledger = 0",
-    "@set news kiosk/on_payment = b = get('Gazette Bureau'); paid = credits(me) - V('ledger', 0); cost = V('price', 5); n = get_attr(b, 'issue', 0); ok = bool(n) and paid >= cost; refund = paid - cost if ok else paid; (transfer_credits(me, enactor, refund) if refund > 0 else None); set_attr(me, 'ledger', credits(me)); (pemit(enactor, 'The vendor shrugs: nothing on the stand until the press runs. Coins returned.') if not n else (pemit(enactor, f'The vendor taps the price card: {cost} credits. Coins returned.') if not ok else None)); [(set_attr(p, 'desc_extras', [['', f'Cheap ink on cheaper paper. The masthead reads THE GAZETTE, No. {n}.']] + [['', row] for row in (get_attr(b, 'issue_' + str(n)) or [])]), teleport_obj(p, enactor), pemit(enactor, f'The vendor folds a Gazette No. {n} into your hands. LOOK gazette to read it.')) for p in ([create_obj(f'the Gazette No. {n}', ['thing', 'paper'], me)] if ok else []) if p]",
-]
-
-# docs/showcase/083_message_in_bottle.md
-BUILD_83 = [
-    "@dig The Shingle Beach = beach, out",
-    "beach",
-    "@zone here = world",
-    "@dig The Sea Cliff = cliff, beach",
-    "cliff",
-    "@zone here = world",
-    "beach",
-    "@dig The Open Sea",
-    "@create Harbormaster",
-    "drop Harbormaster",
-    "@desc Harbormaster = A weathered official who seems to know exactly who is ashore at any hour.",
-    "@zone/master Harbormaster = world",
-    "@set Harbormaster/on_connect = set_attr(me, 'ashore', [i for i in (V('ashore') or []) if i != enactor.id] + [enactor.id])",
-    "@set Harbormaster/on_disconnect = set_attr(me, 'ashore', [i for i in (V('ashore') or []) if i != enactor.id])",
-    "@create green bottle",
-    "@desc green bottle = Sea-scoured glass, stoppered with a cork. PEN <text> writes a note; TOSS BOTTLE gives it to the tide; UNCORK BOTTLE reads what is inside.",
-    "@set green bottle/cmd_pen = $pen *: (pemit(enactor, 'Hold the bottle to write.') if loc(me) != enactor else (set_attr(me, 'note', f'{escape(arg0)} --{name(enactor)}'), pemit(enactor, 'You roll the note tight and work it down the neck.')))",
-    "@set green bottle/cmd_uncork = $uncork bottle: pemit(enactor, 'The bottle is empty.') if not V('note') else pemit(enactor, f\"The note reads: {V('note')}\")",
-    "@set green bottle/cmd_toss = $toss bottle: (pemit(enactor, 'Hold the bottle to throw it.') if loc(me) != enactor else (pemit(enactor, 'It needs a note first. PEN <text>.') if not V('note') else (remit(loc(enactor), f'{name(enactor)} hurls the green bottle out past the breakers.'), teleport_obj(me, 'The Open Sea'), expire(me, rand(60, 300)))))",
-    "@set green bottle/on_expire = hm = get('Harbormaster'); ids = [i for i in (get_attr(hm, 'ashore') or []) if get('#' + str(i))]; pool = ids or [p.id for p in search_world(tag='player')]; w = get('#' + str(pool[rand(0, len(pool) - 1)])) if pool else None; (del_attr(me, 'expires_at'), teleport_obj(me, loc(w)), pemit(w, 'A green glass bottle washes up at your feet.'), oemit(w, 'Something glints at the tide-line.')) if w and loc(w) else expire(me, 60)",
-]
 
 BUILD_RED_FLAGS = (
     "Unknown command", "Usage:", "not found", "Script error",
@@ -210,12 +62,13 @@ def sim():
     simulator.close()
 
 
-async def build(sim, lines):
-    """Run one tutorial's build transcript as a builder from Limbo."""
+async def build(sim, doc_name):
+    """Run one tutorial's build transcript — read from the doc — as a
+    builder from Limbo."""
     limbo = sim.room("Limbo")
     builder = sim.player("Bob", location=limbo)
     builder.add_tag("builder")
-    for line in lines:
+    for line in build_lines(doc_name):
         await sim.do(builder, line)
     out = "\n".join(sim.seen(builder))
     for flag in BUILD_RED_FLAGS:
@@ -256,7 +109,7 @@ async def tick(sim, thing):
 class TestCustomChannel:
 
     async def test_join_talk_across_rooms_and_alias(self, sim):
-        bob = await build(sim, BUILD_74)
+        bob = await build(sim, "074_custom_channel.md")
         assert bob.location is room(sim, "The Docking Ring")
         kess = sim.player("Kess", location=room(sim, "The Observation Deck"))
 
@@ -279,7 +132,7 @@ class TestCustomChannel:
         assert "You are already tuned to [pub]." in text(sim, bob)
 
     async def test_nonsubscribers_neither_speak_nor_hear(self, sim):
-        bob = await build(sim, BUILD_74)
+        bob = await build(sim, "074_custom_channel.md")
         raven = sim.player("Raven", location=room(sim, "The Observation Deck"))
         await sim.do(bob, "join pub")
         sim.seen(bob)
@@ -296,7 +149,7 @@ class TestCustomChannel:
         assert "[pub]" not in text(sim, limbo_lurker)
 
     async def test_mute_history_unmute_leave(self, sim):
-        bob = await build(sim, BUILD_74)
+        bob = await build(sim, "074_custom_channel.md")
         kess = sim.player("Kess", location=room(sim, "The Observation Deck"))
         await sim.do(bob, "join pub")
         await sim.do(kess, "join pub")
@@ -326,7 +179,7 @@ class TestCustomChannel:
         assert "You are not tuned to [pub]. JOIN PUB first." in text(sim, kess)
 
     async def test_history_is_capped_at_twenty(self, sim):
-        bob = await build(sim, BUILD_74)
+        bob = await build(sim, "074_custom_channel.md")
         await sim.do(bob, "join pub")
         for i in range(25):
             await sim.do(bob, f"+pub line {i}")
@@ -342,7 +195,7 @@ class TestCustomChannel:
 class TestIngameMail:
 
     async def test_send_cc_attach_read_claim(self, sim):
-        bob = await build(sim, BUILD_75)
+        bob = await build(sim, "075_ingame_mail.md")
         assert bob.location is room(sim, "The Post Office")
         walk = room(sim, "The Promenade")
         zeke = sim.player("Zeke", location=walk)
@@ -381,8 +234,27 @@ class TestIngameMail:
         await sim.do(zeke, "claim 1")
         assert "empty palms" in text(sim, zeke)
 
+    async def test_the_clerk_ignores_parcels_handed_to_other_people(self, sim):
+        """event:on_receive is witnessed room-wide, not delivered only to
+        the recipient, so the hook's `target is me` guard is what keeps
+        the Postmaster from escrowing every handover in the lobby."""
+        bob = await build(sim, "075_ingame_mail.md")
+        zeke = sim.player("Zeke", location=bob.location)
+        compass = sim.obj("brass compass", location=bob, tags=["thing"])
+
+        # Handed to Zeke, in the Post Office. The clerk is a witness only.
+        await sim.do(bob, "give brass compass to Zeke")
+        assert compass.location is zeke
+        assert compass.db.get("escrow") is None
+        assert "The clerk tags your" not in text(sim, bob)
+
+        # Handed to the clerk himself, it escrows as advertised.
+        await sim.do(zeke, "give brass compass to Postmaster")
+        assert compass.location is obj(sim, "Postmaster")
+        assert compass.db.get("escrow") == zeke.id
+
     async def test_bad_address_bounces_whole_letter(self, sim):
-        bob = await build(sim, BUILD_75)
+        bob = await build(sim, "075_ingame_mail.md")
         zeke = sim.player("Zeke", location=room(sim, "The Promenade"))
         await sim.do(bob, "send Zeke,Nobody = half-good addresses fail whole")
         assert "no such citizen on the rolls" in text(sim, bob)
@@ -390,7 +262,7 @@ class TestIngameMail:
         assert pm.db.get("mail_" + zeke.id) is None
 
     async def test_connect_notice_only_with_waiting_mail(self, sim):
-        bob = await build(sim, BUILD_75)
+        bob = await build(sim, "075_ingame_mail.md")
         walk = room(sim, "The Promenade")
         zeke = sim.player("Zeke", location=walk)
         raven = sim.player("Raven", location=walk)
@@ -407,7 +279,7 @@ class TestIngameMail:
         assert "1. From Bob" in text(sim, zeke)
 
     async def test_empty_inbox_and_bad_numbers(self, sim):
-        bob = await build(sim, BUILD_75)
+        bob = await build(sim, "075_ingame_mail.md")
         zeke = sim.player("Zeke", location=room(sim, "The Promenade"))
         await sim.do(zeke, "mail")
         assert "nothing for you" in text(sim, zeke)
@@ -423,7 +295,7 @@ class TestIngameMail:
 class TestBulletinBoards:
 
     async def test_post_read_and_per_location_state(self, sim):
-        bob = await build(sim, BUILD_76)
+        bob = await build(sim, "076_bulletin_boards.md")
         assert bob.location is room(sim, "The Tavern Commons")
 
         await sim.do(bob, "post Buyer wanted: forty crates of salt cod, ask for Bilda.")
@@ -453,7 +325,7 @@ class TestBulletinBoards:
         assert "Dock crew" not in out
 
     async def test_expiry_sweeps_lazily_and_keeps_deadlines(self, sim):
-        bob = await build(sim, BUILD_76)
+        bob = await build(sim, "076_bulletin_boards.md")
         await sim.do(bob, "post Buyer wanted: forty crates of salt cod, ask for Bilda.")
         await sim.do(bob, "@set notice board/ttl = 0")
         await sim.do(bob, "post SOLD, never mind.")
@@ -470,7 +342,7 @@ class TestBulletinBoards:
         assert len(posts) == 1
 
     async def test_heartbeat_sweeps_without_readers(self, sim):
-        bob = await build(sim, BUILD_76)
+        bob = await build(sim, "076_bulletin_boards.md")
         await sim.do(bob, "@set notice board/ttl = 0")
         await sim.do(bob, "post ghosts of notices past")
         sim.seen(bob)
@@ -488,7 +360,7 @@ class TestBulletinBoards:
 class TestHandheldRadios:
 
     async def _crew(self, sim):
-        bob = await build(sim, BUILD_77)
+        bob = await build(sim, "077_handheld_radios.md")
         floor = room(sim, "The Warehouse Floor")
         zeke = sim.player("Zeke", location=floor)
         await sim.do(bob, "get spare radio")
@@ -561,7 +433,7 @@ class TestHandheldRadios:
 class TestStationPA:
 
     async def test_announce_reaches_every_zone_room(self, sim):
-        bob = await build(sim, BUILD_78)
+        bob = await build(sim, "078_pa_system.md")
         assert bob.location is room(sim, "Operations")
         kess = sim.player("Kess", location=room(sim, "The Brig"))
 
@@ -572,7 +444,7 @@ class TestStationPA:
         assert "Your voice rolls out of every speaker on the station." in out
 
     async def test_zone_master_answers_from_any_station_room(self, sim):
-        bob = await build(sim, BUILD_78)
+        bob = await build(sim, "078_pa_system.md")
         kess = sim.player("Kess", location=room(sim, "The Brig"))
         await sim.do(bob, "mess")
         sim.seen(bob)
@@ -580,7 +452,7 @@ class TestStationPA:
         assert "Chow line closes early tonight." in text(sim, kess)
 
     async def test_strangers_are_refused(self, sim):
-        bob = await build(sim, BUILD_78)
+        bob = await build(sim, "078_pa_system.md")
         zeke = sim.player("Zeke", location=room(sim, "Operations"))
         kess = sim.player("Kess", location=room(sim, "The Brig"))
 
@@ -595,7 +467,7 @@ class TestStationPA:
 class TestGraffiti:
 
     async def test_scrawl_persists_in_the_room_description(self, sim):
-        bob = await build(sim, BUILD_81)
+        bob = await build(sim, "081_graffiti.md")
         underpass = room(sim, "The Underpass")
         kess = sim.player("Kess", location=underpass)
         raven = sim.player("Raven", location=underpass)
@@ -614,7 +486,7 @@ class TestGraffiti:
         assert extras == [["", 'Scrawled on the wall: "Kess was here before you." --Kess']]
 
     async def test_wall_capacity_caps_the_list(self, sim):
-        bob = await build(sim, BUILD_81)
+        bob = await build(sim, "081_graffiti.md")
         kess = sim.player("Kess", location=room(sim, "The Underpass"))
         for i in range(8):
             await sim.do(kess, f"scrawl tag number {i}")
@@ -624,7 +496,7 @@ class TestGraffiti:
         assert len(room(sim, "The Underpass").db.get("desc_extras")) == 8
 
     async def test_only_the_owner_scrubs(self, sim):
-        bob = await build(sim, BUILD_81)
+        bob = await build(sim, "081_graffiti.md")
         underpass = room(sim, "The Underpass")
         kess = sim.player("Kess", location=underpass)
         await sim.do(kess, "scrawl wash me")
@@ -648,7 +520,7 @@ class TestGraffiti:
 class TestNewspaper:
 
     async def test_submit_publish_and_vend(self, sim):
-        bob = await build(sim, BUILD_82)
+        bob = await build(sim, "082_newspaper.md")
         assert bob.location is room(sim, "Market Square")
         square = room(sim, "Market Square")
         kess = sim.player("Kess", location=square, credits=20)
@@ -679,7 +551,7 @@ class TestNewspaper:
         assert "LOST: one glass eye, sentimental value. --Kess" in out
 
     async def test_underpay_and_early_buyers_get_refunds(self, sim):
-        bob = await build(sim, BUILD_82)
+        bob = await build(sim, "082_newspaper.md")
         square = room(sim, "Market Square")
         zeke = sim.player("Zeke", location=square, credits=3)
 
@@ -700,7 +572,7 @@ class TestNewspaper:
         assert objs(sim, "the Gazette No. 1") == []
 
     async def test_editions_snapshot_and_advance(self, sim):
-        bob = await build(sim, BUILD_82)
+        bob = await build(sim, "082_newspaper.md")
         square = room(sim, "Market Square")
         kess = sim.player("Kess", location=square, credits=20)
         bureau = obj(sim, "Gazette Bureau")
@@ -733,7 +605,7 @@ class TestNewspaper:
 class TestMessageInBottle:
 
     async def test_pen_toss_drift_and_random_landfall(self, sim):
-        bob = await build(sim, BUILD_83)
+        bob = await build(sim, "083_message_in_bottle.md")
         cliff = room(sim, "The Sea Cliff")
         zeke = sim.player("Zeke", location=cliff)
         # Zeke is the only player the Harbormaster knows is ashore.
@@ -764,7 +636,7 @@ class TestMessageInBottle:
                 "Check the cellar. Tell no one. --Bob") in text(sim, zeke)
 
     async def test_tide_demands_the_bottle_in_hand(self, sim):
-        bob = await build(sim, BUILD_83)
+        bob = await build(sim, "083_message_in_bottle.md")
         # No note yet: the toss refuses.
         await sim.do(bob, "toss bottle")
         assert "It needs a note first." in text(sim, bob)
@@ -779,7 +651,7 @@ class TestMessageInBottle:
         assert "The bottle is empty." in text(sim, bob)
 
     async def test_roster_tracks_connects_and_disconnects(self, sim):
-        bob = await build(sim, BUILD_83)
+        bob = await build(sim, "083_message_in_bottle.md")
         beach = room(sim, "The Shingle Beach")
         zeke = sim.player("Zeke", location=beach)
         kess = sim.player("Kess", location=beach)

@@ -580,6 +580,38 @@ class TestVehicleFuel:
         assert cab.db.get("fuel") == 4
         assert pat.db.get("credits") == 80
 
+    async def test_overpaying_past_the_cap_refunds_the_difference(self, sim):
+        """The pump reads the sum off the event (adata('amount')) and gives
+        back what the tank had no room for."""
+        await build(sim, 163)
+        depot = room(sim, "The Depot")
+        cab = room(sim, "The Rover")
+        pat = sim.player("Pat", location=depot, credits=100)
+
+        assert cab.db.get("fuel") == 2 and cab.db.get("fuel_max") == 6
+        await sim.do(pat, "pay 50 to fuel pump")   # room for 4 units = 20 cr
+        out = text(sim, pat)
+        assert "4 units aboard, tank now 6." in out
+        assert "Change: 30 cr." in out
+        assert cab.db.get("fuel") == 6             # capped, not overfilled
+        assert pat.db.get("credits") == 80         # 100 - 50 paid + 30 change
+
+    async def test_pump_ignores_a_payment_made_to_something_else(self, sim):
+        """ON_PAYMENT fires on every object in the room, not just the till
+        that was paid — `target is me` is what tells them apart. Without the
+        guard the pump would read the vending machine's amount and hand out
+        free fuel."""
+        await build(sim, 163)
+        depot = room(sim, "The Depot")
+        cab = room(sim, "The Rover")
+        sim.obj("vending machine", location=depot)
+        pat = sim.player("Pat", location=depot, credits=100)
+
+        await sim.do(pat, "pay 50 to vending machine")
+        assert cab.db.get("fuel") == 2             # tank untouched
+        assert pat.db.get("credits") == 50         # and no change came back
+        assert "units aboard" not in text(sim, pat)
+
     async def test_pump_refuses_when_rover_absent(self, sim):
         await build(sim, 163)
         depot = room(sim, "The Depot")

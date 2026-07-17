@@ -109,6 +109,61 @@ class TestPayload:
 
 
 @pytest.mark.asyncio
+class TestIndirectKillsNameTheirKiller:
+    """Firing the event was only half the job.
+
+    A poison tick called `handle_death(obj)` with no killer, so the board
+    heard the death and had nobody to pay — and an arena bell roared that
+    "" put someone down (`name(None)` is ""). `apply_effect` now stamps
+    `source_id` with its executor, so the effect can name whoever applied
+    it. The applier is simply whoever ran the script.
+    """
+
+    async def test_a_poison_tick_names_the_poisoner(self, world):
+        from realm.core.beats import deliver_beat
+
+        w = world
+        assassin = w.sim.obj("assassin", location=w.room)
+        w.mark.db.set('hp', 2)
+        w.mark.db.set('max_hp', 10)
+
+        await w.sim.eval(
+            assassin,
+            "apply_effect(get('mark'), 'damage_over_time', kind='poison', "
+            "damage=5, interval=1, duration=10)")
+        for _ in range(5):
+            if int(w.mark.db.get('hp') or 0) <= 0:
+                break
+            await deliver_beat(w.mark)
+
+        assert int(w.mark.db.get('hp') or 0) <= 0, "the poison never landed"
+        assert world.witness.db.get('saw') == "mark"
+        assert world.witness.db.get('killer') == "assassin"
+
+    async def test_an_explicit_source_wins_over_the_executor(self, world):
+        """A script may name someone else as the applier — e.g. a trap
+        crediting whoever armed it rather than the trap."""
+        from realm.core.beats import deliver_beat
+
+        w = world
+        trap = w.sim.obj("trap", location=w.room)
+        armer = w.sim.obj("armer", location=w.room)
+        w.mark.db.set('hp', 2)
+        w.mark.db.set('max_hp', 10)
+
+        await w.sim.eval(
+            trap,
+            f"apply_effect(get('mark'), 'damage_over_time', kind='poison', "
+            f"damage=5, interval=1, duration=10, source_id='{armer.id}')")
+        for _ in range(5):
+            if int(w.mark.db.get('hp') or 0) <= 0:
+                break
+            await deliver_beat(w.mark)
+
+        assert world.witness.db.get('killer') == "armer"
+
+
+@pytest.mark.asyncio
 class TestOrderingAndArity:
 
     async def test_announced_before_the_body_is_transformed(self, world):

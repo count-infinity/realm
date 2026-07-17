@@ -10,9 +10,8 @@ else the anvil touches.
 **Concepts:** how weight *aggregates* when the engine has no weight
 kernel — a recursive fold over `contents()` — and the clean override
 point: one data attribute (`carry_weight`) that any container can
-declare to replace its aggregate. Plus the one-liner trick for
-recursion in softcode: a lambda that takes itself as its first
-argument.
+declare to replace its aggregate. Plus recursion in a one-liner: a
+lambda that calls itself by name.
 
 ## How it works
 
@@ -34,11 +33,12 @@ wrong way is zeroing `weight` on entry and restoring it on exit; the
 first script that moves an item out some other way leaves the books
 corrupted forever.
 
-**Recursion on one line.** Softcode attributes are one-liners, and a
-top-level name can't see itself from inside a lambda — so the fold
-passes itself along: `w = lambda w, o: ...w(w, c)...` and every call
-site says `w(w, thing)`. Ugly for a heartbeat, then it reads fine.
-Because the rule is pure reads (`get_attr`, `has_attr`, `contents`),
+**Recursion on one line.** Softcode attributes are one-liners, but a
+script runs in *one namespace*, like module scope — so a lambda body
+sees the names the script has already assigned, including its own.
+`w = lambda o: ...w(c)...` is therefore just recursion: by the time
+anything calls `w`, the name `w` resolves to the lambda. Because the
+rule is pure reads (`get_attr`, `has_attr`, `contents`),
 the *same line* works in a `$`-command and in an `on_check` ward — the
 decision pass allows reads only, and this needs nothing else.
 
@@ -51,12 +51,12 @@ them. `$weigh <thing>` runs the fold and reports:
 @create cargo scale
 drop cargo scale
 @desc cargo scale = A freight scale with a brass needle the size of a sword blade.
-@set cargo scale/cmd_weigh = $weigh *: w = lambda w, o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); it = get(trim(arg0)); pemit(enactor, f'The needle settles at {w(w, it)} lbs.') if it else pemit(enactor, 'Nothing by that name to weigh.')
+@set cargo scale/cmd_weigh = $weigh *: w = lambda o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum(w(c) for c in contents(o)); it = get(trim(arg0)); pemit(enactor, f'The needle settles at {w(it)} lbs.') if it else pemit(enactor, 'Nothing by that name to weigh.')
 ```
 
 The enforcer: a porter's satchel with a 10 lb limit, warded exactly
 like the canvas sack in [014](014_basic_container.md) — except its
-ward weighs *aggregates*, not raw attributes. Note `load = w(w, me)`:
+ward weighs *aggregates*, not raw attributes. Note `load = w(me)`:
 the cheapest way to weigh your own contents is to weigh yourself (the
 satchel has no `weight` of its own, so the fold returns pure load):
 
@@ -65,7 +65,7 @@ satchel has no `weight` of its own, so the fold returns pure load):
 @set porter's satchel/container = true
 drop porter's satchel
 @set porter's satchel/weight_limit = 10
-@set porter's satchel/on_check = mine = atype == 'item:on_put' and target is me; w = lambda w, o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); adding = w(w, adata('item')) if mine else 0; load = w(w, me) if mine else 0; limit = V('weight_limit', 10); block(f'At {adding} lbs that would overload the {name(me)} ({load} of {limit} lbs used).') if mine and load + adding > limit else None
+@set porter's satchel/on_check = mine = atype == 'item:on_put' and target is me; w = lambda o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum(w(c) for c in contents(o)); adding = w(adata('item')) if mine else 0; load = w(me) if mine else 0; limit = V('weight_limit', 10); block(f'At {adding} lbs that would overload the {name(me)} ({load} of {limit} lbs used).') if mine and load + adding > limit else None
 ```
 
 The test mass, an honest container for contrast, and the bag itself —
@@ -121,7 +121,7 @@ cargo honestly; the secret is in the weighing, not the holding.
   inside — bolt on 014's count/weight ward with a big `weight_limit`
   so the bag can't swallow a warehouse.
 - **Encumbrance:** the same fold over `contents(enactor)` is a
-  carry-limit ward on a *player* — one `w(w, ...)` call away.
+  carry-limit ward on a *player* — one `w(...)` call away.
 - **The classic disaster:** a ward on the bag that
   `block('The fabric of space complains.')`s any incoming item with
   `carry_weight` — put a bag of holding in a bag of holding and find

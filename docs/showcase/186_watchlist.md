@@ -99,7 +99,13 @@ watches.`
 
 - **Wider coverage** — add `on_death`, `on_payment`, or an `on_arrive`
   witness routed through the same `alert`; a watchlist is only as useful
-  as the events it watches.
+  as the events it watches. `on_death` is a particularly good catch: the
+  engine announces it from its one death path, so it fires for a poison
+  tick or a trap as readily as for a swing, and for a watched *player*
+  going down as well as one doing the killing. Read the action to tell
+  those apart — `target` is who fell, `adata('killer')` names who did it,
+  `adata('fatal')` separates a corpse from a KO (the
+  [dashboard](176_staff_dashboard.md) feed does exactly this).
 - **Severity** — store a level with the note and colour the alert red vs.
   amber; a `[[...]]` in the office desc can show the live count.
 - **Auto-watch** — have the [approval desk](179_approval_queue.md) tag

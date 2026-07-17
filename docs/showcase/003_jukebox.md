@@ -112,9 +112,10 @@ jukebox clunks and returns your choice unplayed.
 
 ## Going further
 
-- **Coin-op:** put the menu behind money — `ON_PAYMENT` plus the
-  ledger idiom from the [slot machine](001_slot_machine.md), arming a
-  `paid_<player>` credit that `play` checks and consumes.
+- **Coin-op:** put the menu behind money — an `ON_PAYMENT` that reads
+  `adata('amount')` (the [fortune teller](013_fortune_teller.md) does
+  exactly this) and arms a `paid_<player>` credit that `play` checks
+  and consumes.
 - **A whole-club sound system:** `@zone` the venue's rooms together
   and swap `remit(here, ...)` for `act(here, ..., targeting='zone')` —
   every dance floor hears the same record.

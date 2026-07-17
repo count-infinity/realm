@@ -66,22 +66,53 @@ action, so they are unbound there.
 |---|---|
 | `atype` | the action type (`item:on_get`, `event:payment`, `combat:on_damage`, …) |
 | `actor` | who is acting (same object as `enactor`) |
-| `target` | what/who the action targets — how a witness tells "I was paid" from "someone was paid" |
+| `target` | what/who the action targets |
 | `adata(key, default)` | the action's payload |
 | `has_atag(tag)` | orthogonal action tags (`hostile`, `sound`, …) |
+
+### Guard on `target` — events are heard by the whole room
+
+**This is the one that bites.** An `ON_<EVENT>` hook fires on *every*
+object in the room, not only the one the action was aimed at. So `target`
+is not a nicety — it is how a witness tells **"this happened to me"** from
+**"this happened near me"**:
+
+```
+@set pump/on_payment = paid = adata('amount', 0) if target is me else 0; ...
+@set golem/on_receive = it = adata('item') if target is me else None; ...
+```
+
+Without the guard, paying the *vending machine* standing next to your fuel
+pump runs the pump's hook with the machine's `amount`, and it cheerfully
+dispenses free fuel. Anything that reacts to `ON_PAYMENT`, `ON_RECEIVE`,
+`ON_GET`, `ON_DAMAGE` — any event with a target — wants this check unless
+it genuinely means to react to the whole room's traffic.
+
+(Older builds reconstructed the amount by diffing their own balance — the
+"till" idiom. That was accidentally immune, because a neighbour's payment
+moved no money of theirs. Reading `adata` directly is clearer and exact,
+but it hears everything, so the guard comes with it.)
 
 Payloads carried today (read with `adata`):
 
 | Action | Keys |
 |---|---|
 | `event:payment` | `amount` |
-| `item:on_get` / `on_drop` / `on_give` | `item`, `giver` |
+| `item:on_get` / `on_drop` / `on_wield` / `on_unwield` | *(none — the item IS `target`)* |
+| `item:on_give` | `item` (`target` is the recipient; the item also arrives as `tool`) |
+| `item:on_put` | `item` (`target` is the container) |
+| `event:on_receive` | `item`, `giver` |
+| `event:on_leave` | `exit`, `direction`, `destination` |
+| `event:on_fail` | `reason` (`'skill'`, `'closed'`, `'locked'`, …), `exit`, `direction`, `destination` |
+| `event:on_enter` / `pre_enter` / `on_look` / `on_expire` / `on_reset` | *(none — the subject is `target`)* |
+| `event:on_hitprcnt` | `percent`, `threshold` |
+| `event:on_cast` | `ability`, `caster` |
+| `event:connect` | `returning` |
 | `combat:on_damage` | `damage`, `damage_types` |
 | `combat:on_attack` | `weapon`, `attacker_hp`, `defender_hp` |
 | `combat:on_death` | `killer` (a name; the killer *object* is `actor`), `fatal` |
-| `combat:on_hitprcnt` | `percent` |
-| speech / emit | `message`; poses carry `pose` |
-| `event:on_cast` | `ability`, `caster` |
+| `event:speech` / `shout` / `ooc` / `emit` / `whisper` | `message` |
+| `event:emote` / `semipose` | `pose` |
 
 ```
 @set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.

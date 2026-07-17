@@ -24,10 +24,18 @@ digs exactly one edge. One-way is not a feature you add; two-way is.
 way (`You leave laundry chute.` / `{actor} arrives.`) — there are no
 per-exit message override attributes. What you *can* do is layer flavor
 on top: rooms witness movement, so the landing's `ON_LEAVE` and the
-vault's `ON_ENTER` fire around the stock lines. One honest limit: a
-room trigger can't see *which* exit was used, so this trick wants rooms
-where the geometry makes it unambiguous — here the landing has only the
-chute to leave by, and the vault can only be *entered* by falling.
+vault's `ON_ENTER` fire around the stock lines.
+
+**Which exit carried them?** Movement triggers are handed the action's
+payload, so a room trigger *can* ask: `adata('exit')` is the exit
+object, alongside `adata('destination')` and `adata('direction')`. On a
+room with several ways out, that's how you keep the chute's flavor off
+the front door — `... if adata('exit') == get('laundry chute') else
+None`. This build doesn't spend the clause, because the geometry
+already decides: the landing's only exit *is* the chute, and the vault
+can only be *entered* by falling down it, so the guard could never be
+false. Let the shape of the map do the work when it can; reach for
+`adata('exit')` the moment it can't.
 
 **The dead end that talks back.** Players below *will* try `up`. Give
 them an exit that exists but goes nowhere: an exit object with no
@@ -88,11 +96,13 @@ you might climb back up is a puzzle; the refusal text is the answer.
   stock `You leave <exit>.` / `{actor} arrives.` lines always print,
   and there is no `leave_msg`/`arrive_msg` attribute pair to replace
   them.
-- Room `ON_LEAVE`/`ON_ENTER` triggers can't read which exit carried the
-  mover (the action's payload isn't bound into the trigger namespace —
-  only wards see `adata('exit')`), so per-exit flavor needs either
-  single-exit geometry (used here) or a ward. Both noted for the
-  integrator.
+- ~~Room `ON_LEAVE`/`ON_ENTER` triggers can't read which exit carried
+  the mover~~ — **FIXED 2026-07-17**: event triggers now bind the
+  action's payload, so `adata('exit')` (and `adata('destination')` /
+  `adata('direction')`) work in room movement triggers exactly as they
+  always did in wards. Per-exit flavor no longer needs single-exit
+  geometry — this build keeps it because it's the *design*, not a
+  workaround. See "How it works".
 
 ## Going further
 

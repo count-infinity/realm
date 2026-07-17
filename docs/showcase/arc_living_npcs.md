@@ -49,7 +49,10 @@ Everything here rides four engine rails (see
   listens, and `ON_<EVENT>` hooks make objects programmable with
   `@set`. A key habit this arc drills: **witnessed events fire on every
   bystander** with the hook, so scripts confirm the event was theirs
-  (the bartender checks her own till's balance delta before serving).
+  before acting. The hook is handed the action's own data to do it with
+  — `target` (who was paid, who was struck), `adata(key)` (the amount,
+  the weapon), `atype`, `has_atag()` — so the bartender's first move is
+  `target == me`, and Moss, one table over, stays quiet.
 - **Authority** — scripts run as their object with its owner's power.
   NPCs mutate *their own* attrs freely, never a player's sheet; money
   moves via the real `pay` command; the zone master commands the guard

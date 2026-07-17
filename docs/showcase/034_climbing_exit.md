@@ -28,11 +28,19 @@ the price of falling: `damage(enactor, roll('1d6'))` plus a landing
 line. Two authority notes make this legal and safe: `damage()` is
 *proximity* authority — the chimney can hurt the climber because they
 are in its room — and the failed mover never relocated, so they're
-guaranteed to still be standing there when the trigger runs. One
-honesty note: an `ON_FAIL` script can't read *why* the move failed
-(locked? closed? skill?), so hang damage on exits whose only failure
-mode is the roll — true here, and noted below for the day you build a
-cliff with a locked gate on it.
+guaranteed to still be standing there when the trigger runs.
+
+**Ask why it failed.** `event:on_fail` carries a `reason` — `'skill'`,
+`'closed'`, `'locked'`, `'blocked'`, `'no_destination'` and friends —
+and reactions are handed the action's payload, so `adata('reason')`
+tells the exit which kind of "no" it just heard. That matters the
+moment an exit has more than one
+way to refuse you: bolt a lockable gate across this chimney and an
+unguarded `ON_FAIL` would charge a climber 1d6 for rattling a locked
+door. `... if adata('reason') == 'skill' else None` is the guard. The
+build below skips it deliberately — a plain skill-gated exit with no
+lock and no `closed` tag can fail exactly one way, so the clause would
+be dead code — but reach for it the day you add the gate.
 
 **Each face is its own exit** — so each face is its own climb. Going
 up is a hard scramble (`check_difficulty = 2`); coming down the same
@@ -92,12 +100,12 @@ so there's no half-way ledge state to clean up.
 
 ## Engine gaps
 
-- `ON_FAIL` softcode can't see the failure reason (the action carries
-  `reason` — 'skill', 'closed', 'locked' — but action data isn't bound
-  into trigger namespaces). On an exit that is also lockable or
-  closable, fall damage would fire for bounced-off-the-locked-gate
-  too. Workaround here: the chimney's only failure mode is the roll.
-  Noted for the integrator alongside the same gap in items 28/30.
+- ~~`ON_FAIL` softcode can't see the failure reason~~ — **FIXED
+  2026-07-17**: event triggers now bind the action's payload, so
+  `adata('reason')` returns `'skill'` / `'closed'` / `'locked'` /
+  `'no_destination'`. An exit that can fail more than one way should
+  gate its consequences on it; this chimney can only fail the roll, so
+  the build stays unguarded. See "How it works".
 
 ## Going further
 

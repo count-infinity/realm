@@ -45,17 +45,24 @@ Two objects share the work:
 
 **Verification is the hand-in.** The engine's `give` accepts NPC
 recipients and fires the recipient's `ON_RECEIVE` *after* the item
-lands. (`adata('item')`/`adata('giver')` now name the delivery directly
-— this build predates the event namespace.) It doesn't need one anyway:
-the foreman keeps nothing, so whatever is in his hands *is* the
-delivery. The script finds the giver's claimed job on
-the board, checks the delivered item's name against the job's `want`,
-and on a match: pays `transfer_credits(me, enactor, reward)` out of the
-foreman's funded purse (fund him up front — wages that can bounce are a
-lie), consumes the goods with `destroy_obj`, and deletes the row. On a
-miss, the item goes straight back via `teleport_obj` with an explanation
-— an interface that silently kept wrong deliveries would be a theft
-bug.
+lands — and the hook's payload names the delivery outright:
+`adata('item')` is the thing that just arrived, `adata('giver')` the
+person who handed it over (the same object as `enactor` on this hook,
+so the build uses the shorter name). Reading `it = adata('item')` is
+worth pausing on, because the obvious alternative is a trap: you could
+infer the arrival from `contents(me)[0]`, on the theory that the foreman
+keeps nothing so whatever he holds must be the delivery. That works
+right up until he's holding anything else — one dropped prop, one job
+whose reward he hasn't handed over yet — and then it quietly grades the
+wrong object. The payload doesn't infer; it *knows*.
+
+The script then finds the giver's claimed job on the board, checks the
+delivered item's name against the job's `want`, and on a match: pays
+`transfer_credits(me, enactor, reward)` out of the foreman's funded
+purse (fund him up front — wages that can bounce are a lie), consumes
+the goods with `destroy_obj`, and deletes the row. On a miss, the item
+goes straight back via `teleport_obj` with an explanation — an interface
+that silently kept wrong deliveries would be a theft bug.
 
 Note what the claim check buys: you can only be paid for a job **you
 signed for** — handing in pelts without accepting the posting gets them
@@ -104,8 +111,16 @@ against the giver's claimed jobs; pay and close on a hit, push back on
 a miss:
 
 ```text
-@set Foreman Dray/on_receive = board = get('the job board'); stuff = [o for o in contents(me)]; it = stuff[0] if stuff else None; hits = [[i, j] for brd, itx in [[board, it]] for i in range(1, get_attr(brd, 'next_job', 1)) for j in [get_attr(brd, 'job_' + str(i))] if j and j['taken'] == enactor.id and itx is not None and name(itx) == j['want']]; paid = bool(hits) and transfer_credits(me, enactor, hits[0][1]['reward']); [(del_attr(brd, 'job_' + str(i)), destroy_obj(x), say(f"Good work, {name(enactor)}. {j['reward']} credits, as posted.")) for g, row, x, brd in [[paid, hits[0] if hits else None, it, board]] if g for i, j in [row]]; (teleport_obj(it, enactor), say('That is not what any job of yours calls for.')) if it is not None and not paid else None
+@set Foreman Dray/on_receive = board = get('the job board'); it = adata('item') if target is me else None; hits = [[i, j] for i in range(1, get_attr(board, 'next_job', 1)) for j in [get_attr(board, 'job_' + str(i))] if j and j['taken'] == enactor.id and it is not None and name(it) == j['want']]; paid = bool(hits) and transfer_credits(me, enactor, hits[0][1]['reward']); [(del_attr(board, 'job_' + str(i)), destroy_obj(it), say(f"Good work, {name(enactor)}. {j['reward']} credits, as posted.")) for i, j in ([hits[0]] if paid else [])]; (teleport_obj(it, enactor), say('That is not what any job of yours calls for.')) if it is not None and not paid else None
 ```
+
+That line is also shorter than it used to be for a second reason. A
+script and the comprehensions inside it now share **one namespace**, so
+`board` and `it` are simply readable from the `hits` comprehension.
+Older builds had to smuggle their own locals in through a dummy first
+loop (`for brd, itx in [[board, it]] ...`) because comprehension scope
+couldn't see them; that scaffolding is gone, and the guard on the payout
+loop is now a plain `if paid else []`.
 
 ## Try it
 

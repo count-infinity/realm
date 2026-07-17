@@ -25,14 +25,25 @@ broker kills both structurally.
 
 **Escrow is possession.** Staging an item is `give <item> to Broker
 Unit 7` — the engine's own verb, whose recipient-side `ON_RECEIVE`
-fires *after* the handover. This build finds the new arrival as
-whatever in the broker's hands isn't yet stamped (the coat-check idiom,
-022) and stamps it `staged_by = <giver id>`; since the event namespace
-landed, `adata('item')`/`adata('giver')` would name both directly.
-From that instant *neither* trader can touch it — it's in an
-admin-owned NPC's inventory. Items from someone who isn't a party to
-the open trade bounce straight back (`teleport_obj`) with instructions:
-an escrow that quietly keeps bystanders' property is a theft bug.
+fires *after* the handover and hands the script both halves of the
+delivery: `adata('item')` is what arrived, `adata('giver')` is who
+staged it (the same object as `enactor` here, which is why the build
+keeps the shorter name). The arrival is stamped `staged_by = <giver
+id>` — and note that the stamp is now purely the *ledger* of
+who-gets-what-back, nothing more. A broker built before the payload
+existed had to make that stamp do double duty: with no way to be told
+what had just landed, it identified the new item by elimination — the
+one thing in its hands not yet stamped — so the stamp was load-bearing
+for *finding* the arrival as well as recording it. That inference is
+the kind that holds until it doesn't (anything else in the broker's
+inventory breaks it); `adata('item')` replaces it with a fact, and the
+stamp goes back to doing one job.
+
+From the instant it's stamped, *neither* trader can touch the item —
+it's in an admin-owned NPC's inventory. Items from someone who isn't a
+party to the open trade bounce straight back (`teleport_obj`) with
+instructions: an escrow that quietly keeps bystanders' property is a
+theft bug.
 
 **Any change resets.** Every successful staging zeroes *both*
 `confirm_a` and `confirm_b`. What you confirm is therefore always the
@@ -81,10 +92,12 @@ standing here — you're about to trust the same room's exits):
 ```
 
 The escrow intake — stamp the arrival, reset all confirmations, bounce
-strangers' goods:
+strangers' goods. With the arrival named by the payload, the whole hook
+is two conditionals over one `it`; the staging branch no longer needs a
+comprehension to bind its own variable into a guard:
 
 ```text
-@set Broker Unit 7/on_receive = a = V('party_a'); b = V('party_b'); new = [o for o in contents(me) if not has_attr(o, 'staged_by')]; it = new[0] if new else None; ok = it is not None and enactor.id in [a, b]; [(set_attr(x, 'staged_by', enactor.id), set_attr(me, 'confirm_a', 0), set_attr(me, 'confirm_b', 0), remit(here, f'{name(enactor)} stages {name(x)}. All confirmations reset.')) for g, x in [[ok, it]] if g]; (teleport_obj(it, enactor), pemit(enactor, 'The broker refuses: open a trade first (trade with <who>).')) if it is not None and not ok else None
+@set Broker Unit 7/on_receive = it = adata('item') if target is me else None; ok = it is not None and enactor.id in [V('party_a'), V('party_b')]; (set_attr(it, 'staged_by', enactor.id), set_attr(me, 'confirm_a', 0), set_attr(me, 'confirm_b', 0), remit(here, f'{name(enactor)} stages {name(it)}. All confirmations reset.')) if ok else None; (teleport_obj(it, enactor), pemit(enactor, 'The broker refuses: open a trade first (trade with <who>).')) if it is not None and not ok else None
 ```
 
 The table, readable by anyone:

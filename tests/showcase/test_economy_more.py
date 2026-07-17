@@ -7,12 +7,15 @@ Docs: docs/showcase/088_player_shops.md, 090_pawn_shop.md,
 091_lottery.md, 093_housing_rent.md, 094_job_board.md,
 095_durability_repair.md, 096_secure_trade.md, 097_barter_npc.md.
 
-The BUILD_* lists below are verbatim the "Build it" command lines of
-each tutorial. If this file is green, the typed lines work.
+Each play reads its tutorial's "Build it" command lines straight out of
+the markdown and types them at a live builder, so a doc edit that breaks
+the build breaks this suite. If this file is green, the typed lines work.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
+import re
 import time
 
 import pytest
@@ -22,152 +25,19 @@ from realm.core.economy import get_credits
 from realm.core.events import reap_expired
 from realm.testing import Simulator
 
-# --- 088. Player-run shop stalls -------------------------------------------------
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
-BUILD_STALL = [
-    "@dig Stall Row",
-    "@teleport Stall Row",
-    "@create stall three",
-    "drop stall three",
-    "@set stall three/rent = 20",
-    "@set stall three/period = 300",
-    "@set stall three/cmd_rent = $rent stall:ok = not V('renter') and transfer_credits(enactor, me, V('rent', 20)); [(set_attr(me, 'renter', enactor.id), set_attr(me, 'renter_name', name(enactor)), set_attr(me, 'paid_until', now() + V('period', 300)), set_attr(me, 'earnings', 0), remit(here, f'{name(enactor)} rents stall three and shakes out the awning.')) for g in [ok] if g]; pemit(enactor, 'Stall three is yours. Stock it, price it, collect your takings.' if ok else 'The stall is already let, or you cannot cover the rent.')",
-    "@set stall three/cmd_stock = $stall stock *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; ok = enactor.id == V('renter') and bool(itm); [(move_to(o, me), set_attr(o, 'stall_price', max(1, get_attr(o, 'value', 1))), pemit(enactor, f\"{name(o)} goes on the shelf at {get_attr(o, 'stall_price', 1)} credits.\")) for g, lst in [[ok, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Only the renter stocks this stall, and only from their own pack.') if not ok else None",
-    "@set stall three/cmd_price = $stall price * = *:itm = [o for o in contents(me) if name(o).lower() == arg0.strip().lower()]; ok = enactor.id == V('renter') and bool(itm) and int(arg1) > 0; [(set_attr(o, 'stall_price', int(arg1)), remit(here, f\"{V('renter_name', 'The stallholder')} chalks a new price: {name(o)} at {int(arg1)} credits.\")) for g, lst in [[ok, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Only the renter sets prices here.' if enactor.id != V('renter') else 'No such item on the shelf, or a bad price.') if not ok else None",
-    "@set stall three/cmd_shelf = $stall:pemit(enactor, f\"stall three, run by {V('renter_name', 'nobody (rent stall to claim it)')}:\"); [pemit(enactor, f\"  {name(o)} - {get_attr(o, 'stall_price', 0)} credits\") for o in contents(me) if has_attr(o, 'stall_price')]",
-    "@set stall three/cmd_buy = $stall buy *:itm = [o for o in contents(me) if has_attr(o, 'stall_price') and name(o).lower() == arg0.strip().lower()]; price = get_attr(itm[0], 'stall_price', 0) if itm else 0; ok = bool(itm) and enactor.id != V('renter') and transfer_credits(enactor, me, price); [(del_attr(o, 'stall_price'), teleport_obj(o, enactor), incr('earnings', p), remit(here, f'{name(enactor)} buys {name(o)} for {p} credits.'), pemit(get('#' + V('renter')), f'Your stall sells {name(o)} for {p} credits.')) for g, p, lst in [[ok, price, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Not on the shelf, or you cannot cover it.') if not ok else None",
-    "@set stall three/cmd_collect = $stall collect:e = V('earnings', 0); ok = enactor.id == V('renter') and e > 0 and transfer_credits(me, enactor, e); [(set_attr(me, 'earnings', 0), pemit(enactor, f'You pocket {k} credits in takings.')) for g, k in [[ok, e]] if g]; pemit(enactor, 'No takings to collect, or this is not your stall.') if not ok else None",
-    "@behavior stall three = script_ticker, interval:60",
-    "@set stall three/on_tick = r = V('renter'); e = V('earnings', 0); rent = V('rent', 20); due = bool(r) and now() >= V('paid_until', 0); (set_attr(me, 'earnings', e - rent), incr('paid_until', V('period', 300)), pemit(get('#' + r), f'The market takes {rent} credits rent from your stall takings.')) if due and e >= rent else None; ([(teleport_obj(o, get('#' + V('renter'))), del_attr(o, 'stall_price')) for o in contents(me) if has_attr(o, 'stall_price')], transfer_credits(me, get('#' + r), e) if e > 0 else None, pemit(get('#' + r), 'Stall three is repossessed for unpaid rent; your goods and takings are returned.'), del_attr(me, 'renter'), del_attr(me, 'renter_name'), set_attr(me, 'earnings', 0), remit(here, 'The market warden strips stall three: TO LET.')) if due and e < rent else None",
-]
 
-# --- 090. Pawn shop ---------------------------------------------------------------
-
-BUILD_PAWN = [
-    "@dig Yaros Den",
-    "@teleport Yaros Den",
-    "@create the Pawn Counter",
-    "drop the Pawn Counter",
-    "@set the Pawn Counter/rate = 60",
-    "@set the Pawn Counter/window = 300",
-    "@set the Pawn Counter/fallback = 5",
-    "@eval adjust_credits(get('the Pawn Counter'), 1000)",
-    "@set the Pawn Counter/tag_expire = shop = get('the Pawn Counter'); iid = get_attr(me, 'item'); row = get_attr(shop, 'pledge_' + iid); (del_attr(shop, 'pledge_' + iid), add_tag(get('#' + iid), 'forfeit'), remit(loc(shop), f\"Yaro shrugs and moves {name(get('#' + iid))} to the sale rack.\")) if row else None",
-    "@set the Pawn Counter/cmd_pawn = $pawn *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; val = (get_attr(itm[0], 'value', 0) or V('fallback', 5)) if itm else 0; loan = max(1, val * V('rate', 60) // 100); ok = bool(itm) and transfer_credits(me, enactor, loan); [(move_to(o, me), set_attr(me, 'pledge_' + o.id, {'owner': enactor.id, 'owner_name': name(enactor), 'loan': l, 'due': now() + V('window', 300)}), set_attr(t, 'item', o.id), set_attr(t, 'on_expire', V('tag_expire')), expire(t, V('window', 300)), pemit(enactor, f\"Yaro counts out {l} credits against your {name(o)}. Redeem it for {l + max(1, l // 10)} within {V('window', 300)} seconds.\")) for g, l, lst in [[ok, loan, itm]] if g for o in [lst[0]] for t in [create_obj(f'a pawn tag ({name(o)})', tags=['thing', 'pawn_tag'], location=me)]]; pemit(enactor, 'You are not carrying that, or the counter cannot cover the loan.') if not ok else None",
-    "@set the Pawn Counter/cmd_redeem = $redeem *:itm = [o for o in contents(me) if name(o).lower() == arg0.strip().lower() and has_attr(me, 'pledge_' + o.id)]; row = V('pledge_' + itm[0].id) if itm else None; cost = row['loan'] + max(1, row['loan'] // 10) if row else 0; ok = bool(row) and row['owner'] == enactor.id and now() <= row['due'] and transfer_credits(enactor, me, cost); [(teleport_obj(o, enactor), del_attr(me, 'pledge_' + o.id), [destroy_obj(t) for t in contents(me) if has_tag(t, 'pawn_tag') and get_attr(t, 'item') == o.id], pemit(enactor, f'You redeem your {name(o)} for {c} credits.')) for g, o, c in [[ok, itm[0] if itm else None, cost]] if g]; pemit(enactor, 'No such pledge of yours, the window has closed, or you cannot cover it.') if not ok else None",
-    "@set the Pawn Counter/cmd_rack = $rack:pemit(enactor, 'On the sale rack:'); [pemit(enactor, f\"  {name(o)} - {max(1, get_attr(o, 'value', 0) or V('fallback', 5))} credits\") for o in contents(me) if has_tag(o, 'forfeit')]",
-    "@set the Pawn Counter/cmd_buyrack = $rack buy *:itm = [o for o in contents(me) if has_tag(o, 'forfeit') and name(o).lower() == arg0.strip().lower()]; price = max(1, get_attr(itm[0], 'value', 0) or V('fallback', 5)) if itm else 0; ok = bool(itm) and transfer_credits(enactor, me, price); [(remove_tag(o, 'forfeit'), teleport_obj(o, enactor), pemit(enactor, f'Yours for {p} credits. No refunds.')) for g, p, lst in [[ok, price, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Not on the rack, or you cannot cover it.') if not ok else None",
-]
-
-# --- 091. Lottery -----------------------------------------------------------------
-
-BUILD_LOTTO = [
-    "@dig The Lucky Star Lounge",
-    "@teleport The Lucky Star Lounge",
-    "@create the lottery terminal",
-    "drop the lottery terminal",
-    "@set the lottery terminal/price = 10",
-    "@set the lottery terminal/round = 120",
-    "@set the lottery terminal/cmd_buy = $lotto buy:price = V('price', 10); ok = transfer_credits(enactor, me, price); [(incr('pot', p), set_attr(me, 'stub_' + str(n), '#' + t.id), set_attr(t, 'serial', n), teleport_obj(t, enactor), set_attr(me, 'draw_at', V('draw_at', 0) or now() + V('round', 120)), remit(here, f\"{name(enactor)} buys lottery ticket {n}. The pot stands at {V('pot', 0)} credits.\")) for g, p in [[ok, price]] if g for n in [incr('sold')] for t in [create_obj(f'lottery ticket {n}', tags=['thing', 'lottery_ticket'], location=me)]]; pemit(enactor, 'The terminal blinks: insufficient credits.') if not ok else None",
-    "@set the lottery terminal/cmd_status = $lotto:pemit(enactor, f\"Pot: {V('pot', 0)} credits across {V('sold', 0)} tickets. Draw in {max(0, int(V('draw_at', now()) - now()))}s.\")",
-    "@set the lottery terminal/draw = n = V('sold', 0); w = rand(1, n) if n else 0; t = get(V('stub_' + str(w))) if w else None; holder = loc(t) if t is not None else None; win = holder is not None and has_tag(holder, 'player'); pot = V('pot', 0); (transfer_credits(me, holder, pot), set_attr(me, 'pot', 0), remit(here, f'The drum rattles: ticket {w} wins! {name(holder)} collects {pot} credits.')) if win else remit(here, f'The drum rattles: ticket {w} wins... and no one holds it. The pot rolls over.'); [destroy_obj(x) for i in range(1, n + 1) for x in [get(V('stub_' + str(i)))] if x is not None]; [del_attr(me, 'stub_' + str(i)) for i in range(1, n + 1)]; set_attr(me, 'sold', 0); del_attr(me, 'draw_at'); result = 1",
-    "@behavior the lottery terminal = script_ticker, interval:30",
-    "@set the lottery terminal/on_tick = eval_attr(me, 'draw') if V('sold', 0) and now() >= V('draw_at', 0) else None",
-]
-
-# --- 093. Housing rent ------------------------------------------------------------
-
-BUILD_RENT = [
-    "@dig Rooming House Hall",
-    "@teleport Rooming House Hall",
-    "@dig Harbor Flat = flat door, hall door",
-    "@create the rent box",
-    "drop the rent box",
-    "@set the rent box/rent = 50",
-    "@set the rent box/period = 300",
-    "@set the rent box/grace = 120",
-    "@set the rent box/cmd_lease = $lease flat:ok = not V('tenant'); (set_attr(me, 'tenant', enactor.id), set_attr(me, 'tenant_name', name(enactor)), set_attr(me, 'paid_until', now() + V('period', 300)), set_attr(me, 'warned', 0), set_attr(me, 'till', credits(me)), pemit(enactor, f\"You sign the ledger: Harbor Flat is yours. Rent is {V('rent', 50)} credits a period, into this box.\")) if ok else pemit(enactor, 'The flat is already let.')",
-    "@set the rent box/on_payment = rent = V('rent', 50); paid = credits(me) - V('till', 0); k = paid // rent if enactor.id == V('tenant') else 0; (set_attr(me, 'paid_until', max(now(), V('paid_until', 0)) + V('period', 300) * k), set_attr(me, 'warned', 0), pemit(enactor, f'The box stamps a receipt: {k} period(s) paid.')) if k else (transfer_credits(me, enactor, paid), pemit(enactor, 'The box spits it back: ' + (f'the rent is {rent} a period.' if enactor.id == V('tenant') else 'you hold no lease here.'))); transfer_credits(me, enactor, paid - rent * k) if k and paid - rent * k > 0 else None; set_attr(me, 'till', credits(me))",
-    "flat door",
-    "@set here/on_check = box = get('the rent box'); block('The landlord froze the door code: rent is overdue. (pay at the rent box)') if atype == 'event:pre_enter' and has_atag('movement') and actor.id == get_attr(box, 'tenant') and now() > get_attr(box, 'paid_until', 0) else (block('This flat is privately let.') if atype == 'event:pre_enter' and has_atag('movement') and get_attr(box, 'tenant') and actor.id != get_attr(box, 'tenant') else None)",
-    "hall door",
-    "@behavior the rent box = script_ticker, interval:60",
-    "@set the rent box/on_tick = t = V('tenant'); due = V('paid_until', 0); (set_attr(me, 'warned', 1), pemit(get('#' + t), 'A courier finds you: rent on Harbor Flat is overdue. The door is frozen until you pay.')) if t and now() > due and not V('warned', 0) else None; ([teleport_obj(o, loc(me)) for o in contents(get('Harbor Flat')) if not has_tag(o, 'exit')], pemit(get('#' + t), 'The movers clear Harbor Flat: your lease is terminated and your goods are in the hall.'), del_attr(me, 'tenant'), del_attr(me, 'tenant_name'), set_attr(me, 'warned', 0), remit(loc(me), 'Movers carry furniture out of Harbor Flat and change the locks.')) if t and now() > due + V('grace', 120) else None",
-]
-
-# --- 094. Job board ---------------------------------------------------------------
-
-BUILD_JOBS = [
-    "@dig The Hiring Hall",
-    "@teleport The Hiring Hall",
-    "@create the job board",
-    "drop the job board",
-    "@create Foreman Dray",
-    "@tag Foreman Dray = npc",
-    "drop Foreman Dray",
-    "@eval adjust_credits(get('Foreman Dray'), 500)",
-    '@set Foreman Dray/templates = [["a rat pelt", 15, "Cull the dock rats: bring me a rat pelt."], ["a salvage crystal", 40, "Recover a salvage crystal from the mud flats."]]',
-    "@set Foreman Dray/post = board = get('the job board'); open_jobs = [i for i in range(1, get_attr(board, 'next_job', 1)) if get_attr(board, 'job_' + str(i))]; rows = V('templates', []); pick = rows[rand(0, len(rows) - 1)] if rows else None; [(set_attr(brd, 'job_' + str(n), {'want': p[0], 'reward': p[1], 'text': p[2], 'taken': '', 'taken_name': ''}), set_attr(brd, 'next_job', n + 1), remit(here, f'Foreman Dray chalks a notice. Work posted: {p[2]} Pays {p[1]} credits.')) for g, p, brd in [[len(open_jobs) < 2 and pick is not None, pick, board]] if g for n in [get_attr(brd, 'next_job', 1)]]; result = 1",
-    "@behavior Foreman Dray = script_ticker, interval:45",
-    "@set Foreman Dray/on_tick = eval_attr(me, 'post')",
-    "@set the job board/cmd_jobs = $jobs:pemit(enactor, 'The job board:'); [pemit(enactor, f\"  #{i} {j['text']} Pays {j['reward']}. \" + (f\"Taken by {j['taken_name']}\" if j['taken'] else 'OPEN')) for i in range(1, V('next_job', 1)) for j in [V('job_' + str(i))] if j]",
-    "@set the job board/cmd_accept = $accept job *:j = V('job_' + arg0.strip()); ok = bool(j) and not j['taken']; [(set_attr(me, 'job_' + arg0.strip(), dict(x, taken=enactor.id, taken_name=name(enactor))), pemit(enactor, f\"You sign for job #{arg0.strip()}: {x['text']}\")) for g, x in [[ok, j]] if g]; pemit(enactor, 'No such job, or it is already taken.') if not ok else None",
-    "@set Foreman Dray/on_receive = board = get('the job board'); stuff = [o for o in contents(me)]; it = stuff[0] if stuff else None; hits = [[i, j] for brd, itx in [[board, it]] for i in range(1, get_attr(brd, 'next_job', 1)) for j in [get_attr(brd, 'job_' + str(i))] if j and j['taken'] == enactor.id and itx is not None and name(itx) == j['want']]; paid = bool(hits) and transfer_credits(me, enactor, hits[0][1]['reward']); [(del_attr(brd, 'job_' + str(i)), destroy_obj(x), say(f\"Good work, {name(enactor)}. {j['reward']} credits, as posted.\")) for g, row, x, brd in [[paid, hits[0] if hits else None, it, board]] if g for i, j in [row]]; (teleport_obj(it, enactor), say('That is not what any job of yours calls for.')) if it is not None and not paid else None",
-]
-
-# --- 095. Item durability & repair -------------------------------------------------
-
-BUILD_WEAR = [
-    "@dig The Sparring Yard",
-    "@teleport The Sparring Yard",
-    "@create the wear master",
-    "drop the wear master",
-    "@create the repair bench",
-    "drop the repair bench",
-    "@set the wear master/ON_ATTACK = [(set_attr(o, 'condition', c), remit(here, f'{name(o)} is looking battered.') if c == 25 else None, remit(here, f'{name(o)} gives out with a crack!') if c == 0 else None) for o in contents(enactor) if has_tag(o, 'wielded') for c in [max(0, get_attr(o, 'condition', 100) - 5)]]",
-    "@create a mono blade",
-    "@set a mono blade/value = 40",
-    "@set a mono blade/condition = 100",
-    "@set a mono blade/on_check = block('The mono blade is a ruin of snapped segments. It needs a bench.') if atype == 'item:on_wield' and V('condition', 100) <= 0 else None",
-    "@create an arc welder",
-    "@set an arc welder/condition = 20",
-    "@set an arc welder/ON_USE = c = max(0, V('condition', 100) - 10); set_attr(me, 'condition', c); pemit(enactor, f'The welder spits a bead of blue flame. (condition {c})')",
-    "@set an arc welder/on_check = block('The welder is burnt out. It needs a bench.') if atype == 'item:on_use' and V('condition', 100) <= 0 else None",
-    "@set the repair bench/cmd_repair = $repair *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; c = get_attr(itm[0], 'condition', 100) if itm else 100; cost = max(1, (100 - c) // 2); ok = bool(itm) and c < 100 and transfer_credits(enactor, me, cost); [(set_attr(o, 'condition', 100), adjust_credits(me, -k), pemit(enactor, f'The bench grinds, reseats and trues {name(o)}: good as new for {k} credits.')) for g, o, k in [[ok, itm[0] if itm else None, cost]] if g]; pemit(enactor, 'Nothing to repair, or you cannot cover the fee.') if not ok else None",
-]
-
-# --- 096. Secure player trade -------------------------------------------------------
-
-BUILD_TRADE = [
-    "@dig The Trade Annex",
-    "@teleport The Trade Annex",
-    "@dig The Concourse = out, back",
-    "@create Broker Unit 7",
-    "@tag Broker Unit 7 = npc",
-    "drop Broker Unit 7",
-    "@set Broker Unit 7/cmd_open = $trade with *:other = get(arg0); ok = not V('party_a') and other is not None and has_tag(other, 'player') and loc(other) is here and other.id != enactor.id; [(set_attr(me, 'party_a', enactor.id), set_attr(me, 'party_b', o.id), set_attr(me, 'name_a', name(enactor)), set_attr(me, 'name_b', name(o)), set_attr(me, 'confirm_a', 0), set_attr(me, 'confirm_b', 0), remit(here, f'{name(enactor)} opens a brokered trade with {name(o)}. Stage goods with: give <item> to Broker Unit 7')) for g, o in [[ok, other]] if g]; pemit(enactor, 'The broker is already holding a trade, or your counterparty is not here.') if not ok else None",
-    "@set Broker Unit 7/on_receive = a = V('party_a'); b = V('party_b'); new = [o for o in contents(me) if not has_attr(o, 'staged_by')]; it = new[0] if new else None; ok = it is not None and enactor.id in [a, b]; [(set_attr(x, 'staged_by', enactor.id), set_attr(me, 'confirm_a', 0), set_attr(me, 'confirm_b', 0), remit(here, f'{name(enactor)} stages {name(x)}. All confirmations reset.')) for g, x in [[ok, it]] if g]; (teleport_obj(it, enactor), pemit(enactor, 'The broker refuses: open a trade first (trade with <who>).')) if it is not None and not ok else None",
-    "@set Broker Unit 7/cmd_status = $trade status:pemit(enactor, 'On the table:'); [pemit(enactor, f\"  {name(o)} - from \" + (V('name_a', '?') if get_attr(o, 'staged_by') == V('party_a') else V('name_b', '?'))) for o in contents(me) if has_attr(o, 'staged_by')]; pemit(enactor, 'Confirmed: ' + (V('name_a', '') + ' ' if V('confirm_a', 0) else '') + (V('name_b', '') if V('confirm_b', 0) else ''))",
-    "@set Broker Unit 7/cmd_confirm = $trade confirm:a = V('party_a'); b = V('party_b'); ok = enactor.id in [a, b]; set_attr(me, 'confirm_a', 1) if ok and enactor.id == a else None; set_attr(me, 'confirm_b', 1) if ok and enactor.id == b else None; done = ok and V('confirm_a', 0) and V('confirm_b', 0); [(teleport_obj(o, get('#' + (pb if get_attr(o, 'staged_by') == pa else pa))), del_attr(o, 'staged_by')) for g, pa, pb in [[done, a, b]] if g for o in contents(me) if has_attr(o, 'staged_by')]; (remit(here, f\"The broker chimes: trade complete between {V('name_a', '?')} and {V('name_b', '?')}.\"), del_attr(me, 'party_a'), del_attr(me, 'party_b'), del_attr(me, 'name_a'), del_attr(me, 'name_b'), set_attr(me, 'confirm_a', 0), set_attr(me, 'confirm_b', 0)) if done else None; pemit(enactor, 'You confirm. Waiting on the other side.' if ok and not done else ('You are not part of this trade.' if not ok else 'The trade executes.'))",
-    "@set Broker Unit 7/reset = [(teleport_obj(o, get('#' + get_attr(o, 'staged_by'))), del_attr(o, 'staged_by')) for o in contents(me) if has_attr(o, 'staged_by')]; del_attr(me, 'party_a'); del_attr(me, 'party_b'); del_attr(me, 'name_a'); del_attr(me, 'name_b'); set_attr(me, 'confirm_a', 0); set_attr(me, 'confirm_b', 0); result = 1",
-    "@set Broker Unit 7/cmd_cancel = $trade cancel:ok = enactor.id in [V('party_a'), V('party_b')]; (eval_attr(me, 'reset'), remit(here, f'{name(enactor)} backs out; the broker returns all staged goods.')) if ok else pemit(enactor, 'You are not part of this trade.')",
-    "@set Broker Unit 7/ON_LEAVE = w = enactor.id in [V('party_a'), V('party_b')]; (eval_attr(me, 'reset'), remit(here, f'The broker voids the trade as {name(enactor)} walks away; staged goods are returned.')) if w else None",
-]
-
-# --- 097. Barter NPC ----------------------------------------------------------------
-
-BUILD_BARTER = [
-    "@dig The Tinker Yard",
-    "@teleport The Tinker Yard",
-    "@create Rook the Tinker",
-    "@tag Rook the Tinker = npc",
-    "drop Rook the Tinker",
-    '@set Rook the Tinker/wants = [["scrap_metal", "a patched thermal cloak"], ["power_cell", "a tinkered lantern"]]',
-    "@set Rook the Tinker/cmd_wants = $wants:pemit(enactor, 'Rook trades goods for goods. No coin.'); [pemit(enactor, f'  anything {w} -> {g}') for w, g in V('wants', [])]",
-    "@set Rook the Tinker/on_receive = stuff = [o for o in contents(me) if not has_attr(o, 'kept')]; it = stuff[0] if stuff else None; deal = [[w, g] for itx in [it] for w, g in V('wants', []) if itx is not None and has_tag(itx, w)]; [(set_attr(x, 'kept', 1), teleport_obj(c, enactor), say(f'A fair swap: {name(c)} for your {name(x)}.')) for ok, x, d in [[bool(deal), it, deal]] if ok for w, g in [d[0]] for c in [create_obj(g, tags=['thing'], location=me)]]; (teleport_obj(it, enactor), say('No use to me. Ask me what I want.')) if it is not None and not deal else None",
-    "@create a bent hull plate",
-    "@tag a bent hull plate = scrap_metal",
-]
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 # --- Harness ------------------------------------------------------------------------
@@ -185,8 +55,10 @@ class World:
         self.bob = self.sim.player("Bob", location=self.landing)
         self.cass = self.sim.player("Cass", location=self.landing)
 
-    async def build(self, lines):
-        for line in lines:
+    async def build(self, doc_name):
+        """Type one tutorial's build transcript — read from the doc — as
+        the wizard."""
+        for line in build_lines(doc_name):
             await self.sim.do(self.vala, line)
         room = self.vala.location
         self.bob.location = room
@@ -231,7 +103,7 @@ async def world():
 class TestPlayerStall:
 
     async def _open(self, w):
-        await w.build(BUILD_STALL)
+        await w.build("088_player_shops.md")
         stall = w.find("stall three")
         await w.sim.do(w.vala, "@create a stimpack")
         await w.sim.do(w.vala, "@set a stimpack/value = 20")
@@ -351,7 +223,7 @@ class TestPlayerStall:
 class TestPawnShop:
 
     async def _open(self, w):
-        await w.build(BUILD_PAWN)
+        await w.build("090_pawn_shop.md")
         shop = w.find("the Pawn Counter")
         await w.sim.do(w.vala, "@create a chrono watch")
         await w.sim.do(w.vala, "@set a chrono watch/value = 40")
@@ -445,7 +317,7 @@ class TestLottery:
 
     async def test_buy_mints_a_recorded_ticket(self, world):
         w = world
-        await w.build(BUILD_LOTTO)
+        await w.build("091_lottery.md")
         term = w.find("the lottery terminal")
         await w.fund(w.bob, 50)
 
@@ -467,7 +339,7 @@ class TestLottery:
 
     async def test_forged_ticket_never_wins_the_ledger_does(self, world):
         w = world
-        await w.build(BUILD_LOTTO)
+        await w.build("091_lottery.md")
         term = w.find("the lottery terminal")
         await w.fund(w.bob, 10)
         await w.sim.do(w.bob, "lotto buy")              # genuine ticket 1 -> Bob
@@ -492,7 +364,7 @@ class TestLottery:
 
     async def test_tickets_are_bearer_instruments(self, world):
         w = world
-        await w.build(BUILD_LOTTO)
+        await w.build("091_lottery.md")
         await w.fund(w.bob, 10)
         await w.sim.do(w.bob, "lotto buy")
         await w.sim.do(w.bob, "give lottery ticket 1 to Cass")
@@ -503,7 +375,7 @@ class TestLottery:
 
     async def test_unheld_winner_rolls_the_pot_over(self, world):
         w = world
-        await w.build(BUILD_LOTTO)
+        await w.build("091_lottery.md")
         term = w.find("the lottery terminal")
         await w.fund(w.bob, 20)
         await w.sim.do(w.bob, "lotto buy")
@@ -523,7 +395,7 @@ class TestLottery:
 
     async def test_broke_buyer_is_refused(self, world):
         w = world
-        await w.build(BUILD_LOTTO)
+        await w.build("091_lottery.md")
         term = w.find("the lottery terminal")
         await w.sim.do(w.cass, "lotto buy")
         assert "insufficient credits" in w.text(w.cass)
@@ -531,7 +403,7 @@ class TestLottery:
 
     async def test_tick_draws_only_past_the_deadline(self, world):
         w = world
-        await w.build(BUILD_LOTTO)
+        await w.build("091_lottery.md")
         term = w.find("the lottery terminal")
         await w.fund(w.bob, 10)
         await w.sim.do(w.bob, "lotto buy")
@@ -553,7 +425,7 @@ class TestLottery:
 class TestHousingRent:
 
     async def _open(self, w):
-        hall = await w.build(BUILD_RENT)
+        hall = await w.build("093_housing_rent.md")
         assert hall.name == "Rooming House Hall"        # Vala walked back out
         box = w.find("the rent box")
         flat = w.find("Harbor Flat")
@@ -610,7 +482,7 @@ class TestHousingRent:
         await w.sim.do(w.cass, "pay 60 to the rent box")
         assert "you hold no lease here." in w.text(w.cass)
         assert get_credits(w.cass) == 60
-        assert get_credits(box) == 0                    # till never drifts
+        assert get_credits(box) == 0                    # refunds are exact
 
     async def test_tick_warns_once_inside_the_grace(self, world):
         w = world
@@ -659,7 +531,7 @@ class TestHousingRent:
 class TestJobBoard:
 
     async def _open(self, w):
-        await w.build(BUILD_JOBS)
+        await w.build("094_job_board.md")
         return w.find("the job board"), w.find("Foreman Dray")
 
     async def test_the_foreman_posts_up_to_two_jobs(self, world):
@@ -710,6 +582,28 @@ class TestJobBoard:
         assert get_credits(dray) == dray_purse - job["reward"]
         assert board.db.get("job_1") is None            # posting closed
         assert w.find(job["want"]) is None              # goods consumed
+
+    async def test_dray_ignores_handovers_he_is_not_the_recipient_of(self, world):
+        """event:on_receive is witnessed room-wide, not delivered only to
+        the recipient — so the hook's `target is me` guard is what keeps
+        Dray from grading every handover in his own hall."""
+        w = world
+        board, dray = await self._open(w)
+        await w.sim.do(w.vala, "@tr Foreman Dray/on_tick")
+        job = board.db.get("job_1")
+        await w.sim.do(w.bob, "accept job 1")
+        await w.sim.do(w.vala, f"@create {job['want']}")
+
+        # Vala hands Bob the goods, standing in Dray's hall.
+        await w.sim.do(w.vala, f"give {job['want']} to Bob")
+        assert w.find(job["want"]).location is w.bob    # not consumed
+        assert get_credits(w.bob) == 0                  # not paid
+        assert board.db.get("job_1") is not None        # posting still open
+
+        # Handing them to Dray himself still works.
+        await w.sim.do(w.bob, f"give {job['want']} to Foreman Dray")
+        assert get_credits(w.bob) == job["reward"]
+        assert board.db.get("job_1") is None
 
     async def test_wrong_or_unclaimed_deliveries_bounce(self, world):
         w = world
@@ -766,14 +660,17 @@ def combat():
 class TestDurability:
 
     async def _open(self, w):
-        yard = await w.build(BUILD_WEAR)
+        yard = await w.build("095_durability_repair.md")
         blade = w.find("a mono blade")
         welder = w.find("an arc welder")
         await w.hand("a mono blade", w.bob)
         await w.hand("an arc welder", w.bob)
+        await w.hand("a flak vest", w.bob)
         for stat, val in (("hp", 30), ("max_hp", 30), ("skill_melee", 12),
                           ("dodge", 6), ("strength", 10), ("dexterity", 12)):
             w.bob.db.set(stat, val)
+        # The dummy stands there and takes it: no skill, so it never
+        # lands a blow of its own.
         dummy = w.sim.obj("training dummy", location=yard, tags=["npc"],
                           hp=50, max_hp=50, dodge=0, strength=10, dexterity=10)
         return blade, welder, dummy
@@ -814,6 +711,68 @@ class TestDurability:
         await w.sim.do(w.bob, "wield a mono blade")
         assert "ruin of snapped segments" in w.text(w.bob)   # ward refuses
         assert not blade.has_tag("wielded")
+
+    async def test_armour_wears_by_the_damage_it_stops(self, world, combat):
+        w = world
+        blade, welder, dummy = await self._open(w)
+        vest = w.find("a flak vest")
+        await w.sim.do(w.bob, "wear a flak vest")
+        assert vest.has_tag("worn")
+
+        # A partner who actually swings back: ON_DAMAGE only fires on a
+        # blow that lands, and it names Bob as the target.
+        w.sim.obj("a sparring partner", location=w.bob.location, tags=["npc"],
+                  hp=50, max_hp=50, skill_melee=12, dodge=0,
+                  strength=10, dexterity=10)
+        await w.sim.do(w.bob, "attack a sparring partner")
+        enc = combat.encounter_of(w.bob)
+
+        await enc.resolve_round()
+        assert vest.db.get("condition") == 99      # one blow of 1 damage
+        await enc.resolve_round()
+        assert vest.db.get("condition") == 98
+
+        # The thresholds announce, exactly as the weapon's do.
+        vest.db.set("condition", 26)
+        await enc.resolve_round()
+        assert vest.db.get("condition") == 25
+        assert "a flak vest is scarred and dented." in w.text(w.cass)
+
+        vest.db.set("condition", 1)
+        await enc.resolve_round()
+        assert vest.db.get("condition") == 0
+        assert "a flak vest comes apart at the seams!" in w.text(w.cass)
+
+        # Ruined armour refuses to go back on — the item's own ward.
+        await w.sim.do(w.bob, "remove a flak vest")
+        assert not vest.has_tag("worn")
+        await w.sim.do(w.bob, "wear a flak vest")
+        assert "split webbing and loose plate" in w.text(w.bob)
+        assert not vest.has_tag("worn")
+
+        # ...until the bench trues it.
+        await w.fund(w.bob, 100)
+        await w.sim.do(w.bob, "repair a flak vest")
+        assert vest.db.get("condition") == 100
+        await w.sim.do(w.bob, "wear a flak vest")
+        assert vest.has_tag("worn")
+
+    async def test_a_dominated_fight_spares_the_armour(self, world, combat):
+        """The asymmetry the tutorial promises: ON_ATTACK wears the
+        weapon on every swing thrown, ON_DAMAGE wears armour only on
+        blows that land. The dummy never lands one."""
+        w = world
+        blade, welder, dummy = await self._open(w)
+        vest = w.find("a flak vest")
+        await w.sim.do(w.bob, "wear a flak vest")
+        await w.sim.do(w.bob, "wield a mono blade")
+        await w.sim.do(w.bob, "attack training dummy")
+        enc = combat.encounter_of(w.bob)
+
+        await enc.resolve_round()
+        await enc.resolve_round()
+        assert blade.db.get("condition") == 90     # two swings, minus 5 each
+        assert vest.db.get("condition") == 100     # never took a blow
 
     async def test_repair_restores_and_burns_the_fee(self, world, combat):
         w = world
@@ -861,7 +820,7 @@ class TestDurability:
 class TestSecureTrade:
 
     async def _open(self, w):
-        await w.build(BUILD_TRADE)
+        await w.build("096_secure_trade.md")
         broker = w.find("Broker Unit 7")
         await w.sim.do(w.vala, "@create plasma torch")
         await w.hand("plasma torch", w.bob)
@@ -940,6 +899,26 @@ class TestSecureTrade:
         await w.sim.do(w.vala, "trade confirm")
         assert "You are not part of this trade." in w.text(w.vala)
 
+    async def test_a_handover_between_bystanders_is_not_a_staging(self, world):
+        """on_receive is witnessed room-wide: without the `target is me`
+        guard the broker would stage goods that were never handed to it,
+        and reset live confirmations doing it."""
+        w = world
+        broker = await self._open(w)
+        await w.sim.do(w.bob, "trade with Cass")
+        await w.sim.do(w.bob, "give plasma torch to Broker Unit 7")
+        await w.sim.do(w.cass, "give crystal skull to Broker Unit 7")
+        await w.sim.do(w.bob, "trade confirm")
+        assert broker.db.get("confirm_a") == 1
+
+        # Vala hands Cass a bag, in the annex — nothing to do with the trade.
+        await w.sim.do(w.vala, "@create a paper bag")
+        await w.sim.do(w.vala, "give a paper bag to Cass")
+        bag = w.find("a paper bag")
+        assert bag.location is w.cass                   # never escrowed
+        assert bag.db.get("staged_by") is None
+        assert broker.db.get("confirm_a") == 1          # confirmation survived
+
     async def test_walking_out_voids_the_deal(self, world):
         w = world
         broker = await self._open(w)
@@ -973,7 +952,7 @@ class TestSecureTrade:
 class TestBarterNPC:
 
     async def _open(self, w):
-        await w.build(BUILD_BARTER)
+        await w.build("097_barter_npc.md")
         rook = w.find("Rook the Tinker")
         await w.hand("a bent hull plate", w.bob)
         for p in (w.vala, w.bob, w.cass):
@@ -1005,6 +984,22 @@ class TestBarterNPC:
         # Wallets untouched on both sides — the whole point.
         assert get_credits(w.bob) == 0
         assert get_credits(rook) == 0
+
+    async def test_rook_ignores_handovers_between_other_people(self, world):
+        """The yard's other traffic is not Rook's business: on_receive is
+        witnessed room-wide, so only `target is me` stops him paying out a
+        cloak for scrap that was never handed to him."""
+        w = world
+        rook = await self._open(w)
+        await w.sim.do(w.vala, "@create a spare hull plate")
+        await w.sim.do(w.vala, "@tag a spare hull plate = scrap_metal")
+
+        # Vala hands Cass a scrap_metal item, standing in Rook's yard.
+        await w.sim.do(w.vala, "give a spare hull plate to Cass")
+        assert w.find("a spare hull plate").location is w.cass
+        assert w.find("a spare hull plate").db.get("kept") is None
+        assert w.find("a patched thermal cloak") is None    # no counter-gift
+        assert "A fair swap" not in w.text(w.cass)
 
     async def test_off_list_goods_bounce_back(self, world):
         w = world

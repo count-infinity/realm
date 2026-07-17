@@ -36,7 +36,13 @@ window it rolls `margin_under(roll('3d6'), angling)`, quotes the dice
 on a miss, and on a hit draws from the catch table — the same
 recursive one-line weighted draw as the
 [loot crate](024_loot_crate.md), with `[name, weight, tags]` rows so
-a junk catch is data, not a special case.
+a junk catch is data, not a special case. The draw is a `lambda` that
+**calls itself by name**: walk the rows, spend each row's weight out of
+the roll, and take the row the roll lands in. (Older builds of this
+pattern pass the lambda to itself — `draw(draw, t, r)` — because a
+lambda could not once see the script-local it was being assigned to.
+Scripts share one namespace now, so plain recursion works and the extra
+parameter is gone.)
 
 **Everything tunable is an attribute.** Lull seconds, window
 seconds, and the odds are all `@set`s: a trophy pond is a longer
@@ -72,7 +78,7 @@ that must still hold:
 And the hook — three guards, a roll, a draw:
 
 ```text
-@set scum pond/cmd_hook = $hook: lined = V('line_out', 0); dip = V('bite_open', 0); pemit(enactor, 'No line in the water. cast line first.') if not lined else None; (del_attr(me, 'line_out'), del_attr(me, 'angler'), pemit(enactor, 'You yank at still water; anything under the scum is long warned off.')) if lined and not dip else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_angling', 9)) if lined and dip else None; draw = lambda draw, t, r: t[0] if r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); c = draw(draw, V('catches', []), rand(1, 100)) if lined and dip else None; (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), (create_obj(c[0], c[2], here), remit(here, f'{name(enactor)} hooks it clean -- {c[0]} lands flopping on the dock! (margin +{res.margin})')) if res.success else remit(here, f'It spits the hook and is gone. (rolled {res.roll} vs angling {res.effective})')) if lined and dip else None
+@set scum pond/cmd_hook = $hook: lined = V('line_out', 0); dip = V('bite_open', 0); pemit(enactor, 'No line in the water. cast line first.') if not lined else None; (del_attr(me, 'line_out'), del_attr(me, 'angler'), pemit(enactor, 'You yank at still water; anything under the scum is long warned off.')) if lined and not dip else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_angling', 9)) if lined and dip else None; draw = lambda t, r: t[0] if r <= t[0][1] or len(t) == 1 else draw(t[1:], r - t[0][1]); c = draw(V('catches', []), rand(1, 100)) if lined and dip else None; (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), (create_obj(c[0], c[2], here), remit(here, f'{name(enactor)} hooks it clean -- {c[0]} lands flopping on the dock! (margin +{res.margin})')) if res.success else remit(here, f'It spits the hook and is gone. (rolled {res.roll} vs angling {res.effective})')) if lined and dip else None
 ```
 
 ## Try it

@@ -33,6 +33,14 @@ into a microphone. Two engine rules keep this sane:
   containing "record" can't loop into recording its own voice. (The
   `listen` lock can further gate whose speech an object may hear.)
 
+A listen trigger is a script with an action behind it, so the event
+namespace is bound too: `adata('message')` is the **whole line** that
+was said, regardless of what the pattern captured. Under `^*` the two
+are the same thing and `arg0` is the plainer read — but the moment the
+pattern narrows (`^*payroll*:` captures only the words *around* the
+keyword, in `arg0` and `arg1`), `adata('message')` is how you get the
+sentence back. Record with the payload, match with the pattern.
+
 **The tape is a list attribute.** Each captured line is appended as
 `Speaker: words`, and the list is sliced to its newest 20 —
 `(old + [row])[-20:]` — because unbounded lists on hot attributes are
@@ -96,7 +104,9 @@ move: `drop` it running, walk out, come back and `play`.
 ## Going further
 
 - **Keyword wiretap:** the pattern is a real pattern — `^*payroll*:`
-  records only sentences containing "payroll"; a parrot that repeats
+  records only sentences containing "payroll". Swap `arg0` for
+  `adata('message')` in the body or the tape keeps the words *around*
+  the keyword and drops the keyword itself. A parrot that repeats
   pirate words is the same trigger with `say()` in the body.
 - **Timestamped takes:** append `str(now()) + ' ' + name(enactor) +
   ...` and the tape becomes evidence with times on it.

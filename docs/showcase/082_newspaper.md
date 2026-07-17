@@ -10,7 +10,7 @@ whose pages are readable with a plain `look`.
 
 **Concepts:** a submission **queue attribute** compiled into
 immutable per-issue attributes (`issue_<n>`), `script_ticker` as the
-press schedule, the **ON_PAYMENT + ledger idiom** for coin-op
+press schedule, **ON_PAYMENT + `adata('amount')`** for coin-op
 vending, `create_obj` + `desc_extras` to print objects with pages,
 and the mint-then-hand-over pattern for putting goods in a buyer's
 hands.
@@ -26,13 +26,27 @@ readable forever), blanks the queue, and has a paperboy `remit()`
 every market-zone room. Periodicity falls out of the interval: the
 paper publishes when there's news, checked on the press's schedule.
 
+Note the shape of that counter — `n = V('issue', 0) + 1` computed up
+front, `set_attr(me, 'issue', n)` *inside* the `if q` branch. It looks
+like a textbook `incr('issue')`, and it must not be one: `incr` writes
+unconditionally, so it would walk the issue number forward on every
+quiet tick, and the Gazette would jump from No. 1 to No. 6 having
+printed nothing. **A counter that only bumps on one branch is a
+guarded write, and guarded writes stay longhand** — reach for `incr`
+when the increment is the whole statement, not when it's the payload
+of an `if`.
+
 **The kiosk sells without a `buy` verb.** `pay 5 to kiosk` is the
 builtin economy command; it moves the credits and fires the kiosk's
-`ON_PAYMENT`. Payment hooks carry no amount, so the kiosk uses the
-**ledger idiom** ([slot machine](001_slot_machine.md)): `paid =
-credits(me) - ledger` reconstructs the sum, wrong amounts and
-too-early customers get refunded by `transfer_credits`, and the
-ledger is re-stamped to the live balance either way.
+`ON_PAYMENT`, whose payload carries the sum: `adata('amount')`. That
+one read is the whole cash register — wrong amounts and too-early
+customers get refunded by `transfer_credits`, and the kiosk's own
+balance is never consulted at all. Compare the vending machines built
+before the payment payload existed: they had to keep a `ledger`
+attribute mirroring their last known balance and recover the sum as
+`credits(me) - ledger`, re-stamping it after every branch so the
+arithmetic couldn't drift. `adata('amount')` is told the number
+directly, so there is no second copy of the truth to keep honest.
 
 **A copy is a printed object.** The kiosk mints the paper *in its own
 hands* (`create_obj(..., location=me)` — conjuring directly into a
@@ -86,8 +100,7 @@ square
 drop news kiosk
 @desc news kiosk = A tin shed papered with old front pages. PAY 5 TO KIOSK for the latest Gazette.
 @set news kiosk/price = 5
-@set news kiosk/ledger = 0
-@set news kiosk/on_payment = b = get('Gazette Bureau'); paid = credits(me) - V('ledger', 0); cost = V('price', 5); n = get_attr(b, 'issue', 0); ok = bool(n) and paid >= cost; refund = paid - cost if ok else paid; (transfer_credits(me, enactor, refund) if refund > 0 else None); set_attr(me, 'ledger', credits(me)); (pemit(enactor, 'The vendor shrugs: nothing on the stand until the press runs. Coins returned.') if not n else (pemit(enactor, f'The vendor taps the price card: {cost} credits. Coins returned.') if not ok else None)); [(set_attr(p, 'desc_extras', [['', f'Cheap ink on cheaper paper. The masthead reads THE GAZETTE, No. {n}.']] + [['', row] for row in (get_attr(b, 'issue_' + str(n)) or [])]), teleport_obj(p, enactor), pemit(enactor, f'The vendor folds a Gazette No. {n} into your hands. LOOK gazette to read it.')) for p in ([create_obj(f'the Gazette No. {n}', ['thing', 'paper'], me)] if ok else []) if p]
+@set news kiosk/on_payment = b = get('Gazette Bureau'); paid = adata('amount', 0) if target is me else 0; cost = V('price', 5); n = get_attr(b, 'issue', 0); ok = bool(n) and paid >= cost; refund = paid - cost if ok else paid; (transfer_credits(me, enactor, refund) if refund > 0 else None); (pemit(enactor, 'The vendor shrugs: nothing on the stand until the press runs. Coins returned.') if not n else (pemit(enactor, f'The vendor taps the price card: {cost} credits. Coins returned.') if not ok else None)); [(set_attr(p, 'desc_extras', [['', f'Cheap ink on cheaper paper. The masthead reads THE GAZETTE, No. {n}.']] + [['', row] for row in (get_attr(b, 'issue_' + str(n)) or [])]), teleport_obj(p, enactor), pemit(enactor, f'The vendor folds a Gazette No. {n} into your hands. LOOK gazette to read it.')) for p in ([create_obj(f'the Gazette No. {n}', ['thing', 'paper'], me)] if ok else []) if p]
 ```
 
 ## Try it

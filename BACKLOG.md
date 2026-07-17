@@ -1484,10 +1484,10 @@ named tutorials, so none of these block showcase progress.
   (deliberate no-seeding rule) and downstream `set_attr(None, ...)` swallows it
   — fails invisibly. Suggest: raise a script error naming the rule. Workaround:
   create at self, `teleport_obj` to recipient. (022_coat_check.md)
-- [ ] **No per-exit movement message overrides** — stock leave/arrive lines
+- [~] **No per-exit movement message overrides** — PARTIALLY resolved 2026-07-17: `event:on_leave` carries `exit`/`direction`/`destination`, so a room hook CAN now tell which exit carried the mover (that half of the entry is void). Stock leave/arrive lines still always print. Was: — stock leave/arrive lines
   always print; `leave_msg`/`arrive_msg` attrs don't exist, and room
   ON_ENTER/ON_LEAVE can't see which exit carried the mover. (028_one_way_exit.md)
-- [~] **`ON_FAIL` can't read the failure reason** — PARTIALLY resolved 2026-07-17: `adata()` is now bound, so the moment `extra['reason']` is populated this works with no further engine change. Was: (`extra['reason']` not bound)
+- [x] **`ON_FAIL` can't read the failure reason — RESOLVED 2026-07-17.** The data was always there: `event:on_fail` carries `reason` ('skill'/'closed'/'locked'/...) plus `exit`/`direction`/`destination`; the payload binding exposed it. Was: — PARTIALLY resolved 2026-07-17: `adata()` is now bound, so the moment `extra['reason']` is populated this works with no further engine change. Was: (`extra['reason']` not bound)
   — e.g. fall damage on a lockable climbing exit would also fire when bounced
   off the lock. (034_climbing_exit.md)
 - [ ] **`look <name>` has no fallback to named `desc_extras` details** — builtin
@@ -2094,7 +2094,7 @@ emote/wield content reactions (072), `ON_PAYMENT` amounts everywhere (001, 002,
 (018, 019) and collection counters (200). The ledger idiom still works — those
 tutorials are correct, just no longer the only way.
 
-## Ledger/till idiom → `adata()` rewrites (filed 2026-07-17, deferred)
+## ~~Ledger/till idiom → `adata()` rewrites~~ DONE 2026-07-17
 
 The 2026-07-17 idiom sweep modernized *syntax* only (`V()`, `incr()`,
 f-strings). It deliberately did NOT rewrite tutorials whose **logic** works
@@ -2160,7 +2160,7 @@ Related: this is why the sweep brief forbade `incr`/`decr` inside wards (they
 are correctly absent from the `_READONLY` namespace) — but "correctly absent"
 plus "fails open" equals a security hole, not a guardrail.
 
-## `incr()`/`decr()` need a `default` parameter (filed 2026-07-17)
+## ~~`incr()`/`decr()` need a `default` parameter~~ RESOLVED 2026-07-17
 
 `incr(name, by=1)` hardcodes a 0 baseline for a missing attribute. Real scripts
 routinely read with a *different* default, and four separate sweep agents
@@ -2184,7 +2184,7 @@ the `else` branch). And it coerces non-numeric to 0, which would have destroyed
 list attrs (099 `table`, 104 `champions`). A `default` param fixes the first
 class; the rest are correctly out of scope for the sugar.
 
-## Showcase test harness: migrate to read-from-docs (filed 2026-07-17)
+## ~~Showcase test harness: migrate to read-from-docs~~ DONE 2026-07-17
 
 The 223 tutorials are verified by 26 suites using **two different designs**, and
 only one of them is sound.
@@ -2384,3 +2384,107 @@ payload table updated, and the tutorials that documented the gaps corrected —
 **Note for the polling builds:** 140's clone bay and 120's HP-delta scribe
 still work and are left as written — they're honest demonstrations of tickers
 and inference. They're simply no longer forced.
+
+### Resolution (2026-07-17)
+
+`incr(name, by=1, default=0)` / `decr(name, by=1, default=0)` shipped. The
+`default` is what an *unset* attribute counts as, so the four cases sweep
+agents independently refused now convert cleanly:
+
+    incr('next_lot', default=1)     # 089 — first lot is 2, not 1
+    incr('stage', default=1)        # 058 — fire staging
+    incr('pending', default=1)      # 029 — timed door slams
+    decr('freshness', default=6)    # 018 — food starts fresh
+
+Non-numeric values now fall back to `default` rather than 0, and `bool` is
+excluded from the numeric check (`True + 1 == 2` was a lurking foot-gun).
+
+Still out of scope, and correctly so: `incr` writes unconditionally, so it
+cannot replace a *guarded* write (082's issue counter only bumps on a
+non-empty queue; 056 writes only when `n > 0`; 216 only in the `else`
+branch). Those stay longhand.
+
+## Reference-doc payload table: now verified against source (2026-07-17)
+
+The `adata()` payload table in `docs/reference/softcode.md` was hand-written
+and **wrong twice**: it claimed `item:on_get` carried `item` (it carries
+nothing — the item is `target`), that `item:on_give` carried `giver` (that
+key exists only on `event:on_receive`), and it filed `on_hitprcnt` under
+`combat:` when it is `event:`. A builder following a wrong row gets `None`
+and no explanation. Both errors were caught by sweep agents probing a live
+world, not by review.
+
+Fixed by deriving the table from source, and pinned by
+`tests/test_payload_docs_match_engine.py`: it AST-extracts every
+`Action(...)` / `fire_event(...)` / `gate_item_action(...)` in the engine and
+asserts the doc never promises a key the engine doesn't send. Sabotage-tested
+(re-introducing the old `giver` lie fails it). The table cannot rot again.
+
+Fell out of the audit — two filed gaps were never real once the binding
+landed: `event:on_fail` already carried `reason`, and `event:on_leave`
+already carried `exit`/`direction`/`destination`. Both entries corrected
+above.
+
+## DONE 2026-07-17: ledger rewrites + harness migration (10-agent sweep)
+
+Both entries above are closed. All 26 showcase suites now **read their build
+lines out of the tutorials** (`build_lines(doc)`, the `test_social.py` design):
+drift is structurally impossible, every mirror literal and sync test is gone,
+and a docs-only fix now flows straight into the tests — which paid off within
+the hour (see below). The ledger/till and unstamped-item idioms are retired
+wherever `adata()` says it better; kept where the workaround IS the lesson.
+
+### The sweep found a bug I introduced
+
+My brief said "ledger → `adata('amount')`" without knowing **events propagate
+to every object in the room**. The till idiom was *accidentally* immune (a
+neighbour's payment moved none of your money → delta 0 → no-op). `adata` is
+not: it hands you the neighbour's amount. Reproduced: two payables in one
+room, `pay 25 to machine` → an unguarded pump fired with `amount=25` and
+dispensed free fuel.
+
+13 tutorials were affected. Four agents caught it independently before I did;
+the ones that followed the brief literally shipped the bug. Impact was worse
+than "a stray reaction":
+- **199**: a *money* bug — the Harbor Agent paid 60cr and destroyed the orders
+  when the courier handed them to a bystander.
+- **114**: a **zone master** — it heard payments in every room of the zone, so
+  buying a drink in the gulch ate a pending draft.
+- **117**: not a payment hook at all — `combat:on_damage` fires every
+  `ON_DAMAGE` in the room, so one fighter's vest wore to 0 from another's
+  wounds.
+- **108**: the casino puts several payment-takers in one room *by design*, so
+  the bug was live in its own demo (it minted unbacked chips).
+
+**The rule, now taught in the reference:** `target` is not a nicety — it is
+how a witness tells "this happened TO me" from "this happened NEAR me". Any
+witnessed-event hook that writes state wants `target is me` unless it really
+means to hear the whole room. Pinned by three regression tests, one of which
+deliberately asserts the foot-gun so nobody "simplifies" the guard away.
+
+### Fixed on the way
+- **`@tr` regression (mine).** `@tr` passes no action, so once tutorials read
+  `adata()`, `@tr obj/ON_GET` died of NameError — traceback to the log, a
+  cheerful "Triggered." to the builder. 31 tutorials teach `@tr` as *the* way
+  to test a hook. Event names are now always bound, empty when there is no
+  action: `adata()` answers with its default, `actor` still equals `enactor`.
+- **Killer attribution on indirect kills (completes Theme B).** The death
+  event fired but poison had nobody to blame. `apply_effect` now stamps
+  `source_id` with its executor; `TimedEffectBehavior._source()` resolves it
+  and `handle_death` names the poisoner. Verified: "mark killed by assassin".
+  Softcode `damage()` still names the scripted object (the grenade) — argued
+  in 114 as a design question, not an omission, with the workaround given.
+- **`incr()`'s docstring lied** — it cited "a door's pending-slam count" as a
+  starts-at-1 counter. It counts timers *in flight*: unset means zero, and
+  `default=1` would leave a phantom so the door never closes. The bad example
+  had propagated into the sweep brief; an agent caught it by testing.
+- **032 airlock had a live invariant bug** my caveat had declared safe (the
+  chamber holds a face of both doors, so opening one cross-fired the other's
+  mirror). **176** read `enactor` as the victim when it is the killer, hidden
+  by a test that forged the event shape. Both fixed with regression tests.
+
+### What the agents refused, and were right to
+`incr(default=1)` on 058's fire stage (a *guarded* write — it uncapped the
+damage), on 029's pending count (unset means zero — the door would never
+close), and on 082's issue counter (guarded — it walked on empty ticks). Three
+separate agents proved these by applying the change and watching tests fail.

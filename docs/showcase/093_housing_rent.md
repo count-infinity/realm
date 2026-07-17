@@ -8,19 +8,20 @@ door code freezes the moment you're overdue (lockout by arithmetic), a
 courier warns you once, and after the grace period the movers clear the
 flat and terminate the lease.
 
-**Concepts:** the till-delta `ON_PAYMENT` idiom (the trigger namespace
-has no amount — reconstruct it from the balance); a **pre-enter ward on
-the destination room** (`atype == 'event:pre_enter'`) for lockout that
-needs no ticker to be correct; `script_ticker` escalation — warn, then
-evict; repossession via `teleport_obj` sweeping a room the master's
-owner controls; grace as an attribute, not a state machine.
+**Concepts:** `ON_PAYMENT` + `adata('amount')` for banking rent by whole
+periods; a **pre-enter ward on the destination room** (`atype ==
+'event:pre_enter'`) for lockout that needs no ticker to be correct;
+`script_ticker` escalation — warn, then evict; repossession via
+`teleport_obj` sweeping a room the master's owner controls; grace as an
+attribute, not a state machine.
 
 ## How it works
 
 The whole tenancy lives on **the rent box** in the hall — deliberately
 *outside* the flat, because a locked-out tenant must still be able to
 reach the payment point. Its state: `tenant`, `paid_until`, `rent`,
-`period`, `grace`, `warned`, and the till.
+`period`, `grace` and `warned` — six attributes, and not one of them is
+a copy of the box's own balance.
 
 **Three deadlines, one number.** Everything keys off `paid_until`:
 
@@ -42,15 +43,22 @@ reach the payment point. Its state: `tenant`, `paid_until`, `rent`,
   the flat's own ward, which is what you want: the ward keeps people
   *out*, never repossession *in progress*.
 
-**Payment is the till-delta idiom.** `pay 50 to the rent box` fires
-`ON_PAYMENT`, which is *not told the amount* — the engine gap first
-documented at the toll gate (030). But the credits have already landed,
-so `paid = credits(me) - till` reconstructs it exactly. The box banks
-whole periods (`paid // rent` of them — overpay two rents, get two
-periods), pushes back any remainder, refunds strangers outright, and
-updates the till after every branch so the arithmetic never drifts.
-Extension is `max(now(), paid_until) + period * k`: paying while overdue
-starts from *now*, not from the debt.
+**Payment reads the payload.** `pay 50 to the rent box` fires
+`ON_PAYMENT`, and the action's payload carries the sum: `paid =
+adata('amount', 0)`. The box banks whole periods (`paid // rent` of them
+— overpay two rents, get two periods), pushes back any remainder, and
+refunds strangers outright. Extension is `max(now(), paid_until) +
+period * k`: paying while overdue starts from *now*, not from the debt.
+
+This hook used to be the tutorial's hard part. Before the payment
+payload existed, a receiver was told *that* it had been paid but never
+*how much*, so the standing workaround was a **till**: stamp
+`till = credits(me)` at lease time, recover the payment as
+`credits(me) - till`, and re-stamp the till after every branch —
+including both refund paths — or the next tenant's arithmetic inherited
+the drift. That's a second copy of the truth, kept in sync by hand, for
+a number the engine already knew. `adata('amount')` deletes the
+attribute and the class of bug that came with it.
 
 ## Build it
 
@@ -67,18 +75,17 @@ drop the rent box
 @set the rent box/grace = 120
 ```
 
-`lease flat` — first period on the house; the till baseline is set here
-so the first payment's delta is right:
+`lease flat` — first period on the house:
 
 ```text
-@set the rent box/cmd_lease = $lease flat:ok = not V('tenant'); (set_attr(me, 'tenant', enactor.id), set_attr(me, 'tenant_name', name(enactor)), set_attr(me, 'paid_until', now() + V('period', 300)), set_attr(me, 'warned', 0), set_attr(me, 'till', credits(me)), pemit(enactor, f"You sign the ledger: Harbor Flat is yours. Rent is {V('rent', 50)} credits a period, into this box.")) if ok else pemit(enactor, 'The flat is already let.')
+@set the rent box/cmd_lease = $lease flat:ok = not V('tenant'); (set_attr(me, 'tenant', enactor.id), set_attr(me, 'tenant_name', name(enactor)), set_attr(me, 'paid_until', now() + V('period', 300)), set_attr(me, 'warned', 0), pemit(enactor, f"You sign the ledger: Harbor Flat is yours. Rent is {V('rent', 50)} credits a period, into this box.")) if ok else pemit(enactor, 'The flat is already let.')
 ```
 
-The payment reaction — till-delta, whole periods banked, remainder and
-strangers refunded:
+The payment reaction — read the amount, bank whole periods, refund the
+remainder and the strangers:
 
 ```text
-@set the rent box/on_payment = rent = V('rent', 50); paid = credits(me) - V('till', 0); k = paid // rent if enactor.id == V('tenant') else 0; (set_attr(me, 'paid_until', max(now(), V('paid_until', 0)) + V('period', 300) * k), set_attr(me, 'warned', 0), pemit(enactor, f'The box stamps a receipt: {k} period(s) paid.')) if k else (transfer_credits(me, enactor, paid), pemit(enactor, 'The box spits it back: ' + (f'the rent is {rent} a period.' if enactor.id == V('tenant') else 'you hold no lease here.'))); transfer_credits(me, enactor, paid - rent * k) if k and paid - rent * k > 0 else None; set_attr(me, 'till', credits(me))
+@set the rent box/on_payment = rent = V('rent', 50); paid = adata('amount', 0) if target is me else 0; k = paid // rent if enactor.id == V('tenant') else 0; (set_attr(me, 'paid_until', max(now(), V('paid_until', 0)) + V('period', 300) * k), set_attr(me, 'warned', 0), pemit(enactor, f'The box stamps a receipt: {k} period(s) paid.')) if k else (transfer_credits(me, enactor, paid), pemit(enactor, 'The box spits it back: ' + (f'the rent is {rent} a period.' if enactor.id == V('tenant') else 'you hold no lease here.'))); transfer_credits(me, enactor, paid - rent * k) if k and paid - rent * k > 0 else None
 ```
 
 The lockout ward, on the flat itself (walk in to set it, walk out).

@@ -41,9 +41,12 @@ no cleanup script, no orphaned half-link, because *both* ends carry
 the same lease.
 
 **Arrival flavor rides the rooms.** Each room's `ON_ENTER` narrates the
-tumble-out. (A room trigger can't tell which exit delivered the mover —
-in these two rooms every arrival IS a portal arrival, so the flavor is
-safe; on a busier map, gate the flavor line or accept it.)
+tumble-out. In these two rooms every arrival *is* a portal arrival, so
+the line needs no guard — but on a busier map it would, and the payload
+is right there: `adata('exit')` names the exit that delivered the mover
+(see [028](028_one_way_exit.md)), so
+`... if name(adata('exit')) == 'shimmering portal' else None` keeps the
+wormhole's flavor off people who walked in through the door.
 
 ## Build it
 

@@ -112,7 +112,9 @@ inert and they're a stage-dressing siege.
   announce "the walls are breached" if raiders outnumber defenders.
 - **Loot the fallen.** Give raiders an `ON_DEATH` that drops salvage —
   pair with [collection counters](200_collection_counters.md) so repelling
-  the invasion *is* a collection quest.
+  the invasion *is* a collection quest. The hook fires however the raider
+  died (a blade, a trap, a scripted `damage()`), and `actor` is whoever
+  landed the blow, so you can credit the kill as well as drop the loot.
 - **Boss finale.** Make phase 3 spawn a single `raider warlord` with
   `ON_HITPRCNT` reinforcement calls instead of a second wave — the event
   peaks on a named fight.

@@ -9,12 +9,12 @@ selection.
 
 **Concepts:** Product *prototypes as attributes* (data describing an
 object before it exists), `create_obj()` — the spawner vocabulary,
-banked per-player credit via `ON_PAYMENT` + the ledger idiom, multiple
+banked per-player credit via `ON_PAYMENT` + `adata('amount')`, multiple
 `$`-commands on one object, wildcard captures (`$vend *` → `arg0`),
 guard-style validation, and why this command couldn't be called `buy`.
 
 Builds on the [magic 8-ball](005_magic_8ball.md) (triggers) and the
-[slot machine](001_slot_machine.md) (payments and the ledger idiom).
+[slot machine](001_slot_machine.md) (payments and the event namespace).
 
 ## How it works
 
@@ -34,11 +34,11 @@ in. Two machines can carry the same menu at different prices and run
 dry independently; restocking is one `@set`.
 
 **Money in, the slot-machine way.** The machine can't take money from
-you — you `pay` it (consent), its `ON_PAYMENT` fires, and the ledger
-idiom (`paid = credits(me) - ledger`) recovers the amount. Unlike the
-slot machine it doesn't demand exact change: everything you feed it
-accumulates as *your* credit on *this* machine, spent selection by
-selection. Overpay now, vend twice later.
+you — you `pay` it (consent), its `ON_PAYMENT` fires, and
+`adata('amount')` is what you fed in. Unlike the slot machine it
+doesn't demand exact change: everything you feed it accumulates as
+*your* credit on *this* machine, spent selection by selection. Overpay
+now, vend twice later.
 
 **Why `vend`, not `buy`?** Built-in commands dispatch before
 `$`-triggers, and `buy` is the built-in shopkeeper command — a `$buy *`
@@ -71,12 +71,13 @@ lists and dicts):
 @set vending machine/stock_ration = 2
 ```
 
-Coin intake — the ledger idiom, then bank the amount as the payer's
-credit. `incr(k, paid)` adds to the attribute *and* hands back the new
-value, so one call does the read, the write, and the readout:
+Coin intake — bank the payment as the payer's credit, in one line.
+`incr(k, adata('amount'))` adds the amount the action carries to the
+attribute *and* hands back the new value, so a single call does the
+read, the write, and the readout:
 
 ```text
-@set vending machine/on_payment = paid = credits(me) - V('ledger', 0); set_attr(me, 'ledger', credits(me)); k = 'credit_' + enactor.id; bal = incr(k, paid); pemit(enactor, f'The display blinks. CREDIT: {bal}. Type vend <selection>.')
+@set vending machine/on_payment = k = 'credit_' + enactor.id; bal = incr(k, adata('amount')) if target is me else None; pemit(enactor, f'The display blinks. CREDIT: {bal}. Type vend <selection>.') if bal else None
 ```
 
 The menu browser — a loop (scripts are sandboxed Python, so a list
@@ -143,8 +144,8 @@ Repricing or restocking a live machine is plain `@set` surgery:
   interval:300` plus an `on_tick` script that tops each `stock_<sel>`
   counter back up.
 - **A coin return:** add `$refund` — pay back
-  `V('credit_' + enactor.id, 0)` with `transfer_credits`,
-  zero the credit, re-sync the ledger.
+  `V('credit_' + enactor.id, 0)` with `transfer_credits`, then zero the
+  credit.
 - **Emptying the cash box:** the machine's own balance is the take;
   a `$collect` command gated on `owner(me) == enactor` pays it out to
   the owner — or leave it and let `look` at the hopper brag for you.

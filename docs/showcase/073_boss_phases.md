@@ -134,6 +134,14 @@ Bonewright/phase_two` fires it cold (mind that it spawns a real whelp).
 - **More acts:** re-arm again in `phase_three`
   (`set_attr(me, 'hitprcnt', 10)`) and route a fourth script — the
   hook fires once per crossing, so the ladder is as long as you like.
+- **Read the crossing:** `ON_HITPRCNT` carries a payload —
+  `adata('percent')` is the HP percent he landed on and
+  `adata('threshold')` the line he crossed. Handy for a telegraph that
+  quotes the number (`remit(here, f"Skarn reels at {adata('percent')}%!")`).
+  Note this build routes phases on the `phase` counter rather than on
+  `adata`, deliberately: the counter is real state you can `@examine`
+  and re-fire cold with `@tr`, whereas `adata` only exists inside a
+  live crossing.
 - **Heal-based resets:** if something heals him back above a spent
   threshold, it can fire again on the way back down — for a
   regenerating boss (the `regeneration` effect), phases become a

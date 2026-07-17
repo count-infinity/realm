@@ -9,9 +9,9 @@ booth's owner can empty the strongbox whenever they like.
 
 **Concepts:** a movement ward reading world state (`on_check` +
 `adata('exit')`), the built-in `pay` command and `ON_PAYMENT` trigger,
-`credits()`/`transfer_credits()`, the **till-delta** bookkeeping
-pattern, and decision/mutation split: the ward only ever *reads* what
-the payment already *wrote*.
+reading an action's payload from a reaction (`adata('amount')`),
+`credits()`/`transfer_credits()`, and the decision/mutation split: the
+ward only ever *reads* what the payment already *wrote*.
 
 ## How it works
 
@@ -32,17 +32,31 @@ The ward compares `now()` against it — no cleanup job, no consumable
 state a read-only ward couldn't consume anyway. Time-window passes are
 the ward-friendly shape of "one crossing."
 
-**Counting coins the hard way.** When this tutorial was written an
-`ON_PAYMENT` script wasn't handed the amount paid. It is now —
-`adata('amount')` returns it directly. The till-delta below is kept
-because it teaches the general technique for *any* action that carries
-no payload: the money has *already landed* on
-the booth when the trigger fires, so the booth keeps a `till` attribute
-of its last-known balance and derives the payment:
-`paid = credits(me) - till`. Underpayers get exact change back via
-`transfer_credits(me, enactor, paid)` — the executor (the booth)
-controls itself, so it may refund from its own balance. Update `till`
-after every branch and the arithmetic never drifts.
+**The action tells you what happened.** `ON_PAYMENT` is a *reaction*,
+and reactions are handed the action's payload: `adata('amount')` is
+what this payer just handed over. That one read is the whole
+bookkeeping problem — `paid = adata('amount', 0)`, branch on it.
+Underpayers get exact change back via
+`transfer_credits(me, enactor, paid)`: the money has already landed on
+the booth when the trigger fires, and the executor (the booth)
+controls itself, so it may refund from its own balance.
+
+**The till-delta this replaced** (and when you'd still reach for it).
+Until the engine bound action data into event triggers, `ON_PAYMENT`
+could see *that* it was paid but not *how much* — so this tutorial
+reconstructed the amount by watching its own balance: keep a `till`
+attribute of the last-known total and derive
+`paid = credits(me) - till`, re-stamping `till` after every branch.
+It is an honest technique and worth knowing, because it is the general
+shape of **reconstructing state you cannot observe** — some actions
+still carry no payload, and a delta against your own last-known value
+is how you recover one. But it is no longer the right tool *here*, and
+the cost it was paying is worth naming: `till` is a shadow of a number
+the engine already knows, so every other script that touches the
+booth's money has to remember to keep the shadow honest. (The old
+`$collect till` had to re-zero `till` for exactly that reason — a
+coupling that vanishes below.) Reach for a delta when there is no
+payload; read the payload when there is one.
 
 **Collection is authority.** `$collect till` compares `enactor ==
 owner(me)` — softcode's owner check, no admin flag needed — then
@@ -62,17 +76,19 @@ drop toll booth
 @set toll booth/fee = 5
 ```
 
-The payment side — till-delta accounting, a timed stamp on success,
+The payment side — read the amount off the action, stamp on success,
 exact change on a short count:
 
 ```text
-@set toll booth/on_payment = fee = get_attr(me, 'fee', 5); paid = credits(me) - get_attr(me, 'till', 0); set_attr(me, 'till', credits(me)); (set_attr(me, 'pass_' + enactor.id, now() + 60), pemit(enactor, 'The keeper stamps your wrist: paid, good for a minute.')) if paid >= fee else (transfer_credits(me, enactor, paid), set_attr(me, 'till', credits(me)), pemit(enactor, 'The keeper counts ' + str(paid) + ' and pushes it back: the toll is ' + str(fee) + '.'))
+@set toll booth/on_payment = fee = V('fee', 5); paid = adata('amount', 0) if target is me else 0; (set_attr(me, 'pass_' + enactor.id, now() + 60), pemit(enactor, 'The keeper stamps your wrist: paid, good for a minute.')) if paid >= fee else (transfer_credits(me, enactor, paid), pemit(enactor, f'The keeper counts {paid} and pushes it back: the toll is {fee}.'))
 ```
 
-The owner's tap:
+The owner's tap. Note what *isn't* here: no `till` to re-zero. The
+booth's balance is the only copy of the number, so emptying it is just
+emptying it:
 
 ```text
-@set toll booth/cmd_collect = $collect till: pemit(enactor, 'The strongbox is not yours to empty.') if enactor != owner(me) else (pemit(enactor, 'You empty the strongbox: ' + str(credits(me)) + ' credits.'), transfer_credits(me, enactor, credits(me)), set_attr(me, 'till', 0))
+@set toll booth/cmd_collect = $collect till: pemit(enactor, 'The strongbox is not yours to empty.') if enactor != owner(me) else (pemit(enactor, 'You empty the strongbox: ' + str(credits(me)) + ' credits.'), transfer_credits(me, enactor, credits(me)))
 ```
 
 And the ward on the road — blocks the *gate*, quotes the fee, and tells
@@ -108,12 +124,10 @@ collect till            -> You empty the strongbox: 5 credits.
 
 - ~~`ON_PAYMENT` softcode cannot read the amount paid~~ — **FIXED
   2026-07-17**: event triggers now bind `adata()`, so `adata('amount')`
-  returns it directly. The till-delta this tutorial teaches still works
-  and remains the technique for payload-less actions. Formerly: the action's
-  payload (`amount`) isn't bound into the trigger namespace. The
-  till-delta pattern reconstructs it exactly, but binding action data
-  into event triggers (as wards get via `adata`) would make every
-  payment script simpler; noted for the integrator.
+  returns it directly, and the build above uses it. The till-delta that
+  used to stand in for it is described under "How it works" — it
+  remains the technique for actions that genuinely carry no payload,
+  but a payment is no longer one of them.
 - As with the other traversal items: the audit's "exit `on_check`"
   ward actually lives on the room (the exit is a bystander to the
   gating action), keyed by `adata('exit')`.

@@ -64,6 +64,57 @@ class TestPaymentAmount:
 
 
 @pytest.mark.asyncio
+class TestEventsAreHeardByTheWholeRoom:
+    """`target` is not a nicety — it is the difference between "this
+    happened to me" and "this happened near me".
+
+    Events propagate to every object in the room. The old till idiom
+    (reconstruct the amount by diffing your own balance) was *accidentally*
+    immune, because a neighbour's payment moved none of your money. Reading
+    `adata('amount')` is exact and clearer — but it hears everything, so
+    the guard has to come with it. Getting this wrong hands out free fuel.
+    """
+
+    async def test_unguarded_hook_hears_a_neighbours_payment(self, world):
+        w = world
+        pump = w.sim.obj("pump", location=w.room)
+        pump.db.set('ON_PAYMENT', "set_attr(me, 'heard', adata('amount', 0))")
+        w.sim.obj("machine", location=w.room)
+        w.alice.db.set('credits', 100)
+
+        await w.sim.do(w.alice, "pay 25 to machine")
+
+        # This is the FOOT-GUN, pinned so nobody "simplifies" the guard away.
+        assert pump.db.get('heard') == 25
+
+    async def test_guarded_hook_ignores_a_neighbours_payment(self, world):
+        w = world
+        pump = w.sim.obj("pump", location=w.room)
+        pump.db.set(
+            'ON_PAYMENT',
+            "set_attr(me, 'heard', adata('amount', 0) if target is me else 0)")
+        w.sim.obj("machine", location=w.room)
+        w.alice.db.set('credits', 100)
+
+        await w.sim.do(w.alice, "pay 25 to machine")
+
+        assert pump.db.get('heard') == 0
+
+    async def test_guarded_hook_still_hears_its_own_payment(self, world):
+        w = world
+        pump = w.sim.obj("pump", location=w.room)
+        pump.db.set(
+            'ON_PAYMENT',
+            "set_attr(me, 'heard', adata('amount', 0) if target is me else 0)")
+        w.sim.obj("machine", location=w.room)
+        w.alice.db.set('credits', 100)
+
+        await w.sim.do(w.alice, "pay 25 to pump")
+
+        assert pump.db.get('heard') == 25
+
+
+@pytest.mark.asyncio
 class TestItemAndPose:
     async def test_on_get_names_the_item_via_target(self, world):
         """018/019/200 wanted "which item was picked up".
@@ -178,14 +229,59 @@ class TestCheckPassUnchanged:
 
 
 @pytest.mark.asyncio
-class TestNoActionNoNames:
-    """A $-command has no action behind it; the event names stay unbound."""
+class TestNoActionBindsEmptyNames:
+    """A `$`-command or `@tr` has no action behind it. The event names are
+    still BOUND, just empty — `adata()` answers with its default.
 
-    async def test_dollar_command_has_no_adata(self, world):
+    They must not simply vanish: `@tr obj/ON_GET` is how a builder tests a
+    hook, and once tutorials started reading `adata('amount')`, an unbound
+    name meant `@tr` died of NameError — with the traceback going to the
+    log and a cheerful "Triggered obj/ON_GET." going to the builder. "No
+    data" is the honest answer; an exception is not.
+    """
+
+    async def test_dollar_command_runs_without_an_action(self, world):
         w = world
         lever = w.sim.obj("lever", location=w.room)
         lever.db.set('cmd_pull', "$pull:set_attr(me, 'ok', 'ran')")
 
         await w.sim.do(w.alice, "pull")
 
-        assert lever.db.get('ok') == "ran"   # runs fine without event names
+        assert lever.db.get('ok') == "ran"
+
+    async def test_dollar_command_adata_returns_its_default(self, world):
+        w = world
+        lever = w.sim.obj("lever", location=w.room)
+        lever.db.set('cmd_pull', "$pull:set_attr(me, 'amt', adata('amount', 'none'))")
+
+        await w.sim.do(w.alice, "pull")
+
+        assert lever.db.get('amt') == "none"
+
+    async def test_tr_on_a_payload_reading_hook_does_not_explode(self, world):
+        """The regression: 31 tutorials teach `@tr` as the way to test a
+        hook, and several now read the payload."""
+        w = world
+        builder = w.sim.player("Bilda", location=w.room)
+        builder.add_tag('builder')
+        builder.add_tag('admin')
+        thing = w.sim.obj("thing", location=w.room)
+        thing.db.set('ON_GET', "set_attr(me, 'amt', adata('amount', 'no-data')); "
+                               "set_attr(me, 'tgt', name(target) if target else 'none')")
+
+        await w.sim.do(builder, "@tr thing/ON_GET")
+
+        assert thing.db.get('amt') == "no-data"
+        assert thing.db.get('tgt') == "none"
+
+    async def test_actor_still_equals_enactor_with_no_action(self, world):
+        """In the real case actor IS the enactor; keep that true when the
+        action is absent, or `actor` silently means something different
+        under @tr than in flight."""
+        w = world
+        lever = w.sim.obj("lever", location=w.room)
+        lever.db.set('cmd_pull', "$pull:set_attr(me, 'same', actor is enactor)")
+
+        await w.sim.do(w.alice, "pull")
+
+        assert lever.db.get('same') is True

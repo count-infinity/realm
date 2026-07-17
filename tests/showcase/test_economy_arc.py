@@ -6,12 +6,16 @@ exactly as the docs have the builder type it.
 Docs: docs/showcase/arc_economy.md, 086_currency.md, 063_shopkeeper.md,
 087_bank_accounts.md, 089_auction_house.md, 092_commodity_market.md.
 
-The transcripts below are the single source of truth: the BUILD_* lists
-are verbatim the "Build it" command lines of each tutorial. If this file
-is green, the typed lines work.
+The tutorial *is* the single source of truth: each build's command lines
+are read straight out of its markdown "Build it" section and typed at the
+dispatcher. Nothing here mirrors them, so nothing here can drift from
+them — if this file is green, the lines the docs print work.
 """
 
 from __future__ import annotations
+
+from pathlib import Path
+import re
 
 import pytest
 
@@ -19,90 +23,27 @@ import realm.behaviors  # noqa: F401 — registers shopkeeper/script_ticker
 from realm.core.economy import get_credits
 from realm.testing import Simulator
 
-# --- Arc prologue (arc_economy.md / 086 "Build it") ----------------------------
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
+# The arc prologue (arc_economy.md, "Build order and prerequisites").
+# 086 digs the square itself, as the first two lines of its own Build it;
+# every other tutorial assumes it already exists.
 PROLOGUE = [
     "@dig Market Square",
     "@teleport Market Square",
 ]
 
-# --- 086. Multi-denomination currency -----------------------------------------
 
-BUILD_MINT = [
-    "@create the Mint",
-    "drop the Mint",
-    "@set the Mint/change = b, r = divmod(int(arg0), 100); c, u = divmod(r, 10); result = [[b, 100, 'hundred-credit bar'], [c, 10, 'ten-credit chit'], [u, 1, 'one-credit chip']]",
-    "@set the Mint/cmd_cashout = $cashout *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); pemit(enactor, f'The Mint counts out {amt} credits in coin.' if ok else 'Your wallet cannot cover that.'); [(set_attr(c, 'denom', d), set_attr(c, 'count', n)) for g, a in [[ok, amt]] if g for n, d, nm in eval_attr(me, 'change', a) if n for c in [create_obj(f\"a stack of {n} {nm}{'s' if n > 1 else ''}\", tags=['thing', 'cash'], location=enactor)]]",
-    "@set the Mint/cmd_pocket = $pocket:total = sum(get_attr(o, 'denom', 0) * get_attr(o, 'count', 0) for o in contents(enactor) if has_tag(o, 'cash')); ok = transfer_credits(me, enactor, total); [destroy_obj(o) for g in [ok] if g for o in contents(enactor) if has_tag(o, 'cash')]; pemit(enactor, f'You pocket {total} credits.' if ok else 'You are not carrying any coin.')",
-    "@set the Mint/cmd_exchange = $exchange:total = sum(get_attr(o, 'denom', 0) * get_attr(o, 'count', 0) for o in contents(enactor) if has_tag(o, 'cash')); [destroy_obj(o) for t in [total] if t for o in contents(enactor) if has_tag(o, 'cash')]; [(set_attr(c, 'denom', d), set_attr(c, 'count', n)) for t in [total] if t for n, d, nm in eval_attr(me, 'change', t) if n for c in [create_obj(f\"a stack of {n} {nm}{'s' if n > 1 else ''}\", tags=['thing', 'cash'], location=enactor)]]; pemit(enactor, 'The Mint remints your coin: same value, fewest pieces.' if total else 'You have no coin to exchange.')",
-]
-
-# --- 063. Shopkeeper -----------------------------------------------------------
-
-BUILD_SHOP = [
-    "@create Trader Vex",
-    "@tag Trader Vex = npc",
-    "drop Trader Vex",
-    "@behavior Trader Vex = shopkeeper, markup:1.3, buyback:0.4",
-    "@create a stimpack",
-    "@set a stimpack/value = 20",
-    "give a stimpack to Trader Vex",
-    "@create a ration bar",
-    "@set a ration bar/value = 5",
-    "give a ration bar to Trader Vex",
-    '@set Trader Vex/stocklist = [["a stimpack", 3, 20], ["a ration bar", 5, 5]]',
-    "@set Trader Vex/restock = [set_attr(create_obj(nm, location=me), 'value', v) for nm, k, v in V('stocklist', []) for j in range(k - len([o for o in contents(me) if name(o) == nm]))]; result = 1",
-    "@behavior Trader Vex = script_ticker, interval:8",
-    "@set Trader Vex/on_tick = eval_attr(me, 'restock')",
-    "@set Trader Vex/ON_PAYMENT = say(f'Much obliged, {name(enactor)}.'); adjust_disposition(me, enactor, 1)",
-]
-
-# --- 087. Bank accounts --------------------------------------------------------
-
-BUILD_BANK = [
-    "@create First Orbital Bank",
-    "drop First Orbital Bank",
-    "@set First Orbital Bank/rate = 5",
-    "@set First Orbital Bank/log_row = k = 'log_' + arg0; set_attr(me, k, (V(k, []) + [f'{arg1} {arg2} -> balance {arg3}'])[-10:]); result = 1",
-    "@set First Orbital Bank/cmd_bank = $bank:pemit(enactor, f\"Account balance: {V('acct_' + enactor.id, 0)} credits.\"); [pemit(enactor, '  ' + row) for row in V('log_' + enactor.id, [])]",
-    "@set First Orbital Bank/cmd_deposit = $deposit *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); bal = V('acct_' + enactor.id, 0) + amt; [(incr('acct_' + enactor.id, a), set_attr(me, 'members', sorted(set(V('members', []) + [enactor.id]))), eval_attr(me, 'log_row', enactor.id, 'deposit', a, b)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, f'Deposited {amt} credits. Balance: {bal}.' if ok else 'Your wallet cannot cover that.')",
-    "@set First Orbital Bank/cmd_withdraw = $withdraw *:amt = int(arg0); bal = V('acct_' + enactor.id, 0); ok = 0 < amt <= bal and transfer_credits(me, enactor, amt); [(decr('acct_' + enactor.id, a), eval_attr(me, 'log_row', enactor.id, 'withdraw', a, b - a)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, f'Withdrew {amt} credits. Balance: {bal - amt}.' if ok else 'Insufficient funds on account.')",
-    "@set First Orbital Bank/cmd_xfer = $xfer * to *:amt = int(arg0); who = get(arg1); bal = V('acct_' + enactor.id, 0); ok = who is not None and has_tag(who, 'player') and 0 < amt <= bal; [(decr('acct_' + enactor.id, a), incr('acct_' + w.id, a), set_attr(me, 'members', sorted(set(V('members', []) + [w.id]))), eval_attr(me, 'log_row', enactor.id, 'transfer to ' + name(w), a, b - a), eval_attr(me, 'log_row', w.id, 'transfer from ' + name(enactor), a, V('acct_' + w.id, 0)), pemit(w, f'{name(enactor)} wires you {a} credits at First Orbital Bank.')) for g, a, b, w in [[ok, amt, bal, who]] if g]; pemit(enactor, f'Wired {amt} credits.' if ok else 'No such account holder, or insufficient funds.')",
-    "@behavior First Orbital Bank = script_ticker, interval:150",
-    "@set First Orbital Bank/on_tick = [(adjust_credits(me, gain), incr('acct_' + pid, gain), eval_attr(me, 'log_row', pid, 'interest', gain, bal + gain)) for pid in V('members', []) for bal in [V('acct_' + pid, 0)] for gain in [bal * V('rate', 0) // 100] if gain > 0]",
-]
-
-# --- 089. Auction house --------------------------------------------------------
-
-BUILD_AUCTION = [
-    "@create the Auction Kiosk",
-    "drop the Auction Kiosk",
-    "@set the Auction Kiosk/duration = 120",
-    "@set the Auction Kiosk/snipe = 30",
-    "@set the Auction Kiosk/cmd_auction = $auction * for *:item = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; ok = bool(item) and int(arg1) > 0; [(move_to(o, me), set_attr(me, 'lot_' + str(n), {'seller': enactor.id, 'seller_name': name(enactor), 'item': o.id, 'item_name': name(o), 'min': int(arg1), 'bid': 0, 'bidder': '', 'bidder_name': '', 'ends': now() + V('duration', 120)}), set_attr(me, 'next_lot', n + 1), remit(here, f'{name(enactor)} lists {name(o)} as lot #{n} (min {int(arg1)}).')) for g, lst in [[ok, item]] if g for o in [lst[0]] for n in [V('next_lot', 1)]]; pemit(enactor, 'Listed.' if ok else 'You are not carrying that, or the minimum is bad.')",
-    "@set the Auction Kiosk/cmd_auctions = $auctions:pemit(enactor, 'Open lots:'); [pemit(enactor, f\"  #{i} {lot['item_name']} — min {lot['min']}, bid {str(lot['bid']) + ' by ' + lot['bidder_name'] if lot['bidder'] else 'none'}, {max(0, int(lot['ends'] - now()))}s left\") for i in range(1, V('next_lot', 1)) for lot in [V('lot_' + str(i))] if lot]",
-    "@set the Auction Kiosk/cmd_bid = $bid * *:lot = V('lot_' + arg0.strip()); amt = int(arg1); low = (lot['bid'] + 1 if lot['bidder'] else lot['min']) if lot else 0; ok = bool(lot) and lot['seller'] != enactor.id and amt >= low and transfer_credits(enactor, me, amt); [(transfer_credits(me, get('#' + l['bidder']), l['bid']) if l['bidder'] else None, pemit(get('#' + l['bidder']), f\"You are outbid on lot #{arg0.strip()}; {l['bid']} credits refunded.\") if l['bidder'] else None, set_attr(me, 'lot_' + arg0.strip(), dict(l, bid=a, bidder=enactor.id, bidder_name=name(enactor), ends=(now() + V('snipe', 30) if l['ends'] - now() < V('snipe', 30) else l['ends']))), remit(here, f'{name(enactor)} bids {a} on lot #{arg0.strip()}.')) for g, l, a in [[ok, lot, amt]] if g]; pemit(enactor, 'Bid placed.' if ok else f'No such lot, your own lot, or bid below {low}.')",
-    "@set the Auction Kiosk/settle = lot = V('lot_' + arg0); w = get('#' + lot['bidder']) if lot['bidder'] else None; s = get('#' + lot['seller']); it = get('#' + lot['item']); r = (move_to(it, w), transfer_credits(me, s, lot['bid']), remit(here, f\"The gavel falls: {lot['item_name']} goes to {lot['bidder_name']} for {lot['bid']} credits.\")) if w else (move_to(it, s) if it and s else None, remit(here, f\"{lot['item_name']} finds no buyer and returns to {lot['seller_name']}.\")); set_attr(me, 'history', (V('history', []) + [f\"{lot['item_name']} -> {lot['bidder_name'] or 'unsold'} at {lot['bid']}\"])[-20:]); del_attr(me, 'lot_' + arg0); result = 1",
-    "@set the Auction Kiosk/cmd_cancel = $cancel *:lot = V('lot_' + arg0.strip()); ok = bool(lot) and lot['seller'] == enactor.id and not lot['bidder']; [(move_to(get('#' + l['item']), enactor), del_attr(me, 'lot_' + arg0.strip()), remit(here, f'{name(enactor)} withdraws lot #{arg0.strip()}.')) for g, l in [[ok, lot]] if g]; pemit(enactor, 'Listing withdrawn.' if ok else 'Not your lot, already bid on, or no such lot.')",
-    "@behavior the Auction Kiosk = script_ticker, interval:4",
-    "@set the Auction Kiosk/on_tick = [eval_attr(me, 'settle', i) for i in range(1, V('next_lot', 1)) for lot in [V('lot_' + str(i))] if lot and now() >= lot['ends']]",
-]
-
-# --- 092. Commodity market -----------------------------------------------------
-
-BUILD_MARKET = [
-    "@create the Commodity Board",
-    "drop the Commodity Board",
-    "@eval adjust_credits(get('the Commodity Board'), 10000)",
-    '@set the Commodity Board/goods = {"water_ice": {"name": "Water Ice", "base_price": 12, "base_supply": 200, "price": 12, "supply": 200}, "helium3": {"name": "Helium-3", "base_price": 60, "base_supply": 100, "price": 60, "supply": 100}}',
-    "@set the Commodity Board/cmd_market = $market:pemit(enactor, 'Commodity        buy  sell  supply'); [pemit(enactor, f\"{left(g['name'] + repeat(' ', 16), 16)} {ceil(g['price'])}  {floor(g['price'] * 0.9)}  {g['supply']}\") for cid in sorted(V('goods', {})) for g in [V('goods', {})[cid]]]",
-    "@set the Commodity Board/cmd_buy = $market buy * *:g = V('goods', {}); units = int(arg0); cid = arg1.strip().lower(); cost = ceil(g[cid]['price']) * units if cid in g else 0; ok = cid in g and 0 < units <= g[cid]['supply'] and transfer_credits(enactor, me, cost); upd = g[cid].update({'supply': g[cid]['supply'] - units}) if ok else None; save = set_attr(me, 'goods', g) if ok else None; lot = create_obj(f\"a sealed cargo lot ({g[cid]['name']})\", tags=['thing', 'cargo'], location=enactor) if ok else None; mark = (set_attr(lot, 'commodity', cid), set_attr(lot, 'units', units)) if ok else None; pemit(enactor, f\"You buy {units} units of {g[cid]['name']} for {cost} credits.\" if ok else 'No such commodity, not enough supply, or not enough credits.')",
-    "@set the Commodity Board/cmd_sell = $market sell *:g = V('goods', {}); cid = arg0.strip().lower(); lots = [o for o in contents(enactor) if has_tag(o, 'cargo') and get_attr(o, 'commodity') == arg0.strip().lower()]; ok = bool(lots) and cid in g; units = get_attr(lots[0], 'units', 0) if ok else 0; pay = floor(g[cid]['price'] * 0.9) * units if ok else 0; paid = ok and transfer_credits(me, enactor, pay); upd = g[cid].update({'supply': g[cid]['supply'] + units}) if paid else None; save = set_attr(me, 'goods', g) if paid else None; junk = destroy_obj(lots[0]) if paid else None; pemit(enactor, f\"The exchange pays {pay} credits for {units} units of {g[cid]['name']}.\" if paid else 'You carry no such cargo lot, or the exchange cannot cover it.')",
-    "@set the Commodity Board/drift = [(g.update({'supply': g['supply'] + (int((g['base_supply'] - g['supply']) * 0.05) or (1 if g['base_supply'] > g['supply'] else -1))}) if g['supply'] != g['base_supply'] else None, g.update({'price': round(min(max((g['price'] + (g['base_price'] * g['base_supply'] / max(g['supply'], 1) - g['price']) * 0.25) * rand(97, 103) / 100.0, g['base_price'] * 0.2), g['base_price'] * 5), 2)})) for cid, g in V('goods', {}).items()]; set_attr(me, 'goods', V('goods', {})); result = 1",
-    "@set the Commodity Board/news = g = V('goods', {}); cid = sorted(g)[rand(0, len(g) - 1)]; raid = rand(0, 1) == 1; g[cid]['supply'] = max(1, int(g[cid]['supply'] * (0.5 if raid else 1.5))); set_attr(me, 'goods', g); remit(here, '[Market] ' + (f\"Pirate raids choke off {g[cid]['name']} shipments!\" if raid else f\"A glut freighter floods the docks with {g[cid]['name']}!\")); result = 1",
-    "@behavior the Commodity Board = script_ticker, interval:8",
-    "@set the Commodity Board/on_tick = eval_attr(me, 'news') if rand(1, 10) == 1 else None; eval_attr(me, 'drift')",
-]
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```(?:text)?\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 # --- Harness -------------------------------------------------------------------
@@ -122,18 +63,21 @@ class ArcWorld:
         self.cass = self.sim.player("Cass", location=self.landing)
         self.square = None
 
-    async def build(self, lines):
-        if self.square is None:
+    async def build(self, doc_name):
+        """Type one tutorial's Build-it transcript, read from its doc."""
+        lines = build_lines(doc_name)
+        # 086's own first lines dig the square; the rest need the prologue.
+        if PROLOGUE[0] not in lines:
             for line in PROLOGUE:
                 await self.sim.do(self.vala, line)
-            self.square = self.find("Market Square")
-            assert self.square is not None
-            assert self.vala.location is self.square
-            # The mortals wander in behind the wizard.
-            self.bob.location = self.square
-            self.cass.location = self.square
         for line in lines:
             await self.sim.do(self.vala, line)
+        self.square = self.find("Market Square")
+        assert self.square is not None
+        assert self.vala.location is self.square
+        # The mortals wander in behind the wizard.
+        self.bob.location = self.square
+        self.cass.location = self.square
 
     def text(self, player) -> str:
         return "\n".join(self.sim.seen(player))
@@ -172,7 +116,7 @@ class TestCurrency:
 
     async def test_cashout_makes_optimal_change_and_conserves_value(self, world):
         w = world
-        await w.build(BUILD_MINT)
+        await w.build("086_currency.md")
         mint = w.find("the Mint")
         assert mint is not None and mint.location is w.square
 
@@ -200,7 +144,7 @@ class TestCurrency:
 
     async def test_pocket_melts_coins_back_into_the_wallet(self, world):
         w = world
-        await w.build(BUILD_MINT)
+        await w.build("086_currency.md")
         mint = w.find("the Mint")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 137)")
         await w.sim.do(w.vala, "cashout 137")
@@ -213,14 +157,14 @@ class TestCurrency:
 
     async def test_cashout_refused_when_wallet_short(self, world):
         w = world
-        await w.build(BUILD_MINT)
+        await w.build("086_currency.md")
         await w.sim.do(w.vala, "cashout 9999")
         assert "Your wallet cannot cover that." in w.text(w.vala)
         assert cash_stacks(w.vala) == []
 
     async def test_physical_cash_changes_hands_like_any_object(self, world):
         w = world
-        await w.build(BUILD_MINT)
+        await w.build("086_currency.md")
         mint = w.find("the Mint")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 25)")
         await w.sim.do(w.vala, "cashout 25")
@@ -235,7 +179,7 @@ class TestCurrency:
 
     async def test_exchange_remints_to_fewest_pieces(self, world):
         w = world
-        await w.build(BUILD_MINT)
+        await w.build("086_currency.md")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 15)")
         await w.sim.do(w.vala, "cashout 5")
         await w.sim.do(w.vala, "cashout 5")
@@ -257,7 +201,7 @@ class TestShopkeeper:
 
     async def test_native_shop_lists_and_sells(self, world):
         w = world
-        await w.build(BUILD_SHOP)
+        await w.build("063_shopkeeper.md")
         vex = w.find("Trader Vex")
         assert vex is not None
 
@@ -274,7 +218,7 @@ class TestShopkeeper:
 
     async def test_restock_tick_refills_the_shelves(self, world):
         w = world
-        await w.build(BUILD_SHOP)
+        await w.build("063_shopkeeper.md")
         vex = w.find("Trader Vex")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 100)")
         await w.sim.do(w.vala, "buy stimpack")
@@ -288,7 +232,7 @@ class TestShopkeeper:
 
     async def test_tip_moves_disposition_and_prices(self, world):
         w = world
-        await w.build(BUILD_SHOP)
+        await w.build("063_shopkeeper.md")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 100)")
 
         await w.sim.do(w.vala, "pay 10 to Trader Vex")
@@ -300,7 +244,7 @@ class TestShopkeeper:
 
     async def test_sell_pays_buyback_price(self, world):
         w = world
-        await w.build(BUILD_SHOP)
+        await w.build("063_shopkeeper.md")
         vex = w.find("Trader Vex")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 100)")
         await w.sim.do(w.vala, "buy stimpack")        # vex now holds 26
@@ -319,7 +263,7 @@ class TestBank:
 
     async def test_deposit_withdraw_and_audit_log(self, world):
         w = world
-        await w.build(BUILD_BANK)
+        await w.build("087_bank_accounts.md")
         bank = w.find("First Orbital Bank")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 400)")
 
@@ -342,7 +286,7 @@ class TestBank:
 
     async def test_withdraw_beyond_balance_refused(self, world):
         w = world
-        await w.build(BUILD_BANK)
+        await w.build("087_bank_accounts.md")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 100)")
         await w.sim.do(w.vala, "deposit 100")
         await w.sim.do(w.vala, "withdraw 500")
@@ -351,7 +295,7 @@ class TestBank:
 
     async def test_transfer_reaches_a_player_in_another_room(self, world):
         w = world
-        await w.build(BUILD_BANK)
+        await w.build("087_bank_accounts.md")
         bank = w.find("First Orbital Bank")
         await w.sim.do(w.vala, "@eval move_to(get('Bob'), 'The Docks', force=True)")
         assert w.bob.location is w.docks
@@ -370,7 +314,7 @@ class TestBank:
 
     async def test_interest_tick_pays_every_member(self, world):
         w = world
-        await w.build(BUILD_BANK)
+        await w.build("087_bank_accounts.md")
         bank = w.find("First Orbital Bank")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 400)")
         await w.sim.do(w.vala, "deposit 300")
@@ -394,7 +338,7 @@ class TestBank:
 class TestAuction:
 
     async def _open(self, w):
-        await w.build(BUILD_AUCTION)
+        await w.build("089_auction_house.md")
         await w.sim.do(w.vala, "@eval adjust_credits(get('Bob'), 200)")
         await w.sim.do(w.vala, "@eval adjust_credits(get('Cass'), 200)")
         return w.find("the Auction Kiosk")
@@ -504,7 +448,7 @@ class TestCommodityMarket:
 
     async def test_board_renders_prices_and_supply(self, world):
         w = world
-        await w.build(BUILD_MARKET)
+        await w.build("092_commodity_market.md")
         await w.sim.do(w.vala, "market")
         out = w.text(w.vala)
         assert "Commodity        buy  sell  supply" in out
@@ -513,7 +457,7 @@ class TestCommodityMarket:
 
     async def test_buying_mints_cargo_and_dents_supply(self, world):
         w = world
-        await w.build(BUILD_MARKET)
+        await w.build("092_commodity_market.md")
         board = w.find("the Commodity Board")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 1000)")
 
@@ -529,7 +473,7 @@ class TestCommodityMarket:
 
     async def test_drift_moves_price_toward_scarcity(self, world):
         w = world
-        await w.build(BUILD_MARKET)
+        await w.build("092_commodity_market.md")
         board = w.find("the Commodity Board")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 1000)")
         await w.sim.do(w.vala, "market buy 50 water_ice")
@@ -543,7 +487,7 @@ class TestCommodityMarket:
 
     async def test_selling_melts_cargo_back_into_supply(self, world):
         w = world
-        await w.build(BUILD_MARKET)
+        await w.build("092_commodity_market.md")
         board = w.find("the Commodity Board")
         await w.sim.do(w.vala, "@eval adjust_credits(me, 1000)")
         await w.sim.do(w.vala, "market buy 50 water_ice")
@@ -559,7 +503,7 @@ class TestCommodityMarket:
 
     async def test_news_event_shocks_supply_and_announces(self, world):
         w = world
-        await w.build(BUILD_MARKET)
+        await w.build("092_commodity_market.md")
         board = w.find("the Commodity Board")
         before = {cid: g["supply"]
                   for cid, g in board.db.get("goods").items()}

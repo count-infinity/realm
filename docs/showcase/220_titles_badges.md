@@ -140,7 +140,20 @@ answers "Only staff award titles."
 - **Auto-badges** — have another system award on a milestone:
   `eval_attr(get('the Herald'), 'award', ...)` won't gate on the tag if
   you call the ledger writes directly from a trusted master (a boss's
-  `ON_DEATH` stamping "Dragonslayer"). Titles then earn themselves.
+  `ON_DEATH` stamping "Dragonslayer" on its killer — `actor`). Titles then
+  earn themselves. `combat:on_death` fires from every death route, not just
+  a sword swing, so the boss pays out whether it fell to a blade, a trap,
+  or a poison tick; `adata('fatal')` separates a real kill from a player
+  merely knocked out ([245](245_event_bus_tour.md)).
+
+  Guard it with **`target is me`**, though: `ON_DEATH` reaches every
+  witness in the room, so an unguarded boss hook fires when *anything*
+  dies near it — and hands "Dragonslayer" to whoever stepped on a rat.
+  The hook must ask "was the death *mine*?" before it pays:
+
+  ```text
+  @set dragon/on_death = eval_attr(get('the Herald'), 'award', actor.id, 'Dragonslayer') if target is me and actor else None
+  ```
 - **Colored ranks** — store the title with `ansi('yh', 'Void Champion')`
   so the rendered `desc_extras` line glows gold.
 - **Badge icons over GMCP** — `oob(pl, 'Char.Badges', {'list': badges})`

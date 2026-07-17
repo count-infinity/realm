@@ -10,8 +10,9 @@ watch the gauge.
 
 **Concepts:** a **consumable attribute** decremented per action; a
 **guard** that refuses the move at zero; refuelling as the built-in
-`pay` + `ON_PAYMENT` **till-delta** ([tutorial 030](030_toll_gate.md)),
-because a pump can't reach into a player's purse — the player pays it.
+`pay` + `ON_PAYMENT` ([tutorial 030](030_toll_gate.md)), because a pump
+can't reach into a player's purse — the player pays it; and reading the
+event itself with `adata('amount')` and `target`.
 
 ## How it works
 
@@ -27,12 +28,29 @@ warning is a comparison.
 can *set* the rover's fuel freely, but it can't take a credit from a
 player it doesn't control. So the transaction runs the other way: you
 `pay 20 to fuel pump`, the built-in `pay` moves the money and fires the
-pump's `ON_PAYMENT`, and the hook reads how much arrived by the
-**till-delta** (`credits(me) - till`), converts credits to fuel at its
-price, tops the tank up to its cap, and hands back any change with
+pump's `ON_PAYMENT`. The hook converts credits to fuel at its price, tops
+the tank up to its cap, and hands back any change with
 `transfer_credits` — which it *can* do, because it's paying out its own
 money. The rover has to be parked at the pump, or your credits bounce
 straight back.
+
+**The event says how much: `adata('amount')`.** An `ON_<EVENT>` hook is
+handed the action's payload, and a payment's payload is the sum paid — so
+the pump just *reads* it. (It used to have to infer it: stash a `till`
+copy of your own balance, and on each payment compute
+`credits(me) - till` and re-stash. That worked, and it is still the
+technique for reconstructing state nothing reports — but a payment
+reports itself now, and one `adata` call replaces a whole shadow ledger
+that could drift the moment anything else touched the pump's purse.)
+
+**And `target` says who was paid.** The catch of listening instead of
+inferring: an `ON_PAYMENT` fires on everything in the room, not only on
+the till that got the money. Pay the *vending machine* next to the pump
+and the pump's hook runs too — with the vending machine's `amount` in the
+payload. The till-delta shrugged that off by accident (nothing landed in
+the pump, so the delta was zero); reading `adata` does not, so the hook
+opens by checking `target is me`. That comparison is what `target` is
+for: it separates "I was paid" from "someone near me was paid".
 
 **Running dry is a real stall.** The pump lives at the depot, so
 emptying the tank out on the flats leaves you stranded — you walk, or
@@ -72,7 +90,7 @@ five credits a unit, with change:
 @desc fuel pump = A grimy autopump. PAY <credits> TO FUEL PUMP while parked here (5 cr/unit).
 drop fuel pump
 @set fuel pump/price = 5
-@set fuel pump/on_payment = price = V('price', 5); till = V('till', 0); paid = credits(me) - till; set_attr(me, 'till', credits(me)); cab = get('The Rover'); room = get_attr(cab, 'fuel_max', 6) - get_attr(cab, 'fuel', 0); bought = min(paid // price, room); refund = paid - bought * price; (transfer_credits(me, enactor, paid), set_attr(me, 'till', credits(me)), pemit(enactor, 'The rover is not parked at the pump; your credits are returned.')) if str(get_attr(cab, 'parked_at')) != loc(me).id else (set_attr(cab, 'fuel', get_attr(cab, 'fuel', 0) + bought), (transfer_credits(me, enactor, refund), set_attr(me, 'till', credits(me))) if refund > 0 else None, pemit(enactor, 'The pump chatters: ' + str(bought) + ' units aboard, tank now ' + str(get_attr(cab, 'fuel')) + '.' + (' Change: ' + str(refund) + ' cr.' if refund > 0 else '')))
+@set fuel pump/on_payment = paid = adata('amount', 0); price = V('price', 5); cab = get('The Rover'); room = get_attr(cab, 'fuel_max', 6) - get_attr(cab, 'fuel', 0); bought = min(paid // price, room); refund = paid - bought * price; (None if target is not me else ((transfer_credits(me, enactor, paid), pemit(enactor, 'The rover is not parked at the pump; your credits are returned.')) if str(get_attr(cab, 'parked_at')) != loc(me).id else (set_attr(cab, 'fuel', get_attr(cab, 'fuel', 0) + bought), (transfer_credits(me, enactor, refund) if refund > 0 else None), pemit(enactor, 'The pump chatters: ' + str(bought) + ' units aboard, tank now ' + str(get_attr(cab, 'fuel')) + '.' + (' Change: ' + str(refund) + ' cr.' if refund > 0 else '')))))
 @teleport me = The Depot
 ```
 
@@ -97,8 +115,9 @@ pay 20 to fuel pump -> "The pump chatters: 4 units aboard, tank now 4."
 
 `fuel` from the seat reads the gauge any time. Try `pay` while the rover
 is parked elsewhere — your credits come straight back. Overpay past the
-tank's cap and the pump refunds the difference (the till-delta keeps the
-books honest).
+tank's cap and the pump refunds the difference: `adata('amount')` was 20,
+the tank had room for four units at five credits, and the pump can do the
+arithmetic because the event told it exactly what landed.
 
 ## Going further
 

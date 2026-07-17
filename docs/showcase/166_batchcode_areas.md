@@ -94,7 +94,9 @@ it:
 @import/apply keep
 ```
 
-```text
+The plan the first of those prints:
+
+```
 Plan for area 'keep':
   ~ update   Gatehouse   (attrs (motto))
   0 to create, 1 to update, 0 orphaned, 0 conflicts.

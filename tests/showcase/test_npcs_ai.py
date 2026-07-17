@@ -17,11 +17,35 @@ engine's own combat tests.
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from realm.testing import Simulator
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks.
+
+    The build transcript is read out of the markdown rather than mirrored
+    here as a literal, so these tests execute *what the doc actually says*
+    — a doc edit that breaks the build breaks this suite, and there is no
+    second copy to drift from. (These tutorials fence with a bare ```;
+    the traps family uses ```text, so the language tag is optional.)
+    """
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```[a-z]*\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
+
 
 # Output fragments that only appear when a typed Build-it line failed.
 _ERROR_MARKS = ("not found", "Usage:", "Unknown command", "Bad parameter",
@@ -112,39 +136,10 @@ async def _do(world, line, player=None):
 
 # --- 61. Patrolling guard ----------------------------------------------------
 
-BUILD_061 = [
-    "@dig The Gatehouse = gatehouse, back",
-    "gatehouse",
-    "@dig The North Wall = wall, gatehouse",
-    "wall",
-    "@dig The Battlements = battlements, wall",
-    "@dig The Armory = armory door, armory door",
-    "@set armory door/door = 1",
-    "armory door",
-    "@set armory door/door = 1",
-    "armory door",
-    "close armory door",
-    "@create Sergeant Yara",
-    "@tag Sergeant Yara = npc",
-    "drop Sergeant Yara",
-    "@desc Sergeant Yara = Boots you could shave in. She walks the same "
-    "round she has walked for nine years.",
-    "@set Sergeant Yara/on_open = (say('Who goes into the armory? State "
-    "your business.'), set_attr(me, 'challenged', now())) if now() - "
-    "V('challenged', 0) > 20 else None",
-    "@set Sergeant Yara/on_arrive = left_open = [o for o in contents(here) "
-    "if has_tag(o, 'exit') and get_attr(o, 'door', 0) and not "
-    "has_tag(o, 'closed')]; [(pose('mutters about lax discipline.'), "
-    "cmd(f'close {name(o)}')) for o in left_open]",
-    '@behavior Sergeant Yara = patrol, route:["battlements", "wall", '
-    '"gatehouse", "wall"], pause:2',
-]
-
-
 @pytest.fixture
 async def castle():
     world = _make_world()
-    await world.run(BUILD_061)
+    await world.run(build_lines("061_patrolling_guard.md"))
     try:
         yield world
     finally:
@@ -237,42 +232,12 @@ class TestPatrollingGuard:
 
 # --- 62. Aggressive mob --------------------------------------------------------
 
-BUILD_062 = [
-    "@dig The Warren Mouth = warren, out",
-    "warren",
-    "@dig The Brood Chamber = deeper, out",
-    "deeper",
-    "@create broodmother",
-    "@tag broodmother = npc",
-    "drop broodmother",
-    "@set broodmother/hp = 14",
-    "@set broodmother/max_hp = 14",
-    "@set broodmother/skill_melee = 12",
-    "@set broodmother/on_enter = start_combat(me, enactor) if "
-    "has_tag(enactor, 'player') and tag_value(enactor, 'faction') != "
-    "'ratkin' and disposition(me, enactor) < 2 else None",
-    "out",
-    "@create warren rat",
-    "@tag warren rat = npc",
-    "drop warren rat",
-    "@set warren rat/hp = 8",
-    "@set warren rat/max_hp = 8",
-    "@set warren rat/skill_melee = 10",
-    "@set warren rat/on_receive = adjust_disposition(me, enactor, 5); "
-    "pose(f'sniffs the offering and settles back, watching {name(enactor)} "
-    "with something like tolerance.')",
-    '@behavior warren rat = aggressive, target_tags:["player"], spare_at:2, '
-    "attack_chance:1.0, taunt:The rat's eyes go red. It lunges!",
-    "out",
-]
-
-
 @pytest.fixture
 async def warren():
     from realm.combat.manager import set_combat_manager
 
     world = _make_world()
-    await world.run(BUILD_062)
+    await world.run(build_lines("062_aggressive_mob.md"))
     manager = _steady_manager()
     set_combat_manager(manager)
     try:
@@ -344,27 +309,10 @@ class TestAggressiveMob:
 
 # --- 65. Pet -------------------------------------------------------------------
 
-BUILD_065 = [
-    "@dig The Kennel Yard = yard, out",
-    "yard",
-    "@create Biscuit",
-    "@tag Biscuit = npc",
-    "drop Biscuit",
-    "@desc Biscuit = A ginger hound with an opinion about everything.",
-    "@lock/listen Biscuit = caller.id == owner.id",
-    "@set Biscuit/listen_heel = ^*heel*:set_attr(me, 'following', "
-    "enactor.id); pose(f\"falls in at {name(enactor)}'s heel.\")",
-    "@set Biscuit/listen_stay = ^*stay*:del_attr(me, 'following'); "
-    "pose('sits, ears up, exactly where told.')",
-    "@set Biscuit/listen_speak = ^*speak*:pose('barks once, sharp and "
-    "proud.')",
-]
-
-
 @pytest.fixture
 async def kennel():
     world = _make_world()
-    await world.run(BUILD_065)
+    await world.run(build_lines("065_pet.md"))
     try:
         yield world
     finally:
@@ -424,25 +372,10 @@ class TestPet:
 
 # --- 66. Puppet ------------------------------------------------------------------
 
-BUILD_066 = [
-    "@dig The Puppeteer's Booth = booth, out",
-    "booth",
-    "@create marionette",
-    "@tag marionette = npc",
-    "drop marionette",
-    "@desc marionette = A jointed wooden figure, strings trailing up into "
-    "nothing.",
-    "@force marionette = look",
-    "@force marionette = say I dance for no one.",
-    "@force marionette = out",
-    "@force marionette = booth",
-]
-
-
 @pytest.fixture
 async def booth():
     world = _make_world()
-    await world.run(BUILD_066)
+    await world.run(build_lines("066_puppet.md"))
     try:
         yield world
     finally:
@@ -496,40 +429,11 @@ class TestPuppet:
 
 # --- 69. Trainer NPC --------------------------------------------------------------
 
-BUILD_069 = [
-    "@dig The Drill Yard = drills, out",
-    "drills",
-    "@create Sergeant Kel",
-    "@tag Sergeant Kel = npc",
-    "drop Sergeant Kel",
-    "@desc Sergeant Kel = Scarred forearms, patient eyes. She has taught "
-    "worse than you.",
-    '@set Sergeant Kel/teaches = {"melee": {"fee": 15, "cap": 12}, '
-    '"guns": {"fee": 25, "cap": 12, "needs": ["melee", 11]}}',
-    "@set Sergeant Kel/cmd_lessons = $lessons:t = V('teaches', "
-    "{}); say(f\"I drill: {', '.join(sorted(t))}. Coin first, bruises "
-    "after. Say train and the skill.\")",
-    "@set Sergeant Kel/cmd_train = $train *:s = trim(arg0).lower()"
-    ".replace(' ', '_'); t = V('teaches', {}); r = t.get(s); "
-    "cur = get_attr(enactor, f'skill_{s}', 9); (say(f'I do not teach {s}"
-    ". Ask about my lessons.') if not r else say(f'You are past my "
-    "lessons in {s}. Spend points, or find a better teacher.') if "
-    "cur >= r['cap'] else say(f\"Not yet. Come back when your "
-    "{r['needs'][0].replace('_', ' ')} reaches {r['needs'][1]}"
-    ".\") if 'needs' in r and get_attr(enactor, f\"skill_{r['needs'][0]}\", "
-    "9) < r['needs'][1] else say(f\"My fee is {r['fee']}"
-    " credits. You are short.\") if credits(enactor) < r['fee'] else "
-    "(transfer_credits(enactor, me, r['fee']), set_attr(enactor, "
-    "f'skill_{s}', cur + 1), say(f\"Again! ...Better. Your "
-    "{s.replace('_', ' ')} is now {cur + 1}.\")))",
-]
-
-
 @pytest.fixture
 async def drill_yard():
     # The trainer writes other players' sheets: she must be ADMIN-owned.
     world = _make_world(role="admin")
-    await world.run(BUILD_069)
+    await world.run(build_lines("069_trainer_npc.md"))
     try:
         yield world
     finally:
@@ -593,59 +497,6 @@ class TestTrainerNpc:
 
 # --- 70. Pickpocket NPC -------------------------------------------------------------
 
-BUILD_070 = [
-    "@create pickpocket",
-    "@tag pickpocket = skill_def",
-    "@set pickpocket/stat = dexterity",
-    "@set pickpocket/penalty = -5",
-    "drop pickpocket",
-    "@reload",
-    "@dig Shadow Market = shadows, out",
-    "shadows",
-    "@zone here = bazaar",
-    "@create Fenn",
-    "@tag Fenn = npc",
-    "drop Fenn",
-    "@desc Fenn = Lean, quick-eyed, always somehow just behind your "
-    "shoulder.",
-    "@set Fenn/hp = 8",
-    "@set Fenn/max_hp = 8",
-    "@set Fenn/skill_pickpocket = 14",
-    "@set Fenn/skill_melee = 9",
-    "@set Fenn/on_tick = marks = [p for p in contents(here) if "
-    "has_tag(p, 'player') and not has_tag(p, 'unconscious')]; "
-    "m = marks[rand(0, len(marks) - 1)] if marks else None; "
-    "loot = [o for o in contents(m)] if m else []; "
-    "(((teleport_obj(loot[0], me) if loot else transfer_credits(m, me, 5)), "
-    "pemit(m, 'A feather-light tug at your belt. Probably nothing.')) if "
-    "contest(me, 'pickpocket', m, 'observation') else (remit(here, "
-    "f\"{name(m)} catches a hand in their pouch - Fenn's!\"), act(here, 'THIEF! "
-    "The cry goes up.', targeting='room', action_type='event:theft'))) "
-    "if m else None",
-    "@behavior Fenn = script_ticker, interval:3",
-    "@dig The Watch Post = watchpost, shadows",
-    "watchpost",
-    "@zone here = bazaar",
-    "@create Constable Marsh",
-    "@tag Constable Marsh = npc",
-    "@tag Constable Marsh = town_watch",
-    "@set Constable Marsh/hp = 14",
-    "@set Constable Marsh/max_hp = 14",
-    "@set Constable Marsh/skill_melee = 13",
-    "drop Constable Marsh",
-    "@create Bazaar Watch",
-    "@zone/master Bazaar Watch = bazaar",
-    "@set Bazaar Watch/on_theft = fresh = now() - V('last_cry', "
-    "0) > 60; ((set_attr(me, 'last_cry', now()), adjust_disposition("
-    "'Constable Marsh', enactor, -5), teleport_obj('Constable Marsh', "
-    "here), force('Constable Marsh', 'say Hold, cutpurse!'), "
-    "force('Constable Marsh', f'attack {name(enactor)}')) if fresh "
-    "else None)",
-    "drop Bazaar Watch",
-    "shadows",
-]
-
-
 @pytest.fixture
 async def bazaar():
     from realm.combat.manager import set_combat_manager
@@ -663,7 +514,7 @@ async def bazaar():
                            roll=10, effective=effective, skill=skill)
 
     world = _make_world(role="admin")   # Fenn's fingers need the rank
-    await world.run(BUILD_070)
+    await world.run(build_lines("070_pickpocket_npc.md"))
     manager = _steady_manager()
     set_combat_manager(manager)
     set_check_resolver(level_resolver)
@@ -724,31 +575,10 @@ class TestPickpocketNpc:
 
 # --- 72. NPC reaction emotes ----------------------------------------------------------
 
-BUILD_072 = [
-    "@dig The Anchor Taproom = taproom, out",
-    "taproom",
-    "@create Nerissa",
-    "@tag Nerissa = npc",
-    "drop Nerissa",
-    "@desc Nerissa = The Anchor's keeper. Nothing in this room escapes "
-    "her.",
-    "@set Nerissa/listen_greet = ^*evening*:say Evening yourself. First "
-    "one's full price, same as always.",
-    "@set Nerissa/listen_trouble = ^*fight*:say Take that talk to the "
-    "alley or lose your tab.",
-    "@set Nerissa/on_emote = (pose(f'glances up, marking {name(enactor)}"
-    " with one raised eyebrow.'), set_attr(me, 'noticed', now())) if "
-    "now() - V('noticed', 0) > 15 else None",
-    "@set Nerissa/on_wield = (say(f'Steel away in my taproom, "
-    "{name(enactor)}. I will not ask twice.'), adjust_disposition(me, "
-    "enactor, -1)) if not has_tag(enactor, 'town_watch') else None",
-]
-
-
 @pytest.fixture
 async def taproom():
     world = _make_world()
-    await world.run(BUILD_072)
+    await world.run(build_lines("072_npc_reactions.md"))
     try:
         yield world
     finally:
@@ -777,58 +607,46 @@ class TestNpcReactions:
         out = await _do(taproom, "pose drums his fingers.")
         assert "raised eyebrow" in out
 
+    async def test_emote_reaction_keys_on_pose_content(self, taproom):
+        """The blade branch reads adata('pose') — the pose's *wording*,
+        which is precisely what ^listen cannot see (see Engine gaps)."""
+        out = await _do(taproom, "pose draws his dagger slowly.")
+        assert "Keep it in the story and out of my taproom, Tam." in out
+        # Content beat gesture: she spoke instead of raising an eyebrow.
+        assert "raised eyebrow" not in out
+
+        # The blade branch is deliberately outside the cooldown: it fires
+        # again immediately, where a second ordinary pose would be held.
+        out = await _do(taproom, "pose cleans his knife on a rag.")
+        assert "Keep it in the story and out of my taproom, Tam." in out
+
+    async def test_ordinary_poses_do_not_trip_the_blade_branch(self, taproom):
+        out = await _do(taproom, "pose orders another round.")
+        assert "Keep it in the story" not in out
+        assert "raised eyebrow" in out
+
     async def test_weapon_draw_reaction_and_disposition_price(self, taproom):
         from realm.core.disposition import get_disposition
 
         nerissa = _find(taproom.sim, "Nerissa")
         await _do(taproom, "@create rusty cutlass")
         out = await _do(taproom, "wield rusty cutlass")
-        assert "Steel away in my taproom, Tam. I will not ask twice." in out
+        # She names the blade: on item:on_wield the weapon arrives as
+        # `target` (there is no adata('weapon') — the event carries no
+        # extra), and naming it is what proves target reached the hook.
+        assert "That rusty cutlass goes away in my taproom, Tam." in out
+        assert "I will not ask twice." in out
         assert get_disposition(nerissa, taproom.staff) == -1
 
 
 # --- 73. Boss with phases ---------------------------------------------------------------
-
-BUILD_073 = [
-    "@dig The Undervault = undervault, out",
-    "undervault",
-    "@create Skarn the Bonewright",
-    "@tag Skarn the Bonewright = npc",
-    "drop Skarn the Bonewright",
-    "@desc Skarn the Bonewright = A hulk of fused bone and bad intent. "
-    "Something in him is still counting.",
-    "@set Skarn the Bonewright/hp = 20",
-    "@set Skarn the Bonewright/max_hp = 20",
-    "@set Skarn the Bonewright/skill_melee = 12",
-    "@set Skarn the Bonewright/dodge = 5",
-    '@set Skarn the Bonewright/combat_strategy = [["", "attack"]]',
-    "@set Skarn the Bonewright/hitprcnt = 50",
-    "@set Skarn the Bonewright/on_hitprcnt = trigger('phase_two' if "
-    "V('phase', 1) == 1 else 'phase_three')",
-    "@set Skarn the Bonewright/phase_two = set_attr(me, 'phase', 2); "
-    "set_attr(me, 'hitprcnt', 25); remit(here, 'Skarn slams both fists to "
-    "the floor. BONES OF THE DEEP - RISE!'); w = create_obj('bone whelp', "
-    "tags=['npc'], location=here); set_attr(w, 'hp', 6); set_attr(w, "
-    "'max_hp', 6); set_attr(w, 'skill_melee', 10); set_attr(w, "
-    "'combat_strategy', [['', 'attack']]); foes = [p for p in "
-    "contents(here) if has_tag(p, 'player') and has_tag(p, 'in_combat')]; "
-    "(start_combat(w, foes[0]) if foes else None); apply_effect(me, "
-    "'modifier_effect', kind='berserk', duration=100, "
-    "check_mods={'melee': 2})",
-    "@set Skarn the Bonewright/phase_three = set_attr(me, 'phase', 3); "
-    "remit(here, 'Cracks spider across Skarn. He gives ground, guarding "
-    "the wound.'); set_attr(me, 'combat_strategy', [[\"\", \"defend\"]])",
-    "@set Skarn the Bonewright/on_death = remit(here, 'Skarn comes apart "
-    "at the seams, whispering: the vault... was never... mine...')",
-]
-
 
 @pytest.fixture
 async def undervault():
     from realm.combat.manager import set_combat_manager
 
     world = _make_world()
-    await world.run(BUILD_073)
+    await world.run(build_lines("073_boss_phases.md"))
     manager = _steady_manager()
     set_combat_manager(manager)
     try:

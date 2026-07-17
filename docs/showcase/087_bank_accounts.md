@@ -73,18 +73,17 @@ amount, resulting balance), and the slice keeps the newest ten:
 ```
 
 `deposit <amount>` — wallet to vault, then ledger + roster + audit row.
-The `for g, a, b in [[ok, amt, bal]] if g` opener binds the earlier
-results into the comprehension (scripts' comprehensions can't see
-body-level names — the arc's standard trick):
+The three ledger writes hang off one `... if ok else None` guard, so a
+refused transfer leaves every one of them unrun:
 
 ```text
-@set First Orbital Bank/cmd_deposit = $deposit *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); bal = V('acct_' + enactor.id, 0) + amt; [(incr('acct_' + enactor.id, a), set_attr(me, 'members', sorted(set(V('members', []) + [enactor.id]))), eval_attr(me, 'log_row', enactor.id, 'deposit', a, b)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, f'Deposited {amt} credits. Balance: {bal}.' if ok else 'Your wallet cannot cover that.')
+@set First Orbital Bank/cmd_deposit = $deposit *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); bal = V('acct_' + enactor.id, 0) + amt; (incr('acct_' + enactor.id, amt), set_attr(me, 'members', sorted(set(V('members', []) + [enactor.id]))), eval_attr(me, 'log_row', enactor.id, 'deposit', amt, bal)) if ok else None; pemit(enactor, f'Deposited {amt} credits. Balance: {bal}.' if ok else 'Your wallet cannot cover that.')
 ```
 
 `withdraw <amount>` — the mirror image, gated on the ledger balance:
 
 ```text
-@set First Orbital Bank/cmd_withdraw = $withdraw *:amt = int(arg0); bal = V('acct_' + enactor.id, 0); ok = 0 < amt <= bal and transfer_credits(me, enactor, amt); [(decr('acct_' + enactor.id, a), eval_attr(me, 'log_row', enactor.id, 'withdraw', a, b - a)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, f'Withdrew {amt} credits. Balance: {bal - amt}.' if ok else 'Insufficient funds on account.')
+@set First Orbital Bank/cmd_withdraw = $withdraw *:amt = int(arg0); bal = V('acct_' + enactor.id, 0); ok = 0 < amt <= bal and transfer_credits(me, enactor, amt); (decr('acct_' + enactor.id, amt), eval_attr(me, 'log_row', enactor.id, 'withdraw', amt, bal - amt)) if ok else None; pemit(enactor, f'Withdrew {amt} credits. Balance: {bal - amt}.' if ok else 'Insufficient funds on account.')
 ```
 
 `xfer <amount> to <player>` — ledger to ledger. `get(arg1)` resolves the
@@ -92,12 +91,13 @@ recipient *globally* by name; both sides get audit rows and the recipient
 a `pemit` wherever they are:
 
 ```text
-@set First Orbital Bank/cmd_xfer = $xfer * to *:amt = int(arg0); who = get(arg1); bal = V('acct_' + enactor.id, 0); ok = who is not None and has_tag(who, 'player') and 0 < amt <= bal; [(decr('acct_' + enactor.id, a), incr('acct_' + w.id, a), set_attr(me, 'members', sorted(set(V('members', []) + [w.id]))), eval_attr(me, 'log_row', enactor.id, 'transfer to ' + name(w), a, b - a), eval_attr(me, 'log_row', w.id, 'transfer from ' + name(enactor), a, V('acct_' + w.id, 0)), pemit(w, f'{name(enactor)} wires you {a} credits at First Orbital Bank.')) for g, a, b, w in [[ok, amt, bal, who]] if g]; pemit(enactor, f'Wired {amt} credits.' if ok else 'No such account holder, or insufficient funds.')
+@set First Orbital Bank/cmd_xfer = $xfer * to *:amt = int(arg0); who = get(arg1); bal = V('acct_' + enactor.id, 0); ok = who is not None and has_tag(who, 'player') and 0 < amt <= bal; (decr('acct_' + enactor.id, amt), incr('acct_' + who.id, amt), set_attr(me, 'members', sorted(set(V('members', []) + [who.id]))), eval_attr(me, 'log_row', enactor.id, 'transfer to ' + name(who), amt, bal - amt), eval_attr(me, 'log_row', who.id, 'transfer from ' + name(enactor), amt, V('acct_' + who.id, 0)), pemit(who, f'{name(enactor)} wires you {amt} credits at First Orbital Bank.')) if ok else None; pemit(enactor, f'Wired {amt} credits.' if ok else 'No such account holder, or insufficient funds.')
 ```
 
 Interest on a heartbeat — per member: mint the reserve, raise the ledger,
 log the row. The nested `for bal in [...] for gain in [...]` clauses are
-the binding trick again, computing each account's gain once:
+ordinary comprehension let-bindings, computing each account's gain once
+for the three places the row needs it:
 
 ```text
 @behavior First Orbital Bank = script_ticker, interval:150

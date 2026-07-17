@@ -79,15 +79,23 @@ further"); the arc prefers `on_tick` because deadlines here move
 - **One line per attribute.** `@set` takes a single line, so scripts are
   `;`-chained statements and comprehensions — same idiom as the main
   tutorial's softcode part.
+- **Guard your writes, one gate per command.** Every `$`-command here
+  computes an `ok` first, then hangs its whole batch of side effects off
+  it — `(write, write, announce) if ok else None`, or `for o in item if
+  ok` where the guard and an unpack coincide. One check, one place to
+  read it, and a refused transfer can never leave a half-applied ledger.
 - **The comprehension binding trick — no longer required (2026-07-17).**
   Scripts once ran with separate local/global namespaces, so a
   comprehension, lambda or generator expression could not see names you
   assigned earlier in the same script. The idiom was to smuggle values in
   through the first `for` clause: `[... for g, a in [[ok, amt]] if g ...]`.
-  You will still see that shape throughout this arc and it still works —
-  but scripts now share one namespace, so nested scopes read your
-  variables directly and `sorted(rows, key=lambda r: r[1])` just works.
-  Reach for the smuggle only when it reads better, not because you must.
+  Scripts now share one namespace, so nested scopes read your variables
+  directly and `sorted(rows, key=lambda r: r[1])` just works — the builds
+  in this arc have been written in the direct form throughout. The
+  smuggle still works if you meet it in older code; you no longer need to
+  write it. What *does* survive is the honest use of the same shape:
+  `for gain in [bal * V('rate', 0) // 100]` in the bank's interest tick
+  is a per-iteration let-binding, not a workaround.
 - **Builtins shadow `$`-commands.** The dispatcher tries built-in
   commands first. That's why the bank's status command is `bank` (not
   `balance`, an alias of the `credits` builtin) and the exchange trades
@@ -96,7 +104,12 @@ further"); the arc prefers `on_tick` because deadlines here move
   goods table are fetched with `V()` (`get_attr` against `me`), updated,
   and written back with `set_attr` — one owner (the master) mutating its
   own state, no cross-object surgery. Plain counters skip the round trip
-  entirely: `incr`/`decr` do the read-add-write in one call.
+  entirely: `incr`/`decr` do the read-add-write in one call, and their
+  `default` says what an *unset* attribute counts as — so the bank's
+  `incr('acct_<id>', amt)` opens an account at zero, while the auction's
+  `incr('next_lot', default=1)` numbers its first lot 1 and leaves the
+  counter on 2. Match the default to the one your reads use, or the
+  first call silently lands a number short.
 
 ## Build order and prerequisites
 

@@ -34,9 +34,16 @@ Simon is two timed phases sharing one piece of state:
 
 3. **The pattern grows in place.** `pattern` is the full sequence;
    `level` is how much of it is live this round. A correct echo bumps
-   `level` and restarts the show (`flash_i = 0`, another `signal` chain);
-   a wrong one clears `busy` and the panel dies. Reach `level == len(
-   pattern)` and the hatch opens.
+   `level` with `incr('level', default=1)` and restarts the show
+   (`flash_i = 0`, another `signal` chain); a wrong one clears `busy` and
+   the panel dies. Reach `level == len(pattern)` and the hatch opens.
+
+   The `default=1` matters: `level` counts *from one* (round one shows one
+   colour), so an unset `level` must read as 1 and bump to 2. A bare
+   `incr('level')` would read the unset attribute as 0 and produce 1 —
+   silently replaying round one forever. Pass `incr` the same default the
+   read would have used, and it stays a one-liner instead of a
+   read-add-write.
 
 A `busy` latch keeps two players from driving the panel into each other,
 the same guard the [self-destruct](056_self_destruct.md) uses against
@@ -85,7 +92,7 @@ the sequence, hand off to a `prompt()`:
 `judge` — normalize the echo, then buzz, advance-and-reflash, or win:
 
 ```text
-@set simon panel/judge = want = ' '.join(str(V('pattern')).split()[0:V('level', 1)]); got = ' '.join(trim(arg0).lower().split()); full = len(str(V('pattern')).split()); (set_attr(me, 'busy', 0), remit(loc(me), 'BUZZ -- the pattern was wrong. The panel goes dark.')) if got != want else ((set_attr(me, 'busy', 0), remove_tag(get('vault hatch'), 'closed'), remit(loc(me), 'A rising chime -- the full sequence! The vault hatch clicks open.')) if V('level', 1) >= full else (set_attr(me, 'level', V('level', 1) + 1), set_attr(me, 'flash_i', 0), remit(loc(me), 'Correct! The sequence grows longer. Watch again.'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))
+@set simon panel/judge = want = ' '.join(str(V('pattern')).split()[0:V('level', 1)]); got = ' '.join(trim(arg0).lower().split()); full = len(str(V('pattern')).split()); (set_attr(me, 'busy', 0), remit(loc(me), 'BUZZ -- the pattern was wrong. The panel goes dark.')) if got != want else ((set_attr(me, 'busy', 0), remove_tag(get('vault hatch'), 'closed'), remit(loc(me), 'A rising chime -- the full sequence! The vault hatch clicks open.')) if V('level', 1) >= full else (incr('level', default=1), set_attr(me, 'flash_i', 0), remit(loc(me), 'Correct! The sequence grows longer. Watch again.'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))
 ```
 
 ## Try it

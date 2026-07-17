@@ -18,10 +18,13 @@ disposition change, and a morale check that is just a `skill_def`.
 1. **`ON_HITPRCNT` is the morale trigger.** Give any creature a
    `hitprcnt` attribute (a percent) and the engine fires its
    `ON_HITPRCNT` softcode exactly **once**, the moment a wound drives
-   its HP down through that threshold — no polling, no per-tick checks,
-   and the attacker arrives as `enactor`. The NPC executes its own
-   hook, so it has full authority over itself: its behaviors, its
-   strategy, its tags, its own opinions.
+   its HP down through that threshold — no polling, no per-tick checks.
+   The attacker arrives as `enactor`, the creature itself as `target`,
+   and the hook carries its own numbers: `adata('percent')` is where the
+   HP actually landed (it may have overshot — a big hit through a 50%
+   threshold can leave her on 31), and `adata('threshold')` is the line
+   she crossed. The NPC executes its own hook, so it has full authority
+   over itself: its behaviors, its strategy, its tags, its own opinions.
 
 2. **The morale roll is data.** `skill_check(me, 'nerve')` against a
    `nerve` skill_def built on Health — a steady veteran holds, a
@@ -83,12 +86,7 @@ The morale system, entire:
 @set Vex/on_hitprcnt = detach_behavior(me, 'aggressive'); (say('I yield! I yield -- the loot is yours, only stop!'), set_attr(me, 'combat_strategy', [['', 'wait']]), add_tag(me, 'surrendered'), adjust_disposition(me, enactor, 5)) if not skill_check(me, 'nerve') else (say('Not like this!'), attach_behavior(me, 'fleeing', flee_percent=99))
 ```
 
-Health 8 means Vex's nerve is glass — she will fold. For the brave
-version, raise it:
-
-```text
-@set Vex/health = 13
-```
+Health 8 means Vex's nerve is glass — she will fold.
 
 ## Try it
 
@@ -104,7 +102,11 @@ From then on she waits every beat — swing or sheathe, your call — and
 re-engage if you leave and return: the aggressive brain is gone, not
 suppressed.
 
-With `health = 13` instead:
+For the brave version, raise her Health and run it again:
+
+```text
+@set Vex/health = 13
+```
 
 ```text
 Vex says, "Not like this!"
@@ -132,6 +134,11 @@ continue rule) would close it.
 - **Rally** — a second threshold (`hitprcnt` re-arms if HP climbs back
   above it): a healed raider whose nerve check *passes* re-attaches
   `aggressive` — morale swings both ways.
+- **Graded nerve** — `skill_check(me, 'nerve')` is pass/fail, but
+  `adata('percent')` says how bad it looks from where she is standing:
+  feed it back as a penalty (`skill_check(me, 'nerve',
+  (adata('percent', 50) - 50) // 10)`) and a raider who is dropped
+  straight to 10% folds far harder than one who bleeds gently past 49.
 - **Fear the winner** — on surrender, also
   `apply_effect(me, 'modifier_effect', kind='cowed', duration=100,
   check_mods={'all': -2})`: a broken fighter fights worse if forced

@@ -7,8 +7,10 @@ realm.testing.Simulator wires the same store/propagation/scripting/
 dispatcher stack a live GameServer does — with the tutorials' EXACT
 command lines (raw input in, session output out).
 
-The build transcripts below are copied verbatim from the docs' "Build
-it" sections; the doc-sync test at the bottom keeps them from drifting.
+Every command line in each tutorial's "Build it" fenced blocks is read
+straight out of its markdown and executed — the doc IS the transcript,
+so a doc edit that breaks the build breaks this suite. (There is
+nothing to keep in sync: a build line exists in exactly one place.)
 
 Determinism: skill checks are pinned with a level-based resolver (the
 infiltration-test trick); rand()/dice()/roll() are pinned by patching
@@ -19,6 +21,7 @@ directly (no wall-clock heartbeat), like the living-NPCs arc tests.
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
 
@@ -26,6 +29,8 @@ import pytest
 
 from realm.core import instances, wilderness
 from realm.testing import Simulator
+
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
 # Output that must never appear while running a "Build it" transcript.
 BUILD_FAILURE_MARKERS = (
@@ -39,6 +44,21 @@ BUILD_FAILURE_MARKERS = (
     "Bad parameter",
     "Unknown behavior",
 )
+
+
+# --- Build transcripts: parsed from the tutorials themselves ----------------
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
 
 
 # --- Harness ---------------------------------------------------------------
@@ -99,9 +119,10 @@ def workshop_and_builder(sim):
     return room, bilda
 
 
-async def build(sim, player, lines):
-    """Run a Build-it transcript; fail loudly if any line misfires."""
-    for line in lines:
+async def build(sim, player, doc_name):
+    """Run a tutorial's Build-it transcript, straight from its markdown;
+    fail loudly if any line misfires."""
+    for line in build_lines(doc_name):
         await sim.do(player, line)
         out = "\n".join(sim.seen(player))
         for marker in BUILD_FAILURE_MARKERS:
@@ -135,41 +156,6 @@ async def tick(obj, times=1):
 # 036. Weather system — docs/showcase/036_weather_system.md
 # =========================================================================
 
-WEATHER_BUILD = [
-    "@dig Harbor Quay = quay, back",
-    "quay",
-    "@zone here = harbor",
-    "@dig Fishmarket Row = row, quay",
-    "row",
-    "@zone here = harbor",
-    "quay",
-    "@create Harbor Sky",
-    "@zone/master Harbor Sky = harbor",
-    "drop Harbor Sky",
-    "@set Harbor Sky/weather = clear",
-    '@set Harbor Sky/wx_states = ["clear", "overcast", "rain", "storm"]',
-    '@set Harbor Sky/wx_msgs = {"clear": "The cloud breaks; pale sun lights '
-    'the water.", "overcast": "A grey ceiling slides in off the sea.", '
-    '"rain": "Rain sets in, beading on rope and rail.", "storm": "The wind '
-    'climbs to a howl; rain comes in sideways."}',
-    '@set Harbor Sky/wx_descs = {"clear": "Sunlight hammers the tin roofs.", '
-    '"overcast": "The light sits flat under a grey lid of cloud.", '
-    '"rain": "Rain hisses on the harbor water.", "storm": "Spray and rain '
-    'scour the planking."}',
-    "@set Harbor Sky/on_tick = states = V('wx_states', []); "
-    "i = member(V('weather', 'clear'), states) - 1; "
-    "j = clamp(i + rand(0, 2) - 1, 0, len(states) - 1); "
-    "(set_attr(me, 'weather', states[j]), [(set_attr(r, 'wx_line', "
-    "V('wx_descs', {}).get(states[j], '')), remit(r, "
-    "V('wx_msgs', {}).get(states[j], ''))) for r in "
-    "zone_rooms('harbor')]) if i >= 0 and j != i else None",
-    "@behavior Harbor Sky = script_ticker, interval:15",
-    "@set here/wx_line = Sunlight hammers the tin roofs.",
-    "@desc here = Tarred pilings, drying nets, gulls arguing over fish "
-    "heads. [[result = V('wx_line', '')]]",
-]
-
-
 class TestWeatherSystem:
 
     async def test_drift_broadcasts_to_the_whole_zone(
@@ -178,7 +164,7 @@ class TestWeatherSystem:
         kess = sim.player("Kess")
         outsider = sim.player("Odd")
         outsider.location = _room
-        await build(sim, bilda, WEATHER_BUILD)
+        await build(sim, bilda, "036_weather_system.md")
         kess.location = find_one(sim, "Fishmarket Row")
         sky = find_one(sim, "Harbor Sky")
         sim.seen(kess), sim.seen(outsider)
@@ -199,7 +185,7 @@ class TestWeatherSystem:
 
     async def test_ticker_drifts_and_the_table_clamps(self, sim, pinned_rand):
         _room, bilda = workshop_and_builder(sim)
-        await build(sim, bilda, WEATHER_BUILD)
+        await build(sim, bilda, "036_weather_system.md")
         sky = find_one(sim, "Harbor Sky")
 
         # The attached ticker drives the same drift (interval:15).
@@ -234,34 +220,11 @@ class TestWeatherSystem:
 # 037. Day/night cycle — docs/showcase/037_day_night_descs.md
 # =========================================================================
 
-DAYNIGHT_BUILD = [
-    "@dig Sundial Plaza = plaza, back",
-    "plaza",
-    "@zone here = town",
-    "@tag here = outdoors",
-    "@create town clock",
-    "drop town clock",
-    "@set town clock/hour = 8",
-    "@set town clock/on_tick = h = (V('hour', 0) + 1) % 24; "
-    "set_attr(me, 'hour', h); night = h >= 21 or h < 6; "
-    "dp = 'night' if night else ('morning' if h < 12 else 'afternoon'); "
-    "[(set_attr(r, 'daypart', dp), (add_tag(r, 'dark') if night else "
-    "remove_tag(r, 'dark'))) for r in zone_rooms('town') "
-    "if has_tag(r, 'outdoors')]",
-    "@behavior town clock = script_ticker, interval:1",
-    "@desc here = A worn sundial crowns the plaza. [[dp = V('daypart', "
-    "'morning'); result = 'Lamplight pools on the cobbles, "
-    "and the gnomon points at nothing.' if dp == 'night' else "
-    "('Long morning shadows sweep the dial.' if dp == 'morning' else "
-    "'The gnomon leans into the afternoon light.')]]",
-]
-
-
 class TestDayNightCycle:
 
     async def test_desc_and_darkness_follow_the_clock(self, sim):
         _room, bilda = workshop_and_builder(sim)
-        await build(sim, bilda, DAYNIGHT_BUILD)
+        await build(sim, bilda, "037_day_night_descs.md")
         clock = find_one(sim, "town clock")
         plaza = find_one(sim, "Sundial Plaza")
 
@@ -297,30 +260,12 @@ class TestDayNightCycle:
 # 038. Dark room — docs/showcase/038_dark_room.md
 # =========================================================================
 
-DARKROOM_BUILD = [
-    "@dig The Undercroft = down, up",
-    "@create storm lantern",
-    "@tag storm lantern = light",
-    "@create tinker goggles",
-    "@tag tinker goggles = wearable",
-    "@set tinker goggles/slot = eyes",
-    '@set tinker goggles/grants_tags = ["nightvision"]',
-    "down",
-    "@tag here = dark",
-    "@desc here = Brick vaults sweat cold water. Something small scurries "
-    "at the edge of hearing.",
-    "@create scattered bones",
-    "drop scattered bones",
-    "up",
-]
-
-
 class TestDarkRoom:
 
     async def test_darkness_blinds_and_light_or_goggles_beat_it(self, sim):
         room, bilda = workshop_and_builder(sim)
         kess = sim.player("Kess", location=room)
-        await build(sim, bilda, DARKROOM_BUILD)
+        await build(sim, bilda, "038_dark_room.md")
         undercroft = find_one(sim, "The Undercroft")
         bones = find_one(sim, "scattered bones")
         sim.seen(kess)
@@ -360,42 +305,12 @@ class TestDarkRoom:
 # 039. Underwater room — docs/showcase/039_underwater_room.md
 # =========================================================================
 
-UNDERWATER_BUILD = [
-    "@create swimming",
-    "@tag swimming = skill_def",
-    "@set swimming/stat = health",
-    "@set swimming/penalty = -4",
-    "@reload",
-    "@dig Flooded Cistern = dive, surface",
-    "dive",
-    "@desc here = Green water in a drowned vault; light falls in wavering "
-    "shafts from a grate far above.",
-    "@set here/breath_max = 3",
-    "@set here/on_enter = pemit(enactor, 'You knife under. The cold clamps "
-    "down; hold your breath.') if has_tag(enactor, 'player') else None",
-    "@set here/on_leave = (del_attr(me, 'breath_' + enactor.id), "
-    "pemit(enactor, 'You break the surface and drag in a long breath.')) "
-    "if has_tag(enactor, 'player') else None",
-    "@set here/soak = o = get('#' + arg0); k = 'breath_' + o.id; "
-    "pemit(o, 'You pace your strokes and hold what air you have.') "
-    "if skill_check(o, 'swimming') else (set_attr(me, k, V(k, "
-    "V('breath_max', 3)) - 1), pemit(o, 'Your chest heaves. "
-    "You are running out of air!') if V(k, 0) > 0 else "
-    "(damage(o, roll('1d6')), pemit(o, 'Water forces its way in. "
-    "You are drowning!')))",
-    "@set here/on_tick = [eval_attr(me, 'soak', o.id) for o in contents(me) "
-    "if has_tag(o, 'player')]",
-    "@behavior here = script_ticker, interval:1",
-    "surface",
-]
-
-
 class TestUnderwaterRoom:
 
     async def test_breath_meter_drowning_and_surfacing(
             self, sim, leveled, pinned_rand):
         _room, bilda = workshop_and_builder(sim)
-        await build(sim, bilda, UNDERWATER_BUILD)
+        await build(sim, bilda, "039_underwater_room.md")
         leveled()
         cistern = find_one(sim, "Flooded Cistern")
         key = "breath_" + bilda.id
@@ -442,43 +357,12 @@ class TestUnderwaterRoom:
 # 040. Zero-G compartment — docs/showcase/040_zero_g_room.md
 # =========================================================================
 
-ZEROG_BUILD = [
-    "@create freefall",
-    "@tag freefall = skill_def",
-    "@set freefall/stat = dexterity",
-    "@set freefall/penalty = -5",
-    "@reload",
-    "@dig Cargo Bay Zero-G = bay, aft",
-    "bay",
-    "@desc here = Cargo nets sag from every bulkhead and nothing agrees "
-    "on which way is down.",
-    "@set here/on_check = block('You kick against nothing and drift in "
-    "place. Grab a handhold and push <exit> instead.') if atype == "
-    "'event:on_leave' and has_atag('movement') and not has_atag('zerog') "
-    "and has_tag(actor, 'player') else None",
-    "@set here/cmd_push = $push *: nm = trim(arg0).lower(); "
-    "ex = [e for e in contents(me) if has_tag(e, 'exit') and name(e) == nm]; "
-    "pemit(enactor, 'No handhold faces that way.') if not ex else "
-    "((move_to(enactor, get('#' + str(get_attr(ex[0], 'destination', ''))), "
-    "tags=['zerog']), pemit(enactor, f'You coil, kick off, and sail "
-    "through the {nm} hatch.'), remit(me, f'{name(enactor)} kicks off a "
-    "bulkhead and sails out through the {nm} hatch.')) "
-    "if skill_check(enactor, 'freefall') else (pemit(enactor, 'You misjudge "
-    "the kick and tumble; the hatch drifts past your fingers.'), "
-    "remit(me, name(enactor) + ' tumbles slowly in midair, pawing at "
-    "nothing.')))",
-    "@set here/cmd_flail = $flail: pemit(enactor, 'You windmill your arms. "
-    "It achieves nothing, beautifully.'); remit(me, name(enactor) + "
-    "' windmills in place, going exactly nowhere.')",
-]
-
-
 class TestZeroGCompartment:
 
     async def test_walk_blocked_push_moves_tumble_stays(self, sim, leveled):
         workshop, bilda = workshop_and_builder(sim)
         kess = sim.player("Kess", location=workshop)
-        await build(sim, bilda, ZEROG_BUILD)
+        await build(sim, bilda, "040_zero_g_room.md")
         leveled()
         bay = find_one(sim, "Cargo Bay Zero-G")
         assert bilda.location is bay
@@ -525,29 +409,11 @@ class TestZeroGCompartment:
 # 041. Ambient room messages — docs/showcase/041_ambient_messages.md
 # =========================================================================
 
-AMBIENT_BUILD = [
-    "@dig The Long Gallery = gallery, back",
-    "gallery",
-    "@create cold draft",
-    "drop cold draft",
-    '@set cold draft/lines = ["A cold draft worries the candle flames.", '
-    '"Somewhere above, timbers settle with a groan.", "Dust sifts down '
-    'from the rafters."]',
-    "@set cold draft/chance = 25",
-    "@set cold draft/on_tick = lines = V('lines', []); "
-    "(remit(here, lines[rand(0, len(lines) - 1)]) if lines and "
-    "[o for o in contents(here) if has_tag(o, 'player')] else None) "
-    "if rand(1, 100) <= V('chance', 25) else None",
-    "@behavior cold draft = script_ticker, interval:8",
-    "@tag cold draft = invisible",
-]
-
-
 class TestAmbientMessages:
 
     async def test_gated_flavor_with_spam_discipline(self, sim, pinned_rand):
         workshop, bilda = workshop_and_builder(sim)
-        await build(sim, bilda, AMBIENT_BUILD)
+        await build(sim, bilda, "041_ambient_messages.md")
         draft = find_one(sim, "cold draft")
 
         # The emitter never shows in the room listing.
@@ -577,23 +443,6 @@ class TestAmbientMessages:
 # 042. Room details — docs/showcase/042_room_details.md
 # =========================================================================
 
-DETAILS_BUILD = [
-    "@dig Records Annex = annex, out",
-    "annex",
-    "@desc here = Steel shelving marches into the gloom, every bay tagged "
-    "in fading ink.",
-    "@detail here = A brass plaque is bolted beside the door.",
-    "@detail here = check('observation', -2) -> One shelf bay sits "
-    "fractionally shallower than its neighbors - a false back, maybe.",
-    '@set here/vtargets = {"plaque": "COLLECTION 9 - DONATED. The donor\'s '
-    'name has been filed off.", "shelves": "Harbor manifests, mostly. '
-    'A century of them, and nobody has opened one twice."}',
-    "@set here/cmd_study = $study *: t = trim(arg0).lower(); "
-    "d = V('vtargets', {}); pemit(enactor, d.get(t, f'You find "
-    "nothing else worth studying about the {t}.'))",
-]
-
-
 class TestRoomDetails:
 
     async def test_details_render_per_viewer(self, sim, leveled):
@@ -601,7 +450,7 @@ class TestRoomDetails:
         sharp = sim.player("Kess", location=workshop)
         sharp.db.set("skill_observation", 14)
         dull = sim.player("Tam", location=workshop)
-        await build(sim, bilda, DETAILS_BUILD)
+        await build(sim, bilda, "042_room_details.md")
         leveled()
 
         out = await do(sim, sharp, "annex")
@@ -614,7 +463,7 @@ class TestRoomDetails:
 
     async def test_named_virtual_targets_via_study(self, sim, leveled):
         workshop, bilda = workshop_and_builder(sim)
-        await build(sim, bilda, DETAILS_BUILD)
+        await build(sim, bilda, "042_room_details.md")
         leveled()
 
         # The builtin boundary: look resolves objects, not details.
@@ -633,7 +482,7 @@ class TestRoomDetails:
         workshop, bilda = workshop_and_builder(sim)
         sharp = sim.player("Kess", location=workshop)
         sharp.db.set("skill_observation", 14)
-        await build(sim, bilda, DETAILS_BUILD)
+        await build(sim, bilda, "042_room_details.md")
         leveled()
         await do(sim, sharp, "annex")
 
@@ -653,38 +502,12 @@ class TestRoomDetails:
 # 043. Hazard room — docs/showcase/043_hazard_room.md
 # =========================================================================
 
-HAZARD_BUILD = [
-    "@create fortitude",
-    "@tag fortitude = skill_def",
-    "@set fortitude/stat = health",
-    "@set fortitude/penalty = 0",
-    "@reload",
-    "@dig Reactor Gallery = catwalk, out",
-    "catwalk",
-    "@zone here = reactor",
-    "@create Reactor Brain",
-    "@zone/master Reactor Brain = reactor",
-    "drop Reactor Brain",
-    "@set Reactor Brain/rad_level = 1",
-    "@desc here = A steel catwalk rings the exposed core. The air is warm "
-    "and tastes of foil. [[result = 'Your dosimeter ticks ' + ('lazily.' "
-    "if V('rad_sv', 1) < 3 else 'without pause.')]]",
-    "@set here/on_tick = sv = get_attr('Reactor Brain', 'rad_level', 1); "
-    "set_attr(me, 'rad_sv', sv); "
-    "[(pemit(o, 'Heat prickles across your skin; you ride it out.') if "
-    "skill_check(o, 'fortitude', -sv) else (damage(o, roll('1d6')), "
-    "pemit(o, 'Nausea doubles you over. The core is cooking you.'))) "
-    "for o in contents(me) if has_tag(o, 'player')]",
-    "@behavior here = script_ticker, interval:2",
-]
-
-
 class TestHazardRoom:
 
     async def test_resisted_damage_scales_with_zone_severity(
             self, sim, leveled, pinned_rand):
         _room, bilda = workshop_and_builder(sim)
-        await build(sim, bilda, HAZARD_BUILD)
+        await build(sim, bilda, "043_hazard_room.md")
         leveled()
         gallery = find_one(sim, "Reactor Gallery")
 
@@ -721,41 +544,12 @@ class TestHazardRoom:
 # 044. Instanced room — docs/showcase/044_instanced_room.md
 # =========================================================================
 
-INSTANCE_BUILD = [
-    "@dig Dust Motel Suite",
-    "@teleport me = Dust Motel Suite",
-    "@zone here = suite",
-    "@tag here = instance_template",
-    "@tag here = instance_entry",
-    "@desc here = Bed, basin, and a window painted shut. Not much - but "
-    "tonight, it is yours alone.",
-    "@open lobby = The Workshop",
-    "@dig Suite Washroom = washroom, out",
-    "washroom",
-    "@zone here = suite",
-    "out",
-    "@teleport me = The Workshop",
-    "@create suite door",
-    "@tag suite door = exit",
-    "drop suite door",
-    "@set suite door/dest_resolver = instance",
-    "@set suite door/instance_template = suite",
-    "@set suite door/instance_mode = solo",
-    "@set suite door/instance_ttl = 600",
-    "@create desk clerk",
-    "drop desk clerk",
-    "@set desk clerk/cmd_checkin = $check in: enter_instance(enactor, "
-    "'suite', mode='solo', return_room=here, idle_ttl=600); "
-    "pemit(enactor, 'The clerk slides a brass key across the desk.')",
-]
-
-
 class TestInstancedRoom:
 
     async def test_private_copies_reuse_and_reaping(self, sim):
         workshop, bilda = workshop_and_builder(sim)
         kess = sim.player("Kess", location=workshop)
-        await build(sim, bilda, INSTANCE_BUILD)
+        await build(sim, bilda, "044_instanced_room.md")
         template = find_one(sim, "The Workshop")  # sanity anchor
         assert bilda.location is template
 
@@ -807,40 +601,12 @@ class TestInstancedRoom:
 # 045. Procedural wilderness — docs/showcase/045_procedural_wilderness.md
 # =========================================================================
 
-WILDS_BUILD = [
-    "@create frontier",
-    "@tag frontier = wilderness_region",
-    "drop frontier",
-    "@set frontier/is_valid = result = 0 <= x <= 20 and 0 <= y <= 20",
-    "@set frontier/cell_name = result = ['Windswept Meadow', 'Pine Forest', "
-    "'Rocky Scree', 'Creek Crossing'][(x * 7 + y * 13) % 4]",
-    "@set frontier/cell_desc = result = ['Knee-high grass bends under a "
-    "steady wind.', 'Pines crowd close, and the light falls in narrow "
-    "blades.', 'Loose rock shifts underfoot between stubborn thistles.', "
-    "'A cold creek chatters over smooth stones.'][(x * 7 + y * 13) % 4]",
-    "@set frontier/edge_msg = The frontier ends in an impassable wall of "
-    "bramble.",
-    "@create trail gate",
-    "@tag trail gate = exit",
-    "drop trail gate",
-    "@set trail gate/dest_resolver = wilderness",
-    "@set trail gate/wild_region = frontier",
-    "@set trail gate/wild_x = 10",
-    "@set trail gate/wild_y = 10",
-    "@create corner waystone",
-    "drop corner waystone",
-    "@set corner waystone/cmd_touch = $touch waystone: enter_wilderness("
-    "enactor, 'frontier', 0, 0); pemit(enactor, 'The waystone drags the "
-    "world sideways. You stand at the frontier corner-marker.')",
-]
-
-
 class TestProceduralWilderness:
 
     async def test_cells_materialize_share_and_edge(self, sim):
         workshop, bilda = workshop_and_builder(sim)
         kess = sim.player("Kess", location=workshop)
-        await build(sim, bilda, WILDS_BUILD)
+        await build(sim, bilda, "045_procedural_wilderness.md")
 
         # The gate drops the walker at the entry coordinate.
         await do(sim, bilda, "trail gate")
@@ -890,29 +656,13 @@ class TestProceduralWilderness:
 # 046. Room capacity — docs/showcase/046_room_capacity.md
 # =========================================================================
 
-CAPACITY_BUILD = [
-    "@dig Maintenance Closet = closet, out",
-    "closet",
-    "@set here/capacity = 2",
-    "@set here/on_check = block(f'There is no room. {name(me)} is "
-    "packed shoulder to shoulder.') if atype == 'event:pre_enter' and "
-    "has_atag('movement') and has_tag(actor, 'player') and "
-    "len([o for o in contents(me) if has_tag(o, 'player')]) >= "
-    "V('capacity', 2) else None",
-    "@desc here = Mop, bucket, fuse panel. Space for two people and one "
-    "grudge. [[n = len([o for o in contents(me) if has_tag(o, 'player')]); "
-    "result = f\"{n} of {V('capacity', 2)} spots are taken.\"]]",
-    "out",
-]
-
-
 class TestRoomCapacity:
 
     async def test_third_body_is_bounced_until_a_spot_opens(self, sim):
         workshop, bilda = workshop_and_builder(sim)
         kess = sim.player("Kess", location=workshop)
         tam = sim.player("Tam", location=workshop)
-        await build(sim, bilda, CAPACITY_BUILD)
+        await build(sim, bilda, "046_room_capacity.md")
         closet = find_one(sim, "Maintenance Closet")
 
         await do(sim, bilda, "closet")
@@ -937,26 +687,6 @@ class TestRoomCapacity:
 # 047. Falling between rooms — docs/showcase/047_falling.md
 # =========================================================================
 
-FALLING_BUILD = [
-    "@dig Cliffside Ledge = ledge, back",
-    "ledge",
-    "@dig Scree Gully = down, up",
-    "@desc here = A boot-wide shelf hugs the cliff face. Pebbles you "
-    "dislodge take a long time to land.",
-    "@set here/on_enter = k = 'fall_' + enactor.id; recent = now() - "
-    "V(k, 0) < 5; safe = not has_tag(enactor, 'player') or "
-    "recent or skill_check(enactor, 'climbing', -2); (pemit(enactor, "
-    "'Scree shifts under your boots. You hug the rock and find your "
-    "footing.') if has_tag(enactor, 'player') and not recent else None) "
-    "if safe else (set_attr(me, k, now()), pemit(enactor, 'The lip "
-    "crumbles under your boot. You are falling.'), teleport_obj(enactor, "
-    "'Scree Gully'), damage(enactor, roll('2d6')), remit(me, name(enactor) "
-    "+ ' misses a step and pitches over the edge!'), pemit(enactor, "
-    "'You slam into the scree below. Everything hurts.'))",
-    "back",
-]
-
-
 class TestFalling:
 
     async def test_climb_gate_fall_damage_and_reentry_guard(
@@ -964,7 +694,7 @@ class TestFalling:
         workshop, bilda = workshop_and_builder(sim)
         kess = sim.player("Kess", location=workshop)
         kess.db.set("skill_climbing", 14)
-        await build(sim, bilda, FALLING_BUILD)
+        await build(sim, bilda, "047_falling.md")
         leveled()
         ledge = find_one(sim, "Cliffside Ledge")
         gully = find_one(sim, "Scree Gully")
@@ -1003,35 +733,3 @@ class TestFalling:
         assert bilda.location is ledge
         assert bilda.db.get("hp") == 8
         assert "falling" not in out
-
-
-# =========================================================================
-# Docs <-> tests sync — the transcripts above must match the tutorials
-# =========================================================================
-
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
-
-DOC_TRANSCRIPTS = {
-    "036_weather_system.md": WEATHER_BUILD,
-    "037_day_night_descs.md": DAYNIGHT_BUILD,
-    "038_dark_room.md": DARKROOM_BUILD,
-    "039_underwater_room.md": UNDERWATER_BUILD,
-    "040_zero_g_room.md": ZEROG_BUILD,
-    "041_ambient_messages.md": AMBIENT_BUILD,
-    "042_room_details.md": DETAILS_BUILD,
-    "043_hazard_room.md": HAZARD_BUILD,
-    "044_instanced_room.md": INSTANCE_BUILD,
-    "045_procedural_wilderness.md": WILDS_BUILD,
-    "046_room_capacity.md": CAPACITY_BUILD,
-    "047_falling.md": FALLING_BUILD,
-}
-
-
-def test_tutorial_docs_contain_the_exact_tested_command_lines():
-    """Every Build-it line exercised above appears verbatim in its doc,
-    so the tutorials can never drift from what the tests prove works."""
-    for doc_name, lines in DOC_TRANSCRIPTS.items():
-        text = (DOCS / doc_name).read_text(encoding="utf-8")
-        for line in lines:
-            assert line in text, (
-                f"{doc_name} is missing a tested tutorial line:\n{line}")

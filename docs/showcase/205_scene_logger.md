@@ -9,8 +9,8 @@ in are never recorded.
 
 **Concepts:** the **capture idioms** (`^*` listen for speech, `ON_EMOTE`
 for poses) pointed at a scene; a **consent roster** (`cast`) so recording
-is opt-in and revocable; **pose-order tracking** via timestamped rows; the
-honest **payload limit** on pose text; a capped log and `$export`.
+is opt-in and revocable; reading **`adata('pose')`** for the pose text; a
+capped log and `$export`.
 
 ## How it works
 
@@ -20,13 +20,16 @@ taps feed one log:
 
 - **Speech** arrives through a `^*` listen trigger: the whole line lands as
   `arg0`, the speaker as `enactor`, `escape()`d because players write it.
-- **Poses** arrive through `ON_EMOTE` — the event REALM fires for `pose`/`:`.
-  This is where the honesty comes in: **an event trigger gets only
-  `enactor`, never the pose's text** (the same payload gap the combat
-  chronicle documents). So the recorder can log *that* a consenting player
-  posed, and exactly *when* in the sequence — preserving pose order — but
-  not the words. The row reads `(emotes -- pose text is not exposed to
-  witnesses)`; full pose capture needs the workaround in "Going further".
+- **Poses** arrive through `ON_EMOTE` — the event REALM fires for `pose`/`:`
+  — and the pose's text arrives with it, as `adata('pose')`. An
+  `ON_<EVENT>` witness reads the action's data, not just who set it off
+  ([event bus tour](245_event_bus_tour.md)), so the recorder logs the words
+  themselves. `escape()` them for the same reason speech is escaped:
+  players wrote them.
+
+Both taps therefore capture verbatim text, and the log needs no second
+verb and no cooperation from the poser — `pose bows deeply.` is recorded
+as it is typed.
 
 **Consent is a roster, not a global switch.** `join scene` appends your id
 to the recorder's `cast` list; `leave scene` removes it. Both taps check
@@ -52,12 +55,12 @@ drop scene recorder
 @set scene recorder/cmd_leave = $leave scene:(set_attr(me, 'cast', [c for c in (V('cast') or []) if c != enactor.id]), pemit(enactor, 'You step out of the scene.'))
 ```
 
-The two taps — speech verbatim, poses as ordered markers — both gated on
-the consent roster:
+The two taps — speech from the listen trigger's `arg0`, poses from the
+event's `adata('pose')` — both verbatim, both gated on the consent roster:
 
 ```text
 @set scene recorder/listen_all = ^*:set_attr(me, 'log', ((V('log') or []) + [[now(), name(enactor), 'says, "' + escape(arg0) + '"']])[-100:]) if enactor and enactor.id in (V('cast') or []) else None
-@set scene recorder/on_emote = set_attr(me, 'log', ((V('log') or []) + [[now(), name(enactor), '(emotes -- pose text is not exposed to witnesses)']])[-100:]) if enactor and enactor.id in (V('cast') or []) else None
+@set scene recorder/on_emote = set_attr(me, 'log', ((V('log') or []) + [[now(), name(enactor), escape(adata('pose', ''))]])[-100:]) if enactor and enactor.id in (V('cast') or []) else None
 ```
 
 Playback, oldest first, with ages computed at read time:
@@ -79,29 +82,24 @@ With Ada, Ben, and Cara in the room:
 (Ada)  say Indeed we are gathered.
 (Ada)  export
   [0s] Ada says, "Well met, friends."
-  [0s] Ben (emotes -- pose text is not exposed to witnesses)
+  [0s] Ben bows deeply.
   [0s] Ada says, "Indeed we are gathered."
 ```
 
-Ada's lines are captured verbatim and Ben's pose holds its place in the
-order — but Cara, who never joined, appears nowhere. `leave scene` and
-your subsequent lines stop landing on the log. The obelisk keeps recording
-the rest of the cast either way.
+Speech and poses alike are captured verbatim, in the order they happened —
+but Cara, who never joined, appears nowhere. `leave scene` and your
+subsequent lines stop landing on the log. The obelisk keeps recording the
+rest of the cast either way.
 
-**Limit, stated once — now lifted:** this build logs a pose's *order* and
-author but not its text, because when it was written `ON_<EVENT>`
-witnesses received no action payload. That changed on 2026-07-17:
-`adata('pose')` returns the text, so `ON_EMOTE` can log poses verbatim
-with no extra verb. The dedicated-verb workaround below still works and
-is kept for reference.
+The transcript is a scene, not a stage direction: nobody had to type a
+special verb to be recorded properly, which is the point of an RP recorder
+that gets out of the way.
 
 ## Going further
 
-- **Full-fidelity poses.** Add a `$rp *` verb — `remit(here, name(enactor)
-  + ' ' + arg0)` plus the same log append with `arg0` as the text. Players
-  who type `rp bows deeply` get their pose *and* a verbatim log entry;
-  consent still gates it. This is the honest way to record pose words while
-  the payload gap stands.
+- **Separate the channels.** Log speech and poses to two attributes and
+  let `export` interleave them by timestamp — the same rows, but a
+  poses-only or dialogue-only reading of the same scene.
 - **Scene boundaries.** `$scene start` / `$scene end` verbs that stamp
   divider rows and wipe the roster, so each session exports cleanly.
 - **Owner-only export.** Gate `export` on `enactor == owner(me)` (or a

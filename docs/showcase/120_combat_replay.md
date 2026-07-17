@@ -8,9 +8,11 @@ ledger that anyone can `replay` afterwards, timestamped. Item 7's tape
 recorder and item 55's motion log, composed and pointed at combat.
 
 **Concepts:** `ON_ATTACK`/`ON_DAMAGE`/`ON_DEATH` witnesses as the
-recording heads, `^*` listen for fight talk, the capped-list-attribute
-idiom (`(old + [row])[-30:]`), `now()` timestamps replayed as "Ns ago"
-(item 55), `eval_attr` subroutines, and an owner-locked `$wipe`.
+recording heads, reading each event's own data (`target`,
+`adata('damage')`, `adata('weapon')`), `^*` listen for fight talk, the
+capped-list-attribute idiom (`(old + [row])[-30:]`), `now()` timestamps
+replayed as "Ns ago" (item 55), `eval_attr` subroutines, and an
+owner-locked `$wipe`.
 
 ## How it works
 
@@ -24,17 +26,22 @@ subroutine that appends `[now(), text]` and re-slices to the newest 30
 — the capped-log idiom, because unbounded lists on hot attributes are
 the classic MUD database leak.
 
-**Reconstructing the blow-by-blow.** Two things a witness cannot have:
-the engine's narration text (combat messages are deliveries, not
-overhearable speech — only `say`-class actions feed `^` listens), and
-the hook payload (an event trigger gets `enactor` only — no defender,
-no damage number). So the chronicle does what item 115's commentator
-does: it *reads the room*. Softcode reads are open, so a `tally`
-subroutine snapshots every `in_combat` fighter's HP into each row. The
-hooks fire while the action is in flight — before the wound applies —
-so each row records the state going *into* the blow and the next row
-shows what it cost: a perfectly reconstructable fight, one row behind
-the knife.
+**Writing the blow-by-blow.** Each hook can read its own event:
+`target` is the fighter on the receiving end, `adata('damage')` is what
+the wound cost, `adata('weapon')` is what did it. So a row records what
+*happened*, in so many words — not a puzzle for the reader to solve
+later. One thing a witness still cannot have is the engine's narration
+text: combat messages are deliveries, not overhearable speech (only
+`say`-class actions feed `^` listens), so the chronicle writes its own
+prose from the event's facts rather than transcribing the room.
+
+**The tally, alongside.** Softcode reads are open, so a `tally`
+subroutine still snapshots every `in_combat` fighter's HP into each
+row — a scoreboard next to the play. Hooks fire while the action is in
+flight, before the wound applies, so a row's bracket is the board
+*going into* that blow and the row's own damage number is what the
+blow took off it. The two together are the whole fight, no subtraction
+required.
 
 **Replay is diegetic.** `$replay` walks the rows and `pemit`s each with
 its age (`now() - stamp`), so the ledger reads the same live or a day
@@ -58,12 +65,14 @@ The two subroutines — the scribe (append, cap) and the scoreboard:
 @set match chronicle/tally = result = ' / '.join([f'{name(o)} {get_attr(o, "hp", 0)}:{get_attr(o, "max_hp", 0)}' for o in contents(loc(me)) if has_tag(o, 'in_combat')])
 ```
 
-The recording heads, each one line:
+The recording heads, each one line. `adata('weapon')` is the object
+swung (or `None` for fists — hence the `if w else` branch), so the
+ledger names the knife as well as the hand:
 
 ```text
-@set match chronicle/on_attack = eval_attr(me, 'scribe', name(enactor) + ' presses the attack. [' + eval_attr(me, 'tally') + ']')
-@set match chronicle/on_damage = eval_attr(me, 'scribe', name(enactor) + ' lands a telling blow. [' + eval_attr(me, 'tally') + ']')
-@set match chronicle/on_death = eval_attr(me, 'scribe', 'FINISH -- ' + name(enactor) + ' ends it.')
+@set match chronicle/on_attack = w = adata('weapon'); eval_attr(me, 'scribe', name(enactor) + ' presses the attack on ' + name(target) + (' with ' + name(w) if w else ' barehanded') + '. [' + eval_attr(me, 'tally') + ']')
+@set match chronicle/on_damage = eval_attr(me, 'scribe', name(enactor) + ' lands ' + str(adata('damage', 0)) + ' on ' + name(target) + '. [' + eval_attr(me, 'tally') + ']')
+@set match chronicle/on_death = k = name(enactor); eval_attr(me, 'scribe', 'FINISH -- ' + (k + ' ends ' + name(target) + '.' if k else name(target) + ' dies with no hand on record.'))
 @set match chronicle/listen_words = ^*: eval_attr(me, 'scribe', name(enactor) + ' shouts: ' + escape(arg0)) if enactor else None
 ```
 
@@ -82,29 +91,41 @@ loser's second):
 
 ```text
 replay
-[42s ago] Ace presses the attack. [Ace 30:30 / Bruce 20:20]
-[42s ago] Ace lands a telling blow. [Ace 30:30 / Bruce 20:20]
+[42s ago] Ace presses the attack on Bruce barehanded. [Ace 30:30 / Bruce 20:20]
+[42s ago] Ace lands 3 on Bruce. [Ace 30:30 / Bruce 20:20]
 [27s ago] Bruce shouts: is that ALL
-[27s ago] Ace presses the attack. [Ace 30:30 / Bruce 17:20]
+[27s ago] Ace presses the attack on Bruce barehanded. [Ace 30:30 / Bruce 17:20]
 ...
-[3s ago] FINISH -- Ace ends it.
+[3s ago] FINISH -- Ace ends Bruce.
 ```
 
-Read it like a scorer's sheet: each row's bracket is the board *before*
-that blow, so Bruce's 20→17 between rows is the damage the earlier row
-scored. `wipe ledger` from anyone but the owner earns a jealous clutch;
+Read it like a scorer's sheet: each row's bracket is the board *going
+into* that blow, and the damage on the row is what came off it — Bruce's
+20→17 is written twice over, once as a number and once as the next row's
+bracket. `wipe ledger` from anyone but the owner earns a jealous clutch;
 from the owner, a blank page for the next bout.
 
-**~~Limits~~ — BOTH FIXED 2026-07-17 (same two gaps as item 115).** This
-scribe infers from HP deltas because, when it was written, event triggers
-exposed only `enactor` — no target, no damage, no hit/miss — and
+**~~Limits~~ — BOTH FIXED 2026-07-17 (same two gaps as item 115), and the
+build above is the fix.** This scribe used to infer from HP deltas
+alone — rows read "Ace lands a telling blow", with no *whom* and no *how
+much* — because event triggers exposed only `enactor`, and
 `combat:on_death` fired only on the swing path, so softcode and
-damage-over-time kills never reached witnesses. Both are gone: `ON_<EVENT>`
-now binds `target` and `adata(...)` (so `adata('damage')` and
-`adata('weapon')` let the scribe log "6 cut" outright), and
-`combat:on_death` is announced from the one death path, so poison and
-grenade finishes are recorded like any other. The HP-delta build below
-still works and is left as written.
+damage-over-time kills never reached witnesses. Both are gone:
+`ON_<EVENT>` binds `target` and `adata(...)`, so the heads above log the
+defender, the number and the weapon outright; and `combat:on_death` is
+announced from the one shared death path, so a poison finish reaches the
+scribe at all. The tally stays, because a scoreboard is not a
+play-by-play.
+
+**What is still missing is the killer, not the death.** A
+`damage_over_time` tick calls `handle_death` with no killer, so
+`enactor` and `adata('killer')` are `None`; a softcode `damage()` kill
+names the *scripted object* that dealt it (the grenade, the trap), not
+whoever armed it. `target` is always reliable. That is why `on_death`
+above tests `k` before writing a name — a ledger that records
+"FINISH --  ends Bruce" is worse than one that admits it does not know.
+[Item 114](114_bounty_board.md) shows what the same gap costs a system
+that has to *pay* someone.
 
 ## Going further
 

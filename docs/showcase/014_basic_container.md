@@ -37,7 +37,11 @@ actor is told why.
 
 Wards are decision-only *by construction*: the check-pass namespace has
 no `set_attr`, no `say`, no `create_obj` — a ward can veto, not act.
-Reactions belong in `ON_<EVENT>` scripts, which run after. This is the
+Reactions belong in `ON_<EVENT>` scripts, which run after, and they see
+the same `atype`/`target`/`actor`/`adata` names (the
+[slot machine](001_slot_machine.md) reads `adata('amount')` that way).
+The difference is direction, not visibility: a ward alone gets
+`block()`; a reaction alone gets to change the world. This is the
 same interception surface behaviors and locks use, which is what makes
 the rule a law of physics rather than a politeness observed by
 well-behaved commands: `put`, a scripted `give`, a spawner — everything

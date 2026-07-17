@@ -19,12 +19,16 @@ handle other people's property.
 **Deposit is a `give`.** The golem is tagged `npc`, so the stock
 `give <item> to Coat-Check Golem` works, and — unlike `put`, whose
 hook fires before the item lands — the recipient-side `ON_RECEIVE`
-fires *after* the handover. Since the event namespace landed,
-`adata('item')` names the arrival directly (and `adata('giver')` the
-depositor). This build uses the older **unstamped-item idiom** instead
-— the new arrival is whatever in `contents(me)` isn't yet stamped —
-which still works and is the pattern to reach for whenever an action
-carries no payload at all. Each
+fires *after* the handover. The hook is handed what it needs:
+`adata('item')` is the arrival and `adata('giver')` the depositor
+(the same object as `enactor` on this hook, which is the name the
+script below uses). That one read replaces the **unstamped-item
+idiom** this build used to open with — *find the new coat by
+elimination: whatever in `contents(me)` isn't a ticket and isn't yet
+stamped*. Worth recognizing when you meet it, and still the move
+whenever an action genuinely carries no payload; but it makes the
+script's own freshly-minted ticket a hazard it has to exclude, and it
+guesses where the payload knows. Each
 deposit stamps the item (`checked = n`), advances the counter, records
 `held_<n> = '#' + item.id` in the ledger, and mints the token — a
 `claim_ticket`-tagged object with a `claim_no` attribute: the paired
@@ -66,12 +70,19 @@ drop Coat-Check Golem
 @desc Coat-Check Golem = Brass and patience. A rack of numbered hooks glitters behind it.
 ```
 
-The deposit script — return stray tickets, stamp the new arrival,
-ledger it, mint the token:
+The deposit script — one line names the arrival, and everything after
+it is a two-way branch: hand a stray ticket back, or stamp the coat,
+ledger it, and mint the token:
 
 ```text
-@set Coat-Check Golem/on_receive = tk = [o for o in contents(me) if has_tag(o, 'claim_ticket')]; new = [o for o in contents(me) if not has_tag(o, 'claim_ticket') and not has_attr(o, 'checked')]; it = new[0] if new else None; n = V('counter', 0) + 1 if it else 0; t = create_obj(f'claim ticket {n}', ['claim_ticket'], me) if it else None; (teleport_obj(tk[0], enactor), pemit(enactor, f"The golem taps the ticket and hands it back: just say claim {get_attr(tk[0], 'claim_no')}.")) if tk else None; (set_attr(me, 'counter', n), set_attr(it, 'checked', n), set_attr(me, f'held_{n}', '#' + it.id), set_attr(t, 'claim_no', n), teleport_obj(t, enactor), pemit(enactor, f'The golem stows your {name(it)} on hook {n} and punches ticket {n}.')) if it else None
+@set Coat-Check Golem/on_receive = it = adata('item') if target is me else None; stub = has_tag(it, 'claim_ticket'); n = V('counter', 0) + 1 if not stub else 0; t = create_obj(f'claim ticket {n}', ['claim_ticket'], me) if not stub else None; (teleport_obj(it, enactor), pemit(enactor, f"The golem taps the ticket and hands it back: just say claim {get_attr(it, 'claim_no')}.")) if stub else None; (set_attr(me, 'counter', n), set_attr(it, 'checked', n), set_attr(me, f'held_{n}', '#' + it.id), set_attr(t, 'claim_no', n), teleport_obj(t, enactor), pemit(enactor, f'The golem stows your {name(it)} on hook {n} and punches ticket {n}.')) if not stub else None
 ```
+
+The counter stays longhand — `n = V('counter', 0) + 1` up front,
+`set_attr(me, 'counter', n)` down in the branch — rather than
+`incr('counter')`, because the number must be minted *before* the
+ticket that carries it and written *only* on the branch that actually
+checks a coat in. `incr` is for writes that always happen.
 
 The redeem command — both halves or nothing:
 

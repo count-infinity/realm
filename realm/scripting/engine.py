@@ -358,9 +358,18 @@ class ScriptEngine:
             action.block(f"{obj.name} is warded, but the ward is malfunctioning.")
 
     @staticmethod
-    def _event_namespace(action: Action) -> dict:
+    def _event_namespace(action: Action | None,
+                         enactor: GameObject | None = None) -> dict:
         """The action's own data, for scripts that OBSERVE it —
         ``ON_<EVENT>`` triggers and ``^listen``.
+
+        With no action behind the script (``@tr``, a ``$``-command) the
+        names are still bound, just empty: ``adata()`` answers with its
+        default and ``target`` is None. They must not simply vanish —
+        ``@tr obj/ON_GET`` is how a builder tests a hook, and a hook that
+        reads ``adata('amount')`` would otherwise die of NameError with
+        the error going to the log and "Triggered obj/ON_GET." going to
+        the builder. "No data" is the honest answer; an exception is not.
 
         Read-only by design: the apply pass runs after the decision, so it
         gets no ``block``/``mod`` (nothing left to veto) and no
@@ -373,6 +382,14 @@ class ScriptEngine:
         ``damage`` on hits, ``item`` on gets, ``pose`` on emotes) reaches
         softcode through ``adata``.
         """
+        if action is None:
+            return {
+                'atype': '',
+                'actor': enactor,     # keep actor == enactor, as when real
+                'target': None,
+                'has_atag': lambda tag: False,
+                'adata': lambda key, default=None: default,
+            }
         return {
             'atype': action.action_type,       # the action's type string
             'actor': action.actor,             # who is acting
@@ -649,8 +666,10 @@ class ScriptEngine:
                     enactor_consent=enactor_consent,
                 )
                 namespace = functions.to_dict()
-                if action is not None:
-                    namespace.update(self._event_namespace(action))
+                # Always bound — empty when there is no action (@tr, a
+                # $-command). See _event_namespace: a hook reading adata()
+                # must not die of NameError when a builder @tr's it.
+                namespace.update(self._event_namespace(action, enactor))
                 try:
                     _result, output = await self.sandbox.execute_async(
                         action_code,

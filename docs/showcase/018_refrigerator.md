@@ -17,8 +17,13 @@ One attribute name is the entire coupling.
 
 **The item owns its clock.** Each perishable carries `freshness` and a
 `script_ticker` behavior whose `on_tick` script subtracts the going
-rate, then checks for zero. State lives in attributes, so a peach
-keeps ripening across reboots exactly where it left off.
+rate, then checks for zero. One call does the whole burn:
+`decr('freshness', rate, default=6)` reads the meter, subtracts, writes
+it back, and hands you the new value to test. The `default=` is
+load-bearing — it is what an *unset* `freshness` counts as, so a peach
+whose attribute was never written starts full instead of rotting from
+zero. State lives in attributes, so a peach keeps ripening across
+reboots exactly where it left off.
 
 **The holder sets the rate.** The tick reads
 `get_attr(loc(me), 'decay_rate', 1)` — *whatever currently holds me*.
@@ -30,12 +35,13 @@ cold room sets it on the *room* — location is location, and nothing
 subscribes to anything.
 
 Why not have the fridge's `ON_PUT`/`ON_GET` hooks rewrite the item's
-timer, as the audit sketched? Because event hooks don't hand the
-script the item (see [Engine gaps](#engine-gaps)) — and because
-rate-at-read needs no bookkeeping at all: there is no pair of hooks to
-desync when a conveyor, a thief, or an admin teleport moves the food.
-The peach asks its holder *every tick*; it cannot be wrong for longer
-than one.
+timer, as the audit sketched? You *could* — `adata('item')` names the
+arriving item in an `ON_PUT` script, so the bookkeeping is writable.
+It is still the wrong shape. Rate-at-read needs no bookkeeping at all:
+there is no pair of hooks to desync when a conveyor, a thief, or an
+admin teleport moves the food, and no hook fires at all on those
+paths. The peach asks its holder *every tick*; it cannot be wrong for
+longer than one.
 
 **Rot is a replacement, not a flag.** At zero the peach announces
 itself, spawns `a slick of brown mush` wherever it lies (floor,
@@ -55,7 +61,8 @@ drop icebox
 ```
 
 The peach. Freshness 6; the description reads the attribute so `look`
-is the freshness gauge; the tick does subtract-check-replace. Tick
+is the freshness gauge; the tick burns the meter down by the holder's
+rate and checks what's left. Tick
 interval 1 is *peach time* — one freshness point per heartbeat, brisk
 enough to watch; a kitchen you actually cook in wants `interval:150`:
 
@@ -63,7 +70,7 @@ enough to watch; a kitchen you actually cook in wants `interval:150`:
 @create ripe peach
 @set ripe peach/freshness = 6
 @desc ripe peach = [[f = V('freshness', 6); result = 'Bursting with juice.' if f > 4 else ('Going soft and winey.' if f > 0 else 'Compost.')]]
-@set ripe peach/on_tick = f = V('freshness', 6) - get_attr(loc(me), 'decay_rate', 1); set_attr(me, 'freshness', f); (remit(here, f'The {name(me)} collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
+@set ripe peach/on_tick = f = decr('freshness', get_attr(loc(me), 'decay_rate', 1), default=6); (remit(here, f'The {name(me)} collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
 @behavior ripe peach = script_ticker, interval:1
 ```
 
@@ -73,7 +80,7 @@ Its control-group twin — identical fruit, different fate:
 @create twin peach
 @set twin peach/freshness = 6
 @desc twin peach = [[f = V('freshness', 6); result = 'Bursting with juice.' if f > 4 else ('Going soft and winey.' if f > 0 else 'Compost.')]]
-@set twin peach/on_tick = f = V('freshness', 6) - get_attr(loc(me), 'decay_rate', 1); set_attr(me, 'freshness', f); (remit(here, f'The {name(me)} collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
+@set twin peach/on_tick = f = decr('freshness', get_attr(loc(me), 'decay_rate', 1), default=6); (remit(here, f'The {name(me)} collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
 @behavior twin peach = script_ticker, interval:1
 ```
 
@@ -100,15 +107,17 @@ No hook ever fired; the rate followed the location.
 
 ## Engine gaps
 
-- `ON_<EVENT>` trigger scripts get no binding for the action payload —
-  `adata()` exists only in the `on_check` ward namespace. A fridge's
-  `ON_PUT` therefore can't reference *which* item just arrived (and
-  the carried item's own `ON_PUT` never fires, since a carried item
-  isn't among the action's witnesses). The audit's
-  "ON_PUT/ON_GET adjust the item's decay-ticks" bookkeeping is thus
-  unwritable as stated; the holder-rate pattern above needs no item
-  reference and is the honest replacement. (Same gap worked around in
-  [019](019_trash_incinerator.md) with a deferred sweep.)
+- None. (**FIXED** — this build was written when `ON_<EVENT>` scripts
+  got no binding for the action payload, so a fridge's `ON_PUT` could
+  not name *which* item had arrived and the audit's "ON_PUT/ON_GET
+  adjust the item's decay-ticks" bookkeeping was unwritable as stated.
+  `adata()` is now bound in every `ON_<EVENT>` hook, not just in
+  `on_check` wards, so that design is available. The holder-rate
+  pattern above is kept because it is the better one — see *How it
+  works* — not because the engine forces it. Note the item's own
+  `ON_PUT` still never fires while it is carried: a carried item is not
+  among the action's witnesses, which is one more reason to let the
+  food read its own environment rather than wait to be told.)
 
 ## Going further
 

@@ -9,7 +9,9 @@ exactly the text that player would have seen.
 
 **Concepts:** `realm.testing.Simulator`, building a world in code
 (`room`/`obj`/`player`), driving it (`do`, `eval`), observing it
-(`seen`), and the deterministic **virtual clock** for `wait()` timers.
+(`seen`), the deterministic **virtual clock** for `wait()` timers, and
+**reading the build straight out of the tutorial** so docs and tests
+cannot drift apart.
 
 ## How it works
 
@@ -99,13 +101,61 @@ async def test_fortune_cookie_and_relay():
         sim.close()
 ```
 
+### Keeping the doc and the test in step
+
+That test works, but notice what it just did: it **copied** the build
+commands out of the tutorial into Python string literals. Now the same
+commands live in two places, and the day you improve the build in the doc,
+the test happily keeps proving the *old* one. A "do these match?" test that
+greps the doc for each literal is the obvious patch, and it is weaker than
+it looks — a line truncated to a prefix still passes a substring check, and
+a rewrite that quietly *drops* tests leaves nothing to compare in the first
+place. It detects drift at best; it cannot prevent it.
+
+The stronger move is to delete the copy. Read the build straight out of the
+tutorial and run **what the doc says**:
+
+```python
+import re
+from pathlib import Path
+
+DOCS = Path(__file__).resolve().parents[1] / "docs" / "showcase"
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks."""
+    body = (DOCS / doc_name).read_text()
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
+
+
+async def build(sim, builder, doc_name):
+    for line in build_lines(doc_name):
+        await sim.do(builder, line)
+```
+
+Then the test above opens with `await build(sim, bela, "247_testing_your_game.md")`
+and keeps its assertions exactly as they are — only the *source* of the
+build lines changed. Now a doc whose build is broken breaks the suite, and
+a doc whose build improves is tested in its improved form. Drift stops
+being something you detect and becomes something that cannot happen.
+
+This is not a hypothetical: every suite behind this showcase
+(`tests/showcase/`) is written this way, including the one that tests this
+very tutorial. Your prose and your proof read from one source.
+
+## Try it
+
 Run it exactly like the engine's own suite:
 
 ```text
 pytest tests/test_my_game.py
 ```
-
-## Try it
 
 The pattern generalises to anything you can express in-game:
 

@@ -9,11 +9,11 @@ random prophecy and lucky numbers baked on. Underpay and your coins
 clatter straight back.
 
 **Concepts:** composition — this gadget is nothing but idioms from
-earlier tutorials wired together: `ON_PAYMENT` + the **ledger idiom**
-(001), refund-or-vend branching (001/002), `create_obj()` collectibles
-with `desc_extras` faces (008), `rand()` against a data table (005),
-a `[[...]]` counter on the cabinet. New softcode: none. That's the
-lesson.
+earlier tutorials wired together: `ON_PAYMENT` reading its own
+`adata('amount')` payload, refund-or-vend branching (001/002),
+`create_obj()` collectibles with `desc_extras` faces (008), `rand()`
+against a data table (005), a `[[...]]` counter on the cabinet. New
+softcode: none. That's the lesson.
 
 Close the loop: [slot machine](001_slot_machine.md) for the money
 plumbing, [camera](008_camera.md) for the printed-keepsake trick.
@@ -22,10 +22,14 @@ plumbing, [camera](008_camera.md) for the printed-keepsake trick.
 
 **Money in, the only way there is.** Zoltar can't pick pockets —
 players `pay 5 to Zoltar` (consent), the credits land, and the
-cabinet's `ON_PAYMENT` fires. The script recovers *how much* with the
-ledger idiom — `paid = credits(me) - ledger`, re-syncing `ledger` at
-the end — because payment events don't carry amounts; the
-[slot machine](001_slot_machine.md) explains why.
+cabinet's `ON_PAYMENT` fires. *How much* comes with the event —
+`paid = adata('amount')`, the payment's own payload, exactly as the
+[slot machine](001_slot_machine.md) takes its wager. (That tutorial
+also shows the **ledger idiom** this build used to open with:
+reconstructing the sum as `credits(me) - V('ledger', 0)` because the
+balance was the only thing a script could see. Still the move for
+state you can only observe by differencing — but a machine that is
+*told* the number should read the number.)
 
 **One branch, two fates.** Enough coin: keep the fee, return the
 change (`transfer_credits(me, enactor, paid - cost)` — Zoltar spends
@@ -62,13 +66,13 @@ drop Zoltar
 @set Zoltar/fortunes = ["You will take a journey your boots already suspect.", "Beware a door that is polite to you.", "Money finds you when you stop watching for it.", "An old debt returns wearing a new face."]
 ```
 
-The whole machine is one `ON_PAYMENT`: ledger math, the two-fate
-branch (the `for c in [create_obj(...)]` comprehension binds the fresh
-card so two `set_attr`s can reach it — the arc's standard binding
-trick), and the ledger re-sync last:
+The whole machine is one `ON_PAYMENT`: read the amount, then the
+two-fate branch (the `for c in [create_obj(...)]` comprehension binds
+the fresh card so two `set_attr`s can reach it — a name that may only
+come into being on *one* branch has to be bound inside that branch):
 
 ```text
-@set Zoltar/on_payment = cost = V('cost', 5); paid = credits(me) - V('ledger', 0); f = V('fortunes', []); ok = paid >= cost and bool(f); (transfer_credits(me, enactor, paid - cost), incr('told'), remit(here, "Zoltar's eyes flare. Gears grind behind the glass, and a stiff card drops into the brass tray."), [(set_attr(c, 'desc_extras', [['', 'ZOLTAR SPEAKS:'], ['', chr(34) + f[rand(0, len(f) - 1)] + chr(34)], ['', f'Lucky numbers: {rand(1, 99)} and {rand(1, 99)}.']]), pemit(enactor, 'You lift the fortune card from the tray.')) for c in [create_obj('a printed fortune card', tags=['thing', 'no_group'], location=enactor)]]) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, f'A fortune costs {cost} credits. The coins clatter back.')); set_attr(me, 'ledger', credits(me))
+@set Zoltar/on_payment = cost = V('cost', 5); paid = adata('amount') if target is me else 0; f = V('fortunes', []); ok = paid >= cost and bool(f); (transfer_credits(me, enactor, paid - cost), incr('told'), remit(here, "Zoltar's eyes flare. Gears grind behind the glass, and a stiff card drops into the brass tray."), [(set_attr(c, 'desc_extras', [['', 'ZOLTAR SPEAKS:'], ['', chr(34) + f[rand(0, len(f) - 1)] + chr(34)], ['', f'Lucky numbers: {rand(1, 99)} and {rand(1, 99)}.']]), pemit(enactor, 'You lift the fortune card from the tray.')) for c in [create_obj('a printed fortune card', tags=['thing', 'no_group'], location=enactor)]]) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, f'A fortune costs {cost} credits. The coins clatter back.'))
 ```
 
 ## Try it
@@ -96,7 +100,8 @@ The underpayment moved nothing (check `credits`); the overpayment
 came back as exact change; and each card is an independent object with
 its own prophecy — trade them, hoard them, drop them dramatically.
 Zoltar's own balance is the take: `@examine Zoltar` shows the fee
-income sitting on the cabinet, ledger in agreement.
+income sitting on the cabinet — 5 credits a fortune, change already
+returned.
 
 ## Going further
 

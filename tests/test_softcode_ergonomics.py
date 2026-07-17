@@ -87,13 +87,47 @@ class TestIncrDecr:
         assert fn.decr('charge', 3) == 7
         assert fn.decr('charge') == 6
 
-    def test_non_numeric_current_treated_as_zero(self):
+    def test_non_numeric_current_falls_back_to_default(self):
         obj = GameObject("Counter")
         obj.db.set('tally', "oops")
         p = MockPersistence()
         p.add(obj)
         fn = _funcs(obj, p)
         assert fn.incr('tally') == 1
+        obj.db.set('tally', "oops")
+        assert fn.incr('tally', default=10) == 11
+
+    def test_default_for_an_unset_attribute(self):
+        """The trap four sweep agents caught independently: counters that
+        read with a default of 1 (a lot number, a fire stage, a pending
+        count). incr() assuming 0 silently produced 1 where the script
+        meant 2 — and the tutorials' builds pre-set the attr, so tests
+        wouldn't catch it; only a reader copying the build would."""
+        obj = GameObject("Auction")
+        p = MockPersistence()
+        p.add(obj)
+        fn = _funcs(obj, p)
+        # 089's next_lot: reads with default 1, so the first bump gives 2.
+        assert fn.incr('next_lot', default=1) == 2
+        assert obj.db.get('next_lot') == 2
+        # ...versus the old hardcoded-0 behaviour, still the default.
+        assert fn.incr('other') == 1
+
+    def test_decr_threads_its_default(self):
+        obj = GameObject("Diver")
+        p = MockPersistence()
+        p.add(obj)
+        fn = _funcs(obj, p)
+        # 039's breath meter: an unset meter starts full, then drains.
+        assert fn.decr('breath', default=3) == 2
+
+    def test_bool_is_not_treated_as_a_number(self):
+        obj = GameObject("Counter")
+        obj.db.set('flag', True)
+        p = MockPersistence()
+        p.add(obj)
+        fn = _funcs(obj, p)
+        assert fn.incr('flag', default=5) == 6
 
     def test_incr_returns_none_when_write_refused(self):
         # Executor does not control a foreign player -> V/incr target `me`,

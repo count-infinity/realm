@@ -124,7 +124,11 @@ to report."
   at `eval_attr(get('Quest Warden'), 'advance', enactor.id, '<slug>')` and
   killing the boss or reaching the ruin advances the quest — the delivery
   quest ([199](199_delivery_quest.md)) rides `ON_RECEIVE`, collection
-  counters ([200](200_collection_counters.md)) ride `ON_GET`.
+  counters ([200](200_collection_counters.md)) ride `ON_GET`. On a boss's
+  `ON_DEATH`, credit `actor` (the killer) rather than `enactor`-by-luck,
+  and note the hook fires from every death route — the stage advances
+  whether the boss fell to a blade or a trap
+  ([245](245_event_bus_tour.md)).
 - **Prerequisites.** Gate `accept` on another quest's stage
   (`get_attr(enactor, 'q_cinders', 0) >= 3`) to chain quests into a line.
 - **Abandon.** A `$abandon *` verb that `del_attr(enactor, 'q_' + slug)`

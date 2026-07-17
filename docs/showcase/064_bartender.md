@@ -6,8 +6,8 @@
 tap and she quotes you; pay her and a real, drinkable mug of ale
 appears on the bar; ask for rumors and she obliges — paying patrons
 only, and never the same rumor twice in a row.
-**Concepts:** `^listen` keyword triggers, the `ON_PAYMENT` hook, the
-balance-delta idiom for witnessed events, `create_obj()` consumables
+**Concepts:** `^listen` keyword triggers, the `ON_PAYMENT` hook and its
+action data (`target`, `adata('amount')`), `create_obj()` consumables
 with their own `$`-command, per-player rotation state in attrs.
 
 ## How it works
@@ -20,13 +20,12 @@ Three trigger surfaces, all plain attributes set with `@set`:
    lines are just keyword listens. (She can't overhear herself — the
    engine skips the speaker's own patterns — so her answers can even
    contain her own keywords.)
-2. **`ON_PAYMENT`** fires when someone `pay`s her. The event carries no
-   amount into the script, and — like every witnessed `ON_<EVENT>` — it
-   also fires on *bystanders* who have the hook. Both problems fall to
-   one idiom: the script compares `credits(me)` against a stored
-   running total (`till`). If the delta is big enough, serve and
-   advance the till; if zero, the coins went to someone else in the
-   room — stay silent.
+2. **`ON_PAYMENT`** fires when someone `pay`s her — and, like every
+   witnessed `ON_<EVENT>`, it also fires on *bystanders* who have the
+   hook. The hook gets the action's own data to sort that out:
+   `target` is who was paid (so `target == me` means "the coins are
+   mine"), and `adata('amount')` is how many. Two names, both
+   questions answered.
 3. **The mug is a real object** made with `create_obj()`, carrying its
    own `$drink *` command. Softcode may set `cmd_*` attributes on
    objects it controls, and Mira's owner owns what she creates — so
@@ -60,13 +59,14 @@ gets the pitch:
 @set Mira/listen_tap = ^*on tap*:say Ale, five credits the mug. Pay me and it is yours.
 ```
 
-**The sale.** `ON_PAYMENT` with the balance-delta idiom. Note the
-three-way split: serve on 5+, grumble at a short payment, and stay
-silent when the delta is zero (someone paid a *different* NPC in this
-room — witnessed events reach every bystander with the hook):
+**The sale.** `ON_PAYMENT`, reading the payment straight off the
+action. Note the three-way split: serve on 5+, grumble at a short
+payment, and stay silent when the money wasn't hers (someone paid a
+*different* NPC in this room — witnessed events reach every bystander
+with the hook, so `target == me` is the first thing she checks):
 
 ```
-@set Mira/on_payment = paid = credits(me) - V('till', 0); ((set_attr(me, 'till', credits(me)), set_attr(me, 'patron_' + enactor.id, 1), say('One ale, coming up.'), trigger('pour')) if paid >= 5 else (say('Ale is five credits, love.') if paid > 0 else None))
+@set Mira/on_payment = paid = adata('amount', 0) if target == me else 0; ((set_attr(me, 'patron_' + enactor.id, 1), say('One ale, coming up.'), trigger('pour')) if paid >= 5 else (say('Ale is five credits, love.') if paid > 0 else None))
 ```
 
 **The pour** lives in its own attribute (`trigger('pour')` runs it, and
@@ -118,8 +118,8 @@ say rumors                   → the second — she remembers where you were
 ## Going further
 
 - **Stock the taps:** make `rumors`-style data of the drinks too — a
-  `drinks` dict attr of name → price, and have `on_payment` match the
-  delta against it to serve porter at 8 and whiskey at 12.
+  `drinks` dict attr of name → price, and have `on_payment` match
+  `adata('amount')` against it to serve porter at 8 and whiskey at 12.
 - **Disposition pricing:** `persuade Mira` before ordering, then have
   `on_payment` accept `5 - disposition(me, enactor)` — charm earns
   cheaper ale (see `consider`/`persuade`, and item 71 for the stick).

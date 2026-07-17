@@ -118,12 +118,29 @@ persist and travel with the character.
 ## Going further
 
 - **More watchers, more badges.** The Chronicle can hold `ON_DEATH`
-  (kills), `ON_RECEIVE` (gifts given), or `ON_GET` (rare finds) watchers —
-  one hook per milestone, all writing `badge_*` attrs the same reader
-  renders.
-- **Kill-count tiers.** An `ON_DEATH` watcher that bumps a `kills` counter
-  and awards Slayer at 1 / 10 / 50 is the Explorer pattern with a different
-  threshold table.
+  (kills), `ON_RECEIVE` (gifts received — `adata('item')` from
+  `adata('giver')`, and `target` is who received it), or `ON_GET` (rare
+  finds — the item is `target`) watchers — one hook per milestone, all
+  writing `badge_*` attrs the same reader renders.
+
+  The Chronicle is a **zone master**, so unlike a hook on a participant it
+  *wants* every event in the zone — it never asks `target is me`, because
+  it is never the target. What it must get right instead is **whose badge
+  this is**: `actor` did the thing, `target` had it done to them. Credit
+  the wrong one and the trophy lands on the corpse. (A hook on a
+  *participant* — a boss awarding its own slayer — has the opposite job and
+  does need `target is me`; see [245](245_event_bus_tour.md).)
+- **Kill-count tiers.** An `ON_DEATH` watcher that bumps `actor`'s `kills`
+  counter and awards Slayer at 1 / 10 / 50 is the Explorer pattern with a
+  different threshold table. `combat:on_death` fires from *every* death
+  route — a swing, softcode `damage()`, a poison tick, a trap — so the
+  badge counts the kill however it happened. Filter on `adata('fatal')` to
+  count real deaths only and skip players knocked unconscious, and expect
+  `actor` to be `None` for a trap or a poison tick that nobody swung.
+- **Death badges, not just kill badges.** The same hook, crediting `target`
+  instead, earns the other side of the ledger — a "Survivor" badge for
+  going down and getting back up (`not adata('fatal')` is exactly a player
+  knocked out). Player deaths announce now, so the Chronicle hears them.
 - **Points and titles.** Give each badge a `points` value and total them
   in `$badges` for a gamerscore; award a `title` on the capstone tier the
   player can wear.

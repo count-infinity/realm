@@ -9,9 +9,9 @@ the stone reveals both at once — winner takes the pot, ties refund.
 
 **Concepts:** the double-commit pattern (secret choices banked in a
 `secret`-flagged attribute, revealed only when both are in), `prompt()`
-to *two* players at once, wager escrow via `ON_PAYMENT` + the ledger
-idiom, refund paths for every wrong turn, and an arbiter object as the
-trust anchor.
+to *two* players at once, wager escrow via `ON_PAYMENT` +
+`adata('amount')`, refund paths for every wrong turn, and an arbiter
+object as the trust anchor.
 
 ## How it works
 
@@ -26,7 +26,10 @@ to game state). Commit order stops mattering; that's simultaneity.
 
 **The wager is escrow, not promise.** `challenge Bob for 10` only
 books the bout. The stakes move on `pay 10 to the dueling stone` —
-real consent, real credits — and the ledger idiom reads each amount.
+real consent, real credits — and the hook reads each amount straight off
+the event with `adata('amount')`. This matters more here than in a game
+that just wants the money: the stone checks `paid == bt['wager']`, so
+it needs the size of *this* payment, exactly, not a running balance.
 Wrong amount, wrong player, no bout? The payment bounces straight back.
 Only when *both* stakes are in does the stone prompt both duelists;
 from that moment the pot can only leave through `resolve`: doubled to
@@ -59,7 +62,7 @@ The escrow. Exact stake from a listed duelist banks; everything else
 bounces. The second stake triggers both prompts:
 
 ```text
-@set the dueling stone/on_payment = paid = credits(me) - V('ledger', 0); bt = V('bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'The stone accepts your stake.')) for g in [ok] if g]; [(remit(here, 'Both stakes are in. The stone addresses the duelists.'), prompt(get('#' + bt['a']), 'The stone hums: rock, paper, or scissors?', 'on_throw'), prompt(get('#' + bt['b']), 'The stone hums: rock, paper, or scissors?', 'on_throw')) for g in [ok and len(bt['paid']) == 2] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The stone spits your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None; set_attr(me, 'ledger', credits(me))
+@set the dueling stone/on_payment = paid = adata('amount', 0) if target == me else 0; bt = V('bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'The stone accepts your stake.')) for g in [ok] if g]; [(remit(here, 'Both stakes are in. The stone addresses the duelists.'), prompt(get('#' + bt['a']), 'The stone hums: rock, paper, or scissors?', 'on_throw'), prompt(get('#' + bt['b']), 'The stone hums: rock, paper, or scissors?', 'on_throw')) for g in [ok and len(bt['paid']) == 2] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The stone spits your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None
 ```
 
 The commit — bank the throw in secret; resolve on the second:
@@ -71,7 +74,7 @@ The commit — bank the throw in secret; resolve on the second:
 The reveal — both throws in one breath, then the pot moves:
 
 ```text
-@set the dueling stone/resolve = bt = V('bout', {}); ch = V('choices', {}); a = bt['a']; b = bt['b']; an = name(get('#' + a)); bn = name(get('#' + b)); ca = ch[a]; cb = ch[b]; beats = {'rock': 'scissors', 'paper': 'rock', 'scissors': 'paper'}; w = a if beats[ca] == cb else (b if beats[cb] == ca else ''); remit(here, 'The stone flares: ' + an + ' throws ' + ca + '; ' + bn + ' throws ' + cb + '.'); (transfer_credits(me, get('#' + a), bt['wager']), transfer_credits(me, get('#' + b), bt['wager']), remit(here, 'A tie. The stakes slide back out of the slot.')) if not w else (transfer_credits(me, get('#' + w), bt['wager'] * 2), remit(here, name(get('#' + w)) + ' takes the pot: ' + str(bt['wager'] * 2) + ' credits.')); del_attr(me, 'bout'); set_attr(me, 'choices', {}); set_attr(me, 'ledger', credits(me)); result = 1
+@set the dueling stone/resolve = bt = V('bout', {}); ch = V('choices', {}); a = bt['a']; b = bt['b']; an = name(get('#' + a)); bn = name(get('#' + b)); ca = ch[a]; cb = ch[b]; beats = {'rock': 'scissors', 'paper': 'rock', 'scissors': 'paper'}; w = a if beats[ca] == cb else (b if beats[cb] == ca else ''); remit(here, 'The stone flares: ' + an + ' throws ' + ca + '; ' + bn + ' throws ' + cb + '.'); (transfer_credits(me, get('#' + a), bt['wager']), transfer_credits(me, get('#' + b), bt['wager']), remit(here, 'A tie. The stakes slide back out of the slot.')) if not w else (transfer_credits(me, get('#' + w), bt['wager'] * 2), remit(here, name(get('#' + w)) + ' takes the pot: ' + str(bt['wager'] * 2) + ' credits.')); del_attr(me, 'bout'); set_attr(me, 'choices', {}); result = 1
 ```
 
 ## Try it

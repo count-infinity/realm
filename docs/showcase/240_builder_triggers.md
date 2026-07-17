@@ -33,6 +33,21 @@ acted. There is no separate "trigger editor": `@set` writes the
 attribute, `@examine` shows it, `@tr obj/attr` test-fires it, and tagging
 the object `halt` stops a runaway machine.
 
+A hook doesn't just learn *that* something happened — it gets the action
+itself, under the same names an `on_check` ward has always used:
+
+| Name | Is |
+|---|---|
+| `enactor` / `actor` | who acted |
+| `target` | what the action targets — how a witness tells "I was paid" from "someone here was paid" |
+| `adata(key, default)` | the action's payload: `amount` on a payment, `item`/`giver` on a give, `damage` on a hit, `pose` on an emote, `percent` on `ON_HITPRCNT` |
+| `atype`, `has_atag(tag)` | the action's type string and its tags |
+
+The same names reach `^listen` scripts. This pass is deliberately
+**read-only**: it runs after the world has already decided, so there is
+no `block()` or `mod()` here — vetoing belongs to `on_check` wards,
+which see the action *before* it lands.
+
 The standard events (from the [softcode reference](../reference/softcode.md),
 which is generated from the engine's own table):
 
@@ -133,6 +148,14 @@ revives him.
 - **Escalate:** `ON_ENTER` on the gallery could `skill_check(enactor,
   'climbing')` in a storm and `damage(enactor, 1)` on a failure — hooks
   run real sandboxed Python with the whole function library.
+- **Read the event, not just the name:** `@tag keeper = npc` (the `give`
+  builtin only hands things to players and tagged NPCs), then
+  `@set keeper/on_receive = say(f'{name(adata("giver"))} gives me
+  {name(adata("item"))}.')` — and he names what he was handed and by
+  whom. Give him an `on_payment` that checks `target == me` and he
+  ignores coins that went to someone else in the room. (`ON_GET`/
+  `ON_DROP` are the exception: there the item *is* the `target`, so
+  there is no `adata('item')` to read.)
 - **React to new events:** fire your own with
   `act(here, 'the beam sweeps past', targeting='room',
   action_type='event:beam')` from one object, and give another

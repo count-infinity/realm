@@ -36,9 +36,10 @@ attribute — `[["a rusty gear", 60], ["a sealed med kit", 30],
 an `@set`, not a script edit. The draw walks it recursively: roll
 `rand(1, 100)`; if the roll fits under the first entry's weight,
 that's the prize; otherwise subtract and recurse down the tail. It's
-the same self-passing lambda trick as the
-[bag of holding](017_bag_of_holding.md)'s weigher — one line, any
-table length. Two independent draws per crate; a 10-weight plasma core
+the same one-line recursive lambda as the
+[bag of holding](017_bag_of_holding.md)'s weigher — the script's names
+all live in one namespace, so the lambda can call itself — one line,
+any table length. Two independent draws per crate; a 10-weight plasma core
 is a 19% chance of turning up at least once.
 
 ## Build it
@@ -63,7 +64,7 @@ The odds, as data:
 The seeding hook — draw twice, flag once, and let the room hear it:
 
 ```text
-@set supply crate/on_open = draw = lambda draw, t, r: t[0][0] if r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); (set_attr(me, 'seeded', 1), create_obj(draw(draw, V('loot'), rand(1, 100)), [], me), create_obj(draw(draw, V('loot'), rand(1, 100)), [], me), remit(loc(me), 'Something rattles and settles inside the crate as the seal breaks.')) if not V('seeded', 0) else None
+@set supply crate/on_open = draw = lambda t, r: t[0][0] if r <= t[0][1] or len(t) == 1 else draw(t[1:], r - t[0][1]); (set_attr(me, 'seeded', 1), create_obj(draw(V('loot'), rand(1, 100)), [], me), create_obj(draw(V('loot'), rand(1, 100)), [], me), remit(loc(me), 'Something rattles and settles inside the crate as the seal breaks.')) if not V('seeded', 0) else None
 ```
 
 Reading the draw: `t[0][0]` is the first entry's name, `t[0][1]` its

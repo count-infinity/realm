@@ -261,33 +261,50 @@ class ScriptFunctions:
         """
         return self.get_attr(self.executor, attr_name, default)
 
-    def incr(self, attr_name: str, by: Any = 1) -> Any:
+    def incr(self, attr_name: str, by: Any = 1, default: Any = 0) -> Any:
         """Increment a numeric attribute on ``me`` and return the new value.
 
-        Shorthand for ``set_attr(me, k, get_attr(me, k, 0) + by)`` that also
-        hands back the result. Returns None if the write is refused (no
+        Shorthand for ``set_attr(me, k, get_attr(me, k, default) + by)`` that
+        also hands back the result. Returns None if the write is refused (no
         authority or the attribute is not writable). Non-numeric current
-        values are treated as 0.
+        values fall back to ``default``.
 
-        Example: incr('visits')        # +1, returns the new count
+        ``default`` is what an *unset* attribute counts as — and it matters
+        more than it looks. Plenty of counters don't start at 0: a lot number
+        whose first lot is #1, a freshness meter that starts full at 6. Pass
+        the same default the read would have used, or the first bump silently
+        lands one short:
+
+            incr('next_lot', default=1)      # first lot is 2, not 1
+            decr('freshness', default=6)     # an unset meter is full
+
+        Get this backwards and you break things quietly in the other
+        direction too: a counter of things *in flight* (pending timers, open
+        sessions) means **zero** when unset, and giving it `default=1` leaves
+        a phantom that never drains. Match the read; don't guess.
+
+        Example: incr('visits')             # +1 from 0, returns the new count
                  incr('charge', 5)
+                 incr('next_lot', default=1)
         """
-        current = self.get_attr(self.executor, attr_name, 0)
-        if not isinstance(current, (int, float)):
-            current = 0
+        current = self.get_attr(self.executor, attr_name, default)
+        if not isinstance(current, (int, float)) or isinstance(current, bool):
+            current = default
         new_value = current + by
         if self.set_attr(self.executor, attr_name, new_value):
             return new_value
         return None
 
-    def decr(self, attr_name: str, by: Any = 1) -> Any:
+    def decr(self, attr_name: str, by: Any = 1, default: Any = 0) -> Any:
         """Decrement a numeric attribute on ``me`` and return the new value.
 
-        The mirror of :meth:`incr`. Returns None if the write is refused.
+        The mirror of :meth:`incr`, including its ``default`` (what an unset
+        attribute counts as). Returns None if the write is refused.
 
-        Example: decr('ammo')          # -1, returns the new count
+        Example: decr('ammo')                  # -1 from 0
+                 decr('breath', default=3)     # an unset meter starts full
         """
-        return self.incr(attr_name, -by)
+        return self.incr(attr_name, -by, default=default)
 
     # --- Tag operations ---
 
@@ -753,6 +770,12 @@ class ScriptFunctions:
         target = self._resolve(obj)
         if not self._in_reach(target):
             return False
+        # Record who applied this, so an indirect kill can still name its
+        # killer: a poison tick that finishes someone announces the death,
+        # but had nobody to blame — bounty boards heard the death and could
+        # not pay. The applier is simply whoever ran this script.
+        if self.executor is not None:
+            params.setdefault('source_id', self.executor.id)
         behavior = BehaviorRegistry.create(str(effect_id), **params)
         if behavior is None:
             return False

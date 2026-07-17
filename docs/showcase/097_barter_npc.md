@@ -29,18 +29,23 @@ same trick, different axis.)
 
 **`ON_RECEIVE` is the deal.** `give <thing> to Rook the Tinker` works
 because Rook is `npc`-tagged, and his recipient-side hook fires after
-the item lands. This build finds the new arrival as whatever he holds
-that isn't stamped `kept` (the coat-check idiom); `adata('item')` now
-names it directly. The
+the item lands, with `adata('item')` naming exactly what arrived. The
 script walks the want-list for the first row whose tag the item
 carries:
 
-- **Match:** stamp the item `kept` (Rook hoards his takings — the stamp
-  is also what keeps it out of the *next* trade's "new arrival" scan),
-  then conjure the counter-gift. `create_obj` refuses to create
-  directly into another player's pockets — the documented engine
-  behavior — so Rook crafts it *in his own hands* and `teleport_obj`s
-  it over: handing over what you hold is always yours to do.
+- **Match:** stamp the item `kept` — Rook hoards his takings, and the
+  stamp is how the hoard is marked. (This is the one spot where a
+  barter NPC used to be subtle: with no way to be told what had just
+  landed, the hook had to find the arrival by elimination — the one
+  thing in Rook's hands not yet stamped `kept` — which made the stamp
+  load-bearing for the *next* trade's scan as well. It doesn't have to
+  be any more. `adata('item')` says which object arrived, so `kept`
+  means "mine" and nothing else, and Rook can hold whatever he likes
+  without confusing his own till.) Then conjure the counter-gift.
+  `create_obj` refuses to create directly into another player's pockets
+  — the documented engine behavior — so Rook crafts it *in his own
+  hands* and `teleport_obj`s it over: handing over what you hold is
+  always yours to do.
 - **No match:** the item goes straight back (`teleport_obj` again) with
   a spoken refusal. A barter counter that silently keeps non-matching
   goods is a theft bug, the same rule every escrow build in this arc
@@ -71,10 +76,12 @@ The menu, for the asking:
 @set Rook the Tinker/cmd_wants = $wants:pemit(enactor, 'Rook trades goods for goods. No coin.'); [pemit(enactor, f'  anything {w} -> {g}') for w, g in V('wants', [])]
 ```
 
-And the deal itself — his receive hook:
+And the deal itself — his receive hook. `it` is the arrival, `deal` is
+every want-row whose tag it carries (the first one wins), and the two
+outcomes are the two conditionals at the end:
 
 ```text
-@set Rook the Tinker/on_receive = stuff = [o for o in contents(me) if not has_attr(o, 'kept')]; it = stuff[0] if stuff else None; deal = [[w, g] for itx in [it] for w, g in V('wants', []) if itx is not None and has_tag(itx, w)]; [(set_attr(x, 'kept', 1), teleport_obj(c, enactor), say(f'A fair swap: {name(c)} for your {name(x)}.')) for ok, x, d in [[bool(deal), it, deal]] if ok for w, g in [d[0]] for c in [create_obj(g, tags=['thing'], location=me)]]; (teleport_obj(it, enactor), say('No use to me. Ask me what I want.')) if it is not None and not deal else None
+@set Rook the Tinker/on_receive = it = adata('item') if target is me else None; deal = [[w, g] for w, g in V('wants', []) if it is not None and has_tag(it, w)]; [(set_attr(it, 'kept', 1), teleport_obj(c, enactor), say(f'A fair swap: {name(c)} for your {name(it)}.')) for w, g in ([deal[0]] if deal else []) for c in [create_obj(g, tags=['thing'], location=me)]]; (teleport_obj(it, enactor), say('No use to me. Ask me what I want.')) if it is not None and not deal else None
 ```
 
 Something to trade with (any object carrying the tag qualifies — that's

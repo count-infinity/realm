@@ -1,6 +1,6 @@
 # 176. Staff dashboard
 
-> Checklist item 176 — [now] — *world-zone master, ON_CONNECT roster, search_world() census, eval_attr() render, the honest presence/error boundary*
+> Checklist item 176 — [now] — *world-zone master, ON_CONNECT roster, ON_DEATH witness reading target/adata(), search_world() census, eval_attr() render, the honest presence/error boundary*
 
 **What you'll build:** an `Ops Console` you install once and read with a
 single word — `dashboard` — that prints station health at a glance:
@@ -10,8 +10,10 @@ rolling feed of recent incidents.
 **Concepts:** the **world-zone master** as a station-wide console, an
 **ON_CONNECT/ON_DISCONNECT presence roster** (the honest workaround for
 softcode's missing presence query — from
-[083](083_message_in_bottle.md)), `search_world()` as a census tool,
-`eval_attr()` for a tidy render helper, staff gating by tag, and where
+[083](083_message_in_bottle.md)), `search_world()` as a census tool, a
+witness that **reads the action's own data** (`target`, `adata()`) instead
+of guessing from the enactor, `eval_attr()` for a tidy render helper,
+staff gating by tag, and where
 softcode's honest reach ends: the builtin `@stats` and the server log
 own the engine internals softcode can't see.
 
@@ -36,9 +38,28 @@ hard crash that strands a stale id can't inflate the number.
 **The census is just `search_world()`.** Rooms, NPCs, and things are
 counted by tag on demand — cheap, exact, and always current.
 
-**Incidents are whatever you wire a hook to log.** Here the console's
-`on_death` appends a line whenever anything dies on the world zone; point
-more `ON_*` hooks at the same list and the feed grows. **The honest
+**Incidents are whatever you wire a hook to log.** The console's
+`on_death` appends a line whenever anything dies on the world zone — and
+*anything* means anything. The engine announces `combat:on_death` from
+its one death path, so a mob cut down in a duel, an NPC finished off by a
+poison tick or a landmine, and a player going down all reach this hook
+alike; nothing has to be polled for.
+
+**A witness reads the action, not just the actor.** An `ON_<EVENT>` hook
+gets the same names an `on_check` ward has always had, so the feed asks
+the death itself who fell rather than guessing:
+
+- **`target`** is the victim. `enactor` is the *killer* — bound to the
+  actor, as on every event — which is why the line reads `name(target)`.
+  A death with no killer (a poison tick, a long fall) has no actor at
+  all, and `name(enactor)` would be empty.
+- **`adata('killer')`** is the killer's name, or nothing when the world
+  did it. The line only appends `(by …)` when there is someone to blame.
+- **`adata('fatal')`** separates a real death — an NPC, now a corpse —
+  from a player merely knocked unconscious, so the board can say `death:`
+  or `down:` honestly instead of reporting every KO as a fatality.
+
+Point more `ON_*` hooks at the same list and the feed grows. **The honest
 boundary:** softcode cannot read the engine's Python error stream or its
 internal tick metrics — those live in the builtin **`@stats`** (tick
 pacing, behavior load, scheduled waits, active combat) and in the server
@@ -71,7 +92,7 @@ The presence roster and the incident feed — three witnesses:
 ```text
 @set Ops Console/on_connect = set_attr(me, 'online', [i for i in (V('online') or []) if i != enactor.id] + [enactor.id])
 @set Ops Console/on_disconnect = set_attr(me, 'online', [i for i in (V('online') or []) if i != enactor.id])
-@set Ops Console/on_death = set_attr(me, 'incidents', ((V('incidents') or []) + [f'death: {name(enactor)} in {name(here)}'])[-20:])
+@set Ops Console/on_death = kind = 'death' if adata('fatal') else 'down'; by = adata('killer'); entry = f'{kind}: {name(target)} in {name(here)}' + (f' (by {by})' if by else ''); set_attr(me, 'incidents', ((V('incidents') or []) + [entry])[-20:])
 ```
 
 The render helper and the gated verb that calls it:
@@ -87,7 +108,8 @@ The render helper and the gated verb that calls it:
 
 ## Try it
 
-As two players connect and one dies, then a staffer reads the board:
+As two players connect, Kess kills a rat and Zeke is dropped by something
+nameless, a staffer reads the board:
 
 ```text
 dashboard
@@ -96,8 +118,13 @@ dashboard
    -> online: 2 / 3 characters
    -> world: 1 rooms, 0 npcs, 0 things
    -> --- recent incidents ---
-   -> death: Zeke in The Operations Center
+   -> death: a rat in The Operations Center (by Kess)
+   -> down: Zeke in The Operations Center
 ```
+
+The rat died with a name attached; Zeke went `down` rather than `death`
+because a player who drops is unconscious, not gone — `adata('fatal')`
+is what tells them apart.
 
 A non-staff character gets nothing: `The ops console stays dark for
 you.` Then reach past softcode into the engine itself:
@@ -118,7 +145,10 @@ for the engine's.
 
 - **Wider incidents** — point `on_hitprcnt`, `on_attack`, or a custom
   `act()` event at the same `incidents` list and the feed covers boss
-  fights, brawls, and alarms, not just deaths.
+  fights, brawls, and alarms, not just deaths. Each carries its own
+  payload for `adata()` to read — `on_attack` has `weapon`,
+  `attacker_hp`, `defender_hp`; `on_damage` has `damage` and
+  `damage_types` — so the lines can be as detailed as you like.
 - **GMCP telemetry** — `oob(enactor, 'Ops.Health', {...})` pushes the
   same numbers to a client-side heads-up panel
   ([item 193](193_gmcp_oob.md) has the GMCP tour).

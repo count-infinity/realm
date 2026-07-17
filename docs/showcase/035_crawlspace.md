@@ -57,7 +57,7 @@ The ward, cellar side — weigh the walker, compare against the local
 face's limit, quote both numbers:
 
 ```text
-@set here/on_check = load = sum([int(get_attr(o, 'weight', 1)) for o in contents(actor)]); gap = get('narrow crawlspace'); block(f"You wedge fast: {load} lbs of bulk against a {get_attr(gap, 'max_load', 5)} lb squeeze. Shed some kit.") if has_atag('movement') and adata('exit') == gap and load > int(get_attr(gap, 'max_load', 5)) else None
+@set here/on_check = load = sum(int(get_attr(o, 'weight', 1)) for o in contents(actor)); gap = get('narrow crawlspace'); block(f"You wedge fast: {load} lbs of bulk against a {get_attr(gap, 'max_load', 5)} lb squeeze. Shed some kit.") if has_atag('movement') and adata('exit') == gap and load > int(get_attr(gap, 'max_load', 5)) else None
 ```
 
 Crawl through (empty pockets fit fine) and give the nook the very same
@@ -66,7 +66,7 @@ lines — `get('narrow crawlspace')` now resolves to *this* side's face:
 ```text
 narrow crawlspace
 @set narrow crawlspace/max_load = 5
-@set here/on_check = load = sum([int(get_attr(o, 'weight', 1)) for o in contents(actor)]); gap = get('narrow crawlspace'); block(f"You wedge fast: {load} lbs of bulk against a {get_attr(gap, 'max_load', 5)} lb squeeze. Shed some kit.") if has_atag('movement') and adata('exit') == gap and load > int(get_attr(gap, 'max_load', 5)) else None
+@set here/on_check = load = sum(int(get_attr(o, 'weight', 1)) for o in contents(actor)); gap = get('narrow crawlspace'); block(f"You wedge fast: {load} lbs of bulk against a {get_attr(gap, 'max_load', 5)} lb squeeze. Shed some kit.") if has_atag('movement') and adata('exit') == gap and load > int(get_attr(gap, 'max_load', 5)) else None
 narrow crawlspace
 ```
 

@@ -3,16 +3,19 @@
 > Checklist item 95 — [now] — *durability attrs, master ON_ATTACK bookkeeping, $repair*
 
 **What you'll build:** gear that wears out and a bench that charges to
-fix it: weapons lose condition with every combat swing (a room-master
-`ON_ATTACK` does the bookkeeping), tools lose it on every `use` (their
-own `ON_USE` does), ruined gear refuses to be readied (an `on_check`
-ward), and the repair bench burns credits — a true money sink.
+fix it: weapons lose condition with every combat swing and armour with
+every blow it stops (a room-master's `ON_ATTACK` and `ON_DAMAGE` do the
+bookkeeping), tools lose it on every `use` (their own `ON_USE` does),
+ruined gear refuses to be readied (an `on_check` ward), and the repair
+bench burns credits — a true money sink.
 
 **Concepts:** a `condition` attribute as the wear state; **which engine
-events can honestly drive wear** (and which can't); witness-side
-`ON_ATTACK` bookkeeping on a master; self-mutating `ON_USE` on tools;
-gated `item:on_wield` refused by an `on_check` ward; `$repair` with
-`adjust_credits(me, -cost)` as an explicit credit burn.
+events can honestly drive wear** (and how the event payload decides);
+witness-side `ON_ATTACK`/`ON_DAMAGE` bookkeeping on a master; `target`
+and `adata('damage')` as the difference between "someone was hit" and
+"*they* were hit for *this much*"; self-mutating `ON_USE` on tools;
+gated `item:on_wield` / `item:on_wear` refused by an `on_check` ward;
+`$repair` with `adjust_credits(me, -cost)` as an explicit credit burn.
 
 ## How it works
 
@@ -23,32 +26,45 @@ thinking, so start from the engine's actual event surface:
   the to-hit roll — a whiff still wears the blade), witnessed by the
   room, its contents, and zone masters. A *wear master* standing in the
   room hears every swing.
+- **Landed blows**: a hit that does damage propagates `combat:on_damage`
+  — and its payload carries both `target` (who took it) and
+  `adata('damage')` (how hard). That's the armour event.
 - **Deliberate use**: the `use` builtin propagates `item:on_use` at the
   target — the tool itself can carry the `ON_USE` that wears it.
 - **`$`-verb tools** (a welding rig's own `$weld *`): the verb script
   can decrement its own condition inline — self-mutation is always
   within an object's authority.
 
-What **cannot** honestly drive wear today: armor on the *defender*. An
-event trigger binds only the enactor (the attacker) into its namespace —
-`combat:on_damage` reaches witnesses, but they cannot see *who took the
-hit* (the action's target isn't bound, the same no-payload limitation as
-`ON_PAYMENT`'s missing amount). So this build wears the attacker's
-wielded weapon per swing — knowable from `enactor` alone — and leaves
-defender-side armor wear as an engine gap, noted below. Walking,
-carrying, and time don't fire item events either; if you want age, put
-it on a ticker (see Going further).
+**The payload is what makes each of these honest.** An observer script
+gets the same names a ward gets: `actor` (who swung), `target` (who it
+landed on), and `adata(key)` for the action's data. That is precisely
+what defender-side wear needs — `enactor` alone would only ever tell you
+who *attacked*, so armour would have nowhere to hang. Read the two hooks
+side by side and the design falls out: `ON_ATTACK` fires per *swing* and
+knows the attacker, so it wears the **weapon** by a flat amount (whiffs
+included — the blade is levered whether or not it connects). `ON_DAMAGE`
+fires per *landed blow* and knows the victim and the number, so it wears
+the **armour** by the damage it stopped. Wear that scales with what
+actually hit you is the honest booking, and the payload is what makes it
+sayable.
+
+What still **cannot** drive wear: walking, carrying, and time fire no
+item events at all; if you want age, put it on a ticker (see Going
+further).
 
 **The bookkeeping lives on a witness, the gate lives on the item.** The
 wear master's `ON_ATTACK` finds the enactor's `wielded`-tagged item and
 knocks 5 off its `condition` (admin authority may mutate a player's
-gear), announcing at the battered threshold and at zero. The item
-itself carries the *refusal*: `item:on_wield` is a gated event, so an
-`on_check` ward on the weapon vetoes readying it at condition 0. A
-broken blade already in hand keeps swinging its ruined swings — the
-engine has no per-swing weapon check pass — but once lowered it will
-not come back up until repaired. Say so to your players; honest rules
-beat leaky ones.
+gear); its `ON_DAMAGE` does the mirror image on `contents(target)` for
+`worn`-tagged items. Both announce at the battered threshold and at
+zero. One witness object, two hooks, every piece of gear in the room
+accounted for. The items themselves carry the *refusal*: `item:on_wield`
+and `item:on_wear` are gated events, so an `on_check` ward on the weapon
+or the vest vetoes readying it at condition 0. A broken blade already in
+hand keeps swinging its ruined swings, and a shredded vest already worn
+keeps being worn — the engine has no per-swing equipment check pass —
+but once lowered or taken off, neither comes back until repaired. Say so
+to your players; honest rules beat leaky ones.
 
 **Repair is a sink, not a transfer.** The bench takes the fee with
 `transfer_credits` (which is also the wallet check), then *burns it*
@@ -79,6 +95,19 @@ and a break notice at 0:
 @set the wear master/ON_ATTACK = [(set_attr(o, 'condition', c), remit(here, f'{name(o)} is looking battered.') if c == 25 else None, remit(here, f'{name(o)} gives out with a crack!') if c == 0 else None) for o in contents(enactor) if has_tag(o, 'wielded') for c in [max(0, get_attr(o, 'condition', 100) - 5)]]
 ```
 
+And the mirror hook for armour. `ON_DAMAGE` only fires when a blow
+actually lands, so this is `contents(target)` — the *victim's* pack, not
+the attacker's — and the wear is `adata('damage')`, the size of the blow
+the plate just soaked:
+
+```text
+@set the wear master/ON_DAMAGE = [(set_attr(o, 'condition', c), remit(here, f'{name(o)} is scarred and dented.') if c == 25 else None, remit(here, f'{name(o)} comes apart at the seams!') if c == 0 else None) for o in contents(target) if has_tag(o, 'worn') for c in [max(0, get_attr(o, 'condition', 100) - adata('damage', 1))]]
+```
+
+(`contents(target)` is safe on a hook that somehow arrives without one:
+`contents(None)` is the empty list, so the comprehension simply does
+nothing.)
+
 A weapon that starts sound and refuses to be readied once ruined — the
 ward runs in the gated `item:on_wield` check pass:
 
@@ -87,6 +116,18 @@ ward runs in the gated `item:on_wield` check pass:
 @set a mono blade/value = 40
 @set a mono blade/condition = 100
 @set a mono blade/on_check = block('The mono blade is a ruin of snapped segments. It needs a bench.') if atype == 'item:on_wield' and V('condition', 100) <= 0 else None
+```
+
+And its defensive counterpart — `wearable` is what makes the `wear`
+builtin accept it, and the ward gates `item:on_wear` exactly as the
+blade's gates `item:on_wield`:
+
+```text
+@create a flak vest
+@tag a flak vest = wearable
+@set a flak vest/value = 30
+@set a flak vest/condition = 100
+@set a flak vest/on_check = block('The flak vest is split webbing and loose plate. It needs a bench.') if atype == 'item:on_wear' and V('condition', 100) <= 0 else None
 ```
 
 A tool that wears itself on every `use` — no master needed, the target
@@ -134,12 +175,20 @@ shrank. The welder tells the same story faster: `use an arc welder`
 twice (20 → 10 → 0), then a third `use` is refused by its own ward
 until `repair an arc welder` (10 credits) revives it.
 
-**Engine gap (noted for the integrator):** event triggers bind only the
-enactor — a witness of `combat:on_damage` cannot identify the defender,
-so armor wear on the *receiving* side can't be booked from a master.
-Binding the action's target (and payload, e.g. damage amount) into the
-trigger namespace — as wards get via `adata` — would unlock it; today
-armor wear needs the audit's zone-master pattern *plus* that binding.
+Now stand still and let something hit *you*:
+
+```text
+wear a flak vest            -> You put on the a flak vest.
+(something in the yard swings back)
+                            -> the vest drops by the damage each blow does
+```
+
+At 25 the room hears "a flak vest is scarred and dented."; at 0, "a flak
+vest comes apart at the seams!" — and `remove a flak vest` then `wear a
+flak vest` gets the vest's own refusal until the bench trues it. Note
+the asymmetry, and that it's deliberate: the blade wears on every swing
+you *throw*, the vest only on blows that actually *land*. A fight you
+dominate ruins your weapon and leaves your armour untouched.
 
 ## Going further
 

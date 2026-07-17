@@ -8,9 +8,10 @@ the Harbor Agent in time and you're paid, hand them over late and they're
 refused and pushed back into your hands.
 
 **Concepts:** the fetch/carry template; **verification riding `give` +
-`ON_RECEIVE`** (the hand-in *is* the proof); a **deadline as a `now()`
-timestamp** on the carrier; an explicit **failure state** (stale orders);
-the create-into-room-then-hand-over idiom (working around the
+`ON_RECEIVE`** (the hand-in *is* the proof), reading `adata('item')` /
+`adata('giver')` off the event; a **deadline as a `now()` timestamp** on
+the carrier; an explicit **failure state** (stale orders); the
+create-into-room-then-hand-over idiom (working around the
 create-into-player gap).
 
 ## How it works
@@ -30,11 +31,16 @@ Three design points:
   in the common path — the deadline is just a number compared against
   `now()` at hand-in. (`now()` is epoch seconds; arithmetic, not
   scheduling, does the work — same clock as the [motion sensor](055_motion_sensor.md).)
-- **Verification is the recipient's `ON_RECEIVE`.** The Harbor Agent keeps
-  nothing, so whatever is in his hands *is* the delivery. The hook gets no
-  payload (the standard event-trigger limit), but it doesn't need one: it
-  reads its own contents for an `orders`-tagged item and checks the
-  giver's `deliver_by` against `now()`.
+- **Verification is the recipient's `ON_RECEIVE`.** The hook is told
+  exactly what it was handed: `adata('item')` is the item, `adata('giver')`
+  the person who handed it over ([245](245_event_bus_tour.md) has the whole
+  data namespace). So the Agent checks *that* item for the `orders` tag and
+  the giver's `deliver_by` against `now()` — no rummaging through his own
+  pockets to guess which thing just arrived, and no way to be fooled by an
+  `orders` item he was already holding. But the hook fires on **every**
+  handover in the room, so it must first check `target is me` — see the
+  build note; a verifier that skips that pays out for deliveries made to
+  somebody else.
 - **Failure is a real branch, not silence.** On time → pay and consume the
   orders. Late → refuse and `teleport_obj` them straight back, because an
   interface that quietly swallowed a failed delivery would be a theft bug.
@@ -59,8 +65,9 @@ drop Postmaster Vane
 ```
 
 The destination and the recipient. The Harbor Agent's `ON_RECEIVE` is the
-whole verifier — on-time pays 60 credits and consumes the orders; stale
-refuses and shoves them back:
+whole verifier — it reads the handed-over item off the event, and on-time
+pays 60 credits and consumes the orders while stale refuses and shoves them
+back:
 
 ```text
 @dig The Harbor Office = harbor, back
@@ -68,9 +75,20 @@ harbor
 @create Harbor Agent
 @tag Harbor Agent = npc
 drop Harbor Agent
-@set Harbor Agent/on_receive = it = ([o for o in contents(me) if has_tag(o, 'orders')] or [None])[0]; ontime = get_attr(enactor, 'deliver_by', 0) > now(); (None if it is None else ((set_attr(enactor, 'deliver_by', 0), destroy_obj(it), adjust_credits(enactor, 60), say('The orders, at last. Sixty credits for your trouble.')) if ontime else (set_attr(enactor, 'deliver_by', 0), teleport_obj(it, enactor), say('These orders are stale. I cannot accept them.'))))
+@set Harbor Agent/on_receive = it = adata('item') if target is me else None; who = adata('giver'); ontime = get_attr(who, 'deliver_by', 0) > now(); (None if not (it and who and has_tag(it, 'orders')) else ((set_attr(who, 'deliver_by', 0), destroy_obj(it), adjust_credits(who, 60), say('The orders, at last. Sixty credits for your trouble.')) if ontime else (set_attr(who, 'deliver_by', 0), teleport_obj(it, who), say('These orders are stale. I cannot accept them.'))))
 back
 ```
+
+**`if target is me` is load-bearing, not decoration.** `ON_RECEIVE` is
+propagated to *every* witness in the room, not just the recipient — so
+without that guard the Agent would fire on handovers between two other
+people standing in his office, and pay 60 credits for orders he never
+received. `target` is the recipient; `target is me` is how the Agent asks
+"was that handed to *me*?" ([245](245_event_bus_tour.md)).
+
+Note also `adata('giver')` rather than `enactor` for the payee. They are
+the same person here, but naming the giver says *why* he is the one being
+paid: the reward follows the delivery, not the ambient actor.
 
 ## Try it
 

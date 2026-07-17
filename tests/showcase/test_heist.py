@@ -4,10 +4,12 @@ Showcase verification — the Heist arc (docs/showcase/arc_heist.md).
 Items: 27 secret door, 16 combination safe, 49 landmine, 54 security
 camera & monitor, 48 gas bomb, 160 sneaking.
 
-Every command line in each tutorial's "Build it" section is driven
+Every command line in each tutorial's "Build it" section is read
+straight out of its markdown (docs/showcase/NNN_*.md) and driven
 through the real dispatcher (raw input in -> session output out) by a
-builder player, exactly as typed in the docs; the plays then exercise
-the tutorials' "Try it" flows and assert outcomes.
+builder player — so a doc edit that breaks the build breaks this suite.
+The plays then exercise the tutorials' "Try it" flows and assert
+outcomes.
 
 Dice are removed via the pluggable check resolver (same convention as
 tests/test_infiltration.py): a check succeeds iff effective skill >= 10,
@@ -18,6 +20,8 @@ line runner re-pins the deterministic resolver after every command.
 
 from __future__ import annotations
 
+from pathlib import Path
+import re
 import time
 from types import SimpleNamespace
 
@@ -41,134 +45,36 @@ def level_resolver(obj, skill, modifier):
     )
 
 
-# --- Build transcripts (the tutorials' exact "Build it" lines) -----------------
+# --- Build transcripts, read from the tutorials --------------------------------
 
-# docs/showcase/027_secret_door.md
-BUILD_27 = [
-    "@dig The Security Office",
-    "@teleport me = The Security Office",
-    "@dig Maintenance Corridor = east, west",
-    "east",
-    "@dig Vault Antechamber",
-    "@open loose grate = Vault Antechamber",
-    "@desc loose grate = A dented ventilation grate low on the wall, screwed into its frame.",
-    "@set loose grate/conceal_difficulty = 2",
-    "@set loose grate/reveal_msg = One grate sits loose in its frame -- a crawlway yawns behind it!",
-    "@tag loose grate = invisible",
-    "@set here/on_enter = g = get('loose grate'); (remove_tag(g, 'invisible'), pemit(enactor, get_attr(g, 'reveal_msg'))) if g and has_tag(g, 'invisible') and has_tag(enactor, 'player') and skill_check(enactor, 'observation', -4) else None",
-    "@teleport me = Vault Antechamber",
-    "@open duct = Maintenance Corridor",
-    "@desc duct = The crawlway back up into the maintenance corridor.",
-]
+DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
 
-# docs/showcase/016_combination_safe.md
-BUILD_16 = [
-    "@dig Nexagen Vault = vault door, antechamber",
-    "@tag vault door = closed",
-    "open vault door",
-    "vault door",
-    "@create wall safe",
-    "@set wall safe/container = true",
-    "drop wall safe",
-    "@create prototype schematics",
-    "put prototype schematics in wall safe",
-    "close wall safe",
-    "@set wall safe/locked = true",
-    "@set wall safe/locked_msg = The safe door doesn't budge. Engraved under the dial: DIAL <NUMBER>.",
-    "@set wall safe/lock_skill = lockpicking",
-    "@set wall safe/lock_difficulty = 4",
-    "@set wall safe/code = 17 4 33",
-    "@attr wall safe/code = secret",
-    "@set wall safe/cmd_dial = $dial *: seq = (V('entered') or []) + [trim(arg0)]; code = str(V('code')).split(); done = len(seq) >= len(code); set_attr(me, 'entered', [] if done else seq); (set_attr(me, 'locked', False), pemit(enactor, 'CLUNK. The last tumbler drops -- the wall safe unlocks.')) if done and seq == code else pemit(enactor, 'Clunk. The dial spins back to zero.' if done else 'Click.')",
-    "@set wall safe/cmd_setcode = $setcode: pemit(enactor, 'Only the owner may reset the dial.') if enactor != owner(me) else (pemit(enactor, 'Open the safe first -- the reset switch is inside the door.') if has_tag(me, 'closed') else prompt(enactor, 'New combination (numbers separated by spaces):', 'on_new_code'))",
-    "@set wall safe/on_new_code = (set_attr(me, 'code', trim(arg0)), pemit(enactor, f'The tumblers reseat. New combination: {trim(arg0)}')) if trim(arg0) and trim(arg0).replace(' ', '').isdigit() else pemit(enactor, 'Numbers separated by spaces, nothing else. The dial is unchanged.')",
-    "@teleport me = The Security Office",
-    "@create crumpled note",
-    "drop crumpled note",
-    "@desc crumpled note = Hurried handwriting: '17 - 4 - 33. Do NOT write this down.'",
-]
-
-# docs/showcase/049_landmine.md
-BUILD_49 = [
-    "@teleport me = Vault Antechamber",
-    "@create anti-personnel mine",
-    "drop anti-personnel mine",
-    "@set anti-personnel mine/armed = 1",
-    "@set anti-personnel mine/skill_concealment = 13",
-    "@set anti-personnel mine/conceal_difficulty = 3",
-    "@set anti-personnel mine/reveal_msg = Dust brushed aside -- a pressure plate, wired and live!",
-    "@set anti-personnel mine/on_check = block('It is wedged into the floor -- and armed.') if atype == 'item:on_get' and target == me else None",
-    "@set anti-personnel mine/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step around the exposed mine.') if not has_tag(me, 'invisible') else ((remove_tag(me, 'invisible'), pemit(x, 'You freeze mid-step -- a pressure plate, right under your boot!')) if contest(x, 'observation', me, 'concealment') else eval_attr(me, 'boom'))))",
-    "@set anti-personnel mine/boom = remove_tag(me, 'invisible'); set_attr(me, 'armed', 0); pemit(enactor, 'KA-WHUMP! The floor erupts under you.'); oemit(enactor, f'{name(enactor)} sets off a buried mine!'); damage(enactor, roll('2d6'))",
-    "@tag anti-personnel mine = invisible",
-]
-
-# docs/showcase/054_security_camera.md
-BUILD_54 = [
-    "@teleport me = The Security Office",
-    "@create security monitor",
-    "drop security monitor",
-    "@desc security monitor = A bank of grainy feeds. WATCH to put an eye on the vault approach; UNWATCH to look away.",
-    "@set security monitor/cmd_watch = $watch: ws = V('watchers') or []; set_attr(me, 'watchers', ws if enactor.id in ws else ws + [enactor.id]); pemit(enactor, 'You settle in at the console. The antechamber feed flickers to life.')",
-    "@set security monitor/cmd_unwatch = $unwatch: set_attr(me, 'watchers', [i for i in (V('watchers') or []) if i != enactor.id]); pemit(enactor, 'You look away from the monitor.')",
-    "@teleport me = Vault Antechamber",
-    "@create security camera",
-    "drop security camera",
-    "@desc security camera = A glass eye on a ceiling mount, cable disappearing into the wall.",
-    "@set security camera/powered = 1",
-    "@set security camera/feed = security monitor",
-    "@set security camera/relay = m = get(V('feed', '')); ws = (get_attr(m, 'watchers') or []) if (m and V('powered', 1)) else []; live = [w for w in [get('#' + str(i)) for i in ws] if w and loc(w) == loc(m)]; [pemit(w, f'[{name(me)}] {arg0}') for w in live]; set_attr(m, 'watchers', [w.id for w in live]) if m and len(live) != len(ws) else None",
-    "@set security camera/listen_feed = ^*: eval_attr(me, 'relay', f'{name(enactor)} says, \"{arg0}\"') if enactor else None",
-    "@set security camera/on_enter = eval_attr(me, 'relay', f'{name(enactor)} arrives.') if enactor else None",
-    "@set security camera/on_leave = eval_attr(me, 'relay', f'{name(enactor)} leaves.') if enactor else None",
-    "@set security camera/cmd_cut = $cut *: (set_attr(me, 'powered', 0), remit(loc(me), f'{name(enactor)} snips a cable -- the camera light dies.')) if skill_check(enactor, 'electronics', -2) else pemit(enactor, 'Sparks jump; the housing is trickier than it looks.')",
-]
-
-# docs/showcase/048_gas_bomb.md
-BUILD_48 = [
-    "@teleport me = Maintenance Corridor",
-    "@create fortitude",
-    "@tag fortitude = skill_def",
-    "@set fortitude/stat = health",
-    "@set fortitude/penalty = 0",
-    "@reload",
-    "@create gas cloud prototype",
-    "@set gas cloud prototype/cloud_tick = [(pemit(o, 'The gas sears your lungs!'), damage(o, roll('1d6'))) if not skill_check(o, 'fortitude', -1) else pemit(o, 'Eyes streaming, you keep your sleeve pressed over your face.') for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')]",
-    "@set gas cloud prototype/cloud_enter = pemit(enactor, 'Stinging yellow gas fills this room!') if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None",
-    "@create gas bomb",
-    "@set gas bomb/fuse = 10",
-    "@set gas bomb/cmd_arm = $arm bomb: pemit(enactor, 'Set it down first -- arm it in your hands and you wear it.') if not (loc(me) and has_tag(loc(me), 'room')) else (pemit(enactor, 'It is already hissing.') if V('armed', 0) else (set_attr(me, 'armed', 1), remit(loc(me), f'{name(enactor)} twists the fuse cap. A thin hiss starts.'), wait(V('fuse', 10), 'trigger me/detonate')))",
-    "@set gas bomb/detonate = proto = get('gas cloud prototype'); dests = [get('#' + str(get_attr(e, 'destination', ''))) for e in exits(loc(me)) if not has_tag(e, 'closed')]; clouds = [c for c in [create_obj('a cloud of stinging gas', location=r) for r in [loc(me)] + [d for d in dests if d]] if c]; [set_attr(c, 'on_tick', get_attr(proto, 'cloud_tick')) for c in clouds]; [set_attr(c, 'on_enter', get_attr(proto, 'cloud_enter')) for c in clouds]; [attach_behavior(c, 'script_ticker', interval=2) for c in clouds]; [expire(c, 60) for c in clouds]; [remit(loc(c), 'A thick bank of stinging gas billows in!') for c in clouds]; destroy_obj(me)",
-    "drop gas bomb",
-]
-
-# docs/showcase/160_sneaking.md
-BUILD_160 = [
-    "@teleport me = Nexagen Vault",
-    "@create Vault Sentry",
-    "@tag Vault Sentry = npc",
-    "drop Vault Sentry",
-    "@set Vault Sentry/hp = 13",
-    "@set Vault Sentry/max_hp = 13",
-    "@set Vault Sentry/health = 10",
-    "@set Vault Sentry/skill_observation = 12",
-    "@behavior Vault Sentry = watchful, challenge:This wing is off limits., spot_msg:Intruder! Show yourself!",
-    "@set Vault Sentry/listen_creak = ^*creak*: incr('alert_level'); say('Who goes there?')",
-    "@create loose floorboard",
-    "drop loose floorboard",
-    "@desc loose floorboard = One plank sits a hair prouder than its brothers.",
-    "@set loose floorboard/on_enter = (None if not (has_tag(enactor, 'hidden') and has_tag(enactor, 'player')) else (pemit(enactor, 'You cross the boards without a sound.') if skill_check(enactor, 'stealth', -3) else cmd('emit A floorboard creaks sharply!')))",
-]
-
-STAGES = {
-    27: BUILD_27,
-    16: BUILD_16,
-    49: BUILD_49,
-    54: BUILD_54,
-    48: BUILD_48,
-    160: BUILD_160,
+DOC_FOR = {
+    27: "027_secret_door.md",
+    16: "016_combination_safe.md",
+    49: "049_landmine.md",
+    54: "054_security_camera.md",
+    48: "048_gas_bomb.md",
+    160: "160_sneaking.md",
 }
 ARC_ORDER = [27, 16, 49, 54, 48, 160]
+
+
+def build_lines(doc_name: str) -> list[str]:
+    """Every command line in the tutorial's "Build it" fenced blocks.
+
+    The suite executes what the doc SAYS to type. There is nothing to
+    keep in sync — a build that regresses here regressed in the tutorial.
+    """
+    body = (DOCS / doc_name).read_text(encoding="utf-8")
+    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+    assert match, f"{doc_name}: no Build it section"
+    lines: list[str] = []
+    for block in re.findall(r"```text\n(.*?)```", match.group(1), re.S):
+        lines.extend(line for line in block.splitlines() if line.strip())
+    assert lines, f"{doc_name}: empty Build it"
+    return lines
+
 
 BUILD_RED_FLAGS = (
     "Unknown command", "Usage:", "not found", "Script error",
@@ -208,7 +114,7 @@ async def build_heist(sim, upto=160):
     builder = sim.player("Bob", location=limbo)
     builder.add_tag("builder")
     for item in ARC_ORDER:
-        await run_lines(sim, builder, STAGES[item])
+        await run_lines(sim, builder, build_lines(DOC_FOR[item]))
         out = "\n".join(sim.seen(builder))
         for flag in BUILD_RED_FLAGS:
             assert flag not in out, (

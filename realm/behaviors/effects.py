@@ -64,6 +64,24 @@ class TimedEffectBehavior(BeatBehavior):
     def kind(self) -> str:
         return str(self.get_param('kind', self.behavior_id))
 
+    def _source(self) -> GameObject | None:
+        """Whoever applied this effect, if still around.
+
+        ``apply_effect`` stamps ``source_id`` with its executor, so a kill
+        arriving by poison tick rather than by swing can still name a
+        killer. Without it, a bounty board hears the death and has nobody
+        to pay, and an arena bell roars that "" put someone down.
+        """
+        from realm.persistence.manager import get_active_manager
+
+        source_id = self.get_param('source_id')
+        if not source_id:
+            return None
+        persistence = get_active_manager()
+        if persistence is None:
+            return None
+        return persistence.get_cached(str(source_id))
+
     def attach(self, obj: GameObject) -> None:
         super().attach(obj)
         obj.add_tag(self.kind)
@@ -171,7 +189,9 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
             from realm.combat.manager import get_combat_manager
             manager = get_combat_manager()
             if manager is not None:
-                await manager.handle_death(obj)
+                # Name the poisoner: the death event is worthless to a
+                # bounty board or an arena bell if the killer is None.
+                await manager.handle_death(obj, killer=self._source())
             elif obj.has_tag('player'):
                 obj.add_tag('unconscious')
                 obj.msg("Everything goes black...")

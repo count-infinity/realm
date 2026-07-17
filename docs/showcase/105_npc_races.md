@@ -24,8 +24,8 @@ payout price and the win probability come from the same number. First
 past `distance` wins on the spot.
 
 **Betting is two steps, both consensual.** `pay 10 to Bookie Barnum`
-fires `ON_PAYMENT`; the ledger idiom ([item 1](001_slot_machine.md))
-banks it as your *armed stake* — money in Barnum's pocket, not yet on a
+fires `ON_PAYMENT` with the stake as `adata('amount')`; the hook banks
+it as your *armed stake* — money in Barnum's pocket, not yet on a
 runner. `back Comet` moves the stake into the `book` keyed by your id.
 Payments while the field is running bounce straight back: no
 past-posting. The book, the field, the positions — all attributes;
@@ -39,15 +39,18 @@ silently — seed the float first.
 
 ## Build it
 
-The bookmaker, his float (note the ledger init — the float must not
-read as a giant first bet), and the card:
+The bookmaker, his float, and the card. (Seeding the float used to need
+a matching `set_attr(m, 'ledger', credits(m))` or the 1000-credit
+endowment read as a giant first bet — the hazard of inferring payments
+from a balance. `adata('amount')` reports the payment itself, so a float
+is just money now.)
 
 ```text
 @create Bookie Barnum
 @tag Bookie Barnum = npc
 drop Bookie Barnum
 @desc Bookie Barnum = Loud coat, louder voice, a chalkboard of odds and a pocket that eats credits.
-@eval m = get('Bookie Barnum'); adjust_credits(m, 1000); set_attr(m, 'ledger', credits(m)); result = credits(m)
+@eval m = get('Bookie Barnum'); adjust_credits(m, 1000); result = credits(m)
 @set Bookie Barnum/field = {"Comet": 2, "Old Thunder": 3, "Rustbucket": 5}
 @set Bookie Barnum/distance = 30
 @set Bookie Barnum/cmd_odds = $odds: f = V('field', {}); pemit(enactor, 'The chalkboard:'); [pemit(enactor, f'  {nm} -- {od}-to-1') for nm, od in sorted(f.items())]; pemit(enactor, 'Pay me your stake, then: back <runner>.')
@@ -57,7 +60,7 @@ The palm — stakes armed while the track is quiet, bounced while it
 runs:
 
 ```text
-@set Bookie Barnum/on_payment = paid = credits(me) - V('ledger', 0); ok = not V('running', 0) and paid > 0; k = 'stake_' + enactor.id; (set_attr(me, k, V(k, 0) + paid), pemit(enactor, 'Barnum palms your ' + str(paid) + ' credits: now back a runner.')) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, 'No bets while they run. Your credits, returned.')) if paid > 0 else None; set_attr(me, 'ledger', credits(me))
+@set Bookie Barnum/on_payment = paid = adata('amount', 0) if target == me else 0; ok = not V('running', 0) and paid > 0; k = 'stake_' + enactor.id; (set_attr(me, k, V(k, 0) + paid), pemit(enactor, 'Barnum palms your ' + str(paid) + ' credits: now back a runner.')) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, 'No bets while they run. Your credits, returned.')) if paid > 0 else None
 ```
 
 The book — assigning your armed stake starts the post-time countdown:
@@ -86,10 +89,10 @@ wire ends it:
 @set Bookie Barnum/stride = f = V('field', {}); pos = V('positions', {}); upd = {nm: pos[nm] + rand(1, 9 - min(f[nm], 7)) for nm in pos}; set_attr(me, 'positions', upd); lead = max(upd, key=upd.get); dist = V('distance', 30); (remit(here, f'{lead} takes the wire! {lead} wins!'), eval_attr(me, 'payout', lead)) if upd[lead] >= dist else remit(here, f'{lead} leads at the {upd[lead]} mark.'); result = 1
 ```
 
-Settlement — winners at odds+1, the book wiped, the ledger re-synced:
+Settlement — winners at odds+1, the book wiped:
 
 ```text
-@set Bookie Barnum/payout = f = V('field', {}); bk = V('book', {}); [(transfer_credits(me, get('#' + pid), b['stake'] * (f[arg0] + 1)), pemit(get('#' + pid), f'Barnum counts out {b["stake"] * (f[arg0] + 1)} credits. Pleasure doing business.')) for pid, b in bk.items() if b['runner'] == arg0]; set_attr(me, 'running', 0); set_attr(me, 'book', {}); del_attr(me, 'positions'); del_attr(me, 'post'); set_attr(me, 'ledger', credits(me)); result = 1
+@set Bookie Barnum/payout = f = V('field', {}); bk = V('book', {}); [(transfer_credits(me, get('#' + pid), b['stake'] * (f[arg0] + 1)), pemit(get('#' + pid), f'Barnum counts out {b["stake"] * (f[arg0] + 1)} credits. Pleasure doing business.')) for pid, b in bk.items() if b['runner'] == arg0]; set_attr(me, 'running', 0); set_attr(me, 'book', {}); del_attr(me, 'positions'); del_attr(me, 'post'); result = 1
 ```
 
 ## Try it

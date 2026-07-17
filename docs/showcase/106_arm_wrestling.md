@@ -33,7 +33,8 @@ is passed as the opponent, calling someone out means you must beat
 them outright. House rule, engine-enforced.
 
 **The wager is the RPS escrow, simplified.** Both parties pay the
-table (ledger idiom); the second stake landing triggers the bout
+table (`ON_PAYMENT`, stake read off `adata('amount')`); the second
+stake landing triggers the bout
 immediately — no secret choices here, so no prompts: just the roll and
 the roar. Winner takes double from the table's own balance, which at
 that moment holds exactly both stakes.
@@ -67,13 +68,13 @@ The callout:
 The escrow — second stake in, elbows down:
 
 ```text
-@set the wrestling table/on_payment = paid = credits(me) - V('ledger', 0); bt = V('bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'Your stake hits the wood.')) for g in [ok] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The table shrugs your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None; set_attr(me, 'ledger', credits(me)); eval_attr(me, 'bout_go') if ok and len(bt['paid']) == 2 else None
+@set the wrestling table/on_payment = paid = adata('amount', 0) if target == me else 0; bt = V('bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'Your stake hits the wood.')) for g in [ok] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The table shrugs your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None; eval_attr(me, 'bout_go') if ok and len(bt['paid']) == 2 else None
 ```
 
 The bout — play-by-play, one contest, the pot:
 
 ```text
-@set the wrestling table/bout_go = bt = V('bout', {}); a = get('#' + bt['a']); b = get('#' + bt['b']); remit(here, name(a) + ' and ' + name(b) + ' lock hands over the scarred tabletop. The crowd leans in.'); win = a if contest(a, 'brawn', b, 'brawn') else b; lose = b if win is a else a; remit(here, 'Knuckles whiten, the table groans... ' + name(win) + " slams " + name(lose) + "'s arm down! The crowd roars."); transfer_credits(me, win, bt['wager'] * 2); remit(here, name(win) + ' scoops the pot: ' + str(bt['wager'] * 2) + ' credits.'); del_attr(me, 'bout'); set_attr(me, 'ledger', credits(me)); result = 1
+@set the wrestling table/bout_go = bt = V('bout', {}); a = get('#' + bt['a']); b = get('#' + bt['b']); remit(here, name(a) + ' and ' + name(b) + ' lock hands over the scarred tabletop. The crowd leans in.'); win = a if contest(a, 'brawn', b, 'brawn') else b; lose = b if win is a else a; remit(here, 'Knuckles whiten, the table groans... ' + name(win) + " slams " + name(lose) + "'s arm down! The crowd roars."); transfer_credits(me, win, bt['wager'] * 2); remit(here, name(win) + ' scoops the pot: ' + str(bt['wager'] * 2) + ' credits.'); del_attr(me, 'bout'); result = 1
 ```
 
 ## Try it
