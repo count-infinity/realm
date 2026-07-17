@@ -96,12 +96,14 @@ narration, and the fighters never see a `[pit]` tag. The defeated
 fighter, if a player, is unconscious on the sand (native defeat rule);
 send someone down with `firstaid` before the next bout.
 
-**Limits (reported as one gap):** event triggers expose only `enactor`
-— a witness cannot read the action's target, damage amount, or hit/miss
-from the hook, which is why the tally-sweep idiom exists. Exposing
-read-only action data (`target`, `adata`) to `ON_<EVENT>` scripts the
-way `on_check` already gets them would let the bell call "a 6-point
-cutting wound!" honestly.
+**~~Limits~~ — FIXED 2026-07-17.** The tally-sweep idiom below exists
+because event triggers used to expose only `enactor`: a witness could not
+read the action's target, damage or hit/miss from the hook. `ON_<EVENT>`
+now gets the same read-only action data `on_check` always had — `target`,
+`atype`, `has_atag()`, `adata(...)` — so the bell *can* call "a 6-point
+cutting wound!" honestly (`adata('damage')`, `adata('weapon')`), and
+`combat:on_death` now reaches it from poison and grenade kills too, not
+just swings. The sweep build is left as written and still works.
 
 ## Going further
 

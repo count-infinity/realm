@@ -39,14 +39,14 @@ list attribute, and `act(..., targeting='zone')` for zone-wide criers.
    `transfer_credits(me, enactor, pot)`, strike the entry, and the
    crier announces the claim. No `$claim` command exists to lie to.
 
-3. **What the board cannot hear (engine gap, reported).** Only the
-   combat-swing path (`CombatSystem.attack`) propagates
-   `combat:on_death`. Deaths from softcode `damage()` (item 111's
-   grenade) or `damage_over_time` effects (poison, bleeding) route
-   through the same corpse-making death handler *without* propagating
-   the event — so poisoning your mark collects no bounty. Precise gap:
-   `CombatManager.handle_death` does not fire `combat:on_death`;
-   `ON_DEATH` witnesses only hear swings.
+3. **~~What the board cannot hear~~ — FIXED 2026-07-17.** This build was
+   written when only the combat-swing path (`CombatSystem.attack`)
+   propagated `combat:on_death`, so a mark killed by softcode `damage()`
+   (item 111's grenade) or a `damage_over_time` effect (poison, bleeding)
+   died with the board none the wiser — poisoning your mark collected no
+   bounty. The announcement now lives in `CombatManager.handle_death`,
+   which *every* route reaches, so grenades, poison, traps and swings all
+   pay out. The board needs no change; it simply hears more now.
 
 ## Build it
 

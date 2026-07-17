@@ -256,7 +256,13 @@ class CombatSystem:
         target_defeated = self.ruleset.is_defeated(dfn)
         if target_defeated:
             dfn.state = CombatState.DEFEATED
-            await self._propagate_death(dfn, atk)
+            # combat:on_death is NOT announced here any more. It used to be,
+            # which is exactly why it only ever fired for swings: softcode
+            # damage(), poison ticks and traps route through the combat
+            # manager's handle_death and never came through this function.
+            # Every caller that sees target_defeated goes on to call
+            # handle_defeat -> handle_death, which now announces it — so
+            # swings still fire it, once, and the silent paths fire it too.
         else:
             # ON_HITPRCNT — fire once as HP falls THROUGH the defender's
             # configured threshold (db.hitprcnt, a percent), so an NPC can
@@ -443,21 +449,6 @@ class CombatSystem:
         await propagate(action, deliver=False)
         return action
 
-    async def _propagate_death(
-        self,
-        victim: Combatant,
-        killer: Combatant | None,
-    ) -> Action:
-        action = Action(
-            actor=killer.obj if killer else None,
-            target=victim.obj,
-            action_type="combat:on_death",
-            extra={
-                'killer': killer.name if killer else None,
-            },
-        )
-        await propagate(action, deliver=False)
-        return action
 
 
 

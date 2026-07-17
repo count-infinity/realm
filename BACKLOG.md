@@ -1536,7 +1536,7 @@ The dominant theme this wave: **event-trigger namespaces are too thin.** Many
 findings below are facets of one fix — bind the action's target + payload into
 `ON_<EVENT>` script namespaces the way `on_check` wards already receive `adata`.
 
-- [ ] **`combat:on_death` only propagates from the combat-swing path**
+- [x] **`combat:on_death` only propagated from the combat-swing path — RESOLVED 2026-07-17** (announced from handle_death, the one path every death reaches). Was:
   (`CombatSystem._propagate_death`); `CombatManager.handle_death` — reached by
   softcode `damage()` / `damage_over_time` kills — makes the corpse WITHOUT
   firing the event. So `ON_DEATH` witnesses can't verify poison/grenade/trap
@@ -1597,7 +1597,7 @@ Wave 4 added no new *blocking* gaps — every [now] item builds on existing
 primitives. Findings reinforce the wave-3 theme (thin event namespaces) and add a
 few precise engine facts:
 
-- [ ] **No player death event.** `CombatManager.handle_death` tags a player
+- [x] **No player death event — RESOLVED 2026-07-17** (handle_death announces for players too; `adata('fatal')` is False for an unconscious player, True for a real death). Was: `CombatManager.handle_death` tags a player
   `unconscious` and emits nothing — no `combat:on_death`. Combined with the
   wave-3 finding that softcode `damage()`/DoT kills also skip the event, there is
   no reliable "X died/fell" hook for softcode. Clone bays, bounty boards, and
@@ -2338,3 +2338,49 @@ in ~175 sites. All correct, none necessary. Simplifying them is a **logic-
 adjacent** sweep (it changes what the build lines say, so transcripts and
 tests move together) — same shape as the deferred ledger→`adata()` rewrite,
 and best done with it.
+
+## RESOLVED 2026-07-17: death events (Theme B) — the A+B+C sprint is complete
+
+**Both death gaps closed by moving one call.** `CombatManager.handle_death`
+called itself "the one death path, whatever the cause (a swing, poison, a
+trap)" — but the announcement lived somewhere else entirely, inside
+`CombatSystem.attack`. So only swings told the world. Same shape as the ward
+bug: the code documented an invariant it didn't keep.
+
+**Measured before touching anything** — event emissions in the whole death
+path: **0**. Three of four kill routes silent (`engine.py:1052` softcode
+`damage()`, `effects.py:174` DoT, `manager.py:156`), and player death silent
+entirely.
+
+**Change:**
+- `CombatManager._propagate_death(victim, killer)` added; `handle_death` calls
+  it **first**, before the body is transformed — witnesses inspect the fallen
+  (the bounty board reads the mark's name off the body) and `_npc_death`
+  replaces the NPC with a corpse, so announcing afterwards would show an empty
+  room.
+- Removed the emission from `CombatSystem.attack` (and its now-dead
+  `_propagate_death`). Verified first that all three `attack()` callers
+  (encounter ×2, gurps ruleset) check `target_defeated` and go on to
+  `handle_defeat` → `handle_death` — so swings still fire, exactly once, and
+  nothing double-fires.
+- Payload: `extra['killer']` stays a **name** for compatibility with scripts
+  written against the old event; the killer *object* is bound as `actor` (via
+  the event namespace shipped earlier today). `extra['fatal']` distinguishes a
+  real death (NPC → corpse) from a player knocked unconscious in place —
+  REALM players don't die, so one event with a flag beats a second event name.
+  140's own gap note asked for exactly this ("emits no `combat:on_death`, so
+  witnesses can't react to a *player* going down").
+
+**Tests:** `tests/test_death_events.py` — 10 tests: every route announces,
+payload/`fatal`/`actor` bindings, announced-before-transformation ordering,
+and **a real swing kill through an encounter** proving the path I removed the
+emission from still fires exactly once. Full suite **1823 green**.
+
+**Docs:** `STANDARD_EVENTS['DEATH']` rewritten (it said "this object dies"),
+payload table updated, and the tutorials that documented the gaps corrected —
+114 (bounty), 115 (arena), 120 (replay), 140 (clone bay). 120 and 115 asserted
+*both* of today's gaps (payload + swing-path-only); both now false.
+
+**Note for the polling builds:** 140's clone bay and 120's HP-delta scribe
+still work and are left as written — they're honest demonstrations of tickers
+and inference. They're simply no longer forced.

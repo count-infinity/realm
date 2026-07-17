@@ -95,12 +95,16 @@ that blow, so Bruce's 20→17 between rows is the damage the earlier row
 scored. `wipe ledger` from anyone but the owner earns a jealous clutch;
 from the owner, a blank page for the next bout.
 
-**Limits (same gap as item 115, reported once):** event triggers
-expose only `enactor` — no target, damage amount, or hit/miss — and
-`combat:on_death` fires only on the swing path (softcode/DoT kills
-never reach witnesses, item 114's note). Richer read-only action data
-in `ON_<EVENT>` namespaces would let the scribe log "6 cut to the arm"
-instead of inferring from HP deltas.
+**~~Limits~~ — BOTH FIXED 2026-07-17 (same two gaps as item 115).** This
+scribe infers from HP deltas because, when it was written, event triggers
+exposed only `enactor` — no target, no damage, no hit/miss — and
+`combat:on_death` fired only on the swing path, so softcode and
+damage-over-time kills never reached witnesses. Both are gone: `ON_<EVENT>`
+now binds `target` and `adata(...)` (so `adata('damage')` and
+`adata('weapon')` let the scribe log "6 cut" outright), and
+`combat:on_death` is announced from the one death path, so poison and
+grenade finishes are recorded like any other. The HP-delta build below
+still works and is left as written.
 
 ## Going further
 

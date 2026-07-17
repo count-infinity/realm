@@ -66,7 +66,7 @@ Payloads carried today (read with `adata`):
 | `item:on_get` / `on_drop` / `on_give` | `item`, `giver` |
 | `combat:on_damage` | `damage`, `damage_types` |
 | `combat:on_attack` | `weapon`, `attacker_hp`, `defender_hp` |
-| `combat:on_death` | `killer` |
+| `combat:on_death` | `killer` (a name; the killer *object* is `actor`), `fatal` |
 | `combat:on_hitprcnt` | `percent` |
 | speech / emit | `message`; poses carry `pose` |
 | `event:on_cast` | `ability`, `caster` |
@@ -160,7 +160,7 @@ veto (a cursed item refusing removal).
 | `ON_ATTACK` | this object attacks or is attacked |
 | `ON_DAMAGE` | this object takes damage |
 | `ON_HITPRCNT` | HP fell through this object's db.hitprcnt threshold |
-| `ON_DEATH` | this object dies |
+| `ON_DEATH` | this object goes down — any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True for a real death (an NPC, now a corpse), False for a player knocked unconscious in place |
 | `ON_CAST` | an ability is directed at this object (resist via on_check) |
 | `ON_LOAD` | this object was just spawned |
 | `ON_EXPIRE` | this object's db.expires_at elapsed (then it's destroyed) |

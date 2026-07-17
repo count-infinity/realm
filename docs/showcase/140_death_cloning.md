@@ -10,10 +10,10 @@ does and doesn't tell you when someone dies.
 
 **Concepts:** REALM's **one death path** (`handle_death`) and its two
 outcomes — players fall unconscious in place, NPCs become lootable
-corpses; why the clone bay must **poll** for the fallen instead of hooking
-a death event; owner authority to teleport and heal a player
-([069](069_trainer_npc.md)); and two precise engine gaps around death
-notification.
+corpses; a **polling** clone bay (written before `combat:on_death` fired
+for players — it now does, so listening is an option; the ticker remains
+a good demonstration in its own right); owner authority to teleport and
+heal a player ([069](069_trainer_npc.md)).
 
 ## How it works
 
@@ -46,18 +46,21 @@ notification.
    ([137](137_hunger_thirst.md)). A builder-owned bay would poll happily
    and then fail every write.
 
-4. **Engine gaps (report these, don't paper over them):**
-   - **No player death event.** `handle_death` tags a player `unconscious`
-     and emits no `combat:on_death`, so witnesses can't react to a *player*
-     going down — polling the tag is the only signal. (This is why the bay
-     ticks rather than listens.)
-   - **Softcode kills are silent to witnesses (BACKLOG/114).** Even for
-     NPCs, only the **combat swing path** propagates `combat:on_death`; an
-     NPC killed by softcode `damage()` or a `damage_over_time` effect goes
-     through the same `handle_death` — corpse and all — but fires **no**
-     `combat:on_death`, so bounty boards ([114](114_bounty_board.md)) and
-     arena bells ([115](115_arena_spectators.md)) miss the kill. Land the
-     killing blow with the combat system if a witness must hear it.
+4. **~~Engine gaps~~ — BOTH FIXED 2026-07-17.** This build polls because
+   of two gaps that no longer exist. `combat:on_death` is now announced
+   from `CombatManager.handle_death` — the one path every death reaches —
+   so:
+   - **A player going down fires it.** It used to emit nothing at all, and
+     polling the `unconscious` tag was the only signal. A bay can now
+     *listen*: `ON_DEATH` with `adata('fatal') == False` is exactly "a
+     player dropped". (The polling version below still works, and is a
+     fine demonstration of a ticker — but it is no longer forced.)
+   - **Softcode and effect kills fire it.** An NPC killed by `damage()` or
+     a `damage_over_time` tick used to die silently, so bounty boards
+     ([114](114_bounty_board.md)) and arena bells
+     ([115](115_arena_spectators.md)) missed it. They don't now, and you no
+     longer have to land the killing blow with the combat system for a
+     witness to hear it.
 
 ## Build it
 

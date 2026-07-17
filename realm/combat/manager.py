@@ -155,13 +155,50 @@ class CombatManager:
         encounter.remove(obj.id, make_peace=False)
         await self.handle_death(obj, killer.obj if killer else None)
 
+    async def _propagate_death(self, victim: GameObject,
+                               killer: GameObject | None) -> None:
+        """Announce a death to the world — the ONE place that happens.
+
+        Fired *before* the body is transformed, because witnesses inspect
+        the fallen: the bounty board reads the mark's name off the corpse-
+        to-be, the arena recorder narrates it. ``_npc_death`` replaces the
+        NPC with a corpse, so announcing afterwards would show an empty
+        room.
+
+        ``extra['killer']`` stays a NAME for compatibility with scripts
+        written against the old swing-path event; the killer *object* is
+        bound as ``actor``, and ``fatal`` distinguishes a real death (an
+        NPC, now a corpse) from a player knocked unconscious in place.
+        """
+        from realm.core.propagation import Action, propagate
+
+        action = Action(
+            actor=killer,
+            target=victim,
+            action_type="combat:on_death",
+            extra={
+                'killer': killer.name if killer is not None else None,
+                'fatal': not victim.has_tag('player'),
+            },
+        )
+        await propagate(action, deliver=False)
+
     async def handle_death(self, obj: GameObject,
                            killer: GameObject | None = None) -> None:
         """
         The one death path, whatever the cause (a swing, poison, a trap):
         players fall unconscious in place, revivable; NPCs die into
         lootable corpses.
+
+        It is also the one place ``combat:on_death`` is announced. It used
+        not to be: the event fired inside ``CombatSystem.attack`` — the
+        *swing* path only — so an NPC killed by softcode ``damage()``, a
+        poison tick or a trap died in silence, and a player going down
+        emitted nothing at all. Bounty boards, arena recorders and clone
+        bays had to poll. Every route into death comes through here, so
+        this is where the world gets told.
         """
+        await self._propagate_death(obj, killer)
         if obj.has_tag('player'):
             if not obj.has_tag('unconscious'):
                 obj.add_tag('unconscious')

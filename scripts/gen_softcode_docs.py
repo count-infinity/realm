@@ -78,7 +78,7 @@ Payloads carried today (read with `adata`):
 | `item:on_get` / `on_drop` / `on_give` | `item`, `giver` |
 | `combat:on_damage` | `damage`, `damage_types` |
 | `combat:on_attack` | `weapon`, `attacker_hp`, `defender_hp` |
-| `combat:on_death` | `killer` |
+| `combat:on_death` | `killer` (a name; the killer *object* is `actor`), `fatal` |
 | `combat:on_hitprcnt` | `percent` |
 | speech / emit | `message`; poses carry `pose` |
 | `event:on_cast` | `ability`, `caster` |

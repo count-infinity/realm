@@ -244,7 +244,10 @@ STANDARD_EVENTS = {
     'ATTACK':     "this object attacks or is attacked",
     'DAMAGE':     "this object takes damage",
     'HITPRCNT':   "HP fell through this object's db.hitprcnt threshold",
-    'DEATH':      "this object dies",
+    'DEATH':      ("this object goes down — any cause (a swing, poison, a "
+                   "trap, softcode damage). `adata('fatal')` is True for a "
+                   "real death (an NPC, now a corpse), False for a player "
+                   "knocked unconscious in place"),
     'CAST':       "an ability is directed at this object (resist via on_check)",
     # Existence
     'LOAD':       "this object was just spawned",
