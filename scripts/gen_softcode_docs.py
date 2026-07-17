@@ -89,6 +89,23 @@ Payloads carried today (read with `adata`):
 not: by the time an `ON_<EVENT>` runs the decision is already made, so the
 apply pass is read-only.
 
+### When a ward breaks
+
+A ward that errors **fails closed if it could have denied** — it blocks the
+action and messages the object's owner. "The ward is broken" must never look
+the same to the world as "the ward allowed it", or a typo silently unlocks
+your vault:
+
+| Ward | On error |
+|---|---|
+| calls `block(...)` | **blocks** — it guards something |
+| calls an unknown name (`blok(...)`, a typo) | **blocks** — intent unclear |
+| doesn't parse | **blocks** — can't tell what it guards |
+| only `mod()` / `set_adata()` (armour, resistance) | **allows**, loudly — a failed soak must not veto the swing |
+
+`@set` also warns at the prompt when a script attribute won't parse, so a
+dead ward announces itself when you type it rather than months later.
+
 ## Script commands (simple scripts / `cmd()` / `output()` lines)
 
 `say`, `pose`/`:`, `emit`/`@emit`, `whisper x = msg`, `move <exit>`,

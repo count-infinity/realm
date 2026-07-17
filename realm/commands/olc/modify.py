@@ -142,6 +142,20 @@ async def cmd_set(ctx: CommandContext) -> None:
         value = _parse_value(ctx.right_args)
         target.db.set(attr_name, value)
         await ctx.session.send(f"Set {target.name}/{attr_name} = {value!r}")
+        # A script attribute that doesn't parse is dead on arrival, and used
+        # to say nothing at all — you'd learn months later, or never. Warn
+        # rather than refuse: placeholders and @import are legitimate, and
+        # the runtime now fails safe on its own (a broken ward blocks).
+        from realm.scripting.triggers import script_code_of
+        code = script_code_of(attr_name, value)
+        if code is not None:
+            from realm.core.safe_eval import validate_code
+            errors = validate_code(code)
+            if errors:
+                await ctx.session.send(
+                    f"Warning: {target.name}/{attr_name} will not run — "
+                    f"{errors[0]}"
+                )
     else:
         target.db.delete(attr_name)
         await ctx.session.send(f"Cleared {target.name}/{attr_name}")

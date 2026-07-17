@@ -297,7 +297,65 @@ class ScriptEngine:
         try:
             await self.sandbox.execute_async(code, ctx, functions=namespace)
         except ScriptError as exc:
-            logger.warning(f"on_check error on {obj.name}: {exc}")
+            self._ward_failed(obj, action, code, exc, set(namespace))
+
+    @staticmethod
+    def _ward_can_deny(code: str, known: set[str]) -> bool:
+        """Could this ward have said no — i.e. must its failure fail CLOSED?
+
+        A ward that can deny must not fall open when it errors: "the ward
+        errored" and "the ward allowed it" have to be different outcomes, or
+        a typo silently unlocks the vault. A ward that only ``mod()``s or
+        ``set_adata()``s cannot open a hole by failing — an armour
+        calculation that raises must not veto the swing — so those stay open
+        (loudly).
+
+        A ward is treated as *provably advisory* only when it parses AND
+        every function it calls is a name it could actually have (``known``
+        = the check namespace + safe builtins) AND none of them is
+        ``block``. Anything else guards, because:
+
+        - ``block(...)``            -> denies outright.
+        - ``blok(...)``             -> an UNKNOWN callable. This is the case
+          that matters most: a misspelled ``block`` is the likeliest ward
+          bug there is, and it is indistinguishable from any other typo. If
+          we cannot name what it calls, we cannot claim it was advisory.
+        - unparseable               -> cannot tell what it guards at all.
+        """
+        import ast
+        try:
+            tree = ast.parse(code)
+        except SyntaxError:
+            return True
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                name = node.func.id
+                if name == 'block' or name not in known:
+                    return True
+        return False
+
+    def _ward_failed(
+        self, obj: GameObject, action: Action, code: str, exc: Exception,
+        namespace_names: set[str],
+    ) -> None:
+        """A ward raised. Never silent; fail CLOSED if it could have denied.
+
+        This restores the invariant this method's own docstring states — a
+        ward must not silently fail open. Before, any error (a typo'd name,
+        a missing paren, a stray ZeroDivision) was logged at warning level
+        and the action proceeded: every veto surface in the game — cursed
+        items, landmines, clearance gates, escrow, the jail door — quietly
+        stopped protecting, indistinguishably from having allowed it.
+        """
+        logger.error("on_check FAILED on %s (%s): %s", obj.name, obj.id, exc)
+        # Loud: the builder who owns the broken ward hears about it.
+        owner = obj.owner if obj.owner is not None else None
+        if owner is not None:
+            owner.msg(f"Ward error on {obj.name}: {exc}")
+        from realm.scripting.sandbox import SAFE_BUILTINS
+        known = namespace_names | set(SAFE_BUILTINS)
+        if self._ward_can_deny(code, known):
+            action.block(f"{obj.name} is warded, but the ward is malfunctioning.")
 
     @staticmethod
     def _event_namespace(action: Action) -> dict:

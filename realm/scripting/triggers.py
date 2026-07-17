@@ -500,3 +500,27 @@ def get_search_objects(player: GameObject) -> list[GameObject]:
     # 5. Global command room - TODO: implement Master Room
 
     return search_list
+
+
+def script_code_of(attr_name: str, value: object) -> str | None:
+    """The executable code inside a script-shaped attribute, or None.
+
+    Recognises scripts exactly the way the engine does — by the value's
+    sigil (``$cmd``/``^listen``, whose code is the part after the first
+    ``:``) or by the attribute's name (``on_check``, ``on_tick``,
+    ``ON_<EVENT>``). Used by ``@set`` to tell a builder at the prompt when
+    a script will not run, rather than letting it sit dead.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return None
+    command_sigil, listen_sigil = get_trigger_sigils()
+    for sigil in (command_sigil, listen_sigil):
+        if value.startswith(sigil) and ':' in value:
+            # `.strip()` matters: builders write "$fetch *: force(...)" with a
+            # space after the colon, and a leading space is an IndentationError
+            # to ast.parse even though the engine runs it fine.
+            return value.split(':', 1)[1].strip()
+    name = attr_name.upper()
+    if name in ('ON_CHECK', 'ON_TICK') or name.startswith(EVENT_ATTR_PREFIX):
+        return value.strip()
+    return None

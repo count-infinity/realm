@@ -2122,7 +2122,7 @@ Each rewrite touches the build transcript AND its test constants (doc↔test syn
 enforces the pair), so it is real work, not a regex — hence deferred rather than
 bundled into the syntax sweep.
 
-## SECURITY: `on_check` wards fail OPEN on script error (filed 2026-07-17)
+## ~~SECURITY~~ RESOLVED 2026-07-17: `on_check` wards failed OPEN on script error
 
 Found while probing during the idiom sweep, not by reading code: an agent put a
 deliberately-broken call in a ward that also called `block()`. The script raised
@@ -2226,3 +2226,52 @@ lacks a *named* sync test, which under Design B it does not need.)
 Interim state as of this filing: all 26 suites verified in sync by hand/scripts,
 full suite 1769 green — but 12 have no automated guard, and this tree has been
 demonstrated to revert uncommitted docs.
+
+### Resolution (2026-07-17)
+
+**Fixed, both halves.** Reproduced first: every failure mode failed open — a
+typo'd name, a wrong-namespace call, a runtime error, even a *syntax error* —
+all logged a warning and let the action through.
+
+**1. Runtime: fail CLOSED when the ward could have denied.**
+`ScriptEngine._ward_failed` now logs at ERROR, messages the object's owner, and
+blocks the action if `_ward_can_deny(code, known)` says the ward guards
+something. The classifier is deliberately conservative — a ward is treated as
+*provably advisory* only when it parses AND every function it calls is a name
+it could actually have (check namespace + SAFE_BUILTINS) AND none is `block`:
+
+- `block(...)` → guards → **closed**
+- `blok(...)` → an *unknown callable* → **closed**. This case decided the
+  design: a misspelled `block` is the likeliest ward bug there is, and a naive
+  "does the AST contain a block() call?" check fails open on exactly it. My
+  first implementation had that bug; the probe caught it.
+- unparseable → can't tell what it guards → **closed**
+- `mod(-2)`, `set_adata('damage', ...)` → provably advisory → **open** (loud).
+  An armour calculation that raises must not veto the swing —
+  `tests/test_on_check.py` has real `mod()`-only wards, so blanket fail-closed
+  would have been a regression.
+
+The invariant was already written down: `_run_check`'s own docstring says "a
+ward must not silently *fail open*" — it's why there's no shared depth guard
+there. The error path just didn't honor it.
+
+**2. Authoring: `@set` warns when a script won't run.** `@set` stored
+`block('warded'` (missing paren) with a cheerful "Set relic/on_check = ..." —
+the ward was dead from birth and nothing ever said so. `script_code_of()`
+(realm/scripting/triggers.py) recognises script attributes the way the engine
+does — by value sigil (`$`/`^`, code after the first `:`) or attribute name
+(`on_check`, `on_tick`, `ON_<EVENT>`) — and `@set` now validates and warns.
+Warns rather than refuses: placeholders and `@import` are legitimate, and the
+runtime fails safe on its own now. Data attributes are untouched (a `desc`
+with an unbalanced paren is prose, not code).
+
+**Tests:** `tests/test_ward_failure.py` — 29 tests covering every failure mode,
+the advisory/deny classifier, the `@set` warnings, and the "healthy world
+unaffected" cases. Full suite **1798 green**; none of the 25 existing showcase
+wards changed behavior.
+
+**Gotcha found while implementing:** `script_code_of` must `.strip()` the code
+after the sigil split — builders write `$fetch *: force(...)` with a space, and
+a leading space is an `IndentationError` to `ast.parse` even though the engine
+runs it fine. That produced 72 false warnings before I caught it (the showcase
+suites assert no error markers in build output — the harness earned its keep).
