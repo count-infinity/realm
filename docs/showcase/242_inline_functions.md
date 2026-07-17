@@ -8,8 +8,8 @@ look, a room that counts your visits, and an oracle whose spoken lines
 are computed the moment it speaks.
 
 **Concepts:** `[[...]]` inline blocks, the `viewer` binding, `result`,
-per-viewer skill checks in text, stateful text via `get_attr`/`set_attr`,
-computed speech in trigger scripts.
+per-viewer skill checks in text, stateful text via `incr` and the
+attribute functions, computed speech in trigger scripts.
 
 ## How it works
 
@@ -68,7 +68,7 @@ the garden can remember each visitor separately — key the attribute by
 re-set the desc with the thorns block *and* a visit counter:
 
 ```text
-@desc here = Roses climb a broken trellis. [[result = ansi('rh', 'Thorns glint among the stems.') if skill('observation') >= 12 else '']] [[n = get_attr(me, 'visits_' + viewer.id, 0) + 1; set_attr(me, 'visits_' + viewer.id, n); result = 'You have paused here ' + str(n) + ' time' + ('' if n == 1 else 's') + '.']]
+@desc here = Roses climb a broken trellis. [[result = ansi('rh', 'Thorns glint among the stems.') if skill('observation') >= 12 else '']] [[n = incr('visits_' + viewer.id); result = f"You have paused here {n} time{'' if n == 1 else 's'}."]]
 ```
 
 First look: "You have paused here 1 time." Second: "2 times." Your

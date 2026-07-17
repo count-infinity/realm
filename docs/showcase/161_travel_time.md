@@ -72,14 +72,14 @@ where it leads, the transit room, home, and the timings:
 token, and start the sweep if it isn't already running:
 
 ```text
-@set road/on_fail = trans = get(get_attr(me,'transit')); (move_to(enactor, trans), (lambda tok: (set_attr(tok,'traveler', '#'+enactor.id), set_attr(tok,'goal', get_attr(me,'goal')), set_attr(tok,'home', get_attr(me,'home')), set_attr(tok,'eta', now() + int(get_attr(me,'travel_time',6)))))(create_obj('a traveller', tags=['journeying'], location=trans)), pemit(enactor, 'You shoulder your pack and set out. The fort is a long walk off.'), remit(get(get_attr(me,'home')), name(enactor) + ' sets off up the road.'), (wait(int(get_attr(me,'step',2)), 'trigger me/sweep'), set_attr(me,'sweeping',1)) if not get_attr(me,'sweeping') else None)
+@set road/on_fail = trans = get(V('transit')); (move_to(enactor, trans), (lambda tok: (set_attr(tok,'traveler', '#'+enactor.id), set_attr(tok,'goal', V('goal')), set_attr(tok,'home', V('home')), set_attr(tok,'eta', now() + int(V('travel_time',6)))))(create_obj('a traveller', tags=['journeying'], location=trans)), pemit(enactor, 'You shoulder your pack and set out. The fort is a long walk off.'), remit(get(V('home')), name(enactor) + ' sets off up the road.'), (wait(int(V('step',2)), 'trigger me/sweep'), set_attr(me,'sweeping',1)) if not V('sweeping') else None)
 ```
 
 The sweep — arrivals teleport and their tokens die; the rest get a
 progress line; re-arm while anyone remains:
 
 ```text
-@set road/sweep = trans = get(get_attr(me,'transit')); toks = [o for o in contents(trans) if has_tag(o,'journeying')]; [ (destroy_obj(tok) if get(get_attr(tok,'traveler')) is None or loc(get(get_attr(tok,'traveler'))) is not trans else ((teleport_obj(get(get_attr(tok,'traveler')), get(get_attr(tok,'goal'))), pemit(get(get_attr(tok,'traveler')), 'The walls of the Hillfort rise at last; you have arrived.'), remit(get(get_attr(tok,'goal')), name(get(get_attr(tok,'traveler'))) + ' trudges in through the gate, road-dusty.'), destroy_obj(tok)) if now() >= get_attr(tok,'eta', now()+999) else pemit(get(get_attr(tok,'traveler')), 'The road unrolls on beneath your boots...'))) for tok in toks ]; left = [o for o in contents(trans) if has_tag(o,'journeying')]; (wait(int(get_attr(me,'step',2)), 'trigger me/sweep') if left else set_attr(me,'sweeping',0))
+@set road/sweep = trans = get(V('transit')); toks = [o for o in contents(trans) if has_tag(o,'journeying')]; [ (destroy_obj(tok) if get(get_attr(tok,'traveler')) is None or loc(get(get_attr(tok,'traveler'))) is not trans else ((teleport_obj(get(get_attr(tok,'traveler')), get(get_attr(tok,'goal'))), pemit(get(get_attr(tok,'traveler')), 'The walls of the Hillfort rise at last; you have arrived.'), remit(get(get_attr(tok,'goal')), name(get(get_attr(tok,'traveler'))) + ' trudges in through the gate, road-dusty.'), destroy_obj(tok)) if now() >= get_attr(tok,'eta', now()+999) else pemit(get(get_attr(tok,'traveler')), 'The road unrolls on beneath your boots...'))) for tok in toks ]; left = [o for o in contents(trans) if has_tag(o,'journeying')]; (wait(int(V('step',2)), 'trigger me/sweep') if left else set_attr(me,'sweeping',0))
 ```
 
 And the escape hatch — `turn back`, on the transit room itself:

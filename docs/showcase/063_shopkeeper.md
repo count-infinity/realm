@@ -82,7 +82,7 @@ the keeper still carries and mint the shortfall (an empty `range` when the
 shelf is full — restocking is naturally idempotent):
 
 ```text
-@set Trader Vex/restock = [set_attr(create_obj(nm, location=me), 'value', v) for nm, k, v in get_attr(me, 'stocklist', []) for j in range(k - len([o for o in contents(me) if name(o) == nm]))]; result = 1
+@set Trader Vex/restock = [set_attr(create_obj(nm, location=me), 'value', v) for nm, k, v in V('stocklist', []) for j in range(k - len([o for o in contents(me) if name(o) == nm]))]; result = 1
 ```
 
 The heartbeat — every 8 ticks, run it:
@@ -95,7 +95,7 @@ The heartbeat — every 8 ticks, run it:
 And the tip jar:
 
 ```text
-@set Trader Vex/ON_PAYMENT = say('Much obliged, ' + name(enactor) + '.'); adjust_disposition(me, enactor, 1)
+@set Trader Vex/ON_PAYMENT = say(f'Much obliged, {name(enactor)}.'); adjust_disposition(me, enactor, 1)
 ```
 
 ## Try it

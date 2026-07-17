@@ -43,7 +43,7 @@ headline count, then the offenders:
 ```text
 @create auditor
 drop auditor
-@set auditor/cmd_audit = $audit: world = search_world(limit=500); orphans = [name(o) for o in world if loc(o) is None and not has_tag(o, 'room') and not has_tag(o, 'player')]; broken = [name(e) for e in world if has_tag(e, 'exit') and not get('#' + str(get_attr(e, 'destination', '')))]; fat = [name(o) + '/' + k for o in world for k, v in o.db.all().items() if len(str(v)) > 1000]; pemit(enactor, 'AUDIT: ' + str(len(orphans)) + ' orphan(s), ' + str(len(broken)) + ' broken exit(s), ' + str(len(fat)) + ' oversized attr(s).'); [pemit(enactor, '  orphan: ' + o) for o in orphans]; [pemit(enactor, '  broken exit: ' + e) for e in broken]; [pemit(enactor, '  oversized: ' + f) for f in fat]
+@set auditor/cmd_audit = $audit: world = search_world(limit=500); orphans = [name(o) for o in world if loc(o) is None and not has_tag(o, 'room') and not has_tag(o, 'player')]; broken = [name(e) for e in world if has_tag(e, 'exit') and not get('#' + str(get_attr(e, 'destination', '')))]; fat = [f'{name(o)}/{k}' for o in world for k, v in o.db.all().items() if len(str(v)) > 1000]; pemit(enactor, f'AUDIT: {len(orphans)} orphan(s), {len(broken)} broken exit(s), {len(fat)} oversized attr(s).'); [pemit(enactor, f'  orphan: {o}') for o in orphans]; [pemit(enactor, f'  broken exit: {e}') for e in broken]; [pemit(enactor, f'  oversized: {f}') for f in fat]
 ```
 
 ## Try it

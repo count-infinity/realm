@@ -51,6 +51,44 @@ the terse PennMUSH-style shorthand.
 | `get_attr(me, 'cost', 10)` | `V('cost', 10)` |
 | `set_attr(me, k, get_attr(me, k, 0) + 1)` | `incr(k)` (returns the new value; `incr(k, n)` / `decr(k)` too) |
 
+## Event data (`ON_<EVENT>`, `^listen`, `on_check`)
+
+A script that observes an action can read what happened, not just who did
+it. These names are bound whenever there is an action behind the script —
+every `ON_<EVENT>` hook and every `^listen`. A `$`-command or `@tr` has no
+action, so they are unbound there.
+
+| Name | Meaning |
+|---|---|
+| `atype` | the action type (`item:on_get`, `event:payment`, `combat:on_damage`, …) |
+| `actor` | who is acting (same object as `enactor`) |
+| `target` | what/who the action targets — how a witness tells "I was paid" from "someone was paid" |
+| `adata(key, default)` | the action's payload |
+| `has_atag(tag)` | orthogonal action tags (`hostile`, `sound`, …) |
+
+Payloads carried today (read with `adata`):
+
+| Action | Keys |
+|---|---|
+| `event:payment` | `amount` |
+| `item:on_get` / `on_drop` / `on_give` | `item`, `giver` |
+| `combat:on_damage` | `damage`, `damage_types` |
+| `combat:on_attack` | `weapon`, `attacker_hp`, `defender_hp` |
+| `combat:on_death` | `killer` |
+| `combat:on_hitprcnt` | `percent` |
+| speech / emit | `message`; poses carry `pose` |
+| `event:on_cast` | `ability`, `caster` |
+
+```
+@set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.
+@set anvil/ON_GET = set_attr(me, 'last_taker', name(actor))
+```
+
+`on_check` wards get all of the above **plus** the decision verbs —
+`block(reason)`, `mod(n)`, `is_blocked()`, `set_adata(k, v)`. Observers do
+not: by the time an `ON_<EVENT>` runs the decision is already made, so the
+apply pass is read-only.
+
 ## Script commands (simple scripts / `cmd()` / `output()` lines)
 
 `say`, `pose`/`:`, `emit`/`@emit`, `whisper x = msg`, `move <exit>`,

@@ -131,11 +131,11 @@ BUILD_061 = [
     "round she has walked for nine years.",
     "@set Sergeant Yara/on_open = (say('Who goes into the armory? State "
     "your business.'), set_attr(me, 'challenged', now())) if now() - "
-    "get_attr(me, 'challenged', 0) > 20 else None",
+    "V('challenged', 0) > 20 else None",
     "@set Sergeant Yara/on_arrive = left_open = [o for o in contents(here) "
     "if has_tag(o, 'exit') and get_attr(o, 'door', 0) and not "
     "has_tag(o, 'closed')]; [(pose('mutters about lax discipline.'), "
-    "cmd('close ' + name(o))) for o in left_open]",
+    "cmd(f'close {name(o)}')) for o in left_open]",
     '@behavior Sergeant Yara = patrol, route:["battlements", "wall", '
     '"gatehouse", "wall"], pause:2',
 ]
@@ -259,8 +259,8 @@ BUILD_062 = [
     "@set warren rat/max_hp = 8",
     "@set warren rat/skill_melee = 10",
     "@set warren rat/on_receive = adjust_disposition(me, enactor, 5); "
-    "pose('sniffs the offering and settles back, watching ' + "
-    "name(enactor) + ' with something like tolerance.')",
+    "pose(f'sniffs the offering and settles back, watching {name(enactor)} "
+    "with something like tolerance.')",
     '@behavior warren rat = aggressive, target_tags:["player"], spare_at:2, '
     "attack_chance:1.0, taunt:The rat's eyes go red. It lunges!",
     "out",
@@ -353,7 +353,7 @@ BUILD_065 = [
     "@desc Biscuit = A ginger hound with an opinion about everything.",
     "@lock/listen Biscuit = caller.id == owner.id",
     "@set Biscuit/listen_heel = ^*heel*:set_attr(me, 'following', "
-    "enactor.id); pose('falls in at ' + name(enactor) + \"'s heel.\")",
+    "enactor.id); pose(f\"falls in at {name(enactor)}'s heel.\")",
     "@set Biscuit/listen_stay = ^*stay*:del_attr(me, 'following'); "
     "pose('sits, ears up, exactly where told.')",
     "@set Biscuit/listen_speak = ^*speak*:pose('barks once, sharp and "
@@ -506,22 +506,22 @@ BUILD_069 = [
     "worse than you.",
     '@set Sergeant Kel/teaches = {"melee": {"fee": 15, "cap": 12}, '
     '"guns": {"fee": 25, "cap": 12, "needs": ["melee", 11]}}',
-    "@set Sergeant Kel/cmd_lessons = $lessons:t = get_attr(me, 'teaches', "
-    "{}); say('I drill: ' + ', '.join(sorted(t)) + '. Coin first, bruises "
-    "after. Say train and the skill.')",
+    "@set Sergeant Kel/cmd_lessons = $lessons:t = V('teaches', "
+    "{}); say(f\"I drill: {', '.join(sorted(t))}. Coin first, bruises "
+    "after. Say train and the skill.\")",
     "@set Sergeant Kel/cmd_train = $train *:s = trim(arg0).lower()"
-    ".replace(' ', '_'); t = get_attr(me, 'teaches', {}); r = t.get(s); "
-    "cur = get_attr(enactor, 'skill_' + s, 9); (say('I do not teach ' + s "
-    "+ '. Ask about my lessons.') if not r else say('You are past my "
-    "lessons in ' + s + '. Spend points, or find a better teacher.') if "
-    "cur >= r['cap'] else say('Not yet. Come back when your ' + "
-    "r['needs'][0].replace('_', ' ') + ' reaches ' + str(r['needs'][1]) + "
-    "'.') if 'needs' in r and get_attr(enactor, 'skill_' + r['needs'][0], "
-    "9) < r['needs'][1] else say('My fee is ' + str(r['fee']) + "
-    "' credits. You are short.') if credits(enactor) < r['fee'] else "
+    ".replace(' ', '_'); t = V('teaches', {}); r = t.get(s); "
+    "cur = get_attr(enactor, f'skill_{s}', 9); (say(f'I do not teach {s}"
+    ". Ask about my lessons.') if not r else say(f'You are past my "
+    "lessons in {s}. Spend points, or find a better teacher.') if "
+    "cur >= r['cap'] else say(f\"Not yet. Come back when your "
+    "{r['needs'][0].replace('_', ' ')} reaches {r['needs'][1]}"
+    ".\") if 'needs' in r and get_attr(enactor, f\"skill_{r['needs'][0]}\", "
+    "9) < r['needs'][1] else say(f\"My fee is {r['fee']}"
+    " credits. You are short.\") if credits(enactor) < r['fee'] else "
     "(transfer_credits(enactor, me, r['fee']), set_attr(enactor, "
-    "'skill_' + s, cur + 1), say('Again! ...Better. Your ' + "
-    "s.replace('_', ' ') + ' is now ' + str(cur + 1) + '.')))",
+    "f'skill_{s}', cur + 1), say(f\"Again! ...Better. Your "
+    "{s.replace('_', ' ')} is now {cur + 1}.\")))",
 ]
 
 
@@ -618,8 +618,8 @@ BUILD_070 = [
     "loot = [o for o in contents(m)] if m else []; "
     "(((teleport_obj(loot[0], me) if loot else transfer_credits(m, me, 5)), "
     "pemit(m, 'A feather-light tug at your belt. Probably nothing.')) if "
-    "contest(me, 'pickpocket', m, 'observation') else (remit(here, name(m) "
-    "+ \" catches a hand in their pouch - Fenn's!\"), act(here, 'THIEF! "
+    "contest(me, 'pickpocket', m, 'observation') else (remit(here, "
+    "f\"{name(m)} catches a hand in their pouch - Fenn's!\"), act(here, 'THIEF! "
     "The cry goes up.', targeting='room', action_type='event:theft'))) "
     "if m else None",
     "@behavior Fenn = script_ticker, interval:3",
@@ -635,11 +635,11 @@ BUILD_070 = [
     "drop Constable Marsh",
     "@create Bazaar Watch",
     "@zone/master Bazaar Watch = bazaar",
-    "@set Bazaar Watch/on_theft = fresh = now() - get_attr(me, 'last_cry', "
+    "@set Bazaar Watch/on_theft = fresh = now() - V('last_cry', "
     "0) > 60; ((set_attr(me, 'last_cry', now()), adjust_disposition("
     "'Constable Marsh', enactor, -5), teleport_obj('Constable Marsh', "
     "here), force('Constable Marsh', 'say Hold, cutpurse!'), "
-    "force('Constable Marsh', 'attack ' + name(enactor))) if fresh "
+    "force('Constable Marsh', f'attack {name(enactor)}')) if fresh "
     "else None)",
     "drop Bazaar Watch",
     "shadows",
@@ -736,11 +736,11 @@ BUILD_072 = [
     "one's full price, same as always.",
     "@set Nerissa/listen_trouble = ^*fight*:say Take that talk to the "
     "alley or lose your tab.",
-    "@set Nerissa/on_emote = (pose('glances up, marking ' + name(enactor) "
-    "+ ' with one raised eyebrow.'), set_attr(me, 'noticed', now())) if "
-    "now() - get_attr(me, 'noticed', 0) > 15 else None",
-    "@set Nerissa/on_wield = (say('Steel away in my taproom, ' + "
-    "name(enactor) + '. I will not ask twice.'), adjust_disposition(me, "
+    "@set Nerissa/on_emote = (pose(f'glances up, marking {name(enactor)}"
+    " with one raised eyebrow.'), set_attr(me, 'noticed', now())) if "
+    "now() - V('noticed', 0) > 15 else None",
+    "@set Nerissa/on_wield = (say(f'Steel away in my taproom, "
+    "{name(enactor)}. I will not ask twice.'), adjust_disposition(me, "
     "enactor, -1)) if not has_tag(enactor, 'town_watch') else None",
 ]
 
@@ -804,7 +804,7 @@ BUILD_073 = [
     '@set Skarn the Bonewright/combat_strategy = [["", "attack"]]',
     "@set Skarn the Bonewright/hitprcnt = 50",
     "@set Skarn the Bonewright/on_hitprcnt = trigger('phase_two' if "
-    "get_attr(me, 'phase', 1) == 1 else 'phase_three')",
+    "V('phase', 1) == 1 else 'phase_three')",
     "@set Skarn the Bonewright/phase_two = set_attr(me, 'phase', 2); "
     "set_attr(me, 'hitprcnt', 25); remit(here, 'Skarn slams both fists to "
     "the floor. BONES OF THE DEEP - RISE!'); w = create_obj('bone whelp', "

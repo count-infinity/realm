@@ -32,7 +32,8 @@ that's the shape of every paid machine in REALM.
 **The ledger idiom.** An `ON_PAYMENT` script doesn't receive the amount
 — it fires *after* the credits landed. The machine therefore remembers
 its own balance in a `ledger` attribute and reads the payment as the
-difference: `paid = credits(me) - get_attr(me, 'ledger', 0)`. Every
+difference: `paid = credits(me) - V('ledger', 0)` (`V(key)` is the
+shorthand for reading an attribute off `me`). Every
 script that changes the machine's balance ends by re-syncing
 `set_attr(me, 'ledger', credits(me))`. Copy this pattern anywhere you
 need amount-aware payments.
@@ -71,19 +72,21 @@ in a description run per viewer at render time, so the description
 ```text
 @create slot machine
 drop slot machine
-@desc slot machine = A one-armed bandit in scuffed chrome, three reels asleep behind smeared glass. [[result = 'The hopper holds ' + str(credits(me)) + ' credits.']]
+@desc slot machine = A one-armed bandit in scuffed chrome, three reels asleep behind smeared glass. [[result = f'The hopper holds {credits(me)} credits.']]
 @set slot machine/cost = 10
 ```
 
 The wager intake. Note the order: compute `paid` from the ledger,
 then branch — arm a stake and refund any change, or refund everything
-with an explanation — then re-sync the ledger. The
+with an explanation — then re-sync the ledger. `incr(k)` arms the
+stake: it bumps a numeric attribute on `me` by one (`decr` is its
+mirror), which beats reading, adding and writing back by hand. The
 `(do_this, do_that) if ok else (other)` tuple is the standard one-line
 branch: elements evaluate left to right, so it reads like a tiny
 transaction:
 
 ```text
-@set slot machine/on_payment = cost = get_attr(me, 'cost', 10); paid = credits(me) - get_attr(me, 'ledger', 0); k = 'stake_' + enactor.id; (set_attr(me, k, get_attr(me, k, 0) + 1), transfer_credits(me, enactor, paid - cost), pemit(enactor, 'Clunk. The lever unlocks: type pull.')) if paid >= cost else (transfer_credits(me, enactor, paid), pemit(enactor, 'A pull costs ' + str(cost) + ' credits. Coins returned.')); set_attr(me, 'ledger', credits(me))
+@set slot machine/on_payment = cost = V('cost', 10); paid = credits(me) - V('ledger', 0); k = 'stake_' + enactor.id; (incr(k), transfer_credits(me, enactor, paid - cost), pemit(enactor, 'Clunk. The lever unlocks: type pull.')) if paid >= cost else (transfer_credits(me, enactor, paid), pemit(enactor, f'A pull costs {cost} credits. Coins returned.')); set_attr(me, 'ledger', credits(me))
 ```
 
 The lever. Roll, band into a tier, `switch()` twice (prize, reel art),
@@ -92,7 +95,7 @@ stake, show the room you playing (`oemit` excludes you), show you the
 reels (`pemit` is private), pay out if you won, re-sync the ledger:
 
 ```text
-@set slot machine/cmd_pull = $pull: k = 'stake_' + enactor.id; staked = get_attr(me, k, 0); pemit(enactor, 'The lever will not budge. Stake a pull first: pay 10 to slot machine.') if not staked else None; roll = rand(1, 100); tier = 1 if roll <= 1 else (2 if roll <= 5 else (3 if roll <= 15 else (4 if roll <= 35 else 5))); prize = switch(tier, 1, 250, 2, 50, 3, 20, 4, 10, 0); reels = switch(tier, 1, '[ NOVA : NOVA : NOVA ]', 2, '[ BELL : BELL : BELL ]', 3, '[ STAR : STAR : ---- ]', 4, '[ STAR : ---- : ---- ]', '[ ---- : ---- : ---- ]'); (set_attr(me, k, staked - 1), oemit(enactor, name(enactor) + ' pulls the lever. The reels clatter.'), pemit(enactor, reels), (transfer_credits(me, enactor, prize), pemit(enactor, 'Payout! ' + str(prize) + ' credits rattle into the tray.')) if prize else pemit(enactor, 'The reels settle on nothing. The house smiles.'), set_attr(me, 'ledger', credits(me))) if staked else None
+@set slot machine/cmd_pull = $pull: k = 'stake_' + enactor.id; staked = V(k, 0); pemit(enactor, 'The lever will not budge. Stake a pull first: pay 10 to slot machine.') if not staked else None; roll = rand(1, 100); tier = 1 if roll <= 1 else (2 if roll <= 5 else (3 if roll <= 15 else (4 if roll <= 35 else 5))); prize = switch(tier, 1, 250, 2, 50, 3, 20, 4, 10, 0); reels = switch(tier, 1, '[ NOVA : NOVA : NOVA ]', 2, '[ BELL : BELL : BELL ]', 3, '[ STAR : STAR : ---- ]', 4, '[ STAR : ---- : ---- ]', '[ ---- : ---- : ---- ]'); (decr(k), oemit(enactor, f'{name(enactor)} pulls the lever. The reels clatter.'), pemit(enactor, reels), (transfer_credits(me, enactor, prize), pemit(enactor, f'Payout! {prize} credits rattle into the tray.')) if prize else pemit(enactor, 'The reels settle on nothing. The house smiles.'), set_attr(me, 'ledger', credits(me))) if staked else None
 ```
 
 Finally, the float. A machine that can't cover a jackpot fails its
@@ -141,6 +144,6 @@ to watch when you tune the table on a live game.
 - **Loose and tight cabinets:** `@clone slot machine`, then edit the
   clone's `cmd_pull` bands. Recompute the expected return every time.
 - **Announce jackpots to the whole casino:** tag the rooms into a zone
-  and `act(here, name(enactor) + ' hits the NOVA jackpot!',
+  and `act(here, f'{name(enactor)} hits the NOVA jackpot!',
   targeting='zone')` — public wins are the best advertising a casino
   has.

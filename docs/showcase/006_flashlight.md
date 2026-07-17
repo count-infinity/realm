@@ -55,7 +55,7 @@ one command to toggle:
 ```text
 @create flashlight
 @set flashlight/battery = 3
-@set flashlight/cmd_click = $click: lit = has_tag(me, 'light'); b = get_attr(me, 'battery', 0); (remove_tag(me, 'light'), pemit(enactor, 'Click. The beam dies.')) if lit else ((add_tag(me, 'light'), pemit(enactor, 'Click. A hard white beam snaps on.')) if b > 0 else pemit(enactor, 'Click. Click. Nothing. The battery is dead.'))
+@set flashlight/cmd_click = $click: lit = has_tag(me, 'light'); b = V('battery', 0); (remove_tag(me, 'light'), pemit(enactor, 'Click. The beam dies.')) if lit else ((add_tag(me, 'light'), pemit(enactor, 'Click. A hard white beam snaps on.')) if b > 0 else pemit(enactor, 'Click. Click. Nothing. The battery is dead.'))
 ```
 
 The drain. `interval:10` heartbeats between drains; each lit tick
@@ -64,7 +64,7 @@ to whoever can hear it:
 
 ```text
 @behavior flashlight = script_ticker, interval:10
-@set flashlight/on_tick = lit = has_tag(me, 'light'); b = get_attr(me, 'battery', 0); left = b - 1 if lit else b; set_attr(me, 'battery', left) if lit else None; remove_tag(me, 'light') if lit and left <= 0 else None; msg = 'The flashlight flickers; its battery is nearly spent.' if lit and left == 1 else ('The flashlight gutters and dies.' if lit and left <= 0 else ''); h = loc(me); (pemit(h, msg) if has_tag(h, 'player') else remit(h, msg)) if msg and h else None
+@set flashlight/on_tick = lit = has_tag(me, 'light'); b = V('battery', 0); left = b - 1 if lit else b; decr('battery') if lit else None; remove_tag(me, 'light') if lit and left <= 0 else None; msg = 'The flashlight flickers; its battery is nearly spent.' if lit and left == 1 else ('The flashlight gutters and dies.' if lit and left <= 0 else ''); h = loc(me); (pemit(h, msg) if has_tag(h, 'player') else remit(h, msg)) if msg and h else None
 ```
 
 Somewhere to need it — dig down and put out the lights (`@tag` writes

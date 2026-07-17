@@ -73,7 +73,7 @@ the native `TEMPLATES`, so re-pricing the whole roster is a single `@set`:
 
 ```text
 @set Orientation Clerk/backgrounds = {"soldier": {"stats": {"strength": 12, "dexterity": 11, "health": 12}, "skills": {"melee": 12, "guns": 12}}, "scout": {"stats": {"strength": 10, "dexterity": 13, "health": 10}, "skills": {"stealth": 13, "climbing": 12}}}
-@set Orientation Clerk/menu = bg = get_attr(me, 'backgrounds', {}); result = 'Choose a background -- ' + ', '.join(sorted(bg)) + '. Type the name.'
+@set Orientation Clerk/menu = bg = V('backgrounds', {}); result = 'Choose a background -- ' + ', '.join(sorted(bg)) + '. Type the name.'
 ```
 
 `enlist` opens the wizard (and refuses anyone already on file):
@@ -87,7 +87,7 @@ sheet, stamp the `template`, and chain into the next question. An
 unrecognized answer just re-asks (`prompt` again inside the callback):
 
 ```text
-@set Orientation Clerk/pick_bg = c = trim(arg0).lower(); bg = get_attr(me, 'backgrounds', {}); r = bg.get(c); (prompt(enactor, 'No such background. ' + eval_attr(me, 'menu'), 'pick_bg') if not r else ([set_attr(enactor, k, v) for k, v in r['stats'].items()], [set_attr(enactor, 'skill_' + k, v) for k, v in r['skills'].items()], set_attr(enactor, 'template', c), prompt(enactor, 'Filed as ' + c + '. Pick a bonus skill -- stealth, melee, or guns.', 'pick_skill')))
+@set Orientation Clerk/pick_bg = c = trim(arg0).lower(); bg = V('backgrounds', {}); r = bg.get(c); (prompt(enactor, 'No such background. ' + eval_attr(me, 'menu'), 'pick_bg') if not r else ([set_attr(enactor, k, v) for k, v in r['stats'].items()], [set_attr(enactor, 'skill_' + k, v) for k, v in r['skills'].items()], set_attr(enactor, 'template', c), prompt(enactor, 'Filed as ' + c + '. Pick a bonus skill -- stealth, melee, or guns.', 'pick_skill')))
 ```
 
 The second answer is the bonus skill — new at your DX if untrained, +1 if

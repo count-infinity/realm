@@ -77,7 +77,7 @@ and you spend nothing; fail and your meter drops; at zero the water
 comes in — 1d6 per failed tick:
 
 ```text
-@set here/soak = o = get('#' + arg0); k = 'breath_' + o.id; pemit(o, 'You pace your strokes and hold what air you have.') if skill_check(o, 'swimming') else (set_attr(me, k, get_attr(me, k, get_attr(me, 'breath_max', 3)) - 1), pemit(o, 'Your chest heaves. You are running out of air!') if get_attr(me, k, 0) > 0 else (damage(o, roll('1d6')), pemit(o, 'Water forces its way in. You are drowning!')))
+@set here/soak = o = get('#' + arg0); k = 'breath_' + o.id; pemit(o, 'You pace your strokes and hold what air you have.') if skill_check(o, 'swimming') else (set_attr(me, k, V(k, V('breath_max', 3)) - 1), pemit(o, 'Your chest heaves. You are running out of air!') if V(k, 0) > 0 else (damage(o, roll('1d6')), pemit(o, 'Water forces its way in. You are drowning!')))
 @set here/on_tick = [eval_attr(me, 'soak', o.id) for o in contents(me) if has_tag(o, 'player')]
 @behavior here = script_ticker, interval:1
 surface

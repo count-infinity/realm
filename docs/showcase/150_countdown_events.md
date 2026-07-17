@@ -36,7 +36,7 @@ things change:
 idiom. One `tick` step announces the current `remaining`, decrements,
 and schedules the next tick `gap` seconds later, keeping the handle in
 `pending`; at zero it hands off to `fire`. `scrub` is `cancel_wait(
-get_attr(me, 'pending'))`. Being `wait()`-based, it's in-memory — right
+V('pending'))`. Being `wait()`-based, it's in-memory — right
 for a countdown, where a reboot mid-count should simply forget it rather
 than resume a stale one.
 
@@ -64,17 +64,17 @@ The broadcast helper, the countdown tick, and the zero-hour fire — each
 fans out over every room:
 
 ```text
-@set Event Herald/announce = [remit(r, get_attr(me, 'banner', 'ATTENTION') + ': ' + get_attr(me, 'label', 'an event') + ' in ' + str(get_attr(me, 'remaining', 0)) + ' minutes.') for r in search_world(tag='room')]
-@set Event Herald/tick = n = get_attr(me, 'remaining', 0); (eval_attr(me, 'fire') if n <= 0 else (eval_attr(me, 'announce'), set_attr(me, 'remaining', n - 1), set_attr(me, 'pending', wait(get_attr(me, 'gap', 2), 'trigger me/tick'))))
-@set Event Herald/fire = del_attr(me, 'pending'); del_attr(me, 'remaining'); [remit(r, get_attr(me, 'label', 'the event') + ' begins NOW!') for r in search_world(tag='room')]
+@set Event Herald/announce = [remit(r, V('banner', 'ATTENTION') + ': ' + V('label', 'an event') + ' in ' + str(V('remaining', 0)) + ' minutes.') for r in search_world(tag='room')]
+@set Event Herald/tick = n = V('remaining', 0); (eval_attr(me, 'fire') if n <= 0 else (eval_attr(me, 'announce'), decr('remaining'), set_attr(me, 'pending', wait(V('gap', 2), 'trigger me/tick'))))
+@set Event Herald/fire = del_attr(me, 'pending'); del_attr(me, 'remaining'); [remit(r, V('label', 'the event') + ' begins NOW!') for r in search_world(tag='room')]
 ```
 
 The two verbs — owner-only `countdown <n> for <label>`, and `scrub` to
 call it off. `countdown` refuses to stack over a running one:
 
 ```text
-@set Event Herald/cmd_countdown = $countdown * for *: pemit(enactor, 'Command authority required.') if enactor != owner(me) else (pemit(enactor, 'A countdown is already running.') if get_attr(me, 'pending') else (set_attr(me, 'label', arg1), set_attr(me, 'remaining', int(arg0)), eval_attr(me, 'tick')))
-@set Event Herald/cmd_scrub = $scrub countdown: (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), del_attr(me, 'remaining'), [remit(r, get_attr(me, 'label', 'the event') + ' has been called off.') for r in search_world(tag='room')]) if get_attr(me, 'pending') else pemit(enactor, 'No countdown is running.')
+@set Event Herald/cmd_countdown = $countdown * for *: pemit(enactor, 'Command authority required.') if enactor != owner(me) else (pemit(enactor, 'A countdown is already running.') if V('pending') else (set_attr(me, 'label', arg1), set_attr(me, 'remaining', int(arg0)), eval_attr(me, 'tick')))
+@set Event Herald/cmd_scrub = $scrub countdown: (cancel_wait(V('pending')), del_attr(me, 'pending'), del_attr(me, 'remaining'), [remit(r, V('label', 'the event') + ' has been called off.') for r in search_world(tag='room')]) if V('pending') else pemit(enactor, 'No countdown is running.')
 ```
 
 ## Try it

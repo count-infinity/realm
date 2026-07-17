@@ -66,7 +66,7 @@ silent when the delta is zero (someone paid a *different* NPC in this
 room — witnessed events reach every bystander with the hook):
 
 ```
-@set Mira/on_payment = paid = credits(me) - get_attr(me, 'till', 0); ((set_attr(me, 'till', credits(me)), set_attr(me, 'patron_' + enactor.id, 1), say('One ale, coming up.'), trigger('pour')) if paid >= 5 else (say('Ale is five credits, love.') if paid > 0 else None))
+@set Mira/on_payment = paid = credits(me) - V('till', 0); ((set_attr(me, 'till', credits(me)), set_attr(me, 'patron_' + enactor.id, 1), say('One ale, coming up.'), trigger('pour')) if paid >= 5 else (say('Ale is five credits, love.') if paid > 0 else None))
 ```
 
 **The pour** lives in its own attribute (`trigger('pour')` runs it, and
@@ -74,8 +74,8 @@ room — witnessed events reach every bystander with the hook):
 installs the drink command from a template attribute:
 
 ```
-@set Mira/pour = mug = create_obj('a mug of ale', location=here); set_attr(mug, 'description', 'Cloudy town ale, still foaming.'); set_attr(mug, 'cmd_drink', get_attr(me, 'drink_script')); pose('sets a foaming mug on the bar.')
-@set Mira/drink_script = $drink *:heal(enactor, 1); pemit(enactor, 'The ale goes down warm.'); oemit(enactor, name(enactor) + ' drains a mug of ale.'); destroy_obj(me)
+@set Mira/pour = mug = create_obj('a mug of ale', location=here); set_attr(mug, 'description', 'Cloudy town ale, still foaming.'); set_attr(mug, 'cmd_drink', V('drink_script')); pose('sets a foaming mug on the bar.')
+@set Mira/drink_script = $drink *:heal(enactor, 1); pemit(enactor, 'The ale goes down warm.'); oemit(enactor, f'{name(enactor)} drains a mug of ale.'); destroy_obj(me)
 ```
 
 `drink_script` is inert on Mira (only `cmd_*` attributes register as
@@ -87,7 +87,7 @@ line.
 
 ```
 @set Mira/rumors = ["They say the old mine did not close for bad air alone.", "Verity shuts her shop at nine sharp - and sleeps above it.", "Scream on Market Street and count to ten. The watch is faster."]
-@set Mira/listen_rumor = ^*rumor*:r = get_attr(me, 'rumors', []); i = get_attr(me, 'idx_' + enactor.id, 0); ((say(r[i % len(r)]), set_attr(me, 'idx_' + enactor.id, i + 1)) if get_attr(me, 'patron_' + enactor.id, 0) else say('Ale first. A wet tongue wags easier - mine included.'))
+@set Mira/listen_rumor = ^*rumor*:r = V('rumors', []); i = V('idx_' + enactor.id, 0); ((say(r[i % len(r)]), incr('idx_' + enactor.id)) if V('patron_' + enactor.id, 0) else say('Ale first. A wet tongue wags easier - mine included.'))
 ```
 
 Each asker has their own index (`idx_<id>`), so two patrons hear the

@@ -60,14 +60,14 @@ The key. Add three turns (capped at nine), and start the relay only if
 the spring was slack:
 
 ```text
-@set music box/cmd_wind = $wind music box: t = get_attr(me, 'turns', 0); (set_attr(me, 'turns', min(t + 3, 9)), pose('clicks softly as ' + name(enactor) + ' winds the brass key.'), (wait(get_attr(me, 'tempo', 5), 'trigger me/play_note') if t == 0 else None))
+@set music box/cmd_wind = $wind music box: t = V('turns', 0); (set_attr(me, 'turns', min(t + 3, 9)), pose(f'clicks softly as {name(enactor)} winds the brass key.'), (wait(V('tempo', 5), 'trigger me/play_note') if t == 0 else None))
 ```
 
 The movement — one note per link: pose it, advance the cursor, spend a
 turn, and either pass the baton or wind down:
 
 ```text
-@set music box/play_note = t = get_attr(me, 'turns', 0); notes = get_attr(me, 'notes', []); i = get_attr(me, 'cursor', 0); (pose('plays ' + notes[i % len(notes)] + '.'), set_attr(me, 'cursor', i + 1), set_attr(me, 'turns', t - 1), (wait(get_attr(me, 'tempo', 5), 'trigger me/play_note') if t - 1 > 0 else pose('slows... and stops with a final, drooping plink.'))) if t > 0 and notes else None
+@set music box/play_note = t = V('turns', 0); notes = V('notes', []); i = V('cursor', 0); (pose(f'plays {notes[i % len(notes)]}.'), incr('cursor'), decr('turns'), (wait(V('tempo', 5), 'trigger me/play_note') if t - 1 > 0 else pose('slows... and stops with a final, drooping plink.'))) if t > 0 and notes else None
 ```
 
 `pose` speaks in the third person as the box, so the room reads

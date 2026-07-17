@@ -72,20 +72,20 @@ drop simon panel
 out:
 
 ```text
-@set simon panel/cmd_play = $play simon: (pemit(enactor, 'The panel is busy with someone else.') if get_attr(me, 'busy') else (set_attr(me, 'busy', 1), set_attr(me, 'level', 1), set_attr(me, 'player', '#' + enactor.id), set_attr(me, 'flash_i', 0), remit(loc(me), name(enactor) + ' presses START -- the panel powers up. Watch the lights!'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 1), 'trigger me/signal'))))
+@set simon panel/cmd_play = $play simon: (pemit(enactor, 'The panel is busy with someone else.') if V('busy') else (set_attr(me, 'busy', 1), set_attr(me, 'level', 1), set_attr(me, 'player', '#' + enactor.id), set_attr(me, 'flash_i', 0), remit(loc(me), name(enactor) + ' presses START -- the panel powers up. Watch the lights!'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))
 ```
 
 `signal` — flash one pad, advance the cursor, re-arm; or, at the end of
 the sequence, hand off to a `prompt()`:
 
 ```text
-@set simon panel/signal = seq = str(get_attr(me, 'pattern')).split()[0:get_attr(me, 'level', 1)]; i = get_attr(me, 'flash_i', 0); (prompt(get(get_attr(me, 'player')), 'Repeat the sequence (e.g. RED GREEN):', 'judge') if i >= len(seq) else (remit(loc(me), 'The panel flashes ' + seq[i].upper() + '.'), set_attr(me, 'flash_i', i + 1), set_attr(me, 'pending', wait(get_attr(me, 'beat', 1), 'trigger me/signal'))))
+@set simon panel/signal = seq = str(V('pattern')).split()[0:V('level', 1)]; i = V('flash_i', 0); (prompt(get(V('player')), 'Repeat the sequence (e.g. RED GREEN):', 'judge') if i >= len(seq) else (remit(loc(me), 'The panel flashes ' + seq[i].upper() + '.'), incr('flash_i'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))
 ```
 
 `judge` — normalize the echo, then buzz, advance-and-reflash, or win:
 
 ```text
-@set simon panel/judge = want = ' '.join(str(get_attr(me, 'pattern')).split()[0:get_attr(me, 'level', 1)]); got = ' '.join(trim(arg0).lower().split()); full = len(str(get_attr(me, 'pattern')).split()); (set_attr(me, 'busy', 0), remit(loc(me), 'BUZZ -- the pattern was wrong. The panel goes dark.')) if got != want else ((set_attr(me, 'busy', 0), remove_tag(get('vault hatch'), 'closed'), remit(loc(me), 'A rising chime -- the full sequence! The vault hatch clicks open.')) if get_attr(me, 'level', 1) >= full else (set_attr(me, 'level', get_attr(me, 'level', 1) + 1), set_attr(me, 'flash_i', 0), remit(loc(me), 'Correct! The sequence grows longer. Watch again.'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 1), 'trigger me/signal'))))
+@set simon panel/judge = want = ' '.join(str(V('pattern')).split()[0:V('level', 1)]); got = ' '.join(trim(arg0).lower().split()); full = len(str(V('pattern')).split()); (set_attr(me, 'busy', 0), remit(loc(me), 'BUZZ -- the pattern was wrong. The panel goes dark.')) if got != want else ((set_attr(me, 'busy', 0), remove_tag(get('vault hatch'), 'closed'), remit(loc(me), 'A rising chime -- the full sequence! The vault hatch clicks open.')) if V('level', 1) >= full else (set_attr(me, 'level', V('level', 1) + 1), set_attr(me, 'flash_i', 0), remit(loc(me), 'Correct! The sequence grows longer. Watch again.'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))
 ```
 
 ## Try it

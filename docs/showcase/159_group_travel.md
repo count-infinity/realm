@@ -48,7 +48,7 @@ A short road, and Wend the guide standing at the Camp:
 @desc Wend the guide = A weathered scout who knows the passes. ESCORT to have her fall in behind you; HALT WEND to send her to wait.
 drop Wend the guide
 @set Wend the guide/cmd_escort = $escort: (set_attr(me, 'following', enactor.id), pose('shoulders her pack and falls in behind ' + name(enactor) + '.'))
-@set Wend the guide/cmd_halt = $halt wend: (del_attr(me, 'following'), pose('plants her staff and waits.')) if get_attr(me, 'following') == enactor.id else pemit(enactor, 'Wend is not yours to command.')
+@set Wend the guide/cmd_halt = $halt wend: (del_attr(me, 'following'), pose('plants her staff and waits.')) if V('following') == enactor.id else pemit(enactor, 'Wend is not yours to command.')
 ```
 
 That's it — the rest is the engine's.

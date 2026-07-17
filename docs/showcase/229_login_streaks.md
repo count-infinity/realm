@@ -60,13 +60,13 @@ drop the Daily Rewards
 The connect hook — the day math, the grace, the scaling payout:
 
 ```text
-@set the Daily Rewards/on_connect = day = now() // 86400; last = get_attr(me, 'last_' + enactor.id, 0); streak = get_attr(me, 'streak_' + enactor.id, 0); pemit(enactor, 'You have already claimed today. Streak: ' + str(streak) + ' day(s).') if last == day and last != 0 else None; new = 0 if last == day and last != 0 else (1 if last == 0 or day - last > 2 else streak + 1); reward = new * get_attr(me, 'daily', 10); bonus = get_attr(me, 'weekly', 50) if new and new % 7 == 0 else 0; [(set_attr(me, 'last_' + enactor.id, day), set_attr(me, 'streak_' + enactor.id, new), transfer_credits(me, enactor, reward + bonus), pemit(enactor, 'Day ' + str(new) + ' streak! ' + str(reward) + ' credits' + ((' + ' + str(bonus) + ' anniversary bonus') if bonus else '') + ' paid.' + (' (grace: welcome back)' if last and day - last == 2 else ''))) for g in [new > 0] if g]
+@set the Daily Rewards/on_connect = day = now() // 86400; last = V('last_' + enactor.id, 0); streak = V('streak_' + enactor.id, 0); pemit(enactor, 'You have already claimed today. Streak: ' + str(streak) + ' day(s).') if last == day and last != 0 else None; new = 0 if last == day and last != 0 else (1 if last == 0 or day - last > 2 else streak + 1); reward = new * V('daily', 10); bonus = V('weekly', 50) if new and new % 7 == 0 else 0; [(set_attr(me, 'last_' + enactor.id, day), set_attr(me, 'streak_' + enactor.id, new), transfer_credits(me, enactor, reward + bonus), pemit(enactor, 'Day ' + str(new) + ' streak! ' + str(reward) + ' credits' + ((' + ' + str(bonus) + ' anniversary bonus') if bonus else '') + ' paid.' + (' (grace: welcome back)' if last and day - last == 2 else ''))) for g in [new > 0] if g]
 ```
 
 The status verb:
 
 ```text
-@set the Daily Rewards/cmd_streak = $streak:s = get_attr(me, 'streak_' + enactor.id, 0); last = get_attr(me, 'last_' + enactor.id, 0); today = now() // 86400; pemit(enactor, 'Current login streak: ' + str(s) + ' day(s). ' + ('Come back tomorrow to extend it.' if last == today else 'Log in fresh to claim today.')); pemit(enactor, 'Next reward: ' + str((s + 1) * get_attr(me, 'daily', 10)) + ' credits' + (' plus a weekly bonus!' if (s + 1) % 7 == 0 else '') + '.')
+@set the Daily Rewards/cmd_streak = $streak:s = V('streak_' + enactor.id, 0); last = V('last_' + enactor.id, 0); today = now() // 86400; pemit(enactor, 'Current login streak: ' + str(s) + ' day(s). ' + ('Come back tomorrow to extend it.' if last == today else 'Log in fresh to claim today.')); pemit(enactor, 'Next reward: ' + str((s + 1) * V('daily', 10)) + ' credits' + (' plus a weekly bonus!' if (s + 1) % 7 == 0 else '') + '.')
 ```
 
 ## Try it

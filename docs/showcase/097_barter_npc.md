@@ -29,8 +29,9 @@ same trick, different axis.)
 
 **`ON_RECEIVE` is the deal.** `give <thing> to Rook the Tinker` works
 because Rook is `npc`-tagged, and his recipient-side hook fires after
-the item lands. Event hooks carry no payload, so the new arrival is
-whatever he holds that isn't stamped `kept` (the coat-check idiom). The
+the item lands. This build finds the new arrival as whatever he holds
+that isn't stamped `kept` (the coat-check idiom); `adata('item')` now
+names it directly. The
 script walks the want-list for the first row whose tag the item
 carries:
 
@@ -67,13 +68,13 @@ drop Rook the Tinker
 The menu, for the asking:
 
 ```text
-@set Rook the Tinker/cmd_wants = $wants:pemit(enactor, 'Rook trades goods for goods. No coin.'); [pemit(enactor, '  anything ' + w + ' -> ' + g) for w, g in get_attr(me, 'wants', [])]
+@set Rook the Tinker/cmd_wants = $wants:pemit(enactor, 'Rook trades goods for goods. No coin.'); [pemit(enactor, f'  anything {w} -> {g}') for w, g in V('wants', [])]
 ```
 
 And the deal itself — his receive hook:
 
 ```text
-@set Rook the Tinker/on_receive = stuff = [o for o in contents(me) if not has_attr(o, 'kept')]; it = stuff[0] if stuff else None; deal = [[w, g] for itx in [it] for w, g in get_attr(me, 'wants', []) if itx is not None and has_tag(itx, w)]; [(set_attr(x, 'kept', 1), teleport_obj(c, enactor), say('A fair swap: ' + name(c) + ' for your ' + name(x) + '.')) for ok, x, d in [[bool(deal), it, deal]] if ok for w, g in [d[0]] for c in [create_obj(g, tags=['thing'], location=me)]]; (teleport_obj(it, enactor), say('No use to me. Ask me what I want.')) if it is not None and not deal else None
+@set Rook the Tinker/on_receive = stuff = [o for o in contents(me) if not has_attr(o, 'kept')]; it = stuff[0] if stuff else None; deal = [[w, g] for itx in [it] for w, g in V('wants', []) if itx is not None and has_tag(itx, w)]; [(set_attr(x, 'kept', 1), teleport_obj(c, enactor), say(f'A fair swap: {name(c)} for your {name(x)}.')) for ok, x, d in [[bool(deal), it, deal]] if ok for w, g in [d[0]] for c in [create_obj(g, tags=['thing'], location=me)]]; (teleport_obj(it, enactor), say('No use to me. Ask me what I want.')) if it is not None and not deal else None
 ```
 
 Something to trade with (any object carrying the tag qualifies — that's

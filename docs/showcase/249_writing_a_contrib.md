@@ -43,7 +43,7 @@ hardcoded string:
 @create suggestion box
 drop suggestion box
 @set suggestion box/config_thanks = Thanks - the crew will read it.
-@set suggestion box/cmd_suggest = $suggest *:set_attr(me, 'log', get_attr(me, 'log', []) + [arg0]); pemit(enactor, get_attr(me, 'config_thanks', 'Noted.'))
+@set suggestion box/cmd_suggest = $suggest *:set_attr(me, 'log', V('log', []) + [arg0]); pemit(enactor, V('config_thanks', 'Noted.'))
 ```
 
 Capture it as a versioned file:

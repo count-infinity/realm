@@ -54,7 +54,7 @@ drop arc smelter
 @set arc smelter/makes_tags = ["thing", "ingot"]
 @set arc smelter/makes_count = 1
 @set arc smelter/work_msg = The smelter roars; slag hisses off the pour, and
-@set arc smelter/cmd_refine = $refine: t = get_attr(me, 'eats'); n = get_attr(me, 'eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = get_attr(me, 'makes_count', 1); pemit(enactor, 'The hopper wants ' + str(n) + 'x ' + t + '; you carry ' + str(len(stock)) + '.') if len(stock) < n else ([destroy_obj(o) for o in stock[:n]], [create_obj(get_attr(me, 'makes'), get_attr(me, 'makes_tags', ['thing']), here) for i in range(k)], remit(here, get_attr(me, 'work_msg', 'The station cycles, and') + ' ' + str(k) + 'x ' + get_attr(me, 'makes') + ' land(s) in the tray.'))
+@set arc smelter/cmd_refine = $refine: t = V('eats'); n = V('eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = V('makes_count', 1); pemit(enactor, f'The hopper wants {n}x {t}; you carry {len(stock)}.') if len(stock) < n else ([destroy_obj(o) for o in stock[:n]], [create_obj(V('makes'), V('makes_tags', ['thing']), here) for i in range(k)], remit(here, f'{V("work_msg", "The station cycles, and")} {k}x {V("makes")} land(s) in the tray.'))
 ```
 
 The machine shop, one door down — the *same* `cmd_refine` line, new
@@ -72,7 +72,7 @@ drop parts mill
 @set parts mill/makes_tags = ["thing", "component"]
 @set parts mill/makes_count = 2
 @set parts mill/work_msg = The mill shrieks through the billet, and
-@set parts mill/cmd_refine = $refine: t = get_attr(me, 'eats'); n = get_attr(me, 'eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = get_attr(me, 'makes_count', 1); pemit(enactor, 'The hopper wants ' + str(n) + 'x ' + t + '; you carry ' + str(len(stock)) + '.') if len(stock) < n else ([destroy_obj(o) for o in stock[:n]], [create_obj(get_attr(me, 'makes'), get_attr(me, 'makes_tags', ['thing']), here) for i in range(k)], remit(here, get_attr(me, 'work_msg', 'The station cycles, and') + ' ' + str(k) + 'x ' + get_attr(me, 'makes') + ' land(s) in the tray.'))
+@set parts mill/cmd_refine = $refine: t = V('eats'); n = V('eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = V('makes_count', 1); pemit(enactor, f'The hopper wants {n}x {t}; you carry {len(stock)}.') if len(stock) < n else ([destroy_obj(o) for o in stock[:n]], [create_obj(V('makes'), V('makes_tags', ['thing']), here) for i in range(k)], remit(here, f'{V("work_msg", "The station cycles, and")} {k}x {V("makes")} land(s) in the tray.'))
 smeltway
 ```
 

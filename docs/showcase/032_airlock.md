@@ -76,21 +76,21 @@ it to all four (here: both chamber faces, then the deck face, then the
 hull face):
 
 ```text
-@set inner door/on_open = remove_tag(get_attr(me, 'partner'), 'closed')
-@set inner door/on_close = add_tag(get_attr(me, 'partner'), 'closed')
-@set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(get_attr(me, 'other', '')), 'closed') else None
-@set outer door/on_open = remove_tag(get_attr(me, 'partner'), 'closed')
-@set outer door/on_close = add_tag(get_attr(me, 'partner'), 'closed')
-@set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(get_attr(me, 'other', '')), 'closed') else None
+@set inner door/on_open = remove_tag(V('partner'), 'closed')
+@set inner door/on_close = add_tag(V('partner'), 'closed')
+@set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
+@set outer door/on_open = remove_tag(V('partner'), 'closed')
+@set outer door/on_close = add_tag(V('partner'), 'closed')
+@set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
 inner door
-@set inner door/on_open = remove_tag(get_attr(me, 'partner'), 'closed')
-@set inner door/on_close = add_tag(get_attr(me, 'partner'), 'closed')
-@set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(get_attr(me, 'other', '')), 'closed') else None
+@set inner door/on_open = remove_tag(V('partner'), 'closed')
+@set inner door/on_close = add_tag(V('partner'), 'closed')
+@set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
 inner door
 outer door
-@set outer door/on_open = remove_tag(get_attr(me, 'partner'), 'closed')
-@set outer door/on_close = add_tag(get_attr(me, 'partner'), 'closed')
-@set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(get_attr(me, 'other', '')), 'closed') else None
+@set outer door/on_open = remove_tag(V('partner'), 'closed')
+@set outer door/on_close = add_tag(V('partner'), 'closed')
+@set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
 outer door
 ```
 
@@ -100,8 +100,8 @@ door and releases the latch:
 
 ```text
 @set airlock panel/cycle_time = 5
-@set airlock panel/cmd_cycle = $cycle *: side = trim(arg0).lower(); pemit(enactor, 'Cycle which way? CYCLE IN or CYCLE OUT.') if side not in ('in', 'out') else (pemit(enactor, 'The pumps are already running.') if get_attr(me, 'cycling', 0) else (set_attr(me, 'cycling', 1), set_attr(me, 'goal', side), [add_tag(get(d), 'closed') for d in get_attr(me, 'inner_doors', []) + get_attr(me, 'outer_doors', [])], remit(loc(me), 'Bolts thud home; both doors seal. The pumps roar.'), wait(get_attr(me, 'cycle_time', 5), 'trigger me/finish_cycle')))
-@set airlock panel/finish_cycle = doors = get_attr(me, 'inner_doors', []) if get_attr(me, 'goal') == 'in' else get_attr(me, 'outer_doors', []); [remove_tag(get(d), 'closed') for d in doors]; set_attr(me, 'cycling', 0); remit(loc(me), 'The pumps fall silent. The ' + ('inner' if get_attr(me, 'goal') == 'in' else 'outer') + ' door unseals with a hiss.')
+@set airlock panel/cmd_cycle = $cycle *: side = trim(arg0).lower(); pemit(enactor, 'Cycle which way? CYCLE IN or CYCLE OUT.') if side not in ('in', 'out') else (pemit(enactor, 'The pumps are already running.') if V('cycling', 0) else (set_attr(me, 'cycling', 1), set_attr(me, 'goal', side), [add_tag(get(d), 'closed') for d in V('inner_doors', []) + V('outer_doors', [])], remit(loc(me), 'Bolts thud home; both doors seal. The pumps roar.'), wait(V('cycle_time', 5), 'trigger me/finish_cycle')))
+@set airlock panel/finish_cycle = doors = V('inner_doors', []) if V('goal') == 'in' else V('outer_doors', []); [remove_tag(get(d), 'closed') for d in doors]; set_attr(me, 'cycling', 0); remit(loc(me), f"The pumps fall silent. The {'inner' if V('goal') == 'in' else 'outer'} door unseals with a hiss.")
 ```
 
 Finally, put the airlock in a legal starting state — seal both from

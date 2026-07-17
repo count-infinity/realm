@@ -73,27 +73,27 @@ The shared render routine — rewrite the player's one managed detail line,
 dropping the previous version by the text we stored last time:
 
 ```text
-@set the Herald/render = pl = get('#' + str(arg0)); badges = get_attr(me, 'badges_' + str(arg0), []); title = get_attr(me, 'title_' + str(arg0), ''); old = get_attr(me, 'line_' + str(arg0), ''); extras = [p for p in (get_attr(pl, 'desc_extras') or []) if not (len(p) > 1 and str(p[1]) == old)]; newline = title + (' - badges: ' + ', '.join(badges) if badges else ''); has = bool(title or badges); set_attr(pl, 'desc_extras', extras + [['', newline]]) if has else set_attr(pl, 'desc_extras', extras); set_attr(me, 'line_' + str(arg0), newline if has else ''); result = 1
+@set the Herald/render = pl = get('#' + str(arg0)); badges = V('badges_' + str(arg0), []); title = V('title_' + str(arg0), ''); old = V('line_' + str(arg0), ''); extras = [p for p in (get_attr(pl, 'desc_extras') or []) if not (len(p) > 1 and str(p[1]) == old)]; newline = title + (' - badges: ' + ', '.join(badges) if badges else ''); has = bool(title or badges); set_attr(pl, 'desc_extras', extras + [['', newline]]) if has else set_attr(pl, 'desc_extras', extras); set_attr(me, 'line_' + str(arg0), newline if has else ''); result = 1
 ```
 
 `award <player> = <title>` — staff only; append the badge, display it,
 render, and tell both sides:
 
 ```text
-@set the Herald/cmd_award = $award * = *:pl = get(trim(arg0)); badge = trim(arg1); ok = has_tag(enactor, 'admin') and pl is not None and has_tag(pl, 'player') and bool(badge); [(set_attr(me, 'badges_' + p.id, sorted(set(get_attr(me, 'badges_' + p.id, []) + [b]))), set_attr(me, 'title_' + p.id, b), set_attr(me, 'members', sorted(set(get_attr(me, 'members', []) + [p.id]))), eval_attr(me, 'render', p.id), pemit(enactor, 'Awarded "' + b + '" to ' + name(p) + '.'), pemit(p, 'You have been awarded the title: ' + b)) for g, b, p in [[ok, badge, pl]] if g]; pemit(enactor, 'Only staff award titles, to a real player, with a non-empty title.') if not ok else None
+@set the Herald/cmd_award = $award * = *:pl = get(trim(arg0)); badge = trim(arg1); ok = has_tag(enactor, 'admin') and pl is not None and has_tag(pl, 'player') and bool(badge); [(set_attr(me, 'badges_' + p.id, sorted(set(V('badges_' + p.id, []) + [b]))), set_attr(me, 'title_' + p.id, b), set_attr(me, 'members', sorted(set(V('members', []) + [p.id]))), eval_attr(me, 'render', p.id), pemit(enactor, 'Awarded "' + b + '" to ' + name(p) + '.'), pemit(p, 'You have been awarded the title: ' + b)) for g, b, p in [[ok, badge, pl]] if g]; pemit(enactor, 'Only staff award titles, to a real player, with a non-empty title.') if not ok else None
 ```
 
 `titles` — your own honors; `settitle` — wear a different earned badge:
 
 ```text
-@set the Herald/cmd_titles = $titles:earned = get_attr(me, 'badges_' + enactor.id, []); cur = get_attr(me, 'title_' + enactor.id, ''); pemit(enactor, 'Displaying: ' + (cur if cur else '(none)')); pemit(enactor, 'Earned: ' + (', '.join(earned) if earned else '(none yet)'))
-@set the Herald/cmd_settitle = $settitle *:want = trim(arg0); earned = get_attr(me, 'badges_' + enactor.id, []); ok = want in earned; [(set_attr(me, 'title_' + enactor.id, w), eval_attr(me, 'render', enactor.id), pemit(enactor, 'Now displaying: ' + w)) for g, w in [[ok, want]] if g]; pemit(enactor, 'You have not earned that title. TITLES lists yours.') if not ok else None
+@set the Herald/cmd_titles = $titles:earned = V('badges_' + enactor.id, []); cur = V('title_' + enactor.id, ''); pemit(enactor, 'Displaying: ' + (cur if cur else '(none)')); pemit(enactor, 'Earned: ' + (', '.join(earned) if earned else '(none yet)'))
+@set the Herald/cmd_settitle = $settitle *:want = trim(arg0); earned = V('badges_' + enactor.id, []); ok = want in earned; [(set_attr(me, 'title_' + enactor.id, w), eval_attr(me, 'render', enactor.id), pemit(enactor, 'Now displaying: ' + w)) for g, w in [[ok, want]] if g]; pemit(enactor, 'You have not earned that title. TITLES lists yours.') if not ok else None
 ```
 
 `finger <player>` — anyone's honors, from anywhere:
 
 ```text
-@set the Herald/cmd_finger = $finger *:pl = get(trim(arg0)); pemit(enactor, name(pl) + ' - ' + (get_attr(me, 'title_' + pl.id, '') or 'no title') + ' - badges: ' + (', '.join(get_attr(me, 'badges_' + pl.id, [])) or 'none')) if pl is not None and has_tag(pl, 'player') else pemit(enactor, 'No such player.')
+@set the Herald/cmd_finger = $finger *:pl = get(trim(arg0)); pemit(enactor, name(pl) + ' - ' + (V('title_' + pl.id, '') or 'no title') + ' - badges: ' + (', '.join(V('badges_' + pl.id, [])) or 'none')) if pl is not None and has_tag(pl, 'player') else pemit(enactor, 'No such player.')
 ```
 
 ## Try it

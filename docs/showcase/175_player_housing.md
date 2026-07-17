@@ -22,7 +22,7 @@ the house runs **as the house, with its owner's (admin's) authority** —
 which is what lets a mortal's `furnish` spawn an object and `decorate`
 rewrite the room. The resident never gains authority over the room; they
 get exactly the powers the verbs choose to grant. So every mutating verb
-opens with the same gate — `enactor.id == get_attr(me, 'owner_id')` — and
+opens with the same gate — `enactor.id == V('owner_id')` — and
 that gate *is* the ownership system. This is the
 [player-shop](088_player_shops.md) boundary applied to a home: the
 enactor is untrusted input, the executor's owner is the power, the script
@@ -64,19 +64,19 @@ door
 `claim` — first come, first served, and only once:
 
 ```text
-@set here/cmd_claim = $claim: pemit(enactor, 'This home already has an owner.') if get_attr(me, 'owner_id') else (set_attr(me, 'owner_id', enactor.id), set_attr(me, 'owner_name', name(enactor)), pemit(enactor, 'You take the keys. Try: decorate <text>, furnish <item>.'))
+@set here/cmd_claim = $claim: pemit(enactor, 'This home already has an owner.') if V('owner_id') else (set_attr(me, 'owner_id', enactor.id), set_attr(me, 'owner_name', name(enactor)), pemit(enactor, 'You take the keys. Try: decorate <text>, furnish <item>.'))
 ```
 
 `decorate` — owner-only, length-capped, escaped, written to `desc_extras`:
 
 ```text
-@set here/cmd_decorate = $decorate *: txt = trim(arg0); mx = get_attr(me, 'decor_max', 80); ok = enactor.id == get_attr(me, 'owner_id'); pemit(enactor, 'This is not your home.') if not ok else (pemit(enactor, 'Too long — keep it under ' + str(mx) + ' characters.') if len(txt) > mx else (set_attr(me, 'desc_extras', [['', escape(txt)]]), pemit(enactor, 'You redecorate.')))
+@set here/cmd_decorate = $decorate *: txt = trim(arg0); mx = V('decor_max', 80); ok = enactor.id == V('owner_id'); pemit(enactor, 'This is not your home.') if not ok else (pemit(enactor, 'Too long — keep it under ' + str(mx) + ' characters.') if len(txt) > mx else (set_attr(me, 'desc_extras', [['', escape(txt)]]), pemit(enactor, 'You redecorate.')))
 ```
 
 `furnish` — owner-only, whitelist-gated, spawned `safe`:
 
 ```text
-@set here/cmd_furnish = $furnish *: item = trim(arg0).lower(); wl = get_attr(me, 'furniture_ok', []); ok = enactor.id == get_attr(me, 'owner_id'); pemit(enactor, 'This is not your home.') if not ok else (pemit(enactor, 'Not an allowed furnishing. Try: ' + ', '.join(wl)) if item not in wl else (set_attr(create_obj('a ' + item, tags=['thing', 'furniture'], location=me), 'safe', True), remit(me, get_attr(me, 'owner_name', 'Someone') + ' sets out a ' + item + '.')))
+@set here/cmd_furnish = $furnish *: item = trim(arg0).lower(); wl = V('furniture_ok', []); ok = enactor.id == V('owner_id'); pemit(enactor, 'This is not your home.') if not ok else (pemit(enactor, 'Not an allowed furnishing. Try: ' + ', '.join(wl)) if item not in wl else (set_attr(create_obj('a ' + item, tags=['thing', 'furniture'], location=me), 'safe', True), remit(me, V('owner_name', 'Someone') + ' sets out a ' + item + '.')))
 ```
 
 Step back out and hand the street the keys:

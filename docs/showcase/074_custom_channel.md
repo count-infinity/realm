@@ -76,14 +76,14 @@ Membership — join refuses a double-subscribe, leave also clears your
 mute flag:
 
 ```text
-@set Comms Nexus/cmd_join = $join pub: subs = get_attr(me, 'subs') or []; (pemit(enactor, 'You are already tuned to [pub].') if enactor.id in subs else (set_attr(me, 'subs', subs + [enactor.id]), pemit(enactor, 'You tune in to [pub]. Talk with +pub <message>.')))
-@set Comms Nexus/cmd_leave = $leave pub: set_attr(me, 'subs', [i for i in (get_attr(me, 'subs') or []) if i != enactor.id]); set_attr(me, 'quiet', [i for i in (get_attr(me, 'quiet') or []) if i != enactor.id]); pemit(enactor, 'You drop off [pub].')
+@set Comms Nexus/cmd_join = $join pub: subs = V('subs') or []; (pemit(enactor, 'You are already tuned to [pub].') if enactor.id in subs else (set_attr(me, 'subs', subs + [enactor.id]), pemit(enactor, 'You tune in to [pub]. Talk with +pub <message>.')))
+@set Comms Nexus/cmd_leave = $leave pub: set_attr(me, 'subs', [i for i in (V('subs') or []) if i != enactor.id]); set_attr(me, 'quiet', [i for i in (V('quiet') or []) if i != enactor.id]); pemit(enactor, 'You drop off [pub].')
 ```
 
 The voice — one subroutine, two trigger spellings:
 
 ```text
-@set Comms Nexus/speak = subs = get_attr(me, 'subs') or []; line = '[pub] ' + name(enactor) + ': ' + escape(str(arg0)); (pemit(enactor, 'You are not tuned to [pub]. JOIN PUB first.') if enactor.id not in subs else (set_attr(me, 'hist', ((get_attr(me, 'hist') or []) + [line])[-20:]), [pemit(get('#' + str(i)), line) for i in subs if i not in (get_attr(me, 'quiet') or [])]))
+@set Comms Nexus/speak = subs = V('subs') or []; line = f'[pub] {name(enactor)}: {escape(str(arg0))}'; (pemit(enactor, 'You are not tuned to [pub]. JOIN PUB first.') if enactor.id not in subs else (set_attr(me, 'hist', ((V('hist') or []) + [line])[-20:]), [pemit(get('#' + str(i)), line) for i in subs if i not in (V('quiet') or [])]))
 @set Comms Nexus/cmd_pub = $+pub *: eval_attr(me, 'speak', arg0)
 @set Comms Nexus/cmd_p = $+p *: eval_attr(me, 'speak', arg0)
 ```
@@ -91,9 +91,9 @@ The voice — one subroutine, two trigger spellings:
 History and muting:
 
 ```text
-@set Comms Nexus/cmd_hist = $history pub: rows = get_attr(me, 'hist') or []; pemit(enactor, '[pub] Nothing has been said yet.') if not rows else [pemit(enactor, r) for r in rows]
-@set Comms Nexus/cmd_mute = $mute pub: q = get_attr(me, 'quiet') or []; (set_attr(me, 'quiet', q if enactor.id in q else q + [enactor.id]), pemit(enactor, '[pub] muted. HISTORY PUB still works; UNMUTE PUB resumes delivery.'))
-@set Comms Nexus/cmd_unmute = $unmute pub: set_attr(me, 'quiet', [i for i in (get_attr(me, 'quiet') or []) if i != enactor.id]); pemit(enactor, '[pub] unmuted.')
+@set Comms Nexus/cmd_hist = $history pub: rows = V('hist') or []; pemit(enactor, '[pub] Nothing has been said yet.') if not rows else [pemit(enactor, r) for r in rows]
+@set Comms Nexus/cmd_mute = $mute pub: q = V('quiet') or []; (set_attr(me, 'quiet', q if enactor.id in q else q + [enactor.id]), pemit(enactor, '[pub] muted. HISTORY PUB still works; UNMUTE PUB resumes delivery.'))
+@set Comms Nexus/cmd_unmute = $unmute pub: set_attr(me, 'quiet', [i for i in (V('quiet') or []) if i != enactor.id]); pemit(enactor, '[pub] unmuted.')
 ```
 
 ## Try it

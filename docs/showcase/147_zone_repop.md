@@ -63,7 +63,7 @@ drop Bridge Systems
 @zone/master Bridge Systems = derelict
 @set Bridge Systems/reset_interval = 300
 @set Bridge Systems/reset_spec = [{"prototype": {"name": "a maintenance drone", "tags": ["npc"]}, "room": "dronebay", "count": 2}]
-@set Bridge Systems/on_reset = set_attr(me, 'cycles', get_attr(me, 'cycles', 0) + 1); remit('Derelict Bridge', 'Dormant systems cycle: consoles relight, the drone bay reseeds.')
+@set Bridge Systems/on_reset = incr('cycles'); remit('Derelict Bridge', 'Dormant systems cycle: consoles relight, the drone bay reseeds.')
 @behavior Bridge Systems = zone_reset
 ```
 

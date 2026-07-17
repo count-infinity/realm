@@ -46,13 +46,13 @@ filter the command uses:
 @create walnut bookshelf
 @set walnut bookshelf/container = true
 drop walnut bookshelf
-@desc walnut bookshelf = A tall walnut case, shelves bowed under years of paper. [[n = len([o for o in contents(me) if has_tag(o, 'book')]); result = str(n) + ' volume' + ('' if n == 1 else 's') + ' stand in a ragged row. A card taped to the shelf reads: BROWSE.']]
+@desc walnut bookshelf = A tall walnut case, shelves bowed under years of paper. [[n = len([o for o in contents(me) if has_tag(o, 'book')]); result = f'{n} volume' + ('' if n == 1 else 's') + ' stand in a ragged row. A card taped to the shelf reads: BROWSE.']]
 ```
 
 The catalogue. Filter, sort by title, number the lines:
 
 ```text
-@set walnut bookshelf/cmd_browse = $browse: books = sorted([o for o in contents(me) if has_tag(o, 'book')], key=lambda o: str(get_attr(o, 'title', name(o))).lower()); pemit(enactor, 'Spines on the shelf:' if books else 'The shelf holds nothing readable.'); [pemit(enactor, '  ' + str(i + 1) + '. ' + str(get_attr(o, 'title', name(o)))) for i, o in enumerate(books)]
+@set walnut bookshelf/cmd_browse = $browse: books = sorted([o for o in contents(me) if has_tag(o, 'book')], key=lambda o: str(get_attr(o, 'title', name(o))).lower()); pemit(enactor, 'Spines on the shelf:' if books else 'The shelf holds nothing readable.'); [pemit(enactor, f"  {i + 1}. {get_attr(o, 'title', name(o))}") for i, o in enumerate(books)]
 ```
 
 Stock it — three books and one interloper:

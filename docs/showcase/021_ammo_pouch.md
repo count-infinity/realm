@@ -45,8 +45,8 @@ The pouch, its ward, and its counter:
 @set ammo pouch/container = true
 drop ammo pouch
 @desc ammo pouch = Stiff leather, the loops and slots inside sized exactly for charge cells.
-@set ammo pouch/on_check = mine = atype == 'item:on_put' and target is me; item = adata('item'); block('The loops inside the ' + name(me) + ' fit ammunition and nothing else - the ' + name(item) + ' stays out.') if mine and not has_tag(item, 'ammo') else None
-@set ammo pouch/on_put = pemit(enactor, 'Slotted. The ' + name(me) + ' now carries ' + str(len(contents(me)) + 1) + ' rounds.')
+@set ammo pouch/on_check = mine = atype == 'item:on_put' and target is me; item = adata('item'); block(f'The loops inside the {name(me)} fit ammunition and nothing else - the {name(item)} stays out.') if mine and not has_tag(item, 'ammo') else None
+@set ammo pouch/on_put = pemit(enactor, f'Slotted. The {name(me)} now carries {len(contents(me)) + 1} rounds.')
 ```
 
 Two rounds and one piece of trail lunch:

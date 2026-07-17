@@ -65,7 +65,7 @@ drop stone sphinx
 The judge — capture, normalize, compare:
 
 ```text
-@set stone sphinx/cmd_answer = $answer *: raw = ' '.join(trim(arg0).lower().split()); clean = ''.join([c for c in raw if c.isalnum() or c == ' ']); norm = ' '.join([w for w in clean.split() if w not in ('a', 'an', 'the')]); (remove_tag(get('sphinx arch'), 'closed'), remit(loc(me), 'The sphinx inclines its head. The arch grinds open.')) if norm in str(get_attr(me, 'answers')).split('|') else pemit(enactor, 'The sphinx is unmoved. "That is not the word."')
+@set stone sphinx/cmd_answer = $answer *: raw = ' '.join(trim(arg0).lower().split()); clean = ''.join([c for c in raw if c.isalnum() or c == ' ']); norm = ' '.join([w for w in clean.split() if w not in ('a', 'an', 'the')]); (remove_tag(get('sphinx arch'), 'closed'), remit(loc(me), 'The sphinx inclines its head. The arch grinds open.')) if norm in str(V('answers')).split('|') else pemit(enactor, 'The sphinx is unmoved. "That is not the word."')
 ```
 
 ## Try it

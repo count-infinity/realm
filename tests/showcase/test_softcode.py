@@ -47,13 +47,13 @@ async def build_jukebox(sim, bela):
                        '"Nebula Nocturne", "The Comet\'s Tail"]')
     await sim.do(bela, "@set holo-jukebox/cmd_tracks = $tracks:"
                        "pemit(enactor, 'Track list: ' + "
-                       "', '.join(get_attr(me, 'tracks', [])))")
+                       "', '.join(V('tracks', [])))")
     await sim.do(bela, "@set holo-jukebox/cmd_play = $play *:"
-                       "hits = [t for t in get_attr(me, 'tracks', []) "
+                       "hits = [t for t in V('tracks', []) "
                        "if arg0.lower() in t.lower()]; "
-                       "remit(here, name(me) + ' spins up: ' + hits[0]) "
-                       "if hits else pemit(enactor, name(me) + "
-                       "' does not know that one.')")
+                       "remit(here, f'{name(me)} spins up: {hits[0]}') "
+                       "if hits else pemit(enactor, "
+                       "f'{name(me)} does not know that one.')")
 
 
 @pytest.mark.asyncio
@@ -314,10 +314,9 @@ def garden_world():
 
 THORNS_BLOCK = ("[[result = ansi('rh', 'Thorns glint among the stems.') "
                 "if skill('observation') >= 12 else '']]")
-VISITS_BLOCK = ("[[n = get_attr(me, 'visits_' + viewer.id, 0) + 1; "
-                "set_attr(me, 'visits_' + viewer.id, n); "
-                "result = 'You have paused here ' + str(n) + ' time' + "
-                "('' if n == 1 else 's') + '.']]")
+VISITS_BLOCK = ("[[n = incr('visits_' + viewer.id); "
+                "result = f\"You have paused here {n} "
+                "time{'' if n == 1 else 's'}.\"]]")
 
 
 async def build_garden(sim, bela, alice, rube):
@@ -455,8 +454,8 @@ class TestPlayerScripting:
         assert cube.location is ada
         sim.seen(ada)
 
-        await sim.do(ada, "program cube = pemit(enactor, 'Tick. The cube "
-                          "counts a heartbeat for ' + name(enactor) + '.')")
+        await sim.do(ada, "program cube = pemit(enactor, f'Tick. The cube "
+                          "counts a heartbeat for {name(enactor)}.')")
         assert "The cube chimes: program stored." in sim.seen(ada)
 
         await sim.do(ada, "use cube")
@@ -467,8 +466,8 @@ class TestPlayerScripting:
         await hand_over_cube(sim, vess)
         sim.seen(ada)
 
-        await sim.do(ada, "program cube = pemit(enactor, 'hex result: ' + "
-                          "str(set_attr(get('Rook'), 'hp', 0)))")
+        await sim.do(ada, "program cube = pemit(enactor, "
+                          "f\"hex result: {set_attr(get('Rook'), 'hp', 0)}\")")
         await sim.do(ada, "use cube")
 
         assert "hex result: False" in sim.seen(ada)   # denied, not crashed
@@ -525,8 +524,8 @@ class TestPlayerScripting:
         sim, vess, ada, rook = workshop_world
         cube = await hand_over_cube(sim, vess)
         sim.seen(ada)
-        await sim.do(ada, "program cube = pemit(enactor, 'Tick. The cube "
-                          "counts a heartbeat for ' + name(enactor) + '.')")
+        await sim.do(ada, "program cube = pemit(enactor, f'Tick. The cube "
+                          "counts a heartbeat for {name(enactor)}.')")
         stored = cube.db.get("on_use")
 
         await sim.do(ada, "drop cube")               # now Rook can reach it

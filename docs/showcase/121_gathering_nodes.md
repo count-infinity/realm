@@ -49,7 +49,7 @@ per regrowth step at the default 4s tick; we regrow in 3 steps):
 ```text
 @create balthite vein
 drop balthite vein
-@desc balthite vein = A seam of blue-green balthite crystal veining the rock face. [[left = get_attr(me, 'ore_left', 0); result = 'It glitters, thick with ore.' if left > 2 else ('Only pale traces remain in the cut.' if left > 0 else 'It is hacked bare -- nothing but scarred rock.')]]
+@desc balthite vein = A seam of blue-green balthite crystal veining the rock face. [[left = V('ore_left', 0); result = 'It glitters, thick with ore.' if left > 2 else ('Only pale traces remain in the cut.' if left > 0 else 'It is hacked bare -- nothing but scarred rock.')]]
 @set balthite vein/ore_cap = 4
 @set balthite vein/ore_left = 4
 @set balthite vein/regrow_ticks = 3
@@ -59,14 +59,14 @@ The mining verb — guard, roll, yield, deplete, and announce, in that
 order. Note the margin arithmetic and the numeric failure text:
 
 ```text
-@set balthite vein/cmd_mine = $mine vein: left = get_attr(me, 'ore_left', 0); res = margin_under(roll('3d6'), get_attr(enactor, 'skill_prospecting', 8)); take = min(left, 1 + max(0, res.margin) // 3); pemit(enactor, 'The vein is hacked bare. Rock heals on its own clock; come back later.') if left < 1 else None; pemit(enactor, 'Sparks, dust, no ore. (rolled ' + str(res.roll) + ' vs prospecting ' + str(res.effective) + ')') if left > 0 and not res.success else None; (set_attr(me, 'ore_left', left - take), [create_obj('a chunk of balthite ore', ['thing', 'ore'], here) for i in range(take)], remit(here, name(enactor) + ' swings at the vein -- ' + str(take) + ' chunk(s) of balthite clatter free.'), (set_attr(me, 'regrow_left', get_attr(me, 'regrow_ticks', 3)), remit(here, 'The seam splits and goes dark, spent.')) if left - take < 1 else None) if left > 0 and res.success else None
+@set balthite vein/cmd_mine = $mine vein: left = V('ore_left', 0); res = margin_under(roll('3d6'), get_attr(enactor, 'skill_prospecting', 8)); take = min(left, 1 + max(0, res.margin) // 3); pemit(enactor, 'The vein is hacked bare. Rock heals on its own clock; come back later.') if left < 1 else None; pemit(enactor, 'Sparks, dust, no ore. (rolled ' + str(res.roll) + ' vs prospecting ' + str(res.effective) + ')') if left > 0 and not res.success else None; (decr('ore_left', take), [create_obj('a chunk of balthite ore', ['thing', 'ore'], here) for i in range(take)], remit(here, name(enactor) + ' swings at the vein -- ' + str(take) + ' chunk(s) of balthite clatter free.'), (set_attr(me, 'regrow_left', V('regrow_ticks', 3)), remit(here, 'The seam splits and goes dark, spent.')) if left - take < 1 else None) if left > 0 and res.success else None
 ```
 
 The regrowth clock — dormant while any ore remains, counting while the
 seam is spent:
 
 ```text
-@set balthite vein/on_tick = left = get_attr(me, 'ore_left', 0); r = get_attr(me, 'regrow_left', 0); (set_attr(me, 'regrow_left', r - 1) if r > 1 else (set_attr(me, 'ore_left', get_attr(me, 'ore_cap', 4)), del_attr(me, 'regrow_left'), remit(here, 'Fresh balthite creeps glittering back across the rock face.'))) if left < 1 else None
+@set balthite vein/on_tick = left = V('ore_left', 0); r = V('regrow_left', 0); (decr('regrow_left') if r > 1 else (set_attr(me, 'ore_left', V('ore_cap', 4)), del_attr(me, 'regrow_left'), remit(here, 'Fresh balthite creeps glittering back across the rock face.'))) if left < 1 else None
 @behavior balthite vein = script_ticker, interval:30
 ```
 

@@ -64,14 +64,14 @@ Step 3 — stamp the description (into `desc_extras`, the slot softcode may
 write) and ask for a direction:
 
 ```text
-@set build wizard/on_desc = r = get('#' + str(get_attr(me, 'wip_room_' + enactor.id))); set_attr(r, 'desc_extras', [['', escape(trim(arg0))]]); prompt(enactor, 'Which direction leads there from here?', 'on_exit')
+@set build wizard/on_desc = r = get('#' + str(V('wip_room_' + enactor.id))); set_attr(r, 'desc_extras', [['', escape(trim(arg0))]]); prompt(enactor, 'Which direction leads there from here?', 'on_exit')
 ```
 
 Step 4 — mint the exit from the player's current room to the new one,
 clear the scratch state, and report:
 
 ```text
-@set build wizard/on_exit = d = trim(arg0).lower(); r = get('#' + str(get_attr(me, 'wip_room_' + enactor.id))); e = create_obj(d, tags=['exit'], location=loc(enactor)); set_attr(e, 'destination', r.id); del_attr(me, 'wip_room_' + enactor.id); pemit(enactor, 'Done. ' + name(r) + ' is now ' + d + ' of here.')
+@set build wizard/on_exit = d = trim(arg0).lower(); r = get('#' + str(V('wip_room_' + enactor.id))); e = create_obj(d, tags=['exit'], location=loc(enactor)); set_attr(e, 'destination', r.id); del_attr(me, 'wip_room_' + enactor.id); pemit(enactor, 'Done. ' + name(r) + ' is now ' + d + ' of here.')
 ```
 
 ## Try it

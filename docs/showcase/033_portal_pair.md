@@ -55,7 +55,7 @@ on each:
 @dig The Observatory
 @dig The Shattered Crater
 @teleport me = The Observatory
-@eval far = get('The Shattered Crater'); a = create_obj('shimmering portal', tags=['exit'], location=here); b = create_obj('shimmering portal', tags=['exit'], location=far); set_attr(a, 'destination', far.id); set_attr(b, 'destination', here.id); [expire(o, 120) for o in (a, b)]; [set_attr(o, 'on_expire', "remit(loc(me), 'The wormhole snaps shut with a thunderclap.')") for o in (a, b)]; result = 'wormhole open: ' + a.id[:8] + ' <-> ' + b.id[:8]
+@eval far = get('The Shattered Crater'); a = create_obj('shimmering portal', tags=['exit'], location=here); b = create_obj('shimmering portal', tags=['exit'], location=far); set_attr(a, 'destination', far.id); set_attr(b, 'destination', here.id); [expire(o, 120) for o in (a, b)]; [set_attr(o, 'on_expire', "remit(loc(me), 'The wormhole snaps shut with a thunderclap.')") for o in (a, b)]; result = f'wormhole open: {a.id[:8]} <-> {b.id[:8]}'
 @desc shimmering portal = A lens of folded starlight. Things on the far side swim in it.
 ```
 

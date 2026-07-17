@@ -55,7 +55,7 @@ drop Quizmaster Quill
 Starting a round:
 
 ```text
-@set Quizmaster Quill/cmd_start = $trivia: ok = not get_attr(me, 'running', 0); [(set_attr(me, 'running', 1), set_attr(me, 'idx', 0), set_attr(me, 'scores', {}), remit(here, 'Quill rings his bell: Trivia! Shout your answers. ' + str(len(get_attr(me, 'questions', []))) + ' questions.'), eval_attr(me, 'ask')) for g in [ok] if g]; pemit(enactor, 'A game is already running.') if not ok else None
+@set Quizmaster Quill/cmd_start = $trivia: ok = not V('running', 0); [(set_attr(me, 'running', 1), set_attr(me, 'idx', 0), set_attr(me, 'scores', {}), remit(here, f'Quill rings his bell: Trivia! Shout your answers. {len(V("questions", []))} questions.'), eval_attr(me, 'ask')) for g in [ok] if g]; pemit(enactor, 'A game is already running.') if not ok else None
 ```
 
 The asking engine — one helper that either poses the next question
@@ -63,26 +63,26 @@ The asking engine — one helper that either poses the next question
 winner:
 
 ```text
-@set Quizmaster Quill/ask = qs = get_attr(me, 'questions', []); i = get_attr(me, 'idx', 0); sc = get_attr(me, 'scores', {}); top = max(sc.values()) if sc else 0; champs = ', '.join(sorted([nm for nm, pts in sc.items() if pts == top])) if sc else 'nobody'; (set_attr(me, 'open', 1), set_attr(me, 'deadline', now() + get_attr(me, 'window', 20)), remit(here, 'Question ' + str(i + 1) + ': ' + qs[i]['q']), wait(get_attr(me, 'window', 20), 'trigger me/times_up')) if i < len(qs) else (set_attr(me, 'running', 0), remit(here, 'That is the game! Top score: ' + champs + ' with ' + str(top) + '.')); result = 1
+@set Quizmaster Quill/ask = qs = V('questions', []); i = V('idx', 0); sc = V('scores', {}); top = max(sc.values()) if sc else 0; champs = ', '.join(sorted([nm for nm, pts in sc.items() if pts == top])) if sc else 'nobody'; (set_attr(me, 'open', 1), set_attr(me, 'deadline', now() + V('window', 20)), remit(here, f'Question {i + 1}: {qs[i]["q"]}'), wait(V('window', 20), 'trigger me/times_up')) if i < len(qs) else (set_attr(me, 'running', 0), remit(here, f'That is the game! Top score: {champs} with {top}.')); result = 1
 @set Quizmaster Quill/next_q = eval_attr(me, 'ask')
 ```
 
 The clock — note both guards, `open` *and* the deadline:
 
 ```text
-@set Quizmaster Quill/times_up = qs = get_attr(me, 'questions', []); i = get_attr(me, 'idx', 0); (set_attr(me, 'open', 0), set_attr(me, 'idx', i + 1), remit(here, 'Time! The answer was: ' + qs[i]['a'] + '.'), wait(get_attr(me, 'tempo', 4), 'trigger me/next_q')) if get_attr(me, 'open', 0) and now() >= get_attr(me, 'deadline', 0) else None
+@set Quizmaster Quill/times_up = qs = V('questions', []); i = V('idx', 0); (set_attr(me, 'open', 0), incr('idx'), remit(here, f'Time! The answer was: {qs[i]["a"]}.'), wait(V('tempo', 4), 'trigger me/next_q')) if V('open', 0) and now() >= V('deadline', 0) else None
 ```
 
 The ears — first correct shout takes the point and closes the window:
 
 ```text
-@set Quizmaster Quill/listen_guess = ^*: qs = get_attr(me, 'questions', []); i = get_attr(me, 'idx', 0); live = get_attr(me, 'running', 0) and get_attr(me, 'open', 0) and has_tag(enactor, 'player') and i < len(qs); hit = live and qs[i]['a'] in trim(arg0).lower(); sc = get_attr(me, 'scores', {}); [(set_attr(me, 'open', 0), set_attr(me, 'idx', i + 1), sc.update({name(enactor): sc.get(name(enactor), 0) + 1}), set_attr(me, 'scores', sc), remit(here, name(enactor) + ' has it: ' + qs[i]['a'] + '! Score: ' + str(sc[name(enactor)]) + '.'), wait(get_attr(me, 'tempo', 4), 'trigger me/next_q')) for g in [hit] if g]
+@set Quizmaster Quill/listen_guess = ^*: qs = V('questions', []); i = V('idx', 0); live = V('running', 0) and V('open', 0) and has_tag(enactor, 'player') and i < len(qs); hit = live and qs[i]['a'] in trim(arg0).lower(); sc = V('scores', {}); [(set_attr(me, 'open', 0), incr('idx'), sc.update({name(enactor): sc.get(name(enactor), 0) + 1}), set_attr(me, 'scores', sc), remit(here, f'{name(enactor)} has it: {qs[i]["a"]}! Score: {sc[name(enactor)]}.'), wait(V('tempo', 4), 'trigger me/next_q')) for g in [hit] if g]
 ```
 
 The leaderboard:
 
 ```text
-@set Quizmaster Quill/cmd_scores = $standings: sc = get_attr(me, 'scores', {}); pemit(enactor, 'Trivia standings:'); [pemit(enactor, '  ' + nm + ' -- ' + str(pts)) for nm, pts in sorted(sc.items(), key=lambda kv: -kv[1])]; pemit(enactor, '  (no scores yet)') if not sc else None
+@set Quizmaster Quill/cmd_scores = $standings: sc = V('scores', {}); pemit(enactor, 'Trivia standings:'); [pemit(enactor, f'  {nm} -- {pts}') for nm, pts in sorted(sc.items(), key=lambda kv: -kv[1])]; pemit(enactor, '  (no scores yet)') if not sc else None
 ```
 
 ## Try it

@@ -98,7 +98,7 @@ marks itself armed, hisses to the room, and lights the `wait()` fuse:
 ```text
 @create gas bomb
 @set gas bomb/fuse = 10
-@set gas bomb/cmd_arm = $arm bomb: pemit(enactor, 'Set it down first -- arm it in your hands and you wear it.') if not (loc(me) and has_tag(loc(me), 'room')) else (pemit(enactor, 'It is already hissing.') if get_attr(me, 'armed', 0) else (set_attr(me, 'armed', 1), remit(loc(me), name(enactor) + ' twists the fuse cap. A thin hiss starts.'), wait(get_attr(me, 'fuse', 10), 'trigger me/detonate')))
+@set gas bomb/cmd_arm = $arm bomb: pemit(enactor, 'Set it down first -- arm it in your hands and you wear it.') if not (loc(me) and has_tag(loc(me), 'room')) else (pemit(enactor, 'It is already hissing.') if V('armed', 0) else (set_attr(me, 'armed', 1), remit(loc(me), f'{name(enactor)} twists the fuse cap. A thin hiss starts.'), wait(V('fuse', 10), 'trigger me/detonate')))
 ```
 
 Detonation: resolve open-exit destinations, spawn a cloud here and in

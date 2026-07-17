@@ -56,27 +56,27 @@ drop the Requests Desk
 `petition <text>` — file a ticket, confirm, and (going further) alert staff:
 
 ```text
-@set the Requests Desk/cmd_petition = $petition *:txt = trim(arg0); ok = has_tag(enactor, 'player') and bool(txt); [(set_attr(me, 'ticket_' + str(n), {'by': enactor.id, 'by_name': name(enactor), 'text': escape(t), 'status': 'open', 'claimed_by': '', 'claimed_name': '', 'note': ''}), set_attr(me, 'next_ticket', n + 1), pemit(enactor, 'Filed request #' + str(n) + '. Staff will review it.')) for g, t in [[ok, txt]] if g for n in [get_attr(me, 'next_ticket', 1)]]; pemit(enactor, 'Type PETITION <your request>.') if not ok else None
+@set the Requests Desk/cmd_petition = $petition *:txt = trim(arg0); ok = has_tag(enactor, 'player') and bool(txt); [(set_attr(me, 'ticket_' + str(n), {'by': enactor.id, 'by_name': name(enactor), 'text': escape(t), 'status': 'open', 'claimed_by': '', 'claimed_name': '', 'note': ''}), set_attr(me, 'next_ticket', n + 1), pemit(enactor, f'Filed request #{n}. Staff will review it.')) for g, t in [[ok, txt]] if g for n in [V('next_ticket', 1)]]; pemit(enactor, 'Type PETITION <your request>.') if not ok else None
 ```
 
 `petitions` — the queue, filtered by who's asking:
 
 ```text
-@set the Requests Desk/cmd_petitions = $petitions:rows = [[i, get_attr(me, 'ticket_' + str(i))] for i in range(1, get_attr(me, 'next_ticket', 1)) if get_attr(me, 'ticket_' + str(i))]; mine = [r for r in rows if has_tag(enactor, 'admin') or r[1]['by'] == enactor.id]; pemit(enactor, 'Requests queue:' if mine else 'No requests on file for you.'); [pemit(enactor, '  #' + str(r[0]) + ' [' + r[1]['status'] + '] ' + r[1]['by_name'] + ': ' + r[1]['text'] + ((' - handling: ' + r[1]['claimed_name']) if r[1]['claimed_by'] else '') + ((' -> ' + r[1]['note']) if r[1]['note'] else '')) for r in mine]
+@set the Requests Desk/cmd_petitions = $petitions:rows = [[i, V('ticket_' + str(i))] for i in range(1, V('next_ticket', 1)) if V('ticket_' + str(i))]; mine = [r for r in rows if has_tag(enactor, 'admin') or r[1]['by'] == enactor.id]; pemit(enactor, 'Requests queue:' if mine else 'No requests on file for you.'); [pemit(enactor, f'  #{r[0]} [{r[1]["status"]}] {r[1]["by_name"]}: {r[1]["text"]}' + ((' - handling: ' + r[1]['claimed_name']) if r[1]['claimed_by'] else '') + ((' -> ' + r[1]['note']) if r[1]['note'] else '')) for r in mine]
 ```
 
 `claim <n>` and `resolve <n> = <note>` — the staff side, each pinging the
 filer:
 
 ```text
-@set the Requests Desk/cmd_claim = $claim *:n = trim(arg0); t = get_attr(me, 'ticket_' + n); ok = has_tag(enactor, 'admin') and bool(t) and t['status'] == 'open'; [(set_attr(me, 'ticket_' + n, dict(x, status='claimed', claimed_by=enactor.id, claimed_name=name(enactor))), pemit(enactor, 'You claim request #' + n + '.'), pemit(get('#' + str(x['by'])), name(enactor) + ' is now handling your request #' + n + '.')) for g, x in [[ok, t]] if g]; pemit(enactor, 'No such open request, or you are not staff.') if not ok else None
-@set the Requests Desk/cmd_resolve = $resolve * = *:n = trim(arg0); note = trim(arg1); t = get_attr(me, 'ticket_' + n); ok = has_tag(enactor, 'admin') and bool(t) and t['status'] != 'closed'; [(set_attr(me, 'ticket_' + n, dict(x, status='closed', note=escape(nt), claimed_by=enactor.id, claimed_name=name(enactor))), pemit(enactor, 'Resolved request #' + n + '.'), pemit(get('#' + str(x['by'])), 'Your request #' + n + ' was resolved by ' + name(enactor) + ': ' + escape(nt))) for g, x, nt in [[ok, t, note]] if g]; pemit(enactor, 'No such open request, or you are not staff.') if not ok else None
+@set the Requests Desk/cmd_claim = $claim *:n = trim(arg0); t = V('ticket_' + n); ok = has_tag(enactor, 'admin') and bool(t) and t['status'] == 'open'; [(set_attr(me, 'ticket_' + n, dict(x, status='claimed', claimed_by=enactor.id, claimed_name=name(enactor))), pemit(enactor, 'You claim request #' + n + '.'), pemit(get('#' + str(x['by'])), name(enactor) + ' is now handling your request #' + n + '.')) for g, x in [[ok, t]] if g]; pemit(enactor, 'No such open request, or you are not staff.') if not ok else None
+@set the Requests Desk/cmd_resolve = $resolve * = *:n = trim(arg0); note = trim(arg1); t = V('ticket_' + n); ok = has_tag(enactor, 'admin') and bool(t) and t['status'] != 'closed'; [(set_attr(me, 'ticket_' + n, dict(x, status='closed', note=escape(nt), claimed_by=enactor.id, claimed_name=name(enactor))), pemit(enactor, 'Resolved request #' + n + '.'), pemit(get('#' + str(x['by'])), 'Your request #' + n + ' was resolved by ' + name(enactor) + ': ' + escape(nt))) for g, x, nt in [[ok, t, note]] if g]; pemit(enactor, 'No such open request, or you are not staff.') if not ok else None
 ```
 
 The connect nudge — staff hear the backlog at login:
 
 ```text
-@set the Requests Desk/on_connect = openn = len([1 for i in range(1, get_attr(me, 'next_ticket', 1)) if get_attr(me, 'ticket_' + str(i)) and get_attr(me, 'ticket_' + str(i))['status'] == 'open']); pemit(enactor, 'Requests desk: ' + str(openn) + ' open request(s) awaiting staff.') if has_tag(enactor, 'admin') and openn else None
+@set the Requests Desk/on_connect = openn = len([1 for i in range(1, V('next_ticket', 1)) if V('ticket_' + str(i)) and V('ticket_' + str(i))['status'] == 'open']); pemit(enactor, 'Requests desk: ' + str(openn) + ' open request(s) awaiting staff.') if has_tag(enactor, 'admin') and openn else None
 ```
 
 ## Try it

@@ -74,10 +74,10 @@ the four mirror hooks:
 ```text
 @set vault door/key_id = vault_brass
 @set vault door/locked_msg = The wheel spins uselessly. Locked tight.
-@set vault door/on_open = remove_tag(get_attr(me, 'partner'), 'closed')
-@set vault door/on_close = add_tag(get_attr(me, 'partner'), 'closed')
-@set vault door/on_lock = set_attr(get_attr(me, 'partner'), 'locked', True)
-@set vault door/on_unlock = set_attr(get_attr(me, 'partner'), 'locked', False)
+@set vault door/on_open = remove_tag(V('partner'), 'closed')
+@set vault door/on_close = add_tag(V('partner'), 'closed')
+@set vault door/on_lock = set_attr(V('partner'), 'locked', True)
+@set vault door/on_unlock = set_attr(V('partner'), 'locked', False)
 ```
 
 Walk through the (still unlocked) doorway and give the far side the
@@ -88,10 +88,10 @@ commands configure whichever side you're standing at:
 vault door
 @set vault door/key_id = vault_brass
 @set vault door/locked_msg = The wheel spins uselessly. Locked tight.
-@set vault door/on_open = remove_tag(get_attr(me, 'partner'), 'closed')
-@set vault door/on_close = add_tag(get_attr(me, 'partner'), 'closed')
-@set vault door/on_lock = set_attr(get_attr(me, 'partner'), 'locked', True)
-@set vault door/on_unlock = set_attr(get_attr(me, 'partner'), 'locked', False)
+@set vault door/on_open = remove_tag(V('partner'), 'closed')
+@set vault door/on_close = add_tag(V('partner'), 'closed')
+@set vault door/on_lock = set_attr(V('partner'), 'locked', True)
+@set vault door/on_unlock = set_attr(V('partner'), 'locked', False)
 vault door
 ```
 

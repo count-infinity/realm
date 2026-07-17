@@ -45,8 +45,10 @@ and then dies right on schedule, its work done. One wrinkle: the tag's
 handler is set by *script*, and quoting code inside code is misery — so
 the handler text lives once on the counter (`tag_expire`) and pawning
 *copies* it onto each tag with
-`set_attr(t, 'on_expire', get_attr(me, 'tag_expire'))`. (Inside that
-handler `me` is the **tag**, in the counter's pockets — so it emits with
+`set_attr(t, 'on_expire', V('tag_expire'))`. (Inside that
+handler `me` is the **tag**, in the counter's pockets, not the counter —
+the longhand `get_attr(me, 'item')` keeps that switch visible where a
+bare `V('item')` would hide it — and it emits with
 `remit(loc(shop), ...)`, not `here`, which would whisper to the shelf.)
 
 **The rack closes the loop.** Forfeited goods are ordinary escrowed
@@ -75,7 +77,7 @@ The forfeit handler, written once as plain text on the counter — the
 code each pawn tag will run when its window closes:
 
 ```text
-@set the Pawn Counter/tag_expire = shop = get('the Pawn Counter'); iid = get_attr(me, 'item'); row = get_attr(shop, 'pledge_' + iid); (del_attr(shop, 'pledge_' + iid), add_tag(get('#' + iid), 'forfeit'), remit(loc(shop), 'Yaro shrugs and moves ' + name(get('#' + iid)) + ' to the sale rack.')) if row else None
+@set the Pawn Counter/tag_expire = shop = get('the Pawn Counter'); iid = get_attr(me, 'item'); row = get_attr(shop, 'pledge_' + iid); (del_attr(shop, 'pledge_' + iid), add_tag(get('#' + iid), 'forfeit'), remit(loc(shop), f"Yaro shrugs and moves {name(get('#' + iid))} to the sale rack.")) if row else None
 ```
 
 `pawn <item>` — appraise, escrow, advance the loan, open the ledger row,
@@ -83,7 +85,7 @@ and mint the expiring tag (the `for g, l in [[ok, loan]] if g` opener is
 the standard comprehension-binding trick):
 
 ```text
-@set the Pawn Counter/cmd_pawn = $pawn *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; val = (get_attr(itm[0], 'value', 0) or get_attr(me, 'fallback', 5)) if itm else 0; loan = max(1, val * get_attr(me, 'rate', 60) // 100); ok = bool(itm) and transfer_credits(me, enactor, loan); [(move_to(o, me), set_attr(me, 'pledge_' + o.id, {'owner': enactor.id, 'owner_name': name(enactor), 'loan': l, 'due': now() + get_attr(me, 'window', 300)}), set_attr(t, 'item', o.id), set_attr(t, 'on_expire', get_attr(me, 'tag_expire')), expire(t, get_attr(me, 'window', 300)), pemit(enactor, 'Yaro counts out ' + str(l) + ' credits against your ' + name(o) + '. Redeem it for ' + str(l + max(1, l // 10)) + ' within ' + str(get_attr(me, 'window', 300)) + ' seconds.')) for g, l, lst in [[ok, loan, itm]] if g for o in [lst[0]] for t in [create_obj('a pawn tag (' + name(o) + ')', tags=['thing', 'pawn_tag'], location=me)]]; pemit(enactor, 'You are not carrying that, or the counter cannot cover the loan.') if not ok else None
+@set the Pawn Counter/cmd_pawn = $pawn *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; val = (get_attr(itm[0], 'value', 0) or V('fallback', 5)) if itm else 0; loan = max(1, val * V('rate', 60) // 100); ok = bool(itm) and transfer_credits(me, enactor, loan); [(move_to(o, me), set_attr(me, 'pledge_' + o.id, {'owner': enactor.id, 'owner_name': name(enactor), 'loan': l, 'due': now() + V('window', 300)}), set_attr(t, 'item', o.id), set_attr(t, 'on_expire', V('tag_expire')), expire(t, V('window', 300)), pemit(enactor, f"Yaro counts out {l} credits against your {name(o)}. Redeem it for {l + max(1, l // 10)} within {V('window', 300)} seconds.")) for g, l, lst in [[ok, loan, itm]] if g for o in [lst[0]] for t in [create_obj(f'a pawn tag ({name(o)})', tags=['thing', 'pawn_tag'], location=me)]]; pemit(enactor, 'You are not carrying that, or the counter cannot cover the loan.') if not ok else None
 ```
 
 `redeem <item>` — your pledge, inside the window, loan plus vig. The
@@ -93,14 +95,14 @@ would forfeit a redeemed item's ghost row — the double bookkeeping must
 die together):
 
 ```text
-@set the Pawn Counter/cmd_redeem = $redeem *:itm = [o for o in contents(me) if name(o).lower() == arg0.strip().lower() and has_attr(me, 'pledge_' + o.id)]; row = get_attr(me, 'pledge_' + itm[0].id) if itm else None; cost = row['loan'] + max(1, row['loan'] // 10) if row else 0; ok = bool(row) and row['owner'] == enactor.id and now() <= row['due'] and transfer_credits(enactor, me, cost); [(teleport_obj(o, enactor), del_attr(me, 'pledge_' + o.id), [destroy_obj(t) for t in contents(me) if has_tag(t, 'pawn_tag') and get_attr(t, 'item') == o.id], pemit(enactor, 'You redeem your ' + name(o) + ' for ' + str(c) + ' credits.')) for g, o, c in [[ok, itm[0] if itm else None, cost]] if g]; pemit(enactor, 'No such pledge of yours, the window has closed, or you cannot cover it.') if not ok else None
+@set the Pawn Counter/cmd_redeem = $redeem *:itm = [o for o in contents(me) if name(o).lower() == arg0.strip().lower() and has_attr(me, 'pledge_' + o.id)]; row = V('pledge_' + itm[0].id) if itm else None; cost = row['loan'] + max(1, row['loan'] // 10) if row else 0; ok = bool(row) and row['owner'] == enactor.id and now() <= row['due'] and transfer_credits(enactor, me, cost); [(teleport_obj(o, enactor), del_attr(me, 'pledge_' + o.id), [destroy_obj(t) for t in contents(me) if has_tag(t, 'pawn_tag') and get_attr(t, 'item') == o.id], pemit(enactor, f'You redeem your {name(o)} for {c} credits.')) for g, o, c in [[ok, itm[0] if itm else None, cost]] if g]; pemit(enactor, 'No such pledge of yours, the window has closed, or you cannot cover it.') if not ok else None
 ```
 
 The sale rack — browse and buy forfeits at full value:
 
 ```text
-@set the Pawn Counter/cmd_rack = $rack:pemit(enactor, 'On the sale rack:'); [pemit(enactor, '  ' + name(o) + ' - ' + str(max(1, get_attr(o, 'value', 0) or get_attr(me, 'fallback', 5))) + ' credits') for o in contents(me) if has_tag(o, 'forfeit')]
-@set the Pawn Counter/cmd_buyrack = $rack buy *:itm = [o for o in contents(me) if has_tag(o, 'forfeit') and name(o).lower() == arg0.strip().lower()]; price = max(1, get_attr(itm[0], 'value', 0) or get_attr(me, 'fallback', 5)) if itm else 0; ok = bool(itm) and transfer_credits(enactor, me, price); [(remove_tag(o, 'forfeit'), teleport_obj(o, enactor), pemit(enactor, 'Yours for ' + str(p) + ' credits. No refunds.')) for g, p, lst in [[ok, price, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Not on the rack, or you cannot cover it.') if not ok else None
+@set the Pawn Counter/cmd_rack = $rack:pemit(enactor, 'On the sale rack:'); [pemit(enactor, f"  {name(o)} - {max(1, get_attr(o, 'value', 0) or V('fallback', 5))} credits") for o in contents(me) if has_tag(o, 'forfeit')]
+@set the Pawn Counter/cmd_buyrack = $rack buy *:itm = [o for o in contents(me) if has_tag(o, 'forfeit') and name(o).lower() == arg0.strip().lower()]; price = max(1, get_attr(itm[0], 'value', 0) or V('fallback', 5)) if itm else 0; ok = bool(itm) and transfer_credits(enactor, me, price); [(remove_tag(o, 'forfeit'), teleport_obj(o, enactor), pemit(enactor, f'Yours for {p} credits. No refunds.')) for g, p, lst in [[ok, price, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Not on the rack, or you cannot cover it.') if not ok else None
 ```
 
 ## Try it

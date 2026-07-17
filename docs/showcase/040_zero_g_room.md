@@ -80,7 +80,7 @@ after the move, so the launch line lands in the bay after the pusher
 has already left it:
 
 ```text
-@set here/cmd_push = $push *: nm = trim(arg0).lower(); ex = [e for e in contents(me) if has_tag(e, 'exit') and name(e) == nm]; pemit(enactor, 'No handhold faces that way.') if not ex else ((move_to(enactor, get('#' + str(get_attr(ex[0], 'destination', ''))), tags=['zerog']), pemit(enactor, 'You coil, kick off, and sail through the ' + nm + ' hatch.'), remit(me, name(enactor) + ' kicks off a bulkhead and sails out through the ' + nm + ' hatch.')) if skill_check(enactor, 'freefall') else (pemit(enactor, 'You misjudge the kick and tumble; the hatch drifts past your fingers.'), remit(me, name(enactor) + ' tumbles slowly in midair, pawing at nothing.')))
+@set here/cmd_push = $push *: nm = trim(arg0).lower(); ex = [e for e in contents(me) if has_tag(e, 'exit') and name(e) == nm]; pemit(enactor, 'No handhold faces that way.') if not ex else ((move_to(enactor, get('#' + str(get_attr(ex[0], 'destination', ''))), tags=['zerog']), pemit(enactor, f'You coil, kick off, and sail through the {nm} hatch.'), remit(me, f'{name(enactor)} kicks off a bulkhead and sails out through the {nm} hatch.')) if skill_check(enactor, 'freefall') else (pemit(enactor, 'You misjudge the kick and tumble; the hatch drifts past your fingers.'), remit(me, name(enactor) + ' tumbles slowly in midair, pawing at nothing.')))
 ```
 
 And one purely thematic verb, because a zero-G room without one is a

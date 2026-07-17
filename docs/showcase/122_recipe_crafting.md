@@ -60,14 +60,14 @@ drop assembly bench
 The job-card browser — one line per recipe, ingredients spelled out:
 
 ```text
-@set assembly bench/cmd_jobs = $jobs: [pemit(enactor, '  ' + s + ' -> ' + get_attr(me, 'recipe_' + s)['output'] + ' (needs: ' + ', '.join(str(n) + 'x ' + t for t, n in get_attr(me, 'recipe_' + s)['needs'].items()) + ')') for s in get_attr(me, 'menu', [])]
+@set assembly bench/cmd_jobs = $jobs: [pemit(enactor, '  ' + s + ' -> ' + V('recipe_' + s)['output'] + ' (needs: ' + ', '.join(f'{n}x {t}' for t, n in V('recipe_' + s)['needs'].items()) + ')') for s in V('menu', [])]
 ```
 
 And the craft itself — guards first (unknown recipe, shortfall), then
 the roll, then one tuple that consumes and creates together:
 
 ```text
-@set assembly bench/cmd_craft = $craft *: sel = trim(arg0).lower(); r = get_attr(me, 'recipe_' + sel); carried = contents(enactor) if r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The job card lists no such assembly. Try jobs.') if not r else None; pemit(enactor, 'Short of materials: ' + ', '.join(short) + '.') if r and short else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_' + r['skill'], 8) + r['mod']) if r and not short else None; ([destroy_obj(o) for t, n in r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], (create_obj(r['output'], r['tags'], here), remit(here, name(enactor) + ' works the bench -- ' + r['output'] + ' drops into the tray. (margin +' + str(res.margin) + ')')) if res.success else (create_obj('a lump of ruined scrap', ['thing', 'scrap'], here), remit(here, name(enactor) + ' botches the assembly -- ruined scrap hits the tray. (rolled ' + str(res.roll) + ' vs ' + r['skill'] + ' ' + str(res.effective) + ')'))) if r and not short else None
+@set assembly bench/cmd_craft = $craft *: sel = trim(arg0).lower(); r = V('recipe_' + sel); carried = contents(enactor) if r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The job card lists no such assembly. Try jobs.') if not r else None; pemit(enactor, 'Short of materials: ' + ', '.join(short) + '.') if r and short else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_' + r['skill'], 8) + r['mod']) if r and not short else None; ([destroy_obj(o) for t, n in r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], (create_obj(r['output'], r['tags'], here), remit(here, f'{name(enactor)} works the bench -- {r["output"]} drops into the tray. (margin +{res.margin})')) if res.success else (create_obj('a lump of ruined scrap', ['thing', 'scrap'], here), remit(here, f'{name(enactor)} botches the assembly -- ruined scrap hits the tray. (rolled {res.roll} vs {r["skill"]} {res.effective})'))) if r and not short else None
 ```
 
 ## Try it

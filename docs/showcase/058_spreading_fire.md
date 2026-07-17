@@ -79,17 +79,17 @@ never burns. Tick: narrate or burn by stage, spread at 3, then grow:
 
 ```text
 @create fire prototype
-@set fire prototype/fire_tick = s = get_attr(me, 'stage', 1); ([(pemit(o, 'The blaze sears you!'), damage(o, roll(str(s - 1) + 'd4'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')] if s >= 2 else remit(loc(me), 'Smoke thickens. Flames crawl wider.')); (eval_attr(me, 'spread') if s >= 3 else None); (set_attr(me, 'stage', s + 1) if s < 3 else None)
-@set fire prototype/fire_spread = proto = get('fire prototype'); dests = [get('#' + str(get_attr(e, 'destination', ''))) for e in exits(loc(me)) if not has_tag(e, 'closed')]; fresh = [d for d in dests if d and not [o for o in contents(d) if has_tag(o, 'fire')]]; new = [f for f in [create_obj('a hungry fire', ['thing', 'fire'], location=r) for r in fresh] if f]; [set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')) for f in new]; [set_attr(f, 'spread', get_attr(proto, 'fire_spread')) for f in new]; [attach_behavior(f, 'script_ticker', interval=2) for f in new]; [expire(f, 120) for f in new]; [remit(loc(f), 'Fire licks through the doorway -- it catches!') for f in new]
+@set fire prototype/fire_tick = s = V('stage', 1); ([(pemit(o, 'The blaze sears you!'), damage(o, roll(f'{s - 1}d4'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')] if s >= 2 else remit(loc(me), 'Smoke thickens. Flames crawl wider.')); (eval_attr(me, 'spread') if s >= 3 else None); (set_attr(me, 'stage', s + 1) if s < 3 else None)
+@set fire prototype/fire_spread = proto = get('fire prototype'); dests = [get(f"#{get_attr(e, 'destination', '')}") for e in exits(loc(me)) if not has_tag(e, 'closed')]; fresh = [d for d in dests if d and not [o for o in contents(d) if has_tag(o, 'fire')]]; new = [f for f in [create_obj('a hungry fire', ['thing', 'fire'], location=r) for r in fresh] if f]; [set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')) for f in new]; [set_attr(f, 'spread', get_attr(proto, 'fire_spread')) for f in new]; [attach_behavior(f, 'script_ticker', interval=2) for f in new]; [expire(f, 120) for f in new]; [remit(loc(f), 'Fire licks through the doorway -- it catches!') for f in new]
 ```
 
 Ignition and counterplay:
 
 ```text
 @create box of matches
-@set box of matches/cmd_light = $light fire: proto = get('fire prototype'); f = create_obj('a hungry fire', ['thing', 'fire'], location=loc(enactor)); (set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')), set_attr(f, 'spread', get_attr(proto, 'fire_spread')), attach_behavior(f, 'script_ticker', interval=2), expire(f, 120), remit(loc(enactor), name(enactor) + ' drops a lit match into the straw. Flames catch!')) if f else pemit(enactor, 'The match gutters out.')
+@set box of matches/cmd_light = $light fire: proto = get('fire prototype'); f = create_obj('a hungry fire', ['thing', 'fire'], location=loc(enactor)); (set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')), set_attr(f, 'spread', get_attr(proto, 'fire_spread')), attach_behavior(f, 'script_ticker', interval=2), expire(f, 120), remit(loc(enactor), f'{name(enactor)} drops a lit match into the straw. Flames catch!')) if f else pemit(enactor, 'The match gutters out.')
 @create fire extinguisher
-@set fire extinguisher/cmd_spray = $spray *: fires = [o for o in contents(loc(enactor)) if has_tag(o, 'fire')]; s = get_attr(fires[0], 'stage', 1) if fires else 0; (pemit(enactor, 'Nothing here is burning.') if not fires else ((destroy_obj(fires[0]), remit(loc(enactor), name(enactor) + ' smothers the last flames in a white cloud. Steam hisses.')) if s <= 1 else (set_attr(fires[0], 'stage', s - 1), remit(loc(enactor), name(enactor) + ' drives the fire back with a jet of foam!'))))
+@set fire extinguisher/cmd_spray = $spray *: fires = [o for o in contents(loc(enactor)) if has_tag(o, 'fire')]; s = get_attr(fires[0], 'stage', 1) if fires else 0; (pemit(enactor, 'Nothing here is burning.') if not fires else ((destroy_obj(fires[0]), remit(loc(enactor), f'{name(enactor)} smothers the last flames in a white cloud. Steam hisses.')) if s <= 1 else (set_attr(fires[0], 'stage', s - 1), remit(loc(enactor), f'{name(enactor)} drives the fire back with a jet of foam!'))))
 ```
 
 ## Try it

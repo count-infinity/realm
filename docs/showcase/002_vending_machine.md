@@ -56,7 +56,7 @@ The cabinet, with a per-viewer credit readout in the description
 ```text
 @create vending machine
 drop vending machine
-@desc vending machine = A humming slab of scratched enamel and glass. Goods sleep in their spiral coils. [[result = 'The display reads CREDIT: ' + str(get_attr(me, 'credit_' + viewer.id, 0)) + '.']]
+@desc vending machine = A humming slab of scratched enamel and glass. Goods sleep in their spiral coils. [[result = f'The display reads CREDIT: {V("credit_" + viewer.id, 0)}.']]
 ```
 
 The menu — an index list plus one prototype dict and one stock counter
@@ -72,10 +72,11 @@ lists and dicts):
 ```
 
 Coin intake — the ledger idiom, then bank the amount as the payer's
-credit:
+credit. `incr(k, paid)` adds to the attribute *and* hands back the new
+value, so one call does the read, the write, and the readout:
 
 ```text
-@set vending machine/on_payment = paid = credits(me) - get_attr(me, 'ledger', 0); set_attr(me, 'ledger', credits(me)); k = 'credit_' + enactor.id; bal = get_attr(me, k, 0) + paid; set_attr(me, k, bal); pemit(enactor, 'The display blinks. CREDIT: ' + str(bal) + '. Type vend <selection>.')
+@set vending machine/on_payment = paid = credits(me) - V('ledger', 0); set_attr(me, 'ledger', credits(me)); k = 'credit_' + enactor.id; bal = incr(k, paid); pemit(enactor, f'The display blinks. CREDIT: {bal}. Type vend <selection>.')
 ```
 
 The menu browser — a loop (scripts are sandboxed Python, so a list
@@ -83,7 +84,7 @@ comprehension over `menu` prints one line per selection, joining the
 prototype's price and name with the live stock count):
 
 ```text
-@set vending machine/cmd_browse = $browse: menu = get_attr(me, 'menu', []); pemit(enactor, 'Selections (pay first, then vend <selection>):'); [pemit(enactor, '  ' + sel + ' - ' + str(get_attr(me, 'item_' + sel)['price']) + ' cr - ' + get_attr(me, 'item_' + sel)['name'] + ' (' + str(get_attr(me, 'stock_' + sel, 0)) + ' left)') for sel in menu]
+@set vending machine/cmd_browse = $browse: menu = V('menu', []); pemit(enactor, 'Selections (pay first, then vend <selection>):'); [pemit(enactor, f'  {sel} - {V("item_" + sel)["price"]} cr - {V("item_" + sel)["name"]} ({V("stock_" + sel, 0)} left)') for sel in menu]
 ```
 
 And the vend itself. `$vend *` captures the selection as `arg0`. The
@@ -95,7 +96,7 @@ the "tray"; `set_attr` immediately stamps the prototype's weight on
 it), and announce to everyone:
 
 ```text
-@set vending machine/cmd_vend = $vend *: sel = trim(arg0).lower(); item = get_attr(me, 'item_' + sel); k = 'credit_' + enactor.id; bal = get_attr(me, k, 0); left = get_attr(me, 'stock_' + sel, 0); price = item['price'] if item else 0; ok = bool(item) and left > 0 and bal >= price; pemit(enactor, 'The panel blinks: NO SUCH SELECTION. Try browse.') if not item else None; pemit(enactor, 'The ' + sel + ' coil is empty. SOLD OUT.') if item and left < 1 else None; pemit(enactor, 'CREDIT ' + str(bal) + ' of ' + str(price) + '. Feed it: pay ' + str(price - bal) + ' to vending machine.') if item and left > 0 and bal < price else None; (set_attr(me, k, bal - price), set_attr(me, 'stock_' + sel, left - 1), set_attr(create_obj(item['name']), 'weight', item['weight']), remit(here, 'The vending machine whirs and drops a ' + item['name'] + ' into the tray.')) if ok else None
+@set vending machine/cmd_vend = $vend *: sel = trim(arg0).lower(); item = V('item_' + sel); k = 'credit_' + enactor.id; bal = V(k, 0); left = V('stock_' + sel, 0); price = item['price'] if item else 0; ok = bool(item) and left > 0 and bal >= price; pemit(enactor, 'The panel blinks: NO SUCH SELECTION. Try browse.') if not item else None; pemit(enactor, f'The {sel} coil is empty. SOLD OUT.') if item and left < 1 else None; pemit(enactor, f'CREDIT {bal} of {price}. Feed it: pay {price - bal} to vending machine.') if item and left > 0 and bal < price else None; (decr(k, price), decr('stock_' + sel), set_attr(create_obj(item['name']), 'weight', item['weight']), remit(here, f'The vending machine whirs and drops a {item["name"]} into the tray.')) if ok else None
 ```
 
 The `weight` attribute is not decorative — it's exactly what the
@@ -142,7 +143,7 @@ Repricing or restocking a live machine is plain `@set` surgery:
   interval:300` plus an `on_tick` script that tops each `stock_<sel>`
   counter back up.
 - **A coin return:** add `$refund` — pay back
-  `get_attr(me, 'credit_' + enactor.id, 0)` with `transfer_credits`,
+  `V('credit_' + enactor.id, 0)` with `transfer_credits`,
   zero the credit, re-sync the ledger.
 - **Emptying the cash box:** the machine's own balance is the take;
   a `$collect` command gated on `owner(me) == enactor` pays it out to

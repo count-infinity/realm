@@ -63,7 +63,7 @@ drop ship chronometer
 @set ship chronometer/step = 30
 @set ship chronometer/epoch_year = 812
 @set ship chronometer/months = ["Ignis", "Ventus", "Terra", "Aqua", "Lumen", "Umbra", "Ferro", "Nix", "Sol", "Void"]
-@set ship chronometer/on_tick = set_attr(me, 'game_min', get_attr(me, 'game_min', 0) + get_attr(me, 'step', 30))
+@set ship chronometer/on_tick = incr('game_min', V('step', 30))
 @behavior ship chronometer = script_ticker, interval:1
 ```
 
@@ -72,7 +72,7 @@ field — minute, hour, day, month, year — then indexes the month table.
 `right('0' + str(x), 2)` is the zero-pad idiom:
 
 ```text
-@set ship chronometer/cmd_date = $date: m = get_attr(me, 'game_min', 0); mo = get_attr(me, 'months', []); minute = m % 60; hour = (m // 60) % 20; day = (m // 1200) % 30 + 1; month = (m // 36000) % 10; year = get_attr(me, 'epoch_year', 0) + m // 360000; pemit(enactor, 'CS ' + str(year) + '.' + right('0' + str(month + 1), 2) + '.' + right('0' + str(day), 2) + ' // ' + right('0' + str(hour), 2) + ':' + right('0' + str(minute), 2) + ' -- month of ' + (mo[month] if mo else '?') + '.')
+@set ship chronometer/cmd_date = $date: m = V('game_min', 0); mo = V('months', []); minute = m % 60; hour = (m // 60) % 20; day = (m // 1200) % 30 + 1; month = (m // 36000) % 10; year = V('epoch_year', 0) + m // 360000; pemit(enactor, f'CS {year}.{right("0" + str(month + 1), 2)}.{right("0" + str(day), 2)} // {right("0" + str(hour), 2)}:{right("0" + str(minute), 2)} -- month of {mo[month] if mo else "?"}.')
 ```
 
 The magic numbers are just the unit sizes multiplied up: `1200 = 60×20`

@@ -69,7 +69,7 @@ Its ear — any overheard creak raises the alert one notch, permanently
 (until you `@set` it back; a reset is a Going-further):
 
 ```text
-@set Vault Sentry/listen_creak = ^*creak*: set_attr(me, 'alert_level', get_attr(me, 'alert_level', 0) + 1); say('Who goes there?')
+@set Vault Sentry/listen_creak = ^*creak*: incr('alert_level'); say('Who goes there?')
 ```
 
 The floorboard — a witness that only cares about hidden characters:

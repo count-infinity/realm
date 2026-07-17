@@ -93,7 +93,7 @@ drop warren rat
 @set warren rat/hp = 8
 @set warren rat/max_hp = 8
 @set warren rat/skill_melee = 10
-@set warren rat/on_receive = adjust_disposition(me, enactor, 5); pose('sniffs the offering and settles back, watching ' + name(enactor) + ' with something like tolerance.')
+@set warren rat/on_receive = adjust_disposition(me, enactor, 5); pose(f'sniffs the offering and settles back, watching {name(enactor)} with something like tolerance.')
 @behavior warren rat = aggressive, target_tags:["player"], spare_at:2, attack_chance:1.0, taunt:The rat's eyes go red. It lunges!
 out
 ```

@@ -85,8 +85,8 @@ The ward, the trigger, and the bang:
 
 ```text
 @set anti-personnel mine/on_check = block('It is wedged into the floor -- and armed.') if atype == 'item:on_get' and target == me else None
-@set anti-personnel mine/on_enter = x = enactor; (None if not (get_attr(me, 'armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step around the exposed mine.') if not has_tag(me, 'invisible') else ((remove_tag(me, 'invisible'), pemit(x, 'You freeze mid-step -- a pressure plate, right under your boot!')) if contest(x, 'observation', me, 'concealment') else eval_attr(me, 'boom'))))
-@set anti-personnel mine/boom = remove_tag(me, 'invisible'); set_attr(me, 'armed', 0); pemit(enactor, 'KA-WHUMP! The floor erupts under you.'); oemit(enactor, name(enactor) + ' sets off a buried mine!'); damage(enactor, roll('2d6'))
+@set anti-personnel mine/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step around the exposed mine.') if not has_tag(me, 'invisible') else ((remove_tag(me, 'invisible'), pemit(x, 'You freeze mid-step -- a pressure plate, right under your boot!')) if contest(x, 'observation', me, 'concealment') else eval_attr(me, 'boom'))))
+@set anti-personnel mine/boom = remove_tag(me, 'invisible'); set_attr(me, 'armed', 0); pemit(enactor, 'KA-WHUMP! The floor erupts under you.'); oemit(enactor, f'{name(enactor)} sets off a buried mine!'); damage(enactor, roll('2d6'))
 ```
 
 Bury it last, so you can see what you're doing while you work:

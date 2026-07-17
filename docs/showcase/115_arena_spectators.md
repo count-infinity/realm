@@ -65,8 +65,8 @@ then the scoreboard, then the taps:
 drop ringside bell
 @desc ringside bell = A brass bell on a rope, sized to be heard over a crowd. It rings itself when blood is up.
 @set ringside bell/stands = The Stands
-@set ringside bell/relay = s = get(get_attr(me, 'stands', '')); (remit(s, '[pit] ' + str(arg0)) if s else None)
-@set ringside bell/tally = result = ' -- '.join([name(o) + ' ' + str(get_attr(o, 'hp', 0)) + '/' + str(get_attr(o, 'max_hp', 0)) for o in contents(loc(me)) if has_tag(o, 'in_combat')])
+@set ringside bell/relay = s = get(V('stands', '')); (remit(s, '[pit] ' + str(arg0)) if s else None)
+@set ringside bell/tally = result = ' -- '.join([f'{name(o)} {get_attr(o, "hp", 0)}/{get_attr(o, "max_hp", 0)}' for o in contents(loc(me)) if has_tag(o, 'in_combat')])
 @set ringside bell/on_attack = eval_attr(me, 'relay', name(enactor) + ' wades in! ' + eval_attr(me, 'tally'))
 @set ringside bell/on_damage = eval_attr(me, 'relay', name(enactor) + ' draws blood! ' + eval_attr(me, 'tally'))
 @set ringside bell/on_death = eval_attr(me, 'relay', 'THE CROWD ROARS -- ' + name(enactor) + ' takes the pit!')

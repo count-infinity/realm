@@ -50,7 +50,7 @@ the enactor's vitals:
 drop bridge console
 @set bridge console/hull = 87
 @set bridge console/shields = 62
-@set bridge console/cmd_scan = $scan: oob(enactor, 'Ship.Status', {'hull': get_attr(me, 'hull', 100), 'shields': get_attr(me, 'shields', 100)}); pemit(enactor, 'Sensor sweep sent to your console HUD.')
+@set bridge console/cmd_scan = $scan: oob(enactor, 'Ship.Status', {'hull': V('hull', 100), 'shields': V('shields', 100)}); pemit(enactor, 'Sensor sweep sent to your console HUD.')
 @set bridge console/cmd_readout = $readout: oob(enactor, 'Char.Vitals', {'hp': get_attr(enactor, 'hp', 10), 'max_hp': get_attr(enactor, 'max_hp', 10)}); pemit(enactor, 'Vitals telemetry pushed.')
 ```
 

@@ -158,7 +158,7 @@ BUILD_209 = [
     '@desc lock mechanism = A brass reader plate wired to the levers. Engraved above it: PULL THE LEVERS IN THE ORDER OF THE DAWN.',
     '@set lock mechanism/code = crimson azure emerald',
     '@attr lock mechanism/code = secret',
-    "@set lock mechanism/cmd_pull = $pull *: lev = get(trim(arg0)); (pemit(enactor, 'There is no such lever to pull here.') if not (lev and has_tag(lev, 'lever') and loc(lev) == loc(me)) else (color := replace(name(lev), ' lever', ''), seq := (get_attr(me, 'entered') or []) + [color], code := str(get_attr(me, 'code')).split(), full := len(seq) >= len(code), (set_attr(me, 'entered', []), (remit(loc(me), 'Tumblers slam home deep in the wall -- the vault gate grinds open!'), remove_tag(get('vault gate'), 'closed')) if seq == code else remit(loc(me), 'A brazen buzzer blares. Every lever springs back to neutral.')) if full else (set_attr(me, 'entered', seq), remit(loc(me), 'The ' + color + ' lever thunks down. Something heavy shifts behind the wall.')))[-1])",
+    "@set lock mechanism/cmd_pull = $pull *: lev = get(trim(arg0)); (pemit(enactor, 'There is no such lever to pull here.') if not (lev and has_tag(lev, 'lever') and loc(lev) == loc(me)) else (color := replace(name(lev), ' lever', ''), seq := (V('entered') or []) + [color], code := str(V('code')).split(), full := len(seq) >= len(code), (set_attr(me, 'entered', []), (remit(loc(me), 'Tumblers slam home deep in the wall -- the vault gate grinds open!'), remove_tag(get('vault gate'), 'closed')) if seq == code else remit(loc(me), 'A brazen buzzer blares. Every lever springs back to neutral.')) if full else (set_attr(me, 'entered', seq), remit(loc(me), 'The ' + color + ' lever thunks down. Something heavy shifts behind the wall.')))[-1])",
 ]
 
 # docs/showcase/210_keypad_code.md
@@ -176,7 +176,7 @@ BUILD_210 = [
     '@set keypad/code = 4815',
     '@attr keypad/code = secret',
     "@set keypad/cmd_enter = $enter code: prompt(enactor, 'Enter access code:', 'check_code')",
-    "@set keypad/check_code = (remove_tag(get('clean gate'), 'closed'), remit(loc(me), 'The keypad chirps green. The clean gate slides open.')) if trim(arg0) == str(get_attr(me, 'code')) else pemit(enactor, 'The keypad buzzes red. ACCESS DENIED.')",
+    "@set keypad/check_code = (remove_tag(get('clean gate'), 'closed'), remit(loc(me), 'The keypad chirps green. The clean gate slides open.')) if trim(arg0) == str(V('code')) else pemit(enactor, 'The keypad buzzes red. ACCESS DENIED.')",
     'out',
     '@dig Maintenance Corridor = corridor, lab',
     'corridor',
@@ -198,7 +198,7 @@ BUILD_211 = [
     'drop stone sphinx',
     '@desc stone sphinx = A basalt sphinx blocks the arch. It murmurs: "I speak without a mouth and hear without an ear. I have no body, but I come alive with the wind. What am I?" (ANSWER <your reply>.)',
     '@set stone sphinx/answers = echo|voice',
-    '@set stone sphinx/cmd_answer = $answer *: raw = \' \'.join(trim(arg0).lower().split()); clean = \'\'.join([c for c in raw if c.isalnum() or c == \' \']); norm = \' \'.join([w for w in clean.split() if w not in (\'a\', \'an\', \'the\')]); (remove_tag(get(\'sphinx arch\'), \'closed\'), remit(loc(me), \'The sphinx inclines its head. The arch grinds open.\')) if norm in str(get_attr(me, \'answers\')).split(\'|\') else pemit(enactor, \'The sphinx is unmoved. "That is not the word."\')',
+    '@set stone sphinx/cmd_answer = $answer *: raw = \' \'.join(trim(arg0).lower().split()); clean = \'\'.join([c for c in raw if c.isalnum() or c == \' \']); norm = \' \'.join([w for w in clean.split() if w not in (\'a\', \'an\', \'the\')]); (remove_tag(get(\'sphinx arch\'), \'closed\'), remit(loc(me), \'The sphinx inclines its head. The arch grinds open.\')) if norm in str(V(\'answers\')).split(\'|\') else pemit(enactor, \'The sphinx is unmoved. "That is not the word."\')',
 ]
 
 # docs/showcase/212_weight_plate.md
@@ -255,10 +255,10 @@ BUILD_213 = [
     '@set power console/j2 = a',
     '@set power console/j3 = a',
     '@set power console/solution = b a b',
-    "@set power console/check = result = (get_attr(me, 'j1') + ' ' + get_attr(me, 'j2') + ' ' + get_attr(me, 'j3') == str(get_attr(me, 'solution')))",
+    "@set power console/check = result = (V('j1') + ' ' + V('j2') + ' ' + V('j3') == str(V('solution')))",
     "@set power console/sync = live = eval_attr(me, 'check'); g = get('blast shield'); (remove_tag(g, 'closed'), remit(loc(me), 'The grid hums up to full power -- the blast shield retracts.')) if live and has_tag(g, 'closed') else ((add_tag(g, 'closed'), remit(loc(me), 'Power gutters out. The blast shield drops.')) if not live and not has_tag(g, 'closed') else None)",
     "@set power console/cmd_route = $route * to *: n = trim(arg0); v = switch(trim(arg1).lower(), 'main', 'a', 'backup', 'b', ''); (pemit(enactor, 'Try ROUTE <1-3> TO <MAIN or BACKUP>.') if n not in ('1', '2', '3') or not v else (set_attr(me, 'j' + n, v), remit(loc(me), 'Relay ' + n + ' swings to the ' + trim(arg1).lower() + ' bus.'), eval_attr(me, 'sync')))",
-    "@set power console/cmd_grid = $grid: [pemit(enactor, 'Junction ' + str(n) + ': ' + switch(get_attr(me, 'j' + str(n)), 'a', 'MAIN bus', 'b', 'BACKUP bus')) for n in (1, 2, 3)]; pemit(enactor, 'GRID STATUS: ' + ('ONLINE' if eval_attr(me, 'check') else 'FAULT'))",
+    "@set power console/cmd_grid = $grid: [pemit(enactor, f'Junction {n}: ' + switch(V('j' + str(n)), 'a', 'MAIN bus', 'b', 'BACKUP bus')) for n in (1, 2, 3)]; pemit(enactor, 'GRID STATUS: ' + ('ONLINE' if eval_attr(me, 'check') else 'FAULT'))",
 ]
 
 # docs/showcase/214_simon.md
@@ -275,9 +275,9 @@ BUILD_214 = [
     '@desc simon panel = A grid of four coloured pads -- red, green, blue, amber -- over a single START key. PLAY SIMON to begin.',
     '@set simon panel/pattern = red green blue amber',
     '@set simon panel/beat = 2',
-    "@set simon panel/cmd_play = $play simon: (pemit(enactor, 'The panel is busy with someone else.') if get_attr(me, 'busy') else (set_attr(me, 'busy', 1), set_attr(me, 'level', 1), set_attr(me, 'player', '#' + enactor.id), set_attr(me, 'flash_i', 0), remit(loc(me), name(enactor) + ' presses START -- the panel powers up. Watch the lights!'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 1), 'trigger me/signal'))))",
-    "@set simon panel/signal = seq = str(get_attr(me, 'pattern')).split()[0:get_attr(me, 'level', 1)]; i = get_attr(me, 'flash_i', 0); (prompt(get(get_attr(me, 'player')), 'Repeat the sequence (e.g. RED GREEN):', 'judge') if i >= len(seq) else (remit(loc(me), 'The panel flashes ' + seq[i].upper() + '.'), set_attr(me, 'flash_i', i + 1), set_attr(me, 'pending', wait(get_attr(me, 'beat', 1), 'trigger me/signal'))))",
-    "@set simon panel/judge = want = ' '.join(str(get_attr(me, 'pattern')).split()[0:get_attr(me, 'level', 1)]); got = ' '.join(trim(arg0).lower().split()); full = len(str(get_attr(me, 'pattern')).split()); (set_attr(me, 'busy', 0), remit(loc(me), 'BUZZ -- the pattern was wrong. The panel goes dark.')) if got != want else ((set_attr(me, 'busy', 0), remove_tag(get('vault hatch'), 'closed'), remit(loc(me), 'A rising chime -- the full sequence! The vault hatch clicks open.')) if get_attr(me, 'level', 1) >= full else (set_attr(me, 'level', get_attr(me, 'level', 1) + 1), set_attr(me, 'flash_i', 0), remit(loc(me), 'Correct! The sequence grows longer. Watch again.'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 1), 'trigger me/signal'))))",
+    "@set simon panel/cmd_play = $play simon: (pemit(enactor, 'The panel is busy with someone else.') if V('busy') else (set_attr(me, 'busy', 1), set_attr(me, 'level', 1), set_attr(me, 'player', '#' + enactor.id), set_attr(me, 'flash_i', 0), remit(loc(me), name(enactor) + ' presses START -- the panel powers up. Watch the lights!'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))",
+    "@set simon panel/signal = seq = str(V('pattern')).split()[0:V('level', 1)]; i = V('flash_i', 0); (prompt(get(V('player')), 'Repeat the sequence (e.g. RED GREEN):', 'judge') if i >= len(seq) else (remit(loc(me), 'The panel flashes ' + seq[i].upper() + '.'), incr('flash_i'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))",
+    "@set simon panel/judge = want = ' '.join(str(V('pattern')).split()[0:V('level', 1)]); got = ' '.join(trim(arg0).lower().split()); full = len(str(V('pattern')).split()); (set_attr(me, 'busy', 0), remit(loc(me), 'BUZZ -- the pattern was wrong. The panel goes dark.')) if got != want else ((set_attr(me, 'busy', 0), remove_tag(get('vault hatch'), 'closed'), remit(loc(me), 'A rising chime -- the full sequence! The vault hatch clicks open.')) if V('level', 1) >= full else (set_attr(me, 'level', V('level', 1) + 1), set_attr(me, 'flash_i', 0), remit(loc(me), 'Correct! The sequence grows longer. Watch again.'), set_attr(me, 'pending', wait(V('beat', 1), 'trigger me/signal'))))",
 ]
 
 # docs/showcase/215_shifting_maze.md
@@ -304,7 +304,7 @@ BUILD_215 = [
     'drop shifting arch',
     '@desc shifting arch = A stone archway whose far side shimmers like heat-haze; you can never quite tell where it opens.',
     "@eval set_attr(get('shifting arch'), 'destination', get_attr(get('maze warden'), 'pool')[0][1:]); result = 'arch aimed'",
-    "@set maze warden/on_tick = pool = get_attr(me, 'pool'); arch = get('shifting arch'); cur = '#' + str(get_attr(arch, 'destination')); nxt = pool[(pool.index(cur) + 1) % len(pool)] if cur in pool else pool[0]; set_attr(arch, 'destination', nxt[1:]); remit(loc(arch), 'The walls grind and the shifting arch swings toward a new chamber.')",
+    "@set maze warden/on_tick = pool = V('pool'); arch = get('shifting arch'); cur = '#' + str(get_attr(arch, 'destination')); nxt = pool[(pool.index(cur) + 1) % len(pool)] if cur in pool else pool[0]; set_attr(arch, 'destination', nxt[1:]); remit(loc(arch), 'The walls grind and the shifting arch swings toward a new chamber.')",
     '@behavior maze warden = script_ticker, interval:15',
 ]
 
@@ -320,8 +320,8 @@ BUILD_216 = [
     '@desc here = A bare cell, one bench, a heavy hatch. A countdown clock ticks on the wall.',
     '@set here/limit = 3',
     '@set here/beat = 60',
-    "@set here/on_enter = (set_attr(me, 'started', 1), set_attr(me, 'count', get_attr(me, 'limit', 3)), remit(me, 'A klaxon wails: ' + str(get_attr(me, 'limit', 3)) + ' minutes until the cell floods. Find the way out!'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 60), 'trigger me/tick'))) if has_tag(enactor, 'player') and enactor != owner(me) and not get_attr(me, 'started') else None",
-    "@set here/tick = n = get_attr(me, 'count', 0) - 1; (remit(me, 'TIME UP. Water roars in through the vents.') if n <= 0 else (set_attr(me, 'count', n), remit(me, str(n) + ' minutes remain...'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 60), 'trigger me/tick'))))",
+    "@set here/on_enter = (set_attr(me, 'started', 1), set_attr(me, 'count', V('limit', 3)), remit(me, 'A klaxon wails: ' + str(V('limit', 3)) + ' minutes until the cell floods. Find the way out!'), set_attr(me, 'pending', wait(V('beat', 60), 'trigger me/tick'))) if has_tag(enactor, 'player') and enactor != owner(me) and not V('started') else None",
+    "@set here/tick = n = V('count', 0) - 1; (remit(me, 'TIME UP. Water roars in through the vents.') if n <= 0 else (set_attr(me, 'count', n), remit(me, str(n) + ' minutes remain...'), set_attr(me, 'pending', wait(V('beat', 60), 'trigger me/tick'))))",
     '@create scratched plate',
     'drop scratched plate',
     '@set scratched plate/conceal_difficulty = 2',
@@ -333,7 +333,7 @@ BUILD_216 = [
     '@set cell keypad/code = 7291',
     '@attr cell keypad/code = secret',
     "@set cell keypad/cmd_punch = $punch: prompt(enactor, 'Enter the code you found:', 'check')",
-    "@set cell keypad/check = hs = [o for o in contents(loc(me)) if has_tag(o, 'exit') and name(o) == 'escape hatch']; (remove_tag(hs[0], 'closed'), remit(loc(me), 'The keypad flashes green -- the escape hatch unbolts!')) if hs and trim(arg0) == str(get_attr(me, 'code')) else pemit(enactor, 'The keypad flashes red. Nothing happens.')",
+    "@set cell keypad/check = hs = [o for o in contents(loc(me)) if has_tag(o, 'exit') and name(o) == 'escape hatch']; (remove_tag(hs[0], 'closed'), remit(loc(me), 'The keypad flashes green -- the escape hatch unbolts!')) if hs and trim(arg0) == str(V('code')) else pemit(enactor, 'The keypad flashes red. Nothing happens.')",
     '@open escape hatch = Escape Lobby',
     '@tag escape hatch = closed',
     '@set escape hatch/locked = true',

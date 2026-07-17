@@ -72,7 +72,7 @@ The flagstone. `armed` is the trap's one switch:
 drop rigged flagstone
 @desc rigged flagstone = One flagstone sits a shade lower than its brothers.
 @set rigged flagstone/armed = 1
-@set rigged flagstone/on_enter = x = enactor; (None if not (get_attr(me, 'armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'A flagstone shifts under your toe -- you step around it just in time.') if skill_check(x, 'observation', -3) else (set_attr(me, 'armed', 0), remit(loc(me), name(x) + ' vanishes through the floor with a crash!'), pemit(x, 'The floor drops away beneath you!'), teleport_obj(x, 'The Oubliette'), pemit(x, 'You land hard on cold stone, far below.'))))
+@set rigged flagstone/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'A flagstone shifts under your toe -- you step around it just in time.') if skill_check(x, 'observation', -3) else (set_attr(me, 'armed', 0), remit(loc(me), f'{name(x)} vanishes through the floor with a crash!'), pemit(x, 'The floor drops away beneath you!'), teleport_obj(x, 'The Oubliette'), pemit(x, 'You land hard on cold stone, far below.'))))
 ```
 
 The climb out — an exit with the skill gate on it, built from inside

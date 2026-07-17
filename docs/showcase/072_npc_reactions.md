@@ -25,9 +25,11 @@ else uses; the craft is knowing which surface hears what:
 2. **Poses → `ON_EMOTE`.** A pose propagates as `event:emote`, and
    `ON_<EVENT>` matching is by suffix — so an `ON_EMOTE` attribute on
    any bystander fires whenever someone in the room emotes. The hook
-   knows *who* (`enactor`) but not *what*: the pose text isn't passed
-   into witnessed event scripts (see Engine gaps). React to the
-   gesture, not its content — an eyebrow, not a critique.
+   knows *who* (`enactor`) and, since the event namespace landed, also
+   *what* — `adata('pose')` is the text. This build still reacts to the
+   gesture rather than the wording (an eyebrow, not a critique): it
+   keeps the script short and needs no parsing. Reach for
+   `adata('pose')` when the content genuinely matters.
 3. **Weapon draws → `ON_WIELD`.** `wield` fires `item:on_wield` (a
    gated event — cursed blades can refuse, item 59's family), and
    every witness with an `ON_WIELD` attribute hears it. `enactor` is
@@ -37,7 +39,7 @@ else uses; the craft is knowing which surface hears what:
    read that number).
 
 **The cooldown idiom** (one attr, no timers): store `now()` on
-success, gate on `now() - get_attr(me, '<attr>', 0) > <secs>`. A
+success, gate on `now() - V('<attr>', 0) > <secs>`. A
 roomful of poseurs gets one eyebrow per fifteen seconds, not a
 facial tic. The same guard protects any reaction that can be
 spammed — it's item 71's one-alarm-per-brawl, miniaturized.
@@ -65,13 +67,13 @@ Two content-keyed listens for speech:
 The pose reaction, cooled down to one glance per fifteen seconds:
 
 ```
-@set Nerissa/on_emote = (pose('glances up, marking ' + name(enactor) + ' with one raised eyebrow.'), set_attr(me, 'noticed', now())) if now() - get_attr(me, 'noticed', 0) > 15 else None
+@set Nerissa/on_emote = (pose(f'glances up, marking {name(enactor)} with one raised eyebrow.'), set_attr(me, 'noticed', now())) if now() - V('noticed', 0) > 15 else None
 ```
 
 And the weapon-draw reaction — words now, prices later:
 
 ```
-@set Nerissa/on_wield = (say('Steel away in my taproom, ' + name(enactor) + '. I will not ask twice.'), adjust_disposition(me, enactor, -1)) if not has_tag(enactor, 'town_watch') else None
+@set Nerissa/on_wield = (say(f'Steel away in my taproom, {name(enactor)}. I will not ask twice.'), adjust_disposition(me, enactor, -1)) if not has_tag(enactor, 'town_watch') else None
 ```
 
 (The `town_watch` exemption is the same filter item 71's master uses —
@@ -107,13 +109,14 @@ Two precise limits, both in `realm/scripting/engine.py`:
   `{speech, shout, ooc, emit}`; a pose propagates as `event:emote`,
   so listen patterns cannot match emote *wording* (`pose draws his
   dagger slowly` triggers no `^*dagger*`).
-- **Witnessed `ON_<EVENT>` scripts receive no action payload.** The
-  trigger runs with `enactor` bound but captures empty and no access
-  to the action's extras — `ON_EMOTE` can't read the pose text, and
-  `ON_WIELD` can't tell a butter knife from a greatsword (an
-  `adata()`-style accessor exists only in `on_check` wards). Content-
-  keyed emote/wield reactions are blocked until an event-payload
-  surface exists.
+- ~~**Witnessed `ON_<EVENT>` scripts receive no action payload.**~~
+  **FIXED 2026-07-17.** Witnessed triggers now get the same event
+  namespace wards have: `target`, `atype`, `has_atag()`, and
+  `adata(key)`. `ON_EMOTE` *can* read the pose text (`adata('pose')`)
+  and `ON_WIELD` *can* tell a butter knife from a greatsword
+  (`adata('weapon')`). This build still reacts to the gesture rather
+  than its content — a fine design choice that keeps the scripts short
+  — but it is no longer a limitation.
 
 ## Going further
 

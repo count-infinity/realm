@@ -69,8 +69,8 @@ The bureau — desk, queue, and press:
 drop Gazette Bureau
 @desc Gazette Bureau = Ink, brass, and a thundering press. SUBMIT <text> files a story for the next issue.
 @zone/master Gazette Bureau = market
-@set Gazette Bureau/cmd_submit = $submit *: set_attr(me, 'queue', (get_attr(me, 'queue') or []) + [escape(arg0) + ' --' + name(enactor)]); pemit(enactor, 'The desk editor spikes your copy for the next issue.')
-@set Gazette Bureau/publish = q = get_attr(me, 'queue') or []; n = get_attr(me, 'issue', 0) + 1; (set_attr(me, 'issue', n), set_attr(me, 'issue_' + str(n), q), set_attr(me, 'queue', []), [remit(r, 'A paperboy hollers: GAZETTE No. ' + str(n) + '! ' + str(len(q)) + ' stories! Fresh at the kiosk!') for r in zone_rooms('market')]) if q else None
+@set Gazette Bureau/cmd_submit = $submit *: set_attr(me, 'queue', (V('queue') or []) + [f'{escape(arg0)} --{name(enactor)}']); pemit(enactor, 'The desk editor spikes your copy for the next issue.')
+@set Gazette Bureau/publish = q = V('queue') or []; n = V('issue', 0) + 1; (set_attr(me, 'issue', n), set_attr(me, 'issue_' + str(n), q), set_attr(me, 'queue', []), [remit(r, f'A paperboy hollers: GAZETTE No. {n}! {len(q)} stories! Fresh at the kiosk!') for r in zone_rooms('market')]) if q else None
 @set Gazette Bureau/on_tick = eval_attr(me, 'publish')
 @behavior Gazette Bureau = script_ticker, interval:60
 ```
@@ -87,7 +87,7 @@ drop news kiosk
 @desc news kiosk = A tin shed papered with old front pages. PAY 5 TO KIOSK for the latest Gazette.
 @set news kiosk/price = 5
 @set news kiosk/ledger = 0
-@set news kiosk/on_payment = b = get('Gazette Bureau'); paid = credits(me) - get_attr(me, 'ledger', 0); cost = get_attr(me, 'price', 5); n = get_attr(b, 'issue', 0); ok = bool(n) and paid >= cost; refund = paid - cost if ok else paid; (transfer_credits(me, enactor, refund) if refund > 0 else None); set_attr(me, 'ledger', credits(me)); (pemit(enactor, 'The vendor shrugs: nothing on the stand until the press runs. Coins returned.') if not n else (pemit(enactor, 'The vendor taps the price card: ' + str(cost) + ' credits. Coins returned.') if not ok else None)); [(set_attr(p, 'desc_extras', [['', 'Cheap ink on cheaper paper. The masthead reads THE GAZETTE, No. ' + str(n) + '.']] + [['', row] for row in (get_attr(b, 'issue_' + str(n)) or [])]), teleport_obj(p, enactor), pemit(enactor, 'The vendor folds a Gazette No. ' + str(n) + ' into your hands. LOOK gazette to read it.')) for p in ([create_obj('the Gazette No. ' + str(n), ['thing', 'paper'], me)] if ok else []) if p]
+@set news kiosk/on_payment = b = get('Gazette Bureau'); paid = credits(me) - V('ledger', 0); cost = V('price', 5); n = get_attr(b, 'issue', 0); ok = bool(n) and paid >= cost; refund = paid - cost if ok else paid; (transfer_credits(me, enactor, refund) if refund > 0 else None); set_attr(me, 'ledger', credits(me)); (pemit(enactor, 'The vendor shrugs: nothing on the stand until the press runs. Coins returned.') if not n else (pemit(enactor, f'The vendor taps the price card: {cost} credits. Coins returned.') if not ok else None)); [(set_attr(p, 'desc_extras', [['', f'Cheap ink on cheaper paper. The masthead reads THE GAZETTE, No. {n}.']] + [['', row] for row in (get_attr(b, 'issue_' + str(n)) or [])]), teleport_obj(p, enactor), pemit(enactor, f'The vendor folds a Gazette No. {n} into your hands. LOOK gazette to read it.')) for p in ([create_obj(f'the Gazette No. {n}', ['thing', 'paper'], me)] if ok else []) if p]
 ```
 
 ## Try it

@@ -88,28 +88,28 @@ Initiation — owner only, refuses to double-arm, announces zone-wide,
 lights the first wait and *keeps the handle*:
 
 ```text
-@set Station Brain/cmd_selfdestruct = $self destruct: pemit(enactor, 'The console demands command authority.') if enactor != owner(me) else (pemit(enactor, 'The countdown is already running.') if get_attr(me, 'pending') else (set_attr(me, 'count', 5), act(me, 'KLAXON: SELF-DESTRUCT SEQUENCE INITIATED. ' + str(5 * get_attr(me, 'interval', 10)) + ' SECONDS TO ZERO. ABORT requires command code.', targeting='zone'), set_attr(me, 'pending', wait(get_attr(me, 'interval', 10), 'trigger me/countdown'))))
+@set Station Brain/cmd_selfdestruct = $self destruct: pemit(enactor, 'The console demands command authority.') if enactor != owner(me) else (pemit(enactor, 'The countdown is already running.') if V('pending') else (set_attr(me, 'count', 5), act(me, f'KLAXON: SELF-DESTRUCT SEQUENCE INITIATED. {5 * V("interval", 10)} SECONDS TO ZERO. ABORT requires command code.', targeting='zone'), set_attr(me, 'pending', wait(V('interval', 10), 'trigger me/countdown'))))
 ```
 
 The chain — each stage announces, re-arms, and re-stashes the handle;
 stage zero hands over to `boom`:
 
 ```text
-@set Station Brain/countdown = n = get_attr(me, 'count', 0) - 1; (eval_attr(me, 'boom') if n <= 0 else (set_attr(me, 'count', n), act(me, 'SELF-DESTRUCT IN ' + str(n * get_attr(me, 'interval', 10)) + ' SECONDS.', targeting='zone'), set_attr(me, 'pending', wait(get_attr(me, 'interval', 10), 'trigger me/countdown'))))
+@set Station Brain/countdown = n = V('count', 0) - 1; (eval_attr(me, 'boom') if n <= 0 else (set_attr(me, 'count', n), act(me, f'SELF-DESTRUCT IN {n * V("interval", 10)} SECONDS.', targeting='zone'), set_attr(me, 'pending', wait(V('interval', 10), 'trigger me/countdown'))))
 ```
 
 The abort — anywhere in the zone, anyone who knows the code:
 
 ```text
-@set Station Brain/cmd_abort = $abort: prompt(enactor, 'Enter the abort code:', 'abort_check') if get_attr(me, 'pending') else pemit(enactor, 'The self-destruct is not armed.')
-@set Station Brain/abort_check = (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), del_attr(me, 'count'), act(me, 'KLAXON: SELF-DESTRUCT ABORTED. Authorization: ' + name(enactor) + '.', targeting='zone')) if trim(arg0) == str(get_attr(me, 'code')) else pemit(enactor, 'INVALID CODE. The countdown continues.')
+@set Station Brain/cmd_abort = $abort: prompt(enactor, 'Enter the abort code:', 'abort_check') if V('pending') else pemit(enactor, 'The self-destruct is not armed.')
+@set Station Brain/abort_check = (cancel_wait(V('pending')), del_attr(me, 'pending'), del_attr(me, 'count'), act(me, f'KLAXON: SELF-DESTRUCT ABORTED. Authorization: {name(enactor)}.', targeting='zone')) if trim(arg0) == str(V('code')) else pemit(enactor, 'INVALID CODE. The countdown continues.')
 ```
 
 And zero hour — fire in every compartment, on its own timer:
 
 ```text
 @set Station Brain/blast_tick = [(pemit(o, 'Fire roars over you!'), damage(o, roll('2d6'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')]
-@set Station Brain/boom = del_attr(me, 'pending'); del_attr(me, 'count'); act(me, 'The deck heaves. Fire tears through every compartment!', targeting='zone'); blasts = [b for b in [create_obj('a sheet of roaring flame', location=r) for r in zone_rooms('station')] if b]; [set_attr(b, 'on_tick', get_attr(me, 'blast_tick')) for b in blasts]; [attach_behavior(b, 'script_ticker', interval=1) for b in blasts]; [expire(b, 20) for b in blasts]
+@set Station Brain/boom = del_attr(me, 'pending'); del_attr(me, 'count'); act(me, 'The deck heaves. Fire tears through every compartment!', targeting='zone'); blasts = [b for b in [create_obj('a sheet of roaring flame', location=r) for r in zone_rooms('station')] if b]; [set_attr(b, 'on_tick', V('blast_tick')) for b in blasts]; [attach_behavior(b, 'script_ticker', interval=1) for b in blasts]; [expire(b, 20) for b in blasts]
 ```
 
 ## Try it

@@ -66,7 +66,7 @@ drop training terminal
 The drill itself — cooldown gate, then CP gate, then the transaction:
 
 ```text
-@set training terminal/drill = p = get('#' + arg0); s = arg1; cost = int(get_attr(me, 'cost', 4)); cd = int(get_attr(me, 'cooldown', 3600)); last = int(get_attr(me, 'last_' + p.id + '_' + s, 0)); cp = int(get_attr(p, 'character_points', 0)); cur = int(get_attr(p, 'skill_' + s, get_attr(p, 'dexterity', 10))); (pemit(p, 'Neural buffers still consolidating ' + s.replace('_', ' ') + ' -- ' + str(cd - (now() - last)) + 's to go.') if now() - last < cd else (pemit(p, 'Drilling ' + s.replace('_', ' ') + ' costs ' + str(cost) + ' CP; you have ' + str(cp) + '.') if cp < cost else (set_attr(p, 'skill_' + s, cur + 1), set_attr(p, 'character_points', cp - cost), set_attr(me, 'last_' + p.id + '_' + s, now()), pemit(p, 'You drill ' + s.replace('_', ' ') + ' hard. It clicks -- now ' + str(cur + 1) + '. (' + str(cp - cost) + ' CP left)'))))
+@set training terminal/drill = p = get('#' + arg0); s = arg1; cost = int(V('cost', 4)); cd = int(V('cooldown', 3600)); last = int(V('last_' + p.id + '_' + s, 0)); cp = int(get_attr(p, 'character_points', 0)); cur = int(get_attr(p, 'skill_' + s, get_attr(p, 'dexterity', 10))); (pemit(p, 'Neural buffers still consolidating ' + s.replace('_', ' ') + ' -- ' + str(cd - (now() - last)) + 's to go.') if now() - last < cd else (pemit(p, 'Drilling ' + s.replace('_', ' ') + ' costs ' + str(cost) + ' CP; you have ' + str(cp) + '.') if cp < cost else (set_attr(p, 'skill_' + s, cur + 1), set_attr(p, 'character_points', cp - cost), set_attr(me, 'last_' + p.id + '_' + s, now()), pemit(p, 'You drill ' + s.replace('_', ' ') + ' hard. It clicks -- now ' + str(cur + 1) + '. (' + str(cp - cost) + ' CP left)'))))
 ```
 
 ## Try it
@@ -98,9 +98,8 @@ self-study, time-gated drilling, and a coin-charging tutor
 
 ## Going further
 
-- **Skill caps:** refuse when `cur >= get_attr(me, 'cap', 15)` — the
-  terminal teaches fundamentals, mastery comes from play (the trainer's cap
-  idiom).
+- **Skill caps:** refuse when `cur >= V('cap', 15)` — the terminal teaches
+  fundamentals, mastery comes from play (the trainer's cap idiom).
 - **Diminishing returns:** make `cost` climb with level — `cost = cur - 9`
   — so the first point is cheap and the twelfth is dear, GURPS's real
   point curve in one line.

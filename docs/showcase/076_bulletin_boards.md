@@ -55,14 +55,14 @@ drop notice board
 The shared sweep — keep the living, count and announce the dead:
 
 ```text
-@set notice board/sweep = rows = get_attr(me, 'posts') or []; keep = [p for p in rows if p[2] > now()]; (set_attr(me, 'posts', keep), remit(loc(me), str(len(rows) - len(keep)) + ' curled notice(s) drop off the ' + name(me) + '.')) if len(keep) < len(rows) else None
+@set notice board/sweep = rows = V('posts') or []; keep = [p for p in rows if p[2] > now()]; (set_attr(me, 'posts', keep), remit(loc(me), f'{len(rows) - len(keep)} curled notice(s) drop off the {name(me)}.')) if len(keep) < len(rows) else None
 ```
 
 Pinning and reading — both sweep first:
 
 ```text
-@set notice board/cmd_post = $post *: eval_attr(me, 'sweep'); set_attr(me, 'posts', (get_attr(me, 'posts') or []) + [[name(enactor), escape(arg0), now() + get_attr(me, 'ttl', 120)]]); remit(loc(me), name(enactor) + ' pins a notice to the ' + name(me) + '.')
-@set notice board/cmd_board = $board: eval_attr(me, 'sweep'); rows = get_attr(me, 'posts') or []; pemit(enactor, 'The board is bare cork.') if not rows else [pemit(enactor, str(i + 1) + '. ' + r[1] + ' --' + r[0] + ' (' + str(r[2] - now()) + 's left)') for i, r in enumerate(rows)]
+@set notice board/cmd_post = $post *: eval_attr(me, 'sweep'); set_attr(me, 'posts', (V('posts') or []) + [[name(enactor), escape(arg0), now() + V('ttl', 120)]]); remit(loc(me), f'{name(enactor)} pins a notice to the {name(me)}.')
+@set notice board/cmd_board = $board: eval_attr(me, 'sweep'); rows = V('posts') or []; pemit(enactor, 'The board is bare cork.') if not rows else [pemit(enactor, f'{i + 1}. {r[1]} --{r[0]} ({r[2] - now()}s left)') for i, r in enumerate(rows)]
 ```
 
 The heartbeat:

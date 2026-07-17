@@ -41,7 +41,7 @@ The board and the official list:
 ```text
 @create the Hunt Board
 drop the Hunt Board
-@desc the Hunt Board = A corkboard headed THE GREAT HUNT, three photographs pinned beneath. [[lb = get_attr(me, 'leaderboard', {}); result = str(len(lb)) + ' hunters on the board.']]
+@desc the Hunt Board = A corkboard headed THE GREAT HUNT, three photographs pinned beneath. [[lb = V('leaderboard', {}); result = str(len(lb)) + ' hunters on the board.']]
 @set the Hunt Board/finds = ["a shard of driftglass", "a brass gear", "a violet feather"]
 ```
 
@@ -63,13 +63,13 @@ drop a violet feather
 The claim — carried ∩ tagged ∩ listed, then the ledger writes:
 
 ```text
-@set the Hunt Board/cmd_claim = $claim: want = get_attr(me, 'finds', []); carried = [name(o) for o in contents(enactor) if has_tag(o, 'hunt')]; got = [nm for nm in want if nm in carried]; lb = get_attr(me, 'leaderboard', {}); best = lb.get(name(enactor), 0); [(lb.update({name(enactor): len(got)}), set_attr(me, 'leaderboard', lb)) for g in [len(got) > best] if g]; pemit(enactor, 'The board stamps your card: ' + str(len(got)) + ' of ' + str(len(want)) + ' finds.'); [(set_attr(me, 'champions', get_attr(me, 'champions', []) + [name(enactor)]), remit(here, name(enactor) + ' has found everything on the hunt!')) for g in [len(got) == len(want) and name(enactor) not in get_attr(me, 'champions', [])] if g]
+@set the Hunt Board/cmd_claim = $claim: want = V('finds', []); carried = [name(o) for o in contents(enactor) if has_tag(o, 'hunt')]; got = [nm for nm in want if nm in carried]; lb = V('leaderboard', {}); best = lb.get(name(enactor), 0); [(lb.update({name(enactor): len(got)}), set_attr(me, 'leaderboard', lb)) for g in [len(got) > best] if g]; pemit(enactor, f'The board stamps your card: {len(got)} of {len(want)} finds.'); [(set_attr(me, 'champions', V('champions', []) + [name(enactor)]), remit(here, name(enactor) + ' has found everything on the hunt!')) for g in [len(got) == len(want) and name(enactor) not in V('champions', [])] if g]
 ```
 
 The leaderboard:
 
 ```text
-@set the Hunt Board/cmd_hunters = $hunters: lb = get_attr(me, 'leaderboard', {}); ch = get_attr(me, 'champions', []); pemit(enactor, 'THE GREAT HUNT -- standings:'); [pemit(enactor, '  ' + nm + ' -- ' + str(k) + ' finds' + (' [CHAMPION #' + str(ch.index(nm) + 1) + ']' if nm in ch else '')) for nm, k in sorted(lb.items(), key=lambda kv: -kv[1])]; pemit(enactor, '  (nobody yet)') if not lb else None
+@set the Hunt Board/cmd_hunters = $hunters: lb = V('leaderboard', {}); ch = V('champions', []); pemit(enactor, 'THE GREAT HUNT -- standings:'); [pemit(enactor, f'  {nm} -- {k} finds' + (f' [CHAMPION #{ch.index(nm) + 1}]' if nm in ch else '')) for nm, k in sorted(lb.items(), key=lambda kv: -kv[1])]; pemit(enactor, '  (nobody yet)') if not lb else None
 ```
 
 ## Try it

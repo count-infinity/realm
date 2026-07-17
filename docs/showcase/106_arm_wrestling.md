@@ -55,25 +55,25 @@ The table:
 ```text
 @create the wrestling table
 drop the wrestling table
-@desc the wrestling table = Elbow-polished oak, ringed by chalk lines and old beer. [[bt = get_attr(me, 'bout', None); result = 'A grudge match is forming.' if bt else 'The chair opposite is empty.']]
+@desc the wrestling table = Elbow-polished oak, ringed by chalk lines and old beer. [[bt = V('bout', None); result = 'A grudge match is forming.' if bt else 'The chair opposite is empty.']]
 ```
 
 The callout:
 
 ```text
-@set the wrestling table/cmd_wrestle = $wrestle * for *: opp = get(trim(arg0)); w = int(trim(arg1)); ok = not get_attr(me, 'bout', None) and opp is not None and has_tag(opp, 'player') and loc(opp) is here and opp is not enactor and w > 0; [(set_attr(me, 'bout', {'a': enactor.id, 'b': opp.id, 'wager': w, 'paid': []}), remit(here, name(enactor) + ' slaps ' + str(w) + ' credits on the table and calls out ' + name(opp) + '. Both: pay ' + str(w) + ' to the wrestling table.')) for g in [ok] if g]; pemit(enactor, 'The table is busy, or that is no valid opponent or wager.') if not ok else None
+@set the wrestling table/cmd_wrestle = $wrestle * for *: opp = get(trim(arg0)); w = int(trim(arg1)); ok = not V('bout', None) and opp is not None and has_tag(opp, 'player') and loc(opp) is here and opp is not enactor and w > 0; [(set_attr(me, 'bout', {'a': enactor.id, 'b': opp.id, 'wager': w, 'paid': []}), remit(here, name(enactor) + ' slaps ' + str(w) + ' credits on the table and calls out ' + name(opp) + '. Both: pay ' + str(w) + ' to the wrestling table.')) for g in [ok] if g]; pemit(enactor, 'The table is busy, or that is no valid opponent or wager.') if not ok else None
 ```
 
 The escrow — second stake in, elbows down:
 
 ```text
-@set the wrestling table/on_payment = paid = credits(me) - get_attr(me, 'ledger', 0); bt = get_attr(me, 'bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'Your stake hits the wood.')) for g in [ok] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The table shrugs your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None; set_attr(me, 'ledger', credits(me)); eval_attr(me, 'bout_go') if ok and len(bt['paid']) == 2 else None
+@set the wrestling table/on_payment = paid = credits(me) - V('ledger', 0); bt = V('bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'Your stake hits the wood.')) for g in [ok] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The table shrugs your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None; set_attr(me, 'ledger', credits(me)); eval_attr(me, 'bout_go') if ok and len(bt['paid']) == 2 else None
 ```
 
 The bout — play-by-play, one contest, the pot:
 
 ```text
-@set the wrestling table/bout_go = bt = get_attr(me, 'bout', {}); a = get('#' + bt['a']); b = get('#' + bt['b']); remit(here, name(a) + ' and ' + name(b) + ' lock hands over the scarred tabletop. The crowd leans in.'); win = a if contest(a, 'brawn', b, 'brawn') else b; lose = b if win is a else a; remit(here, 'Knuckles whiten, the table groans... ' + name(win) + " slams " + name(lose) + "'s arm down! The crowd roars."); transfer_credits(me, win, bt['wager'] * 2); remit(here, name(win) + ' scoops the pot: ' + str(bt['wager'] * 2) + ' credits.'); del_attr(me, 'bout'); set_attr(me, 'ledger', credits(me)); result = 1
+@set the wrestling table/bout_go = bt = V('bout', {}); a = get('#' + bt['a']); b = get('#' + bt['b']); remit(here, name(a) + ' and ' + name(b) + ' lock hands over the scarred tabletop. The crowd leans in.'); win = a if contest(a, 'brawn', b, 'brawn') else b; lose = b if win is a else a; remit(here, 'Knuckles whiten, the table groans... ' + name(win) + " slams " + name(lose) + "'s arm down! The crowd roars."); transfer_credits(me, win, bt['wager'] * 2); remit(here, name(win) + ' scoops the pot: ' + str(bt['wager'] * 2) + ' credits.'); del_attr(me, 'bout'); set_attr(me, 'ledger', credits(me)); result = 1
 ```
 
 ## Try it

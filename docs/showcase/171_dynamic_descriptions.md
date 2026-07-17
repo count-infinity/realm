@@ -23,7 +23,7 @@ performance idiom that keeps them fast.
 **A description can read the world.** Any `[[...]]` block in a desc runs
 through the script sandbox when someone looks, with `me` bound to the
 described object; whatever it assigns to `result` replaces the block. So
-a room can report its own state — `get_attr(me, 'lamp_state', 'dark')` —
+a room can report its own state — `V('lamp_state', 'dark')` —
 and a second block can *conditionally exist*: assign a colored line when
 lit, the empty string otherwise, and low-state viewers simply never read
 it. Multiple blocks compose in one description.
@@ -57,7 +57,7 @@ two-block description — a state line and a conditional beam line:
 up
 @zone here = cape
 @set here/lamp_state = dark
-@desc here = A spiral stair climbs to the lamp room. [[result = 'The great lamp is ' + get_attr(me, 'lamp_state', 'dark') + '.']] [[result = ansi('yh', 'A beam sweeps the black water below.') if get_attr(me, 'lamp_state', 'dark') == 'lit' else '']]
+@desc here = A spiral stair climbs to the lamp room. [[result = 'The great lamp is ' + V('lamp_state', 'dark') + '.']] [[result = ansi('yh', 'A beam sweeps the black water below.') if V('lamp_state', 'dark') == 'lit' else '']]
 ```
 
 The keeper — a zone master whose tick computes the lamp state and

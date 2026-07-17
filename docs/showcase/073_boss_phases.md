@@ -68,7 +68,7 @@ drop Skarn the Bonewright
 @set Skarn the Bonewright/dodge = 5
 @set Skarn the Bonewright/combat_strategy = [["", "attack"]]
 @set Skarn the Bonewright/hitprcnt = 50
-@set Skarn the Bonewright/on_hitprcnt = trigger('phase_two' if get_attr(me, 'phase', 1) == 1 else 'phase_three')
+@set Skarn the Bonewright/on_hitprcnt = trigger('phase_two' if V('phase', 1) == 1 else 'phase_three')
 ```
 
 Act two — telegraph, whelp, re-arm to 25, go berserk:

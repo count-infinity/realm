@@ -60,8 +60,8 @@ drop Announcer
 Broadcast (staff), replay, and opt-out:
 
 ```text
-@set Announcer/cmd_announce = $announce *: (pemit(enactor,'Only staff may broadcast.') if not has_tag(enactor,'admin') else (set_attr(me,'history', ((get_attr(me,'history') or []) + [escape(arg0) + '  --' + name(enactor)])[-30:]), [pemit(p, ansi('yh','[NOTICE] ') + escape(arg0)) for p in search_world(tag='player') if not has_tag(p,'no_announce')], pemit(enactor,'Broadcast sent to all listening players.')))
-@set Announcer/cmd_news = $news: h = get_attr(me,'history') or []; pemit(enactor,'No notices on file.') if not h else [pemit(enactor, str(i+1) + '. ' + ln) for i, ln in enumerate(h[-10:])]
+@set Announcer/cmd_announce = $announce *: (pemit(enactor,'Only staff may broadcast.') if not has_tag(enactor,'admin') else (set_attr(me,'history', ((V('history') or []) + [f'{escape(arg0)}  --{name(enactor)}'])[-30:]), [pemit(p, ansi('yh','[NOTICE] ') + escape(arg0)) for p in search_world(tag='player') if not has_tag(p,'no_announce')], pemit(enactor,'Broadcast sent to all listening players.')))
+@set Announcer/cmd_news = $news: h = V('history') or []; pemit(enactor,'No notices on file.') if not h else [pemit(enactor, str(i+1) + '. ' + ln) for i, ln in enumerate(h[-10:])]
 @set Announcer/cmd_mute = $mute news: (add_tag(enactor,'no_announce'), pemit(enactor,'You opt out of live notices. NEWS still shows history; UNMUTE NEWS resumes delivery.'))
 @set Announcer/cmd_unmute = $unmute news: (remove_tag(enactor,'no_announce'), pemit(enactor,'Live notices resumed.'))
 ```

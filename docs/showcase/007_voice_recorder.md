@@ -53,7 +53,7 @@ The deck, with a live tape counter on its face:
 ```text
 @create voice recorder
 drop voice recorder
-@desc voice recorder = A palm-sized deck of scuffed bakelite with one spinning reel. [[n = len(get_attr(me, 'transcript', [])); result = 'The counter reads ' + str(n) + ' line' + ('' if n == 1 else 's') + ('; the REC lamp burns red.' if get_attr(me, 'recording', 0) else '.')]]
+@desc voice recorder = A palm-sized deck of scuffed bakelite with one spinning reel. [[n = len(V('transcript', [])); result = f'The counter reads {n} line' + ('' if n == 1 else 's') + ('; the REC lamp burns red.' if V('recording', 0) else '.')]]
 ```
 
 Transport controls — arm (and blank the tape), the microphone itself,
@@ -61,7 +61,7 @@ and stop:
 
 ```text
 @set voice recorder/cmd_record = $record: (set_attr(me, 'recording', 1), set_attr(me, 'transcript', []), remit(here, 'The voice recorder clicks; a red REC lamp lights.'))
-@set voice recorder/listen_all = ^*: set_attr(me, 'transcript', (get_attr(me, 'transcript', []) + [name(enactor) + ': ' + escape(arg0)])[-20:]) if get_attr(me, 'recording', 0) else None
+@set voice recorder/listen_all = ^*: set_attr(me, 'transcript', (V('transcript', []) + [f'{name(enactor)}: {escape(arg0)}'])[-20:]) if V('recording', 0) else None
 @set voice recorder/cmd_stop = $stop: (set_attr(me, 'recording', 0), remit(here, 'The REC lamp dims.'))
 ```
 
@@ -69,7 +69,7 @@ Playback — room-wide, row by row, or a private shrug if the tape is
 blank:
 
 ```text
-@set voice recorder/cmd_play = $play: rows = get_attr(me, 'transcript', []); pemit(enactor, 'The tape is blank.') if not rows else remit(here, 'The voice recorder crackles and plays:'); [remit(here, '  > ' + r) for r in rows]
+@set voice recorder/cmd_play = $play: rows = V('transcript', []); pemit(enactor, 'The tape is blank.') if not rows else remit(here, 'The voice recorder crackles and plays:'); [remit(here, '  > ' + r) for r in rows]
 ```
 
 ## Try it

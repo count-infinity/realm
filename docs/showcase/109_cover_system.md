@@ -80,7 +80,7 @@ it runs out, the `cover` tag goes with it:
 
 ```text
 @set overturned dropship hull/plating = 2
-@set overturned dropship hull/cmd_shred = $shred hull: p = get_attr(me, 'plating', 0) - 1; (pemit(enactor, 'The hull is already scrap.') if not has_tag(me, 'cover') else ((set_attr(me, 'plating', 0), remove_tag(me, 'cover'), remit(loc(me), name(enactor) + ' blasts the hull apart -- it is cover for no one now!')) if p <= 0 else (set_attr(me, 'plating', p), remit(loc(me), name(enactor) + ' tears chunks off the hull. It will not stand much more.'))))
+@set overturned dropship hull/cmd_shred = $shred hull: p = V('plating', 0) - 1; (pemit(enactor, 'The hull is already scrap.') if not has_tag(me, 'cover') else ((set_attr(me, 'plating', 0), remove_tag(me, 'cover'), remit(loc(me), name(enactor) + ' blasts the hull apart -- it is cover for no one now!')) if p <= 0 else (set_attr(me, 'plating', p), remit(loc(me), name(enactor) + ' tears chunks off the hull. It will not stand much more.'))))
 ```
 
 ## Try it

@@ -81,7 +81,7 @@ The grenade. Pin first — in-hand required, one-way, lights the fuse:
 ```text
 @create frag grenade
 @set frag grenade/fuse = 6
-@set frag grenade/cmd_pull = $pull pin: pemit(enactor, 'Pick it up first -- you do not arm a grenade you are not holding.') if loc(me) != enactor else (pemit(enactor, 'The pin is already out!') if get_attr(me, 'armed', 0) else (set_attr(me, 'armed', 1), remit(loc(enactor), name(enactor) + ' pulls the pin. The spoon pings away.'), wait(get_attr(me, 'fuse', 6), 'trigger me/boom')))
+@set frag grenade/cmd_pull = $pull pin: pemit(enactor, 'Pick it up first -- you do not arm a grenade you are not holding.') if loc(me) != enactor else (pemit(enactor, 'The pin is already out!') if V('armed', 0) else (set_attr(me, 'armed', 1), remit(loc(enactor), name(enactor) + ' pulls the pin. The spoon pings away.'), wait(V('fuse', 6), 'trigger me/boom')))
 ```
 
 The throw — validate the exit by name, then hand off to `fly` with the

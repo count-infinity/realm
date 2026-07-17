@@ -67,7 +67,7 @@ drop the Commodity Board
 the spread in plain sight:
 
 ```text
-@set the Commodity Board/cmd_market = $market:pemit(enactor, 'Commodity        buy  sell  supply'); [pemit(enactor, left(g['name'] + repeat(' ', 16), 16) + ' ' + str(ceil(g['price'])) + '  ' + str(floor(g['price'] * 0.9)) + '  ' + str(g['supply'])) for cid in sorted(get_attr(me, 'goods', {})) for g in [get_attr(me, 'goods', {})[cid]]]
+@set the Commodity Board/cmd_market = $market:pemit(enactor, 'Commodity        buy  sell  supply'); [pemit(enactor, f"{left(g['name'] + repeat(' ', 16), 16)} {ceil(g['price'])}  {floor(g['price'] * 0.9)}  {g['supply']}") for cid in sorted(V('goods', {})) for g in [V('goods', {})[cid]]]
 ```
 
 `market buy <units> <commodity>` — charge, dent the supply, mint the
@@ -76,7 +76,7 @@ cargo lot into the buyer's pack. The chain of guarded statements
 `transfer_credits` doubles as the affordability test:
 
 ```text
-@set the Commodity Board/cmd_buy = $market buy * *:g = get_attr(me, 'goods', {}); units = int(arg0); cid = arg1.strip().lower(); cost = ceil(g[cid]['price']) * units if cid in g else 0; ok = cid in g and 0 < units <= g[cid]['supply'] and transfer_credits(enactor, me, cost); upd = g[cid].update({'supply': g[cid]['supply'] - units}) if ok else None; save = set_attr(me, 'goods', g) if ok else None; lot = create_obj('a sealed cargo lot (' + g[cid]['name'] + ')', tags=['thing', 'cargo'], location=enactor) if ok else None; mark = (set_attr(lot, 'commodity', cid), set_attr(lot, 'units', units)) if ok else None; pemit(enactor, ('You buy ' + str(units) + ' units of ' + g[cid]['name'] + ' for ' + str(cost) + ' credits.') if ok else 'No such commodity, not enough supply, or not enough credits.')
+@set the Commodity Board/cmd_buy = $market buy * *:g = V('goods', {}); units = int(arg0); cid = arg1.strip().lower(); cost = ceil(g[cid]['price']) * units if cid in g else 0; ok = cid in g and 0 < units <= g[cid]['supply'] and transfer_credits(enactor, me, cost); upd = g[cid].update({'supply': g[cid]['supply'] - units}) if ok else None; save = set_attr(me, 'goods', g) if ok else None; lot = create_obj(f"a sealed cargo lot ({g[cid]['name']})", tags=['thing', 'cargo'], location=enactor) if ok else None; mark = (set_attr(lot, 'commodity', cid), set_attr(lot, 'units', units)) if ok else None; pemit(enactor, f"You buy {units} units of {g[cid]['name']} for {cost} credits." if ok else 'No such commodity, not enough supply, or not enough credits.')
 ```
 
 `market sell <commodity>` — find a carried cargo lot of that commodity,
@@ -84,7 +84,7 @@ pay the spread price out of the board's float, melt the units back into
 supply, destroy the lot:
 
 ```text
-@set the Commodity Board/cmd_sell = $market sell *:g = get_attr(me, 'goods', {}); cid = arg0.strip().lower(); lots = [o for o in contents(enactor) if has_tag(o, 'cargo') and get_attr(o, 'commodity') == arg0.strip().lower()]; ok = bool(lots) and cid in g; units = get_attr(lots[0], 'units', 0) if ok else 0; pay = floor(g[cid]['price'] * 0.9) * units if ok else 0; paid = ok and transfer_credits(me, enactor, pay); upd = g[cid].update({'supply': g[cid]['supply'] + units}) if paid else None; save = set_attr(me, 'goods', g) if paid else None; junk = destroy_obj(lots[0]) if paid else None; pemit(enactor, ('The exchange pays ' + str(pay) + ' credits for ' + str(units) + ' units of ' + g[cid]['name'] + '.') if paid else 'You carry no such cargo lot, or the exchange cannot cover it.')
+@set the Commodity Board/cmd_sell = $market sell *:g = V('goods', {}); cid = arg0.strip().lower(); lots = [o for o in contents(enactor) if has_tag(o, 'cargo') and get_attr(o, 'commodity') == arg0.strip().lower()]; ok = bool(lots) and cid in g; units = get_attr(lots[0], 'units', 0) if ok else 0; pay = floor(g[cid]['price'] * 0.9) * units if ok else 0; paid = ok and transfer_credits(me, enactor, pay); upd = g[cid].update({'supply': g[cid]['supply'] + units}) if paid else None; save = set_attr(me, 'goods', g) if paid else None; junk = destroy_obj(lots[0]) if paid else None; pemit(enactor, f"The exchange pays {pay} credits for {units} units of {g[cid]['name']}." if paid else 'You carry no such cargo lot, or the exchange cannot cover it.')
 ```
 
 The simulation, as a function attribute. `.items()` hands the
@@ -92,14 +92,14 @@ comprehension each commodity dict to mutate in place — relaxation first,
 then the drift-noise-clamp price step:
 
 ```text
-@set the Commodity Board/drift = [(g.update({'supply': g['supply'] + (int((g['base_supply'] - g['supply']) * 0.05) or (1 if g['base_supply'] > g['supply'] else -1))}) if g['supply'] != g['base_supply'] else None, g.update({'price': round(min(max((g['price'] + (g['base_price'] * g['base_supply'] / max(g['supply'], 1) - g['price']) * 0.25) * rand(97, 103) / 100.0, g['base_price'] * 0.2), g['base_price'] * 5), 2)})) for cid, g in get_attr(me, 'goods', {}).items()]; set_attr(me, 'goods', get_attr(me, 'goods', {})); result = 1
+@set the Commodity Board/drift = [(g.update({'supply': g['supply'] + (int((g['base_supply'] - g['supply']) * 0.05) or (1 if g['base_supply'] > g['supply'] else -1))}) if g['supply'] != g['base_supply'] else None, g.update({'price': round(min(max((g['price'] + (g['base_price'] * g['base_supply'] / max(g['supply'], 1) - g['price']) * 0.25) * rand(97, 103) / 100.0, g['base_price'] * 0.2), g['base_price'] * 5), 2)})) for cid, g in V('goods', {}).items()]; set_attr(me, 'goods', V('goods', {})); result = 1
 ```
 
 The news shock — pick a commodity, halve or half-again its supply,
 headline the room:
 
 ```text
-@set the Commodity Board/news = g = get_attr(me, 'goods', {}); cid = sorted(g)[rand(0, len(g) - 1)]; raid = rand(0, 1) == 1; g[cid]['supply'] = max(1, int(g[cid]['supply'] * (0.5 if raid else 1.5))); set_attr(me, 'goods', g); remit(here, '[Market] ' + ('Pirate raids choke off ' + g[cid]['name'] + ' shipments!' if raid else 'A glut freighter floods the docks with ' + g[cid]['name'] + '!')); result = 1
+@set the Commodity Board/news = g = V('goods', {}); cid = sorted(g)[rand(0, len(g) - 1)]; raid = rand(0, 1) == 1; g[cid]['supply'] = max(1, int(g[cid]['supply'] * (0.5 if raid else 1.5))); set_attr(me, 'goods', g); remit(here, '[Market] ' + (f"Pirate raids choke off {g[cid]['name']} shipments!" if raid else f"A glut freighter floods the docks with {g[cid]['name']}!")); result = 1
 ```
 
 The pulse — every 8 ticks: maybe news, always drift:

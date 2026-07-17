@@ -156,17 +156,17 @@ WEATHER_BUILD = [
     '"overcast": "The light sits flat under a grey lid of cloud.", '
     '"rain": "Rain hisses on the harbor water.", "storm": "Spray and rain '
     'scour the planking."}',
-    "@set Harbor Sky/on_tick = states = get_attr(me, 'wx_states', []); "
-    "i = member(get_attr(me, 'weather', 'clear'), states) - 1; "
+    "@set Harbor Sky/on_tick = states = V('wx_states', []); "
+    "i = member(V('weather', 'clear'), states) - 1; "
     "j = clamp(i + rand(0, 2) - 1, 0, len(states) - 1); "
     "(set_attr(me, 'weather', states[j]), [(set_attr(r, 'wx_line', "
-    "get_attr(me, 'wx_descs', {}).get(states[j], '')), remit(r, "
-    "get_attr(me, 'wx_msgs', {}).get(states[j], ''))) for r in "
+    "V('wx_descs', {}).get(states[j], '')), remit(r, "
+    "V('wx_msgs', {}).get(states[j], ''))) for r in "
     "zone_rooms('harbor')]) if i >= 0 and j != i else None",
     "@behavior Harbor Sky = script_ticker, interval:15",
     "@set here/wx_line = Sunlight hammers the tin roofs.",
     "@desc here = Tarred pilings, drying nets, gulls arguing over fish "
-    "heads. [[result = get_attr(me, 'wx_line', '')]]",
+    "heads. [[result = V('wx_line', '')]]",
 ]
 
 
@@ -242,15 +242,15 @@ DAYNIGHT_BUILD = [
     "@create town clock",
     "drop town clock",
     "@set town clock/hour = 8",
-    "@set town clock/on_tick = h = (get_attr(me, 'hour', 0) + 1) % 24; "
+    "@set town clock/on_tick = h = (V('hour', 0) + 1) % 24; "
     "set_attr(me, 'hour', h); night = h >= 21 or h < 6; "
     "dp = 'night' if night else ('morning' if h < 12 else 'afternoon'); "
     "[(set_attr(r, 'daypart', dp), (add_tag(r, 'dark') if night else "
     "remove_tag(r, 'dark'))) for r in zone_rooms('town') "
     "if has_tag(r, 'outdoors')]",
     "@behavior town clock = script_ticker, interval:1",
-    "@desc here = A worn sundial crowns the plaza. [[dp = get_attr(me, "
-    "'daypart', 'morning'); result = 'Lamplight pools on the cobbles, "
+    "@desc here = A worn sundial crowns the plaza. [[dp = V('daypart', "
+    "'morning'); result = 'Lamplight pools on the cobbles, "
     "and the gnomon points at nothing.' if dp == 'night' else "
     "('Long morning shadows sweep the dial.' if dp == 'morning' else "
     "'The gnomon leans into the afternoon light.')]]",
@@ -378,9 +378,9 @@ UNDERWATER_BUILD = [
     "if has_tag(enactor, 'player') else None",
     "@set here/soak = o = get('#' + arg0); k = 'breath_' + o.id; "
     "pemit(o, 'You pace your strokes and hold what air you have.') "
-    "if skill_check(o, 'swimming') else (set_attr(me, k, get_attr(me, k, "
-    "get_attr(me, 'breath_max', 3)) - 1), pemit(o, 'Your chest heaves. "
-    "You are running out of air!') if get_attr(me, k, 0) > 0 else "
+    "if skill_check(o, 'swimming') else (set_attr(me, k, V(k, "
+    "V('breath_max', 3)) - 1), pemit(o, 'Your chest heaves. "
+    "You are running out of air!') if V(k, 0) > 0 else "
     "(damage(o, roll('1d6')), pemit(o, 'Water forces its way in. "
     "You are drowning!')))",
     "@set here/on_tick = [eval_attr(me, 'soak', o.id) for o in contents(me) "
@@ -460,9 +460,9 @@ ZEROG_BUILD = [
     "ex = [e for e in contents(me) if has_tag(e, 'exit') and name(e) == nm]; "
     "pemit(enactor, 'No handhold faces that way.') if not ex else "
     "((move_to(enactor, get('#' + str(get_attr(ex[0], 'destination', ''))), "
-    "tags=['zerog']), pemit(enactor, 'You coil, kick off, and sail through "
-    "the ' + nm + ' hatch.'), remit(me, name(enactor) + ' kicks off a "
-    "bulkhead and sails out through the ' + nm + ' hatch.')) "
+    "tags=['zerog']), pemit(enactor, f'You coil, kick off, and sail "
+    "through the {nm} hatch.'), remit(me, f'{name(enactor)} kicks off a "
+    "bulkhead and sails out through the {nm} hatch.')) "
     "if skill_check(enactor, 'freefall') else (pemit(enactor, 'You misjudge "
     "the kick and tumble; the hatch drifts past your fingers.'), "
     "remit(me, name(enactor) + ' tumbles slowly in midair, pawing at "
@@ -534,10 +534,10 @@ AMBIENT_BUILD = [
     '"Somewhere above, timbers settle with a groan.", "Dust sifts down '
     'from the rafters."]',
     "@set cold draft/chance = 25",
-    "@set cold draft/on_tick = lines = get_attr(me, 'lines', []); "
+    "@set cold draft/on_tick = lines = V('lines', []); "
     "(remit(here, lines[rand(0, len(lines) - 1)]) if lines and "
     "[o for o in contents(here) if has_tag(o, 'player')] else None) "
-    "if rand(1, 100) <= get_attr(me, 'chance', 25) else None",
+    "if rand(1, 100) <= V('chance', 25) else None",
     "@behavior cold draft = script_ticker, interval:8",
     "@tag cold draft = invisible",
 ]
@@ -589,8 +589,8 @@ DETAILS_BUILD = [
     'name has been filed off.", "shelves": "Harbor manifests, mostly. '
     'A century of them, and nobody has opened one twice."}',
     "@set here/cmd_study = $study *: t = trim(arg0).lower(); "
-    "d = get_attr(me, 'vtargets', {}); pemit(enactor, d.get(t, 'You find "
-    "nothing else worth studying about the ' + t + '.'))",
+    "d = V('vtargets', {}); pemit(enactor, d.get(t, f'You find "
+    "nothing else worth studying about the {t}.'))",
 ]
 
 
@@ -668,7 +668,7 @@ HAZARD_BUILD = [
     "@set Reactor Brain/rad_level = 1",
     "@desc here = A steel catwalk rings the exposed core. The air is warm "
     "and tastes of foil. [[result = 'Your dosimeter ticks ' + ('lazily.' "
-    "if get_attr(me, 'rad_sv', 1) < 3 else 'without pause.')]]",
+    "if V('rad_sv', 1) < 3 else 'without pause.')]]",
     "@set here/on_tick = sv = get_attr('Reactor Brain', 'rad_level', 1); "
     "set_attr(me, 'rad_sv', sv); "
     "[(pemit(o, 'Heat prickles across your skin; you ride it out.') if "
@@ -894,15 +894,14 @@ CAPACITY_BUILD = [
     "@dig Maintenance Closet = closet, out",
     "closet",
     "@set here/capacity = 2",
-    "@set here/on_check = block('There is no room. ' + name(me) + ' is "
+    "@set here/on_check = block(f'There is no room. {name(me)} is "
     "packed shoulder to shoulder.') if atype == 'event:pre_enter' and "
     "has_atag('movement') and has_tag(actor, 'player') and "
     "len([o for o in contents(me) if has_tag(o, 'player')]) >= "
-    "get_attr(me, 'capacity', 2) else None",
+    "V('capacity', 2) else None",
     "@desc here = Mop, bucket, fuse panel. Space for two people and one "
     "grudge. [[n = len([o for o in contents(me) if has_tag(o, 'player')]); "
-    "result = str(n) + ' of ' + str(get_attr(me, 'capacity', 2)) + "
-    "' spots are taken.']]",
+    "result = f\"{n} of {V('capacity', 2)} spots are taken.\"]]",
     "out",
 ]
 
@@ -945,7 +944,7 @@ FALLING_BUILD = [
     "@desc here = A boot-wide shelf hugs the cliff face. Pebbles you "
     "dislodge take a long time to land.",
     "@set here/on_enter = k = 'fall_' + enactor.id; recent = now() - "
-    "get_attr(me, k, 0) < 5; safe = not has_tag(enactor, 'player') or "
+    "V(k, 0) < 5; safe = not has_tag(enactor, 'player') or "
     "recent or skill_check(enactor, 'climbing', -2); (pemit(enactor, "
     "'Scree shifts under your boots. You hug the rock and find your "
     "footing.') if has_tag(enactor, 'player') and not recent else None) "

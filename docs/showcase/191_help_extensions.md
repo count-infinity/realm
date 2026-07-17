@@ -67,8 +67,8 @@ Two verbs read it. Bare `guide` lists the index; `guide <topic>` prints
 one entry, or points you back to the list if the topic is unknown:
 
 ```text
-@set field guide/cmd_index = $guide: pemit(enactor, 'Guide topics: ' + ', '.join(get_attr(me, 'index', [])) + '. Type: guide <topic>.')
-@set field guide/cmd_guide = $guide *: t = trim(arg0).lower(); body = get_attr(me, 'topic_' + t, ''); pemit(enactor, ansi('ch', capstr(t)) + '\n' + body) if body else pemit(enactor, 'No guide entry for ' + t + '. Try: guide')
+@set field guide/cmd_index = $guide: pemit(enactor, 'Guide topics: ' + ', '.join(V('index', [])) + '. Type: guide <topic>.')
+@set field guide/cmd_guide = $guide *: t = trim(arg0).lower(); body = V('topic_' + t, ''); pemit(enactor, f'{ansi("ch", capstr(t))}\n{body}') if body else pemit(enactor, f'No guide entry for {t}. Try: guide')
 ```
 
 The two patterns don't collide: `$guide` compiles to an exact match, so

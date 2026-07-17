@@ -56,7 +56,7 @@ enforces the ten-step cap, and stores the list:
 ```text
 @create macro band
 @set macro band/cmd_record = $record * = *:steps = [s.strip() for s in arg1.split('|') if s.strip()]; pemit(enactor, 'Macros hold at most 10 steps.') if len(steps) > 10 else (set_attr(me, 'macro_' + arg0, '|'.join(steps)), pemit(enactor, 'Recorded ' + arg0 + ' (' + str(len(steps)) + ' steps).'))
-@set macro band/cmd_play = $play *:body = get_attr(me, 'macro_' + arg0, ''); pemit(enactor, 'No macro ' + arg0 + '.') if not body else [force(enactor, s.strip()) for s in body.split('|')[:10] if s.strip()]
+@set macro band/cmd_play = $play *:body = V('macro_' + arg0, ''); pemit(enactor, 'No macro ' + arg0 + '.') if not body else [force(enactor, s.strip()) for s in body.split('|')[:10] if s.strip()]
 @lock/use macro band = caller == owner
 @chown macro band = Ada
 @untag macro band = halt

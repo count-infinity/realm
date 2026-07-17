@@ -61,7 +61,7 @@ spawn, and stamp the merged stats. Every branch is a guard; the final
 tuple commits only when a spec was found:
 
 ```text
-@set prototype rack/cmd_mint = $mint *: key = 'proto_' + trim(arg0); p = get_attr(me, key); base = get_attr(me, 'proto_' + str(p.get('parent')), {}) if p and p.get('parent') else {}; spec = {**base, **p} if p else None; o = create_obj(spec['name'], tags=['thing'], location=enactor) if spec else None; (set_attr(o, 'damage', spec.get('damage', 1)), set_attr(o, 'weight', spec.get('weight', 1)), pemit(enactor, 'Minted ' + spec['name'] + ': dmg ' + str(spec.get('damage')) + ', wt ' + str(spec.get('weight')) + '.')) if o else pemit(enactor, 'No such prototype.')
+@set prototype rack/cmd_mint = $mint *: key = 'proto_' + trim(arg0); p = V(key); base = V('proto_' + str(p.get('parent')), {}) if p and p.get('parent') else {}; spec = {**base, **p} if p else None; o = create_obj(spec['name'], tags=['thing'], location=enactor) if spec else None; (set_attr(o, 'damage', spec.get('damage', 1)), set_attr(o, 'weight', spec.get('weight', 1)), pemit(enactor, 'Minted ' + spec['name'] + ': dmg ' + str(spec.get('damage')) + ', wt ' + str(spec.get('weight')) + '.')) if o else pemit(enactor, 'No such prototype.')
 ```
 
 ## Try it

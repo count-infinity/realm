@@ -58,21 +58,21 @@ drop scum pond
 Casting — claim the line, schedule the bite:
 
 ```text
-@set scum pond/cmd_cast = $cast line: pemit(enactor, 'A line is already out. Watch the float; hook when it dips.') if get_attr(me, 'line_out', 0) else (set_attr(me, 'line_out', 1), set_attr(me, 'angler', enactor.id), remit(here, name(enactor) + ' casts a line out over the scum.'), wait(get_attr(me, 'lull', 6), 'trigger me/bite'))
+@set scum pond/cmd_cast = $cast line: pemit(enactor, 'A line is already out. Watch the float; hook when it dips.') if V('line_out', 0) else (set_attr(me, 'line_out', 1), set_attr(me, 'angler', enactor.id), remit(here, name(enactor) + ' casts a line out over the scum.'), wait(V('lull', 6), 'trigger me/bite'))
 ```
 
 The bite and the closing of the window — each guarded on the state
 that must still hold:
 
 ```text
-@set scum pond/bite = (set_attr(me, 'bite_open', 1), remit(here, 'The float dips hard -- something is on!'), wait(get_attr(me, 'window', 4), 'trigger me/slack')) if get_attr(me, 'line_out', 0) else None
-@set scum pond/slack = (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), remit(here, 'The water stills. The line drifts back slack, bait gone.')) if get_attr(me, 'bite_open', 0) else None
+@set scum pond/bite = (set_attr(me, 'bite_open', 1), remit(here, 'The float dips hard -- something is on!'), wait(V('window', 4), 'trigger me/slack')) if V('line_out', 0) else None
+@set scum pond/slack = (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), remit(here, 'The water stills. The line drifts back slack, bait gone.')) if V('bite_open', 0) else None
 ```
 
 And the hook — three guards, a roll, a draw:
 
 ```text
-@set scum pond/cmd_hook = $hook: lined = get_attr(me, 'line_out', 0); dip = get_attr(me, 'bite_open', 0); pemit(enactor, 'No line in the water. cast line first.') if not lined else None; (del_attr(me, 'line_out'), del_attr(me, 'angler'), pemit(enactor, 'You yank at still water; anything under the scum is long warned off.')) if lined and not dip else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_angling', 9)) if lined and dip else None; draw = lambda draw, t, r: t[0] if r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); c = draw(draw, get_attr(me, 'catches', []), rand(1, 100)) if lined and dip else None; (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), (create_obj(c[0], c[2], here), remit(here, name(enactor) + ' hooks it clean -- ' + c[0] + ' lands flopping on the dock! (margin +' + str(res.margin) + ')')) if res.success else remit(here, 'It spits the hook and is gone. (rolled ' + str(res.roll) + ' vs angling ' + str(res.effective) + ')')) if lined and dip else None
+@set scum pond/cmd_hook = $hook: lined = V('line_out', 0); dip = V('bite_open', 0); pemit(enactor, 'No line in the water. cast line first.') if not lined else None; (del_attr(me, 'line_out'), del_attr(me, 'angler'), pemit(enactor, 'You yank at still water; anything under the scum is long warned off.')) if lined and not dip else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_angling', 9)) if lined and dip else None; draw = lambda draw, t, r: t[0] if r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); c = draw(draw, V('catches', []), rand(1, 100)) if lined and dip else None; (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), (create_obj(c[0], c[2], here), remit(here, f'{name(enactor)} hooks it clean -- {c[0]} lands flopping on the dock! (margin +{res.margin})')) if res.success else remit(here, f'It spits the hook and is gone. (rolled {res.roll} vs angling {res.effective})')) if lined and dip else None
 ```
 
 ## Try it

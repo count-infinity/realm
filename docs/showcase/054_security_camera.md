@@ -61,8 +61,8 @@ watcher list:
 @create security monitor
 drop security monitor
 @desc security monitor = A bank of grainy feeds. WATCH to put an eye on the vault approach; UNWATCH to look away.
-@set security monitor/cmd_watch = $watch: ws = get_attr(me, 'watchers') or []; set_attr(me, 'watchers', ws if enactor.id in ws else ws + [enactor.id]); pemit(enactor, 'You settle in at the console. The antechamber feed flickers to life.')
-@set security monitor/cmd_unwatch = $unwatch: set_attr(me, 'watchers', [i for i in (get_attr(me, 'watchers') or []) if i != enactor.id]); pemit(enactor, 'You look away from the monitor.')
+@set security monitor/cmd_watch = $watch: ws = V('watchers') or []; set_attr(me, 'watchers', ws if enactor.id in ws else ws + [enactor.id]); pemit(enactor, 'You settle in at the console. The antechamber feed flickers to life.')
+@set security monitor/cmd_unwatch = $unwatch: set_attr(me, 'watchers', [i for i in (V('watchers') or []) if i != enactor.id]); pemit(enactor, 'You look away from the monitor.')
 ```
 
 The camera, in the antechamber. `feed` names its console (looked up
@@ -82,21 +82,21 @@ deliver, prune. The `powered` guard is the sabotage switch; note it
 zeroes the audience, so every feed dies at one point:
 
 ```text
-@set security camera/relay = m = get(get_attr(me, 'feed', '')); ws = (get_attr(m, 'watchers') or []) if (m and get_attr(me, 'powered', 1)) else []; live = [w for w in [get('#' + str(i)) for i in ws] if w and loc(w) == loc(m)]; [pemit(w, '[' + name(me) + '] ' + str(arg0)) for w in live]; set_attr(m, 'watchers', [w.id for w in live]) if m and len(live) != len(ws) else None
+@set security camera/relay = m = get(V('feed', '')); ws = (get_attr(m, 'watchers') or []) if (m and V('powered', 1)) else []; live = [w for w in [get('#' + str(i)) for i in ws] if w and loc(w) == loc(m)]; [pemit(w, f'[{name(me)}] {arg0}') for w in live]; set_attr(m, 'watchers', [w.id for w in live]) if m and len(live) != len(ws) else None
 ```
 
 The three taps, each a one-line caller:
 
 ```text
-@set security camera/listen_feed = ^*: eval_attr(me, 'relay', name(enactor) + ' says, "' + arg0 + '"') if enactor else None
-@set security camera/on_enter = eval_attr(me, 'relay', name(enactor) + ' arrives.') if enactor else None
-@set security camera/on_leave = eval_attr(me, 'relay', name(enactor) + ' leaves.') if enactor else None
+@set security camera/listen_feed = ^*: eval_attr(me, 'relay', f'{name(enactor)} says, "{arg0}"') if enactor else None
+@set security camera/on_enter = eval_attr(me, 'relay', f'{name(enactor)} arrives.') if enactor else None
+@set security camera/on_leave = eval_attr(me, 'relay', f'{name(enactor)} leaves.') if enactor else None
 ```
 
 And counterplay — an Electronics check at -2 to kill the power:
 
 ```text
-@set security camera/cmd_cut = $cut *: (set_attr(me, 'powered', 0), remit(loc(me), name(enactor) + ' snips a cable -- the camera light dies.')) if skill_check(enactor, 'electronics', -2) else pemit(enactor, 'Sparks jump; the housing is trickier than it looks.')
+@set security camera/cmd_cut = $cut *: (set_attr(me, 'powered', 0), remit(loc(me), f'{name(enactor)} snips a cable -- the camera light dies.')) if skill_check(enactor, 'electronics', -2) else pemit(enactor, 'Sparks jump; the housing is trickier than it looks.')
 ```
 
 ## Try it
@@ -131,6 +131,6 @@ cut camera                   -> (Electronics -2) ... the camera light dies.
 - **Recording** — append each relayed line to a `log` list attribute on
   the monitor, capped with a slice, and add a `$playback` command.
 - **Two-way intercom** — a `$page *` on the monitor that
-  `remit(loc(get(get_attr(me, 'camera'))), ...)` — the tap reversed.
+  `remit(loc(get(V('camera'))), ...)` — the tap reversed.
 - **Combat coverage** — the camera can witness any event: an `ON_ATTACK`
   tap turns it into a gun-camera that calls guards via a zone `act()`.

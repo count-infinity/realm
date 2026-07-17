@@ -62,7 +62,7 @@ prints a cached top five:
 
 ```text
 @set the Hall of Fame board/cmd_boards = $leaderboard:pemit(enactor, 'Leaderboards: LEADERBOARD CRAFTERS | FIGHTERS | RICHEST.')
-@set the Hall of Fame board/cmd_board = $leaderboard *:cat = trim(arg0).lower(); key = {'crafters': 'board_craft', 'crafting': 'board_craft', 'fighters': 'board_fight', 'fighting': 'board_fight', 'richest': 'board_rich', 'rich': 'board_rich'}.get(cat, ''); rows = get_attr(me, key, []) if key else []; pemit(enactor, 'Top ' + cat + ':') if key else pemit(enactor, 'Boards: crafters, fighters, richest.'); [pemit(enactor, '  ' + str(i + 1) + '. ' + r) for i, r in enumerate(rows)]; pemit(enactor, '  (empty - check back after the next tally)') if key and not rows else None
+@set the Hall of Fame board/cmd_board = $leaderboard *:cat = trim(arg0).lower(); key = {'crafters': 'board_craft', 'crafting': 'board_craft', 'fighters': 'board_fight', 'fighting': 'board_fight', 'richest': 'board_rich', 'rich': 'board_rich'}.get(cat, ''); rows = V(key, []) if key else []; pemit(enactor, f'Top {cat}:') if key else pemit(enactor, 'Boards: crafters, fighters, richest.'); [pemit(enactor, f'  {i + 1}. {r}') for i, r in enumerate(rows)]; pemit(enactor, '  (empty - check back after the next tally)') if key and not rows else None
 ```
 
 ## Try it

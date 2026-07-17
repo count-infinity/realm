@@ -79,7 +79,7 @@ reads the one stamped line:
 
 ```text
 @teleport me = The Motor Pool
-@desc board = A rugged six-wheeled rover, hatch standing open. [[result = get_attr(me, 'sitrep', '')]]
+@desc board = A rugged six-wheeled rover, hatch standing open. [[result = V('sitrep', '')]]
 ```
 
 ## Try it

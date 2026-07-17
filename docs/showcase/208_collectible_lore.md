@@ -64,7 +64,7 @@ The reader — found entries in full, the rest locked, with a completion
 count:
 
 ```text
-@set archive terminal/cmd_codex = $codex:defs = get_attr(me, 'entries', {}); found = [s for s in defs if get_attr(enactor, 'lore_' + s, 0)]; pemit(enactor, 'Codex -- ' + str(len(found)) + '/' + str(len(defs)) + ' entries recovered:'); [pemit(enactor, '  [' + defs[s]['title'] + '] ' + defs[s]['text']) for s in defs if get_attr(enactor, 'lore_' + s, 0)]; [pemit(enactor, '  [LOCKED] ???') for s in defs if not get_attr(enactor, 'lore_' + s, 0)]
+@set archive terminal/cmd_codex = $codex:defs = V('entries', {}); found = [s for s in defs if get_attr(enactor, 'lore_' + s, 0)]; pemit(enactor, f'Codex -- {len(found)}/{len(defs)} entries recovered:'); [pemit(enactor, f'  [{defs[s]["title"]}] {defs[s]["text"]}') for s in defs if get_attr(enactor, 'lore_' + s, 0)]; [pemit(enactor, '  [LOCKED] ???') for s in defs if not get_attr(enactor, 'lore_' + s, 0)]
 ```
 
 (In a real world you'd scatter the log and mural across different rooms;

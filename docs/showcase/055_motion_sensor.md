@@ -61,14 +61,14 @@ The two witnesses. Identical shape, one word different — and note the
 append-then-slice cap on both:
 
 ```text
-@set motion sensor/on_enter = set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[name(enactor), 'entered', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None
-@set motion sensor/on_leave = set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[name(enactor), 'left', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None
+@set motion sensor/on_enter = set_attr(me, 'log', ((V('log') or []) + [[name(enactor), 'entered', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None
+@set motion sensor/on_leave = set_attr(me, 'log', ((V('log') or []) + [[name(enactor), 'left', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None
 ```
 
 Playback — oldest first, ages computed at read time:
 
 ```text
-@set motion sensor/cmd_review = $review: entries = get_attr(me, 'log') or []; (pemit(enactor, 'The log is empty.') if not entries else [pemit(enactor, '[' + str(now() - e[2]) + 's ago] ' + e[0] + ' ' + e[1] + '.') for e in entries])
+@set motion sensor/cmd_review = $review: entries = V('log') or []; (pemit(enactor, 'The log is empty.') if not entries else [pemit(enactor, f'[{now() - e[2]}s ago] {e[0]} {e[1]}.') for e in entries])
 ```
 
 ## Try it

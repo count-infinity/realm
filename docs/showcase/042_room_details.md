@@ -55,7 +55,7 @@ The named targets — a dictionary and the verb that reads it:
 
 ```text
 @set here/vtargets = {"plaque": "COLLECTION 9 - DONATED. The donor's name has been filed off.", "shelves": "Harbor manifests, mostly. A century of them, and nobody has opened one twice."}
-@set here/cmd_study = $study *: t = trim(arg0).lower(); d = get_attr(me, 'vtargets', {}); pemit(enactor, d.get(t, 'You find nothing else worth studying about the ' + t + '.'))
+@set here/cmd_study = $study *: t = trim(arg0).lower(); d = V('vtargets', {}); pemit(enactor, d.get(t, f'You find nothing else worth studying about the {t}.'))
 ```
 
 ## Try it

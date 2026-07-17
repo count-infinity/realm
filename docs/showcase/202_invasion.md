@@ -72,7 +72,7 @@ The orchestrator — one `on_tick`, four phases, warning → wave →
 reinforce → repel-and-reset:
 
 ```text
-@set War Drum/on_tick = p = get_attr(me, 'phase', 0) + 1; set_attr(me, 'phase', p); [remit(r, 'Warhorns! Raiders mass beyond the walls.') for r in zone_rooms('citadel') if p == 1]; [(create_obj('a raider', ['npc', 'raider'], location=r), remit(r, 'Raiders pour through the gate!')) for r in zone_rooms('citadel') if p == 2]; [create_obj('a raider', ['npc', 'raider'], location=r) for r in zone_rooms('citadel') if p == 3]; [destroy_obj(o) for o in search_world(tag='raider') if p == 4]; [remit(r, 'The last raider falls. The citadel holds.') for r in zone_rooms('citadel') if p == 4]; set_attr(me, 'phase', 0) if p >= 4 else None
+@set War Drum/on_tick = p = incr('phase'); [remit(r, 'Warhorns! Raiders mass beyond the walls.') for r in zone_rooms('citadel') if p == 1]; [(create_obj('a raider', ['npc', 'raider'], location=r), remit(r, 'Raiders pour through the gate!')) for r in zone_rooms('citadel') if p == 2]; [create_obj('a raider', ['npc', 'raider'], location=r) for r in zone_rooms('citadel') if p == 3]; [destroy_obj(o) for o in search_world(tag='raider') if p == 4]; [remit(r, 'The last raider falls. The citadel holds.') for r in zone_rooms('citadel') if p == 4]; set_attr(me, 'phase', 0) if p >= 4 else None
 ```
 
 The reset janitor, and the heartbeat that drives the phases (~once a

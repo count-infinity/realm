@@ -63,7 +63,7 @@ drop Bruk
 @set Bruk/will = 8
 @set Bruk/skill_detect_lies = 8
 @set Bruk/guest_list = Lady Vex, Raven
-@set Bruk/on_fail = say('The list is the list. Walk away, ' + name(enactor) + '.')
+@set Bruk/on_fail = say(f'The list is the list. Walk away, {name(enactor)}.')
 ```
 
 The ward on the gatehouse — one long condition, read left to right:

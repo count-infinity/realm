@@ -69,7 +69,7 @@ the hour band:
 @create town clock
 drop town clock
 @set town clock/hour = 8
-@set town clock/on_tick = h = (get_attr(me, 'hour', 0) + 1) % 24; set_attr(me, 'hour', h); night = h >= 21 or h < 6; dp = 'night' if night else ('morning' if h < 12 else 'afternoon'); [(set_attr(r, 'daypart', dp), (add_tag(r, 'dark') if night else remove_tag(r, 'dark'))) for r in zone_rooms('town') if has_tag(r, 'outdoors')]
+@set town clock/on_tick = h = (V('hour', 0) + 1) % 24; set_attr(me, 'hour', h); night = h >= 21 or h < 6; dp = 'night' if night else ('morning' if h < 12 else 'afternoon'); [(set_attr(r, 'daypart', dp), (add_tag(r, 'dark') if night else remove_tag(r, 'dark'))) for r in zone_rooms('town') if has_tag(r, 'outdoors')]
 @behavior town clock = script_ticker, interval:1
 ```
 
@@ -77,7 +77,7 @@ The time-branching description — a local read of the stamp, defaulting
 to morning until the first sweep lands:
 
 ```text
-@desc here = A worn sundial crowns the plaza. [[dp = get_attr(me, 'daypart', 'morning'); result = 'Lamplight pools on the cobbles, and the gnomon points at nothing.' if dp == 'night' else ('Long morning shadows sweep the dial.' if dp == 'morning' else 'The gnomon leans into the afternoon light.')]]
+@desc here = A worn sundial crowns the plaza. [[dp = V('daypart', 'morning'); result = 'Lamplight pools on the cobbles, and the gnomon points at nothing.' if dp == 'night' else ('Long morning shadows sweep the dial.' if dp == 'morning' else 'The gnomon leans into the afternoon light.')]]
 ```
 
 ## Try it

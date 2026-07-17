@@ -66,7 +66,7 @@ it's one number:
 @create town clock
 drop town clock
 @set town clock/hour = 6
-@set town clock/on_tick = set_attr(me, 'hour', (get_attr(me, 'hour', 0) + 1) % 24)
+@set town clock/on_tick = set_attr(me, 'hour', (V('hour', 0) + 1) % 24)
 @behavior town clock = script_ticker, interval:1
 ```
 

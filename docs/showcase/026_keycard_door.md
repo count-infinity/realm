@@ -71,7 +71,7 @@ the `atype` guard makes it a one-way check — arrivals only:
 
 ```text
 security door
-@set here/on_check = best = max([int(get_attr(o, 'clearance', 0)) for o in contents(actor)] + [0]); block('The scanner strobes red: CLEARANCE 3 REQUIRED. Your best credential reads level ' + str(best) + '.') if atype == 'event:pre_enter' and best < int(get_attr(me, 'min_clearance', 3)) else None
+@set here/on_check = best = max([int(get_attr(o, 'clearance', 0)) for o in contents(actor)] + [0]); block(f'The scanner strobes red: CLEARANCE 3 REQUIRED. Your best credential reads level {best}.') if atype == 'event:pre_enter' and best < int(V('min_clearance', 3)) else None
 @set here/min_clearance = 3
 security door
 ```

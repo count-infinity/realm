@@ -30,7 +30,7 @@ cargo, relocate all of it to `next_stop`, and rattle audibly if
 anything moved. An item that lands on segment beta mid-tick rides
 onward on beta's *next* tick — one hop per beat, which is what makes
 it a conveyor and not a teleporter. Note the script reads
-`get_attr(me, 'next_stop')` *inside* the comprehension: softcode
+`V('next_stop')` *inside* the comprehension: softcode
 one-liners can't see their own earlier locals from inside a
 comprehension body, so keep reads inline there (locals are fine
 everywhere else on the line).
@@ -52,7 +52,7 @@ Segment alpha, in the workshop — motor, cargo script, and all:
 @create belt alpha
 @set belt alpha/container = true
 drop belt alpha
-@set belt alpha/on_tick = n = len(contents(me)); [teleport_obj(o, get_attr(me, 'next_stop')) for o in contents(me)]; remit(loc(me), 'The belt clatters; the cargo slides out of sight.') if n else None
+@set belt alpha/on_tick = n = len(contents(me)); [teleport_obj(o, V('next_stop')) for o in contents(me)]; remit(loc(me), 'The belt clatters; the cargo slides out of sight.') if n else None
 @behavior belt alpha = script_ticker, interval:1
 ```
 
@@ -64,7 +64,7 @@ downline
 @create belt beta
 @set belt beta/container = true
 drop belt beta
-@set belt beta/on_tick = n = len(contents(me)); [teleport_obj(o, get_attr(me, 'next_stop')) for o in contents(me)]; remit(loc(me), 'The belt clatters; the cargo slides out of sight.') if n else None
+@set belt beta/on_tick = n = len(contents(me)); [teleport_obj(o, V('next_stop')) for o in contents(me)]; remit(loc(me), 'The belt clatters; the cargo slides out of sight.') if n else None
 @behavior belt beta = script_ticker, interval:1
 @dig Loading Dock = downline, upline
 ```
@@ -98,7 +98,7 @@ they arrive in order, one hop per tick, forever — until someone
   line becomes a circle — luggage carousels are conveyor belts that
   ate their tails.
 - **Sorting:** make the tick choose `next_stop` per item —
-  `get_attr(me, 'next_' + ('cold' if has_tag(o, 'perishable') else 'dry'))`
+  `V('next_' + ('cold' if has_tag(o, 'perishable') else 'dry'))`
   — and the belt is a router;
   [018](018_refrigerator.md)'s peaches would appreciate the cold
   branch.

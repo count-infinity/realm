@@ -63,13 +63,13 @@ drop the lottery terminal
 this is the round's first ticket:
 
 ```text
-@set the lottery terminal/cmd_buy = $lotto buy:price = get_attr(me, 'price', 10); ok = transfer_credits(enactor, me, price); [(set_attr(me, 'sold', n), set_attr(me, 'pot', get_attr(me, 'pot', 0) + p), set_attr(me, 'stub_' + str(n), '#' + t.id), set_attr(t, 'serial', n), teleport_obj(t, enactor), set_attr(me, 'draw_at', get_attr(me, 'draw_at', 0) or now() + get_attr(me, 'round', 120)), remit(here, name(enactor) + ' buys lottery ticket ' + str(n) + '. The pot stands at ' + str(get_attr(me, 'pot', 0)) + ' credits.')) for g, p in [[ok, price]] if g for n in [get_attr(me, 'sold', 0) + 1] for t in [create_obj('lottery ticket ' + str(n), tags=['thing', 'lottery_ticket'], location=me)]]; pemit(enactor, 'The terminal blinks: insufficient credits.') if not ok else None
+@set the lottery terminal/cmd_buy = $lotto buy:price = V('price', 10); ok = transfer_credits(enactor, me, price); [(incr('pot', p), set_attr(me, 'stub_' + str(n), '#' + t.id), set_attr(t, 'serial', n), teleport_obj(t, enactor), set_attr(me, 'draw_at', V('draw_at', 0) or now() + V('round', 120)), remit(here, f"{name(enactor)} buys lottery ticket {n}. The pot stands at {V('pot', 0)} credits.")) for g, p in [[ok, price]] if g for n in [incr('sold')] for t in [create_obj(f'lottery ticket {n}', tags=['thing', 'lottery_ticket'], location=me)]]; pemit(enactor, 'The terminal blinks: insufficient credits.') if not ok else None
 ```
 
 `lotto` — the board:
 
 ```text
-@set the lottery terminal/cmd_status = $lotto:pemit(enactor, 'Pot: ' + str(get_attr(me, 'pot', 0)) + ' credits across ' + str(get_attr(me, 'sold', 0)) + ' tickets. Draw in ' + str(max(0, int(get_attr(me, 'draw_at', now()) - now()))) + 's.')
+@set the lottery terminal/cmd_status = $lotto:pemit(enactor, f"Pot: {V('pot', 0)} credits across {V('sold', 0)} tickets. Draw in {max(0, int(V('draw_at', now()) - now()))}s.")
 ```
 
 The drawing, as a function attribute. Pick a serial, resolve it through
@@ -77,14 +77,14 @@ the ledger to the genuine object, pay whoever holds it (or roll the pot
 over), then retire every genuine ticket and reset the round:
 
 ```text
-@set the lottery terminal/draw = n = get_attr(me, 'sold', 0); w = rand(1, n) if n else 0; t = get(get_attr(me, 'stub_' + str(w))) if w else None; holder = loc(t) if t is not None else None; win = holder is not None and has_tag(holder, 'player'); pot = get_attr(me, 'pot', 0); (transfer_credits(me, holder, pot), set_attr(me, 'pot', 0), remit(here, 'The drum rattles: ticket ' + str(w) + ' wins! ' + name(holder) + ' collects ' + str(pot) + ' credits.')) if win else remit(here, 'The drum rattles: ticket ' + str(w) + ' wins... and no one holds it. The pot rolls over.'); [destroy_obj(x) for i in range(1, n + 1) for x in [get(get_attr(me, 'stub_' + str(i)))] if x is not None]; [del_attr(me, 'stub_' + str(i)) for i in range(1, n + 1)]; set_attr(me, 'sold', 0); del_attr(me, 'draw_at'); result = 1
+@set the lottery terminal/draw = n = V('sold', 0); w = rand(1, n) if n else 0; t = get(V('stub_' + str(w))) if w else None; holder = loc(t) if t is not None else None; win = holder is not None and has_tag(holder, 'player'); pot = V('pot', 0); (transfer_credits(me, holder, pot), set_attr(me, 'pot', 0), remit(here, f'The drum rattles: ticket {w} wins! {name(holder)} collects {pot} credits.')) if win else remit(here, f'The drum rattles: ticket {w} wins... and no one holds it. The pot rolls over.'); [destroy_obj(x) for i in range(1, n + 1) for x in [get(V('stub_' + str(i)))] if x is not None]; [del_attr(me, 'stub_' + str(i)) for i in range(1, n + 1)]; set_attr(me, 'sold', 0); del_attr(me, 'draw_at'); result = 1
 ```
 
 And the heartbeat that calls it when the clock runs out:
 
 ```text
 @behavior the lottery terminal = script_ticker, interval:30
-@set the lottery terminal/on_tick = eval_attr(me, 'draw') if get_attr(me, 'sold', 0) and now() >= get_attr(me, 'draw_at', 0) else None
+@set the lottery terminal/on_tick = eval_attr(me, 'draw') if V('sold', 0) and now() >= V('draw_at', 0) else None
 ```
 
 ## Try it

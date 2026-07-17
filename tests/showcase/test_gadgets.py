@@ -117,32 +117,32 @@ JUKEBOX_BUILD = [
     "@create jukebox",
     "drop jukebox",
     "@desc jukebox = A chrome-and-neon jukebox from a more optimistic "
-    "century. [[t = get_attr(me, 'tracks', []); n = get_attr(me, "
-    "'spinning', None); result = 'The window card reads: ' + "
-    "(t[n]['title'] if n is not None and n < len(t) else 'SILENCE') + "
-    "'.']]",
+    "century. [[t = V('tracks', []); n = V('spinning', None); "
+    'result = f"The window card reads: '
+    "{t[n]['title'] if n is not None and n < len(t) else 'SILENCE'}"
+    '."]]',
     '@set jukebox/tracks = [{"title": "Stardust Rag", "lines": '
     '["the void don\'t care, but baby I do", '
     '"every orbit brings me back to you"]}, '
     '{"title": "Vacuum Blues", "lines": '
     '["got a hull full of nothing and nowhere to be"]}]',
-    "@set jukebox/menu = t = get_attr(me, 'tracks', []); result = "
-    "'Pick a track: ' + ' '.join('[' + str(i + 1) + '] ' + tr['title'] "
+    "@set jukebox/menu = t = V('tracks', []); result = "
+    "'Pick a track: ' + ' '.join(f\"[{i + 1}] {tr['title']}\" "
     "for i, tr in enumerate(t)) + ' -- or anything else to walk away.'",
     "@set jukebox/cmd_play = $play: prompt(enactor, eval_attr(me, "
     "'menu'), 'on_pick')",
-    "@set jukebox/on_pick = t = get_attr(me, 'tracks', []); w = "
+    "@set jukebox/on_pick = t = V('tracks', []); w = "
     "trim(arg0); n = int(w) if w.isdigit() else 0; ok = 1 <= n <= "
     "len(t); (set_attr(me, 'spinning', n - 1), set_attr(me, 'cursor', "
-    "0), remit(here, 'The jukebox whirs, and the arm drops on ' + "
-    "t[n - 1]['title'] + '.')) if ok else pemit(enactor, 'The jukebox "
+    "0), remit(here, f\"The jukebox whirs, and the arm drops on "
+    "{t[n - 1]['title']}.\")) if ok else pemit(enactor, 'The jukebox "
     "clunks and returns your choice unplayed.')",
     "@behavior jukebox = script_ticker, interval:4",
-    "@set jukebox/on_tick = n = get_attr(me, 'spinning', None); t = "
-    "get_attr(me, 'tracks', []); i = get_attr(me, 'cursor', 0); lines = "
+    "@set jukebox/on_tick = n = V('spinning', None); t = "
+    "V('tracks', []); i = V('cursor', 0); lines = "
     "t[n]['lines'] if n is not None and n < len(t) else []; "
-    "(remit(here, '~ ' + lines[i] + ' ~'), set_attr(me, 'cursor', "
-    "i + 1)) if n is not None and i < len(lines) else None; "
+    "(remit(here, f'~ {lines[i]} ~'), incr('cursor')) "
+    "if n is not None and i < len(lines) else None; "
     "(del_attr(me, 'spinning'), remit(here, 'The record hisses into "
     "the run-out groove, and the arm lifts.')) if n is not None and "
     "i >= len(lines) else None",
@@ -215,22 +215,23 @@ ATM_BUILD_CORE = [
     "@create BankNet Core",
     "drop BankNet Core",
     "@set BankNet Core/net_balance = bank = get('BankNet Core'); "
-    "pemit(enactor, 'BANKNET -- account balance: ' + "
-    "str(get_attr(bank, 'acct_' + enactor.id, 0)) + ' credits.'); "
+    'pemit(enactor, f"BANKNET -- account balance: '
+    "{get_attr(bank, 'acct_' + enactor.id, 0)} credits.\"); "
     "result = 1",
     "@set BankNet Core/net_deposit = bank = get('BankNet Core'); "
     "amt = int(arg0) if arg0.isdigit() else 0; ok = amt > 0 and "
-    "transfer_credits(enactor, bank, amt); k = 'acct_' + enactor.id; "
+    "transfer_credits(enactor, bank, amt); k = f'acct_{enactor.id}'; "
     "bal = get_attr(bank, k, 0) + amt; set_attr(bank, k, bal) if ok "
-    "else None; pemit(enactor, 'Deposit accepted. Balance: ' + "
-    "str(bal) + ' credits.' if ok else 'The terminal buzzes: your "
+    "else None; pemit(enactor, f'Deposit accepted. Balance: "
+    "{bal} credits.' if ok else 'The terminal buzzes: your "
     "wallet cannot cover that.'); result = 1",
     "@set BankNet Core/net_withdraw = bank = get('BankNet Core'); "
-    "amt = int(arg0) if arg0.isdigit() else 0; k = 'acct_' + "
-    "enactor.id; bal = get_attr(bank, k, 0); ok = 0 < amt <= bal and "
+    "amt = int(arg0) if arg0.isdigit() else 0; "
+    "k = f'acct_{enactor.id}'; bal = get_attr(bank, k, 0); "
+    "ok = 0 < amt <= bal and "
     "transfer_credits(bank, enactor, amt); set_attr(bank, k, "
-    "bal - amt) if ok else None; pemit(enactor, 'Notes whir out of "
-    "the slot. Balance: ' + str(bal - amt) + ' credits.' if ok else "
+    "bal - amt) if ok else None; pemit(enactor, f'Notes whir out of "
+    "the slot. Balance: {bal - amt} credits.' if ok else "
     "'The terminal buzzes: insufficient funds on account.'); result = 1",
 ]
 
@@ -238,9 +239,8 @@ ATM_BUILD_TERMINAL = [
     "@create atm terminal",
     "drop atm terminal",
     "@desc atm terminal = A steel kiosk with a scratched screen and a "
-    "cash slot polished by thumbs. [[result = 'The screen glows: ACCT "
-    "' + str(get_attr(get('BankNet Core'), 'acct_' + viewer.id, 0)) + "
-    "' CR.']]",
+    'cash slot polished by thumbs. [[result = f"The screen glows: ACCT '
+    "{get_attr(get('BankNet Core'), 'acct_' + viewer.id, 0)} CR.\"]]",
     "@set atm terminal/cmd_atm = $atm: eval_attr(get('BankNet Core'), "
     "'net_balance')",
     "@set atm terminal/cmd_deposit = $deposit *: "
@@ -337,15 +337,15 @@ FLASHLIGHT_BUILD = [
     "@create flashlight",
     "@set flashlight/battery = 3",
     "@set flashlight/cmd_click = $click: lit = has_tag(me, 'light'); "
-    "b = get_attr(me, 'battery', 0); (remove_tag(me, 'light'), "
+    "b = V('battery', 0); (remove_tag(me, 'light'), "
     "pemit(enactor, 'Click. The beam dies.')) if lit else "
     "((add_tag(me, 'light'), pemit(enactor, 'Click. A hard white beam "
     "snaps on.')) if b > 0 else pemit(enactor, 'Click. Click. Nothing. "
     "The battery is dead.'))",
     "@behavior flashlight = script_ticker, interval:10",
     "@set flashlight/on_tick = lit = has_tag(me, 'light'); b = "
-    "get_attr(me, 'battery', 0); left = b - 1 if lit else b; "
-    "set_attr(me, 'battery', left) if lit else None; remove_tag(me, "
+    "V('battery', 0); left = b - 1 if lit else b; "
+    "decr('battery') if lit else None; remove_tag(me, "
     "'light') if lit and left <= 0 else None; msg = 'The flashlight "
     "flickers; its battery is nearly spent.' if lit and left == 1 else "
     "('The flashlight gutters and dies.' if lit and left <= 0 else "
@@ -429,20 +429,20 @@ RECORDER_BUILD = [
     "@create voice recorder",
     "drop voice recorder",
     "@desc voice recorder = A palm-sized deck of scuffed bakelite with "
-    "one spinning reel. [[n = len(get_attr(me, 'transcript', [])); "
-    "result = 'The counter reads ' + str(n) + ' line' + ('' if n == 1 "
-    "else 's') + ('; the REC lamp burns red.' if get_attr(me, "
-    "'recording', 0) else '.')]]",
+    "one spinning reel. [[n = len(V('transcript', [])); "
+    "result = f'The counter reads {n} line' + ('' if n == 1 "
+    "else 's') + ('; the REC lamp burns red.' if V('recording', 0) "
+    "else '.')]]",
     "@set voice recorder/cmd_record = $record: (set_attr(me, "
     "'recording', 1), set_attr(me, 'transcript', []), remit(here, "
     "'The voice recorder clicks; a red REC lamp lights.'))",
     "@set voice recorder/listen_all = ^*: set_attr(me, 'transcript', "
-    "(get_attr(me, 'transcript', []) + [name(enactor) + ': ' + "
-    "escape(arg0)])[-20:]) if get_attr(me, 'recording', 0) else None",
+    "(V('transcript', []) + [f'{name(enactor)}: {escape(arg0)}'])"
+    "[-20:]) if V('recording', 0) else None",
     "@set voice recorder/cmd_stop = $stop: (set_attr(me, 'recording', "
     "0), remit(here, 'The REC lamp dims.'))",
-    "@set voice recorder/cmd_play = $play: rows = get_attr(me, "
-    "'transcript', []); pemit(enactor, 'The tape is blank.') if not "
+    "@set voice recorder/cmd_play = $play: rows = V('transcript', []); "
+    "pemit(enactor, 'The tape is blank.') if not "
     "rows else remit(here, 'The voice recorder crackles and plays:'); "
     "[remit(here, '  > ' + r) for r in rows]",
 ]
@@ -516,11 +516,11 @@ CAMERA_BUILD = [
     "has_tag(o, 'npc')]; props = [name(o) for o in contents(room) if "
     "not (has_tag(o, 'player') or has_tag(o, 'npc') or has_tag(o, "
     "'exit'))]; rows = [['', 'A stiff glossy print, edges still warm "
-    "from the developer.'], ['', 'The scene: ' + name(room) + '.']] + "
-    "([['', room.description]] if room.description else []) + ([['', "
-    "'Pictured: ' + ', '.join(people) + '.']] if people else []) + "
-    "([['', 'Scattered about: ' + ', '.join(props) + '.']] if props "
-    "else []); photo = create_obj('a photograph of ' + name(room), "
+    "from the developer.'], ['', f'The scene: {name(room)}.']] + "
+    "([['', room.description]] if room.description else []) + "
+    "([['', f\"Pictured: {', '.join(people)}.\"]] if people else []) + "
+    "([['', f\"Scattered about: {', '.join(props)}.\"]] if props "
+    "else []); photo = create_obj(f'a photograph of {name(room)}', "
     "tags=['thing', 'no_group'], location=enactor); set_attr(photo, "
     "'desc_extras', rows); set_attr(photo, 'taken_at', now()); "
     "remit(here, 'FLASH. The box camera whirs and spits out a "
@@ -583,16 +583,16 @@ MUSICBOX_BUILD = [
     '@set music box/notes = ["a bright, glassy arpeggio", "three '
     'descending notes, like rain off a roof", "a tiny waltz figure, '
     'slightly out of tune"]',
-    "@set music box/cmd_wind = $wind music box: t = get_attr(me, "
-    "'turns', 0); (set_attr(me, 'turns', min(t + 3, 9)), pose('clicks "
-    "softly as ' + name(enactor) + ' winds the brass key.'), "
-    "(wait(get_attr(me, 'tempo', 5), 'trigger me/play_note') if t == 0 "
+    "@set music box/cmd_wind = $wind music box: t = V('turns', 0); "
+    "(set_attr(me, 'turns', min(t + 3, 9)), pose(f'clicks "
+    "softly as {name(enactor)} winds the brass key.'), "
+    "(wait(V('tempo', 5), 'trigger me/play_note') if t == 0 "
     "else None))",
-    "@set music box/play_note = t = get_attr(me, 'turns', 0); notes = "
-    "get_attr(me, 'notes', []); i = get_attr(me, 'cursor', 0); "
-    "(pose('plays ' + notes[i % len(notes)] + '.'), set_attr(me, "
-    "'cursor', i + 1), set_attr(me, 'turns', t - 1), "
-    "(wait(get_attr(me, 'tempo', 5), 'trigger me/play_note') if "
+    "@set music box/play_note = t = V('turns', 0); notes = "
+    "V('notes', []); i = V('cursor', 0); "
+    "(pose(f'plays {notes[i % len(notes)]}.'), incr('cursor'), "
+    "decr('turns'), "
+    "(wait(V('tempo', 5), 'trigger me/play_note') if "
     "t - 1 > 0 else pose('slows... and stops with a final, drooping "
     "plink.'))) if t > 0 and notes else None",
 ]
@@ -666,45 +666,46 @@ TYPEWRITER_BUILD = [
     "@create brass typewriter",
     "drop brass typewriter",
     "@set brass typewriter/cmd_type = $type *: title = trim(arg0); "
-    "busy = get_attr(me, 'sheet', ''); (pemit(enactor, 'A sheet is "
+    "busy = V('sheet', ''); (pemit(enactor, 'A sheet is "
     "already in the roller; you pick up where the last typist left "
     "off.'), prompt(enactor, 'Next line (PAGE / DONE):', 'on_line')) "
     "if busy else None; pemit(enactor, 'Give the sheet a title: type "
     "<title>.') if not title and not busy else None; s = "
-    "create_obj('a typed sheet: ' + title, tags=['thing', 'document'], "
+    "create_obj(f'a typed sheet: {title}', tags=['thing', 'document'], "
     "location=enactor) if title and not busy else None; (set_attr(s, "
     "'title', title), set_attr(s, 'pages', 1), set_attr(me, 'sheet', "
-    "s.id), remit(here, name(enactor) + ' feeds a fresh sheet into "
+    "s.id), remit(here, f'{name(enactor)} feeds a fresh sheet into "
     "the brass typewriter.'), prompt(enactor, 'The keys wait. Type a "
     "line (PAGE starts a new page; DONE pulls the sheet):', "
     "'on_line')) if s else None",
-    "@set brass typewriter/on_line = s = get('#' + str(get_attr(me, "
-    "'sheet', ''))); w = trim(arg0); n = get_attr(s, 'pages', 1) if s "
+    '@set brass typewriter/on_line = s = get(f"#{V(\'sheet\', \'\')}"); '
+    "w = trim(arg0); n = get_attr(s, 'pages', 1) if s "
     "else 0; (set_attr(me, 'sheet', ''), pemit(enactor, 'The platen "
     "ratchets back and you pull the finished sheet free.')) if not s "
     "or w == 'DONE' else ((set_attr(s, 'pages', n + 1), "
-    "prompt(enactor, 'A fresh page rolls in. [page ' + str(n + 1) + "
-    "'] Next line (PAGE / DONE):', 'on_line')) if w == 'PAGE' else "
-    "(set_attr(s, 'page_' + str(n), get_attr(s, 'page_' + str(n), []) "
-    "+ [escape(arg0)]), prompt(enactor, '[page ' + str(n) + '] Next "
+    "prompt(enactor, f'A fresh page rolls in. [page {n + 1}] "
+    "Next line (PAGE / DONE):', 'on_line')) if w == 'PAGE' else "
+    "(set_attr(s, f'page_{n}', get_attr(s, f'page_{n}', []) "
+    "+ [escape(arg0)]), prompt(enactor, f'[page {n}] Next "
     "line (PAGE / DONE):', 'on_line')))",
     "@set brass typewriter/cmd_peruse = $peruse *: s = "
     "get(trim(arg0)); ok = s is not None and has_tag(s, 'document'); "
     "pemit(enactor, 'There is no document by that name here.') if not "
     "ok else pemit(enactor, 'The type reads, page by page:'); "
     "[pemit(enactor, line) for g in [ok] if g for p in range(1, "
-    "get_attr(s, 'pages', 1) + 1) for line in ['--- page ' + str(p) + "
-    "' ---'] + [str(x) for x in get_attr(s, 'page_' + str(p), [])]]",
+    "get_attr(s, 'pages', 1) + 1) for line in [f'--- page {p} ---'] "
+    "+ [str(x) for x in get_attr(s, f'page_{p}', [])]]",
     "@set brass typewriter/cmd_sign = $sign *: s = get(trim(arg0)); "
     "ok = s is not None and has_tag(s, 'document') and loc(s) is "
     "enactor; already = str(get_attr(s, 'signed_by', '')) if ok else "
     "''; pemit(enactor, 'Hold the document you mean to sign.') if not "
-    "ok else None; pemit(enactor, 'It already bears a signature: ' + "
-    "already + '.') if ok and already else None; k = 'page_' + "
-    "str(get_attr(s, 'pages', 1)) if ok else ''; (set_attr(s, k, "
-    "get_attr(s, k, []) + ['Signed in a firm hand: ' + "
-    "name(enactor)]), set_attr(s, 'signed_by', name(enactor)), "
-    "remit(here, name(enactor) + ' signs ' + name(s) + ' with a "
+    "ok else None; pemit(enactor, f'It already bears a signature: "
+    "{already}.') if ok and already else None; "
+    "k = f\"page_{get_attr(s, 'pages', 1)}\" if ok else ''; "
+    "(set_attr(s, k, "
+    "get_attr(s, k, []) + [f'Signed in a firm hand: "
+    "{name(enactor)}']), set_attr(s, 'signed_by', name(enactor)), "
+    "remit(here, f'{name(enactor)} signs {name(s)} with a "
     "flourish.')) if ok and not already else None",
 ]
 
@@ -792,13 +793,13 @@ MIRROR_BUILD = [
     "@create tall mirror",
     "drop tall mirror",
     "@desc tall mirror = A tall oval of old glass in a tarnished brass "
-    "frame; whatever stands before it, it returns. [[result = 'In the "
-    "glass: ' + name(viewer) + ' -- ' + (viewer.description or 'a "
-    "face the silver cannot quite fix.')]] [[worn = [name(o) for o in "
-    "contents(viewer) if has_tag(o, 'worn')]; result = ('Worn: ' + "
-    "', '.join(worn) + '.') if worn else '']]",
-    "@set tall mirror/on_look = oemit(enactor, name(enactor) + "
-    "' pauses to study the tall mirror.')",
+    'frame; whatever stands before it, it returns. [[result = f"In the '
+    "glass: {name(viewer)} -- {viewer.description or 'a "
+    "face the silver cannot quite fix.'}\"]] [[worn = [name(o) for o in "
+    "contents(viewer) if has_tag(o, 'worn')]; "
+    "result = f\"Worn: {', '.join(worn)}.\" if worn else '']]",
+    "@set tall mirror/on_look = oemit(enactor, "
+    "f'{name(enactor)} pauses to study the tall mirror.')",
 ]
 
 MIRROR_PROPS = [
@@ -851,10 +852,11 @@ GIFTBOX_BUILD = [
     "@create gift box",
     "@set gift box/container = true",
     "drop gift box",
-    "@desc gift box = A crisp white box under a red ribbon. [[to = "
-    "get_attr(me, 'for_name', ''); result = ('The tag reads: for ' + "
-    "to + ', from ' + get_attr(me, 'from_name', 'a secret admirer') + "
-    "'.') if to else 'The ribbon hangs loose; the tag is blank.']]",
+    "@desc gift box = A crisp white box under a red ribbon. "
+    "[[to = V('for_name', ''); "
+    'result = f"The tag reads: for {to}, from '
+    "{V('from_name', 'a secret admirer')}.\" "
+    "if to else 'The ribbon hangs loose; the tag is blank.']]",
     "@create silver locket",
     "put silver locket in gift box",
     "close gift box",
@@ -862,19 +864,19 @@ GIFTBOX_BUILD = [
     "get(trim(arg1)); ok = who is not None and has_tag(who, "
     "'player'); (set_attr(me, 'for_id', who.id), set_attr(me, "
     "'for_name', name(who)), set_attr(me, 'from_name', "
-    "name(enactor)), remit(here, name(enactor) + ' ties the ribbon "
+    "name(enactor)), remit(here, f'{name(enactor)} ties the ribbon "
     "tight and pens a name on the tag.')) if ok else pemit(enactor, "
     "'You find no one by that name to address it to.')",
     "@set gift box/on_check = mine = atype == 'item:on_open' and "
-    "target is me; to = get_attr(me, 'for_id', ''); block('The ribbon "
-    "is charmed shut. The tag reads: for ' + get_attr(me, 'for_name', "
-    "'') + ' only.') if mine and to and actor.id != to else None",
-    "@set gift box/on_open = to = get_attr(me, 'for_id', ''); inside "
-    "= ', '.join(name(o) for o in contents(me)); (oemit(enactor, 'The "
-    "ribbon leaps free as ' + name(enactor) + ' opens the gift "
-    "box!'), pemit(enactor, 'The ribbon leaps free! Inside: ' + "
-    "inside + ' -- with love from ' + get_attr(me, 'from_name', 'a "
-    "secret admirer') + '.'), del_attr(me, 'for_id'), del_attr(me, "
+    "target is me; to = V('for_id', ''); block(f\"The ribbon "
+    "is charmed shut. The tag reads: for {V('for_name', '')} only.\") "
+    "if mine and to and actor.id != to else None",
+    "@set gift box/on_open = to = V('for_id', ''); inside "
+    "= ', '.join(name(o) for o in contents(me)); (oemit(enactor, f'The "
+    "ribbon leaps free as {name(enactor)} opens the gift "
+    "box!'), pemit(enactor, f\"The ribbon leaps free! Inside: {inside} "
+    "-- with love from {V('from_name', 'a secret admirer')}.\"), "
+    "del_attr(me, 'for_id'), del_attr(me, "
     "'for_name'), del_attr(me, 'from_name')) if to else None",
 ]
 
@@ -942,28 +944,27 @@ FORTUNE_BUILD = [
     "@create Zoltar",
     "drop Zoltar",
     "@desc Zoltar = A glass cabinet housing a turbaned automaton, its "
-    "waxen hand hovering over a deck of cards. [[result = 'The brass "
-    "counter reads ' + str(get_attr(me, 'told', 0)) + ' fortunes "
-    "told.']]",
+    'waxen hand hovering over a deck of cards. [[result = f"The brass '
+    "counter reads {V('told', 0)} fortunes told.\"]]",
     "@set Zoltar/cost = 5",
     '@set Zoltar/fortunes = ["You will take a journey your boots '
     'already suspect.", "Beware a door that is polite to you.", '
     '"Money finds you when you stop watching for it.", "An old debt '
     'returns wearing a new face."]',
-    "@set Zoltar/on_payment = cost = get_attr(me, 'cost', 5); paid = "
-    "credits(me) - get_attr(me, 'ledger', 0); f = get_attr(me, "
-    "'fortunes', []); ok = paid >= cost and bool(f); "
-    "(transfer_credits(me, enactor, paid - cost), set_attr(me, "
-    "'told', get_attr(me, 'told', 0) + 1), remit(here, \"Zoltar's "
+    "@set Zoltar/on_payment = cost = V('cost', 5); paid = "
+    "credits(me) - V('ledger', 0); f = V('fortunes', []); "
+    "ok = paid >= cost and bool(f); "
+    "(transfer_credits(me, enactor, paid - cost), incr('told'), "
+    "remit(here, \"Zoltar's "
     "eyes flare. Gears grind behind the glass, and a stiff card drops "
     "into the brass tray.\"), [(set_attr(c, 'desc_extras', [['', "
     "'ZOLTAR SPEAKS:'], ['', chr(34) + f[rand(0, len(f) - 1)] + "
-    "chr(34)], ['', 'Lucky numbers: ' + str(rand(1, 99)) + ' and ' + "
-    "str(rand(1, 99)) + '.']]), pemit(enactor, 'You lift the fortune "
+    "chr(34)], ['', f'Lucky numbers: {rand(1, 99)} and "
+    "{rand(1, 99)}.']]), pemit(enactor, 'You lift the fortune "
     "card from the tray.')) for c in [create_obj('a printed fortune "
     "card', tags=['thing', 'no_group'], location=enactor)]]) if ok "
-    "else (transfer_credits(me, enactor, paid), pemit(enactor, 'A "
-    "fortune costs ' + str(cost) + ' credits. The coins clatter "
+    "else (transfer_credits(me, enactor, paid), pemit(enactor, f'A "
+    "fortune costs {cost} credits. The coins clatter "
     "back.')); set_attr(me, 'ledger', credits(me))",
 ]
 

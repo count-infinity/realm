@@ -63,7 +63,7 @@ The odds, as data:
 The seeding hook — draw twice, flag once, and let the room hear it:
 
 ```text
-@set supply crate/on_open = draw = lambda draw, t, r: t[0][0] if r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); (set_attr(me, 'seeded', 1), create_obj(draw(draw, get_attr(me, 'loot'), rand(1, 100)), [], me), create_obj(draw(draw, get_attr(me, 'loot'), rand(1, 100)), [], me), remit(loc(me), 'Something rattles and settles inside the crate as the seal breaks.')) if not get_attr(me, 'seeded', 0) else None
+@set supply crate/on_open = draw = lambda draw, t, r: t[0][0] if r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); (set_attr(me, 'seeded', 1), create_obj(draw(draw, V('loot'), rand(1, 100)), [], me), create_obj(draw(draw, V('loot'), rand(1, 100)), [], me), remit(loc(me), 'Something rattles and settles inside the crate as the seal breaks.')) if not V('seeded', 0) else None
 ```
 
 Reading the draw: `t[0][0]` is the first entry's name, `t[0][1]` its

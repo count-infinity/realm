@@ -51,7 +51,7 @@ them. `$weigh <thing>` runs the fold and reports:
 @create cargo scale
 drop cargo scale
 @desc cargo scale = A freight scale with a brass needle the size of a sword blade.
-@set cargo scale/cmd_weigh = $weigh *: w = lambda w, o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); it = get(trim(arg0)); pemit(enactor, 'The needle settles at ' + str(w(w, it)) + ' lbs.') if it else pemit(enactor, 'Nothing by that name to weigh.')
+@set cargo scale/cmd_weigh = $weigh *: w = lambda w, o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); it = get(trim(arg0)); pemit(enactor, f'The needle settles at {w(w, it)} lbs.') if it else pemit(enactor, 'Nothing by that name to weigh.')
 ```
 
 The enforcer: a porter's satchel with a 10 lb limit, warded exactly
@@ -65,7 +65,7 @@ satchel has no `weight` of its own, so the fold returns pure load):
 @set porter's satchel/container = true
 drop porter's satchel
 @set porter's satchel/weight_limit = 10
-@set porter's satchel/on_check = mine = atype == 'item:on_put' and target is me; w = lambda w, o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); adding = w(w, adata('item')) if mine else 0; load = w(w, me) if mine else 0; limit = get_attr(me, 'weight_limit', 10); block('At ' + str(adding) + ' lbs that would overload the ' + name(me) + ' (' + str(load) + ' of ' + str(limit) + ' lbs used).') if mine and load + adding > limit else None
+@set porter's satchel/on_check = mine = atype == 'item:on_put' and target is me; w = lambda w, o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); adding = w(w, adata('item')) if mine else 0; load = w(w, me) if mine else 0; limit = V('weight_limit', 10); block(f'At {adding} lbs that would overload the {name(me)} ({load} of {limit} lbs used).') if mine and load + adding > limit else None
 ```
 
 The test mass, an honest container for contrast, and the bag itself —

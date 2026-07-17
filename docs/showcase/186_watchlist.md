@@ -60,11 +60,11 @@ The shared alert helper, the staff verbs, and the two witnesses:
 
 ```text
 @set Watch Office/alert = [pemit(s, ansi('rh','[WATCH] ') + str(arg0)) for s in search_world(tag='admin')]
-@set Watch Office/cmd_watch = $watch * = *: p = get(trim(arg0)); (pemit(enactor,'Only staff may set watches.') if not has_tag(enactor,'admin') else (pemit(enactor,'No one named ' + trim(arg0) + '.') if not (p and has_tag(p,'player')) else (add_tag(p,'watched'), set_attr(me,'note_'+p.id, escape(trim(arg1))), pemit(enactor,'Now watching ' + name(p) + '.'))))
-@set Watch Office/cmd_unwatch = $unwatch *: p = get(trim(arg0)); (pemit(enactor,'Only staff may clear watches.') if not has_tag(enactor,'admin') else (pemit(enactor, trim(arg0) + ' is not being watched.') if not (p and has_tag(p,'watched')) else (remove_tag(p,'watched'), pemit(enactor,'Stopped watching ' + name(p) + '.'))))
-@set Watch Office/cmd_watchlist = $watchlist: w = search_world(tag='watched'); (pemit(enactor,'Only staff.') if not has_tag(enactor,'admin') else (pemit(enactor,'No one is being watched.') if not w else [pemit(enactor,'- ' + name(p) + ' :: ' + str(get_attr(me,'note_'+p.id,''))) for p in w]))
-@set Watch Office/on_connect = eval_attr(me,'alert', name(enactor) + ' (watched) just connected.') if has_tag(enactor,'watched') else None
-@set Watch Office/on_attack = eval_attr(me,'alert', name(enactor) + ' (watched) is throwing punches.') if has_tag(enactor,'watched') else None
+@set Watch Office/cmd_watch = $watch * = *: p = get(trim(arg0)); (pemit(enactor,'Only staff may set watches.') if not has_tag(enactor,'admin') else (pemit(enactor,f'No one named {trim(arg0)}.') if not (p and has_tag(p,'player')) else (add_tag(p,'watched'), set_attr(me,'note_'+p.id, escape(trim(arg1))), pemit(enactor,'Now watching ' + name(p) + '.'))))
+@set Watch Office/cmd_unwatch = $unwatch *: p = get(trim(arg0)); (pemit(enactor,'Only staff may clear watches.') if not has_tag(enactor,'admin') else (pemit(enactor, f'{trim(arg0)} is not being watched.') if not (p and has_tag(p,'watched')) else (remove_tag(p,'watched'), pemit(enactor,f'Stopped watching {name(p)}.'))))
+@set Watch Office/cmd_watchlist = $watchlist: w = search_world(tag='watched'); (pemit(enactor,'Only staff.') if not has_tag(enactor,'admin') else (pemit(enactor,'No one is being watched.') if not w else [pemit(enactor,f'- {name(p)} :: {V("note_"+p.id,"")}') for p in w]))
+@set Watch Office/on_connect = eval_attr(me,'alert', f'{name(enactor)} (watched) just connected.') if has_tag(enactor,'watched') else None
+@set Watch Office/on_attack = eval_attr(me,'alert', f'{name(enactor)} (watched) is throwing punches.') if has_tag(enactor,'watched') else None
 ```
 
 ## Try it

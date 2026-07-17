@@ -75,15 +75,15 @@ The player-facing verbs — accept a quest (writes stage 1 onto the player),
 and the journal:
 
 ```text
-@set Quest Warden/cmd_start = $accept quest *:slug = trim(arg0); defn = get_attr(me, 'quests', {}).get(slug); (pemit(enactor, 'No such quest.') if not defn else (pemit(enactor, 'You are already on that quest.') if get_attr(enactor, 'q_' + slug, 0) else (set_attr(enactor, 'q_' + slug, 1), pemit(enactor, 'Quest accepted -- ' + defn['name'] + ': ' + defn['stages'][0]))))
-@set Quest Warden/cmd_quests = $quests:defs = get_attr(me, 'quests', {}); rows = [(d['name'] + ' [' + str(min(get_attr(enactor, 'q_' + s, 0), len(d['stages']))) + '/' + str(len(d['stages'])) + '] -- ' + d['stages'][min(get_attr(enactor, 'q_' + s, 0), len(d['stages'])) - 1]) for s, d in defs.items() if get_attr(enactor, 'q_' + s, 0)]; pemit(enactor, 'Your journal:' if rows else 'Your journal is empty.'); [pemit(enactor, '  ' + r) for r in rows]
+@set Quest Warden/cmd_start = $accept quest *:slug = trim(arg0); defn = V('quests', {}).get(slug); (pemit(enactor, 'No such quest.') if not defn else (pemit(enactor, 'You are already on that quest.') if get_attr(enactor, 'q_' + slug, 0) else (set_attr(enactor, 'q_' + slug, 1), pemit(enactor, 'Quest accepted -- ' + defn['name'] + ': ' + defn['stages'][0]))))
+@set Quest Warden/cmd_quests = $quests:defs = V('quests', {}); rows = [(d['name'] + ' [' + str(min(get_attr(enactor, 'q_' + s, 0), len(d['stages']))) + '/' + str(len(d['stages'])) + '] -- ' + d['stages'][min(get_attr(enactor, 'q_' + s, 0), len(d['stages'])) - 1]) for s, d in defs.items() if get_attr(enactor, 'q_' + s, 0)]; pemit(enactor, 'Your journal:' if rows else 'Your journal is empty.'); [pemit(enactor, '  ' + r) for r in rows]
 ```
 
 The hand-in verb — `report` fires `advance` for any quest sitting on its
 *return* stage (the second-to-last):
 
 ```text
-@set Quest Warden/cmd_report = $report:hits = [s for s, d in get_attr(me, 'quests', {}).items() if get_attr(enactor, 'q_' + s, 0) == len(d['stages']) - 1]; [eval_attr(me, 'advance', enactor.id, s) for s in hits]; pemit(enactor, 'You have nothing to report.') if not hits else None
+@set Quest Warden/cmd_report = $report:hits = [s for s, d in V('quests', {}).items() if get_attr(enactor, 'q_' + s, 0) == len(d['stages']) - 1]; [eval_attr(me, 'advance', enactor.id, s) for s in hits]; pemit(enactor, 'You have nothing to report.') if not hits else None
 ```
 
 Finally, the objective — a toll ledger whose `ON_USE` is a *completion

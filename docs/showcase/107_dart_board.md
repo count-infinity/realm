@@ -47,20 +47,20 @@ players):
 ```text
 @create a dart board
 drop a dart board
-@desc a dart board = Cork and sisal, more hole than board. [[result = 'Chalked below: house record ' + str(get_attr(me, 'record', 0)) + '.']]
+@desc a dart board = Cork and sisal, more hole than board. [[result = f'Chalked below: house record {V("record", 0)}.']]
 ```
 
 The throw — one roll, margin to ring, tallies, and the ten-throw
 coaching branch:
 
 ```text
-@set a dart board/cmd_throw = $throw: lvl = get_attr(enactor, 'skill_darts', get_attr(enactor, 'dexterity', 10) - 4); r = margin_under(roll('3d6'), lvl, skill='darts'); m = r.margin; pts = 50 if r.success and m >= 6 else (25 if r.success and m >= 3 else (15 if r.success and m >= 1 else (5 if r.success else 0))); spot = switch(pts, 50, 'BULLSEYE', 25, 'the inner ring', 15, 'a fat single', 5, 'the rim', 'the wall with a sad thunk'); remit(here, name(enactor) + ' throws -- ' + spot + '! (' + str(pts) + ' points)'); t = 'total_' + enactor.id; total = get_attr(me, t, 0) + pts; set_attr(me, t, total); set_attr(me, 'record', max(get_attr(me, 'record', 0), total)); k = 'practice_' + enactor.id; n = get_attr(me, k, 0) + 1; set_attr(me, k, n); (pemit(enactor, 'Your arm is learning: darts rises to ' + str(lvl + 1) + '.') if set_attr(enactor, 'skill_darts', lvl + 1) else None) if n % 10 == 0 else None
+@set a dart board/cmd_throw = $throw: lvl = get_attr(enactor, 'skill_darts', get_attr(enactor, 'dexterity', 10) - 4); r = margin_under(roll('3d6'), lvl, skill='darts'); m = r.margin; pts = 50 if r.success and m >= 6 else (25 if r.success and m >= 3 else (15 if r.success and m >= 1 else (5 if r.success else 0))); spot = switch(pts, 50, 'BULLSEYE', 25, 'the inner ring', 15, 'a fat single', 5, 'the rim', 'the wall with a sad thunk'); remit(here, f'{name(enactor)} throws -- {spot}! ({pts} points)'); t = 'total_' + enactor.id; total = incr(t, pts); set_attr(me, 'record', max(V('record', 0), total)); k = 'practice_' + enactor.id; n = incr(k); (pemit(enactor, f'Your arm is learning: darts rises to {lvl + 1}.') if set_attr(enactor, 'skill_darts', lvl + 1) else None) if n % 10 == 0 else None
 ```
 
 The chalk line:
 
 ```text
-@set a dart board/cmd_chalk = $chalk: pemit(enactor, 'Your chalk line: ' + str(get_attr(me, 'total_' + enactor.id, 0)) + ' points over ' + str(get_attr(me, 'practice_' + enactor.id, 0)) + ' darts.')
+@set a dart board/cmd_chalk = $chalk: pemit(enactor, f'Your chalk line: {V("total_" + enactor.id, 0)} points over {V("practice_" + enactor.id, 0)} darts.')
 ```
 
 ## Try it

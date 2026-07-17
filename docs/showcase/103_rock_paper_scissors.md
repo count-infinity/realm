@@ -43,7 +43,7 @@ The stone and its sealed choice box:
 ```text
 @create the dueling stone
 drop the dueling stone
-@desc the dueling stone = A waist-high basalt block, split by a coin slot. [[bt = get_attr(me, 'bout', None); result = 'A bout is in progress.' if bt else 'The stone waits for a challenge.']]
+@desc the dueling stone = A waist-high basalt block, split by a coin slot. [[bt = V('bout', None); result = 'A bout is in progress.' if bt else 'The stone waits for a challenge.']]
 @set the dueling stone/choices = {}
 @attr the dueling stone/choices = secret
 ```
@@ -52,26 +52,26 @@ The challenge — one live bout at a time, opponent must be a player,
 present, and not yourself:
 
 ```text
-@set the dueling stone/cmd_challenge = $challenge * for *: opp = get(trim(arg0)); w = int(trim(arg1)); ok = not get_attr(me, 'bout', None) and opp is not None and has_tag(opp, 'player') and loc(opp) is here and opp is not enactor and w > 0; [(set_attr(me, 'bout', {'a': enactor.id, 'b': opp.id, 'wager': w, 'paid': []}), set_attr(me, 'choices', {}), remit(here, name(enactor) + ' challenges ' + name(opp) + ' at the dueling stone: rock-paper-scissors for ' + str(w) + ' credits. Both must pay ' + str(w) + ' to the dueling stone.')) for g in [ok] if g]; pemit(enactor, 'The stone is busy, or that is no valid opponent or wager.') if not ok else None
+@set the dueling stone/cmd_challenge = $challenge * for *: opp = get(trim(arg0)); w = int(trim(arg1)); ok = not V('bout', None) and opp is not None and has_tag(opp, 'player') and loc(opp) is here and opp is not enactor and w > 0; [(set_attr(me, 'bout', {'a': enactor.id, 'b': opp.id, 'wager': w, 'paid': []}), set_attr(me, 'choices', {}), remit(here, name(enactor) + ' challenges ' + name(opp) + ' at the dueling stone: rock-paper-scissors for ' + str(w) + ' credits. Both must pay ' + str(w) + ' to the dueling stone.')) for g in [ok] if g]; pemit(enactor, 'The stone is busy, or that is no valid opponent or wager.') if not ok else None
 ```
 
 The escrow. Exact stake from a listed duelist banks; everything else
 bounces. The second stake triggers both prompts:
 
 ```text
-@set the dueling stone/on_payment = paid = credits(me) - get_attr(me, 'ledger', 0); bt = get_attr(me, 'bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'The stone accepts your stake.')) for g in [ok] if g]; [(remit(here, 'Both stakes are in. The stone addresses the duelists.'), prompt(get('#' + bt['a']), 'The stone hums: rock, paper, or scissors?', 'on_throw'), prompt(get('#' + bt['b']), 'The stone hums: rock, paper, or scissors?', 'on_throw')) for g in [ok and len(bt['paid']) == 2] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The stone spits your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None; set_attr(me, 'ledger', credits(me))
+@set the dueling stone/on_payment = paid = credits(me) - V('ledger', 0); bt = V('bout', None); ok = bt is not None and enactor.id in [bt['a'], bt['b']] and enactor.id not in bt['paid'] and paid == bt['wager']; [(bt['paid'].append(enactor.id), set_attr(me, 'bout', bt), pemit(enactor, 'The stone accepts your stake.')) for g in [ok] if g]; [(remit(here, 'Both stakes are in. The stone addresses the duelists.'), prompt(get('#' + bt['a']), 'The stone hums: rock, paper, or scissors?', 'on_throw'), prompt(get('#' + bt['b']), 'The stone hums: rock, paper, or scissors?', 'on_throw')) for g in [ok and len(bt['paid']) == 2] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The stone spits your credits back: wrong amount, or no bout of yours.')) if not ok and paid > 0 else None; set_attr(me, 'ledger', credits(me))
 ```
 
 The commit — bank the throw in secret; resolve on the second:
 
 ```text
-@set the dueling stone/on_throw = c = trim(arg0).lower(); bt = get_attr(me, 'bout', None); valid = c in ['rock', 'paper', 'scissors'] and bt is not None and enactor.id in [bt['a'], bt['b']]; ch = get_attr(me, 'choices', {}); [(ch.update({enactor.id: c}), set_attr(me, 'choices', ch), pemit(enactor, 'The stone sears your choice in silence: ' + c + '.')) for g in [valid] if g]; prompt(enactor, 'Rock, paper, or scissors -- nothing else:', 'on_throw') if bt is not None and not valid else None; eval_attr(me, 'resolve') if valid and len(ch) == 2 else None
+@set the dueling stone/on_throw = c = trim(arg0).lower(); bt = V('bout', None); valid = c in ['rock', 'paper', 'scissors'] and bt is not None and enactor.id in [bt['a'], bt['b']]; ch = V('choices', {}); [(ch.update({enactor.id: c}), set_attr(me, 'choices', ch), pemit(enactor, 'The stone sears your choice in silence: ' + c + '.')) for g in [valid] if g]; prompt(enactor, 'Rock, paper, or scissors -- nothing else:', 'on_throw') if bt is not None and not valid else None; eval_attr(me, 'resolve') if valid and len(ch) == 2 else None
 ```
 
 The reveal — both throws in one breath, then the pot moves:
 
 ```text
-@set the dueling stone/resolve = bt = get_attr(me, 'bout', {}); ch = get_attr(me, 'choices', {}); a = bt['a']; b = bt['b']; an = name(get('#' + a)); bn = name(get('#' + b)); ca = ch[a]; cb = ch[b]; beats = {'rock': 'scissors', 'paper': 'rock', 'scissors': 'paper'}; w = a if beats[ca] == cb else (b if beats[cb] == ca else ''); remit(here, 'The stone flares: ' + an + ' throws ' + ca + '; ' + bn + ' throws ' + cb + '.'); (transfer_credits(me, get('#' + a), bt['wager']), transfer_credits(me, get('#' + b), bt['wager']), remit(here, 'A tie. The stakes slide back out of the slot.')) if not w else (transfer_credits(me, get('#' + w), bt['wager'] * 2), remit(here, name(get('#' + w)) + ' takes the pot: ' + str(bt['wager'] * 2) + ' credits.')); del_attr(me, 'bout'); set_attr(me, 'choices', {}); set_attr(me, 'ledger', credits(me)); result = 1
+@set the dueling stone/resolve = bt = V('bout', {}); ch = V('choices', {}); a = bt['a']; b = bt['b']; an = name(get('#' + a)); bn = name(get('#' + b)); ca = ch[a]; cb = ch[b]; beats = {'rock': 'scissors', 'paper': 'rock', 'scissors': 'paper'}; w = a if beats[ca] == cb else (b if beats[cb] == ca else ''); remit(here, 'The stone flares: ' + an + ' throws ' + ca + '; ' + bn + ' throws ' + cb + '.'); (transfer_credits(me, get('#' + a), bt['wager']), transfer_credits(me, get('#' + b), bt['wager']), remit(here, 'A tie. The stakes slide back out of the slot.')) if not w else (transfer_credits(me, get('#' + w), bt['wager'] * 2), remit(here, name(get('#' + w)) + ' takes the pot: ' + str(bt['wager'] * 2) + ' credits.')); del_attr(me, 'bout'); set_attr(me, 'choices', {}); set_attr(me, 'ledger', credits(me)); result = 1
 ```
 
 ## Try it

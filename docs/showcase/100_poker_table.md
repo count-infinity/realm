@@ -49,7 +49,7 @@ The table, with the pot on public display:
 ```text
 @create the poker table
 drop the poker table
-@desc the poker table = Green felt, chip rails, a shaded lamp. [[result = 'The pot holds ' + str(get_attr(me, 'pot', 0)) + ' credits.']]
+@desc the poker table = Green felt, chip rails, a shaded lamp. [[result = 'The pot holds ' + str(V('pot', 0)) + ' credits.']]
 @set the poker table/hands = {}
 @attr the poker table/hands = secret
 ```
@@ -57,25 +57,25 @@ drop the poker table
 Seating (lobby only, no double-sitting):
 
 ```text
-@set the poker table/cmd_sit = $sit: p = get_attr(me, 'players', []); n = get_attr(me, 'names', {}); ok = get_attr(me, 'phase', 'lobby') == 'lobby' and enactor.id not in p; [(set_attr(me, 'players', p + [enactor.id]), n.update({enactor.id: name(enactor)}), set_attr(me, 'names', n), remit(here, name(enactor) + ' takes a seat at the poker table.')) for g in [ok] if g]; pemit(enactor, 'You are in. Someone type: deal cards.' if ok else 'No seat for you -- a hand is in play, or you are already seated.')
+@set the poker table/cmd_sit = $sit: p = V('players', []); n = V('names', {}); ok = V('phase', 'lobby') == 'lobby' and enactor.id not in p; [(set_attr(me, 'players', p + [enactor.id]), n.update({enactor.id: name(enactor)}), set_attr(me, 'names', n), remit(here, name(enactor) + ' takes a seat at the poker table.')) for g in [ok] if g]; pemit(enactor, 'You are in. Someone type: deal cards.' if ok else 'No seat for you -- a hand is in play, or you are already seated.')
 ```
 
 The deal — build a deck, shuffle it, five cards each, whispered:
 
 ```text
-@set the poker table/cmd_deal = $deal cards: p = get_attr(me, 'players', []); ok = get_attr(me, 'phase', 'lobby') == 'lobby' and enactor.id in p and len(p) >= 2; d = [r + s for s in ['s', 'h', 'd', 'c'] for r in ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']]; sh = [d.pop(rand(0, len(d) - 1)) for i in range(len(d))]; [(set_attr(me, 'hands', {pid: sh[i * 5:i * 5 + 5] for i, pid in enumerate(p)}), set_attr(me, 'bets', {pid: 0 for pid in p}), set_attr(me, 'folded', []), set_attr(me, 'phase', 'betting'), remit(here, 'Five cards apiece, face down. Betting is open: pay the table to bet, fold to quit, showdown when stakes match.'), [pemit(get('#' + pid), 'Your hand: ' + ' '.join(sh[i * 5:i * 5 + 5])) for i, pid in enumerate(p)]) for g in [ok] if g]; pemit(enactor, 'Take a seat first, find an opponent, or finish the current hand.') if not ok else None
+@set the poker table/cmd_deal = $deal cards: p = V('players', []); ok = V('phase', 'lobby') == 'lobby' and enactor.id in p and len(p) >= 2; d = [r + s for s in ['s', 'h', 'd', 'c'] for r in ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']]; sh = [d.pop(rand(0, len(d) - 1)) for i in range(len(d))]; [(set_attr(me, 'hands', {pid: sh[i * 5:i * 5 + 5] for i, pid in enumerate(p)}), set_attr(me, 'bets', {pid: 0 for pid in p}), set_attr(me, 'folded', []), set_attr(me, 'phase', 'betting'), remit(here, 'Five cards apiece, face down. Betting is open: pay the table to bet, fold to quit, showdown when stakes match.'), [pemit(get('#' + pid), 'Your hand: ' + ' '.join(sh[i * 5:i * 5 + 5])) for i, pid in enumerate(p)]) for g in [ok] if g]; pemit(enactor, 'Take a seat first, find an opponent, or finish the current hand.') if not ok else None
 ```
 
 The till — bets in, strangers refunded, ledger re-synced:
 
 ```text
-@set the poker table/on_payment = paid = credits(me) - get_attr(me, 'ledger', 0); b = get_attr(me, 'bets', {}); live = get_attr(me, 'phase', 'lobby') == 'betting' and enactor.id in b and enactor.id not in get_attr(me, 'folded', []); [(b.update({enactor.id: b[enactor.id] + paid}), set_attr(me, 'bets', b), set_attr(me, 'pot', get_attr(me, 'pot', 0) + paid), remit(here, name(enactor) + ' pushes ' + str(paid) + ' into the pot -- staked ' + str(b[enactor.id]) + ' this hand.')) for g in [live] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The table returns your credits: no hand in play for you.')) if not live and paid > 0 else None; set_attr(me, 'ledger', credits(me))
+@set the poker table/on_payment = paid = credits(me) - V('ledger', 0); b = V('bets', {}); live = V('phase', 'lobby') == 'betting' and enactor.id in b and enactor.id not in V('folded', []); [(b.update({enactor.id: b[enactor.id] + paid}), set_attr(me, 'bets', b), set_attr(me, 'pot', V('pot', 0) + paid), remit(here, name(enactor) + ' pushes ' + str(paid) + ' into the pot -- staked ' + str(b[enactor.id]) + ' this hand.')) for g in [live] if g]; (transfer_credits(me, enactor, paid), pemit(enactor, 'The table returns your credits: no hand in play for you.')) if not live and paid > 0 else None; set_attr(me, 'ledger', credits(me))
 ```
 
 Folding — and the last player standing takes it without showing:
 
 ```text
-@set the poker table/cmd_fold = $fold: f = get_attr(me, 'folded', []); p = get_attr(me, 'players', []); ok = get_attr(me, 'phase') == 'betting' and enactor.id in p and enactor.id not in f; f2 = f + [enactor.id]; live = [pid for pid in p if pid not in f2]; [(set_attr(me, 'folded', f2), remit(here, name(enactor) + ' folds.')) for g in [ok] if g]; eval_attr(me, 'settle', ' '.join(live)) if ok and len(live) == 1 else None
+@set the poker table/cmd_fold = $fold: f = V('folded', []); p = V('players', []); ok = V('phase') == 'betting' and enactor.id in p and enactor.id not in f; f2 = f + [enactor.id]; live = [pid for pid in p if pid not in f2]; [(set_attr(me, 'folded', f2), remit(here, name(enactor) + ' folds.')) for g in [ok] if g]; eval_attr(me, 'settle', ' '.join(live)) if ok and len(live) == 1 else None
 ```
 
 The evaluator and its narrator:
@@ -88,7 +88,7 @@ The evaluator and its narrator:
 Showdown — guard, reveal every live hand, crown the best score:
 
 ```text
-@set the poker table/cmd_showdown = $showdown: p = get_attr(me, 'players', []); f = get_attr(me, 'folded', []); b = get_attr(me, 'bets', {}); live = [pid for pid in p if pid not in f]; h = get_attr(me, 'hands', {}); n = get_attr(me, 'names', {}); ok = get_attr(me, 'phase') == 'betting' and enactor.id in live and len(set([b[pid] for pid in live])) == 1 and b[live[0]] > 0; sc = {pid: eval_attr(me, 'score', ' '.join(h[pid])) for pid in live} if ok else {}; best = max(sc.values()) if ok else None; w = [pid for pid in live if sc[pid] == best] if ok else []; [remit(here, n.get(pid, '?') + ' shows ' + ' '.join(h[pid]) + ' -- ' + eval_attr(me, 'catname', str(sc[pid][0])) + '.') for g in [ok] if g for pid in live]; eval_attr(me, 'settle', ' '.join(w)) if ok else pemit(enactor, 'Not yet -- betting still open (all live stakes must match and be above zero).')
+@set the poker table/cmd_showdown = $showdown: p = V('players', []); f = V('folded', []); b = V('bets', {}); live = [pid for pid in p if pid not in f]; h = V('hands', {}); n = V('names', {}); ok = V('phase') == 'betting' and enactor.id in live and len(set([b[pid] for pid in live])) == 1 and b[live[0]] > 0; sc = {pid: eval_attr(me, 'score', ' '.join(h[pid])) for pid in live} if ok else {}; best = max(sc.values()) if ok else None; w = [pid for pid in live if sc[pid] == best] if ok else []; [remit(here, n.get(pid, '?') + ' shows ' + ' '.join(h[pid]) + ' -- ' + eval_attr(me, 'catname', str(sc[pid][0])) + '.') for g in [ok] if g for pid in live]; eval_attr(me, 'settle', ' '.join(w)) if ok else pemit(enactor, 'Not yet -- betting still open (all live stakes must match and be above zero).')
 ```
 
 Settlement — split the pot among the winner ids it's handed, reset the
@@ -96,7 +96,7 @@ machine, re-sync the ledger. An odd chip that won't split stays on the
 felt for the next pot:
 
 ```text
-@set the poker table/settle = w = arg0.split(); pot = get_attr(me, 'pot', 0); share = pot // len(w); n = get_attr(me, 'names', {}); [transfer_credits(me, get('#' + pid), share) for pid in w]; remit(here, 'The pot -- ' + str(pot) + ' credits -- goes to ' + ', '.join([n.get(pid, '?') for pid in w]) + '.'); set_attr(me, 'pot', pot - share * len(w)); set_attr(me, 'phase', 'lobby'); set_attr(me, 'players', []); set_attr(me, 'hands', {}); set_attr(me, 'ledger', credits(me)); result = 1
+@set the poker table/settle = w = arg0.split(); pot = V('pot', 0); share = pot // len(w); n = V('names', {}); [transfer_credits(me, get('#' + pid), share) for pid in w]; remit(here, 'The pot -- ' + str(pot) + ' credits -- goes to ' + ', '.join([n.get(pid, '?') for pid in w]) + '.'); set_attr(me, 'pot', pot - share * len(w)); set_attr(me, 'phase', 'lobby'); set_attr(me, 'players', []); set_attr(me, 'hands', {}); set_attr(me, 'ledger', credits(me)); result = 1
 ```
 
 ## Try it

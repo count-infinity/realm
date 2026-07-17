@@ -78,9 +78,9 @@ WARDEN_BUILD = [
     "drop Quest Warden",
     '@set Quest Warden/quests = {"cinders": {"name": "The Cinder Road", "stages": ["Search the burned waystation for the toll ledger.", "Return the toll ledger to the Quest Warden.", "Complete."], "reward": 50}}',
     "@set Quest Warden/advance = q = get('#' + str(arg0)); slug = str(arg1); wd = get('Quest Warden'); defn = get_attr(wd, 'quests', {}).get(slug); cur = get_attr(q, 'q_' + slug, 0); nxt = cur + 1; last = len(defn['stages']) if defn else 0; [(set_attr(q, 'q_' + slug, nxt), pemit(q, 'Quest updated -- ' + defn['name'] + ': ' + defn['stages'][nxt - 1])) for g in [bool(defn) and 0 < cur < last - 1] if g]; [(set_attr(q, 'q_' + slug, last), adjust_credits(q, defn['reward']), pemit(q, 'Quest complete: ' + defn['name'] + '. Reward: ' + str(defn['reward']) + ' credits.')) for g in [bool(defn) and cur == last - 1] if g]; result = 1",
-    "@set Quest Warden/cmd_start = $accept quest *:slug = trim(arg0); defn = get_attr(me, 'quests', {}).get(slug); (pemit(enactor, 'No such quest.') if not defn else (pemit(enactor, 'You are already on that quest.') if get_attr(enactor, 'q_' + slug, 0) else (set_attr(enactor, 'q_' + slug, 1), pemit(enactor, 'Quest accepted -- ' + defn['name'] + ': ' + defn['stages'][0]))))",
-    "@set Quest Warden/cmd_quests = $quests:defs = get_attr(me, 'quests', {}); rows = [(d['name'] + ' [' + str(min(get_attr(enactor, 'q_' + s, 0), len(d['stages']))) + '/' + str(len(d['stages'])) + '] -- ' + d['stages'][min(get_attr(enactor, 'q_' + s, 0), len(d['stages'])) - 1]) for s, d in defs.items() if get_attr(enactor, 'q_' + s, 0)]; pemit(enactor, 'Your journal:' if rows else 'Your journal is empty.'); [pemit(enactor, '  ' + r) for r in rows]",
-    "@set Quest Warden/cmd_report = $report:hits = [s for s, d in get_attr(me, 'quests', {}).items() if get_attr(enactor, 'q_' + s, 0) == len(d['stages']) - 1]; [eval_attr(me, 'advance', enactor.id, s) for s in hits]; pemit(enactor, 'You have nothing to report.') if not hits else None",
+    "@set Quest Warden/cmd_start = $accept quest *:slug = trim(arg0); defn = V('quests', {}).get(slug); (pemit(enactor, 'No such quest.') if not defn else (pemit(enactor, 'You are already on that quest.') if get_attr(enactor, 'q_' + slug, 0) else (set_attr(enactor, 'q_' + slug, 1), pemit(enactor, 'Quest accepted -- ' + defn['name'] + ': ' + defn['stages'][0]))))",
+    "@set Quest Warden/cmd_quests = $quests:defs = V('quests', {}); rows = [(d['name'] + ' [' + str(min(get_attr(enactor, 'q_' + s, 0), len(d['stages']))) + '/' + str(len(d['stages'])) + '] -- ' + d['stages'][min(get_attr(enactor, 'q_' + s, 0), len(d['stages'])) - 1]) for s, d in defs.items() if get_attr(enactor, 'q_' + s, 0)]; pemit(enactor, 'Your journal:' if rows else 'Your journal is empty.'); [pemit(enactor, '  ' + r) for r in rows]",
+    "@set Quest Warden/cmd_report = $report:hits = [s for s, d in V('quests', {}).items() if get_attr(enactor, 'q_' + s, 0) == len(d['stages']) - 1]; [eval_attr(me, 'advance', enactor.id, s) for s in hits]; pemit(enactor, 'You have nothing to report.') if not hits else None",
     "@create toll ledger",
     "drop toll ledger",
     "@set toll ledger/on_use = w = get('Quest Warden'); [eval_attr(w, 'advance', enactor.id, 'cinders') for g in [w is not None and get_attr(enactor, 'q_cinders', 0) == 1] if g]",
@@ -208,9 +208,9 @@ COLLECTION_BUILD = [
     "drop Salvage Foreman",
     "@zone/master Salvage Foreman = salvage",
     "@set Salvage Foreman/goal = 5",
-    "@set Salvage Foreman/on_get = set_attr(me, 'pending', (get_attr(me, 'pending') or []) + [enactor.id]); wait(0, 'trigger me/tally')",
-    "@set Salvage Foreman/tally = q = get_attr(me, 'pending') or []; set_attr(me, 'pending', []); [eval_attr(me, 'count', pid) for pid in q]",
-    "@set Salvage Foreman/count = p = get('#' + str(arg0)); fresh = [o for o in contents(p) if has_tag(o, 'objective') and not has_tag(o, 'counted')] if p else []; [add_tag(o, 'counted') for o in fresh]; n = get_attr(p, 'salvage_count', 0) + len(fresh); goal = get_attr(me, 'goal', 5); [(set_attr(p, 'salvage_count', n), pemit(p, 'Salvage relays recovered: ' + str(min(n, goal)) + '/' + str(goal))) for g in [bool(fresh)] if g]; [(set_attr(p, 'salvage_done', 1), adjust_credits(p, 100), pemit(p, 'Objective complete! The Foreman wires you 100 credits.')) for g in [n >= goal and not get_attr(p, 'salvage_done', 0)] if g]; result = 1",
+    "@set Salvage Foreman/on_get = set_attr(me, 'pending', (V('pending') or []) + [enactor.id]); wait(0, 'trigger me/tally')",
+    "@set Salvage Foreman/tally = q = V('pending') or []; set_attr(me, 'pending', []); [eval_attr(me, 'count', pid) for pid in q]",
+    "@set Salvage Foreman/count = p = get('#' + str(arg0)); fresh = [o for o in contents(p) if has_tag(o, 'objective') and not has_tag(o, 'counted')] if p else []; [add_tag(o, 'counted') for o in fresh]; n = get_attr(p, 'salvage_count', 0) + len(fresh); goal = V('goal', 5); [(set_attr(p, 'salvage_count', n), pemit(p, 'Salvage relays recovered: ' + str(min(n, goal)) + '/' + str(goal))) for g in [bool(fresh)] if g]; [(set_attr(p, 'salvage_done', 1), adjust_credits(p, 100), pemit(p, 'Objective complete! The Foreman wires you 100 credits.')) for g in [n >= goal and not get_attr(p, 'salvage_done', 0)] if g]; result = 1",
     "@eval [create_obj('salvage relay', ['thing', 'objective'], location=get('The Nexus')) for i in range(5)]",
     "@create rusty wrench",
     "@tag rusty wrench = thing",
@@ -332,7 +332,7 @@ INVASION_BUILD = [
     "drop War Drum",
     "@zone/master War Drum = citadel",
     "@set War Drum/phase = 0",
-    "@set War Drum/on_tick = p = get_attr(me, 'phase', 0) + 1; set_attr(me, 'phase', p); [remit(r, 'Warhorns! Raiders mass beyond the walls.') for r in zone_rooms('citadel') if p == 1]; [(create_obj('a raider', ['npc', 'raider'], location=r), remit(r, 'Raiders pour through the gate!')) for r in zone_rooms('citadel') if p == 2]; [create_obj('a raider', ['npc', 'raider'], location=r) for r in zone_rooms('citadel') if p == 3]; [destroy_obj(o) for o in search_world(tag='raider') if p == 4]; [remit(r, 'The last raider falls. The citadel holds.') for r in zone_rooms('citadel') if p == 4]; set_attr(me, 'phase', 0) if p >= 4 else None",
+    "@set War Drum/on_tick = p = incr('phase'); [remit(r, 'Warhorns! Raiders mass beyond the walls.') for r in zone_rooms('citadel') if p == 1]; [(create_obj('a raider', ['npc', 'raider'], location=r), remit(r, 'Raiders pour through the gate!')) for r in zone_rooms('citadel') if p == 2]; [create_obj('a raider', ['npc', 'raider'], location=r) for r in zone_rooms('citadel') if p == 3]; [destroy_obj(o) for o in search_world(tag='raider') if p == 4]; [remit(r, 'The last raider falls. The citadel holds.') for r in zone_rooms('citadel') if p == 4]; set_attr(me, 'phase', 0) if p >= 4 else None",
     "@set War Drum/on_reset = [destroy_obj(o) for o in search_world(tag='raider')]; set_attr(me, 'phase', 0)",
     "@behavior War Drum = script_ticker, interval:20",
 ]
@@ -392,10 +392,10 @@ CUTSCENE_BUILD = [
     "@create holoprojector",
     "drop holoprojector",
     '@set holoprojector/scenes = ["The lights dim. A star map flickers to life.", "A red world turns slowly, ringed with debris.", "A voice whispers: this is Kepler\'s Rest, your target.", "The map collapses into darkness."]',
-    "@set holoprojector/cmd_play = $play briefing:(pemit(enactor, 'The projector is already running. Type skip to cut it short.') if get_attr(me, 'pending') else (set_attr(me, 'step', 0), set_attr(me, 'pending', wait(0, 'trigger me/scene_step'))))",
+    "@set holoprojector/cmd_play = $play briefing:(pemit(enactor, 'The projector is already running. Type skip to cut it short.') if V('pending') else (set_attr(me, 'step', 0), set_attr(me, 'pending', wait(0, 'trigger me/scene_step'))))",
     "@set holoprojector/pace = 6",
-    "@set holoprojector/scene_step = lines = get_attr(me, 'scenes', []); n = get_attr(me, 'step', 0); (del_attr(me, 'pending') if n >= len(lines) else (remit(here, lines[n]), set_attr(me, 'step', n + 1), set_attr(me, 'pending', wait(get_attr(me, 'pace', 6), 'trigger me/scene_step'))))",
-    "@set holoprojector/cmd_skip = $skip:(pemit(enactor, 'Nothing is playing.') if not get_attr(me, 'pending') else (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), set_attr(me, 'step', 0), remit(here, 'The projection snaps off. (skipped)')))",
+    "@set holoprojector/scene_step = lines = V('scenes', []); n = V('step', 0); (del_attr(me, 'pending') if n >= len(lines) else (remit(here, lines[n]), incr('step'), set_attr(me, 'pending', wait(V('pace', 6), 'trigger me/scene_step'))))",
+    "@set holoprojector/cmd_skip = $skip:(pemit(enactor, 'Nothing is playing.') if not V('pending') else (cancel_wait(V('pending')), del_attr(me, 'pending'), set_attr(me, 'step', 0), remit(here, 'The projection snaps off. (skipped)')))",
 ]
 
 
@@ -512,11 +512,11 @@ SCENE_BUILD = [
     "@create scene recorder",
     "drop scene recorder",
     "@desc scene recorder = A slim obsidian obelisk. JOIN SCENE to consent to recording; LEAVE SCENE to opt out; EXPORT reads the log back.",
-    "@set scene recorder/cmd_join = $join scene:(pemit(enactor, 'You are already part of this scene.') if enactor.id in (get_attr(me, 'cast') or []) else (set_attr(me, 'cast', (get_attr(me, 'cast') or []) + [enactor.id]), remit(here, name(enactor) + ' steps into the scene. (now recording their poses and speech)')))",
-    "@set scene recorder/cmd_leave = $leave scene:(set_attr(me, 'cast', [c for c in (get_attr(me, 'cast') or []) if c != enactor.id]), pemit(enactor, 'You step out of the scene.'))",
-    "@set scene recorder/listen_all = ^*:set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[now(), name(enactor), 'says, \"' + escape(arg0) + '\"']])[-100:]) if enactor and enactor.id in (get_attr(me, 'cast') or []) else None",
-    "@set scene recorder/on_emote = set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[now(), name(enactor), '(emotes -- pose text is not exposed to witnesses)']])[-100:]) if enactor and enactor.id in (get_attr(me, 'cast') or []) else None",
-    "@set scene recorder/cmd_export = $export:rows = get_attr(me, 'log') or []; pemit(enactor, 'The scene is blank.') if not rows else [pemit(enactor, '[' + str(r[0] - rows[0][0]) + 's] ' + r[1] + ' ' + r[2]) for r in rows]",
+    "@set scene recorder/cmd_join = $join scene:(pemit(enactor, 'You are already part of this scene.') if enactor.id in (V('cast') or []) else (set_attr(me, 'cast', (V('cast') or []) + [enactor.id]), remit(here, name(enactor) + ' steps into the scene. (now recording their poses and speech)')))",
+    "@set scene recorder/cmd_leave = $leave scene:(set_attr(me, 'cast', [c for c in (V('cast') or []) if c != enactor.id]), pemit(enactor, 'You step out of the scene.'))",
+    "@set scene recorder/listen_all = ^*:set_attr(me, 'log', ((V('log') or []) + [[now(), name(enactor), 'says, \"' + escape(arg0) + '\"']])[-100:]) if enactor and enactor.id in (V('cast') or []) else None",
+    "@set scene recorder/on_emote = set_attr(me, 'log', ((V('log') or []) + [[now(), name(enactor), '(emotes -- pose text is not exposed to witnesses)']])[-100:]) if enactor and enactor.id in (V('cast') or []) else None",
+    "@set scene recorder/cmd_export = $export:rows = V('log') or []; pemit(enactor, 'The scene is blank.') if not rows else [pemit(enactor, '[' + str(r[0] - rows[0][0]) + 's] ' + r[1] + ' ' + r[2]) for r in rows]",
 ]
 
 
@@ -577,10 +577,10 @@ RUMOR_BUILD = [
     "drop Old Pip",
     "@set Gossip Gale/ttl = 3",
     "@set Old Pip/ttl = 3",
-    "@set Gossip Gale/on_tick = r = get_attr(me, 'rumor', 0); (del_attr(me, 'rumor') if r and now() - get_attr(me, 'rumor_at', 0) > get_attr(me, 'ttl', 3) else (say('Word is ' + r) if r else None))",
-    "@set Old Pip/on_tick = r = get_attr(me, 'rumor', 0); (del_attr(me, 'rumor') if r and now() - get_attr(me, 'rumor_at', 0) > get_attr(me, 'ttl', 3) else (say('Word is ' + r) if r else None))",
-    "@set Gossip Gale/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not get_attr(me, 'rumor', 0) else None",
-    "@set Old Pip/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not get_attr(me, 'rumor', 0) else None",
+    "@set Gossip Gale/on_tick = r = V('rumor', 0); (del_attr(me, 'rumor') if r and now() - V('rumor_at', 0) > V('ttl', 3) else (say('Word is ' + r) if r else None))",
+    "@set Old Pip/on_tick = r = V('rumor', 0); (del_attr(me, 'rumor') if r and now() - V('rumor_at', 0) > V('ttl', 3) else (say('Word is ' + r) if r else None))",
+    "@set Gossip Gale/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not V('rumor', 0) else None",
+    "@set Old Pip/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not V('rumor', 0) else None",
 ]
 
 
@@ -636,7 +636,7 @@ ACHIEVEMENT_BUILD = [
     '@set Chronicle/badges = {"explorer": {"name": "Explorer", "secret": 0, "tiers": [1, 2, 3]}, "trespasser": {"name": "Trespasser", "secret": 1}}',
     "@set Chronicle/on_enter = seen = get_attr(enactor, 'seen_rooms') or []; [eval_attr(get('Chronicle'), 'visit', enactor.id) for g in [has_tag(enactor, 'player') and here.id not in seen] if g]; [(set_attr(enactor, 'badge_trespasser', 1), pemit(enactor, 'Hidden achievement unlocked: Trespasser!')) for g in [has_tag(enactor, 'player') and has_tag(here, 'secret') and not get_attr(enactor, 'badge_trespasser', 0)] if g]",
     "@set Chronicle/visit = p = get('#' + str(arg0)); seen = (get_attr(p, 'seen_rooms') or []) + [here.id]; set_attr(p, 'seen_rooms', seen); tiers = get_attr(get('Chronicle'), 'badges', {})['explorer']['tiers']; earned = len([t for t in tiers if len(seen) >= t]); [(set_attr(p, 'badge_explorer', earned), pemit(p, 'Achievement: Explorer (tier ' + str(earned) + ')!')) for g in [earned > get_attr(p, 'badge_explorer', 0)] if g]; result = 1",
-    "@set Chronicle/cmd_badges = $badges:defs = get_attr(me, 'badges', {}); rows = [(d['name'] + (' (tier ' + str(get_attr(enactor, 'badge_' + s, 0)) + ')' if d.get('tiers') else '')) for s, d in defs.items() if get_attr(enactor, 'badge_' + s, 0)]; pemit(enactor, 'Badges earned:' if rows else 'No badges yet.'); [pemit(enactor, '  ' + r) for r in rows]",
+    "@set Chronicle/cmd_badges = $badges:defs = V('badges', {}); rows = [(d['name'] + (' (tier ' + str(get_attr(enactor, 'badge_' + s, 0)) + ')' if d.get('tiers') else '')) for s, d in defs.items() if get_attr(enactor, 'badge_' + s, 0)]; pemit(enactor, 'Badges earned:' if rows else 'No badges yet.'); [pemit(enactor, '  ' + r) for r in rows]",
 ]
 
 
@@ -692,7 +692,7 @@ LORE_BUILD = [
     "@create faded mural",
     "drop faded mural",
     "@set faded mural/on_use = set_attr(enactor, 'lore_mutiny', 1); pemit(enactor, 'You study the faded mural. A codex entry was unlocked.')",
-    "@set archive terminal/cmd_codex = $codex:defs = get_attr(me, 'entries', {}); found = [s for s in defs if get_attr(enactor, 'lore_' + s, 0)]; pemit(enactor, 'Codex -- ' + str(len(found)) + '/' + str(len(defs)) + ' entries recovered:'); [pemit(enactor, '  [' + defs[s]['title'] + '] ' + defs[s]['text']) for s in defs if get_attr(enactor, 'lore_' + s, 0)]; [pemit(enactor, '  [LOCKED] ???') for s in defs if not get_attr(enactor, 'lore_' + s, 0)]",
+    "@set archive terminal/cmd_codex = $codex:defs = V('entries', {}); found = [s for s in defs if get_attr(enactor, 'lore_' + s, 0)]; pemit(enactor, f'Codex -- {len(found)}/{len(defs)} entries recovered:'); [pemit(enactor, f'  [{defs[s][\"title\"]}] {defs[s][\"text\"]}') for s in defs if get_attr(enactor, 'lore_' + s, 0)]; [pemit(enactor, '  [LOCKED] ???') for s in defs if not get_attr(enactor, 'lore_' + s, 0)]",
 ]
 
 

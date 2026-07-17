@@ -58,10 +58,10 @@ dismount:
 @tag Rusty = npc
 @desc Rusty = A patient dun mare, saddled and waiting.
 drop Rusty
-@set Rusty/cmd_mount = $mount *: (pemit(enactor, 'That is not Rusty.') if trim(arg0).lower() not in name(me).lower() else (pemit(enactor, 'Someone is already astride.') if get_attr(me,'rider') else (oemit(enactor, name(enactor) + ' swings up onto ' + name(me) + '.'), move_to(enactor, me), set_attr(me,'rider', '#'+enactor.id), pemit(enactor, 'You settle into the saddle. RIDE <direction> to go.'))))
-@set Rusty/cmd_ride = $ride *: way = trim(arg0).lower(); (pemit(enactor, 'You are not riding ' + name(me) + '.') if get_attr(me,'rider') != '#'+enactor.id else (pose('bears ' + name(enactor) + ' ' + way + '.'), move(way)))
-@set Rusty/on_arrive = (pemit(get(get_attr(me,'rider')), name(me) + ' bears you into ' + name(here) + '.') if get_attr(me,'rider') else None)
-@set Rusty/cmd_dismount = $dismount: (pemit(enactor, 'You are not mounted.') if get_attr(me,'rider') != '#'+enactor.id else (del_attr(me,'rider'), move_to(enactor, loc(me)), oemit(enactor, name(enactor) + ' swings down off ' + name(me) + '.'), pemit(enactor, 'You dismount.')))
+@set Rusty/cmd_mount = $mount *: (pemit(enactor, 'That is not Rusty.') if trim(arg0).lower() not in name(me).lower() else (pemit(enactor, 'Someone is already astride.') if V('rider') else (oemit(enactor, name(enactor) + ' swings up onto ' + name(me) + '.'), move_to(enactor, me), set_attr(me,'rider', '#'+enactor.id), pemit(enactor, 'You settle into the saddle. RIDE <direction> to go.'))))
+@set Rusty/cmd_ride = $ride *: way = trim(arg0).lower(); (pemit(enactor, 'You are not riding ' + name(me) + '.') if V('rider') != '#'+enactor.id else (pose('bears ' + name(enactor) + ' ' + way + '.'), move(way)))
+@set Rusty/on_arrive = (pemit(get(V('rider')), name(me) + ' bears you into ' + name(here) + '.') if V('rider') else None)
+@set Rusty/cmd_dismount = $dismount: (pemit(enactor, 'You are not mounted.') if V('rider') != '#'+enactor.id else (del_attr(me,'rider'), move_to(enactor, loc(me)), oemit(enactor, name(enactor) + ' swings down off ' + name(me) + '.'), pemit(enactor, 'You dismount.')))
 ```
 
 ## Try it

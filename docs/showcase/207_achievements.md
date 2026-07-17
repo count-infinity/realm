@@ -90,7 +90,7 @@ if the tier rose:
 The reader — earned badges only, so hidden ones stay hidden until unlocked:
 
 ```text
-@set Chronicle/cmd_badges = $badges:defs = get_attr(me, 'badges', {}); rows = [(d['name'] + (' (tier ' + str(get_attr(enactor, 'badge_' + s, 0)) + ')' if d.get('tiers') else '')) for s, d in defs.items() if get_attr(enactor, 'badge_' + s, 0)]; pemit(enactor, 'Badges earned:' if rows else 'No badges yet.'); [pemit(enactor, '  ' + r) for r in rows]
+@set Chronicle/cmd_badges = $badges:defs = V('badges', {}); rows = [(d['name'] + (' (tier ' + str(get_attr(enactor, 'badge_' + s, 0)) + ')' if d.get('tiers') else '')) for s, d in defs.items() if get_attr(enactor, 'badge_' + s, 0)]; pemit(enactor, 'Badges earned:' if rows else 'No badges yet.'); [pemit(enactor, '  ' + r) for r in rows]
 ```
 
 ## Try it

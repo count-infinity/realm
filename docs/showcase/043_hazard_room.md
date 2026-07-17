@@ -76,7 +76,7 @@ everyone present resists at minus the current severity, and the sweep
 stamps that severity onto the room for the desc to read:
 
 ```text
-@desc here = A steel catwalk rings the exposed core. The air is warm and tastes of foil. [[result = 'Your dosimeter ticks ' + ('lazily.' if get_attr(me, 'rad_sv', 1) < 3 else 'without pause.')]]
+@desc here = A steel catwalk rings the exposed core. The air is warm and tastes of foil. [[result = 'Your dosimeter ticks ' + ('lazily.' if V('rad_sv', 1) < 3 else 'without pause.')]]
 @set here/on_tick = sv = get_attr('Reactor Brain', 'rad_level', 1); set_attr(me, 'rad_sv', sv); [(pemit(o, 'Heat prickles across your skin; you ride it out.') if skill_check(o, 'fortitude', -sv) else (damage(o, roll('1d6')), pemit(o, 'Nausea doubles you over. The core is cooking you.'))) for o in contents(me) if has_tag(o, 'player')]
 @behavior here = script_ticker, interval:2
 ```

@@ -76,7 +76,7 @@ deck
 @create colony clock
 drop colony clock
 @set colony clock/hour = 5
-@set colony clock/on_tick = set_attr(me, 'hour', (get_attr(me, 'hour', 0) + 1) % 24)
+@set colony clock/on_tick = set_attr(me, 'hour', (V('hour', 0) + 1) % 24)
 @behavior colony clock = script_ticker, interval:1
 ```
 
@@ -89,7 +89,7 @@ stamps its `fired_<i>`:
 drop Colony AI
 @zone/master Colony AI = colony
 @set Colony AI/schedule = [{"hour": 6, "msg": "A dawn klaxon echoes through the colony. Day cycle begins."}, {"hour": 12, "msg": "Midday rations are served in the mess."}, {"hour": 18, "msg": "Dusk. The corridor lights fade to amber."}]
-@set Colony AI/on_tick = h = get_attr('colony clock', 'hour', 0); [(act(me, e['msg'], targeting='zone'), set_attr(me, 'fired_' + str(i), h)) for i, e in enumerate(get_attr(me, 'schedule', [])) if e['hour'] == h and get_attr(me, 'fired_' + str(i), -1) != h]
+@set Colony AI/on_tick = h = get_attr('colony clock', 'hour', 0); [(act(me, e['msg'], targeting='zone'), set_attr(me, 'fired_' + str(i), h)) for i, e in enumerate(V('schedule', [])) if e['hour'] == h and V('fired_' + str(i), -1) != h]
 @behavior Colony AI = script_ticker, interval:1
 ```
 

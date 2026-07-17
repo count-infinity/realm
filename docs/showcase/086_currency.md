@@ -67,7 +67,7 @@ in through the first clause; and note `for c in [create_obj(...)]`, which
 binds the new stack so we can set both attributes on it:
 
 ```text
-@set the Mint/cmd_cashout = $cashout *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); pemit(enactor, 'The Mint counts out ' + str(amt) + ' credits in coin.' if ok else 'Your wallet cannot cover that.'); [(set_attr(c, 'denom', d), set_attr(c, 'count', n)) for g, a in [[ok, amt]] if g for n, d, nm in eval_attr(me, 'change', a) if n for c in [create_obj('a stack of ' + str(n) + ' ' + nm + ('s' if n > 1 else ''), tags=['thing', 'cash'], location=enactor)]]
+@set the Mint/cmd_cashout = $cashout *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); pemit(enactor, f'The Mint counts out {amt} credits in coin.' if ok else 'Your wallet cannot cover that.'); [(set_attr(c, 'denom', d), set_attr(c, 'count', n)) for g, a in [[ok, amt]] if g for n, d, nm in eval_attr(me, 'change', a) if n for c in [create_obj(f"a stack of {n} {nm}{'s' if n > 1 else ''}", tags=['thing', 'cash'], location=enactor)]]
 ```
 
 `pocket` — coins to wallet. Sum the face value of every `cash` object the
@@ -76,7 +76,7 @@ stacks (gated on the transfer succeeding, so a failed payout can never
 vaporize coins):
 
 ```text
-@set the Mint/cmd_pocket = $pocket:total = sum(get_attr(o, 'denom', 0) * get_attr(o, 'count', 0) for o in contents(enactor) if has_tag(o, 'cash')); ok = transfer_credits(me, enactor, total); [destroy_obj(o) for g in [ok] if g for o in contents(enactor) if has_tag(o, 'cash')]; pemit(enactor, 'You pocket ' + str(total) + ' credits.' if ok else 'You are not carrying any coin.')
+@set the Mint/cmd_pocket = $pocket:total = sum(get_attr(o, 'denom', 0) * get_attr(o, 'count', 0) for o in contents(enactor) if has_tag(o, 'cash')); ok = transfer_credits(me, enactor, total); [destroy_obj(o) for g in [ok] if g for o in contents(enactor) if has_tag(o, 'cash')]; pemit(enactor, f'You pocket {total} credits.' if ok else 'You are not carrying any coin.')
 ```
 
 `exchange` — melt and re-mint. Because value is just an integer, "make
@@ -85,7 +85,7 @@ same total optimally. The wallet is never touched, so the reserve
 invariant holds throughout:
 
 ```text
-@set the Mint/cmd_exchange = $exchange:total = sum(get_attr(o, 'denom', 0) * get_attr(o, 'count', 0) for o in contents(enactor) if has_tag(o, 'cash')); [destroy_obj(o) for t in [total] if t for o in contents(enactor) if has_tag(o, 'cash')]; [(set_attr(c, 'denom', d), set_attr(c, 'count', n)) for t in [total] if t for n, d, nm in eval_attr(me, 'change', t) if n for c in [create_obj('a stack of ' + str(n) + ' ' + nm + ('s' if n > 1 else ''), tags=['thing', 'cash'], location=enactor)]]; pemit(enactor, 'The Mint remints your coin: same value, fewest pieces.' if total else 'You have no coin to exchange.')
+@set the Mint/cmd_exchange = $exchange:total = sum(get_attr(o, 'denom', 0) * get_attr(o, 'count', 0) for o in contents(enactor) if has_tag(o, 'cash')); [destroy_obj(o) for t in [total] if t for o in contents(enactor) if has_tag(o, 'cash')]; [(set_attr(c, 'denom', d), set_attr(c, 'count', n)) for t in [total] if t for n, d, nm in eval_attr(me, 'change', t) if n for c in [create_obj(f"a stack of {n} {nm}{'s' if n > 1 else ''}", tags=['thing', 'cash'], location=enactor)]]; pemit(enactor, 'The Mint remints your coin: same value, fewest pieces.' if total else 'You have no coin to exchange.')
 ```
 
 ## Try it

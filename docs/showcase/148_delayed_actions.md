@@ -31,7 +31,7 @@ handle we keep. This is the self-destruct's countdown shape
 
 **The stored handle is the off switch.** `wait()` returns a handle
 string; stash it in `pending`. `silence` is then just `cancel_wait(
-get_attr(me, 'pending'))` — a timer you can wire, you can unwire. The
+V('pending'))` — a timer you can wire, you can unwire. The
 same handle doubles as a "is a ceremony running?" flag: `begin` refuses
 if `pending` is set.
 
@@ -63,8 +63,8 @@ re-stashes the handle; the last clears `pending` to end the chain. The
 delay is an attribute, so the tempo is one number to tune:
 
 ```text
-@set ceremony bell/step_1 = remit(loc(me), 'The bell rings once. A hush falls over the chamber.'); set_attr(me, 'pending', wait(get_attr(me, 'gap', 2), 'trigger me/step_2'))
-@set ceremony bell/step_2 = remit(loc(me), 'The bell rings twice. The candles gutter.'); set_attr(me, 'pending', wait(get_attr(me, 'gap', 2), 'trigger me/step_3'))
+@set ceremony bell/step_1 = remit(loc(me), 'The bell rings once. A hush falls over the chamber.'); set_attr(me, 'pending', wait(V('gap', 2), 'trigger me/step_2'))
+@set ceremony bell/step_2 = remit(loc(me), 'The bell rings twice. The candles gutter.'); set_attr(me, 'pending', wait(V('gap', 2), 'trigger me/step_3'))
 @set ceremony bell/step_3 = remit(loc(me), 'The bell rings a third and final time. It is done.'); del_attr(me, 'pending')
 ```
 
@@ -72,8 +72,8 @@ The two verbs — `begin` guards against a double ceremony, `silence`
 cancels the one pending timer:
 
 ```text
-@set ceremony bell/cmd_begin = $ring bell: pemit(enactor, 'A ceremony is already underway.') if get_attr(me, 'pending') else eval_attr(me, 'step_1')
-@set ceremony bell/cmd_silence = $silence bell: (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), remit(loc(me), 'The bell is stilled mid-peal.')) if get_attr(me, 'pending') else pemit(enactor, 'Nothing is ringing.')
+@set ceremony bell/cmd_begin = $ring bell: pemit(enactor, 'A ceremony is already underway.') if V('pending') else eval_attr(me, 'step_1')
+@set ceremony bell/cmd_silence = $silence bell: (cancel_wait(V('pending')), del_attr(me, 'pending'), remit(loc(me), 'The bell is stilled mid-peal.')) if V('pending') else pemit(enactor, 'Nothing is ringing.')
 ```
 
 ## Try it

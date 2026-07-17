@@ -24,7 +24,7 @@ of a mortal's pack, `stall buy` debit a stranger's wallet, and the rent
 tick reach into anything at all. The renter never gains authority over
 the stall; they gain *permissions the script chooses to grant them*.
 Every mutating verb therefore opens with the same gate:
-`enactor.id == get_attr(me, 'renter')`. The enactor is untrusted input;
+`enactor.id == V('renter')`. The enactor is untrusted input;
 the executor's owner is the power; the script is the policy. (The `use`
 lock could bar players from the stall's verbs wholesale, but it is
 per-object, not per-verb — renter-only *versus* public verbs on one
@@ -71,7 +71,7 @@ into the stall (the market's opening take); `transfer_credits` doubles as
 the affordability check:
 
 ```text
-@set stall three/cmd_rent = $rent stall:ok = not get_attr(me, 'renter') and transfer_credits(enactor, me, get_attr(me, 'rent', 20)); [(set_attr(me, 'renter', enactor.id), set_attr(me, 'renter_name', name(enactor)), set_attr(me, 'paid_until', now() + get_attr(me, 'period', 300)), set_attr(me, 'earnings', 0), remit(here, name(enactor) + ' rents stall three and shakes out the awning.')) for g in [ok] if g]; pemit(enactor, 'Stall three is yours. Stock it, price it, collect your takings.' if ok else 'The stall is already let, or you cannot cover the rent.')
+@set stall three/cmd_rent = $rent stall:ok = not V('renter') and transfer_credits(enactor, me, V('rent', 20)); [(set_attr(me, 'renter', enactor.id), set_attr(me, 'renter_name', name(enactor)), set_attr(me, 'paid_until', now() + V('period', 300)), set_attr(me, 'earnings', 0), remit(here, f'{name(enactor)} rents stall three and shakes out the awning.')) for g in [ok] if g]; pemit(enactor, 'Stall three is yours. Stock it, price it, collect your takings.' if ok else 'The stall is already let, or you cannot cover the rent.')
 ```
 
 `stall stock <item>` — renter only. The stall (admin authority) takes the
@@ -79,7 +79,7 @@ item from the enactor's pack into escrow and stamps a starting price from
 its `value`:
 
 ```text
-@set stall three/cmd_stock = $stall stock *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; ok = enactor.id == get_attr(me, 'renter') and bool(itm); [(move_to(o, me), set_attr(o, 'stall_price', max(1, get_attr(o, 'value', 1))), pemit(enactor, name(o) + ' goes on the shelf at ' + str(get_attr(o, 'stall_price', 1)) + ' credits.')) for g, lst in [[ok, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Only the renter stocks this stall, and only from their own pack.') if not ok else None
+@set stall three/cmd_stock = $stall stock *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; ok = enactor.id == V('renter') and bool(itm); [(move_to(o, me), set_attr(o, 'stall_price', max(1, get_attr(o, 'value', 1))), pemit(enactor, f"{name(o)} goes on the shelf at {get_attr(o, 'stall_price', 1)} credits.")) for g, lst in [[ok, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Only the renter stocks this stall, and only from their own pack.') if not ok else None
 ```
 
 `stall price <item> = <credits>` — the item that makes the shop
@@ -87,13 +87,13 @@ its `value`:
 because the admin-authority script agrees to do it for them:
 
 ```text
-@set stall three/cmd_price = $stall price * = *:itm = [o for o in contents(me) if name(o).lower() == arg0.strip().lower()]; ok = enactor.id == get_attr(me, 'renter') and bool(itm) and int(arg1) > 0; [(set_attr(o, 'stall_price', int(arg1)), remit(here, get_attr(me, 'renter_name', 'The stallholder') + ' chalks a new price: ' + name(o) + ' at ' + str(int(arg1)) + ' credits.')) for g, lst in [[ok, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Only the renter sets prices here.' if enactor.id != get_attr(me, 'renter') else 'No such item on the shelf, or a bad price.') if not ok else None
+@set stall three/cmd_price = $stall price * = *:itm = [o for o in contents(me) if name(o).lower() == arg0.strip().lower()]; ok = enactor.id == V('renter') and bool(itm) and int(arg1) > 0; [(set_attr(o, 'stall_price', int(arg1)), remit(here, f"{V('renter_name', 'The stallholder')} chalks a new price: {name(o)} at {int(arg1)} credits.")) for g, lst in [[ok, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Only the renter sets prices here.' if enactor.id != V('renter') else 'No such item on the shelf, or a bad price.') if not ok else None
 ```
 
 `stall` — the public shelf:
 
 ```text
-@set stall three/cmd_shelf = $stall:pemit(enactor, 'stall three, run by ' + get_attr(me, 'renter_name', 'nobody (rent stall to claim it)') + ':'); [pemit(enactor, '  ' + name(o) + ' - ' + str(get_attr(o, 'stall_price', 0)) + ' credits') for o in contents(me) if has_attr(o, 'stall_price')]
+@set stall three/cmd_shelf = $stall:pemit(enactor, f"stall three, run by {V('renter_name', 'nobody (rent stall to claim it)')}:"); [pemit(enactor, f"  {name(o)} - {get_attr(o, 'stall_price', 0)} credits") for o in contents(me) if has_attr(o, 'stall_price')]
 ```
 
 `stall buy <item>` — any player but the renter. Payment first (the
@@ -101,13 +101,13 @@ transfer is the wallet check), then delivery out of escrow, then the
 earnings ledger and a receipt to the renter wherever they are:
 
 ```text
-@set stall three/cmd_buy = $stall buy *:itm = [o for o in contents(me) if has_attr(o, 'stall_price') and name(o).lower() == arg0.strip().lower()]; price = get_attr(itm[0], 'stall_price', 0) if itm else 0; ok = bool(itm) and enactor.id != get_attr(me, 'renter') and transfer_credits(enactor, me, price); [(del_attr(o, 'stall_price'), teleport_obj(o, enactor), set_attr(me, 'earnings', get_attr(me, 'earnings', 0) + p), remit(here, name(enactor) + ' buys ' + name(o) + ' for ' + str(p) + ' credits.'), pemit(get('#' + get_attr(me, 'renter')), 'Your stall sells ' + name(o) + ' for ' + str(p) + ' credits.')) for g, p, lst in [[ok, price, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Not on the shelf, or you cannot cover it.') if not ok else None
+@set stall three/cmd_buy = $stall buy *:itm = [o for o in contents(me) if has_attr(o, 'stall_price') and name(o).lower() == arg0.strip().lower()]; price = get_attr(itm[0], 'stall_price', 0) if itm else 0; ok = bool(itm) and enactor.id != V('renter') and transfer_credits(enactor, me, price); [(del_attr(o, 'stall_price'), teleport_obj(o, enactor), incr('earnings', p), remit(here, f'{name(enactor)} buys {name(o)} for {p} credits.'), pemit(get('#' + V('renter')), f'Your stall sells {name(o)} for {p} credits.')) for g, p, lst in [[ok, price, itm]] if g for o in [lst[0]]]; pemit(enactor, 'Not on the shelf, or you cannot cover it.') if not ok else None
 ```
 
 `stall collect` — the renter draws down their claim:
 
 ```text
-@set stall three/cmd_collect = $stall collect:e = get_attr(me, 'earnings', 0); ok = enactor.id == get_attr(me, 'renter') and e > 0 and transfer_credits(me, enactor, e); [(set_attr(me, 'earnings', 0), pemit(enactor, 'You pocket ' + str(k) + ' credits in takings.')) for g, k in [[ok, e]] if g]; pemit(enactor, 'No takings to collect, or this is not your stall.') if not ok else None
+@set stall three/cmd_collect = $stall collect:e = V('earnings', 0); ok = enactor.id == V('renter') and e > 0 and transfer_credits(me, enactor, e); [(set_attr(me, 'earnings', 0), pemit(enactor, f'You pocket {k} credits in takings.')) for g, k in [[ok, e]] if g]; pemit(enactor, 'No takings to collect, or this is not your stall.') if not ok else None
 ```
 
 And the rent heartbeat. When rent falls due, it's docked from the
@@ -117,7 +117,7 @@ goods and leftover claim — chases the renter home:
 
 ```text
 @behavior stall three = script_ticker, interval:60
-@set stall three/on_tick = r = get_attr(me, 'renter'); e = get_attr(me, 'earnings', 0); rent = get_attr(me, 'rent', 20); due = bool(r) and now() >= get_attr(me, 'paid_until', 0); (set_attr(me, 'earnings', e - rent), set_attr(me, 'paid_until', get_attr(me, 'paid_until', 0) + get_attr(me, 'period', 300)), pemit(get('#' + r), 'The market takes ' + str(rent) + ' credits rent from your stall takings.')) if due and e >= rent else None; ([(teleport_obj(o, get('#' + get_attr(me, 'renter'))), del_attr(o, 'stall_price')) for o in contents(me) if has_attr(o, 'stall_price')], transfer_credits(me, get('#' + r), e) if e > 0 else None, pemit(get('#' + r), 'Stall three is repossessed for unpaid rent; your goods and takings are returned.'), del_attr(me, 'renter'), del_attr(me, 'renter_name'), set_attr(me, 'earnings', 0), remit(here, 'The market warden strips stall three: TO LET.')) if due and e < rent else None
+@set stall three/on_tick = r = V('renter'); e = V('earnings', 0); rent = V('rent', 20); due = bool(r) and now() >= V('paid_until', 0); (set_attr(me, 'earnings', e - rent), incr('paid_until', V('period', 300)), pemit(get('#' + r), f'The market takes {rent} credits rent from your stall takings.')) if due and e >= rent else None; ([(teleport_obj(o, get('#' + V('renter'))), del_attr(o, 'stall_price')) for o in contents(me) if has_attr(o, 'stall_price')], transfer_credits(me, get('#' + r), e) if e > 0 else None, pemit(get('#' + r), 'Stall three is repossessed for unpaid rent; your goods and takings are returned.'), del_attr(me, 'renter'), del_attr(me, 'renter_name'), set_attr(me, 'earnings', 0), remit(here, 'The market warden strips stall three: TO LET.')) if due and e < rent else None
 ```
 
 ## Try it

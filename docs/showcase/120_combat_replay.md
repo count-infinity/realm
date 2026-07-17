@@ -54,8 +54,8 @@ drop match chronicle
 The two subroutines — the scribe (append, cap) and the scoreboard:
 
 ```text
-@set match chronicle/scribe = rows = (get_attr(me, 'log') or []) + [[now(), str(arg0)]]; set_attr(me, 'log', rows[-30:])
-@set match chronicle/tally = result = ' / '.join([name(o) + ' ' + str(get_attr(o, 'hp', 0)) + ':' + str(get_attr(o, 'max_hp', 0)) for o in contents(loc(me)) if has_tag(o, 'in_combat')])
+@set match chronicle/scribe = rows = (V('log') or []) + [[now(), str(arg0)]]; set_attr(me, 'log', rows[-30:])
+@set match chronicle/tally = result = ' / '.join([f'{name(o)} {get_attr(o, "hp", 0)}:{get_attr(o, "max_hp", 0)}' for o in contents(loc(me)) if has_tag(o, 'in_combat')])
 ```
 
 The recording heads, each one line:
@@ -70,7 +70,7 @@ The recording heads, each one line:
 Playback and the eraser:
 
 ```text
-@set match chronicle/cmd_replay = $replay: rows = get_attr(me, 'log') or []; (pemit(enactor, 'The ledger is blank.') if not rows else [pemit(enactor, '[' + str(now() - r[0]) + 's ago] ' + r[1]) for r in rows])
+@set match chronicle/cmd_replay = $replay: rows = V('log') or []; (pemit(enactor, 'The ledger is blank.') if not rows else [pemit(enactor, f'[{now() - r[0]}s ago] {r[1]}') for r in rows])
 @set match chronicle/cmd_wipe = $wipe ledger: (del_attr(me, 'log'), pemit(enactor, 'You tear out the used pages. The automaton dips its pen.')) if enactor == owner(me) else pemit(enactor, 'The automaton clutches its ledger jealously.')
 ```
 

@@ -69,15 +69,15 @@ softcode as you, the owner):
 The presence roster and the incident feed — three witnesses:
 
 ```text
-@set Ops Console/on_connect = set_attr(me, 'online', [i for i in (get_attr(me,'online') or []) if i != enactor.id] + [enactor.id])
-@set Ops Console/on_disconnect = set_attr(me, 'online', [i for i in (get_attr(me,'online') or []) if i != enactor.id])
-@set Ops Console/on_death = set_attr(me, 'incidents', ((get_attr(me,'incidents') or []) + ['death: ' + name(enactor) + ' in ' + name(here)])[-20:])
+@set Ops Console/on_connect = set_attr(me, 'online', [i for i in (V('online') or []) if i != enactor.id] + [enactor.id])
+@set Ops Console/on_disconnect = set_attr(me, 'online', [i for i in (V('online') or []) if i != enactor.id])
+@set Ops Console/on_death = set_attr(me, 'incidents', ((V('incidents') or []) + [f'death: {name(enactor)} in {name(here)}'])[-20:])
 ```
 
 The render helper and the gated verb that calls it:
 
 ```text
-@set Ops Console/render = up = now() - get_attr(me,'booted_at', now()); on = [i for i in (get_attr(me,'online') or []) if get('#'+str(i))]; inc = get_attr(me,'incidents') or []; [pemit(enactor, ln) for ln in (['=== STATION OPS ===', 'uptime: ' + str(up) + 's since boot', 'online: ' + str(len(on)) + ' / ' + str(len(search_world(tag='player'))) + ' characters', 'world: ' + str(len(search_world(tag='room'))) + ' rooms, ' + str(len(search_world(tag='npc'))) + ' npcs, ' + str(len(search_world(tag='thing'))) + ' things', '--- recent incidents ---'] + (inc[-5:] if inc else ['(none logged)']))]
+@set Ops Console/render = up = now() - V('booted_at', now()); on = [i for i in (V('online') or []) if get('#'+str(i))]; inc = V('incidents') or []; [pemit(enactor, ln) for ln in (['=== STATION OPS ===', f'uptime: {up}s since boot', f'online: {len(on)} / {len(search_world(tag="player"))} characters', f'world: {len(search_world(tag="room"))} rooms, {len(search_world(tag="npc"))} npcs, {len(search_world(tag="thing"))} things', '--- recent incidents ---'] + (inc[-5:] if inc else ['(none logged)']))]
 @set Ops Console/cmd_dashboard = $dashboard: pemit(enactor, 'The ops console stays dark for you.') if not has_tag(enactor,'admin') else eval_attr(me, 'render')
 ```
 

@@ -76,7 +76,7 @@ otherwise count the crossing and page the owner — and say nothing to
 the walker:
 
 ```text
-@set tripwire/on_enter = x = enactor; (None if not (get_attr(me, 'armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step over the exposed tripwire.') if not has_tag(me, 'invisible') else (set_attr(me, 'trips', get_attr(me, 'trips', 0) + 1), pemit(owner(me), '[tripwire] ' + name(x) + ' crossed ' + name(loc(me)) + '.'))))
+@set tripwire/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step over the exposed tripwire.') if not has_tag(me, 'invisible') else (incr('trips'), pemit(owner(me), f'[tripwire] {name(x)} crossed {name(loc(me))}.'))))
 ```
 
 Hide it last, so you can see it while you work, and go mind the shop:
@@ -119,7 +119,7 @@ remembers even when you were asleep for the page.
   attribute and a `$subscribe` command, exactly like the security
   monitor's opt-in list in item 54: a whole guild on one wire.
 - **Direction sense** — add a matching `on_leave` that pages
-  `'... left ' + name(loc(me))`; enter-without-leave means they are
+  `f'... left {name(loc(me))}'`; enter-without-leave means they are
   still inside. (Item 55 builds a full log on this.)
 - **Re-hiding** — a `$reset wire` command for the owner:
   `add_tag(me, 'invisible')` and the stepped-over wire is a trap again.

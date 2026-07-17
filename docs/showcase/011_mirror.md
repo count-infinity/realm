@@ -53,8 +53,8 @@ stub):
 ```text
 @create tall mirror
 drop tall mirror
-@desc tall mirror = A tall oval of old glass in a tarnished brass frame; whatever stands before it, it returns. [[result = 'In the glass: ' + name(viewer) + ' -- ' + (viewer.description or 'a face the silver cannot quite fix.')]] [[worn = [name(o) for o in contents(viewer) if has_tag(o, 'worn')]; result = ('Worn: ' + ', '.join(worn) + '.') if worn else '']]
-@set tall mirror/on_look = oemit(enactor, name(enactor) + ' pauses to study the tall mirror.')
+@desc tall mirror = A tall oval of old glass in a tarnished brass frame; whatever stands before it, it returns. [[result = f"In the glass: {name(viewer)} -- {viewer.description or 'a face the silver cannot quite fix.'}"]] [[worn = [name(o) for o in contents(viewer) if has_tag(o, 'worn')]; result = f"Worn: {', '.join(worn)}." if worn else '']]
+@set tall mirror/on_look = oemit(enactor, f'{name(enactor)} pauses to study the tall mirror.')
 ```
 
 Something to wear, so the scan has work to do:

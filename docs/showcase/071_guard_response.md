@@ -69,7 +69,7 @@ town room reach its `ON_<EVENT>` attributes:
 ```
 @create Town Watch
 @zone/master Town Watch = town
-@set Town Watch/on_attack = crime = not has_tag(enactor, 'town_watch'); fresh = now() - get_attr(me, 'last_alarm', 0) > 60; ((set_attr(me, 'last_alarm', now()), adjust_disposition('Watchman Bren', enactor, -5), teleport_obj('Watchman Bren', here), force('Watchman Bren', 'say Town watch! Drop it, NOW!'), force('Watchman Bren', 'attack ' + name(enactor))) if crime and fresh else None)
+@set Town Watch/on_attack = crime = not has_tag(enactor, 'town_watch'); fresh = now() - V('last_alarm', 0) > 60; ((set_attr(me, 'last_alarm', now()), adjust_disposition('Watchman Bren', enactor, -5), teleport_obj('Watchman Bren', here), force('Watchman Bren', 'say Town watch! Drop it, NOW!'), force('Watchman Bren', 'attack ' + name(enactor))) if crime and fresh else None)
 drop Town Watch
 ```
 

@@ -41,7 +41,7 @@ The deck and its card factory:
 ```text
 @create a deck of cards
 drop a deck of cards
-@desc a deck of cards = Well-worn cards in a battered tin. [[result = str(len(get_attr(me, 'deck', []))) + ' cards remain in the tin.']]
+@desc a deck of cards = Well-worn cards in a battered tin. [[result = str(len(V('deck', []))) + ' cards remain in the tin.']]
 @set a deck of cards/fresh = result = [r + s for s in ['s', 'h', 'd', 'c'] for r in ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']]
 ```
 
@@ -64,15 +64,15 @@ the room, and the tuple's left-to-right evaluation means `h` is already
 updated when the `pemit` reads it:
 
 ```text
-@set a deck of cards/cmd_deal = $deal * to *: n = int(trim(arg0)); who = get(trim(arg1)); d = get_attr(me, 'deck', []); h = get_attr(me, 'hands', {}); ok = who is not None and loc(who) is here and 0 < n <= len(d); (h.update({who.id: h.get(who.id, []) + d[:n]}), set_attr(me, 'hands', h), set_attr(me, 'deck', d[n:]), remit(here, name(who) + ' is dealt ' + str(n) + ' cards, face down.'), pemit(who, 'Your cards: ' + ' '.join(h[who.id]))) if ok else pemit(enactor, 'The deck cannot do that -- shuffle first, name a player here, and mind the count.')
+@set a deck of cards/cmd_deal = $deal * to *: n = int(trim(arg0)); who = get(trim(arg1)); d = V('deck', []); h = V('hands', {}); ok = who is not None and loc(who) is here and 0 < n <= len(d); (h.update({who.id: h.get(who.id, []) + d[:n]}), set_attr(me, 'hands', h), set_attr(me, 'deck', d[n:]), remit(here, name(who) + ' is dealt ' + str(n) + ' cards, face down.'), pemit(who, 'Your cards: ' + ' '.join(h[who.id]))) if ok else pemit(enactor, 'The deck cannot do that -- shuffle first, name a player here, and mind the count.')
 ```
 
 Peeking and playing:
 
 ```text
-@set a deck of cards/cmd_hand = $hand: h = get_attr(me, 'hands', {}).get(enactor.id, []); pemit(enactor, 'Your hand: ' + ' '.join(h) if h else 'You hold no cards.'); oemit(enactor, name(enactor) + ' fans a hand of cards close to the chest.') if h else None
-@set a deck of cards/cmd_play = $play *: c = trim(arg0); h = get_attr(me, 'hands', {}); mine = h.get(enactor.id, []); pick = [x for x in mine if x.lower() == c.lower()]; (mine.remove(pick[0]), h.update({enactor.id: mine}), set_attr(me, 'hands', h), set_attr(me, 'table', get_attr(me, 'table', []) + [pick[0]]), remit(here, name(enactor) + ' plays ' + pick[0] + ' onto the table.')) if pick else pemit(enactor, 'That card is not in your hand.')
-@set a deck of cards/cmd_table = $table: t = get_attr(me, 'table', []); pemit(enactor, 'On the table: ' + (' '.join(t) if t else 'nothing yet.'))
+@set a deck of cards/cmd_hand = $hand: h = V('hands', {}).get(enactor.id, []); pemit(enactor, 'Your hand: ' + ' '.join(h) if h else 'You hold no cards.'); oemit(enactor, name(enactor) + ' fans a hand of cards close to the chest.') if h else None
+@set a deck of cards/cmd_play = $play *: c = trim(arg0); h = V('hands', {}); mine = h.get(enactor.id, []); pick = [x for x in mine if x.lower() == c.lower()]; (mine.remove(pick[0]), h.update({enactor.id: mine}), set_attr(me, 'hands', h), set_attr(me, 'table', V('table', []) + [pick[0]]), remit(here, name(enactor) + ' plays ' + pick[0] + ' onto the table.')) if pick else pemit(enactor, 'That card is not in your hand.')
+@set a deck of cards/cmd_table = $table: t = V('table', []); pemit(enactor, 'On the table: ' + (' '.join(t) if t else 'nothing yet.'))
 ```
 
 ## Try it

@@ -85,7 +85,7 @@ drop power console
 The win-check, written once:
 
 ```text
-@set power console/check = result = (get_attr(me, 'j1') + ' ' + get_attr(me, 'j2') + ' ' + get_attr(me, 'j3') == str(get_attr(me, 'solution')))
+@set power console/check = result = (V('j1') + ' ' + V('j2') + ' ' + V('j3') == str(V('solution')))
 ```
 
 `sync` — retract or drop the shield to match the grid:
@@ -99,7 +99,7 @@ The router and the status readout — both letters map through one
 
 ```text
 @set power console/cmd_route = $route * to *: n = trim(arg0); v = switch(trim(arg1).lower(), 'main', 'a', 'backup', 'b', ''); (pemit(enactor, 'Try ROUTE <1-3> TO <MAIN or BACKUP>.') if n not in ('1', '2', '3') or not v else (set_attr(me, 'j' + n, v), remit(loc(me), 'Relay ' + n + ' swings to the ' + trim(arg1).lower() + ' bus.'), eval_attr(me, 'sync')))
-@set power console/cmd_grid = $grid: [pemit(enactor, 'Junction ' + str(n) + ': ' + switch(get_attr(me, 'j' + str(n)), 'a', 'MAIN bus', 'b', 'BACKUP bus')) for n in (1, 2, 3)]; pemit(enactor, 'GRID STATUS: ' + ('ONLINE' if eval_attr(me, 'check') else 'FAULT'))
+@set power console/cmd_grid = $grid: [pemit(enactor, f'Junction {n}: ' + switch(V('j' + str(n)), 'a', 'MAIN bus', 'b', 'BACKUP bus')) for n in (1, 2, 3)]; pemit(enactor, 'GRID STATUS: ' + ('ONLINE' if eval_attr(me, 'check') else 'FAULT'))
 ```
 
 ## Try it

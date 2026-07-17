@@ -65,22 +65,22 @@ The shared render routine — rewrite the player's public line and the
 staff-only marker, dropping the prior versions of each:
 
 ```text
-@set the Registry/render = pl = get('#' + str(arg0)); bio = get_attr(me, 'bio_' + str(arg0), ''); notes = (get_attr(me, 'staff_notes', {}) or {}).get(str(arg0), []); ob = get_attr(me, 'bioline_' + str(arg0), ''); onl = get_attr(me, 'noteline_' + str(arg0), ''); keep = [p for p in (get_attr(pl, 'desc_extras') or []) if not (len(p) > 1 and (str(p[1]) == ob or str(p[1]) == onl))]; bl = ('Profile: ' + bio) if bio else ''; nl = ('[staff notes: ' + str(len(notes)) + ' on file - NOTES ' + name(pl) + ']') if notes else ''; add = ([['', bl]] if bl else []) + ([["has_tag('admin')", nl]] if nl else []); set_attr(pl, 'desc_extras', keep + add); set_attr(me, 'bioline_' + str(arg0), bl); set_attr(me, 'noteline_' + str(arg0), nl); result = 1
+@set the Registry/render = pl = get('#' + str(arg0)); bio = V('bio_' + str(arg0), ''); notes = (V('staff_notes', {}) or {}).get(str(arg0), []); ob = V('bioline_' + str(arg0), ''); onl = V('noteline_' + str(arg0), ''); keep = [p for p in (get_attr(pl, 'desc_extras') or []) if not (len(p) > 1 and (str(p[1]) == ob or str(p[1]) == onl))]; bl = f'Profile: {bio}' if bio else ''; nl = f'[staff notes: {len(notes)} on file - NOTES {name(pl)}]' if notes else ''; add = ([['', bl]] if bl else []) + ([["has_tag('admin')", nl]] if nl else []); set_attr(pl, 'desc_extras', keep + add); set_attr(me, 'bioline_' + str(arg0), bl); set_attr(me, 'noteline_' + str(arg0), nl); result = 1
 ```
 
 `bio` — a player's own public profile; `profile <name>` — read anyone's:
 
 ```text
-@set the Registry/cmd_bio = $bio *:bio = trim(arg0); [(set_attr(me, 'bio_' + enactor.id, escape(bio)), set_attr(me, 'members', sorted(set(get_attr(me, 'members', []) + [enactor.id]))), eval_attr(me, 'render', enactor.id), pemit(enactor, 'Your public profile is updated.')) for g in [bool(bio)] if g]; pemit(enactor, 'Type BIO <your public bio>.') if not bio else None
-@set the Registry/cmd_profile = $profile *:pl = get(trim(arg0)); bio = get_attr(me, 'bio_' + pl.id, '') if pl is not None else ''; pemit(enactor, name(pl) + ' profile: ' + (bio if bio else '(they have not written one)')) if pl is not None and has_tag(pl, 'player') else pemit(enactor, 'No such player.')
+@set the Registry/cmd_bio = $bio *:bio = trim(arg0); [(set_attr(me, 'bio_' + enactor.id, escape(bio)), set_attr(me, 'members', sorted(set(V('members', []) + [enactor.id]))), eval_attr(me, 'render', enactor.id), pemit(enactor, 'Your public profile is updated.')) for g in [bool(bio)] if g]; pemit(enactor, 'Type BIO <your public bio>.') if not bio else None
+@set the Registry/cmd_profile = $profile *:pl = get(trim(arg0)); bio = V('bio_' + pl.id, '') if pl is not None else ''; pemit(enactor, name(pl) + ' profile: ' + (bio if bio else '(they have not written one)')) if pl is not None and has_tag(pl, 'player') else pemit(enactor, 'No such player.')
 ```
 
 `note <name> = <text>` — staff annotate (capped at 20); `notes <name>` —
 staff read the sealed layer:
 
 ```text
-@set the Registry/cmd_note = $note * = *:pl = get(trim(arg0)); txt = trim(arg1); ok = has_tag(enactor, 'admin') and pl is not None and has_tag(pl, 'player') and bool(txt); [(set_attr(me, 'staff_notes', {**get_attr(me, 'staff_notes', {}), p.id: (get_attr(me, 'staff_notes', {}).get(p.id, []) + [name(enactor) + ': ' + escape(t)])[-20:]}), set_attr(me, 'members', sorted(set(get_attr(me, 'members', []) + [p.id]))), eval_attr(me, 'render', p.id), pemit(enactor, 'Staff note added to ' + name(p) + '.')) for g, p, t in [[ok, pl, txt]] if g]; pemit(enactor, 'Only staff annotate players.') if not ok else None
-@set the Registry/cmd_notes = $notes *:pl = get(trim(arg0)); ok = has_tag(enactor, 'admin') and pl is not None; rows = get_attr(me, 'staff_notes', {}).get(pl.id, []) if ok else []; pemit(enactor, 'Staff notes on ' + name(pl) + ':') if ok else pemit(enactor, 'Only staff read notes.'); [pemit(enactor, '  ' + r) for r in rows]
+@set the Registry/cmd_note = $note * = *:pl = get(trim(arg0)); txt = trim(arg1); ok = has_tag(enactor, 'admin') and pl is not None and has_tag(pl, 'player') and bool(txt); [(set_attr(me, 'staff_notes', {**V('staff_notes', {}), p.id: (V('staff_notes', {}).get(p.id, []) + [name(enactor) + ': ' + escape(t)])[-20:]}), set_attr(me, 'members', sorted(set(V('members', []) + [p.id]))), eval_attr(me, 'render', p.id), pemit(enactor, 'Staff note added to ' + name(p) + '.')) for g, p, t in [[ok, pl, txt]] if g]; pemit(enactor, 'Only staff annotate players.') if not ok else None
+@set the Registry/cmd_notes = $notes *:pl = get(trim(arg0)); ok = has_tag(enactor, 'admin') and pl is not None; rows = V('staff_notes', {}).get(pl.id, []) if ok else []; pemit(enactor, 'Staff notes on ' + name(pl) + ':') if ok else pemit(enactor, 'Only staff read notes.'); [pemit(enactor, '  ' + r) for r in rows]
 ```
 
 ## Try it

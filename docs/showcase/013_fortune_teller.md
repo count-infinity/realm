@@ -57,7 +57,7 @@ The automaton, its price, and its prophecy table — all data:
 ```text
 @create Zoltar
 drop Zoltar
-@desc Zoltar = A glass cabinet housing a turbaned automaton, its waxen hand hovering over a deck of cards. [[result = 'The brass counter reads ' + str(get_attr(me, 'told', 0)) + ' fortunes told.']]
+@desc Zoltar = A glass cabinet housing a turbaned automaton, its waxen hand hovering over a deck of cards. [[result = f"The brass counter reads {V('told', 0)} fortunes told."]]
 @set Zoltar/cost = 5
 @set Zoltar/fortunes = ["You will take a journey your boots already suspect.", "Beware a door that is polite to you.", "Money finds you when you stop watching for it.", "An old debt returns wearing a new face."]
 ```
@@ -68,7 +68,7 @@ card so two `set_attr`s can reach it — the arc's standard binding
 trick), and the ledger re-sync last:
 
 ```text
-@set Zoltar/on_payment = cost = get_attr(me, 'cost', 5); paid = credits(me) - get_attr(me, 'ledger', 0); f = get_attr(me, 'fortunes', []); ok = paid >= cost and bool(f); (transfer_credits(me, enactor, paid - cost), set_attr(me, 'told', get_attr(me, 'told', 0) + 1), remit(here, "Zoltar's eyes flare. Gears grind behind the glass, and a stiff card drops into the brass tray."), [(set_attr(c, 'desc_extras', [['', 'ZOLTAR SPEAKS:'], ['', chr(34) + f[rand(0, len(f) - 1)] + chr(34)], ['', 'Lucky numbers: ' + str(rand(1, 99)) + ' and ' + str(rand(1, 99)) + '.']]), pemit(enactor, 'You lift the fortune card from the tray.')) for c in [create_obj('a printed fortune card', tags=['thing', 'no_group'], location=enactor)]]) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, 'A fortune costs ' + str(cost) + ' credits. The coins clatter back.')); set_attr(me, 'ledger', credits(me))
+@set Zoltar/on_payment = cost = V('cost', 5); paid = credits(me) - V('ledger', 0); f = V('fortunes', []); ok = paid >= cost and bool(f); (transfer_credits(me, enactor, paid - cost), incr('told'), remit(here, "Zoltar's eyes flare. Gears grind behind the glass, and a stiff card drops into the brass tray."), [(set_attr(c, 'desc_extras', [['', 'ZOLTAR SPEAKS:'], ['', chr(34) + f[rand(0, len(f) - 1)] + chr(34)], ['', f'Lucky numbers: {rand(1, 99)} and {rand(1, 99)}.']]), pemit(enactor, 'You lift the fortune card from the tray.')) for c in [create_obj('a printed fortune card', tags=['thing', 'no_group'], location=enactor)]]) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, f'A fortune costs {cost} credits. The coins clatter back.')); set_attr(me, 'ledger', credits(me))
 ```
 
 ## Try it

@@ -58,13 +58,13 @@ mine *and* stood him a drink, and never again after the secret is
 spent:
 
 ```
-@set Old Moss/menu = t = get_attr(me, 'town_' + enactor.id, 0); m = get_attr(me, 'mine_' + enactor.id, 0); d = get_attr(me, 'drink_' + enactor.id, 0); s = get_attr(me, 'secret_' + enactor.id, 0); result = '[1] Ask about the town.' + (' [2] Ask about the old mine.' if t else '') + (' [3] Press him about the collapse.' if m and d and not s else '') + ' [q] Leave him be.'
+@set Old Moss/menu = t = V('town_' + enactor.id, 0); m = V('mine_' + enactor.id, 0); d = V('drink_' + enactor.id, 0); s = V('secret_' + enactor.id, 0); result = '[1] Ask about the town.' + (' [2] Ask about the old mine.' if t else '') + (' [3] Press him about the collapse.' if m and d and not s else '') + ' [q] Leave him be.'
 ```
 
 **The opener.** `$talk` greets by memory and starts the chain:
 
 ```
-@set Old Moss/cmd_talk = $talk:met = get_attr(me, 'met_' + enactor.id, 0); set_attr(me, 'met_' + enactor.id, 1); say('New face. Name is Moss. Sit, if you like.' if not met else 'Back again, ' + name(enactor) + '. Thought so.'); prompt(enactor, eval_attr(me, 'menu'), 'node_root')
+@set Old Moss/cmd_talk = $talk:met = V('met_' + enactor.id, 0); set_attr(me, 'met_' + enactor.id, 1); say('New face. Name is Moss. Sit, if you like.' if not met else f'Back again, {name(enactor)}. Thought so.'); prompt(enactor, eval_attr(me, 'menu'), 'node_root')
 ```
 
 **The tree.** One callback dispatches every answer. Note how each lore
@@ -72,7 +72,7 @@ branch sets its flag *before* re-prompting, so the menu it prints
 already includes what the answer just unlocked:
 
 ```
-@set Old Moss/node_root = a = trim(arg0); t = get_attr(me, 'town_' + enactor.id, 0); m = get_attr(me, 'mine_' + enactor.id, 0); d = get_attr(me, 'drink_' + enactor.id, 0); s = get_attr(me, 'secret_' + enactor.id, 0); ((set_attr(me, 'town_' + enactor.id, 1), say('Quiet town. Was not always - the mine kept it loud, before the collapse.'), prompt(enactor, eval_attr(me, 'menu'), 'node_root')) if a == '1' else (set_attr(me, 'mine_' + enactor.id, 1), say('Closed ten years back. An accident, they ruled.' + ('' if d else ' Dry work, remembering. Pay 5 to Old Moss and it might come back to me.')), prompt(enactor, eval_attr(me, 'menu'), 'node_root')) if a == '2' and t else (set_attr(me, 'secret_' + enactor.id, 1), pemit(enactor, 'Moss leans close: it was no accident. He hauled the charges down himself, on watch-house coin. Then he says no more.')) if a == '3' and m and d and not s else say('Moss waves you off and studies his mug.'))
+@set Old Moss/node_root = a = trim(arg0); t = V('town_' + enactor.id, 0); m = V('mine_' + enactor.id, 0); d = V('drink_' + enactor.id, 0); s = V('secret_' + enactor.id, 0); ((set_attr(me, 'town_' + enactor.id, 1), say('Quiet town. Was not always - the mine kept it loud, before the collapse.'), prompt(enactor, eval_attr(me, 'menu'), 'node_root')) if a == '1' else (set_attr(me, 'mine_' + enactor.id, 1), say('Closed ten years back. An accident, they ruled.' + ('' if d else ' Dry work, remembering. Pay 5 to Old Moss and it might come back to me.')), prompt(enactor, eval_attr(me, 'menu'), 'node_root')) if a == '2' and t else (set_attr(me, 'secret_' + enactor.id, 1), pemit(enactor, 'Moss leans close: it was no accident. He hauled the charges down himself, on watch-house coin. Then he says no more.')) if a == '3' and m and d and not s else say('Moss waves you off and studies his mug.'))
 ```
 
 The secret goes out on `pemit` — a private line for the one player who
@@ -83,7 +83,7 @@ grumble / ignore a bystander's payment) — vital here, since Moss and
 Mira share a room and both hear every payment event:
 
 ```
-@set Old Moss/on_payment = paid = credits(me) - get_attr(me, 'tab', 0); ((set_attr(me, 'tab', credits(me)), set_attr(me, 'drink_' + enactor.id, 1), pose('drinks deep and wipes his beard.')) if paid >= 5 else (say('That will not wet a flea.') if paid > 0 else None))
+@set Old Moss/on_payment = paid = credits(me) - V('tab', 0); ((set_attr(me, 'tab', credits(me)), set_attr(me, 'drink_' + enactor.id, 1), pose('drinks deep and wipes his beard.')) if paid >= 5 else (say('That will not wet a flea.') if paid > 0 else None))
 ```
 
 ## Try it

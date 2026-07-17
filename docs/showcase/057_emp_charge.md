@@ -80,7 +80,7 @@ clock:
 @create EMP charge
 @set EMP charge/cmd_arm = $arm emp: eval_attr(me, 'pulse') if loc(me) and has_tag(loc(me), 'room') else pemit(enactor, 'Not while you are holding it. Set it down first.')
 @set EMP charge/pulse = hit = [o for o in contents(loc(me)) if has_tag(o, 'electronic') and not has_tag(o, 'disabled') and o != me]; [add_tag(o, 'disabled') for o in hit]; set_attr(me, 'hit', [o.id for o in hit]); remit(loc(me), 'A soundless white PULSE. Every status light in the room goes dark.'); expire(me, 30)
-@set EMP charge/on_expire = [remove_tag(get('#' + str(i)), 'disabled') for i in (get_attr(me, 'hit') or [])]; remit(loc(me), 'One by one, status lights flicker back to life. The spent EMP casing crumbles to slag.')
+@set EMP charge/on_expire = [remove_tag(get(f'#{i}'), 'disabled') for i in (V('hit') or [])]; remit(loc(me), 'One by one, status lights flicker back to life. The spent EMP casing crumbles to slag.')
 drop EMP charge
 ```
 

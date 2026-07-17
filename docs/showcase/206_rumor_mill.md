@@ -59,16 +59,16 @@ drop Old Pip
 The gossip faucet — forget-if-stale, else speak-if-known — on each NPC:
 
 ```text
-@set Gossip Gale/on_tick = r = get_attr(me, 'rumor', 0); (del_attr(me, 'rumor') if r and now() - get_attr(me, 'rumor_at', 0) > get_attr(me, 'ttl', 3) else (say('Word is ' + r) if r else None))
-@set Old Pip/on_tick = r = get_attr(me, 'rumor', 0); (del_attr(me, 'rumor') if r and now() - get_attr(me, 'rumor_at', 0) > get_attr(me, 'ttl', 3) else (say('Word is ' + r) if r else None))
+@set Gossip Gale/on_tick = r = V('rumor', 0); (del_attr(me, 'rumor') if r and now() - V('rumor_at', 0) > V('ttl', 3) else (say('Word is ' + r) if r else None))
+@set Old Pip/on_tick = r = V('rumor', 0); (del_attr(me, 'rumor') if r and now() - V('rumor_at', 0) > V('ttl', 3) else (say('Word is ' + r) if r else None))
 ```
 
 The pickup — overhear `Word is …`, become a carrier (unless already
 carrying):
 
 ```text
-@set Gossip Gale/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not get_attr(me, 'rumor', 0) else None
-@set Old Pip/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not get_attr(me, 'rumor', 0) else None
+@set Gossip Gale/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not V('rumor', 0) else None
+@set Old Pip/listen_rumor = ^*word is *:(set_attr(me, 'rumor', trim(arg1)), set_attr(me, 'rumor_at', now())) if not V('rumor', 0) else None
 ```
 
 Give both NPCs a `script_ticker` (`@behavior Gossip Gale = script_ticker,

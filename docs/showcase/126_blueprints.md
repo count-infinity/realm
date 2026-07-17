@@ -62,7 +62,7 @@ slate will refuse to sign sheets), the schematic:
 drop coil schematic
 @desc coil schematic = A mil-spec data-slate, screen crawling with exploded diagrams of a field coil. STUDY it -- once.
 @set coil schematic/recipe = vector_coil
-@set coil schematic/teach = r = get_attr(me, 'recipe'); k = get_attr(enactor, 'known_recipes', []); pemit(enactor, 'You already hold the ' + r + ' pattern.') if r in k else (pemit(enactor, 'The slate flickers: WRITE REFUSED. Only a licensed slate may sign your pattern library.') if not set_attr(enactor, 'known_recipes', k + [r]) else (pemit(enactor, 'The schematic unfolds behind your eyes: the ' + r + ' pattern is yours.'), remit(here, 'The slate chirps once, wipes itself, and crumbles into grey flakes.'), destroy_obj(me)))
+@set coil schematic/teach = r = V('recipe'); k = get_attr(enactor, 'known_recipes', []); pemit(enactor, 'You already hold the ' + r + ' pattern.') if r in k else (pemit(enactor, 'The slate flickers: WRITE REFUSED. Only a licensed slate may sign your pattern library.') if not set_attr(enactor, 'known_recipes', k + [r]) else (pemit(enactor, 'The schematic unfolds behind your eyes: the ' + r + ' pattern is yours.'), remit(here, 'The slate chirps once, wipes itself, and crumbles into grey flakes.'), destroy_obj(me)))
 @set coil schematic/cmd_study = $study schematic: eval_attr(me, 'teach')
 @set coil schematic/ON_USE = eval_attr(me, 'teach')
 ```

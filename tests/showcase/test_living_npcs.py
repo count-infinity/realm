@@ -54,26 +54,26 @@ BUILD_064 = [
     "@desc Mira = The Flagon's keeper. She polishes a mug and misses nothing.",
     "@set Mira/listen_tap = ^*on tap*:say Ale, five credits the mug. "
     "Pay me and it is yours.",
-    "@set Mira/on_payment = paid = credits(me) - get_attr(me, 'till', 0); "
+    "@set Mira/on_payment = paid = credits(me) - V('till', 0); "
     "((set_attr(me, 'till', credits(me)), "
     "set_attr(me, 'patron_' + enactor.id, 1), "
     "say('One ale, coming up.'), trigger('pour')) if paid >= 5 else "
     "(say('Ale is five credits, love.') if paid > 0 else None))",
     "@set Mira/pour = mug = create_obj('a mug of ale', location=here); "
     "set_attr(mug, 'description', 'Cloudy town ale, still foaming.'); "
-    "set_attr(mug, 'cmd_drink', get_attr(me, 'drink_script')); "
+    "set_attr(mug, 'cmd_drink', V('drink_script')); "
     "pose('sets a foaming mug on the bar.')",
     "@set Mira/drink_script = $drink *:heal(enactor, 1); "
     "pemit(enactor, 'The ale goes down warm.'); "
-    "oemit(enactor, name(enactor) + ' drains a mug of ale.'); "
+    "oemit(enactor, f'{name(enactor)} drains a mug of ale.'); "
     "destroy_obj(me)",
     '@set Mira/rumors = ["They say the old mine did not close for bad air '
     'alone.", "Verity shuts her shop at nine sharp - and sleeps above it.", '
     '"Scream on Market Street and count to ten. The watch is faster."]',
-    "@set Mira/listen_rumor = ^*rumor*:r = get_attr(me, 'rumors', []); "
-    "i = get_attr(me, 'idx_' + enactor.id, 0); "
-    "((say(r[i % len(r)]), set_attr(me, 'idx_' + enactor.id, i + 1)) "
-    "if get_attr(me, 'patron_' + enactor.id, 0) else "
+    "@set Mira/listen_rumor = ^*rumor*:r = V('rumors', []); "
+    "i = V('idx_' + enactor.id, 0); "
+    "((say(r[i % len(r)]), incr('idx_' + enactor.id)) "
+    "if V('patron_' + enactor.id, 0) else "
     "say('Ale first. A wet tongue wags easier - mine included.'))",
 ]
 
@@ -83,24 +83,24 @@ BUILD_067 = [
     "drop Old Moss",
     "@desc Old Moss = He has the corner table and a stare that has seen "
     "the bottom of many mugs.",
-    "@set Old Moss/menu = t = get_attr(me, 'town_' + enactor.id, 0); "
-    "m = get_attr(me, 'mine_' + enactor.id, 0); "
-    "d = get_attr(me, 'drink_' + enactor.id, 0); "
-    "s = get_attr(me, 'secret_' + enactor.id, 0); "
+    "@set Old Moss/menu = t = V('town_' + enactor.id, 0); "
+    "m = V('mine_' + enactor.id, 0); "
+    "d = V('drink_' + enactor.id, 0); "
+    "s = V('secret_' + enactor.id, 0); "
     "result = '[1] Ask about the town.' "
     "+ (' [2] Ask about the old mine.' if t else '') "
     "+ (' [3] Press him about the collapse.' if m and d and not s else '') "
     "+ ' [q] Leave him be.'",
-    "@set Old Moss/cmd_talk = $talk:met = get_attr(me, 'met_' + enactor.id, 0); "
+    "@set Old Moss/cmd_talk = $talk:met = V('met_' + enactor.id, 0); "
     "set_attr(me, 'met_' + enactor.id, 1); "
     "say('New face. Name is Moss. Sit, if you like.' if not met else "
-    "'Back again, ' + name(enactor) + '. Thought so.'); "
+    "f'Back again, {name(enactor)}. Thought so.'); "
     "prompt(enactor, eval_attr(me, 'menu'), 'node_root')",
     "@set Old Moss/node_root = a = trim(arg0); "
-    "t = get_attr(me, 'town_' + enactor.id, 0); "
-    "m = get_attr(me, 'mine_' + enactor.id, 0); "
-    "d = get_attr(me, 'drink_' + enactor.id, 0); "
-    "s = get_attr(me, 'secret_' + enactor.id, 0); "
+    "t = V('town_' + enactor.id, 0); "
+    "m = V('mine_' + enactor.id, 0); "
+    "d = V('drink_' + enactor.id, 0); "
+    "s = V('secret_' + enactor.id, 0); "
     "((set_attr(me, 'town_' + enactor.id, 1), "
     "say('Quiet town. Was not always - the mine kept it loud, before the "
     "collapse.'), prompt(enactor, eval_attr(me, 'menu'), 'node_root')) "
@@ -115,7 +115,7 @@ BUILD_067 = [
     "charges down himself, on watch-house coin. Then he says no more.')) "
     "if a == '3' and m and d and not s else "
     "say('Moss waves you off and studies his mug.'))",
-    "@set Old Moss/on_payment = paid = credits(me) - get_attr(me, 'tab', 0); "
+    "@set Old Moss/on_payment = paid = credits(me) - V('tab', 0); "
     "((set_attr(me, 'tab', credits(me)), "
     "set_attr(me, 'drink_' + enactor.id, 1), "
     "pose('drinks deep and wipes his beard.')) if paid >= 5 else "
@@ -131,7 +131,7 @@ BUILD_068 = [
     "drop town clock",
     "@set town clock/hour = 6",
     "@set town clock/on_tick = set_attr(me, 'hour', "
-    "(get_attr(me, 'hour', 0) + 1) % 24)",
+    "(V('hour', 0) + 1) % 24)",
     "@behavior town clock = script_ticker, interval:1",
     "@create Verity",
     "@tag Verity = npc",
@@ -166,7 +166,7 @@ BUILD_071 = [
     "@create Town Watch",
     "@zone/master Town Watch = town",
     "@set Town Watch/on_attack = crime = not has_tag(enactor, 'town_watch'); "
-    "fresh = now() - get_attr(me, 'last_alarm', 0) > 60; "
+    "fresh = now() - V('last_alarm', 0) > 60; "
     "((set_attr(me, 'last_alarm', now()), "
     "adjust_disposition('Watchman Bren', enactor, -5), "
     "teleport_obj('Watchman Bren', here), "

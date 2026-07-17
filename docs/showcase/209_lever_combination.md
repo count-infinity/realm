@@ -111,7 +111,7 @@ keep it to one line, and the final `[-1]` returns the branch's value so
 nothing leaks to the caller:
 
 ```text
-@set lock mechanism/cmd_pull = $pull *: lev = get(trim(arg0)); (pemit(enactor, 'There is no such lever to pull here.') if not (lev and has_tag(lev, 'lever') and loc(lev) == loc(me)) else (color := replace(name(lev), ' lever', ''), seq := (get_attr(me, 'entered') or []) + [color], code := str(get_attr(me, 'code')).split(), full := len(seq) >= len(code), (set_attr(me, 'entered', []), (remit(loc(me), 'Tumblers slam home deep in the wall -- the vault gate grinds open!'), remove_tag(get('vault gate'), 'closed')) if seq == code else remit(loc(me), 'A brazen buzzer blares. Every lever springs back to neutral.')) if full else (set_attr(me, 'entered', seq), remit(loc(me), 'The ' + color + ' lever thunks down. Something heavy shifts behind the wall.')))[-1])
+@set lock mechanism/cmd_pull = $pull *: lev = get(trim(arg0)); (pemit(enactor, 'There is no such lever to pull here.') if not (lev and has_tag(lev, 'lever') and loc(lev) == loc(me)) else (color := replace(name(lev), ' lever', ''), seq := (V('entered') or []) + [color], code := str(V('code')).split(), full := len(seq) >= len(code), (set_attr(me, 'entered', []), (remit(loc(me), 'Tumblers slam home deep in the wall -- the vault gate grinds open!'), remove_tag(get('vault gate'), 'closed')) if seq == code else remit(loc(me), 'A brazen buzzer blares. Every lever springs back to neutral.')) if full else (set_attr(me, 'entered', seq), remit(loc(me), 'The ' + color + ' lever thunks down. Something heavy shifts behind the wall.')))[-1])
 ```
 
 ## Try it

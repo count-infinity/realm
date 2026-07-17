@@ -48,22 +48,22 @@ The recorder and its consent verbs:
 @create scene recorder
 drop scene recorder
 @desc scene recorder = A slim obsidian obelisk. JOIN SCENE to consent to recording; LEAVE SCENE to opt out; EXPORT reads the log back.
-@set scene recorder/cmd_join = $join scene:(pemit(enactor, 'You are already part of this scene.') if enactor.id in (get_attr(me, 'cast') or []) else (set_attr(me, 'cast', (get_attr(me, 'cast') or []) + [enactor.id]), remit(here, name(enactor) + ' steps into the scene. (now recording their poses and speech)')))
-@set scene recorder/cmd_leave = $leave scene:(set_attr(me, 'cast', [c for c in (get_attr(me, 'cast') or []) if c != enactor.id]), pemit(enactor, 'You step out of the scene.'))
+@set scene recorder/cmd_join = $join scene:(pemit(enactor, 'You are already part of this scene.') if enactor.id in (V('cast') or []) else (set_attr(me, 'cast', (V('cast') or []) + [enactor.id]), remit(here, name(enactor) + ' steps into the scene. (now recording their poses and speech)')))
+@set scene recorder/cmd_leave = $leave scene:(set_attr(me, 'cast', [c for c in (V('cast') or []) if c != enactor.id]), pemit(enactor, 'You step out of the scene.'))
 ```
 
 The two taps — speech verbatim, poses as ordered markers — both gated on
 the consent roster:
 
 ```text
-@set scene recorder/listen_all = ^*:set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[now(), name(enactor), 'says, "' + escape(arg0) + '"']])[-100:]) if enactor and enactor.id in (get_attr(me, 'cast') or []) else None
-@set scene recorder/on_emote = set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[now(), name(enactor), '(emotes -- pose text is not exposed to witnesses)']])[-100:]) if enactor and enactor.id in (get_attr(me, 'cast') or []) else None
+@set scene recorder/listen_all = ^*:set_attr(me, 'log', ((V('log') or []) + [[now(), name(enactor), 'says, "' + escape(arg0) + '"']])[-100:]) if enactor and enactor.id in (V('cast') or []) else None
+@set scene recorder/on_emote = set_attr(me, 'log', ((V('log') or []) + [[now(), name(enactor), '(emotes -- pose text is not exposed to witnesses)']])[-100:]) if enactor and enactor.id in (V('cast') or []) else None
 ```
 
 Playback, oldest first, with ages computed at read time:
 
 ```text
-@set scene recorder/cmd_export = $export:rows = get_attr(me, 'log') or []; pemit(enactor, 'The scene is blank.') if not rows else [pemit(enactor, '[' + str(r[0] - rows[0][0]) + 's] ' + r[1] + ' ' + r[2]) for r in rows]
+@set scene recorder/cmd_export = $export:rows = V('log') or []; pemit(enactor, 'The scene is blank.') if not rows else [pemit(enactor, '[' + str(r[0] - rows[0][0]) + 's] ' + r[1] + ' ' + r[2]) for r in rows]
 ```
 
 ## Try it
@@ -88,10 +88,12 @@ order — but Cara, who never joined, appears nowhere. `leave scene` and
 your subsequent lines stop landing on the log. The obelisk keeps recording
 the rest of the cast either way.
 
-**Limit, stated once:** poses log their *order* and author but not their
-text, because REALM's `ON_<EVENT>` witnesses receive no action payload
-(item 120's note). The workaround below captures full pose text at the cost
-of a dedicated verb.
+**Limit, stated once — now lifted:** this build logs a pose's *order* and
+author but not its text, because when it was written `ON_<EVENT>`
+witnesses received no action payload. That changed on 2026-07-17:
+`adata('pose')` returns the text, so `ON_EMOTE` can log poses verbatim
+with no extra verb. The dedicated-verb workaround below still works and
+is kept for reference.
 
 ## Going further
 

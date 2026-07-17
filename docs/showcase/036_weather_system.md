@@ -39,8 +39,7 @@ Three pieces:
 3. **Descriptions are stamped, not fetched.** When the state changes,
    the master also writes the matching standing line from `wx_descs`
    onto each zone room as a `wx_line` attribute; every room desc then
-   carries a `[[...]]` block that just reads `get_attr(me, 'wx_line',
-   '')`. Push-on-change beats pull-per-look: the remote table lookup
+   carries a `[[...]]` block that just reads `V('wx_line', '')`. Push-on-change beats pull-per-look: the remote table lookup
    happens **once per transition, on the ticker** (which runs on its
    own worker stack), while the block that runs on *every look, per
    viewer, on the look's own call stack* stays a single cheap local
@@ -88,7 +87,7 @@ room gets the transition *announced* (`remit`) and its standing line
 delegation):
 
 ```text
-@set Harbor Sky/on_tick = states = get_attr(me, 'wx_states', []); i = member(get_attr(me, 'weather', 'clear'), states) - 1; j = clamp(i + rand(0, 2) - 1, 0, len(states) - 1); (set_attr(me, 'weather', states[j]), [(set_attr(r, 'wx_line', get_attr(me, 'wx_descs', {}).get(states[j], '')), remit(r, get_attr(me, 'wx_msgs', {}).get(states[j], ''))) for r in zone_rooms('harbor')]) if i >= 0 and j != i else None
+@set Harbor Sky/on_tick = states = V('wx_states', []); i = member(V('weather', 'clear'), states) - 1; j = clamp(i + rand(0, 2) - 1, 0, len(states) - 1); (set_attr(me, 'weather', states[j]), [(set_attr(r, 'wx_line', V('wx_descs', {}).get(states[j], '')), remit(r, V('wx_msgs', {}).get(states[j], ''))) for r in zone_rooms('harbor')]) if i >= 0 and j != i else None
 @behavior Harbor Sky = script_ticker, interval:15
 ```
 
@@ -98,7 +97,7 @@ the description read it — one local attribute, nothing else:
 
 ```text
 @set here/wx_line = Sunlight hammers the tin roofs.
-@desc here = Tarred pilings, drying nets, gulls arguing over fish heads. [[result = get_attr(me, 'wx_line', '')]]
+@desc here = Tarred pilings, drying nets, gulls arguing over fish heads. [[result = V('wx_line', '')]]
 ```
 
 ## Try it

@@ -50,46 +50,46 @@ drop Bookie Barnum
 @eval m = get('Bookie Barnum'); adjust_credits(m, 1000); set_attr(m, 'ledger', credits(m)); result = credits(m)
 @set Bookie Barnum/field = {"Comet": 2, "Old Thunder": 3, "Rustbucket": 5}
 @set Bookie Barnum/distance = 30
-@set Bookie Barnum/cmd_odds = $odds: f = get_attr(me, 'field', {}); pemit(enactor, 'The chalkboard:'); [pemit(enactor, '  ' + nm + ' -- ' + str(od) + '-to-1') for nm, od in sorted(f.items())]; pemit(enactor, 'Pay me your stake, then: back <runner>.')
+@set Bookie Barnum/cmd_odds = $odds: f = V('field', {}); pemit(enactor, 'The chalkboard:'); [pemit(enactor, f'  {nm} -- {od}-to-1') for nm, od in sorted(f.items())]; pemit(enactor, 'Pay me your stake, then: back <runner>.')
 ```
 
 The palm — stakes armed while the track is quiet, bounced while it
 runs:
 
 ```text
-@set Bookie Barnum/on_payment = paid = credits(me) - get_attr(me, 'ledger', 0); ok = not get_attr(me, 'running', 0) and paid > 0; k = 'stake_' + enactor.id; (set_attr(me, k, get_attr(me, k, 0) + paid), pemit(enactor, 'Barnum palms your ' + str(paid) + ' credits: now back a runner.')) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, 'No bets while they run. Your credits, returned.')) if paid > 0 else None; set_attr(me, 'ledger', credits(me))
+@set Bookie Barnum/on_payment = paid = credits(me) - V('ledger', 0); ok = not V('running', 0) and paid > 0; k = 'stake_' + enactor.id; (set_attr(me, k, V(k, 0) + paid), pemit(enactor, 'Barnum palms your ' + str(paid) + ' credits: now back a runner.')) if ok else (transfer_credits(me, enactor, paid), pemit(enactor, 'No bets while they run. Your credits, returned.')) if paid > 0 else None; set_attr(me, 'ledger', credits(me))
 ```
 
 The book — assigning your armed stake starts the post-time countdown:
 
 ```text
-@set Bookie Barnum/cmd_back = $back *: f = get_attr(me, 'field', {}); pickl = [nm for nm in f if nm.lower() == trim(arg0).lower()]; k = 'stake_' + enactor.id; st = get_attr(me, k, 0); ok = bool(pickl) and st > 0 and not get_attr(me, 'running', 0); bk = get_attr(me, 'book', {}); [(bk.update({enactor.id: {'runner': pickl[0], 'stake': st, 'name': name(enactor)}}), set_attr(me, 'book', bk), del_attr(me, k), set_attr(me, 'post', get_attr(me, 'post', 3)), remit(here, name(enactor) + ' backs ' + pickl[0] + ' for ' + str(st) + ' at ' + str(f[pickl[0]]) + '-to-1.')) for g in [ok] if g]; pemit(enactor, 'Pay your stake first, name a runner on the card, and bet before the off.') if not ok else None
+@set Bookie Barnum/cmd_back = $back *: f = V('field', {}); pickl = [nm for nm in f if nm.lower() == trim(arg0).lower()]; k = 'stake_' + enactor.id; st = V(k, 0); ok = bool(pickl) and st > 0 and not V('running', 0); bk = V('book', {}); [(bk.update({enactor.id: {'runner': pickl[0], 'stake': st, 'name': name(enactor)}}), set_attr(me, 'book', bk), del_attr(me, k), set_attr(me, 'post', V('post', 3)), remit(here, f'{name(enactor)} backs {pickl[0]} for {st} at {f[pickl[0]]}-to-1.')) for g in [ok] if g]; pemit(enactor, 'Pay your stake first, name a runner on the card, and bet before the off.') if not ok else None
 ```
 
 The clock, split into helpers. The dispatcher:
 
 ```text
 @behavior Bookie Barnum = script_ticker, interval:6
-@set Bookie Barnum/on_tick = eval_attr(me, 'stride') if get_attr(me, 'running', 0) else (eval_attr(me, 'countdown') if get_attr(me, 'book', {}) else None)
+@set Bookie Barnum/on_tick = eval_attr(me, 'stride') if V('running', 0) else (eval_attr(me, 'countdown') if V('book', {}) else None)
 ```
 
 Post time:
 
 ```text
-@set Bookie Barnum/countdown = c = get_attr(me, 'post', 3) - 1; set_attr(me, 'post', c); (set_attr(me, 'running', 1), set_attr(me, 'positions', {nm: 0 for nm in get_attr(me, 'field', {})}), remit(here, 'A bell! They are off!')) if c <= 0 else remit(here, 'Barnum bawls: post time in ' + str(c) + '!'); result = 1
+@set Bookie Barnum/countdown = c = decr('post'); (set_attr(me, 'running', 1), set_attr(me, 'positions', {nm: 0 for nm in V('field', {})}), remit(here, 'A bell! They are off!')) if c <= 0 else remit(here, f'Barnum bawls: post time in {c}!'); result = 1
 ```
 
 The race call — every runner strides, the leader gets the line, the
 wire ends it:
 
 ```text
-@set Bookie Barnum/stride = f = get_attr(me, 'field', {}); pos = get_attr(me, 'positions', {}); upd = {nm: pos[nm] + rand(1, 9 - min(f[nm], 7)) for nm in pos}; set_attr(me, 'positions', upd); lead = max(upd, key=upd.get); dist = get_attr(me, 'distance', 30); (remit(here, lead + ' takes the wire! ' + lead + ' wins!'), eval_attr(me, 'payout', lead)) if upd[lead] >= dist else remit(here, lead + ' leads at the ' + str(upd[lead]) + ' mark.'); result = 1
+@set Bookie Barnum/stride = f = V('field', {}); pos = V('positions', {}); upd = {nm: pos[nm] + rand(1, 9 - min(f[nm], 7)) for nm in pos}; set_attr(me, 'positions', upd); lead = max(upd, key=upd.get); dist = V('distance', 30); (remit(here, f'{lead} takes the wire! {lead} wins!'), eval_attr(me, 'payout', lead)) if upd[lead] >= dist else remit(here, f'{lead} leads at the {upd[lead]} mark.'); result = 1
 ```
 
 Settlement — winners at odds+1, the book wiped, the ledger re-synced:
 
 ```text
-@set Bookie Barnum/payout = f = get_attr(me, 'field', {}); bk = get_attr(me, 'book', {}); [(transfer_credits(me, get('#' + pid), b['stake'] * (f[arg0] + 1)), pemit(get('#' + pid), 'Barnum counts out ' + str(b['stake'] * (f[arg0] + 1)) + ' credits. Pleasure doing business.')) for pid, b in bk.items() if b['runner'] == arg0]; set_attr(me, 'running', 0); set_attr(me, 'book', {}); del_attr(me, 'positions'); del_attr(me, 'post'); set_attr(me, 'ledger', credits(me)); result = 1
+@set Bookie Barnum/payout = f = V('field', {}); bk = V('book', {}); [(transfer_credits(me, get('#' + pid), b['stake'] * (f[arg0] + 1)), pemit(get('#' + pid), f'Barnum counts out {b["stake"] * (f[arg0] + 1)} credits. Pleasure doing business.')) for pid, b in bk.items() if b['runner'] == arg0]; set_attr(me, 'running', 0); set_attr(me, 'book', {}); del_attr(me, 'positions'); del_attr(me, 'post'); set_attr(me, 'ledger', credits(me)); result = 1
 ```
 
 ## Try it

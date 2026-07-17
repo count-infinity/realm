@@ -67,15 +67,15 @@ outfitter
 @set flak vest/slot = torso
 @set flak vest/dr = 3
 @set flak vest/condition = 3
-@desc flak vest = Ceramic plates in a webbing carrier. [[c = get_attr(me, 'condition', 0); result = 'The plates look factory-fresh.' if c >= 3 else ('Cracks spider across the plates.' if c > 0 else 'The carrier is full of ceramic gravel. It will stop nothing.')]]
+@desc flak vest = Ceramic plates in a webbing carrier. [[c = V('condition', 0); result = 'The plates look factory-fresh.' if c >= 3 else ('Cracks spider across the plates.' if c > 0 else 'The carrier is full of ceramic gravel. It will stop nothing.')]]
 ```
 
 The equip seams — wear installs the soak and the ledger, removal
 uninstalls and syncs:
 
 ```text
-@set flak vest/on_wear = c = get_attr(me, 'condition', 0); (pemit(enactor, 'The vest is shredded -- it will stop nothing until it is repaired.') if c <= 0 else (set_attr(enactor, 'damage_resistance', get_attr(me, 'dr', 3)), set_attr(enactor, 'armor_condition', c), set_attr(enactor, 'on_damage', get_attr(me, 'degrade')), pemit(enactor, 'You cinch the flak vest tight. (DR ' + str(get_attr(me, 'dr', 3)) + ', ' + str(c) + ' plates)')))
-@set flak vest/degrade = c = get_attr(me, 'armor_condition', 0); (None if c <= 0 else ((set_attr(me, 'armor_condition', 0), set_attr(me, 'damage_resistance', 0), pemit(me, 'Your vest takes the brunt -- and comes apart at the seams. It will stop nothing more.')) if c <= 1 else (set_attr(me, 'armor_condition', c - 1), pemit(me, 'Your vest soaks the worst of it. (' + str(c - 1) + ' plates left)'))))
+@set flak vest/on_wear = c = V('condition', 0); (pemit(enactor, 'The vest is shredded -- it will stop nothing until it is repaired.') if c <= 0 else (set_attr(enactor, 'damage_resistance', V('dr', 3)), set_attr(enactor, 'armor_condition', c), set_attr(enactor, 'on_damage', V('degrade')), pemit(enactor, 'You cinch the flak vest tight. (DR ' + str(V('dr', 3)) + ', ' + str(c) + ' plates)')))
+@set flak vest/degrade = c = V('armor_condition', 0); (None if c <= 0 else ((set_attr(me, 'armor_condition', 0), set_attr(me, 'damage_resistance', 0), pemit(me, 'Your vest takes the brunt -- and comes apart at the seams. It will stop nothing more.')) if c <= 1 else pemit(me, 'Your vest soaks the worst of it. (' + str(decr('armor_condition')) + ' plates left)')))
 @set flak vest/on_remove = set_attr(me, 'condition', get_attr(enactor, 'armor_condition', 0)); set_attr(enactor, 'damage_resistance', 0); del_attr(enactor, 'armor_condition'); del_attr(enactor, 'on_damage'); pemit(enactor, 'You shrug out of the vest.')
 drop flak vest
 ```

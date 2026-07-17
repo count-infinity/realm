@@ -67,9 +67,9 @@ attribute, and answers the customer — `arg0` arrives from the calling
 terminal, and `isdigit` keeps `deposit lots` from crashing anything:
 
 ```text
-@set BankNet Core/net_balance = bank = get('BankNet Core'); pemit(enactor, 'BANKNET -- account balance: ' + str(get_attr(bank, 'acct_' + enactor.id, 0)) + ' credits.'); result = 1
-@set BankNet Core/net_deposit = bank = get('BankNet Core'); amt = int(arg0) if arg0.isdigit() else 0; ok = amt > 0 and transfer_credits(enactor, bank, amt); k = 'acct_' + enactor.id; bal = get_attr(bank, k, 0) + amt; set_attr(bank, k, bal) if ok else None; pemit(enactor, 'Deposit accepted. Balance: ' + str(bal) + ' credits.' if ok else 'The terminal buzzes: your wallet cannot cover that.'); result = 1
-@set BankNet Core/net_withdraw = bank = get('BankNet Core'); amt = int(arg0) if arg0.isdigit() else 0; k = 'acct_' + enactor.id; bal = get_attr(bank, k, 0); ok = 0 < amt <= bal and transfer_credits(bank, enactor, amt); set_attr(bank, k, bal - amt) if ok else None; pemit(enactor, 'Notes whir out of the slot. Balance: ' + str(bal - amt) + ' credits.' if ok else 'The terminal buzzes: insufficient funds on account.'); result = 1
+@set BankNet Core/net_balance = bank = get('BankNet Core'); pemit(enactor, f"BANKNET -- account balance: {get_attr(bank, 'acct_' + enactor.id, 0)} credits."); result = 1
+@set BankNet Core/net_deposit = bank = get('BankNet Core'); amt = int(arg0) if arg0.isdigit() else 0; ok = amt > 0 and transfer_credits(enactor, bank, amt); k = f'acct_{enactor.id}'; bal = get_attr(bank, k, 0) + amt; set_attr(bank, k, bal) if ok else None; pemit(enactor, f'Deposit accepted. Balance: {bal} credits.' if ok else 'The terminal buzzes: your wallet cannot cover that.'); result = 1
+@set BankNet Core/net_withdraw = bank = get('BankNet Core'); amt = int(arg0) if arg0.isdigit() else 0; k = f'acct_{enactor.id}'; bal = get_attr(bank, k, 0); ok = 0 < amt <= bal and transfer_credits(bank, enactor, amt); set_attr(bank, k, bal - amt) if ok else None; pemit(enactor, f'Notes whir out of the slot. Balance: {bal - amt} credits.' if ok else 'The terminal buzzes: insufficient funds on account.'); result = 1
 ```
 
 The terminal — a dumb frontend: a screen that reads *your* account off
@@ -80,7 +80,7 @@ builtin, and builtins dispatch first.)
 ```text
 @create atm terminal
 drop atm terminal
-@desc atm terminal = A steel kiosk with a scratched screen and a cash slot polished by thumbs. [[result = 'The screen glows: ACCT ' + str(get_attr(get('BankNet Core'), 'acct_' + viewer.id, 0)) + ' CR.']]
+@desc atm terminal = A steel kiosk with a scratched screen and a cash slot polished by thumbs. [[result = f"The screen glows: ACCT {get_attr(get('BankNet Core'), 'acct_' + viewer.id, 0)} CR."]]
 @set atm terminal/cmd_atm = $atm: eval_attr(get('BankNet Core'), 'net_balance')
 @set atm terminal/cmd_deposit = $deposit *: eval_attr(get('BankNet Core'), 'net_deposit', trim(arg0))
 @set atm terminal/cmd_withdraw = $withdraw *: eval_attr(get('BankNet Core'), 'net_withdraw', trim(arg0))

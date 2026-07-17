@@ -52,7 +52,7 @@ message/move queue ordering, a time-keyed reentrancy guard.
 ledge
 @dig Scree Gully = down, up
 @desc here = A boot-wide shelf hugs the cliff face. Pebbles you dislodge take a long time to land.
-@set here/on_enter = k = 'fall_' + enactor.id; recent = now() - get_attr(me, k, 0) < 5; safe = not has_tag(enactor, 'player') or recent or skill_check(enactor, 'climbing', -2); (pemit(enactor, 'Scree shifts under your boots. You hug the rock and find your footing.') if has_tag(enactor, 'player') and not recent else None) if safe else (set_attr(me, k, now()), pemit(enactor, 'The lip crumbles under your boot. You are falling.'), teleport_obj(enactor, 'Scree Gully'), damage(enactor, roll('2d6')), remit(me, name(enactor) + ' misses a step and pitches over the edge!'), pemit(enactor, 'You slam into the scree below. Everything hurts.'))
+@set here/on_enter = k = 'fall_' + enactor.id; recent = now() - V(k, 0) < 5; safe = not has_tag(enactor, 'player') or recent or skill_check(enactor, 'climbing', -2); (pemit(enactor, 'Scree shifts under your boots. You hug the rock and find your footing.') if has_tag(enactor, 'player') and not recent else None) if safe else (set_attr(me, k, now()), pemit(enactor, 'The lip crumbles under your boot. You are falling.'), teleport_obj(enactor, 'Scree Gully'), damage(enactor, roll('2d6')), remit(me, name(enactor) + ' misses a step and pitches over the edge!'), pemit(enactor, 'You slam into the scree below. Everything hurts.'))
 back
 ```
 

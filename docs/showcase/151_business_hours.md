@@ -35,7 +35,7 @@ gate is one comparison: `open_hour <= hour < close_hour`.
 open/closed inside the description on every look, the terminal's
 `on_tick` computes the flag *once per tick* and stamps an `open`
 attribute on itself; the `[[...]]` desc block does a single shallow
-`get_attr(me, 'open', 0)`. That's the **push-on-change** rule from
+`V('open', 0)`. That's the **push-on-change** rule from
 [tutorial 036](036_weather_system.md): compute on the ticker (its own
 worker stack), read locally at render time. Deep remote reads inside a
 desc — reaching across to the clock every look, per viewer — are exactly
@@ -51,7 +51,7 @@ annex
 @create market clock
 drop market clock
 @set market clock/hour = 8
-@set market clock/on_tick = set_attr(me, 'hour', (get_attr(me, 'hour', 0) + 1) % 24)
+@set market clock/on_tick = set_attr(me, 'hour', (V('hour', 0) + 1) % 24)
 @behavior market clock = script_ticker, interval:1
 ```
 
@@ -65,16 +65,16 @@ drop trade terminal
 @set trade terminal/open_hour = 9
 @set trade terminal/close_hour = 17
 @set trade terminal/open = 0
-@set trade terminal/refresh = h = get_attr('market clock', 'hour', 12); set_attr(me, 'open', 1 if get_attr(me, 'open_hour', 9) <= h < get_attr(me, 'close_hour', 17) else 0)
+@set trade terminal/refresh = h = get_attr('market clock', 'hour', 12); set_attr(me, 'open', 1 if V('open_hour', 9) <= h < V('close_hour', 17) else 0)
 @set trade terminal/on_tick = eval_attr(me, 'refresh')
 @behavior trade terminal = script_ticker, interval:1
-@desc trade terminal = A wall-mounted trade console. [[result = 'A green OPEN light glows steadily.' if get_attr(me, 'open', 0) else 'A red CLOSED light glows; the screen is dark.']]
+@desc trade terminal = A wall-mounted trade console. [[result = 'A green OPEN light glows steadily.' if V('open', 0) else 'A red CLOSED light glows; the screen is dark.']]
 ```
 
 And the gate itself — `access` reads the stamped flag, not the clock:
 
 ```text
-@set trade terminal/cmd_access = $access terminal: pemit(enactor, 'ACCESS GRANTED. The markets are live -- place your orders.') if get_attr(me, 'open', 0) else pemit(enactor, 'The screen is dark. Trade hours are ' + str(get_attr(me, 'open_hour', 9)) + ':00 to ' + str(get_attr(me, 'close_hour', 17)) + ':00.')
+@set trade terminal/cmd_access = $access terminal: pemit(enactor, 'ACCESS GRANTED. The markets are live -- place your orders.') if V('open', 0) else pemit(enactor, 'The screen is dark. Trade hours are ' + str(V('open_hour', 9)) + ':00 to ' + str(V('close_hour', 17)) + ':00.')
 ```
 
 ## Try it

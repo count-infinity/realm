@@ -56,7 +56,7 @@ The `stamp` verb — mint the room with the template's tags, stamp its
 flavor into `desc_extras`, and hang a one-way exit from here:
 
 ```text
-@set cell stamp/cmd_stamp = $stamp *: nm = escape(trim(arg0)); r = create_obj(nm, tags=get_attr(me, 'tmpl_tags', ['room'])); set_attr(r, 'desc_extras', [['', get_attr(me, 'tmpl_desc', '')]]); e = create_obj('cell ' + nm, tags=['exit'], location=loc(enactor)); set_attr(e, 'destination', r.id); pemit(enactor, 'Stamped ' + nm + ', reachable as: cell ' + nm + '.')
+@set cell stamp/cmd_stamp = $stamp *: nm = escape(trim(arg0)); r = create_obj(nm, tags=V('tmpl_tags', ['room'])); set_attr(r, 'desc_extras', [['', V('tmpl_desc', '')]]); e = create_obj('cell ' + nm, tags=['exit'], location=loc(enactor)); set_attr(e, 'destination', r.id); pemit(enactor, 'Stamped ' + nm + ', reachable as: cell ' + nm + '.')
 ```
 
 ## Try it

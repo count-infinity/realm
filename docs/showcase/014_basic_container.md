@@ -58,7 +58,7 @@ data, and a description that counts its own contents:
 ```text
 @create canvas sack
 drop canvas sack
-@desc canvas sack = A patched canvas sack. [[n = len(contents(me)); result = 'It bulges around ' + str(n) + ' item' + ('' if n == 1 else 's') + '.']]
+@desc canvas sack = A patched canvas sack. [[n = len(contents(me)); result = f'It bulges around {n} item{"" if n == 1 else "s"}.']]
 @set canvas sack/container = true
 @set canvas sack/capacity = 3
 @set canvas sack/weight_limit = 10
@@ -69,7 +69,7 @@ unset weights count as 0 (`get_attr(..., 'weight', 0)`); then two
 guarded `block()` calls — full-by-count first, overweight second:
 
 ```text
-@set canvas sack/on_check = mine = atype == 'item:on_put' and target is me; item = adata('item'); adding = get_attr(item, 'weight', 0); held = len(contents(me)); load = sum([get_attr(o, 'weight', 0) for o in contents(me)]); cap = get_attr(me, 'capacity', 3); limit = get_attr(me, 'weight_limit', 10); block('The ' + name(me) + ' is stuffed full - ' + str(cap) + ' items is its limit.') if mine and held >= cap else None; block('At ' + str(adding) + ' lbs that would overload the ' + name(me) + ' (' + str(load) + ' of ' + str(limit) + ' lbs used).') if mine and held < cap and load + adding > limit else None
+@set canvas sack/on_check = mine = atype == 'item:on_put' and target is me; item = adata('item'); adding = get_attr(item, 'weight', 0); held = len(contents(me)); load = sum([get_attr(o, 'weight', 0) for o in contents(me)]); cap = V('capacity', 3); limit = V('weight_limit', 10); block(f'The {name(me)} is stuffed full - {cap} items is its limit.') if mine and held >= cap else None; block(f'At {adding} lbs that would overload the {name(me)} ({load} of {limit} lbs used).') if mine and held < cap and load + adding > limit else None
 ```
 
 And the friendly running total — an `ON_PUT` *reaction* on the sack.
@@ -78,7 +78,7 @@ is being gated, **before** the item actually moves, so the script
 counts `contents + 1`:
 
 ```text
-@set canvas sack/on_put = pemit(enactor, 'The ' + name(me) + ' now holds ' + str(len(contents(me)) + 1) + ' of ' + str(get_attr(me, 'capacity', 3)) + ' items.')
+@set canvas sack/on_put = pemit(enactor, f'The {name(me)} now holds {len(contents(me)) + 1} of {V("capacity", 3)} items.')
 ```
 
 Props to test with — weights are just attributes (the bottle cap and

@@ -113,7 +113,7 @@ PROTOTYPE_BUILD = [
     '@set prototype rack/proto_sword = {"name": "a sword", "damage": 3, "weight": 2}',
     '@set prototype rack/proto_greatsword = {"parent": "sword", "name": "a greatsword", "damage": 6}',
     "@set prototype rack/cmd_mint = $mint *: key = 'proto_' + trim(arg0); "
-    "p = get_attr(me, key); base = get_attr(me, 'proto_' + str(p.get('parent')), {}) "
+    "p = V(key); base = V('proto_' + str(p.get('parent')), {}) "
     "if p and p.get('parent') else {}; spec = {**base, **p} if p else None; "
     "o = create_obj(spec['name'], tags=['thing'], location=enactor) if spec else None; "
     "(set_attr(o, 'damage', spec.get('damage', 1)), set_attr(o, 'weight', "
@@ -226,7 +226,7 @@ DUNGEON_BUILD = [
     "drop dungeon forge",
     "@set dungeon forge/seed = 7",
     "@set dungeon forge/cmd_delve = $delve *: n = clamp(int(arg0), 2, 8); "
-    "s = get_attr(me, 'seed', 1); rooms = [create_obj('Cavern ' + str(i + 1), "
+    "s = V('seed', 1); rooms = [create_obj('Cavern ' + str(i + 1), "
     "tags=['room', 'dungeon:run']) for i in range(n)]; "
     "[set_attr(rooms[i], 'desc_extras', [['', 'Hewn rock, chamber ' + str(i + 1) + "
     "' of ' + str(n) + '.']]) for i in range(n)]; "
@@ -300,8 +300,8 @@ TEMPLATE_BUILD = [
     "@set cell stamp/tmpl_desc = A cramped stone cell. A slot in the door "
     "passes a tin tray; the air is cold and close.",
     "@set cell stamp/cmd_stamp = $stamp *: nm = escape(trim(arg0)); "
-    "r = create_obj(nm, tags=get_attr(me, 'tmpl_tags', ['room'])); "
-    "set_attr(r, 'desc_extras', [['', get_attr(me, 'tmpl_desc', '')]]); "
+    "r = create_obj(nm, tags=V('tmpl_tags', ['room'])); "
+    "set_attr(r, 'desc_extras', [['', V('tmpl_desc', '')]]); "
     "e = create_obj('cell ' + nm, tags=['exit'], location=loc(enactor)); "
     "set_attr(e, 'destination', r.id); pemit(enactor, 'Stamped ' + nm + "
     "', reachable as: cell ' + nm + '.')",
@@ -389,11 +389,11 @@ WIZARD_BUILD = [
     "@set build wizard/on_name = r = create_obj(escape(trim(arg0)), tags=['room']); "
     "set_attr(me, 'wip_room_' + enactor.id, r.id); prompt(enactor, 'Describe it in "
     "a sentence:', 'on_desc')",
-    "@set build wizard/on_desc = r = get('#' + str(get_attr(me, 'wip_room_' + "
+    "@set build wizard/on_desc = r = get('#' + str(V('wip_room_' + "
     "enactor.id))); set_attr(r, 'desc_extras', [['', escape(trim(arg0))]]); "
     "prompt(enactor, 'Which direction leads there from here?', 'on_exit')",
-    "@set build wizard/on_exit = d = trim(arg0).lower(); r = get('#' + str(get_attr("
-    "me, 'wip_room_' + enactor.id))); e = create_obj(d, tags=['exit'], "
+    "@set build wizard/on_exit = d = trim(arg0).lower(); r = get('#' + str(V("
+    "'wip_room_' + enactor.id))); e = create_obj(d, tags=['exit'], "
     "location=loc(enactor)); set_attr(e, 'destination', r.id); del_attr(me, "
     "'wip_room_' + enactor.id); pemit(enactor, 'Done. ' + name(r) + ' is now ' + d "
     "+ ' of here.')",
@@ -440,8 +440,8 @@ DYNDESC_BUILD = [
     "@zone here = cape",
     "@set here/lamp_state = dark",
     "@desc here = A spiral stair climbs to the lamp room. [[result = 'The great "
-    "lamp is ' + get_attr(me, 'lamp_state', 'dark') + '.']] [[result = ansi('yh', "
-    "'A beam sweeps the black water below.') if get_attr(me, 'lamp_state', 'dark') "
+    "lamp is ' + V('lamp_state', 'dark') + '.']] [[result = ansi('yh', "
+    "'A beam sweeps the black water below.') if V('lamp_state', 'dark') "
     "== 'lit' else '']]",
     "@create lamp keeper",
     "@zone/master lamp keeper = cape",
@@ -502,12 +502,12 @@ AUDIT_BUILD = [
     "orphans = [name(o) for o in world if loc(o) is None and not has_tag(o, 'room') "
     "and not has_tag(o, 'player')]; broken = [name(e) for e in world if has_tag(e, "
     "'exit') and not get('#' + str(get_attr(e, 'destination', '')))]; "
-    "fat = [name(o) + '/' + k for o in world for k, v in o.db.all().items() "
-    "if len(str(v)) > 1000]; pemit(enactor, 'AUDIT: ' + str(len(orphans)) + "
-    "' orphan(s), ' + str(len(broken)) + ' broken exit(s), ' + str(len(fat)) + "
-    "' oversized attr(s).'); [pemit(enactor, '  orphan: ' + o) for o in orphans]; "
-    "[pemit(enactor, '  broken exit: ' + e) for e in broken]; "
-    "[pemit(enactor, '  oversized: ' + f) for f in fat]",
+    "fat = [f'{name(o)}/{k}' for o in world for k, v in o.db.all().items() "
+    "if len(str(v)) > 1000]; pemit(enactor, f'AUDIT: {len(orphans)} orphan(s), "
+    "{len(broken)} broken exit(s), {len(fat)} oversized attr(s).'); "
+    "[pemit(enactor, f'  orphan: {o}') for o in orphans]; "
+    "[pemit(enactor, f'  broken exit: {e}') for e in broken]; "
+    "[pemit(enactor, f'  oversized: {f}') for f in fat]",
 ]
 
 
@@ -543,7 +543,7 @@ CSV_BUILD = [
     "drop room importer",
     '@set room importer/rows = ["r1,Guardroom,Spears line the wall.", '
     '"r2,Armory,Racks of dented steel."]',
-    "@set room importer/cmd_csv = $csv *: mode = trim(arg0); rows = get_attr(me, "
+    "@set room importer/cmd_csv = $csv *: mode = trim(arg0); rows = V("
     "'rows', []); parsed = [[c.strip() for c in row.split(',')] for row in rows]; "
     "bad = [p for p in parsed if len(p) != 3]; pemit(enactor, 'VALIDATION FAILED: ' "
     "+ str(len(bad)) + ' malformed row(s); fix them first.') if bad else None; "
@@ -624,20 +624,20 @@ AUTOMAP_BUILD = [
     "@set cartographer/cmd_map = $map *: z = trim(arg0); rooms = zone_rooms(z); "
     "dirs = {'north': [0, 1], 'south': [0, -1], 'east': [1, 0], 'west': [-1, 0]}; "
     "[del_attr(me, 'coord_' + r.id) for r in rooms]; set_attr(me, 'coord_' + here.id, "
-    "[0, 0]); [[set_attr(me, 'coord_' + d.id, [get_attr(me, 'coord_' + s.id)[0] + "
-    "dirs[nm][0], get_attr(me, 'coord_' + s.id)[1] + dirs[nm][1]]) for s in rooms "
+    "[0, 0]); [[set_attr(me, 'coord_' + d.id, [V('coord_' + s.id)[0] + "
+    "dirs[nm][0], V('coord_' + s.id)[1] + dirs[nm][1]]) for s in rooms "
     "for e in exits(s) for nm in [name(e).lower()] if nm in dirs for d in "
     "[get('#' + str(get_attr(e, 'destination', '')))] if d is not None and "
-    "get_attr(me, 'coord_' + s.id) is not None and get_attr(me, 'coord_' + d.id) "
+    "V('coord_' + s.id) is not None and V('coord_' + d.id) "
     "is None] for step in range(len(rooms))]; placed = [r for r in rooms if "
-    "get_attr(me, 'coord_' + r.id) is not None]; xs = [get_attr(me, 'coord_' + r.id)"
-    "[0] for r in placed]; ys = [get_attr(me, 'coord_' + r.id)[1] for r in placed]; "
-    "pemit(enactor, 'Map of ' + z + ' (' + str(len(placed)) + '/' + str(len(rooms)) "
-    "+ ' rooms placed):'); [pemit(enactor, ''.join(['[' + left(name([r for r in "
-    "placed if get_attr(me, 'coord_' + r.id) == [x, y]][0]), 2) + ']' if [r for r "
-    "in placed if get_attr(me, 'coord_' + r.id) == [x, y]] else '    ' for x in "
+    "V('coord_' + r.id) is not None]; xs = [V('coord_' + r.id)"
+    "[0] for r in placed]; ys = [V('coord_' + r.id)[1] for r in placed]; "
+    "pemit(enactor, f'Map of {z} ({len(placed)}/{len(rooms)} rooms placed):'); "
+    "[pemit(enactor, ''.join(['[' + left(name([r for r in "
+    "placed if V('coord_' + r.id) == [x, y]][0]), 2) + ']' if [r for r "
+    "in placed if V('coord_' + r.id) == [x, y]] else '    ' for x in "
     "range(min(xs), max(xs) + 1)])) for y in range(max(ys), min(ys) - 1, -1)]; "
-    "unmap = [name(s) + '/' + name(e) for s in rooms for e in exits(s) if "
+    "unmap = [f'{name(s)}/{name(e)}' for s in rooms for e in exits(s) if "
     "name(e).lower() not in dirs]; pemit(enactor, 'Unmappable links: ' + "
     "(', '.join(unmap) if unmap else 'none')); [del_attr(me, 'coord_' + r.id) "
     "for r in rooms]",
@@ -677,20 +677,20 @@ HOUSING_BUILD = [
     '@set here/furniture_ok = ["chair", "table", "rug", "lamp", "bed"]',
     "@set here/decor_max = 80",
     "@set here/cmd_claim = $claim: pemit(enactor, 'This home already has an "
-    "owner.') if get_attr(me, 'owner_id') else (set_attr(me, 'owner_id', "
+    "owner.') if V('owner_id') else (set_attr(me, 'owner_id', "
     "enactor.id), set_attr(me, 'owner_name', name(enactor)), pemit(enactor, "
     "'You take the keys. Try: decorate <text>, furnish <item>.'))",
-    "@set here/cmd_decorate = $decorate *: txt = trim(arg0); mx = get_attr(me, "
-    "'decor_max', 80); ok = enactor.id == get_attr(me, 'owner_id'); pemit(enactor, "
+    "@set here/cmd_decorate = $decorate *: txt = trim(arg0); mx = V("
+    "'decor_max', 80); ok = enactor.id == V('owner_id'); pemit(enactor, "
     "'This is not your home.') if not ok else (pemit(enactor, 'Too long — keep it "
     "under ' + str(mx) + ' characters.') if len(txt) > mx else (set_attr(me, "
     "'desc_extras', [['', escape(txt)]]), pemit(enactor, 'You redecorate.')))",
-    "@set here/cmd_furnish = $furnish *: item = trim(arg0).lower(); wl = get_attr("
-    "me, 'furniture_ok', []); ok = enactor.id == get_attr(me, 'owner_id'); "
+    "@set here/cmd_furnish = $furnish *: item = trim(arg0).lower(); wl = V("
+    "'furniture_ok', []); ok = enactor.id == V('owner_id'); "
     "pemit(enactor, 'This is not your home.') if not ok else (pemit(enactor, "
     "'Not an allowed furnishing. Try: ' + ', '.join(wl)) if item not in wl else "
     "(set_attr(create_obj('a ' + item, tags=['thing', 'furniture'], location=me), "
-    "'safe', True), remit(me, get_attr(me, 'owner_name', 'Someone') + ' sets out "
+    "'safe', True), remit(me, V('owner_name', 'Someone') + ' sets out "
     "a ' + item + '.')))",
     "street",
 ]

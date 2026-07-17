@@ -72,26 +72,26 @@ sheet (into your hands), points the roller at it, and asks for the
 first line:
 
 ```text
-@set brass typewriter/cmd_type = $type *: title = trim(arg0); busy = get_attr(me, 'sheet', ''); (pemit(enactor, 'A sheet is already in the roller; you pick up where the last typist left off.'), prompt(enactor, 'Next line (PAGE / DONE):', 'on_line')) if busy else None; pemit(enactor, 'Give the sheet a title: type <title>.') if not title and not busy else None; s = create_obj('a typed sheet: ' + title, tags=['thing', 'document'], location=enactor) if title and not busy else None; (set_attr(s, 'title', title), set_attr(s, 'pages', 1), set_attr(me, 'sheet', s.id), remit(here, name(enactor) + ' feeds a fresh sheet into the brass typewriter.'), prompt(enactor, 'The keys wait. Type a line (PAGE starts a new page; DONE pulls the sheet):', 'on_line')) if s else None
+@set brass typewriter/cmd_type = $type *: title = trim(arg0); busy = V('sheet', ''); (pemit(enactor, 'A sheet is already in the roller; you pick up where the last typist left off.'), prompt(enactor, 'Next line (PAGE / DONE):', 'on_line')) if busy else None; pemit(enactor, 'Give the sheet a title: type <title>.') if not title and not busy else None; s = create_obj(f'a typed sheet: {title}', tags=['thing', 'document'], location=enactor) if title and not busy else None; (set_attr(s, 'title', title), set_attr(s, 'pages', 1), set_attr(me, 'sheet', s.id), remit(here, f'{name(enactor)} feeds a fresh sheet into the brass typewriter.'), prompt(enactor, 'The keys wait. Type a line (PAGE starts a new page; DONE pulls the sheet):', 'on_line')) if s else None
 ```
 
 The wizard loop — sentinels first, then append-and-ask-again:
 
 ```text
-@set brass typewriter/on_line = s = get('#' + str(get_attr(me, 'sheet', ''))); w = trim(arg0); n = get_attr(s, 'pages', 1) if s else 0; (set_attr(me, 'sheet', ''), pemit(enactor, 'The platen ratchets back and you pull the finished sheet free.')) if not s or w == 'DONE' else ((set_attr(s, 'pages', n + 1), prompt(enactor, 'A fresh page rolls in. [page ' + str(n + 1) + '] Next line (PAGE / DONE):', 'on_line')) if w == 'PAGE' else (set_attr(s, 'page_' + str(n), get_attr(s, 'page_' + str(n), []) + [escape(arg0)]), prompt(enactor, '[page ' + str(n) + '] Next line (PAGE / DONE):', 'on_line')))
+@set brass typewriter/on_line = s = get(f"#{V('sheet', '')}"); w = trim(arg0); n = get_attr(s, 'pages', 1) if s else 0; (set_attr(me, 'sheet', ''), pemit(enactor, 'The platen ratchets back and you pull the finished sheet free.')) if not s or w == 'DONE' else ((set_attr(s, 'pages', n + 1), prompt(enactor, f'A fresh page rolls in. [page {n + 1}] Next line (PAGE / DONE):', 'on_line')) if w == 'PAGE' else (set_attr(s, f'page_{n}', get_attr(s, f'page_{n}', []) + [escape(arg0)]), prompt(enactor, f'[page {n}] Next line (PAGE / DONE):', 'on_line')))
 ```
 
 Reading — every page in order, headed and numbered (`get()` finds the
 named document in your hands or the room):
 
 ```text
-@set brass typewriter/cmd_peruse = $peruse *: s = get(trim(arg0)); ok = s is not None and has_tag(s, 'document'); pemit(enactor, 'There is no document by that name here.') if not ok else pemit(enactor, 'The type reads, page by page:'); [pemit(enactor, line) for g in [ok] if g for p in range(1, get_attr(s, 'pages', 1) + 1) for line in ['--- page ' + str(p) + ' ---'] + [str(x) for x in get_attr(s, 'page_' + str(p), [])]]
+@set brass typewriter/cmd_peruse = $peruse *: s = get(trim(arg0)); ok = s is not None and has_tag(s, 'document'); pemit(enactor, 'There is no document by that name here.') if not ok else pemit(enactor, 'The type reads, page by page:'); [pemit(enactor, line) for g in [ok] if g for p in range(1, get_attr(s, 'pages', 1) + 1) for line in [f'--- page {p} ---'] + [str(x) for x in get_attr(s, f'page_{p}', [])]]
 ```
 
 Signing — held documents only, once only, witnessed:
 
 ```text
-@set brass typewriter/cmd_sign = $sign *: s = get(trim(arg0)); ok = s is not None and has_tag(s, 'document') and loc(s) is enactor; already = str(get_attr(s, 'signed_by', '')) if ok else ''; pemit(enactor, 'Hold the document you mean to sign.') if not ok else None; pemit(enactor, 'It already bears a signature: ' + already + '.') if ok and already else None; k = 'page_' + str(get_attr(s, 'pages', 1)) if ok else ''; (set_attr(s, k, get_attr(s, k, []) + ['Signed in a firm hand: ' + name(enactor)]), set_attr(s, 'signed_by', name(enactor)), remit(here, name(enactor) + ' signs ' + name(s) + ' with a flourish.')) if ok and not already else None
+@set brass typewriter/cmd_sign = $sign *: s = get(trim(arg0)); ok = s is not None and has_tag(s, 'document') and loc(s) is enactor; already = str(get_attr(s, 'signed_by', '')) if ok else ''; pemit(enactor, 'Hold the document you mean to sign.') if not ok else None; pemit(enactor, f'It already bears a signature: {already}.') if ok and already else None; k = f"page_{get_attr(s, 'pages', 1)}" if ok else ''; (set_attr(s, k, get_attr(s, k, []) + [f'Signed in a firm hand: {name(enactor)}']), set_attr(s, 'signed_by', name(enactor)), remit(here, f'{name(enactor)} signs {name(s)} with a flourish.')) if ok and not already else None
 ```
 
 ## Try it

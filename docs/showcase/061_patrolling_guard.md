@@ -77,8 +77,8 @@ North Wall:
 @tag Sergeant Yara = npc
 drop Sergeant Yara
 @desc Sergeant Yara = Boots you could shave in. She walks the same round she has walked for nine years.
-@set Sergeant Yara/on_open = (say('Who goes into the armory? State your business.'), set_attr(me, 'challenged', now())) if now() - get_attr(me, 'challenged', 0) > 20 else None
-@set Sergeant Yara/on_arrive = left_open = [o for o in contents(here) if has_tag(o, 'exit') and get_attr(o, 'door', 0) and not has_tag(o, 'closed')]; [(pose('mutters about lax discipline.'), cmd('close ' + name(o))) for o in left_open]
+@set Sergeant Yara/on_open = (say('Who goes into the armory? State your business.'), set_attr(me, 'challenged', now())) if now() - V('challenged', 0) > 20 else None
+@set Sergeant Yara/on_arrive = left_open = [o for o in contents(here) if has_tag(o, 'exit') and get_attr(o, 'door', 0) and not has_tag(o, 'closed')]; [(pose('mutters about lax discipline.'), cmd(f'close {name(o)}')) for o in left_open]
 @behavior Sergeant Yara = patrol, route:["battlements", "wall", "gatehouse", "wall"], pause:2
 ```
 

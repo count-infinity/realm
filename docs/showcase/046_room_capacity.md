@@ -48,8 +48,8 @@ Details that matter:
 @dig Maintenance Closet = closet, out
 closet
 @set here/capacity = 2
-@set here/on_check = block('There is no room. ' + name(me) + ' is packed shoulder to shoulder.') if atype == 'event:pre_enter' and has_atag('movement') and has_tag(actor, 'player') and len([o for o in contents(me) if has_tag(o, 'player')]) >= get_attr(me, 'capacity', 2) else None
-@desc here = Mop, bucket, fuse panel. Space for two people and one grudge. [[n = len([o for o in contents(me) if has_tag(o, 'player')]); result = str(n) + ' of ' + str(get_attr(me, 'capacity', 2)) + ' spots are taken.']]
+@set here/on_check = block(f'There is no room. {name(me)} is packed shoulder to shoulder.') if atype == 'event:pre_enter' and has_atag('movement') and has_tag(actor, 'player') and len([o for o in contents(me) if has_tag(o, 'player')]) >= V('capacity', 2) else None
+@desc here = Mop, bucket, fuse panel. Space for two people and one grudge. [[n = len([o for o in contents(me) if has_tag(o, 'player')]); result = f"{n} of {V('capacity', 2)} spots are taken."]]
 out
 ```
 

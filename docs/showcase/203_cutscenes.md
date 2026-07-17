@@ -25,7 +25,7 @@ one-wait-at-a-time chain; here the payload is text instead of klaxons.)
 Three points:
 
 - **Paced by an attribute, not a magic number.** The pause between lines
-  is `get_attr(me, 'pace', 6)` — a knob you can turn per projector (and
+  is `V('pace', 6)` — a knob you can turn per projector (and
   set to `0` for instant playback while testing). `play` kicks the chain
   with `wait(0, ...)` so the first line lands immediately.
 - **`remit` reaches the room; `pemit` reaches one.** This projector plays
@@ -54,14 +54,14 @@ drop holoprojector
 self-scheduling body that shows a line and books the next:
 
 ```text
-@set holoprojector/cmd_play = $play briefing:(pemit(enactor, 'The projector is already running. Type skip to cut it short.') if get_attr(me, 'pending') else (set_attr(me, 'step', 0), set_attr(me, 'pending', wait(0, 'trigger me/scene_step'))))
-@set holoprojector/scene_step = lines = get_attr(me, 'scenes', []); n = get_attr(me, 'step', 0); (del_attr(me, 'pending') if n >= len(lines) else (remit(here, lines[n]), set_attr(me, 'step', n + 1), set_attr(me, 'pending', wait(get_attr(me, 'pace', 6), 'trigger me/scene_step'))))
+@set holoprojector/cmd_play = $play briefing:(pemit(enactor, 'The projector is already running. Type skip to cut it short.') if V('pending') else (set_attr(me, 'step', 0), set_attr(me, 'pending', wait(0, 'trigger me/scene_step'))))
+@set holoprojector/scene_step = lines = V('scenes', []); n = V('step', 0); (del_attr(me, 'pending') if n >= len(lines) else (remit(here, lines[n]), incr('step'), set_attr(me, 'pending', wait(V('pace', 6), 'trigger me/scene_step'))))
 ```
 
 `skip` — cancel the one pending wait and stop:
 
 ```text
-@set holoprojector/cmd_skip = $skip:(pemit(enactor, 'Nothing is playing.') if not get_attr(me, 'pending') else (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), set_attr(me, 'step', 0), remit(here, 'The projection snaps off. (skipped)')))
+@set holoprojector/cmd_skip = $skip:(pemit(enactor, 'Nothing is playing.') if not V('pending') else (cancel_wait(V('pending')), del_attr(me, 'pending'), set_attr(me, 'step', 0), remit(here, 'The projection snaps off. (skipped)')))
 ```
 
 ## Try it

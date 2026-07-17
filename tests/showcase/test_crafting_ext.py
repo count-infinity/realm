@@ -121,12 +121,12 @@ def text(out):
 BUILD_121 = [
     "@create balthite vein",
     "drop balthite vein",
-    "@desc balthite vein = A seam of blue-green balthite crystal veining the rock face. [[left = get_attr(me, 'ore_left', 0); result = 'It glitters, thick with ore.' if left > 2 else ('Only pale traces remain in the cut.' if left > 0 else 'It is hacked bare -- nothing but scarred rock.')]]",
+    "@desc balthite vein = A seam of blue-green balthite crystal veining the rock face. [[left = V('ore_left', 0); result = 'It glitters, thick with ore.' if left > 2 else ('Only pale traces remain in the cut.' if left > 0 else 'It is hacked bare -- nothing but scarred rock.')]]",
     "@set balthite vein/ore_cap = 4",
     "@set balthite vein/ore_left = 4",
     "@set balthite vein/regrow_ticks = 3",
-    "@set balthite vein/cmd_mine = $mine vein: left = get_attr(me, 'ore_left', 0); res = margin_under(roll('3d6'), get_attr(enactor, 'skill_prospecting', 8)); take = min(left, 1 + max(0, res.margin) // 3); pemit(enactor, 'The vein is hacked bare. Rock heals on its own clock; come back later.') if left < 1 else None; pemit(enactor, 'Sparks, dust, no ore. (rolled ' + str(res.roll) + ' vs prospecting ' + str(res.effective) + ')') if left > 0 and not res.success else None; (set_attr(me, 'ore_left', left - take), [create_obj('a chunk of balthite ore', ['thing', 'ore'], here) for i in range(take)], remit(here, name(enactor) + ' swings at the vein -- ' + str(take) + ' chunk(s) of balthite clatter free.'), (set_attr(me, 'regrow_left', get_attr(me, 'regrow_ticks', 3)), remit(here, 'The seam splits and goes dark, spent.')) if left - take < 1 else None) if left > 0 and res.success else None",
-    "@set balthite vein/on_tick = left = get_attr(me, 'ore_left', 0); r = get_attr(me, 'regrow_left', 0); (set_attr(me, 'regrow_left', r - 1) if r > 1 else (set_attr(me, 'ore_left', get_attr(me, 'ore_cap', 4)), del_attr(me, 'regrow_left'), remit(here, 'Fresh balthite creeps glittering back across the rock face.'))) if left < 1 else None",
+    "@set balthite vein/cmd_mine = $mine vein: left = V('ore_left', 0); res = margin_under(roll('3d6'), get_attr(enactor, 'skill_prospecting', 8)); take = min(left, 1 + max(0, res.margin) // 3); pemit(enactor, 'The vein is hacked bare. Rock heals on its own clock; come back later.') if left < 1 else None; pemit(enactor, 'Sparks, dust, no ore. (rolled ' + str(res.roll) + ' vs prospecting ' + str(res.effective) + ')') if left > 0 and not res.success else None; (decr('ore_left', take), [create_obj('a chunk of balthite ore', ['thing', 'ore'], here) for i in range(take)], remit(here, name(enactor) + ' swings at the vein -- ' + str(take) + ' chunk(s) of balthite clatter free.'), (set_attr(me, 'regrow_left', V('regrow_ticks', 3)), remit(here, 'The seam splits and goes dark, spent.')) if left - take < 1 else None) if left > 0 and res.success else None",
+    "@set balthite vein/on_tick = left = V('ore_left', 0); r = V('regrow_left', 0); (decr('regrow_left') if r > 1 else (set_attr(me, 'ore_left', V('ore_cap', 4)), del_attr(me, 'regrow_left'), remit(here, 'Fresh balthite creeps glittering back across the rock face.'))) if left < 1 else None",
     "@behavior balthite vein = script_ticker, interval:30",
 ]
 
@@ -189,8 +189,25 @@ BUILD_122 = [
     "@desc assembly bench = A scarred steel bench under a rack of torque drivers. A job card is chained to one leg.",
     "@set assembly bench/menu = [\"valve\"]",
     "@set assembly bench/recipe_valve = {\"output\": \"a machined pressure valve\", \"tags\": [\"thing\", \"component\"], \"skill\": \"machining\", \"mod\": 0, \"needs\": {\"ingot\": 1, \"gasket\": 1}}",
-    "@set assembly bench/cmd_jobs = $jobs: [pemit(enactor, '  ' + s + ' -> ' + get_attr(me, 'recipe_' + s)['output'] + ' (needs: ' + ', '.join(str(n) + 'x ' + t for t, n in get_attr(me, 'recipe_' + s)['needs'].items()) + ')') for s in get_attr(me, 'menu', [])]",
-    "@set assembly bench/cmd_craft = $craft *: sel = trim(arg0).lower(); r = get_attr(me, 'recipe_' + sel); carried = contents(enactor) if r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The job card lists no such assembly. Try jobs.') if not r else None; pemit(enactor, 'Short of materials: ' + ', '.join(short) + '.') if r and short else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_' + r['skill'], 8) + r['mod']) if r and not short else None; ([destroy_obj(o) for t, n in r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], (create_obj(r['output'], r['tags'], here), remit(here, name(enactor) + ' works the bench -- ' + r['output'] + ' drops into the tray. (margin +' + str(res.margin) + ')')) if res.success else (create_obj('a lump of ruined scrap', ['thing', 'scrap'], here), remit(here, name(enactor) + ' botches the assembly -- ruined scrap hits the tray. (rolled ' + str(res.roll) + ' vs ' + r['skill'] + ' ' + str(res.effective) + ')'))) if r and not short else None",
+    "@set assembly bench/cmd_jobs = $jobs: [pemit(enactor, '  ' + s + ' -> ' "
+    "+ V('recipe_' + s)['output'] + ' (needs: ' + ', '.join(f'{n}x {t}' for "
+    "t, n in V('recipe_' + s)['needs'].items()) + ')') for s in V('menu', [])]",
+    "@set assembly bench/cmd_craft = $craft *: sel = trim(arg0).lower(); r = "
+    "V('recipe_' + sel); carried = contents(enactor) if r else []; short = "
+    "[str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n "
+    "in (r['needs'].items() if r else []) if len([o for o in carried if "
+    "has_tag(o, t)]) < n]; pemit(enactor, 'The job card lists no such "
+    "assembly. Try jobs.') if not r else None; pemit(enactor, 'Short of "
+    "materials: ' + ', '.join(short) + '.') if r and short else None; res = "
+    "margin_under(roll('3d6'), get_attr(enactor, 'skill_' + r['skill'], 8) + "
+    "r['mod']) if r and not short else None; ([destroy_obj(o) for t, n in "
+    "r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], "
+    "(create_obj(r['output'], r['tags'], here), remit(here, f'{name(enactor)} "
+    "works the bench -- {r[\"output\"]} drops into the tray. (margin "
+    "+{res.margin})')) if res.success else (create_obj('a lump of ruined "
+    "scrap', ['thing', 'scrap'], here), remit(here, f'{name(enactor)} botches "
+    "the assembly -- ruined scrap hits the tray. (rolled {res.roll} vs "
+    "{r[\"skill\"]} {res.effective})'))) if r and not short else None",
 ]
 
 STOCK_122 = [
@@ -253,7 +270,13 @@ BUILD_123 = [
     "@set arc smelter/makes_tags = [\"thing\", \"ingot\"]",
     "@set arc smelter/makes_count = 1",
     "@set arc smelter/work_msg = The smelter roars; slag hisses off the pour, and",
-    "@set arc smelter/cmd_refine = $refine: t = get_attr(me, 'eats'); n = get_attr(me, 'eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = get_attr(me, 'makes_count', 1); pemit(enactor, 'The hopper wants ' + str(n) + 'x ' + t + '; you carry ' + str(len(stock)) + '.') if len(stock) < n else ([destroy_obj(o) for o in stock[:n]], [create_obj(get_attr(me, 'makes'), get_attr(me, 'makes_tags', ['thing']), here) for i in range(k)], remit(here, get_attr(me, 'work_msg', 'The station cycles, and') + ' ' + str(k) + 'x ' + get_attr(me, 'makes') + ' land(s) in the tray.'))",
+    "@set arc smelter/cmd_refine = $refine: t = V('eats'); n = "
+    "V('eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, "
+    "t)]; k = V('makes_count', 1); pemit(enactor, f'The hopper wants {n}x "
+    "{t}; you carry {len(stock)}.') if len(stock) < n else ([destroy_obj(o) "
+    "for o in stock[:n]], [create_obj(V('makes'), V('makes_tags', ['thing']), "
+    "here) for i in range(k)], remit(here, f'{V(\"work_msg\", \"The station "
+    "cycles, and\")} {k}x {V(\"makes\")} land(s) in the tray.'))",
     "@dig The Machine Shop = shopway, smeltway",
     "shopway",
     "@create parts mill",
@@ -265,7 +288,13 @@ BUILD_123 = [
     "@set parts mill/makes_tags = [\"thing\", \"component\"]",
     "@set parts mill/makes_count = 2",
     "@set parts mill/work_msg = The mill shrieks through the billet, and",
-    "@set parts mill/cmd_refine = $refine: t = get_attr(me, 'eats'); n = get_attr(me, 'eats_count', 1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = get_attr(me, 'makes_count', 1); pemit(enactor, 'The hopper wants ' + str(n) + 'x ' + t + '; you carry ' + str(len(stock)) + '.') if len(stock) < n else ([destroy_obj(o) for o in stock[:n]], [create_obj(get_attr(me, 'makes'), get_attr(me, 'makes_tags', ['thing']), here) for i in range(k)], remit(here, get_attr(me, 'work_msg', 'The station cycles, and') + ' ' + str(k) + 'x ' + get_attr(me, 'makes') + ' land(s) in the tray.'))",
+    "@set parts mill/cmd_refine = $refine: t = V('eats'); n = V('eats_count', "
+    "1); stock = [o for o in contents(enactor) if has_tag(o, t)]; k = "
+    "V('makes_count', 1); pemit(enactor, f'The hopper wants {n}x {t}; you "
+    "carry {len(stock)}.') if len(stock) < n else ([destroy_obj(o) for o in "
+    "stock[:n]], [create_obj(V('makes'), V('makes_tags', ['thing']), here) "
+    "for i in range(k)], remit(here, f'{V(\"work_msg\", \"The station cycles, "
+    "and\")} {k}x {V(\"makes\")} land(s) in the tray.'))",
     "smeltway",
 ]
 
@@ -318,7 +347,7 @@ BUILD_124 = [
     "@desc breaker bench = A waist-high teardown bench: magnetic bit rack, spudgers, a parts tray scarred by ten thousand screws.",
     "@set breaker bench/parts_gadget = [[\"a coil of copper wire\", 2, [\"thing\", \"wire\"]], [\"an intact microcell\", 1, [\"thing\", \"cell\"]]]",
     "@set breaker bench/parts_scrap = [[\"a chunk of balthite ore\", 1, [\"thing\", \"ore\"]]]",
-    "@set breaker bench/cmd_salvage = $salvage *: q = trim(arg0).lower(); tgt = ([o for o in contents(enactor) if q in name(o).lower()] + [None])[0]; tabs = [t for t in tags(tgt) if has_attr(me, 'parts_' + t)] if tgt else []; pemit(enactor, 'You carry nothing called ' + q + '.') if not tgt else None; pemit(enactor, 'The scanner shrugs: nothing recoverable in ' + name(tgt) + '.') if tgt and not tabs else None; ok = skill_check(enactor, 'salvage') if tabs else False; tab = get_attr(me, 'parts_' + tabs[0], []) if tabs else []; keep = tab if ok else tab[:1]; (destroy_obj(tgt), [create_obj(row[0], row[2], here) for row in keep for i in range(row[1])], remit(here, name(enactor) + ' strips ' + name(tgt) + ' down to: ' + ', '.join(str(row[1]) + 'x ' + row[0] for row in keep) + '.' + ('' if ok else ' (clumsy teardown -- the delicate parts are mangled)'))) if tabs else None",
+    "@set breaker bench/cmd_salvage = $salvage *: q = trim(arg0).lower(); tgt = ([o for o in contents(enactor) if q in name(o).lower()] + [None])[0]; tabs = [t for t in tags(tgt) if has_attr(me, 'parts_' + t)] if tgt else []; pemit(enactor, 'You carry nothing called ' + q + '.') if not tgt else None; pemit(enactor, 'The scanner shrugs: nothing recoverable in ' + name(tgt) + '.') if tgt and not tabs else None; ok = skill_check(enactor, 'salvage') if tabs else False; tab = V('parts_' + tabs[0], []) if tabs else []; keep = tab if ok else tab[:1]; (destroy_obj(tgt), [create_obj(row[0], row[2], here) for row in keep for i in range(row[1])], remit(here, name(enactor) + ' strips ' + name(tgt) + ' down to: ' + ', '.join(str(row[1]) + 'x ' + row[0] for row in keep) + '.' + ('' if ok else ' (clumsy teardown -- the delicate parts are mangled)'))) if tabs else None",
     "@create busted med-scanner",
     "@tag busted med-scanner = gadget",
     "drop busted med-scanner",
@@ -375,7 +404,20 @@ BUILD_125 = [
     "@desc finishing lathe = A precision lathe behind a spotless splash guard. A brass plaque grades every blade it releases.",
     "@set finishing lathe/base_value = 50",
     "@set finishing lathe/tiers = [[4, \"fine\", 3.0, 18], [0, \"good\", 1.0, 12], [-99, \"shoddy\", 0.4, 6]]",
-    "@set finishing lathe/cmd_forge = $forge blade: stock = [o for o in contents(enactor) if has_tag(o, 'ingot')]; pemit(enactor, 'The chuck is empty: bring a duralloy ingot.') if not stock else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_smithing', 8)) if stock else None; tier = [row for row in get_attr(me, 'tiers', []) if res.margin >= row[0]][0] if stock else None; (destroy_obj(stock[0]), [(set_attr(b, 'quality', tier[1]), set_attr(b, 'value', int(get_attr(me, 'base_value', 50) * tier[2])), set_attr(b, 'durability', tier[3]), set_attr(b, 'desc_extras', [['', 'A slender vibro-blade. The maker-stamp grades it ' + tier[1].upper() + '.'], ['', 'Edge integrity: ' + str(tier[3]) + '. Trade value: ' + str(int(get_attr(me, 'base_value', 50) * tier[2])) + ' cr.']]), remit(here, name(enactor) + ' draws a ' + tier[1] + ' vibro-blade off the lathe. (margin ' + str(res.margin) + ')')) for b in [create_obj('a duralloy vibro-blade', ['thing', 'blade'], here)]]) if stock else None",
+    "@set finishing lathe/cmd_forge = $forge blade: stock = [o for o in "
+    "contents(enactor) if has_tag(o, 'ingot')]; pemit(enactor, 'The chuck is "
+    "empty: bring a duralloy ingot.') if not stock else None; res = "
+    "margin_under(roll('3d6'), get_attr(enactor, 'skill_smithing', 8)) if "
+    "stock else None; tier = [row for row in V('tiers', []) if res.margin >= "
+    "row[0]][0] if stock else None; (destroy_obj(stock[0]), [(set_attr(b, "
+    "'quality', tier[1]), set_attr(b, 'value', int(V('base_value', 50) * "
+    "tier[2])), set_attr(b, 'durability', tier[3]), set_attr(b, "
+    "'desc_extras', [['', f'A slender vibro-blade. The maker-stamp grades it "
+    "{tier[1].upper()}.'], ['', f'Edge integrity: {tier[3]}. Trade value: "
+    "{int(V(\"base_value\", 50) * tier[2])} cr.']]), remit(here, "
+    "f'{name(enactor)} draws a {tier[1]} vibro-blade off the lathe. (margin "
+    "{res.margin})')) for b in [create_obj('a duralloy vibro-blade', "
+    "['thing', 'blade'], here)]]) if stock else None",
 ]
 
 STOCK_125 = [
@@ -428,7 +470,7 @@ BUILD_126 = [
     "drop coil schematic",
     "@desc coil schematic = A mil-spec data-slate, screen crawling with exploded diagrams of a field coil. STUDY it -- once.",
     "@set coil schematic/recipe = vector_coil",
-    "@set coil schematic/teach = r = get_attr(me, 'recipe'); k = get_attr(enactor, 'known_recipes', []); pemit(enactor, 'You already hold the ' + r + ' pattern.') if r in k else (pemit(enactor, 'The slate flickers: WRITE REFUSED. Only a licensed slate may sign your pattern library.') if not set_attr(enactor, 'known_recipes', k + [r]) else (pemit(enactor, 'The schematic unfolds behind your eyes: the ' + r + ' pattern is yours.'), remit(here, 'The slate chirps once, wipes itself, and crumbles into grey flakes.'), destroy_obj(me)))",
+    "@set coil schematic/teach = r = V('recipe'); k = get_attr(enactor, 'known_recipes', []); pemit(enactor, 'You already hold the ' + r + ' pattern.') if r in k else (pemit(enactor, 'The slate flickers: WRITE REFUSED. Only a licensed slate may sign your pattern library.') if not set_attr(enactor, 'known_recipes', k + [r]) else (pemit(enactor, 'The schematic unfolds behind your eyes: the ' + r + ' pattern is yours.'), remit(here, 'The slate chirps once, wipes itself, and crumbles into grey flakes.'), destroy_obj(me)))",
     "@set coil schematic/cmd_study = $study schematic: eval_attr(me, 'teach')",
     "@set coil schematic/ON_USE = eval_attr(me, 'teach')",
     "@create coil fabricator",
@@ -443,7 +485,7 @@ BOOTLEG_126 = [
     "@create bootleg slate",
     "drop bootleg slate",
     "@set bootleg slate/recipe = vector_coil",
-    "@set bootleg slate/teach = r = get_attr(me, 'recipe'); k = get_attr(enactor, 'known_recipes', []); pemit(enactor, 'You already hold the ' + r + ' pattern.') if r in k else (pemit(enactor, 'The slate flickers: WRITE REFUSED. Only a licensed slate may sign your pattern library.') if not set_attr(enactor, 'known_recipes', k + [r]) else (pemit(enactor, 'The schematic unfolds behind your eyes: the ' + r + ' pattern is yours.'), remit(here, 'The slate chirps once, wipes itself, and crumbles into grey flakes.'), destroy_obj(me)))",
+    "@set bootleg slate/teach = r = V('recipe'); k = get_attr(enactor, 'known_recipes', []); pemit(enactor, 'You already hold the ' + r + ' pattern.') if r in k else (pemit(enactor, 'The slate flickers: WRITE REFUSED. Only a licensed slate may sign your pattern library.') if not set_attr(enactor, 'known_recipes', k + [r]) else (pemit(enactor, 'The schematic unfolds behind your eyes: the ' + r + ' pattern is yours.'), remit(here, 'The slate chirps once, wipes itself, and crumbles into grey flakes.'), destroy_obj(me)))",
     "@set bootleg slate/cmd_study = $study bootleg: eval_attr(me, 'teach')",
 ]
 
@@ -513,7 +555,7 @@ BUILD_127 = [
     "drop tuning bench",
     "@desc tuning bench = A vibration-damped bench ruled into a calibration grid. Etched under the lamp: TOOLS MAKE THE MACHINIST.",
     "@set tuning bench/recipe_gyro = {\"output\": \"a balanced gyro assembly\", \"tags\": [\"thing\", \"gyro\"], \"needs\": {\"component\": 1}, \"tools\": [\"arc_welder\", \"micro_vice\"]}",
-    "@set tuning bench/cmd_tune = $tune *: sel = trim(arg0).lower(); r = get_attr(me, 'recipe_' + sel); near = contents(here) + contents(enactor) if r else []; stat = [t + (' (ready)' if [o for o in near if has_tag(o, t)] else ' (MISSING)') for t in r['tools']] if r else []; miss = [t for t in r['tools'] if not [o for o in near if has_tag(o, t)]] if r else []; stock = [o for o in contents(enactor) if has_tag(o, 'component')] if r else []; pemit(enactor, 'No such job is chalked on this bench.') if not r else None; pemit(enactor, 'Tool check -- ' + ', '.join(stat) + ': ' + str(len(r['tools']) - len(miss)) + ' of ' + str(len(r['tools'])) + ' present.') if r and miss else None; pemit(enactor, 'The jig wants 1x component; you carry ' + str(len(stock)) + '.') if r and not miss and not stock else None; (destroy_obj(stock[0]), create_obj(r['output'], r['tags'], here), remit(here, name(enactor) + ' clamps, welds, and spins a gyro assembly true on the bench.')) if r and not miss and stock else None",
+    "@set tuning bench/cmd_tune = $tune *: sel = trim(arg0).lower(); r = V('recipe_' + sel); near = contents(here) + contents(enactor) if r else []; stat = [t + (' (ready)' if [o for o in near if has_tag(o, t)] else ' (MISSING)') for t in r['tools']] if r else []; miss = [t for t in r['tools'] if not [o for o in near if has_tag(o, t)]] if r else []; stock = [o for o in contents(enactor) if has_tag(o, 'component')] if r else []; pemit(enactor, 'No such job is chalked on this bench.') if not r else None; pemit(enactor, 'Tool check -- ' + ', '.join(stat) + ': ' + str(len(r['tools']) - len(miss)) + ' of ' + str(len(r['tools'])) + ' present.') if r and miss else None; pemit(enactor, 'The jig wants 1x component; you carry ' + str(len(stock)) + '.') if r and not miss and not stock else None; (destroy_obj(stock[0]), create_obj(r['output'], r['tags'], here), remit(here, name(enactor) + ' clamps, welds, and spins a gyro assembly true on the bench.')) if r and not miss and stock else None",
     "@create arc welder",
     "@tag arc welder = arc_welder",
     "drop arc welder",
@@ -572,12 +614,12 @@ class TestCraftingStations:
 BUILD_128 = [
     "@create hydro tray",
     "drop hydro tray",
-    "@desc hydro tray = A chest-high hydroponic vat webbed with drip lines under grow-lamps. [[w = get_attr(me, 'water', 0); result = ('Nutrient gauge: ' + str(w) + '/3.') if has_attr(me, 'stage') else 'Its growth bed sits empty, lamps dimmed to standby.']]",
+    "@desc hydro tray = A chest-high hydroponic vat webbed with drip lines under grow-lamps. [[w = V('water', 0); result = ('Nutrient gauge: ' + str(w) + '/3.') if has_attr(me, 'stage') else 'Its growth bed sits empty, lamps dimmed to standby.']]",
     "@set hydro tray/stages = [[\"germinating\", 2, \"Pale threads spider through the growth foam.\"], [\"flowering\", 2, \"White blossoms nod under the grow-lamps.\"], [\"fruiting\", 0, \"Fat helio-tomatoes hang glowing faintly orange.\"]]",
-    "@set hydro tray/cmd_plant = $plant *: seeds = [o for o in contents(enactor) if has_tag(o, 'seed')]; pemit(enactor, 'The bed is already planted.') if has_attr(me, 'stage') else (pemit(enactor, 'You carry no seed stock.') if not seeds else (destroy_obj(seeds[0]), set_attr(me, 'stage', 0), set_attr(me, 'stage_left', get_attr(me, 'stages')[0][1]), set_attr(me, 'water', 2), set_attr(me, 'desc_extras', [['', get_attr(me, 'stages')[0][2]]]), remit(here, name(enactor) + ' beds a seed into the growth foam; the lamps hum up to full.')))",
+    "@set hydro tray/cmd_plant = $plant *: seeds = [o for o in contents(enactor) if has_tag(o, 'seed')]; pemit(enactor, 'The bed is already planted.') if has_attr(me, 'stage') else (pemit(enactor, 'You carry no seed stock.') if not seeds else (destroy_obj(seeds[0]), set_attr(me, 'stage', 0), set_attr(me, 'stage_left', V('stages')[0][1]), set_attr(me, 'water', 2), set_attr(me, 'desc_extras', [['', V('stages')[0][2]]]), remit(here, name(enactor) + ' beds a seed into the growth foam; the lamps hum up to full.')))",
     "@set hydro tray/cmd_water = $water tray: pemit(enactor, 'Nothing is planted.') if not has_attr(me, 'stage') else (set_attr(me, 'water', 3), remit(here, 'Nutrient mist hisses through the drip lines.'))",
-    "@set hydro tray/cmd_harvest = $harvest *: s = get_attr(me, 'stage', None); st = get_attr(me, 'stages', []); ripe = s is not None and s >= len(st) - 1; pemit(enactor, 'Nothing is planted.') if s is None else None; pemit(enactor, 'Not yet -- the crop is still ' + st[s][0] + '.') if s is not None and not ripe else None; ([create_obj('a glowing helio-tomato', ['thing', 'produce'], here) for i in range(3)], del_attr(me, 'stage'), del_attr(me, 'stage_left'), del_attr(me, 'water'), del_attr(me, 'desc_extras'), remit(here, name(enactor) + ' gathers 3 glowing helio-tomatoes; the lamps dim to standby.')) if ripe else None",
-    "@set hydro tray/on_tick = s = get_attr(me, 'stage', None); st = get_attr(me, 'stages', []); w = get_attr(me, 'water', 0); ripe = s is not None and s >= len(st) - 1; go = s is not None and not ripe; (remit(here, 'The hydro tray blinks a dry amber warning.') if w < 1 else (set_attr(me, 'water', w - 1), (set_attr(me, 'stage_left', get_attr(me, 'stage_left', 1) - 1) if get_attr(me, 'stage_left', 1) > 1 else (set_attr(me, 'stage', s + 1), set_attr(me, 'stage_left', st[s + 1][1]), set_attr(me, 'desc_extras', [['', st[s + 1][2]]]), remit(here, 'In the hydro tray: ' + st[s + 1][2]))))) if go else None",
+    "@set hydro tray/cmd_harvest = $harvest *: s = V('stage', None); st = V('stages', []); ripe = s is not None and s >= len(st) - 1; pemit(enactor, 'Nothing is planted.') if s is None else None; pemit(enactor, 'Not yet -- the crop is still ' + st[s][0] + '.') if s is not None and not ripe else None; ([create_obj('a glowing helio-tomato', ['thing', 'produce'], here) for i in range(3)], del_attr(me, 'stage'), del_attr(me, 'stage_left'), del_attr(me, 'water'), del_attr(me, 'desc_extras'), remit(here, name(enactor) + ' gathers 3 glowing helio-tomatoes; the lamps dim to standby.')) if ripe else None",
+    "@set hydro tray/on_tick = s = V('stage', None); st = V('stages', []); w = V('water', 0); ripe = s is not None and s >= len(st) - 1; go = s is not None and not ripe; (remit(here, 'The hydro tray blinks a dry amber warning.') if w < 1 else (decr('water'), (decr('stage_left') if V('stage_left', 1) > 1 else (incr('stage'), set_attr(me, 'stage_left', st[s + 1][1]), set_attr(me, 'desc_extras', [['', st[s + 1][2]]]), remit(here, 'In the hydro tray: ' + st[s + 1][2]))))) if go else None",
     "@behavior hydro tray = script_ticker, interval:60",
     "@create packet of helio-tomato seeds",
     "@tag packet of helio-tomato seeds = seed",
@@ -645,9 +687,9 @@ BUILD_129 = [
     "drop galley range",
     "@desc galley range = A blackened four-ring galley range. The menu card wedged over the ignition reads: STEW.",
     "@set galley range/cook_stew = {\"name\": \"a bowl of ember-root stew\", \"needs\": {\"produce\": 2}, \"buff_kind\": \"hearty\", \"buff_skill\": \"throwing\", \"buff_mod\": 3, \"buff_beats\": 10, \"fresh\": 4}",
-    "@set galley range/eat_code = $eat *: b = get_attr(me, 'buff'); pemit(enactor, 'Both hands and a flat spot: set ' + name(me) + ' down somewhere first.') if loc(me) == enactor else ((pemit(enactor, 'One sniff says no -- but hunger wins. It has gone rank.'), apply_effect(enactor, 'damage_over_time', kind='food_poisoning', damage=1, interval=1, duration=3, tick_msg='Your stomach knots and cramps.', expire_msg='Your stomach finally settles.'), destroy_obj(me)) if has_tag(me, 'spoiled') else (apply_effect(enactor, 'modifier_effect', kind=b['kind'], duration=b['beats'], check_mods={b['skill']: b['mod']}, apply_msg='Warmth spreads from your belly: ' + b['kind'] + ' (+' + str(b['mod']) + ' ' + b['skill'] + ' while it lasts).', expire_msg='The warm, well-fed feeling fades.'), remit(here, name(enactor) + ' scrapes the bowl clean.'), destroy_obj(me)))",
-    "@set galley range/spoil_code = sp = has_tag(me, 'spoiled'); f = get_attr(me, 'freshness', 4) - get_attr(loc(me), 'decay_rate', 1); (set_attr(me, 'freshness', f), (add_tag(me, 'spoiled'), remit(here, ucfirst(name(me)) + ' films over and goes rank.')) if f <= 0 else None) if not sp else None",
-    "@set galley range/cmd_cook = $cook *: sel = trim(arg0).lower(); r = get_attr(me, 'cook_' + sel); carried = contents(enactor) if r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The menu card lists no such dish.') if not r else None; pemit(enactor, 'Short of fixings: ' + ', '.join(short) + '.') if r and short else None; ([destroy_obj(o) for t, n in r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], [(set_attr(m, 'buff', {'kind': r['buff_kind'], 'skill': r['buff_skill'], 'mod': r['buff_mod'], 'beats': r['buff_beats']}), set_attr(m, 'freshness', r['fresh']), set_attr(m, 'cmd_eat', get_attr(me, 'eat_code')), set_attr(m, 'on_tick', get_attr(me, 'spoil_code')), attach_behavior(m, 'script_ticker', interval=45), set_attr(m, 'desc_extras', [['', 'Chunks of ember-root in a pepper-dark broth, still steaming.']]), remit(here, 'The range flares; ' + r['name'] + ' ladles out onto the counter.')) for m in [create_obj(r['name'], ['thing', 'meal'], here)]]) if r and not short else None",
+    "@set galley range/eat_code = $eat *: b = V('buff'); pemit(enactor, 'Both hands and a flat spot: set ' + name(me) + ' down somewhere first.') if loc(me) == enactor else ((pemit(enactor, 'One sniff says no -- but hunger wins. It has gone rank.'), apply_effect(enactor, 'damage_over_time', kind='food_poisoning', damage=1, interval=1, duration=3, tick_msg='Your stomach knots and cramps.', expire_msg='Your stomach finally settles.'), destroy_obj(me)) if has_tag(me, 'spoiled') else (apply_effect(enactor, 'modifier_effect', kind=b['kind'], duration=b['beats'], check_mods={b['skill']: b['mod']}, apply_msg='Warmth spreads from your belly: ' + b['kind'] + ' (+' + str(b['mod']) + ' ' + b['skill'] + ' while it lasts).', expire_msg='The warm, well-fed feeling fades.'), remit(here, name(enactor) + ' scrapes the bowl clean.'), destroy_obj(me)))",
+    "@set galley range/spoil_code = sp = has_tag(me, 'spoiled'); f = V('freshness', 4) - get_attr(loc(me), 'decay_rate', 1); (set_attr(me, 'freshness', f), (add_tag(me, 'spoiled'), remit(here, ucfirst(name(me)) + ' films over and goes rank.')) if f <= 0 else None) if not sp else None",
+    "@set galley range/cmd_cook = $cook *: sel = trim(arg0).lower(); r = V('cook_' + sel); carried = contents(enactor) if r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The menu card lists no such dish.') if not r else None; pemit(enactor, 'Short of fixings: ' + ', '.join(short) + '.') if r and short else None; ([destroy_obj(o) for t, n in r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], [(set_attr(m, 'buff', {'kind': r['buff_kind'], 'skill': r['buff_skill'], 'mod': r['buff_mod'], 'beats': r['buff_beats']}), set_attr(m, 'freshness', r['fresh']), set_attr(m, 'cmd_eat', V('eat_code')), set_attr(m, 'on_tick', V('spoil_code')), attach_behavior(m, 'script_ticker', interval=45), set_attr(m, 'desc_extras', [['', 'Chunks of ember-root in a pepper-dark broth, still steaming.']]), remit(here, 'The range flares; ' + r['name'] + ' ladles out onto the counter.')) for m in [create_obj(r['name'], ['thing', 'meal'], here)]]) if r and not short else None",
     "@create knife board",
     "drop knife board",
     "@desc knife board = A scarred target board bolted by the galley door, one painted ring, many old knife scars. THROW KNIFE at it.",
@@ -740,10 +782,24 @@ BUILD_130 = [
     "@set scum pond/lull = 6",
     "@set scum pond/window = 4",
     "@set scum pond/catches = [[\"a mottled mudskipper\", 55, [\"thing\", \"fish\"]], [\"a silver dartfish\", 30, [\"thing\", \"fish\"]], [\"a waterlogged boot\", 15, [\"thing\", \"junk\"]]]",
-    "@set scum pond/cmd_cast = $cast line: pemit(enactor, 'A line is already out. Watch the float; hook when it dips.') if get_attr(me, 'line_out', 0) else (set_attr(me, 'line_out', 1), set_attr(me, 'angler', enactor.id), remit(here, name(enactor) + ' casts a line out over the scum.'), wait(get_attr(me, 'lull', 6), 'trigger me/bite'))",
-    "@set scum pond/bite = (set_attr(me, 'bite_open', 1), remit(here, 'The float dips hard -- something is on!'), wait(get_attr(me, 'window', 4), 'trigger me/slack')) if get_attr(me, 'line_out', 0) else None",
-    "@set scum pond/slack = (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), remit(here, 'The water stills. The line drifts back slack, bait gone.')) if get_attr(me, 'bite_open', 0) else None",
-    "@set scum pond/cmd_hook = $hook: lined = get_attr(me, 'line_out', 0); dip = get_attr(me, 'bite_open', 0); pemit(enactor, 'No line in the water. cast line first.') if not lined else None; (del_attr(me, 'line_out'), del_attr(me, 'angler'), pemit(enactor, 'You yank at still water; anything under the scum is long warned off.')) if lined and not dip else None; res = margin_under(roll('3d6'), get_attr(enactor, 'skill_angling', 9)) if lined and dip else None; draw = lambda draw, t, r: t[0] if r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); c = draw(draw, get_attr(me, 'catches', []), rand(1, 100)) if lined and dip else None; (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), (create_obj(c[0], c[2], here), remit(here, name(enactor) + ' hooks it clean -- ' + c[0] + ' lands flopping on the dock! (margin +' + str(res.margin) + ')')) if res.success else remit(here, 'It spits the hook and is gone. (rolled ' + str(res.roll) + ' vs angling ' + str(res.effective) + ')')) if lined and dip else None",
+    "@set scum pond/cmd_cast = $cast line: pemit(enactor, 'A line is already out. Watch the float; hook when it dips.') if V('line_out', 0) else (set_attr(me, 'line_out', 1), set_attr(me, 'angler', enactor.id), remit(here, name(enactor) + ' casts a line out over the scum.'), wait(V('lull', 6), 'trigger me/bite'))",
+    "@set scum pond/bite = (set_attr(me, 'bite_open', 1), remit(here, 'The float dips hard -- something is on!'), wait(V('window', 4), 'trigger me/slack')) if V('line_out', 0) else None",
+    "@set scum pond/slack = (del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, 'angler'), remit(here, 'The water stills. The line drifts back slack, bait gone.')) if V('bite_open', 0) else None",
+    "@set scum pond/cmd_hook = $hook: lined = V('line_out', 0); dip = "
+    "V('bite_open', 0); pemit(enactor, 'No line in the water. cast line "
+    "first.') if not lined else None; (del_attr(me, 'line_out'), del_attr(me, "
+    "'angler'), pemit(enactor, 'You yank at still water; anything under the "
+    "scum is long warned off.')) if lined and not dip else None; res = "
+    "margin_under(roll('3d6'), get_attr(enactor, 'skill_angling', 9)) if "
+    "lined and dip else None; draw = lambda draw, t, r: t[0] if r <= t[0][1] "
+    "or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); c = draw(draw, "
+    "V('catches', []), rand(1, 100)) if lined and dip else None; "
+    "(del_attr(me, 'bite_open'), del_attr(me, 'line_out'), del_attr(me, "
+    "'angler'), (create_obj(c[0], c[2], here), remit(here, f'{name(enactor)} "
+    "hooks it clean -- {c[0]} lands flopping on the dock! (margin "
+    "+{res.margin})')) if res.success else remit(here, f'It spits the hook "
+    "and is gone. (rolled {res.roll} vs angling {res.effective})')) if lined "
+    "and dip else None",
 ]
 
 # Test-only: collapse the real-time lull/window so tick_waits() drives
@@ -850,13 +906,48 @@ BUILD_131 = [
     "@set synthesis rig/form_mend = {\"name\": \"a vial of mendicine gel\", \"tags\": [\"thing\", \"medicine\"], \"needs\": {\"biomass\": 1, \"solvent\": 1}, \"min_skill\": 10, \"apply\": true, \"value\": 40, \"blurb\": \"Cold blue gel that knits burns and scrapes. APPLY GEL once it is set down.\"}",
     "@set synthesis rig/form_etch = {\"name\": \"a flask of kryl etchant\", \"tags\": [\"thing\", \"acid\"], \"needs\": {\"solvent\": 2}, \"min_skill\": 12, \"apply\": false, \"value\": 25, \"blurb\": \"Amber etchant that whispers against its glass. Industrial use only.\"}",
     "@set synthesis rig/gel_code = $apply gel: pemit(enactor, 'Set the vial down first; the applicator wants a steady base.') if loc(me) == enactor else (remove_effect(enactor, 'chem_burn'), heal(enactor, 2), pemit(enactor, 'The gel knits skin cold and quick; the burning stops.'), remit(here, name(enactor) + ' smooths mendicine gel over the burns.'), destroy_obj(me))",
-    "@set synthesis rig/cmd_formulas = $formulas: [pemit(enactor, '  ' + s + ' -> ' + get_attr(me, 'form_' + s)['name'] + ' (CHEM-' + str(get_attr(me, 'form_' + s)['min_skill']) + '; needs: ' + ', '.join(str(n) + 'x ' + t for t, n in get_attr(me, 'form_' + s)['needs'].items()) + ')') for s in get_attr(me, 'menu', [])]",
-    "@set synthesis rig/cmd_mix = $mix *: sel = trim(arg0).lower(); r = get_attr(me, 'form_' + sel); known = get_attr(enactor, 'known_formulas', []); lvl = get_attr(enactor, 'skill_chemistry', 0); carried = contents(enactor) if r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) + 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The rig lists no such formula. Try formulas.') if not r else None; pemit(enactor, 'The rig refuses: no verified pathway for ' + sel + ' in your neural index.') if r and sel not in known else None; pemit(enactor, 'The rig refuses: certification CHEM-' + str(r['min_skill']) + ' required (your chemistry: ' + str(lvl) + ').') if r and sel in known and lvl < r['min_skill'] else None; pemit(enactor, 'Reagents short: ' + ', '.join(short) + '.') if r and sel in known and lvl >= r['min_skill'] and short else None; go = bool(r) and sel in known and lvl >= r['min_skill'] and not short; res = margin_under(roll('3d6'), lvl) if go else None; ([destroy_obj(o) for t, n in r['needs'].items() for o in [x for x in carried if has_tag(x, t)][:n]], ([(set_attr(v, 'cmd_apply', get_attr(me, 'gel_code')) if r['apply'] else None, set_attr(v, 'value', r['value']), set_attr(v, 'desc_extras', [['', r['blurb']]]), remit(here, 'The rig cycles green; ' + r['name'] + ' fills in the cradle. (margin +' + str(res.margin) + ')')) for v in [create_obj(r['name'], r['tags'], here)]] if res.success else (remit(here, 'The mix curdles into inert sludge. (rolled ' + str(res.roll) + ' vs chemistry ' + str(res.effective) + ')') if res.margin > -5 else (remit(here, 'The rig shrieks -- the mix flashes back in a caustic spray!'), damage(enactor, roll('1d2')), apply_effect(enactor, 'damage_over_time', kind='chem_burn', damage=1, interval=1, duration=4, tick_msg='Caustic residue eats at your skin!', room_msg='{name} claws at smoking sleeves.', expire_msg='The last of the residue burns itself out.'))))) if go else None",
+    "@set synthesis rig/cmd_formulas = $formulas: [pemit(enactor, '  ' + s + "
+    "' -> ' + V('form_' + s)['name'] + ' (CHEM-' + str(V('form_' + "
+    "s)['min_skill']) + '; needs: ' + ', '.join(f'{n}x {t}' for t, n in "
+    "V('form_' + s)['needs'].items()) + ')') for s in V('menu', [])]",
+    "@set synthesis rig/cmd_mix = $mix *: sel = trim(arg0).lower(); r = "
+    "V('form_' + sel); known = get_attr(enactor, 'known_formulas', []); lvl = "
+    "get_attr(enactor, 'skill_chemistry', 0); carried = contents(enactor) if "
+    "r else []; short = [str(n - len([o for o in carried if has_tag(o, t)])) "
+    "+ 'x ' + t for t, n in (r['needs'].items() if r else []) if len([o for o "
+    "in carried if has_tag(o, t)]) < n]; pemit(enactor, 'The rig lists no "
+    "such formula. Try formulas.') if not r else None; pemit(enactor, f'The "
+    "rig refuses: no verified pathway for {sel} in your neural index.') if r "
+    "and sel not in known else None; pemit(enactor, f'The rig refuses: "
+    "certification CHEM-{r[\"min_skill\"]} required (your chemistry: "
+    "{lvl}).') if r and sel in known and lvl < r['min_skill'] else None; "
+    "pemit(enactor, 'Reagents short: ' + ', '.join(short) + '.') if r and sel "
+    "in known and lvl >= r['min_skill'] and short else None; go = bool(r) and "
+    "sel in known and lvl >= r['min_skill'] and not short; res = "
+    "margin_under(roll('3d6'), lvl) if go else None; ([destroy_obj(o) for t, "
+    "n in r['needs'].items() for o in [x for x in carried if has_tag(x, "
+    "t)][:n]], ([(set_attr(v, 'cmd_apply', V('gel_code')) if r['apply'] else "
+    "None, set_attr(v, 'value', r['value']), set_attr(v, 'desc_extras', [['', "
+    "r['blurb']]]), remit(here, f'The rig cycles green; {r[\"name\"]} fills "
+    "in the cradle. (margin +{res.margin})')) for v in [create_obj(r['name'], "
+    "r['tags'], here)]] if res.success else (remit(here, f'The mix curdles "
+    "into inert sludge. (rolled {res.roll} vs chemistry {res.effective})') if "
+    "res.margin > -5 else (remit(here, 'The rig shrieks -- the mix flashes "
+    "back in a caustic spray!'), damage(enactor, roll('1d2')), "
+    "apply_effect(enactor, 'damage_over_time', kind='chem_burn', damage=1, "
+    "interval=1, duration=4, tick_msg='Caustic residue eats at your skin!', "
+    "room_msg='{name} claws at smoking sleeves.', expire_msg='The last of the "
+    "residue burns itself out.'))))) if go else None",
     "@create mend formula chip",
     "drop mend formula chip",
     "@desc mend formula chip = A ceramic data-chip etched MEND-7G. MEMORIZE CHIP to take the synthesis pathway.",
     "@set mend formula chip/formula = mend",
-    "@set mend formula chip/cmd_memorize = $memorize chip: f = get_attr(me, 'formula'); k = get_attr(enactor, 'known_formulas', []); pemit(enactor, 'You already hold the ' + f + ' pathway.') if f in k else (pemit(enactor, 'The chip blinks: WRITE REFUSED (unlicensed chip).') if not set_attr(enactor, 'known_formulas', k + [f]) else pemit(enactor, 'Cold data blooms behind your eyes: the ' + f + ' pathway is yours.'))",
+    "@set mend formula chip/cmd_memorize = $memorize chip: f = V('formula'); "
+    "k = get_attr(enactor, 'known_formulas', []); pemit(enactor, f'You "
+    "already hold the {f} pathway.') if f in k else (pemit(enactor, 'The chip "
+    "blinks: WRITE REFUSED (unlicensed chip).') if not set_attr(enactor, "
+    "'known_formulas', k + [f]) else pemit(enactor, f'Cold data blooms behind "
+    "your eyes: the {f} pathway is yours.'))",
 ]
 
 

@@ -142,7 +142,7 @@ MACRO_RECORD = (
     "pemit(enactor, 'Recorded ' + arg0 + ' (' + str(len(steps)) + ' steps).'))")
 MACRO_PLAY = (
     "@set macro band/cmd_play = $play *:"
-    "body = get_attr(me, 'macro_' + arg0, ''); "
+    "body = V('macro_' + arg0, ''); "
     "pemit(enactor, 'No macro ' + arg0 + '.') if not body "
     "else [force(enactor, s.strip()) for s in body.split('|')[:10] if s.strip()]")
 MACRO_BUILD = [
@@ -456,8 +456,8 @@ class TestCustomInput:
 # =========================================================================
 
 SUGGEST_SET = ("@set suggestion box/cmd_suggest = $suggest *:"
-               "set_attr(me, 'log', get_attr(me, 'log', []) + [arg0]); "
-               "pemit(enactor, get_attr(me, 'config_thanks', 'Noted.'))")
+               "set_attr(me, 'log', V('log', []) + [arg0]); "
+               "pemit(enactor, V('config_thanks', 'Noted.'))")
 CONTRIB_BUILD = [
     "@zone here = suggestbox",
     "@create suggestion box",

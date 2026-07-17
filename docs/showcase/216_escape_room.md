@@ -70,8 +70,8 @@ lobby
 The countdown — owner-guarded so building it doesn't start it:
 
 ```text
-@set here/on_enter = (set_attr(me, 'started', 1), set_attr(me, 'count', get_attr(me, 'limit', 3)), remit(me, 'A klaxon wails: ' + str(get_attr(me, 'limit', 3)) + ' minutes until the cell floods. Find the way out!'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 60), 'trigger me/tick'))) if has_tag(enactor, 'player') and enactor != owner(me) and not get_attr(me, 'started') else None
-@set here/tick = n = get_attr(me, 'count', 0) - 1; (remit(me, 'TIME UP. Water roars in through the vents.') if n <= 0 else (set_attr(me, 'count', n), remit(me, str(n) + ' minutes remain...'), set_attr(me, 'pending', wait(get_attr(me, 'beat', 60), 'trigger me/tick'))))
+@set here/on_enter = (set_attr(me, 'started', 1), set_attr(me, 'count', V('limit', 3)), remit(me, 'A klaxon wails: ' + str(V('limit', 3)) + ' minutes until the cell floods. Find the way out!'), set_attr(me, 'pending', wait(V('beat', 60), 'trigger me/tick'))) if has_tag(enactor, 'player') and enactor != owner(me) and not V('started') else None
+@set here/tick = n = V('count', 0) - 1; (remit(me, 'TIME UP. Water roars in through the vents.') if n <= 0 else (set_attr(me, 'count', n), remit(me, str(n) + ' minutes remain...'), set_attr(me, 'pending', wait(V('beat', 60), 'trigger me/tick'))))
 ```
 
 Puzzle one — the hidden code (revealed by `search`, item 217):
@@ -94,7 +94,7 @@ drop cell keypad
 @set cell keypad/code = 7291
 @attr cell keypad/code = secret
 @set cell keypad/cmd_punch = $punch: prompt(enactor, 'Enter the code you found:', 'check')
-@set cell keypad/check = hs = [o for o in contents(loc(me)) if has_tag(o, 'exit') and name(o) == 'escape hatch']; (remove_tag(hs[0], 'closed'), remit(loc(me), 'The keypad flashes green -- the escape hatch unbolts!')) if hs and trim(arg0) == str(get_attr(me, 'code')) else pemit(enactor, 'The keypad flashes red. Nothing happens.')
+@set cell keypad/check = hs = [o for o in contents(loc(me)) if has_tag(o, 'exit') and name(o) == 'escape hatch']; (remove_tag(hs[0], 'closed'), remit(loc(me), 'The keypad flashes green -- the escape hatch unbolts!')) if hs and trim(arg0) == str(V('code')) else pemit(enactor, 'The keypad flashes red. Nothing happens.')
 ```
 
 The hatch — a static exit back to the real lobby, sealed until the keypad

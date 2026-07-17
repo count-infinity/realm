@@ -69,14 +69,14 @@ drop rubbish bin
 Arrival: state the terms, then defer the sweep one beat:
 
 ```text
-@set rubbish bin/on_put = pemit(enactor, 'It lands with a clang. You have ' + str(get_attr(me, 'grace', 60)) + ' seconds to change your mind: rummage <item>.'); wait(0, 'trigger me/do_sweep')
-@set rubbish bin/do_sweep = [expire(o, get_attr(me, 'grace', 60)) for o in contents(me) if not has_attr(o, 'expires_at')]
+@set rubbish bin/on_put = pemit(enactor, f"It lands with a clang. You have {V('grace', 60)} seconds to change your mind: rummage <item>."); wait(0, 'trigger me/do_sweep')
+@set rubbish bin/do_sweep = [expire(o, V('grace', 60)) for o in contents(me) if not has_attr(o, 'expires_at')]
 ```
 
 The pardon, and the last word:
 
 ```text
-@set rubbish bin/cmd_rummage = $rummage *: found = [o for o in contents(me) if trim(arg0).lower() in name(o).lower()]; it = found[0] if found else None; (del_attr(it, 'expires_at'), teleport_obj(it, enactor), pemit(enactor, 'You fish the ' + name(it) + ' back out. Reprieved.')) if it else pemit(enactor, 'You paw through the muck and come up empty.')
+@set rubbish bin/cmd_rummage = $rummage *: found = [o for o in contents(me) if trim(arg0).lower() in name(o).lower()]; it = found[0] if found else None; (del_attr(it, 'expires_at'), teleport_obj(it, enactor), pemit(enactor, f'You fish the {name(it)} back out. Reprieved.')) if it else pemit(enactor, 'You paw through the muck and come up empty.')
 @set rubbish bin/on_expire = remit(loc(me), 'The bin belches a gout of flame. Something is gone for good.')
 ```
 

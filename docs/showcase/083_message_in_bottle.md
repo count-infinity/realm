@@ -72,8 +72,8 @@ disconnect):
 drop Harbormaster
 @desc Harbormaster = A weathered official who seems to know exactly who is ashore at any hour.
 @zone/master Harbormaster = world
-@set Harbormaster/on_connect = set_attr(me, 'ashore', [i for i in (get_attr(me, 'ashore') or []) if i != enactor.id] + [enactor.id])
-@set Harbormaster/on_disconnect = set_attr(me, 'ashore', [i for i in (get_attr(me, 'ashore') or []) if i != enactor.id])
+@set Harbormaster/on_connect = set_attr(me, 'ashore', [i for i in (V('ashore') or []) if i != enactor.id] + [enactor.id])
+@set Harbormaster/on_disconnect = set_attr(me, 'ashore', [i for i in (V('ashore') or []) if i != enactor.id])
 ```
 
 The bottle — pen, read, toss:
@@ -81,9 +81,9 @@ The bottle — pen, read, toss:
 ```text
 @create green bottle
 @desc green bottle = Sea-scoured glass, stoppered with a cork. PEN <text> writes a note; TOSS BOTTLE gives it to the tide; UNCORK BOTTLE reads what is inside.
-@set green bottle/cmd_pen = $pen *: (pemit(enactor, 'Hold the bottle to write.') if loc(me) != enactor else (set_attr(me, 'note', escape(arg0) + ' --' + name(enactor)), pemit(enactor, 'You roll the note tight and work it down the neck.')))
-@set green bottle/cmd_uncork = $uncork bottle: pemit(enactor, 'The bottle is empty.') if not get_attr(me, 'note') else pemit(enactor, 'The note reads: ' + str(get_attr(me, 'note')))
-@set green bottle/cmd_toss = $toss bottle: (pemit(enactor, 'Hold the bottle to throw it.') if loc(me) != enactor else (pemit(enactor, 'It needs a note first. PEN <text>.') if not get_attr(me, 'note') else (remit(loc(enactor), name(enactor) + ' hurls the green bottle out past the breakers.'), teleport_obj(me, 'The Open Sea'), expire(me, rand(60, 300)))))
+@set green bottle/cmd_pen = $pen *: (pemit(enactor, 'Hold the bottle to write.') if loc(me) != enactor else (set_attr(me, 'note', f'{escape(arg0)} --{name(enactor)}'), pemit(enactor, 'You roll the note tight and work it down the neck.')))
+@set green bottle/cmd_uncork = $uncork bottle: pemit(enactor, 'The bottle is empty.') if not V('note') else pemit(enactor, f"The note reads: {V('note')}")
+@set green bottle/cmd_toss = $toss bottle: (pemit(enactor, 'Hold the bottle to throw it.') if loc(me) != enactor else (pemit(enactor, 'It needs a note first. PEN <text>.') if not V('note') else (remit(loc(enactor), f'{name(enactor)} hurls the green bottle out past the breakers.'), teleport_obj(me, 'The Open Sea'), expire(me, rand(60, 300)))))
 ```
 
 And landfall — the rescue-and-deliver hook:
@@ -129,7 +129,7 @@ bottle on the ground — the tide demands you hold it.
   once-a-day surprise; the mechanism doesn't care, which is the
   point of `expire()`.
 - **Never the sender** — filter `pool` by
-  `i != get_attr(me, 'sender')` (stamp the sender's id at toss) so
+  `i != V('sender')` (stamp the sender's id at toss) so
   the sea never hands your secret straight back.
 - **A bottle economy** — the [newspaper](082_newspaper.md) kiosk
   pattern sells empty bottles; castaways as content, five credits a

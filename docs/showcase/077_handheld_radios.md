@@ -58,7 +58,7 @@ Two rooms and the first radio:
 floor
 @dig The Rooftop = roof, floor
 @create field radio
-@desc field radio = A brick of olive plastic with a stubby antenna and a worn send key. [[result = 'The dial is set to ' + str(get_attr(me, 'freq', 'static'))]].
+@desc field radio = A brick of olive plastic with a stubby antenna and a worn send key. [[result = f"The dial is set to {V('freq', 'static')}"]].
 @tag field radio = radio
 @set field radio/freq = alpha
 @set field radio/power = 1
@@ -68,22 +68,22 @@ The shared transmitter — find every other powered radio on my
 frequency, deliver by receiver placement:
 
 ```text
-@set field radio/xmit = f = str(get_attr(me, 'freq', '')); [(pemit(loc(r), '[' + f + '] ' + str(arg0)) if has_tag(loc(r), 'player') else remit(loc(r), name(r) + ' crackles: [' + f + '] ' + str(arg0))) for r in search_world(tag='radio', attr='freq', value=get_attr(me, 'freq', '')) if r != me and get_attr(r, 'power', 1) and loc(r)]
+@set field radio/xmit = f = str(V('freq', '')); [(pemit(loc(r), '[' + f + '] ' + str(arg0)) if has_tag(loc(r), 'player') else remit(loc(r), name(r) + ' crackles: [' + f + '] ' + str(arg0))) for r in search_world(tag='radio', attr='freq', value=V('freq', '')) if r != me and get_attr(r, 'power', 1) and loc(r)]
 ```
 
 Push-to-talk and the dial — both demand the set in hand:
 
 ```text
-@set field radio/cmd_radio = $radio *: (pemit(enactor, 'Pick the radio up first; the send key is on the grip.') if loc(me) != enactor else (pemit(enactor, 'You key the mic: [' + str(get_attr(me, 'freq', '')) + '] ' + name(enactor) + ': ' + escape(arg0)), eval_attr(me, 'xmit', name(enactor) + ': ' + escape(arg0))))
-@set field radio/cmd_tune = $tune *: (pemit(enactor, 'Hold the radio to work the dial.') if loc(me) != enactor else (set_attr(me, 'freq', trim(arg0)), pemit(enactor, 'You click the dial over to [' + trim(arg0) + '].')))
+@set field radio/cmd_radio = $radio *: (pemit(enactor, 'Pick the radio up first; the send key is on the grip.') if loc(me) != enactor else (pemit(enactor, f"You key the mic: [{V('freq', '')}] {name(enactor)}: {escape(arg0)}"), eval_attr(me, 'xmit', f'{name(enactor)}: {escape(arg0)}')))
+@set field radio/cmd_tune = $tune *: (pemit(enactor, 'Hold the radio to work the dial.') if loc(me) != enactor else (set_attr(me, 'freq', trim(arg0)), pemit(enactor, f'You click the dial over to [{trim(arg0)}].')))
 ```
 
 VOX — the open microphone, alive only when the radio sits in a room:
 
 ```text
 @set field radio/vox = 0
-@set field radio/cmd_vox = $vox *: (set_attr(me, 'vox', 1 if trim(arg0).lower() == 'on' else 0), pemit(enactor, 'You flip the VOX toggle ' + trim(arg0).lower() + '. It only matters while the set is put down somewhere.'))
-@set field radio/listen_vox = ^*: eval_attr(me, 'xmit', name(enactor) + ' (open mic): ' + escape(arg0)) if enactor and get_attr(me, 'vox', 0) and get_attr(me, 'power', 1) else None
+@set field radio/cmd_vox = $vox *: (set_attr(me, 'vox', 1 if trim(arg0).lower() == 'on' else 0), pemit(enactor, f'You flip the VOX toggle {trim(arg0).lower()}. It only matters while the set is put down somewhere.'))
+@set field radio/listen_vox = ^*: eval_attr(me, 'xmit', f'{name(enactor)} (open mic): {escape(arg0)}') if enactor and V('vox', 0) and V('power', 1) else None
 ```
 
 A second set for your partner — `@clone` copies attributes, tags,

@@ -174,7 +174,8 @@ class ScriptEngine:
         if action.action_type in LISTENABLE_ACTIONS and room is not None:
             message = action.extra.get("message")
             if message:
-                await self.handle_speech(action.actor, str(message), room)
+                await self.handle_speech(action.actor, str(message), room,
+                                         action=action)
 
         # ON_<EVENT> attribute triggers
         await self._fire_event_triggers(action, room)
@@ -184,6 +185,8 @@ class ScriptEngine:
         speaker: GameObject | None,
         speech: str,
         location: GameObject,
+        *,
+        action: Action | None = None,
     ) -> None:
         """
         Run ^listen triggers for speech heard at a location.
@@ -192,6 +195,9 @@ class ScriptEngine:
             speaker: Who spoke (None for sourceless emits)
             speech: What was said
             location: Where it was heard
+            action: The speech Action, when there is one — binds the event
+                namespace (``target``, ``adata('message')``, ...) so a
+                listener can tell a whisper's addressee from a bystander.
         """
         search_objects = list(location.contents) + [location]
 
@@ -209,7 +215,8 @@ class ScriptEngine:
                 match.obj, LockType.LISTEN, speaker
             ):
                 continue
-            await self._execute_trigger(match, speaker, location=location)
+            await self._execute_trigger(match, speaker, location=location,
+                                        action=action)
 
     # --- Entry point: named-attribute triggering (@tr) ---
 
@@ -293,21 +300,43 @@ class ScriptEngine:
             logger.warning(f"on_check error on {obj.name}: {exc}")
 
     @staticmethod
-    def _check_namespace(action: Action) -> dict:
-        """The extra softcode names available to an ``on_check`` script —
-        the in-flight action plus the veto/modify verbs."""
+    def _event_namespace(action: Action) -> dict:
+        """The action's own data, for scripts that OBSERVE it —
+        ``ON_<EVENT>`` triggers and ``^listen``.
+
+        Read-only by design: the apply pass runs after the decision, so it
+        gets no ``block``/``mod`` (nothing left to veto) and no
+        ``set_adata`` (a bystander must not rewrite an in-flight action).
+        The check pass layers those verbs on top — see _check_namespace.
+
+        Without this, a witness could see only *who* acted, never *what
+        happened*: no target, no amount, no damage. Every payload the
+        engine already puts in ``action.extra`` (``amount`` on payments,
+        ``damage`` on hits, ``item`` on gets, ``pose`` on emotes) reaches
+        softcode through ``adata``.
+        """
         return {
             'atype': action.action_type,       # the action's type string
             'actor': action.actor,             # who is acting
             'target': action.target,           # what it targets
             'has_atag': lambda tag: action.has_tag(str(tag)),
             'adata': lambda key, default=None: action.extra.get(key, default),
+        }
+
+    @staticmethod
+    def _check_namespace(action: Action) -> dict:
+        """The extra softcode names available to an ``on_check`` script —
+        the in-flight action (as ON_<EVENT> sees it) plus the veto/modify
+        verbs that only the decision pass may use."""
+        namespace = ScriptEngine._event_namespace(action)
+        namespace.update({
             'set_adata': lambda key, value: action.extra.__setitem__(
                 str(key), value),
             'block': lambda reason='': action.block(str(reason)),
             'mod': lambda value: action.add_modifier(int(value), 'on_check'),
             'is_blocked': lambda: action.blocked,
-        }
+        })
+        return namespace
 
     def _install_softcode_prompt(self, player, text, callback,
                                  executor_id, persistent):
@@ -458,7 +487,8 @@ class ScriptEngine:
                     action=trigger.action,
                 )
                 await self._execute_trigger(match, action.actor, location=room,
-                                            enactor_consent=consent)
+                                            enactor_consent=consent,
+                                            action=action)
 
         # The mover's own hook: ON_ARRIVE fires on the actor when it enters
         # somewhere new (plan.md: "this object arrives somewhere new").
@@ -473,7 +503,8 @@ class ScriptEngine:
                         obj=actor,
                         action=trigger.action,
                     )
-                    await self._execute_trigger(match, actor, location=room)
+                    await self._execute_trigger(match, actor, location=room,
+                                                action=action)
 
     @staticmethod
     def _event_suffix(action_type: str) -> str:
@@ -508,8 +539,16 @@ class ScriptEngine:
         session: Session | None = None,
         location: GameObject | None = None,
         enactor_consent: bool = False,
+        action: Action | None = None,
     ) -> None:
         """Execute a matched trigger, depth-guarded.
+
+        ``action`` is the propagated Action this trigger is observing, when
+        there is one (``ON_<EVENT>``, ``^listen``). It binds the event
+        namespace — ``target``, ``adata(...)``, ``atype``, ``has_atag`` —
+        so the script can see *what happened*, not just who did it. A
+        ``$``-command or ``@tr`` has no action behind it and passes None,
+        leaving those names unbound.
 
         ``enactor_consent`` marks the two paths where the enactor
         deliberately invoked THIS object ($-command typed at it; the exit
@@ -551,11 +590,14 @@ class ScriptEngine:
                     persistence=self._persistence,
                     enactor_consent=enactor_consent,
                 )
+                namespace = functions.to_dict()
+                if action is not None:
+                    namespace.update(self._event_namespace(action))
                 try:
                     _result, output = await self.sandbox.execute_async(
                         action_code,
                         script_ctx,
-                        functions=functions.to_dict(),
+                        functions=namespace,
                     )
                 except ScriptError as e:
                     logger.warning(f"Script error on {match.obj.name}: {e}")

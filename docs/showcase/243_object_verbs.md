@@ -55,7 +55,7 @@ Now the verbs. A no-argument verb first — `pemit` answers only the person
 who asked:
 
 ```text
-@set holo-jukebox/cmd_tracks = $tracks:pemit(enactor, 'Track list: ' + ', '.join(get_attr(me, 'tracks', [])))
+@set holo-jukebox/cmd_tracks = $tracks:pemit(enactor, 'Track list: ' + ', '.join(V('tracks', [])))
 ```
 
 And the star of the show, `play <anything>`. The `*` capture arrives as
@@ -65,7 +65,7 @@ statements, and a conditional *expression* handles the two outcomes).
 requester:
 
 ```text
-@set holo-jukebox/cmd_play = $play *:hits = [t for t in get_attr(me, 'tracks', []) if arg0.lower() in t.lower()]; remit(here, name(me) + ' spins up: ' + hits[0]) if hits else pemit(enactor, name(me) + ' does not know that one.')
+@set holo-jukebox/cmd_play = $play *:hits = [t for t in V('tracks', []) if arg0.lower() in t.lower()]; remit(here, f'{name(me)} spins up: {hits[0]}') if hits else pemit(enactor, f'{name(me)} does not know that one.')
 ```
 
 **Gate the verbs.** The `use` lock covers every `$`-command on the

@@ -50,10 +50,10 @@ statement verb, and the two gated money verbs:
 
 ```text
 @teleport The Void Runners Clubhouse
-@set the Void Runners/log_row = set_attr(me, 'tlog', (get_attr(me, 'tlog', []) + [arg0])[-10:]); result = 1
-@set the Void Runners/cmd_treasury = $treasury:pemit(enactor, 'Void Runners treasury: ' + str(credits(me)) + ' credits.'); [pemit(enactor, '  ' + r) for r in get_attr(me, 'tlog', [])]
-@set the Void Runners/cmd_deposit = $treasury deposit *:amt = int(arg0) if trim(arg0).isdigit() else 0; ok = get_attr(me, 'rank_' + enactor.id, 0) >= 1 and amt > 0 and transfer_credits(enactor, me, amt); [(eval_attr(me, 'log_row', name(enactor) + ' deposited ' + str(a)), pemit(enactor, 'Deposited ' + str(a) + ' credits.'), remit(here, name(enactor) + ' pays ' + str(a) + ' credits into the crew treasury.')) for g, a in [[ok, amt]] if g]; pemit(enactor, 'Members only, and your wallet must cover it.') if not ok else None
-@set the Void Runners/cmd_withdraw = $treasury withdraw *:amt = int(arg0) if trim(arg0).isdigit() else 0; ok = get_attr(me, 'rank_' + enactor.id, 0) >= 2 and amt > 0 and amt <= credits(me) and transfer_credits(me, enactor, amt); [(eval_attr(me, 'log_row', name(enactor) + ' withdrew ' + str(a)), pemit(enactor, 'Withdrew ' + str(a) + ' credits.'), remit(here, name(enactor) + ' draws ' + str(a) + ' credits from the crew treasury.')) for g, a in [[ok, amt]] if g]; pemit(enactor, 'Officers only, and the treasury must cover it.') if not ok else None
+@set the Void Runners/log_row = set_attr(me, 'tlog', (V('tlog', []) + [arg0])[-10:]); result = 1
+@set the Void Runners/cmd_treasury = $treasury:pemit(enactor, 'Void Runners treasury: ' + str(credits(me)) + ' credits.'); [pemit(enactor, '  ' + r) for r in V('tlog', [])]
+@set the Void Runners/cmd_deposit = $treasury deposit *:amt = int(arg0) if trim(arg0).isdigit() else 0; ok = V('rank_' + enactor.id, 0) >= 1 and amt > 0 and transfer_credits(enactor, me, amt); [(eval_attr(me, 'log_row', name(enactor) + ' deposited ' + str(a)), pemit(enactor, 'Deposited ' + str(a) + ' credits.'), remit(here, name(enactor) + ' pays ' + str(a) + ' credits into the crew treasury.')) for g, a in [[ok, amt]] if g]; pemit(enactor, 'Members only, and your wallet must cover it.') if not ok else None
+@set the Void Runners/cmd_withdraw = $treasury withdraw *:amt = int(arg0) if trim(arg0).isdigit() else 0; ok = V('rank_' + enactor.id, 0) >= 2 and amt > 0 and amt <= credits(me) and transfer_credits(me, enactor, amt); [(eval_attr(me, 'log_row', name(enactor) + ' withdrew ' + str(a)), pemit(enactor, 'Withdrew ' + str(a) + ' credits.'), remit(here, name(enactor) + ' draws ' + str(a) + ' credits from the crew treasury.')) for g, a in [[ok, amt]] if g]; pemit(enactor, 'Officers only, and the treasury must cover it.') if not ok else None
 ```
 
 Now the two lockers — closed containers, each with a rank ward on
@@ -66,13 +66,13 @@ safe demands rank 2:
 drop the crew footlocker
 @set the crew footlocker/min_rank = 1
 close the crew footlocker
-@set the crew footlocker/on_check = org = get('the Void Runners'); block('The footlocker is sealed to Void Runners members.') if atype == 'item:on_open' and target == me and get_attr(org, 'rank_' + actor.id, 0) < get_attr(me, 'min_rank', 1) else None
+@set the crew footlocker/on_check = org = get('the Void Runners'); block('The footlocker is sealed to Void Runners members.') if atype == 'item:on_open' and target == me and get_attr(org, 'rank_' + actor.id, 0) < V('min_rank', 1) else None
 @create the officers safe
 @set the officers safe/container = true
 drop the officers safe
 @set the officers safe/min_rank = 2
 close the officers safe
-@set the officers safe/on_check = org = get('the Void Runners'); block('The officers safe reads your crew rank and stays shut. Officers only.') if atype == 'item:on_open' and target == me and get_attr(org, 'rank_' + actor.id, 0) < get_attr(me, 'min_rank', 2) else None
+@set the officers safe/on_check = org = get('the Void Runners'); block('The officers safe reads your crew rank and stays shut. Officers only.') if atype == 'item:on_open' and target == me and get_attr(org, 'rank_' + actor.id, 0) < V('min_rank', 2) else None
 ```
 
 ## Try it
@@ -104,8 +104,8 @@ him too — no locker edit, just his rung changing on the ladder.
 
 ## Going further
 
-- **Per-rank allowances** — cap a withdraw at `get_attr(me, 'rank_' +
-  enactor.id, 0) * 100` credits per day (stamp `drew_<id>` with `now()`),
+- **Per-rank allowances** — cap a withdraw at `V('rank_' + enactor.id, 0)
+  * 100` credits per day (stamp `drew_<id>` with `now()`),
   so higher rank means a bigger draw, not just permission.
 - **Locker teleport storage** — on a successful open, the safe could
   `teleport_obj` its contents from a hidden back room, so shared crew gear

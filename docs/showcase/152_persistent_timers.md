@@ -69,7 +69,7 @@ timer lives to be wound again:
 
 ```text
 @set egg timer/cmd_set = $set timer *: (pemit(enactor, 'Give it whole minutes.') if not trim(arg0).isdigit() else (set_attr(me, 'rings_at', now() + int(arg0) * 60), expire(me, int(arg0) * 60), pemit(enactor, 'The timer winds up with a ratchet and begins ticking.')))
-@set egg timer/cmd_check = $check timer: pemit(enactor, 'The timer is not set.') if not get_attr(me, 'rings_at') else pemit(enactor, str(max(0, get_attr(me, 'rings_at', 0) - now())) + ' seconds remain.')
+@set egg timer/cmd_check = $check timer: pemit(enactor, 'The timer is not set.') if not V('rings_at') else pemit(enactor, str(max(0, V('rings_at', 0) - now())) + ' seconds remain.')
 @set egg timer/on_expire = del_attr(me, 'expires_at'); del_attr(me, 'rings_at'); remit(loc(me), 'BRRRING! The egg timer goes off, rattling on the counter.')
 ```
 

@@ -57,41 +57,41 @@ drop the Void Runners
 The shared ladder-label routine (one place names the rungs):
 
 ```text
-@set the Void Runners/rankname = rn = get_attr(me, 'rank_names', []); n = int(arg0); result = rn[n] if 0 <= n < len(rn) else 'Rank ' + str(n)
+@set the Void Runners/rankname = rn = V('rank_names', []); n = int(arg0); result = rn[n] if 0 <= n < len(rn) else 'Rank ' + str(n)
 ```
 
 `org found` — the first claimant takes the Commander's chair:
 
 ```text
-@set the Void Runners/cmd_found = $org found:ok = not get_attr(me, 'leader'); [(set_attr(me, 'leader', enactor.id), set_attr(me, 'rank_' + enactor.id, 3), set_attr(me, 'roster', sorted(set(get_attr(me, 'roster', []) + [enactor.id]))), remit(here, name(enactor) + ' founds the Void Runners and takes the Commander chair.')) for g in [ok] if g]; pemit(enactor, 'The Void Runners already have a leader.') if not ok else None
+@set the Void Runners/cmd_found = $org found:ok = not V('leader'); [(set_attr(me, 'leader', enactor.id), set_attr(me, 'rank_' + enactor.id, 3), set_attr(me, 'roster', sorted(set(V('roster', []) + [enactor.id]))), remit(here, name(enactor) + ' founds the Void Runners and takes the Commander chair.')) for g in [ok] if g]; pemit(enactor, 'The Void Runners already have a leader.') if not ok else None
 ```
 
 `org invite <name>` (Officer+) and `org join` (the invitee accepts):
 
 ```text
-@set the Void Runners/cmd_invite = $org invite *:other = get(trim(arg0)); mine = get_attr(me, 'rank_' + enactor.id, 0); ok = mine >= 2 and other is not None and has_tag(other, 'player') and other.id not in get_attr(me, 'roster', []); [(set_attr(me, 'invites', sorted(set(get_attr(me, 'invites', []) + [o.id]))), pemit(o, name(enactor) + ' invites you to join the Void Runners. Go to the clubhouse and type ORG JOIN to accept.'), pemit(enactor, 'Invitation sent to ' + name(o) + '.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'Only officers invite, and only outsiders.') if not ok else None
-@set the Void Runners/cmd_join = $org join:inv = get_attr(me, 'invites', []); ok = enactor.id in inv; [(set_attr(me, 'rank_' + enactor.id, 1), set_attr(me, 'roster', sorted(set(get_attr(me, 'roster', []) + [enactor.id]))), set_attr(me, 'invites', [i for i in inv if i != enactor.id]), remit(here, name(enactor) + ' joins the Void Runners as a Recruit.')) for g in [ok] if g]; pemit(enactor, 'You have no invitation to the Void Runners.') if not ok else None
+@set the Void Runners/cmd_invite = $org invite *:other = get(trim(arg0)); mine = V('rank_' + enactor.id, 0); ok = mine >= 2 and other is not None and has_tag(other, 'player') and other.id not in V('roster', []); [(set_attr(me, 'invites', sorted(set(V('invites', []) + [o.id]))), pemit(o, name(enactor) + ' invites you to join the Void Runners. Go to the clubhouse and type ORG JOIN to accept.'), pemit(enactor, 'Invitation sent to ' + name(o) + '.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'Only officers invite, and only outsiders.') if not ok else None
+@set the Void Runners/cmd_join = $org join:inv = V('invites', []); ok = enactor.id in inv; [(set_attr(me, 'rank_' + enactor.id, 1), set_attr(me, 'roster', sorted(set(V('roster', []) + [enactor.id]))), set_attr(me, 'invites', [i for i in inv if i != enactor.id]), remit(here, name(enactor) + ' joins the Void Runners as a Recruit.')) for g in [ok] if g]; pemit(enactor, 'You have no invitation to the Void Runners.') if not ok else None
 ```
 
 `org` (bare) — the roster, sorted by rank, each rung named:
 
 ```text
-@set the Void Runners/cmd_roster = $org:ros = [i for r, i in sorted([[-get_attr(me, 'rank_' + str(x), 0), x] for x in get_attr(me, 'roster', [])])]; pemit(enactor, 'The Void Runners:' if ros else 'The Void Runners have no members yet. ORG FOUND to start one.'); [pemit(enactor, '  ' + name(get('#' + str(i))) + ' - ' + str(eval_attr(me, 'rankname', get_attr(me, 'rank_' + str(i), 0)))) for i in ros if get('#' + str(i))]
+@set the Void Runners/cmd_roster = $org:ros = [i for r, i in sorted([[-V('rank_' + str(x), 0), x] for x in V('roster', [])])]; pemit(enactor, 'The Void Runners:' if ros else 'The Void Runners have no members yet. ORG FOUND to start one.'); [pemit(enactor, '  ' + name(get('#' + str(i))) + ' - ' + str(eval_attr(me, 'rankname', V('rank_' + str(i), 0)))) for i in ros if get('#' + str(i))]
 ```
 
 `org promote` / `org demote` / `org kick` — the rank rule, enforced three
 ways:
 
 ```text
-@set the Void Runners/cmd_promote = $org promote *:other = get(trim(arg0)); mine = get_attr(me, 'rank_' + enactor.id, 0); rn = get_attr(me, 'rank_names', []); tr = get_attr(me, 'rank_' + other.id, 0) if other is not None else 0; ok = mine >= 2 and other is not None and other.id in get_attr(me, 'roster', []) and other.id != enactor.id and tr + 1 < mine and tr + 1 < len(rn); [(set_attr(me, 'rank_' + o.id, t + 1), remit(here, name(enactor) + ' promotes ' + name(o) + ' to ' + str(eval_attr(me, 'rankname', t + 1)) + '.'), pemit(o, 'You have been promoted in the Void Runners.')) for g, o, t in [[ok, other, tr]] if g]; pemit(enactor, 'You cannot promote them: outrank them, and only up to below your own rung.') if not ok else None
-@set the Void Runners/cmd_demote = $org demote *:other = get(trim(arg0)); mine = get_attr(me, 'rank_' + enactor.id, 0); tr = get_attr(me, 'rank_' + other.id, 0) if other is not None else 0; ok = mine >= 2 and other is not None and other.id in get_attr(me, 'roster', []) and other.id != enactor.id and tr < mine and tr > 1; [(set_attr(me, 'rank_' + o.id, t - 1), remit(here, name(enactor) + ' demotes ' + name(o) + ' to ' + str(eval_attr(me, 'rankname', t - 1)) + '.'), pemit(o, 'You have been demoted in the Void Runners.')) for g, o, t in [[ok, other, tr]] if g]; pemit(enactor, 'You cannot demote them.') if not ok else None
-@set the Void Runners/cmd_kick = $org kick *:other = get(trim(arg0)); mine = get_attr(me, 'rank_' + enactor.id, 0); tr = get_attr(me, 'rank_' + other.id, 0) if other is not None else 0; ok = mine >= 2 and other is not None and other.id in get_attr(me, 'roster', []) and other.id != enactor.id and tr < mine; [(set_attr(me, 'roster', [i for i in get_attr(me, 'roster', []) if i != o.id]), del_attr(me, 'rank_' + o.id), remit(here, name(enactor) + ' expels ' + name(o) + ' from the Void Runners.'), pemit(o, 'You have been removed from the Void Runners.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'You cannot expel them: you must outrank a fellow member.') if not ok else None
+@set the Void Runners/cmd_promote = $org promote *:other = get(trim(arg0)); mine = V('rank_' + enactor.id, 0); rn = V('rank_names', []); tr = V('rank_' + other.id, 0) if other is not None else 0; ok = mine >= 2 and other is not None and other.id in V('roster', []) and other.id != enactor.id and tr + 1 < mine and tr + 1 < len(rn); [(set_attr(me, 'rank_' + o.id, t + 1), remit(here, name(enactor) + ' promotes ' + name(o) + ' to ' + str(eval_attr(me, 'rankname', t + 1)) + '.'), pemit(o, 'You have been promoted in the Void Runners.')) for g, o, t in [[ok, other, tr]] if g]; pemit(enactor, 'You cannot promote them: outrank them, and only up to below your own rung.') if not ok else None
+@set the Void Runners/cmd_demote = $org demote *:other = get(trim(arg0)); mine = V('rank_' + enactor.id, 0); tr = V('rank_' + other.id, 0) if other is not None else 0; ok = mine >= 2 and other is not None and other.id in V('roster', []) and other.id != enactor.id and tr < mine and tr > 1; [(set_attr(me, 'rank_' + o.id, t - 1), remit(here, name(enactor) + ' demotes ' + name(o) + ' to ' + str(eval_attr(me, 'rankname', t - 1)) + '.'), pemit(o, 'You have been demoted in the Void Runners.')) for g, o, t in [[ok, other, tr]] if g]; pemit(enactor, 'You cannot demote them.') if not ok else None
+@set the Void Runners/cmd_kick = $org kick *:other = get(trim(arg0)); mine = V('rank_' + enactor.id, 0); tr = V('rank_' + other.id, 0) if other is not None else 0; ok = mine >= 2 and other is not None and other.id in V('roster', []) and other.id != enactor.id and tr < mine; [(set_attr(me, 'roster', [i for i in V('roster', []) if i != o.id]), del_attr(me, 'rank_' + o.id), remit(here, name(enactor) + ' expels ' + name(o) + ' from the Void Runners.'), pemit(o, 'You have been removed from the Void Runners.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'You cannot expel them: you must outrank a fellow member.') if not ok else None
 ```
 
 `org leave` — anyone may walk, but a leader must hand off first:
 
 ```text
-@set the Void Runners/cmd_leave = $org leave:ros = get_attr(me, 'roster', []); isleader = enactor.id == get_attr(me, 'leader'); ok = enactor.id in ros and not (isleader and len(ros) > 1); [(set_attr(me, 'roster', [i for i in ros if i != enactor.id]), del_attr(me, 'rank_' + enactor.id), del_attr(me, 'leader') if isleader else None, remit(here, name(enactor) + ' leaves the Void Runners.')) for g in [ok] if g]; pemit(enactor, 'You are not a member, or a leader must promote a successor before leaving.') if not ok else None
+@set the Void Runners/cmd_leave = $org leave:ros = V('roster', []); isleader = enactor.id == V('leader'); ok = enactor.id in ros and not (isleader and len(ros) > 1); [(set_attr(me, 'roster', [i for i in ros if i != enactor.id]), del_attr(me, 'rank_' + enactor.id), del_attr(me, 'leader') if isleader else None, remit(here, name(enactor) + ' leaves the Void Runners.')) for g in [ok] if g]; pemit(enactor, 'You are not a member, or a leader must promote a successor before leaving.') if not ok else None
 ```
 
 ## Try it

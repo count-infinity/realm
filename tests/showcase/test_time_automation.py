@@ -43,9 +43,9 @@ BUILD_144 = [
     "@set ship chronometer/step = 30",
     "@set ship chronometer/epoch_year = 812",
     '@set ship chronometer/months = ["Ignis", "Ventus", "Terra", "Aqua", "Lumen", "Umbra", "Ferro", "Nix", "Sol", "Void"]',
-    "@set ship chronometer/on_tick = set_attr(me, 'game_min', get_attr(me, 'game_min', 0) + get_attr(me, 'step', 30))",
+    "@set ship chronometer/on_tick = incr('game_min', V('step', 30))",
     "@behavior ship chronometer = script_ticker, interval:1",
-    "@set ship chronometer/cmd_date = $date: m = get_attr(me, 'game_min', 0); mo = get_attr(me, 'months', []); minute = m % 60; hour = (m // 60) % 20; day = (m // 1200) % 30 + 1; month = (m // 36000) % 10; year = get_attr(me, 'epoch_year', 0) + m // 360000; pemit(enactor, 'CS ' + str(year) + '.' + right('0' + str(month + 1), 2) + '.' + right('0' + str(day), 2) + ' // ' + right('0' + str(hour), 2) + ':' + right('0' + str(minute), 2) + ' -- month of ' + (mo[month] if mo else '?') + '.')",
+    """@set ship chronometer/cmd_date = $date: m = V('game_min', 0); mo = V('months', []); minute = m % 60; hour = (m // 60) % 20; day = (m // 1200) % 30 + 1; month = (m // 36000) % 10; year = V('epoch_year', 0) + m // 360000; pemit(enactor, f'CS {year}.{right("0" + str(month + 1), 2)}.{right("0" + str(day), 2)} // {right("0" + str(hour), 2)}:{right("0" + str(minute), 2)} -- month of {mo[month] if mo else "?"}.')""",
 ]
 
 # docs/showcase/145_scheduled_events.md
@@ -60,13 +60,13 @@ BUILD_145 = [
     "@create colony clock",
     "drop colony clock",
     "@set colony clock/hour = 5",
-    "@set colony clock/on_tick = set_attr(me, 'hour', (get_attr(me, 'hour', 0) + 1) % 24)",
+    "@set colony clock/on_tick = set_attr(me, 'hour', (V('hour', 0) + 1) % 24)",
     "@behavior colony clock = script_ticker, interval:1",
     "@create Colony AI",
     "drop Colony AI",
     "@zone/master Colony AI = colony",
     '@set Colony AI/schedule = [{"hour": 6, "msg": "A dawn klaxon echoes through the colony. Day cycle begins."}, {"hour": 12, "msg": "Midday rations are served in the mess."}, {"hour": 18, "msg": "Dusk. The corridor lights fade to amber."}]',
-    "@set Colony AI/on_tick = h = get_attr('colony clock', 'hour', 0); [(act(me, e['msg'], targeting='zone'), set_attr(me, 'fired_' + str(i), h)) for i, e in enumerate(get_attr(me, 'schedule', [])) if e['hour'] == h and get_attr(me, 'fired_' + str(i), -1) != h]",
+    "@set Colony AI/on_tick = h = get_attr('colony clock', 'hour', 0); [(act(me, e['msg'], targeting='zone'), set_attr(me, 'fired_' + str(i), h)) for i, e in enumerate(V('schedule', [])) if e['hour'] == h and V('fired_' + str(i), -1) != h]",
     "@behavior Colony AI = script_ticker, interval:1",
 ]
 
@@ -100,7 +100,7 @@ BUILD_147 = [
     "@zone/master Bridge Systems = derelict",
     "@set Bridge Systems/reset_interval = 300",
     '@set Bridge Systems/reset_spec = [{"prototype": {"name": "a maintenance drone", "tags": ["npc"]}, "room": "dronebay", "count": 2}]',
-    "@set Bridge Systems/on_reset = set_attr(me, 'cycles', get_attr(me, 'cycles', 0) + 1); remit('Derelict Bridge', 'Dormant systems cycle: consoles relight, the drone bay reseeds.')",
+    "@set Bridge Systems/on_reset = incr('cycles'); remit('Derelict Bridge', 'Dormant systems cycle: consoles relight, the drone bay reseeds.')",
     "@behavior Bridge Systems = zone_reset",
     "@set Bridge Systems/cmd_repop = $repop: pemit(enactor, 'Command authority required.') if enactor != owner(me) else (set_attr(me, 'last_reset', 0), pemit(enactor, 'Reset queued -- it fires the instant the bridge is clear.'))",
 ]
@@ -113,11 +113,11 @@ BUILD_148 = [
     "drop ceremony bell",
     "@desc ceremony bell = A tall bronze bell on a rope. RING BELL begins the rite; SILENCE BELL stops it.",
     "@set ceremony bell/gap = 2",
-    "@set ceremony bell/step_1 = remit(loc(me), 'The bell rings once. A hush falls over the chamber.'); set_attr(me, 'pending', wait(get_attr(me, 'gap', 2), 'trigger me/step_2'))",
-    "@set ceremony bell/step_2 = remit(loc(me), 'The bell rings twice. The candles gutter.'); set_attr(me, 'pending', wait(get_attr(me, 'gap', 2), 'trigger me/step_3'))",
+    "@set ceremony bell/step_1 = remit(loc(me), 'The bell rings once. A hush falls over the chamber.'); set_attr(me, 'pending', wait(V('gap', 2), 'trigger me/step_2'))",
+    "@set ceremony bell/step_2 = remit(loc(me), 'The bell rings twice. The candles gutter.'); set_attr(me, 'pending', wait(V('gap', 2), 'trigger me/step_3'))",
     "@set ceremony bell/step_3 = remit(loc(me), 'The bell rings a third and final time. It is done.'); del_attr(me, 'pending')",
-    "@set ceremony bell/cmd_begin = $ring bell: pemit(enactor, 'A ceremony is already underway.') if get_attr(me, 'pending') else eval_attr(me, 'step_1')",
-    "@set ceremony bell/cmd_silence = $silence bell: (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), remit(loc(me), 'The bell is stilled mid-peal.')) if get_attr(me, 'pending') else pemit(enactor, 'Nothing is ringing.')",
+    "@set ceremony bell/cmd_begin = $ring bell: pemit(enactor, 'A ceremony is already underway.') if V('pending') else eval_attr(me, 'step_1')",
+    "@set ceremony bell/cmd_silence = $silence bell: (cancel_wait(V('pending')), del_attr(me, 'pending'), remit(loc(me), 'The bell is stilled mid-peal.')) if V('pending') else pemit(enactor, 'Nothing is ringing.')",
 ]
 
 # docs/showcase/149_maintenance_sweeper.md
@@ -151,11 +151,11 @@ BUILD_150 = [
     "@zone/master Event Herald = world",
     "@set Event Herald/banner = STATION ANNOUNCEMENT",
     "@set Event Herald/gap = 2",
-    "@set Event Herald/announce = [remit(r, get_attr(me, 'banner', 'ATTENTION') + ': ' + get_attr(me, 'label', 'an event') + ' in ' + str(get_attr(me, 'remaining', 0)) + ' minutes.') for r in search_world(tag='room')]",
-    "@set Event Herald/tick = n = get_attr(me, 'remaining', 0); (eval_attr(me, 'fire') if n <= 0 else (eval_attr(me, 'announce'), set_attr(me, 'remaining', n - 1), set_attr(me, 'pending', wait(get_attr(me, 'gap', 2), 'trigger me/tick'))))",
-    "@set Event Herald/fire = del_attr(me, 'pending'); del_attr(me, 'remaining'); [remit(r, get_attr(me, 'label', 'the event') + ' begins NOW!') for r in search_world(tag='room')]",
-    "@set Event Herald/cmd_countdown = $countdown * for *: pemit(enactor, 'Command authority required.') if enactor != owner(me) else (pemit(enactor, 'A countdown is already running.') if get_attr(me, 'pending') else (set_attr(me, 'label', arg1), set_attr(me, 'remaining', int(arg0)), eval_attr(me, 'tick')))",
-    "@set Event Herald/cmd_scrub = $scrub countdown: (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), del_attr(me, 'remaining'), [remit(r, get_attr(me, 'label', 'the event') + ' has been called off.') for r in search_world(tag='room')]) if get_attr(me, 'pending') else pemit(enactor, 'No countdown is running.')",
+    "@set Event Herald/announce = [remit(r, V('banner', 'ATTENTION') + ': ' + V('label', 'an event') + ' in ' + str(V('remaining', 0)) + ' minutes.') for r in search_world(tag='room')]",
+    "@set Event Herald/tick = n = V('remaining', 0); (eval_attr(me, 'fire') if n <= 0 else (eval_attr(me, 'announce'), decr('remaining'), set_attr(me, 'pending', wait(V('gap', 2), 'trigger me/tick'))))",
+    "@set Event Herald/fire = del_attr(me, 'pending'); del_attr(me, 'remaining'); [remit(r, V('label', 'the event') + ' begins NOW!') for r in search_world(tag='room')]",
+    "@set Event Herald/cmd_countdown = $countdown * for *: pemit(enactor, 'Command authority required.') if enactor != owner(me) else (pemit(enactor, 'A countdown is already running.') if V('pending') else (set_attr(me, 'label', arg1), set_attr(me, 'remaining', int(arg0)), eval_attr(me, 'tick')))",
+    "@set Event Herald/cmd_scrub = $scrub countdown: (cancel_wait(V('pending')), del_attr(me, 'pending'), del_attr(me, 'remaining'), [remit(r, V('label', 'the event') + ' has been called off.') for r in search_world(tag='room')]) if V('pending') else pemit(enactor, 'No countdown is running.')",
 ]
 
 # docs/showcase/151_business_hours.md
@@ -165,18 +165,18 @@ BUILD_151 = [
     "@create market clock",
     "drop market clock",
     "@set market clock/hour = 8",
-    "@set market clock/on_tick = set_attr(me, 'hour', (get_attr(me, 'hour', 0) + 1) % 24)",
+    "@set market clock/on_tick = set_attr(me, 'hour', (V('hour', 0) + 1) % 24)",
     "@behavior market clock = script_ticker, interval:1",
     "@create trade terminal",
     "drop trade terminal",
     "@set trade terminal/open_hour = 9",
     "@set trade terminal/close_hour = 17",
     "@set trade terminal/open = 0",
-    "@set trade terminal/refresh = h = get_attr('market clock', 'hour', 12); set_attr(me, 'open', 1 if get_attr(me, 'open_hour', 9) <= h < get_attr(me, 'close_hour', 17) else 0)",
+    "@set trade terminal/refresh = h = get_attr('market clock', 'hour', 12); set_attr(me, 'open', 1 if V('open_hour', 9) <= h < V('close_hour', 17) else 0)",
     "@set trade terminal/on_tick = eval_attr(me, 'refresh')",
     "@behavior trade terminal = script_ticker, interval:1",
-    "@desc trade terminal = A wall-mounted trade console. [[result = 'A green OPEN light glows steadily.' if get_attr(me, 'open', 0) else 'A red CLOSED light glows; the screen is dark.']]",
-    "@set trade terminal/cmd_access = $access terminal: pemit(enactor, 'ACCESS GRANTED. The markets are live -- place your orders.') if get_attr(me, 'open', 0) else pemit(enactor, 'The screen is dark. Trade hours are ' + str(get_attr(me, 'open_hour', 9)) + ':00 to ' + str(get_attr(me, 'close_hour', 17)) + ':00.')",
+    "@desc trade terminal = A wall-mounted trade console. [[result = 'A green OPEN light glows steadily.' if V('open', 0) else 'A red CLOSED light glows; the screen is dark.']]",
+    "@set trade terminal/cmd_access = $access terminal: pemit(enactor, 'ACCESS GRANTED. The markets are live -- place your orders.') if V('open', 0) else pemit(enactor, 'The screen is dark. Trade hours are ' + str(V('open_hour', 9)) + ':00 to ' + str(V('close_hour', 17)) + ':00.')",
 ]
 
 # docs/showcase/152_persistent_timers.md
@@ -187,7 +187,7 @@ BUILD_152 = [
     "drop egg timer",
     "@desc egg timer = A brass mechanical timer. SET TIMER <minutes> winds it; CHECK TIMER reads the dial.",
     "@set egg timer/cmd_set = $set timer *: (pemit(enactor, 'Give it whole minutes.') if not trim(arg0).isdigit() else (set_attr(me, 'rings_at', now() + int(arg0) * 60), expire(me, int(arg0) * 60), pemit(enactor, 'The timer winds up with a ratchet and begins ticking.')))",
-    "@set egg timer/cmd_check = $check timer: pemit(enactor, 'The timer is not set.') if not get_attr(me, 'rings_at') else pemit(enactor, str(max(0, get_attr(me, 'rings_at', 0) - now())) + ' seconds remain.')",
+    "@set egg timer/cmd_check = $check timer: pemit(enactor, 'The timer is not set.') if not V('rings_at') else pemit(enactor, str(max(0, V('rings_at', 0) - now())) + ' seconds remain.')",
     "@set egg timer/on_expire = del_attr(me, 'expires_at'); del_attr(me, 'rings_at'); remit(loc(me), 'BRRRING! The egg timer goes off, rattling on the counter.')",
 ]
 
@@ -199,10 +199,10 @@ BUILD_153 = [
     "drop master chronometer",
     "@set master chronometer/game_min = 0",
     "@set master chronometer/step = 30",
-    "@set master chronometer/on_tick = set_attr(me, 'game_min', get_attr(me, 'game_min', 0) + get_attr(me, 'step', 30))",
+    "@set master chronometer/on_tick = incr('game_min', V('step', 30))",
     "@behavior master chronometer = script_ticker, interval:1",
     "@set master chronometer/cmd_rate = $set rate *: (set_attr(me, 'step', int(arg0)), pemit(enactor, 'Time now advances ' + arg0 + ' game-minutes per world tick.')) if trim(arg0).isdigit() else pemit(enactor, 'Whole minutes only.')",
-    "@set master chronometer/cmd_clock = $clock: m = get_attr(me, 'game_min', 0); pemit(enactor, 'Day ' + str(m // 1440 + 1) + ', ' + right('0' + str((m // 60) % 24), 2) + ':' + right('0' + str(m % 60), 2))",
+    "@set master chronometer/cmd_clock = $clock: m = V('game_min', 0); pemit(enactor, 'Day ' + str(m // 1440 + 1) + ', ' + right('0' + str((m // 60) % 24), 2) + ':' + right('0' + str(m % 60), 2))",
 ]
 
 BUILD_RED_FLAGS = (

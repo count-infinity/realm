@@ -80,14 +80,14 @@ drop the Social Registry
 roster so the connect hook can find watchers later:
 
 ```text
-@set the Social Registry/cmd_befriend = $befriend *:other = get(trim(arg0)); mine = get_attr(me, 'friends_' + enactor.id, []); ok = other is not None and has_tag(other, 'player') and other.id != enactor.id and other.id not in mine; [(set_attr(me, 'friends_' + enactor.id, mine + [o.id]), set_attr(me, 'members', sorted(set(get_attr(me, 'members', []) + [enactor.id]))), pemit(enactor, 'Added ' + name(o) + ' to your contacts.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'No such player, or they are already a contact.') if not ok else None
-@set the Social Registry/cmd_unfriend = $unfriend *:other = get(trim(arg0)); mine = get_attr(me, 'friends_' + enactor.id, []); ok = other is not None and other.id in mine; [(set_attr(me, 'friends_' + enactor.id, [i for i in mine if i != o.id]), pemit(enactor, 'Removed ' + name(o) + ' from your contacts.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'That player is not on your contact list.') if not ok else None
+@set the Social Registry/cmd_befriend = $befriend *:other = get(trim(arg0)); mine = V('friends_' + enactor.id, []); ok = other is not None and has_tag(other, 'player') and other.id != enactor.id and other.id not in mine; [(set_attr(me, 'friends_' + enactor.id, mine + [o.id]), set_attr(me, 'members', sorted(set(V('members', []) + [enactor.id]))), pemit(enactor, 'Added ' + name(o) + ' to your contacts.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'No such player, or they are already a contact.') if not ok else None
+@set the Social Registry/cmd_unfriend = $unfriend *:other = get(trim(arg0)); mine = V('friends_' + enactor.id, []); ok = other is not None and other.id in mine; [(set_attr(me, 'friends_' + enactor.id, [i for i in mine if i != o.id]), pemit(enactor, 'Removed ' + name(o) + ' from your contacts.')) for g, o in [[ok, other]] if g]; pemit(enactor, 'That player is not on your contact list.') if not ok else None
 ```
 
 `friends` — your list, each tagged online or offline against the roster:
 
 ```text
-@set the Social Registry/cmd_friends = $friends:mine = get_attr(me, 'friends_' + enactor.id, []); pemit(enactor, 'Your contacts:' if mine else 'Your contact list is empty. BEFRIEND <name> to start.'); [pemit(enactor, '  ' + name(get('#' + str(i))) + ' - ' + ('online' if i in get_attr(me, 'online', []) else 'offline')) for i in mine if get('#' + str(i))]
+@set the Social Registry/cmd_friends = $friends:mine = V('friends_' + enactor.id, []); pemit(enactor, 'Your contacts:' if mine else 'Your contact list is empty. BEFRIEND <name> to start.'); [pemit(enactor, '  ' + name(get('#' + str(i))) + ' - ' + ('online' if i in V('online', []) else 'offline')) for i in mine if get('#' + str(i))]
 ```
 
 `cloak` / `uncloak` — the privacy opt-out:
@@ -103,14 +103,14 @@ notify the online watchers who list you (unless you're hidden), then greet
 you with a count of your own contacts online:
 
 ```text
-@set the Social Registry/on_connect = set_attr(me, 'online', [i for i in (get_attr(me, 'online') or []) if i != enactor.id] + [enactor.id]); [pemit(get('#' + str(m)), name(enactor) + ' has come online.') for m in get_attr(me, 'members', []) if m in get_attr(me, 'online', []) and m != enactor.id and enactor.id in get_attr(me, 'friends_' + str(m), [])] if not get_attr(me, 'hide_' + enactor.id, 0) else None; mine = [f for f in get_attr(me, 'friends_' + enactor.id, []) if f in get_attr(me, 'online', []) and f != enactor.id]; pemit(enactor, str(len(mine)) + ' of your contacts are online.') if get_attr(me, 'friends_' + enactor.id, []) else None
+@set the Social Registry/on_connect = set_attr(me, 'online', [i for i in (V('online') or []) if i != enactor.id] + [enactor.id]); [pemit(get('#' + str(m)), name(enactor) + ' has come online.') for m in V('members', []) if m in V('online', []) and m != enactor.id and enactor.id in V('friends_' + str(m), [])] if not V('hide_' + enactor.id, 0) else None; mine = [f for f in V('friends_' + enactor.id, []) if f in V('online', []) and f != enactor.id]; pemit(enactor, str(len(mine)) + ' of your contacts are online.') if V('friends_' + enactor.id, []) else None
 ```
 
 On disconnect: drop from the roster, and tell the watchers you're gone
 (again, silence if hidden):
 
 ```text
-@set the Social Registry/on_disconnect = [pemit(get('#' + str(m)), name(enactor) + ' has gone offline.') for m in get_attr(me, 'members', []) if m in get_attr(me, 'online', []) and m != enactor.id and enactor.id in get_attr(me, 'friends_' + str(m), [])] if not get_attr(me, 'hide_' + enactor.id, 0) else None; set_attr(me, 'online', [i for i in (get_attr(me, 'online') or []) if i != enactor.id])
+@set the Social Registry/on_disconnect = [pemit(get('#' + str(m)), name(enactor) + ' has gone offline.') for m in V('members', []) if m in V('online', []) and m != enactor.id and enactor.id in V('friends_' + str(m), [])] if not V('hide_' + enactor.id, 0) else None; set_attr(me, 'online', [i for i in (V('online') or []) if i != enactor.id])
 ```
 
 ## Try it
@@ -158,7 +158,7 @@ unfriend Cass
   `oob(get('#' + str(m)), 'Comm.Friend', {'name': name(enactor), 'status': 'online'})`
   so a rich client lights a buddy-list panel instead of printing a line.
 - **Mutual-only mode** — notify a watcher only if the connector *also*
-  lists them: add `and m in get_attr(me, 'friends_' + enactor.id, [])`
+  lists them: add `and m in V('friends_' + enactor.id, [])`
   to the watcher filter, turning contacts into confirmed friendships.
 - **Block list** — a `block_<id>` list that `befriend` refuses to cross,
   so a player can bar someone from adding them.

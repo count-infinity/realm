@@ -52,7 +52,7 @@ gallery
 drop cold draft
 @set cold draft/lines = ["A cold draft worries the candle flames.", "Somewhere above, timbers settle with a groan.", "Dust sifts down from the rafters."]
 @set cold draft/chance = 25
-@set cold draft/on_tick = lines = get_attr(me, 'lines', []); (remit(here, lines[rand(0, len(lines) - 1)]) if lines and [o for o in contents(here) if has_tag(o, 'player')] else None) if rand(1, 100) <= get_attr(me, 'chance', 25) else None
+@set cold draft/on_tick = lines = V('lines', []); (remit(here, lines[rand(0, len(lines) - 1)]) if lines and [o for o in contents(here) if has_tag(o, 'player')] else None) if rand(1, 100) <= V('chance', 25) else None
 @behavior cold draft = script_ticker, interval:8
 @tag cold draft = invisible
 ```

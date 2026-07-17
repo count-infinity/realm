@@ -80,7 +80,7 @@ MINIMAP_BUILD = [
     "north",
     "@dig Observation Deck = north, south",
     "south",
-    r"@set here/render_map = dirs = {'north': [0, -1], 'south': [0, 1], 'east': [1, 0], 'west': [-1, 0]}; w1 = [[dirs[name(e)][0], dirs[name(e)][1], get('#' + str(get_attr(e, 'destination', '')))] for e in exits(me) if name(e) in dirs]; w1 = [c for c in w1 if c[2]]; w2 = [[c[0] + dirs[name(e)][0], c[1] + dirs[name(e)][1], get('#' + str(get_attr(e, 'destination', '')))] for c in w1 for e in exits(c[2]) if name(e) in dirs]; w2 = [c for c in w2 if c[2] and c[2].id != me.id]; seen = {str(c[0]) + ',' + str(c[1]): c[2] for c in (w2 + w1 + [[0, 0, me]])}; grid = ['  '.join(['@' if x == 0 and y == 0 else (capstr(left(name(seen[str(x) + ',' + str(y)]), 1)) if str(x) + ',' + str(y) in seen else '.') for x in [-2, -1, 0, 1, 2]]) for y in [-2, -1, 0, 1, 2]]; pemit(enactor, ansi('ch', 'Nearby') + '\n' + '\n'.join(grid))",
+    r"@set here/render_map = dirs = {'north': [0, -1], 'south': [0, 1], 'east': [1, 0], 'west': [-1, 0]}; w1 = [[dirs[name(e)][0], dirs[name(e)][1], get('#' + str(get_attr(e, 'destination', '')))] for e in exits(me) if name(e) in dirs]; w1 = [c for c in w1 if c[2]]; w2 = [[c[0] + dirs[name(e)][0], c[1] + dirs[name(e)][1], get('#' + str(get_attr(e, 'destination', '')))] for c in w1 for e in exits(c[2]) if name(e) in dirs]; w2 = [c for c in w2 if c[2] and c[2].id != me.id]; seen = {f'{c[0]},{c[1]}': c[2] for c in (w2 + w1 + [[0, 0, me]])}; grid = ['  '.join(['@' if x == 0 and y == 0 else (capstr(left(name(seen[f'{x},{y}']), 1)) if f'{x},{y}' in seen else '.') for x in [-2, -1, 0, 1, 2]]) for y in [-2, -1, 0, 1, 2]]; pemit(enactor, ansi('ch', 'Nearby') + '\n' + '\n'.join(grid))",
     "@set here/on_look = eval_attr(me, 'render_map')",
 ]
 
@@ -122,7 +122,7 @@ class TestMinimap:
 SHEET_BUILD = [
     "@create datapad",
     '@set datapad/skills = ["guns", "stealth", "observation"]',
-    r"@set datapad/cmd_sheet = $sheet: p = enactor; skl = get_attr(me, 'skills', []); st = get_attr(p, 'strength', 10); dx = get_attr(p, 'dexterity', 10); iq = get_attr(p, 'intelligence', 10); ht = get_attr(p, 'health', 10); mhp = max(get_attr(p, 'max_hp', st), 1); hp = get_attr(p, 'hp', mhp); fill = clamp((hp * 10) // mhp, 0, 10); bar = '[' + ansi('gh', repeat('#', fill)) + repeat('-', 10 - fill) + ']'; rows = [left(capstr(s) + repeat(' ', 16), 16) + str(get_attr(p, 'skill_' + s, '-')) for s in skl]; pemit(enactor, ansi('ch', capstr(name(p))) + ' the ' + str(get_attr(p, 'template', 'adventurer')) + '\n' + repeat('=', 32) + '\n' + 'ST ' + str(st) + '   DX ' + str(dx) + '   IQ ' + str(iq) + '   HT ' + str(ht) + '\n' + 'HP ' + bar + ' ' + str(hp) + '/' + str(mhp) + '   Dodge ' + str(get_attr(p, 'dodge', 8)) + '   CP ' + str(get_attr(p, 'character_points', 0)) + '\n' + ansi('c', 'Skills') + '\n' + '\n'.join(rows))",
+    r'''@set datapad/cmd_sheet = $sheet: p = enactor; skl = V('skills', []); st = get_attr(p, 'strength', 10); dx = get_attr(p, 'dexterity', 10); iq = get_attr(p, 'intelligence', 10); ht = get_attr(p, 'health', 10); mhp = max(get_attr(p, 'max_hp', st), 1); hp = get_attr(p, 'hp', mhp); fill = clamp((hp * 10) // mhp, 0, 10); bar = '[' + ansi('gh', repeat('#', fill)) + repeat('-', 10 - fill) + ']'; rows = [left(capstr(s) + repeat(' ', 16), 16) + str(get_attr(p, 'skill_' + s, '-')) for s in skl]; pemit(enactor, f'{ansi("ch", capstr(name(p)))} the {get_attr(p, "template", "adventurer")}\n{repeat("=", 32)}\nST {st}   DX {dx}   IQ {iq}   HT {ht}\nHP {bar} {hp}/{mhp}   Dodge {get_attr(p, "dodge", 8)}   CP {get_attr(p, "character_points", 0)}\n{ansi("c", "Skills")}\n' + '\n'.join(rows))''',
 ]
 
 
@@ -185,8 +185,8 @@ GUIDE_BUILD = [
     "@set field guide/topic_map = Looking in a mapped room paints a small "
     "grid of the rooms around you. The @ marks where you stand.",
     "@set field guide/cmd_index = $guide: pemit(enactor, 'Guide topics: ' "
-    "+ ', '.join(get_attr(me, 'index', [])) + '. Type: guide <topic>.')",
-    r"@set field guide/cmd_guide = $guide *: t = trim(arg0).lower(); body = get_attr(me, 'topic_' + t, ''); pemit(enactor, ansi('ch', capstr(t)) + '\n' + body) if body else pemit(enactor, 'No guide entry for ' + t + '. Try: guide')",
+    "+ ', '.join(V('index', [])) + '. Type: guide <topic>.')",
+    r'''@set field guide/cmd_guide = $guide *: t = trim(arg0).lower(); body = V('topic_' + t, ''); pemit(enactor, f'{ansi("ch", capstr(t))}\n{body}') if body else pemit(enactor, f'No guide entry for {t}. Try: guide')''',
 ]
 
 
@@ -236,7 +236,7 @@ GMCP_BUILD = [
     "@set bridge console/hull = 87",
     "@set bridge console/shields = 62",
     "@set bridge console/cmd_scan = $scan: oob(enactor, 'Ship.Status', "
-    "{'hull': get_attr(me, 'hull', 100), 'shields': get_attr(me, 'shields', "
+    "{'hull': V('hull', 100), 'shields': V('shields', "
     "100)}); pemit(enactor, 'Sensor sweep sent to your console HUD.')",
     "@set bridge console/cmd_readout = $readout: oob(enactor, 'Char.Vitals', "
     "{'hp': get_attr(enactor, 'hp', 10), 'max_hp': get_attr(enactor, "

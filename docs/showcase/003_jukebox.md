@@ -58,7 +58,7 @@ or absent for silence:
 ```text
 @create jukebox
 drop jukebox
-@desc jukebox = A chrome-and-neon jukebox from a more optimistic century. [[t = get_attr(me, 'tracks', []); n = get_attr(me, 'spinning', None); result = 'The window card reads: ' + (t[n]['title'] if n is not None and n < len(t) else 'SILENCE') + '.']]
+@desc jukebox = A chrome-and-neon jukebox from a more optimistic century. [[t = V('tracks', []); n = V('spinning', None); result = f"The window card reads: {t[n]['title'] if n is not None and n < len(t) else 'SILENCE'}."]]
 ```
 
 The record library — pure data (`@set` parses JSON):
@@ -71,7 +71,7 @@ The menu renderer, as a function attribute — one place builds the
 numbered listing from whatever the library holds:
 
 ```text
-@set jukebox/menu = t = get_attr(me, 'tracks', []); result = 'Pick a track: ' + ' '.join('[' + str(i + 1) + '] ' + tr['title'] for i, tr in enumerate(t)) + ' -- or anything else to walk away.'
+@set jukebox/menu = t = V('tracks', []); result = 'Pick a track: ' + ' '.join(f"[{i + 1}] {tr['title']}" for i, tr in enumerate(t)) + ' -- or anything else to walk away.'
 ```
 
 `play` asks; `on_pick` answers. The callback validates (`isdigit`,
@@ -80,7 +80,7 @@ arm-drop announced to the room — or refuses:
 
 ```text
 @set jukebox/cmd_play = $play: prompt(enactor, eval_attr(me, 'menu'), 'on_pick')
-@set jukebox/on_pick = t = get_attr(me, 'tracks', []); w = trim(arg0); n = int(w) if w.isdigit() else 0; ok = 1 <= n <= len(t); (set_attr(me, 'spinning', n - 1), set_attr(me, 'cursor', 0), remit(here, 'The jukebox whirs, and the arm drops on ' + t[n - 1]['title'] + '.')) if ok else pemit(enactor, 'The jukebox clunks and returns your choice unplayed.')
+@set jukebox/on_pick = t = V('tracks', []); w = trim(arg0); n = int(w) if w.isdigit() else 0; ok = 1 <= n <= len(t); (set_attr(me, 'spinning', n - 1), set_attr(me, 'cursor', 0), remit(here, f"The jukebox whirs, and the arm drops on {t[n - 1]['title']}.")) if ok else pemit(enactor, 'The jukebox clunks and returns your choice unplayed.')
 ```
 
 The heartbeat. `interval:4` is ticks between runs, so at the default
@@ -89,7 +89,7 @@ freely, it's data:
 
 ```text
 @behavior jukebox = script_ticker, interval:4
-@set jukebox/on_tick = n = get_attr(me, 'spinning', None); t = get_attr(me, 'tracks', []); i = get_attr(me, 'cursor', 0); lines = t[n]['lines'] if n is not None and n < len(t) else []; (remit(here, '~ ' + lines[i] + ' ~'), set_attr(me, 'cursor', i + 1)) if n is not None and i < len(lines) else None; (del_attr(me, 'spinning'), remit(here, 'The record hisses into the run-out groove, and the arm lifts.')) if n is not None and i >= len(lines) else None
+@set jukebox/on_tick = n = V('spinning', None); t = V('tracks', []); i = V('cursor', 0); lines = t[n]['lines'] if n is not None and n < len(t) else []; (remit(here, f'~ {lines[i]} ~'), incr('cursor')) if n is not None and i < len(lines) else None; (del_attr(me, 'spinning'), remit(here, 'The record hisses into the run-out groove, and the arm lifts.')) if n is not None and i >= len(lines) else None
 ```
 
 ## Try it

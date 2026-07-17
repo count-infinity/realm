@@ -91,9 +91,10 @@ further"); the arc prefers `on_tick` because deadlines here move
   `balance`, an alias of the `credits` builtin) and the exchange trades
   with `market buy ...` (bare `buy` belongs to the shopkeeper builtin).
 - **Read-modify-write for structured attributes.** Lot dicts and the
-  goods table are fetched with `get_attr`, updated, and written back with
-  `set_attr` — one owner (the master) mutating its own state, no
-  cross-object surgery.
+  goods table are fetched with `V()` (`get_attr` against `me`), updated,
+  and written back with `set_attr` — one owner (the master) mutating its
+  own state, no cross-object surgery. Plain counters skip the round trip
+  entirely: `incr`/`decr` do the read-add-write in one call.
 
 ## Build order and prerequisites
 

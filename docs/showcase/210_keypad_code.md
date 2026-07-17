@@ -64,7 +64,7 @@ drop keypad
 @set keypad/code = 4815
 @attr keypad/code = secret
 @set keypad/cmd_enter = $enter code: prompt(enactor, 'Enter access code:', 'check_code')
-@set keypad/check_code = (remove_tag(get('clean gate'), 'closed'), remit(loc(me), 'The keypad chirps green. The clean gate slides open.')) if trim(arg0) == str(get_attr(me, 'code')) else pemit(enactor, 'The keypad buzzes red. ACCESS DENIED.')
+@set keypad/check_code = (remove_tag(get('clean gate'), 'closed'), remit(loc(me), 'The keypad chirps green. The clean gate slides open.')) if trim(arg0) == str(V('code')) else pemit(enactor, 'The keypad buzzes red. ACCESS DENIED.')
 ```
 
 Now seed the code somewhere a player must find it — a maintenance log

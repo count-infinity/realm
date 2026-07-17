@@ -226,8 +226,8 @@ BAG_BUILD = [
     "@set cargo scale/cmd_weigh = $weigh *: w = lambda w, o: "
     "get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else "
     "get_attr(o, 'weight', 0) + sum([w(w, c) for c in contents(o)]); "
-    "it = get(trim(arg0)); pemit(enactor, 'The needle settles at ' + "
-    "str(w(w, it)) + ' lbs.') if it else pemit(enactor, 'Nothing by "
+    "it = get(trim(arg0)); pemit(enactor, f'The needle settles at "
+    "{w(w, it)} lbs.') if it else pemit(enactor, 'Nothing by "
     "that name to weigh.')",
     "@create porter's satchel",
     "@set porter's satchel/container = true",
@@ -237,10 +237,10 @@ BAG_BUILD = [
     "target is me; w = lambda w, o: get_attr(o, 'carry_weight') if "
     "has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + "
     "sum([w(w, c) for c in contents(o)]); adding = w(w, adata('item')) "
-    "if mine else 0; load = w(w, me) if mine else 0; limit = "
-    "get_attr(me, 'weight_limit', 10); block('At ' + str(adding) + "
-    "' lbs that would overload the ' + name(me) + ' (' + str(load) + "
-    "' of ' + str(limit) + ' lbs used).') if mine and load + adding > "
+    "if mine else 0; load = w(w, me) if mine else 0; "
+    "limit = V('weight_limit', 10); block(f'At {adding} "
+    "lbs that would overload the {name(me)} ({load} "
+    "of {limit} lbs used).') if mine and load + adding > "
     "limit else None",
     "@create iron anvil",
     "@set iron anvil/weight = 12",
@@ -313,9 +313,9 @@ class TestBagOfHolding:
 # =========================================================================
 
 PEACH_TICK = (
-    "f = get_attr(me, 'freshness', 6) - get_attr(loc(me), 'decay_rate', 1); "
-    "set_attr(me, 'freshness', f); (remit(here, 'The ' + name(me) + "
-    "' collapses into a slick of brown mush.'), create_obj('a slick of "
+    "f = V('freshness', 6) - get_attr(loc(me), 'decay_rate', 1); "
+    "set_attr(me, 'freshness', f); (remit(here, f'The {name(me)} "
+    "collapses into a slick of brown mush.'), create_obj('a slick of "
     "brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None"
 )
 
@@ -328,14 +328,14 @@ FRIDGE_BUILD = [
     "the seams.",
     "@create ripe peach",
     "@set ripe peach/freshness = 6",
-    "@desc ripe peach = [[f = get_attr(me, 'freshness', 6); result = "
+    "@desc ripe peach = [[f = V('freshness', 6); result = "
     "'Bursting with juice.' if f > 4 else ('Going soft and winey.' "
     "if f > 0 else 'Compost.')]]",
     "@set ripe peach/on_tick = " + PEACH_TICK,
     "@behavior ripe peach = script_ticker, interval:1",
     "@create twin peach",
     "@set twin peach/freshness = 6",
-    "@desc twin peach = [[f = get_attr(me, 'freshness', 6); result = "
+    "@desc twin peach = [[f = V('freshness', 6); result = "
     "'Bursting with juice.' if f > 4 else ('Going soft and winey.' "
     "if f > 0 else 'Compost.')]]",
     "@set twin peach/on_tick = " + PEACH_TICK,
@@ -408,16 +408,16 @@ BIN_BUILD = [
     "@desc rubbish bin = A dented municipal bin. Stenciled on the lid: "
     "CONTENTS INCINERATED WITHOUT NOTICE.",
     "@set rubbish bin/grace = 60",
-    "@set rubbish bin/on_put = pemit(enactor, 'It lands with a clang. "
-    "You have ' + str(get_attr(me, 'grace', 60)) + ' seconds to change "
-    "your mind: rummage <item>.'); wait(0, 'trigger me/do_sweep')",
-    "@set rubbish bin/do_sweep = [expire(o, get_attr(me, 'grace', 60)) "
+    '@set rubbish bin/on_put = pemit(enactor, f"It lands with a clang. '
+    "You have {V('grace', 60)} seconds to change "
+    "your mind: rummage <item>.\"); wait(0, 'trigger me/do_sweep')",
+    "@set rubbish bin/do_sweep = [expire(o, V('grace', 60)) "
     "for o in contents(me) if not has_attr(o, 'expires_at')]",
     "@set rubbish bin/cmd_rummage = $rummage *: found = [o for o in "
     "contents(me) if trim(arg0).lower() in name(o).lower()]; it = "
     "found[0] if found else None; (del_attr(it, 'expires_at'), "
-    "teleport_obj(it, enactor), pemit(enactor, 'You fish the ' + "
-    "name(it) + ' back out. Reprieved.')) if it else pemit(enactor, "
+    "teleport_obj(it, enactor), pemit(enactor, f'You fish the "
+    "{name(it)} back out. Reprieved.')) if it else pemit(enactor, "
     "'You paw through the muck and come up empty.')",
     "@set rubbish bin/on_expire = remit(loc(me), 'The bin belches a "
     "gout of flame. Something is gone for good.')",
@@ -493,15 +493,15 @@ SHELF_BUILD = [
     "drop walnut bookshelf",
     "@desc walnut bookshelf = A tall walnut case, shelves bowed under "
     "years of paper. [[n = len([o for o in contents(me) if has_tag(o, "
-    "'book')]); result = str(n) + ' volume' + ('' if n == 1 else 's') + "
+    "'book')]); result = f'{n} volume' + ('' if n == 1 else 's') + "
     "' stand in a ragged row. A card taped to the shelf reads: "
     "BROWSE.']]",
     "@set walnut bookshelf/cmd_browse = $browse: books = sorted([o for "
     "o in contents(me) if has_tag(o, 'book')], key=lambda o: "
     "str(get_attr(o, 'title', name(o))).lower()); pemit(enactor, "
     "'Spines on the shelf:' if books else 'The shelf holds nothing "
-    "readable.'); [pemit(enactor, '  ' + str(i + 1) + '. ' + "
-    "str(get_attr(o, 'title', name(o)))) for i, o in enumerate(books)]",
+    "readable.'); [pemit(enactor, f\"  {i + 1}. "
+    "{get_attr(o, 'title', name(o))}\") for i, o in enumerate(books)]",
     "@create dog-eared novel",
     "@tag dog-eared novel = book",
     "@set dog-eared novel/title = The Gullwater Wreck",
@@ -562,12 +562,12 @@ POUCH_BUILD = [
     "@desc ammo pouch = Stiff leather, the loops and slots inside sized "
     "exactly for charge cells.",
     "@set ammo pouch/on_check = mine = atype == 'item:on_put' and "
-    "target is me; item = adata('item'); block('The loops inside the ' "
-    "+ name(me) + ' fit ammunition and nothing else - the ' + "
-    "name(item) + ' stays out.') if mine and not has_tag(item, 'ammo') "
+    "target is me; item = adata('item'); block(f'The loops inside the "
+    "{name(me)} fit ammunition and nothing else - the "
+    "{name(item)} stays out.') if mine and not has_tag(item, 'ammo') "
     "else None",
-    "@set ammo pouch/on_put = pemit(enactor, 'Slotted. The ' + name(me) "
-    "+ ' now carries ' + str(len(contents(me)) + 1) + ' rounds.')",
+    "@set ammo pouch/on_put = pemit(enactor, f'Slotted. The {name(me)} "
+    "now carries {len(contents(me)) + 1} rounds.')",
     "@create charge cell",
     "@tag charge cell = ammo",
     "@create spare charge cell",
@@ -614,27 +614,27 @@ COAT_BUILD = [
     "@set Coat-Check Golem/on_receive = tk = [o for o in contents(me) "
     "if has_tag(o, 'claim_ticket')]; new = [o for o in contents(me) if "
     "not has_tag(o, 'claim_ticket') and not has_attr(o, 'checked')]; "
-    "it = new[0] if new else None; n = get_attr(me, 'counter', 0) + 1 "
-    "if it else 0; t = create_obj('claim ticket ' + str(n), "
+    "it = new[0] if new else None; n = V('counter', 0) + 1 "
+    "if it else 0; t = create_obj(f'claim ticket {n}', "
     "['claim_ticket'], me) if it else None; (teleport_obj(tk[0], "
-    "enactor), pemit(enactor, 'The golem taps the ticket and hands it "
-    "back: just say claim ' + str(get_attr(tk[0], 'claim_no')) + '.')) "
+    'enactor), pemit(enactor, f"The golem taps the ticket and hands it '
+    "back: just say claim {get_attr(tk[0], 'claim_no')}.\")) "
     "if tk else None; (set_attr(me, 'counter', n), set_attr(it, "
-    "'checked', n), set_attr(me, 'held_' + str(n), '#' + it.id), "
+    "'checked', n), set_attr(me, f'held_{n}', '#' + it.id), "
     "set_attr(t, 'claim_no', n), teleport_obj(t, enactor), "
-    "pemit(enactor, 'The golem stows your ' + name(it) + ' on hook ' + "
-    "str(n) + ' and punches ticket ' + str(n) + '.')) if it else None",
+    "pemit(enactor, f'The golem stows your {name(it)} on hook "
+    "{n} and punches ticket {n}.')) if it else None",
     "@set Coat-Check Golem/cmd_claim = $claim *: tick = [o for o in "
     "contents(enactor) if has_tag(o, 'claim_ticket') and "
-    "str(get_attr(o, 'claim_no')) == trim(arg0)]; held = get_attr(me, "
-    "'held_' + trim(arg0)); it = get(held) if held else None; "
+    "str(get_attr(o, 'claim_no')) == trim(arg0)]; "
+    "held = V('held_' + trim(arg0)); it = get(held) if held else None; "
     "(teleport_obj(it, enactor), del_attr(it, 'checked'), del_attr(me, "
-    "'held_' + trim(arg0)), destroy_obj(tick[0]), pemit(enactor, 'The "
-    "golem lifts your ' + name(it) + ' off hook ' + trim(arg0) + ' and "
+    "'held_' + trim(arg0)), destroy_obj(tick[0]), pemit(enactor, f'The "
+    "golem lifts your {name(it)} off hook {trim(arg0)} and "
     "retires the ticket.')) if tick and it else pemit(enactor, 'The "
     "golem shows you two empty brass palms: no matching ticket in your "
-    "hand.' if not tick else 'The golem stares at hook ' + trim(arg0) "
-    "+ ', which is bare. Curious.')",
+    "hand.' if not tick else f'The golem stares at hook {trim(arg0)}"
+    ", which is bare. Curious.')",
     "@create wool greatcoat",
 ]
 
@@ -713,7 +713,7 @@ class TestCoatCheck:
 # =========================================================================
 
 BELT_TICK = (
-    "n = len(contents(me)); [teleport_obj(o, get_attr(me, 'next_stop')) "
+    "n = len(contents(me)); [teleport_obj(o, V('next_stop')) "
     "for o in contents(me)]; remit(loc(me), 'The belt clatters; the "
     "cargo slides out of sight.') if n else None"
 )
@@ -815,11 +815,11 @@ CRATE_BUILD = [
     '["a sealed med kit", 30], ["a plasma core", 10]]',
     "@set supply crate/on_open = draw = lambda draw, t, r: t[0][0] if "
     "r <= t[0][1] or len(t) == 1 else draw(draw, t[1:], r - t[0][1]); "
-    "(set_attr(me, 'seeded', 1), create_obj(draw(draw, get_attr(me, "
-    "'loot'), rand(1, 100)), [], me), create_obj(draw(draw, "
-    "get_attr(me, 'loot'), rand(1, 100)), [], me), remit(loc(me), "
+    "(set_attr(me, 'seeded', 1), create_obj(draw(draw, V('loot'), "
+    "rand(1, 100)), [], me), create_obj(draw(draw, "
+    "V('loot'), rand(1, 100)), [], me), remit(loc(me), "
     "'Something rattles and settles inside the crate as the seal "
-    "breaks.')) if not get_attr(me, 'seeded', 0) else None",
+    "breaks.')) if not V('seeded', 0) else None",
 ]
 
 # The documented odds: name -> weight, summing to 100.

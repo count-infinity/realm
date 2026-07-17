@@ -48,14 +48,14 @@ The cup, with a memory of its last throw in the description:
 ```text
 @create a dice cup
 drop a dice cup
-@desc a dice cup = A leather cup, dice rattling inside. [[result = 'Last throw: ' + str(get_attr(me, 'last', '--')) + '.']]
+@desc a dice cup = A leather cup, dice rattling inside. [[result = f'Last throw: {V("last", "--")}.']]
 ```
 
 The notation roller. Dice are social — the throw goes to the whole
 room with `remit`:
 
 ```text
-@set a dice cup/cmd_roll = $roll *: expr = trim(arg0); total = roll(expr); set_attr(me, 'last', expr + ' = ' + str(total)); remit(here, name(enactor) + ' rattles the cup and throws ' + expr + ': ' + str(total) + '.')
+@set a dice cup/cmd_roll = $roll *: expr = trim(arg0); total = roll(expr); set_attr(me, 'last', f'{expr} = {total}'); remit(here, f'{name(enactor)} rattles the cup and throws {expr}: {total}.')
 ```
 
 The margin narrator. Skill level comes from the roller's
@@ -63,7 +63,7 @@ The margin narrator. Skill level comes from the roller's
 the four narration bands are pure `r.margin` arithmetic:
 
 ```text
-@set a dice cup/cmd_try = $try *: s = trim(arg0).lower(); lvl = get_attr(enactor, 'skill_' + s, get_attr(enactor, 'dexterity', 10) - 5); r = margin_under(roll('3d6'), lvl, skill=s); word = 'critically nails' if r.margin >= 6 else ('makes' if r.success else ('barely misses' if r.margin >= -2 else 'blows')); remit(here, name(enactor) + ' rolls ' + str(r.roll) + ' vs ' + s + ' ' + str(r.effective) + ' -- ' + word + ' it (margin ' + str(r.margin) + ').')
+@set a dice cup/cmd_try = $try *: s = trim(arg0).lower(); lvl = get_attr(enactor, 'skill_' + s, get_attr(enactor, 'dexterity', 10) - 5); r = margin_under(roll('3d6'), lvl, skill=s); word = 'critically nails' if r.margin >= 6 else ('makes' if r.success else ('barely misses' if r.margin >= -2 else 'blows')); remit(here, f'{name(enactor)} rolls {r.roll} vs {s} {r.effective} -- {word} it (margin {r.margin}).')
 ```
 
 The engine check — one call, everything folded in:

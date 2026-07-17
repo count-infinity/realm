@@ -71,14 +71,14 @@ drop the rent box
 so the first payment's delta is right:
 
 ```text
-@set the rent box/cmd_lease = $lease flat:ok = not get_attr(me, 'tenant'); (set_attr(me, 'tenant', enactor.id), set_attr(me, 'tenant_name', name(enactor)), set_attr(me, 'paid_until', now() + get_attr(me, 'period', 300)), set_attr(me, 'warned', 0), set_attr(me, 'till', credits(me)), pemit(enactor, 'You sign the ledger: Harbor Flat is yours. Rent is ' + str(get_attr(me, 'rent', 50)) + ' credits a period, into this box.')) if ok else pemit(enactor, 'The flat is already let.')
+@set the rent box/cmd_lease = $lease flat:ok = not V('tenant'); (set_attr(me, 'tenant', enactor.id), set_attr(me, 'tenant_name', name(enactor)), set_attr(me, 'paid_until', now() + V('period', 300)), set_attr(me, 'warned', 0), set_attr(me, 'till', credits(me)), pemit(enactor, f"You sign the ledger: Harbor Flat is yours. Rent is {V('rent', 50)} credits a period, into this box.")) if ok else pemit(enactor, 'The flat is already let.')
 ```
 
 The payment reaction — till-delta, whole periods banked, remainder and
 strangers refunded:
 
 ```text
-@set the rent box/on_payment = rent = get_attr(me, 'rent', 50); paid = credits(me) - get_attr(me, 'till', 0); k = paid // rent if enactor.id == get_attr(me, 'tenant') else 0; (set_attr(me, 'paid_until', max(now(), get_attr(me, 'paid_until', 0)) + get_attr(me, 'period', 300) * k), set_attr(me, 'warned', 0), pemit(enactor, 'The box stamps a receipt: ' + str(k) + ' period(s) paid.')) if k else (transfer_credits(me, enactor, paid), pemit(enactor, 'The box spits it back: ' + ('the rent is ' + str(rent) + ' a period.' if enactor.id == get_attr(me, 'tenant') else 'you hold no lease here.'))); transfer_credits(me, enactor, paid - rent * k) if k and paid - rent * k > 0 else None; set_attr(me, 'till', credits(me))
+@set the rent box/on_payment = rent = V('rent', 50); paid = credits(me) - V('till', 0); k = paid // rent if enactor.id == V('tenant') else 0; (set_attr(me, 'paid_until', max(now(), V('paid_until', 0)) + V('period', 300) * k), set_attr(me, 'warned', 0), pemit(enactor, f'The box stamps a receipt: {k} period(s) paid.')) if k else (transfer_credits(me, enactor, paid), pemit(enactor, 'The box spits it back: ' + (f'the rent is {rent} a period.' if enactor.id == V('tenant') else 'you hold no lease here.'))); transfer_credits(me, enactor, paid - rent * k) if k and paid - rent * k > 0 else None; set_attr(me, 'till', credits(me))
 ```
 
 The lockout ward, on the flat itself (walk in to set it, walk out).
@@ -97,7 +97,7 @@ past the grace:
 
 ```text
 @behavior the rent box = script_ticker, interval:60
-@set the rent box/on_tick = t = get_attr(me, 'tenant'); due = get_attr(me, 'paid_until', 0); (set_attr(me, 'warned', 1), pemit(get('#' + t), 'A courier finds you: rent on Harbor Flat is overdue. The door is frozen until you pay.')) if t and now() > due and not get_attr(me, 'warned', 0) else None; ([teleport_obj(o, loc(me)) for o in contents(get('Harbor Flat')) if not has_tag(o, 'exit')], pemit(get('#' + t), 'The movers clear Harbor Flat: your lease is terminated and your goods are in the hall.'), del_attr(me, 'tenant'), del_attr(me, 'tenant_name'), set_attr(me, 'warned', 0), remit(loc(me), 'Movers carry furniture out of Harbor Flat and change the locks.')) if t and now() > due + get_attr(me, 'grace', 120) else None
+@set the rent box/on_tick = t = V('tenant'); due = V('paid_until', 0); (set_attr(me, 'warned', 1), pemit(get('#' + t), 'A courier finds you: rent on Harbor Flat is overdue. The door is frozen until you pay.')) if t and now() > due and not V('warned', 0) else None; ([teleport_obj(o, loc(me)) for o in contents(get('Harbor Flat')) if not has_tag(o, 'exit')], pemit(get('#' + t), 'The movers clear Harbor Flat: your lease is terminated and your goods are in the hall.'), del_attr(me, 'tenant'), del_attr(me, 'tenant_name'), set_attr(me, 'warned', 0), remit(loc(me), 'Movers carry furniture out of Harbor Flat and change the locks.')) if t and now() > due + V('grace', 120) else None
 ```
 
 ## Try it

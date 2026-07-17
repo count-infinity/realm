@@ -65,18 +65,18 @@ drop the Auction Kiosk
 `auction <item> for <min>` — escrow the item, open the lot, bump the
 counter, announce. The item must be in your inventory and is matched by
 its exact name. The `for g, lst in [[ok, item]] if g ...` opener is the
-arc's comprehension-binding trick; `for n in [get_attr(me, 'next_lot', 1)]`
+arc's comprehension-binding trick; `for n in [V('next_lot', 1)]`
 binds the lot number once for the three places it's used:
 
 ```text
-@set the Auction Kiosk/cmd_auction = $auction * for *:item = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; ok = bool(item) and int(arg1) > 0; [(move_to(o, me), set_attr(me, 'lot_' + str(n), {'seller': enactor.id, 'seller_name': name(enactor), 'item': o.id, 'item_name': name(o), 'min': int(arg1), 'bid': 0, 'bidder': '', 'bidder_name': '', 'ends': now() + get_attr(me, 'duration', 120)}), set_attr(me, 'next_lot', n + 1), remit(here, name(enactor) + ' lists ' + name(o) + ' as lot #' + str(n) + ' (min ' + str(int(arg1)) + ').')) for g, lst in [[ok, item]] if g for o in [lst[0]] for n in [get_attr(me, 'next_lot', 1)]]; pemit(enactor, 'Listed.' if ok else 'You are not carrying that, or the minimum is bad.')
+@set the Auction Kiosk/cmd_auction = $auction * for *:item = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; ok = bool(item) and int(arg1) > 0; [(move_to(o, me), set_attr(me, 'lot_' + str(n), {'seller': enactor.id, 'seller_name': name(enactor), 'item': o.id, 'item_name': name(o), 'min': int(arg1), 'bid': 0, 'bidder': '', 'bidder_name': '', 'ends': now() + V('duration', 120)}), set_attr(me, 'next_lot', n + 1), remit(here, f'{name(enactor)} lists {name(o)} as lot #{n} (min {int(arg1)}).')) for g, lst in [[ok, item]] if g for o in [lst[0]] for n in [V('next_lot', 1)]]; pemit(enactor, 'Listed.' if ok else 'You are not carrying that, or the minimum is bad.')
 ```
 
 `auctions` — the open book, walked by lot number (closed lots read as
 None and are skipped):
 
 ```text
-@set the Auction Kiosk/cmd_auctions = $auctions:pemit(enactor, 'Open lots:'); [pemit(enactor, '  #' + str(i) + ' ' + lot['item_name'] + ' — min ' + str(lot['min']) + ', bid ' + (str(lot['bid']) + ' by ' + lot['bidder_name'] if lot['bidder'] else 'none') + ', ' + str(max(0, int(lot['ends'] - now()))) + 's left') for i in range(1, get_attr(me, 'next_lot', 1)) for lot in [get_attr(me, 'lot_' + str(i))] if lot]
+@set the Auction Kiosk/cmd_auctions = $auctions:pemit(enactor, 'Open lots:'); [pemit(enactor, f"  #{i} {lot['item_name']} — min {lot['min']}, bid {str(lot['bid']) + ' by ' + lot['bidder_name'] if lot['bidder'] else 'none'}, {max(0, int(lot['ends'] - now()))}s left") for i in range(1, V('next_lot', 1)) for lot in [V('lot_' + str(i))] if lot]
 ```
 
 `bid <lot> <amount>` — where most of the rules live. Floor = current bid
@@ -86,7 +86,7 @@ and told; `dict(l, bid=a, ...)` rewrites the lot in one read-modify-write,
 extending the deadline if the bid landed inside the sniping window:
 
 ```text
-@set the Auction Kiosk/cmd_bid = $bid * *:lot = get_attr(me, 'lot_' + arg0.strip()); amt = int(arg1); low = (lot['bid'] + 1 if lot['bidder'] else lot['min']) if lot else 0; ok = bool(lot) and lot['seller'] != enactor.id and amt >= low and transfer_credits(enactor, me, amt); [(transfer_credits(me, get('#' + l['bidder']), l['bid']) if l['bidder'] else None, pemit(get('#' + l['bidder']), 'You are outbid on lot #' + arg0.strip() + '; ' + str(l['bid']) + ' credits refunded.') if l['bidder'] else None, set_attr(me, 'lot_' + arg0.strip(), dict(l, bid=a, bidder=enactor.id, bidder_name=name(enactor), ends=(now() + get_attr(me, 'snipe', 30) if l['ends'] - now() < get_attr(me, 'snipe', 30) else l['ends']))), remit(here, name(enactor) + ' bids ' + str(a) + ' on lot #' + arg0.strip() + '.')) for g, l, a in [[ok, lot, amt]] if g]; pemit(enactor, 'Bid placed.' if ok else 'No such lot, your own lot, or bid below ' + str(low) + '.')
+@set the Auction Kiosk/cmd_bid = $bid * *:lot = V('lot_' + arg0.strip()); amt = int(arg1); low = (lot['bid'] + 1 if lot['bidder'] else lot['min']) if lot else 0; ok = bool(lot) and lot['seller'] != enactor.id and amt >= low and transfer_credits(enactor, me, amt); [(transfer_credits(me, get('#' + l['bidder']), l['bid']) if l['bidder'] else None, pemit(get('#' + l['bidder']), f"You are outbid on lot #{arg0.strip()}; {l['bid']} credits refunded.") if l['bidder'] else None, set_attr(me, 'lot_' + arg0.strip(), dict(l, bid=a, bidder=enactor.id, bidder_name=name(enactor), ends=(now() + V('snipe', 30) if l['ends'] - now() < V('snipe', 30) else l['ends']))), remit(here, f'{name(enactor)} bids {a} on lot #{arg0.strip()}.')) for g, l, a in [[ok, lot, amt]] if g]; pemit(enactor, 'Bid placed.' if ok else f'No such lot, your own lot, or bid below {low}.')
 ```
 
 `settle` — the gavel, as a function attribute taking the lot number.
@@ -95,20 +95,20 @@ and delivers; no-winner branch walks the item home; either way archive to
 `history` (capped at 20) and delete the lot:
 
 ```text
-@set the Auction Kiosk/settle = lot = get_attr(me, 'lot_' + arg0); w = get('#' + lot['bidder']) if lot['bidder'] else None; s = get('#' + lot['seller']); it = get('#' + lot['item']); r = (move_to(it, w), transfer_credits(me, s, lot['bid']), remit(here, 'The gavel falls: ' + lot['item_name'] + ' goes to ' + lot['bidder_name'] + ' for ' + str(lot['bid']) + ' credits.')) if w else (move_to(it, s) if it and s else None, remit(here, lot['item_name'] + ' finds no buyer and returns to ' + lot['seller_name'] + '.')); set_attr(me, 'history', (get_attr(me, 'history', []) + [lot['item_name'] + ' -> ' + (lot['bidder_name'] or 'unsold') + ' at ' + str(lot['bid'])])[-20:]); del_attr(me, 'lot_' + arg0); result = 1
+@set the Auction Kiosk/settle = lot = V('lot_' + arg0); w = get('#' + lot['bidder']) if lot['bidder'] else None; s = get('#' + lot['seller']); it = get('#' + lot['item']); r = (move_to(it, w), transfer_credits(me, s, lot['bid']), remit(here, f"The gavel falls: {lot['item_name']} goes to {lot['bidder_name']} for {lot['bid']} credits.")) if w else (move_to(it, s) if it and s else None, remit(here, f"{lot['item_name']} finds no buyer and returns to {lot['seller_name']}.")); set_attr(me, 'history', (V('history', []) + [f"{lot['item_name']} -> {lot['bidder_name'] or 'unsold'} at {lot['bid']}"])[-20:]); del_attr(me, 'lot_' + arg0); result = 1
 ```
 
 `cancel <lot>` — seller only, and only before the first bid:
 
 ```text
-@set the Auction Kiosk/cmd_cancel = $cancel *:lot = get_attr(me, 'lot_' + arg0.strip()); ok = bool(lot) and lot['seller'] == enactor.id and not lot['bidder']; [(move_to(get('#' + l['item']), enactor), del_attr(me, 'lot_' + arg0.strip()), remit(here, name(enactor) + ' withdraws lot #' + arg0.strip() + '.')) for g, l in [[ok, lot]] if g]; pemit(enactor, 'Listing withdrawn.' if ok else 'Not your lot, already bid on, or no such lot.')
+@set the Auction Kiosk/cmd_cancel = $cancel *:lot = V('lot_' + arg0.strip()); ok = bool(lot) and lot['seller'] == enactor.id and not lot['bidder']; [(move_to(get('#' + l['item']), enactor), del_attr(me, 'lot_' + arg0.strip()), remit(here, f'{name(enactor)} withdraws lot #{arg0.strip()}.')) for g, l in [[ok, lot]] if g]; pemit(enactor, 'Listing withdrawn.' if ok else 'Not your lot, already bid on, or no such lot.')
 ```
 
 The heartbeat — sweep due lots every 4 ticks:
 
 ```text
 @behavior the Auction Kiosk = script_ticker, interval:4
-@set the Auction Kiosk/on_tick = [eval_attr(me, 'settle', i) for i in range(1, get_attr(me, 'next_lot', 1)) for lot in [get_attr(me, 'lot_' + str(i))] if lot and now() >= lot['ends']]
+@set the Auction Kiosk/on_tick = [eval_attr(me, 'settle', i) for i in range(1, V('next_lot', 1)) for lot in [V('lot_' + str(i))] if lot and now() >= lot['ends']]
 ```
 
 ## Try it

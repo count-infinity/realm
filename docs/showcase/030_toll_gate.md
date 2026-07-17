@@ -32,9 +32,11 @@ The ward compares `now()` against it — no cleanup job, no consumable
 state a read-only ward couldn't consume anyway. Time-window passes are
 the ward-friendly shape of "one crossing."
 
-**Counting coins you can't see.** One engine honesty note: an
-`ON_PAYMENT` script isn't handed the amount paid — the trigger
-namespace has no action payload. But the money has *already landed* on
+**Counting coins the hard way.** When this tutorial was written an
+`ON_PAYMENT` script wasn't handed the amount paid. It is now —
+`adata('amount')` returns it directly. The till-delta below is kept
+because it teaches the general technique for *any* action that carries
+no payload: the money has *already landed* on
 the booth when the trigger fires, so the booth keeps a `till` attribute
 of its last-known balance and derives the payment:
 `paid = credits(me) - till`. Underpayers get exact change back via
@@ -104,7 +106,10 @@ collect till            -> You empty the strongbox: 5 credits.
 
 ## Engine gaps
 
-- `ON_PAYMENT` softcode cannot read the amount paid — the action's
+- ~~`ON_PAYMENT` softcode cannot read the amount paid~~ — **FIXED
+  2026-07-17**: event triggers now bind `adata()`, so `adata('amount')`
+  returns it directly. The till-delta this tutorial teaches still works
+  and remains the technique for payload-less actions. Formerly: the action's
   payload (`amount`) isn't bound into the trigger namespace. The
   till-delta pattern reconstructs it exactly, but binding action data
   into event triggers (as wards get via `adata`) would make every

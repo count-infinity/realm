@@ -109,8 +109,8 @@ EIGHTBALL_BUILD = [
 EIGHTBALL_RETHEME = [
     '@set oracle ball/answers = ["Yes.", "No.", "The dice are still '
     'rolling."]',
-    "@set oracle ball/cmd_shake = $shake: a = get_attr(me, 'answers'); "
-    "pose('trembles in ' + name(enactor) + \"'s grip.\"); "
+    "@set oracle ball/cmd_shake = $shake: a = V('answers'); "
+    "pose(f\"trembles in {name(enactor)}'s grip.\"); "
     "say(a[rand(0, len(a) - 1)])",
 ]
 
@@ -167,22 +167,22 @@ SLOT_BUILD = [
     "@create slot machine",
     "drop slot machine",
     "@desc slot machine = A one-armed bandit in scuffed chrome, three "
-    "reels asleep behind smeared glass. [[result = 'The hopper holds ' + "
-    "str(credits(me)) + ' credits.']]",
+    "reels asleep behind smeared glass. [[result = f'The hopper holds "
+    "{credits(me)} credits.']]",
     "@set slot machine/cost = 10",
-    "@set slot machine/on_payment = cost = get_attr(me, 'cost', 10); "
-    "paid = credits(me) - get_attr(me, 'ledger', 0); "
+    "@set slot machine/on_payment = cost = V('cost', 10); "
+    "paid = credits(me) - V('ledger', 0); "
     "k = 'stake_' + enactor.id; "
-    "(set_attr(me, k, get_attr(me, k, 0) + 1), "
+    "(incr(k), "
     "transfer_credits(me, enactor, paid - cost), "
     "pemit(enactor, 'Clunk. The lever unlocks: type pull.')) "
     "if paid >= cost else "
     "(transfer_credits(me, enactor, paid), "
-    "pemit(enactor, 'A pull costs ' + str(cost) + ' credits. Coins "
+    "pemit(enactor, f'A pull costs {cost} credits. Coins "
     "returned.')); "
     "set_attr(me, 'ledger', credits(me))",
     "@set slot machine/cmd_pull = $pull: k = 'stake_' + enactor.id; "
-    "staked = get_attr(me, k, 0); "
+    "staked = V(k, 0); "
     "pemit(enactor, 'The lever will not budge. Stake a pull first: "
     "pay 10 to slot machine.') if not staked else None; "
     "roll = rand(1, 100); "
@@ -192,12 +192,12 @@ SLOT_BUILD = [
     "reels = switch(tier, 1, '[ NOVA : NOVA : NOVA ]', "
     "2, '[ BELL : BELL : BELL ]', 3, '[ STAR : STAR : ---- ]', "
     "4, '[ STAR : ---- : ---- ]', '[ ---- : ---- : ---- ]'); "
-    "(set_attr(me, k, staked - 1), "
-    "oemit(enactor, name(enactor) + ' pulls the lever. The reels "
+    "(decr(k), "
+    "oemit(enactor, f'{name(enactor)} pulls the lever. The reels "
     "clatter.'), "
     "pemit(enactor, reels), "
     "(transfer_credits(me, enactor, prize), "
-    "pemit(enactor, 'Payout! ' + str(prize) + ' credits rattle into the "
+    "pemit(enactor, f'Payout! {prize} credits rattle into the "
     "tray.')) if prize else "
     "pemit(enactor, 'The reels settle on nothing. The house smiles.'), "
     "set_attr(me, 'ledger', credits(me))) if staked else None",
@@ -297,9 +297,8 @@ VENDING_BUILD = [
     "@create vending machine",
     "drop vending machine",
     "@desc vending machine = A humming slab of scratched enamel and "
-    "glass. Goods sleep in their spiral coils. [[result = 'The display "
-    "reads CREDIT: ' + str(get_attr(me, 'credit_' + viewer.id, 0)) + "
-    "'.']]",
+    "glass. Goods sleep in their spiral coils. [[result = f'The display "
+    "reads CREDIT: {V(\"credit_\" + viewer.id, 0)}.']]",
     '@set vending machine/menu = ["coffee", "ration"]',
     '@set vending machine/item_coffee = {"name": "bulb of cold coffee", '
     '"price": 25, "weight": 1}',
@@ -308,32 +307,32 @@ VENDING_BUILD = [
     "@set vending machine/stock_coffee = 5",
     "@set vending machine/stock_ration = 2",
     "@set vending machine/on_payment = paid = credits(me) - "
-    "get_attr(me, 'ledger', 0); set_attr(me, 'ledger', credits(me)); "
-    "k = 'credit_' + enactor.id; bal = get_attr(me, k, 0) + paid; "
-    "set_attr(me, k, bal); pemit(enactor, 'The display blinks. CREDIT: ' "
-    "+ str(bal) + '. Type vend <selection>.')",
-    "@set vending machine/cmd_browse = $browse: menu = get_attr(me, "
+    "V('ledger', 0); set_attr(me, 'ledger', credits(me)); "
+    "k = 'credit_' + enactor.id; bal = incr(k, paid); "
+    "pemit(enactor, f'The display blinks. CREDIT: {bal}. "
+    "Type vend <selection>.')",
+    "@set vending machine/cmd_browse = $browse: menu = V("
     "'menu', []); pemit(enactor, 'Selections (pay first, then vend "
-    "<selection>):'); [pemit(enactor, '  ' + sel + ' - ' + "
-    "str(get_attr(me, 'item_' + sel)['price']) + ' cr - ' + "
-    "get_attr(me, 'item_' + sel)['name'] + ' (' + "
-    "str(get_attr(me, 'stock_' + sel, 0)) + ' left)') for sel in menu]",
+    "<selection>):'); [pemit(enactor, f'  {sel} - "
+    "{V(\"item_\" + sel)[\"price\"]} cr - "
+    "{V(\"item_\" + sel)[\"name\"]} "
+    "({V(\"stock_\" + sel, 0)} left)') for sel in menu]",
     "@set vending machine/cmd_vend = $vend *: sel = trim(arg0).lower(); "
-    "item = get_attr(me, 'item_' + sel); k = 'credit_' + enactor.id; "
-    "bal = get_attr(me, k, 0); left = get_attr(me, 'stock_' + sel, 0); "
+    "item = V('item_' + sel); k = 'credit_' + enactor.id; "
+    "bal = V(k, 0); left = V('stock_' + sel, 0); "
     "price = item['price'] if item else 0; "
     "ok = bool(item) and left > 0 and bal >= price; "
     "pemit(enactor, 'The panel blinks: NO SUCH SELECTION. Try browse.') "
     "if not item else None; "
-    "pemit(enactor, 'The ' + sel + ' coil is empty. SOLD OUT.') "
+    "pemit(enactor, f'The {sel} coil is empty. SOLD OUT.') "
     "if item and left < 1 else None; "
-    "pemit(enactor, 'CREDIT ' + str(bal) + ' of ' + str(price) + '. "
-    "Feed it: pay ' + str(price - bal) + ' to vending machine.') "
+    "pemit(enactor, f'CREDIT {bal} of {price}. "
+    "Feed it: pay {price - bal} to vending machine.') "
     "if item and left > 0 and bal < price else None; "
-    "(set_attr(me, k, bal - price), set_attr(me, 'stock_' + sel, "
-    "left - 1), set_attr(create_obj(item['name']), 'weight', "
-    "item['weight']), remit(here, 'The vending machine whirs and drops "
-    "a ' + item['name'] + ' into the tray.')) if ok else None",
+    "(decr(k, price), decr('stock_' + sel), "
+    "set_attr(create_obj(item['name']), 'weight', "
+    "item['weight']), remit(here, f'The vending machine whirs and drops "
+    "a {item[\"name\"]} into the tray.')) if ok else None",
 ]
 
 
@@ -415,8 +414,7 @@ SACK_BUILD = [
     "@create canvas sack",
     "drop canvas sack",
     "@desc canvas sack = A patched canvas sack. [[n = len(contents(me)); "
-    "result = 'It bulges around ' + str(n) + ' item' + "
-    "('' if n == 1 else 's') + '.']]",
+    "result = f'It bulges around {n} item{\"\" if n == 1 else \"s\"}.']]",
     "@set canvas sack/container = true",
     "@set canvas sack/capacity = 3",
     "@set canvas sack/weight_limit = 10",
@@ -424,16 +422,16 @@ SACK_BUILD = [
     "target is me; item = adata('item'); "
     "adding = get_attr(item, 'weight', 0); held = len(contents(me)); "
     "load = sum([get_attr(o, 'weight', 0) for o in contents(me)]); "
-    "cap = get_attr(me, 'capacity', 3); "
-    "limit = get_attr(me, 'weight_limit', 10); "
-    "block('The ' + name(me) + ' is stuffed full - ' + str(cap) + "
-    "' items is its limit.') if mine and held >= cap else None; "
-    "block('At ' + str(adding) + ' lbs that would overload the ' + "
-    "name(me) + ' (' + str(load) + ' of ' + str(limit) + ' lbs used).') "
+    "cap = V('capacity', 3); "
+    "limit = V('weight_limit', 10); "
+    "block(f'The {name(me)} is stuffed full - {cap} "
+    "items is its limit.') if mine and held >= cap else None; "
+    "block(f'At {adding} lbs that would overload the "
+    "{name(me)} ({load} of {limit} lbs used).') "
     "if mine and held < cap and load + adding > limit else None",
-    "@set canvas sack/on_put = pemit(enactor, 'The ' + name(me) + "
-    "' now holds ' + str(len(contents(me)) + 1) + ' of ' + "
-    "str(get_attr(me, 'capacity', 3)) + ' items.')",
+    "@set canvas sack/on_put = pemit(enactor, f'The {name(me)}"
+    " now holds {len(contents(me)) + 1} of "
+    "{V(\"capacity\", 3)} items.')",
 ]
 
 SACK_PROPS = [
@@ -515,13 +513,10 @@ class TestBasicContainer:
 DOOR_MIRROR_HOOKS = [
     "@set vault door/key_id = vault_brass",
     "@set vault door/locked_msg = The wheel spins uselessly. Locked tight.",
-    "@set vault door/on_open = remove_tag(get_attr(me, 'partner'), "
-    "'closed')",
-    "@set vault door/on_close = add_tag(get_attr(me, 'partner'), 'closed')",
-    "@set vault door/on_lock = set_attr(get_attr(me, 'partner'), "
-    "'locked', True)",
-    "@set vault door/on_unlock = set_attr(get_attr(me, 'partner'), "
-    "'locked', False)",
+    "@set vault door/on_open = remove_tag(V('partner'), 'closed')",
+    "@set vault door/on_close = add_tag(V('partner'), 'closed')",
+    "@set vault door/on_lock = set_attr(V('partner'), 'locked', True)",
+    "@set vault door/on_unlock = set_attr(V('partner'), 'locked', False)",
 ]
 
 DOOR_BUILD_SIDE_A = [

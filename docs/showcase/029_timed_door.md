@@ -40,8 +40,9 @@ now *two* countdowns in flight: the first slams the door at t=30 — ten
 seconds into the second press's window — and the second slams again at
 t=50, possibly onto someone mid-doorway who pressed at t=45. Timers
 you can't cancel from inside must be **defused by state**: each press
-takes a *ticket* (`pending += 1`), each slam retires one, and only the
-slam that retires the **last** ticket actually closes the door. Stale
+takes a *ticket* (`incr('pending')`), each slam retires one
+(`decr('pending')`, which hands back the new count), and only the slam
+that retires the **last** ticket actually closes the door. Stale
 timers wake up, see a newer generation outstanding, and go back to
 sleep. (`cancel_wait()` — cancel the stored handle, schedule a fresh
 one — solves the same race by keeping only one timer alive; the ticket
@@ -81,14 +82,14 @@ reset the countdown if it's already open), and light the fuse:
 @create pressure switch
 drop pressure switch
 @set pressure switch/delay = 30
-@set pressure switch/cmd_press = $press switch: d = get('blast door'); set_attr(me, 'pending', get_attr(me, 'pending', 0) + 1); (remove_tag(d, 'closed'), remit(loc(me), 'Hydraulics whine -- the blast door grinds open. Somewhere a countdown starts ticking.')) if has_tag(d, 'closed') else remit(loc(me), 'Clunk. The countdown resets.'); wait(get_attr(me, 'delay', 30), 'trigger me/slam')
+@set pressure switch/cmd_press = $press switch: d = get('blast door'); incr('pending'); (remove_tag(d, 'closed'), remit(loc(me), 'Hydraulics whine -- the blast door grinds open. Somewhere a countdown starts ticking.')) if has_tag(d, 'closed') else remit(loc(me), 'Clunk. The countdown resets.'); wait(V('delay', 30), 'trigger me/slam')
 ```
 
 And the slam — retire a ticket, and only the last one standing gets to
 close anything:
 
 ```text
-@set pressure switch/slam = d = get('blast door'); p = get_attr(me, 'pending', 1) - 1; set_attr(me, 'pending', p); (add_tag(d, 'closed'), remit(loc(me), 'WHAM! The blast door slams shut.')) if p <= 0 and not has_tag(d, 'closed') else None
+@set pressure switch/slam = d = get('blast door'); p = decr('pending'); (add_tag(d, 'closed'), remit(loc(me), 'WHAM! The blast door slams shut.')) if p <= 0 and not has_tag(d, 'closed') else None
 ```
 
 The `not has_tag(d, 'closed')` guard is the second half of atomicity:

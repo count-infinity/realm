@@ -59,13 +59,13 @@ underpass
 The pen — cap check, then append one always-visible detail line:
 
 ```text
-@set here/cmd_scrawl = $scrawl *: rows = get_attr(me, 'desc_extras') or []; (pemit(enactor, 'No bare concrete left. The wall is full; someone with the deed must SCRUB it.') if len(rows) >= 8 else (set_attr(me, 'desc_extras', rows + [['', 'Scrawled on the wall: "' + escape(arg0) + '" --' + name(enactor)]]), remit(me, name(enactor) + ' shakes a marker and writes on the wall.')))
+@set here/cmd_scrawl = $scrawl *: rows = V('desc_extras') or []; (pemit(enactor, 'No bare concrete left. The wall is full; someone with the deed must SCRUB it.') if len(rows) >= 8 else (set_attr(me, 'desc_extras', rows + [['', f'Scrawled on the wall: "{escape(arg0)}" --{name(enactor)}']]), remit(me, f'{name(enactor)} shakes a marker and writes on the wall.')))
 ```
 
 The solvent — owner only:
 
 ```text
-@set here/cmd_scrub = $scrub wall: (pemit(enactor, 'Only whoever holds the deed scrubs this wall.') if enactor != owner(me) else (del_attr(me, 'desc_extras'), remit(me, name(enactor) + ' scrubs the wall back to bare concrete.')))
+@set here/cmd_scrub = $scrub wall: (pemit(enactor, 'Only whoever holds the deed scrubs this wall.') if enactor != owner(me) else (del_attr(me, 'desc_extras'), remit(me, f'{name(enactor)} scrubs the wall back to bare concrete.')))
 ```
 
 Two triggers on the room itself — rooms are in the `$`-command search

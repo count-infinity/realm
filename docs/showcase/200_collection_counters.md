@@ -63,8 +63,8 @@ The witness and its deferred tally. `on_get` just remembers who and
 schedules the count for the next beat; `tally` drains the queue:
 
 ```text
-@set Salvage Foreman/on_get = set_attr(me, 'pending', (get_attr(me, 'pending') or []) + [enactor.id]); wait(0, 'trigger me/tally')
-@set Salvage Foreman/tally = q = get_attr(me, 'pending') or []; set_attr(me, 'pending', []); [eval_attr(me, 'count', pid) for pid in q]
+@set Salvage Foreman/on_get = set_attr(me, 'pending', (V('pending') or []) + [enactor.id]); wait(0, 'trigger me/tally')
+@set Salvage Foreman/tally = q = V('pending') or []; set_attr(me, 'pending', []); [eval_attr(me, 'count', pid) for pid in q]
 ```
 
 The counter itself — the objective read: count the taker's *uncounted*
@@ -72,7 +72,7 @@ objective items, stamp them, bump the total, announce, and pay out at the
 goal:
 
 ```text
-@set Salvage Foreman/count = p = get('#' + str(arg0)); fresh = [o for o in contents(p) if has_tag(o, 'objective') and not has_tag(o, 'counted')] if p else []; [add_tag(o, 'counted') for o in fresh]; n = get_attr(p, 'salvage_count', 0) + len(fresh); goal = get_attr(me, 'goal', 5); [(set_attr(p, 'salvage_count', n), pemit(p, 'Salvage relays recovered: ' + str(min(n, goal)) + '/' + str(goal))) for g in [bool(fresh)] if g]; [(set_attr(p, 'salvage_done', 1), adjust_credits(p, 100), pemit(p, 'Objective complete! The Foreman wires you 100 credits.')) for g in [n >= goal and not get_attr(p, 'salvage_done', 0)] if g]; result = 1
+@set Salvage Foreman/count = p = get('#' + str(arg0)); fresh = [o for o in contents(p) if has_tag(o, 'objective') and not has_tag(o, 'counted')] if p else []; [add_tag(o, 'counted') for o in fresh]; n = get_attr(p, 'salvage_count', 0) + len(fresh); goal = V('goal', 5); [(set_attr(p, 'salvage_count', n), pemit(p, 'Salvage relays recovered: ' + str(min(n, goal)) + '/' + str(goal))) for g in [bool(fresh)] if g]; [(set_attr(p, 'salvage_done', 1), adjust_credits(p, 100), pemit(p, 'Objective complete! The Foreman wires you 100 credits.')) for g in [n >= goal and not get_attr(p, 'salvage_done', 0)] if g]; result = 1
 ```
 
 Scatter the objectives — five relays, seeded with one builder-softcode

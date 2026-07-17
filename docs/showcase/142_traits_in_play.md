@@ -59,7 +59,7 @@ clinic
 drop trait console
 @desc trait console = A surgical booth of needles and green gel. GRAFT <trait> to splice one in; PROVE to test yourself. Stock: reflexes, keen eye, claustrophobia.
 @set trait console/traits = {"reflexes": {"kind": "combat_reflexes", "mods": {"all": 1}, "msg": "Your reflexes wind tight -- +1 to everything."}, "keen_eye": {"kind": "keen_eye", "mods": {"observation": 2}, "msg": "The world sharpens -- +2 Observation."}, "claustrophobia": {"kind": "claustrophobia", "mods": {}, "msg": "A cold knot ties itself in your chest at the thought of tight spaces."}}
-@set trait console/cmd_graft = $graft *: t = trim(arg0).lower().replace(' ', '_'); d = get_attr(me, 'traits', {}).get(t); (pemit(enactor, 'No such trait on file.') if not d else (pemit(enactor, 'That trait is already spliced in.') if has_tag(enactor, d['kind']) else apply_effect(enactor, 'modifier_effect', kind=d['kind'], duration=0, check_mods=d['mods'], apply_msg=d['msg'])))
+@set trait console/cmd_graft = $graft *: t = trim(arg0).lower().replace(' ', '_'); d = V('traits', {}).get(t); (pemit(enactor, 'No such trait on file.') if not d else (pemit(enactor, 'That trait is already spliced in.') if has_tag(enactor, d['kind']) else apply_effect(enactor, 'modifier_effect', kind=d['kind'], duration=0, check_mods=d['mods'], apply_msg=d['msg'])))
 @set trait console/cmd_prove = $prove: pemit(enactor, 'Observation: ' + ('pass' if skill_check(enactor, 'observation') else 'fail') + ' | Melee: ' + ('pass' if skill_check(enactor, 'melee') else 'fail'))
 ```
 

@@ -45,9 +45,10 @@ Two objects share the work:
 
 **Verification is the hand-in.** The engine's `give` accepts NPC
 recipients and fires the recipient's `ON_RECEIVE` *after* the item
-lands. The hook gets no payload (the standard event-trigger limitation),
-but it doesn't need one: the foreman keeps nothing, so whatever is in
-his hands *is* the delivery. The script finds the giver's claimed job on
+lands. (`adata('item')`/`adata('giver')` now name the delivery directly
+— this build predates the event namespace.) It doesn't need one anyway:
+the foreman keeps nothing, so whatever is in his hands *is* the
+delivery. The script finds the giver's claimed job on
 the board, checks the delivered item's name against the job's `want`,
 and on a match: pays `transfer_credits(me, enactor, reward)` out of the
 foreman's funded purse (fund him up front — wages that can bounce are a
@@ -86,7 +87,7 @@ The posting routine and its heartbeat — post while fewer than two jobs
 are open:
 
 ```text
-@set Foreman Dray/post = board = get('the job board'); open_jobs = [i for i in range(1, get_attr(board, 'next_job', 1)) if get_attr(board, 'job_' + str(i))]; rows = get_attr(me, 'templates', []); pick = rows[rand(0, len(rows) - 1)] if rows else None; [(set_attr(brd, 'job_' + str(n), {'want': p[0], 'reward': p[1], 'text': p[2], 'taken': '', 'taken_name': ''}), set_attr(brd, 'next_job', n + 1), remit(here, 'Foreman Dray chalks a notice. Work posted: ' + p[2] + ' Pays ' + str(p[1]) + ' credits.')) for g, p, brd in [[len(open_jobs) < 2 and pick is not None, pick, board]] if g for n in [get_attr(brd, 'next_job', 1)]]; result = 1
+@set Foreman Dray/post = board = get('the job board'); open_jobs = [i for i in range(1, get_attr(board, 'next_job', 1)) if get_attr(board, 'job_' + str(i))]; rows = V('templates', []); pick = rows[rand(0, len(rows) - 1)] if rows else None; [(set_attr(brd, 'job_' + str(n), {'want': p[0], 'reward': p[1], 'text': p[2], 'taken': '', 'taken_name': ''}), set_attr(brd, 'next_job', n + 1), remit(here, f'Foreman Dray chalks a notice. Work posted: {p[2]} Pays {p[1]} credits.')) for g, p, brd in [[len(open_jobs) < 2 and pick is not None, pick, board]] if g for n in [get_attr(brd, 'next_job', 1)]]; result = 1
 @behavior Foreman Dray = script_ticker, interval:45
 @set Foreman Dray/on_tick = eval_attr(me, 'post')
 ```
@@ -94,8 +95,8 @@ are open:
 The board's reading face and the claim verb:
 
 ```text
-@set the job board/cmd_jobs = $jobs:pemit(enactor, 'The job board:'); [pemit(enactor, '  #' + str(i) + ' ' + j['text'] + ' Pays ' + str(j['reward']) + '. ' + ('Taken by ' + j['taken_name'] if j['taken'] else 'OPEN')) for i in range(1, get_attr(me, 'next_job', 1)) for j in [get_attr(me, 'job_' + str(i))] if j]
-@set the job board/cmd_accept = $accept job *:j = get_attr(me, 'job_' + arg0.strip()); ok = bool(j) and not j['taken']; [(set_attr(me, 'job_' + arg0.strip(), dict(x, taken=enactor.id, taken_name=name(enactor))), pemit(enactor, 'You sign for job #' + arg0.strip() + ': ' + x['text'])) for g, x in [[ok, j]] if g]; pemit(enactor, 'No such job, or it is already taken.') if not ok else None
+@set the job board/cmd_jobs = $jobs:pemit(enactor, 'The job board:'); [pemit(enactor, f"  #{i} {j['text']} Pays {j['reward']}. " + (f"Taken by {j['taken_name']}" if j['taken'] else 'OPEN')) for i in range(1, V('next_job', 1)) for j in [V('job_' + str(i))] if j]
+@set the job board/cmd_accept = $accept job *:j = V('job_' + arg0.strip()); ok = bool(j) and not j['taken']; [(set_attr(me, 'job_' + arg0.strip(), dict(x, taken=enactor.id, taken_name=name(enactor))), pemit(enactor, f"You sign for job #{arg0.strip()}: {x['text']}")) for g, x in [[ok, j]] if g]; pemit(enactor, 'No such job, or it is already taken.') if not ok else None
 ```
 
 And the verifier — the foreman's receive hook. Match the delivery
@@ -103,7 +104,7 @@ against the giver's claimed jobs; pay and close on a hit, push back on
 a miss:
 
 ```text
-@set Foreman Dray/on_receive = board = get('the job board'); stuff = [o for o in contents(me)]; it = stuff[0] if stuff else None; hits = [[i, j] for brd, itx in [[board, it]] for i in range(1, get_attr(brd, 'next_job', 1)) for j in [get_attr(brd, 'job_' + str(i))] if j and j['taken'] == enactor.id and itx is not None and name(itx) == j['want']]; paid = bool(hits) and transfer_credits(me, enactor, hits[0][1]['reward']); [(del_attr(brd, 'job_' + str(i)), destroy_obj(x), say('Good work, ' + name(enactor) + '. ' + str(j['reward']) + ' credits, as posted.')) for g, row, x, brd in [[paid, hits[0] if hits else None, it, board]] if g for i, j in [row]]; (teleport_obj(it, enactor), say('That is not what any job of yours calls for.')) if it is not None and not paid else None
+@set Foreman Dray/on_receive = board = get('the job board'); stuff = [o for o in contents(me)]; it = stuff[0] if stuff else None; hits = [[i, j] for brd, itx in [[board, it]] for i in range(1, get_attr(brd, 'next_job', 1)) for j in [get_attr(brd, 'job_' + str(i))] if j and j['taken'] == enactor.id and itx is not None and name(itx) == j['want']]; paid = bool(hits) and transfer_credits(me, enactor, hits[0][1]['reward']); [(del_attr(brd, 'job_' + str(i)), destroy_obj(x), say(f"Good work, {name(enactor)}. {j['reward']} credits, as posted.")) for g, row, x, brd in [[paid, hits[0] if hits else None, it, board]] if g for i, j in [row]]; (teleport_obj(it, enactor), say('That is not what any job of yours calls for.')) if it is not None and not paid else None
 ```
 
 ## Try it

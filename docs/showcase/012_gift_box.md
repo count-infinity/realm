@@ -60,7 +60,7 @@ The box and the wrapping — builtins do the first half:
 @create gift box
 @set gift box/container = true
 drop gift box
-@desc gift box = A crisp white box under a red ribbon. [[to = get_attr(me, 'for_name', ''); result = ('The tag reads: for ' + to + ', from ' + get_attr(me, 'from_name', 'a secret admirer') + '.') if to else 'The ribbon hangs loose; the tag is blank.']]
+@desc gift box = A crisp white box under a red ribbon. [[to = V('for_name', ''); result = f"The tag reads: for {to}, from {V('from_name', 'a secret admirer')}." if to else 'The ribbon hangs loose; the tag is blank.']]
 @create silver locket
 put silver locket in gift box
 close gift box
@@ -69,9 +69,9 @@ close gift box
 The addressing command, the ward, and the fanfare:
 
 ```text
-@set gift box/cmd_address = $address * to *: who = get(trim(arg1)); ok = who is not None and has_tag(who, 'player'); (set_attr(me, 'for_id', who.id), set_attr(me, 'for_name', name(who)), set_attr(me, 'from_name', name(enactor)), remit(here, name(enactor) + ' ties the ribbon tight and pens a name on the tag.')) if ok else pemit(enactor, 'You find no one by that name to address it to.')
-@set gift box/on_check = mine = atype == 'item:on_open' and target is me; to = get_attr(me, 'for_id', ''); block('The ribbon is charmed shut. The tag reads: for ' + get_attr(me, 'for_name', '') + ' only.') if mine and to and actor.id != to else None
-@set gift box/on_open = to = get_attr(me, 'for_id', ''); inside = ', '.join(name(o) for o in contents(me)); (oemit(enactor, 'The ribbon leaps free as ' + name(enactor) + ' opens the gift box!'), pemit(enactor, 'The ribbon leaps free! Inside: ' + inside + ' -- with love from ' + get_attr(me, 'from_name', 'a secret admirer') + '.'), del_attr(me, 'for_id'), del_attr(me, 'for_name'), del_attr(me, 'from_name')) if to else None
+@set gift box/cmd_address = $address * to *: who = get(trim(arg1)); ok = who is not None and has_tag(who, 'player'); (set_attr(me, 'for_id', who.id), set_attr(me, 'for_name', name(who)), set_attr(me, 'from_name', name(enactor)), remit(here, f'{name(enactor)} ties the ribbon tight and pens a name on the tag.')) if ok else pemit(enactor, 'You find no one by that name to address it to.')
+@set gift box/on_check = mine = atype == 'item:on_open' and target is me; to = V('for_id', ''); block(f"The ribbon is charmed shut. The tag reads: for {V('for_name', '')} only.") if mine and to and actor.id != to else None
+@set gift box/on_open = to = V('for_id', ''); inside = ', '.join(name(o) for o in contents(me)); (oemit(enactor, f'The ribbon leaps free as {name(enactor)} opens the gift box!'), pemit(enactor, f"The ribbon leaps free! Inside: {inside} -- with love from {V('from_name', 'a secret admirer')}."), del_attr(me, 'for_id'), del_attr(me, 'for_name'), del_attr(me, 'from_name')) if to else None
 ```
 
 ## Try it

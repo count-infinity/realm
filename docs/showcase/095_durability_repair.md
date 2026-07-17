@@ -76,7 +76,7 @@ attacker's readied weapon and wear it — with a battered warning at 25
 and a break notice at 0:
 
 ```text
-@set the wear master/ON_ATTACK = [(set_attr(o, 'condition', c), remit(here, name(o) + ' is looking battered.') if c == 25 else None, remit(here, name(o) + ' gives out with a crack!') if c == 0 else None) for o in contents(enactor) if has_tag(o, 'wielded') for c in [max(0, get_attr(o, 'condition', 100) - 5)]]
+@set the wear master/ON_ATTACK = [(set_attr(o, 'condition', c), remit(here, f'{name(o)} is looking battered.') if c == 25 else None, remit(here, f'{name(o)} gives out with a crack!') if c == 0 else None) for o in contents(enactor) if has_tag(o, 'wielded') for c in [max(0, get_attr(o, 'condition', 100) - 5)]]
 ```
 
 A weapon that starts sound and refuses to be readied once ruined — the
@@ -86,7 +86,7 @@ ward runs in the gated `item:on_wield` check pass:
 @create a mono blade
 @set a mono blade/value = 40
 @set a mono blade/condition = 100
-@set a mono blade/on_check = block('The mono blade is a ruin of snapped segments. It needs a bench.') if atype == 'item:on_wield' and get_attr(me, 'condition', 100) <= 0 else None
+@set a mono blade/on_check = block('The mono blade is a ruin of snapped segments. It needs a bench.') if atype == 'item:on_wield' and V('condition', 100) <= 0 else None
 ```
 
 A tool that wears itself on every `use` — no master needed, the target
@@ -96,15 +96,15 @@ zero:
 ```text
 @create an arc welder
 @set an arc welder/condition = 20
-@set an arc welder/ON_USE = c = max(0, get_attr(me, 'condition', 100) - 10); set_attr(me, 'condition', c); pemit(enactor, 'The welder spits a bead of blue flame. (condition ' + str(c) + ')')
-@set an arc welder/on_check = block('The welder is burnt out. It needs a bench.') if atype == 'item:on_use' and get_attr(me, 'condition', 100) <= 0 else None
+@set an arc welder/ON_USE = c = max(0, V('condition', 100) - 10); set_attr(me, 'condition', c); pemit(enactor, f'The welder spits a bead of blue flame. (condition {c})')
+@set an arc welder/on_check = block('The welder is burnt out. It needs a bench.') if atype == 'item:on_use' and V('condition', 100) <= 0 else None
 ```
 
 And the bench: fee scales with missing condition, the transfer is the
 wallet check, and the burn makes it a sink:
 
 ```text
-@set the repair bench/cmd_repair = $repair *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; c = get_attr(itm[0], 'condition', 100) if itm else 100; cost = max(1, (100 - c) // 2); ok = bool(itm) and c < 100 and transfer_credits(enactor, me, cost); [(set_attr(o, 'condition', 100), adjust_credits(me, -k), pemit(enactor, 'The bench grinds, reseats and trues ' + name(o) + ': good as new for ' + str(k) + ' credits.')) for g, o, k in [[ok, itm[0] if itm else None, cost]] if g]; pemit(enactor, 'Nothing to repair, or you cannot cover the fee.') if not ok else None
+@set the repair bench/cmd_repair = $repair *:itm = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; c = get_attr(itm[0], 'condition', 100) if itm else 100; cost = max(1, (100 - c) // 2); ok = bool(itm) and c < 100 and transfer_credits(enactor, me, cost); [(set_attr(o, 'condition', 100), adjust_credits(me, -k), pemit(enactor, f'The bench grinds, reseats and trues {name(o)}: good as new for {k} credits.')) for g, o, k in [[ok, itm[0] if itm else None, cost]] if g]; pemit(enactor, 'Nothing to repair, or you cannot cover the fee.') if not ok else None
 ```
 
 ## Try it

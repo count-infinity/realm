@@ -72,13 +72,18 @@ every later tutorial leans on — is to keep *data* in one attribute and
 
 ```text
 @set oracle ball/answers = ["Yes.", "No.", "The dice are still rolling."]
-@set oracle ball/cmd_shake = $shake: a = get_attr(me, 'answers'); pose('trembles in ' + name(enactor) + "'s grip."); say(a[rand(0, len(a) - 1)])
+@set oracle ball/cmd_shake = $shake: a = V('answers'); pose(f"trembles in {name(enactor)}'s grip."); say(a[rand(0, len(a) - 1)])
 ```
 
 New pieces: `me` is the scripted object (the ball), `enactor` is
-whoever typed `shake`. `get_attr(me, 'answers')` reads the list;
-`a[rand(0, len(a) - 1)]` indexes it — plain Python, because scripts
-*are* sandboxed Python. `pose(...)` emits a third-person action line
+whoever typed `shake`. `V('answers')` reads an attribute off `me` — it
+is the shorthand for `get_attr(me, 'answers')`, and since a script
+mostly reads its *own* object, `V` is what you'll type all day; the
+long `get_attr(obj, ...)` form is for reading *other* objects.
+`a[rand(0, len(a) - 1)]` indexes the list — plain Python, because
+scripts *are* sandboxed Python, which is also why the `f"..."` string
+interpolates `{name(enactor)}` inline. `pose(...)` emits a
+third-person action line
 (`oracle ball trembles in Kess's grip.`) before the answer — the
 object-side version of actor/room messaging etiquette. Now anyone can
 retheme a specific ball by editing one data attribute, without touching
@@ -109,10 +114,10 @@ you want — `@tr` runs plain script attributes, so it's the tool for
 
 - **Answer the question asked.** Wildcards capture: change the pattern
   to `$shake *` and the words typed after `shake` arrive as `arg0` —
-  echo them back: `say('You asked: ' + arg0 + ' ...' )`. (Keep a plain
+  echo them back: `say(f'You asked: {arg0} ...')`. (Keep a plain
   `$shake` version too if you want both forms.)
 - **A cooldown.** Store `set_attr(me, 'last', now())` and refuse to
-  answer when `now() - get_attr(me, 'last', 0) < 10` — the
+  answer when `now() - V('last', 0) < 10` — the
   `if ... else` one-liner idiom from the slot machine tutorial.
 - **React to being looked at.** `@set oracle ball/on_look =
   pose('swirls ominously.')` — `ON_<EVENT>` attributes fire on world

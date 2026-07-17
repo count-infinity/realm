@@ -62,8 +62,8 @@ enough to watch; a kitchen you actually cook in wants `interval:150`:
 ```text
 @create ripe peach
 @set ripe peach/freshness = 6
-@desc ripe peach = [[f = get_attr(me, 'freshness', 6); result = 'Bursting with juice.' if f > 4 else ('Going soft and winey.' if f > 0 else 'Compost.')]]
-@set ripe peach/on_tick = f = get_attr(me, 'freshness', 6) - get_attr(loc(me), 'decay_rate', 1); set_attr(me, 'freshness', f); (remit(here, 'The ' + name(me) + ' collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
+@desc ripe peach = [[f = V('freshness', 6); result = 'Bursting with juice.' if f > 4 else ('Going soft and winey.' if f > 0 else 'Compost.')]]
+@set ripe peach/on_tick = f = V('freshness', 6) - get_attr(loc(me), 'decay_rate', 1); set_attr(me, 'freshness', f); (remit(here, f'The {name(me)} collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
 @behavior ripe peach = script_ticker, interval:1
 ```
 
@@ -72,8 +72,8 @@ Its control-group twin — identical fruit, different fate:
 ```text
 @create twin peach
 @set twin peach/freshness = 6
-@desc twin peach = [[f = get_attr(me, 'freshness', 6); result = 'Bursting with juice.' if f > 4 else ('Going soft and winey.' if f > 0 else 'Compost.')]]
-@set twin peach/on_tick = f = get_attr(me, 'freshness', 6) - get_attr(loc(me), 'decay_rate', 1); set_attr(me, 'freshness', f); (remit(here, 'The ' + name(me) + ' collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
+@desc twin peach = [[f = V('freshness', 6); result = 'Bursting with juice.' if f > 4 else ('Going soft and winey.' if f > 0 else 'Compost.')]]
+@set twin peach/on_tick = f = V('freshness', 6) - get_attr(loc(me), 'decay_rate', 1); set_attr(me, 'freshness', f); (remit(here, f'The {name(me)} collapses into a slick of brown mush.'), create_obj('a slick of brown mush', [], loc(me)), destroy_obj(me)) if f <= 0 else None
 @behavior twin peach = script_ticker, interval:1
 ```
 

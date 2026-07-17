@@ -1433,7 +1433,7 @@ named tutorials, so none of these block showcase progress.
   function calls) is never interrupted and pins its worker thread. An
   instruction-count guard or tracing hook would close it.
   (`docs/showcase/250_player_scripting.md`)
-- [ ] **`ON_<EVENT>` scripts get no action payload** — e.g. `ON_PAYMENT` cannot
+- [x] **`ON_<EVENT>` scripts get no action payload — RESOLVED 2026-07-17.** Was: — e.g. `ON_PAYMENT` cannot
   read the amount; witnessed events also fire on every bystander with the hook,
   indistinguishably. Three arcs independently re-derived the balance-delta
   "ledger/till" idiom (001, 002, 064, 067). A bound payload
@@ -1487,7 +1487,7 @@ named tutorials, so none of these block showcase progress.
 - [ ] **No per-exit movement message overrides** — stock leave/arrive lines
   always print; `leave_msg`/`arrive_msg` attrs don't exist, and room
   ON_ENTER/ON_LEAVE can't see which exit carried the mover. (028_one_way_exit.md)
-- [ ] **`ON_FAIL` can't read the failure reason** (`extra['reason']` not bound)
+- [~] **`ON_FAIL` can't read the failure reason** — PARTIALLY resolved 2026-07-17: `adata()` is now bound, so the moment `extra['reason']` is populated this works with no further engine change. Was: (`extra['reason']` not bound)
   — e.g. fall damage on a lockable climbing exit would also fire when bounced
   off the lock. (034_climbing_exit.md)
 - [ ] **`look <name>` has no fallback to named `desc_extras` details** — builtin
@@ -1506,7 +1506,7 @@ named tutorials, so none of these block showcase progress.
 - [ ] **DX note: builtin unique-prefix matching silently shadows `$`-verbs**
   (`$read` can never fire — prefix-matches builtin `ready`). Suggest a builder
   diagnostic (warn on shadowed trigger registration). (010_typewriter.md)
-- [ ] **Addendum to the payload-binding gap (wave 1):** a moved item is not a
+- [x] **Addendum to the payload-binding gap — RESOLVED 2026-07-17** (`item:on_get`'s item is the action `target`, now readable; give/receive carry it in `extra`). Was: a moved item is not a
   witness to its own `item:on_put`/`item:on_get` (witnesses = room + contents +
   zone masters + target), so no hook can name the item involved even indirectly.
   (018_refrigerator.md, 019_trash_incinerator.md)
@@ -1542,7 +1542,7 @@ findings below are facets of one fix — bind the action's target + payload into
   firing the event. So `ON_DEATH` witnesses can't verify poison/grenade/trap
   kills (breaks bounty verification, arena recorders, replay logs).
   (114_bounty_board, 111_grenades, 115_arena_spectators, 120_combat_replay)
-- [ ] **`ON_<EVENT>` triggers expose only `enactor`** — no target, amount, or
+- [x] **`ON_<EVENT>` triggers expose only `enactor` — RESOLVED 2026-07-17** (see the resolution note at the end of this file). Was: — no target, amount, or
   hit/miss (unlike `on_check`'s `adata`/target). Reconfirmed from many angles:
   armor wear can't be booked defender-side (117), damage narration can't name
   the defender (115, 120), emote/wield reactions can't read content (072),
@@ -2046,3 +2046,183 @@ hands its object's authority to every caller. Same reasoning applies here.
 `@set obj/attr = value` — pure MUSH muscle memory. Note Penn requires the
 object; `&myfn1 = ...` with no target would be a REALM divergence (would have
 to default to `me`).
+
+## RESOLVED 2026-07-17: event payload binding (Theme A, the #1 showcase gap)
+
+**Shipped.** `ON_<EVENT>` and `^listen` scripts can now read what happened,
+not just who did it.
+
+**The finding that made it small:** the engine already populated every payload —
+`event:payment` carried `amount`, `combat:on_damage` carried `damage`/
+`damage_types` (with `target` = the defender), `combat:on_attack` carried
+`weapon`, give/receive carried `item`/`giver`, poses carried `pose`,
+`on_hitprcnt` carried `percent`. The data was never missing; only the namespace
+binding was. `on_check` wards already had it via `_check_namespace`;
+`_execute_trigger` simply never received the `Action`.
+
+**Change** (realm/scripting/engine.py):
+- Extracted `_event_namespace(action)` — the read-only subset: `atype`,
+  `actor`, `target`, `adata(key, default)`, `has_atag(tag)`.
+- `_check_namespace` now layers the decision verbs (`block`, `mod`,
+  `is_blocked`, `set_adata`) on top of it, so both passes share one definition
+  and the apply pass is read-only **by construction**: once an `ON_<EVENT>`
+  runs the decision is already made, so a witness gets no veto and cannot
+  rewrite an in-flight action.
+- Threaded an optional `action` through `_execute_trigger`, passed from all
+  three observe sites: event witnesses, `ON_ARRIVE`, and `^listen` (which also
+  gives listeners `target` — the seam item 80's overheard-whispers wants).
+  `$`-commands and `@tr` have no action and pass None, leaving the names
+  unbound.
+
+**Tests:** `tests/test_event_payload.py` — 10 tests driving real commands
+(`pay 25 to ogre` → `adata('amount') == 25`; two NPCs distinguishing "I was
+paid" from "someone was paid" via `target`; `ON_RECEIVE` reading `item`/`giver`;
+`^listen` reading `message`; guards that `block`/`set_adata` are absent on the
+apply pass; existing ward behavior unchanged). Full suite 1769 green.
+**Docs:** an "Event data" section in the softcode reference (via the generator
+HEADER) with the payload table per action type.
+
+**Learned while testing (worth knowing):** `do_get` passes no `extra` — for
+`get gem` the item IS the action's `target`. The `{"item": ...}` payloads exist
+only where the target is a *person* (give/receive). So "which item?" is
+answered by `target` on get/drop and by `adata('item')` on give/receive.
+
+**Downstream now unblocked** (previously forced onto the ledger/till workaround):
+armor wear booked defender-side (117), honest damage narration (115, 120),
+emote/wield content reactions (072), `ON_PAYMENT` amounts everywhere (001, 002,
+013, 030, 064, 067, 082, 091, 105, 106), item identity on decay/incinerator
+(018, 019) and collection counters (200). The ledger idiom still works — those
+tutorials are correct, just no longer the only way.
+
+## Ledger/till idiom → `adata()` rewrites (filed 2026-07-17, deferred)
+
+The 2026-07-17 idiom sweep modernized *syntax* only (`V()`, `incr()`,
+f-strings). It deliberately did NOT rewrite tutorials whose **logic** works
+around the old payload gap, because that changes what the build does, not just
+how it reads:
+
+- **Ledger/till idiom** (reconstruct a payment by diffing your own balance
+  before/after): 001, 002, 013, 030, 064, 067, 082, 091, 105, 106. Now
+  expressible as `adata('amount')`.
+- **Unstamped-item idiom** (find the arrival by elimination): 022, 094, 096,
+  097. Now expressible as `adata('item')` / `adata('giver')`.
+- **Inventory-diff counters**: 200 (deferred `wait(0)` + inventory read). Now
+  expressible via `target` / `adata('item')`.
+- **Pose-order-only logging**: 205. Now `adata('pose')`.
+
+**Keep the idioms documented somewhere** — they remain the correct answer for
+any action that genuinely carries no payload, and the till pattern is the
+general "reconstruct state you can't observe" technique. Suggested: one
+reference page (or a section in 245_event_bus_tour) that teaches them once, and
+the individual tutorials switch to `adata()` and link to it. That is strictly
+better than the status quo, where a dozen tutorials each re-derive the
+workaround as though it were the only way.
+
+Each rewrite touches the build transcript AND its test constants (doc↔test sync
+enforces the pair), so it is real work, not a regex — hence deferred rather than
+bundled into the syntax sweep.
+
+## SECURITY: `on_check` wards fail OPEN on script error (filed 2026-07-17)
+
+Found while probing during the idiom sweep, not by reading code: an agent put a
+deliberately-broken call in a ward that also called `block()`. The script raised
+(NameError), `_run_check` caught `ScriptError`, logged a warning — and **the
+action proceeded**. The item was picked up. The ward silently did nothing.
+
+    try:
+        await self.sandbox.execute_async(code, ctx, functions=namespace)
+    except ScriptError as exc:
+        logger.warning(f"on_check error on {obj.name}: {exc}")   # ...and continue
+
+**Why it matters:** `on_check` is the *veto* surface — cursed items refusing
+removal, landmines refusing pickup, capacity limits, clearance gates, escrow
+protection, the jail door. A typo in any of those silently disables the
+protection, and the only trace is a log line nobody reads. "Your ward has a
+syntax error" and "your ward decided to allow it" are indistinguishable to the
+world.
+
+**Options (needs a design call):**
+- **Fail closed** — an erroring ward blocks with a generic reason. Safest for
+  security-shaped wards; risks a typo bricking a busy room until fixed.
+- **Fail closed only if the ward *would* have blocked** — undecidable; discard.
+- **Fail open but LOUD** — surface the error to the object's owner and/or the
+  actor ("this ward is broken"), not just the log. Keeps a typo from bricking
+  the game but ends the silence.
+- **Per-ward opt-in** — `@set obj/on_check_failsafe = block`, defaulting to
+  loud-open. Most flexible, more surface.
+
+Recommend at minimum the LOUD variant; consider fail-closed as the default for
+wards on `item:on_get`/`event:pre_enter`-style gates. Note Penn's precedent:
+softcode errors return a visible `#-1 ...` string into the output rather than
+vanishing — the error is *seen*.
+
+Related: this is why the sweep brief forbade `incr`/`decr` inside wards (they
+are correctly absent from the `_READONLY` namespace) — but "correctly absent"
+plus "fails open" equals a security hole, not a guardrail.
+
+## `incr()`/`decr()` need a `default` parameter (filed 2026-07-17)
+
+`incr(name, by=1)` hardcodes a 0 baseline for a missing attribute. Real scripts
+routinely read with a *different* default, and four separate sweep agents
+independently hit this and correctly refused the conversion:
+
+| Tutorial | Attr | Reads with default | `incr` would give |
+|---|---|---|---|
+| 029 timed door | `pending` | 1 | wrong slam count |
+| 089 auction | `next_lot` | 1 | lot numbering starts at 1 not 2 |
+| 058 spreading fire | `stage` | 1 | fire stages silently broken |
+| 018 refrigerator | `freshness` | 6 | `0 - rate` instead of `6 - rate` |
+
+Three of those four are *silent* breakage — tests wouldn't catch them because
+the builds pre-set the attribute; only a reader copying the tutorial without
+that line gets bitten. Fix: `incr(name, by=1, default=0)` / `decr(...)`.
+
+Also worth considering (same reports): `incr` writes unconditionally, so it
+can't replace a *guarded* write (082 newspaper bumps the issue number on empty
+ticks; 056 countdown writes only when `n > 0`; 216 escape-room writes only in
+the `else` branch). And it coerces non-numeric to 0, which would have destroyed
+list attrs (099 `table`, 104 `champions`). A `default` param fixes the first
+class; the rest are correctly out of scope for the sugar.
+
+## Showcase test harness: migrate to read-from-docs (filed 2026-07-17)
+
+The 223 tutorials are verified by 26 suites using **two different designs**, and
+only one of them is sound.
+
+**Design A — mirror + sync test (12 suites).** Build lines are duplicated as
+Python literals in the test; a sync test asserts each appears in the doc. Two
+holes, both hit for real during the idiom sweep:
+- *Substring matching lets truncation pass.* An f-string's `"` inside a `"`
+  literal ends the string early and `#` comments out the rest — the line is
+  silently truncated, and `assert line in doc_text` still passes because a
+  truncated line IS a substring. Caught only by a behavioral assertion.
+- *A corrupted rewrite can delete tests outright and the count still looks fine.*
+  One agent's script deleted 170 lines of `test_puzzles.py`; the run reported
+  "93 passed" because the deleted tests simply ceased to exist.
+
+**Design B — read from the doc (`test_social.py`).**
+
+    def build_lines(doc_name):
+        """Every command line in the tutorial's "Build it" fenced blocks."""
+        body = (DOCS / doc_name).read_text()
+        match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
+        ...
+
+The test *executes what the doc says*. Drift is **structurally impossible** —
+edit the doc and the test runs the new lines. No mirror, no sync test, nothing
+to keep in step. (It is also why `test_social.py` needed zero edits during the
+sweep while every other suite needed lockstep changes.)
+
+**Recommendation:** migrate all suites to Design B. Concretely: lift
+`build_lines()` into a shared `tests/showcase/conftest.py` helper and rewrite
+each suite's setup to call it. Benefits beyond drift-proofing: the sweep would
+have been ~half the work (docs only), and future idiom passes become docs-only.
+
+**Suites still on Design A / with no guard at all** (12): combat_ext, comms,
+doors_exits, economy_arc, economy_more, heist, living_npcs, npcs_ai, social*,
+softcode, transport, traps_devices. (*social already reads from docs; it just
+lacks a *named* sync test, which under Design B it does not need.)
+
+Interim state as of this filing: all 26 suites verified in sync by hand/scripts,
+full suite 1769 green — but 12 have no automated guard, and this tree has been
+demonstrated to revert uncommitted docs.

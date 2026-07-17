@@ -82,35 +82,35 @@ drop Postmaster
 The escrow hook — stamp whatever just arrived:
 
 ```text
-@set Postmaster/on_receive = new = [o for o in contents(me) if not has_attr(o, 'escrow')]; [(set_attr(o, 'escrow', enactor.id), pemit(enactor, 'The clerk tags your ' + name(o) + ': it will ride along with your next SEND.')) for o in new]
+@set Postmaster/on_receive = new = [o for o in contents(me) if not has_attr(o, 'escrow')]; [(set_attr(o, 'escrow', enactor.id), pemit(enactor, f'The clerk tags your {name(o)}: it will ride along with your next SEND.')) for o in new]
 ```
 
 Sending — resolve every name, refuse the lot if any is wrong,
 attach your pending escrow to the first recipient:
 
 ```text
-@set Postmaster/cmd_send = $send * = *: names = [trim(n) for n in trim(arg0).split(',') if trim(n)]; rcpts = [get(n) for n in names]; ok = [p for p in rcpts if p and has_tag(p, 'player')]; parcels = [o for o in contents(me) if get_attr(o, 'escrow') == enactor.id]; (pemit(enactor, 'The clerk taps the address line: no such citizen on the rolls.') if len(ok) < len(names) or not ok else ([set_attr(me, 'mail_' + p.id, (get_attr(me, 'mail_' + p.id) or []) + [[name(enactor), escape(trim(arg1)), [o.id for o in parcels] if p is ok[0] else [], escape(trim(arg0))]]) for p in ok], [set_attr(o, 'escrow', '') for o in parcels], [pemit(p, 'The postal wire clicks: a letter from ' + name(enactor) + ' has arrived for you.') for p in ok], pemit(enactor, 'The clerk stamps the letter for ' + str(len(ok)) + ' recipient(s)' + (' with ' + str(len(parcels)) + ' parcel(s) attached' if parcels else '') + '.')))
+@set Postmaster/cmd_send = $send * = *: names = [trim(n) for n in trim(arg0).split(',') if trim(n)]; rcpts = [get(n) for n in names]; ok = [p for p in rcpts if p and has_tag(p, 'player')]; parcels = [o for o in contents(me) if get_attr(o, 'escrow') == enactor.id]; (pemit(enactor, 'The clerk taps the address line: no such citizen on the rolls.') if len(ok) < len(names) or not ok else ([set_attr(me, 'mail_' + p.id, (V('mail_' + p.id) or []) + [[name(enactor), escape(trim(arg1)), [o.id for o in parcels] if p is ok[0] else [], escape(trim(arg0))]]) for p in ok], [set_attr(o, 'escrow', '') for o in parcels], [pemit(p, f'The postal wire clicks: a letter from {name(enactor)} has arrived for you.') for p in ok], pemit(enactor, f'The clerk stamps the letter for {len(ok)} recipient(s)' + (f' with {len(parcels)} parcel(s) attached' if parcels else '') + '.')))
 ```
 
 Reading — `mail` lists, `mail <n>` opens (two patterns on one object:
 the bare `$mail` never matches a numbered line, so they can't fight):
 
 ```text
-@set Postmaster/cmd_mail = $mail: rows = get_attr(me, 'mail_' + enactor.id) or []; pemit(enactor, 'The clerk checks the pigeonholes: nothing for you.') if not rows else [pemit(enactor, str(i + 1) + '. From ' + r[0] + ' (to ' + r[3] + ')' + (' [' + str(len(r[2])) + ' parcel(s)]' if r[2] else '')) for i, r in enumerate(rows)]
-@set Postmaster/cmd_mailn = $mail *: rows = get_attr(me, 'mail_' + enactor.id) or []; k = int(trim(arg0)) if trim(arg0).isdigit() else 0; pemit(enactor, 'No letter numbered ' + trim(arg0) + '.') if not (1 <= k <= len(rows)) else (pemit(enactor, 'From ' + rows[k-1][0] + ', to ' + rows[k-1][3] + ':'), pemit(enactor, '  ' + rows[k-1][1]), (pemit(enactor, str(len(rows[k-1][2])) + ' parcel(s) wait behind the grille. CLAIM ' + str(k) + ' collects them.') if rows[k-1][2] else None))
+@set Postmaster/cmd_mail = $mail: rows = V('mail_' + enactor.id) or []; pemit(enactor, 'The clerk checks the pigeonholes: nothing for you.') if not rows else [pemit(enactor, f'{i + 1}. From {r[0]} (to {r[3]})' + (f' [{len(r[2])} parcel(s)]' if r[2] else '')) for i, r in enumerate(rows)]
+@set Postmaster/cmd_mailn = $mail *: rows = V('mail_' + enactor.id) or []; k = int(trim(arg0)) if trim(arg0).isdigit() else 0; pemit(enactor, f'No letter numbered {trim(arg0)}.') if not (1 <= k <= len(rows)) else (pemit(enactor, f'From {rows[k-1][0]}, to {rows[k-1][3]}:'), pemit(enactor, f'  {rows[k-1][1]}'), (pemit(enactor, f'{len(rows[k-1][2])} parcel(s) wait behind the grille. CLAIM {k} collects them.') if rows[k-1][2] else None))
 ```
 
 Claiming — verify the parcels are still in the master's hands, hand
 them over, blank the row:
 
 ```text
-@set Postmaster/cmd_claim = $claim *: rows = get_attr(me, 'mail_' + enactor.id) or []; k = int(trim(arg0)) if trim(arg0).isdigit() else 0; items = [get('#' + str(i)) for i in (rows[k-1][2] if 1 <= k <= len(rows) else [])]; live = [o for o in items if o and loc(o) == me]; (pemit(enactor, 'The clerk turns up empty palms: nothing to collect under that number.') if not live else ([teleport_obj(o, enactor) for o in live], set_attr(me, 'mail_' + enactor.id, [r if j != k - 1 else [r[0], r[1], [], r[3]] for j, r in enumerate(rows)]), pemit(enactor, 'The clerk slides ' + str(len(live)) + ' parcel(s) under the grille.')))
+@set Postmaster/cmd_claim = $claim *: rows = V('mail_' + enactor.id) or []; k = int(trim(arg0)) if trim(arg0).isdigit() else 0; items = [get('#' + str(i)) for i in (rows[k-1][2] if 1 <= k <= len(rows) else [])]; live = [o for o in items if o and loc(o) == me]; (pemit(enactor, 'The clerk turns up empty palms: nothing to collect under that number.') if not live else ([teleport_obj(o, enactor) for o in live], set_attr(me, 'mail_' + enactor.id, [r if j != k - 1 else [r[0], r[1], [], r[3]] for j, r in enumerate(rows)]), pemit(enactor, f'The clerk slides {len(live)} parcel(s) under the grille.')))
 ```
 
 And the login notice:
 
 ```text
-@set Postmaster/on_connect = n = len(get_attr(me, 'mail_' + enactor.id) or []); pemit(enactor, 'The postal wire hums: ' + str(n) + ' letter(s) wait for you at the Post Office.') if n else None
+@set Postmaster/on_connect = n = len(V('mail_' + enactor.id) or []); pemit(enactor, f'The postal wire hums: {n} letter(s) wait for you at the Post Office.') if n else None
 ```
 
 ## Try it

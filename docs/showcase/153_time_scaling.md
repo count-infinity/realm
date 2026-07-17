@@ -55,10 +55,10 @@ chronlab
 drop master chronometer
 @set master chronometer/game_min = 0
 @set master chronometer/step = 30
-@set master chronometer/on_tick = set_attr(me, 'game_min', get_attr(me, 'game_min', 0) + get_attr(me, 'step', 30))
+@set master chronometer/on_tick = incr('game_min', V('step', 30))
 @behavior master chronometer = script_ticker, interval:1
 @set master chronometer/cmd_rate = $set rate *: (set_attr(me, 'step', int(arg0)), pemit(enactor, 'Time now advances ' + arg0 + ' game-minutes per world tick.')) if trim(arg0).isdigit() else pemit(enactor, 'Whole minutes only.')
-@set master chronometer/cmd_clock = $clock: m = get_attr(me, 'game_min', 0); pemit(enactor, 'Day ' + str(m // 1440 + 1) + ', ' + right('0' + str((m // 60) % 24), 2) + ':' + right('0' + str(m % 60), 2))
+@set master chronometer/cmd_clock = $clock: m = V('game_min', 0); pemit(enactor, 'Day ' + str(m // 1440 + 1) + ', ' + right('0' + str((m // 60) % 24), 2) + ':' + right('0' + str(m % 60), 2))
 ```
 
 ## Try it

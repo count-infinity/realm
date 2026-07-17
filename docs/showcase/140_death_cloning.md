@@ -84,7 +84,7 @@ The poll, and the rebirth it performs on each fallen player:
 
 ```text
 @set resurrection controller/on_tick = [eval_attr(me, 'revive', p.id) for r in zone_rooms('colony') for p in contents(r) if has_tag(p, 'player') and has_tag(p, 'unconscious')]
-@set resurrection controller/revive = p = get('#' + arg0); bay = get(get_attr(me, 'bay', '')); fee = int(get_attr(me, 'fee', 50)); (None if not (p and bay) else (teleport_obj(p, bay), remove_tag(p, 'unconscious'), set_attr(p, 'hp', int(get_attr(p, 'max_hp', 10))), (transfer_credits(p, me, fee) if credits(p) >= fee else set_attr(p, 'credits', 0)), set_attr(p, 'clone_count', int(get_attr(p, 'clone_count', 0)) + 1), pemit(p, 'Cold light, then breath. You wake in a fresh body in the clone bay -- whole again. (clone #' + str(get_attr(p, 'clone_count', 1)) + ', ' + str(fee) + ' credits debited)'), remit(bay, 'A clone vat cracks open with a hiss -- ' + name(p) + ' is reborn.')))
+@set resurrection controller/revive = p = get('#' + arg0); bay = get(V('bay', '')); fee = int(V('fee', 50)); (None if not (p and bay) else (teleport_obj(p, bay), remove_tag(p, 'unconscious'), set_attr(p, 'hp', int(get_attr(p, 'max_hp', 10))), (transfer_credits(p, me, fee) if credits(p) >= fee else set_attr(p, 'credits', 0)), set_attr(p, 'clone_count', int(get_attr(p, 'clone_count', 0)) + 1), pemit(p, 'Cold light, then breath. You wake in a fresh body in the clone bay -- whole again. (clone #' + str(get_attr(p, 'clone_count', 1)) + ', ' + str(fee) + ' credits debited)'), remit(bay, 'A clone vat cracks open with a hiss -- ' + name(p) + ' is reborn.')))
 ```
 
 ## Try it
@@ -114,9 +114,9 @@ a bell you hung on `on_death`.
 
 ## Going further
 
-- **Limited lives:** gate `revive` on `clone_count < get_attr(me,
-  'max_clones', 3)` — past the limit, no vat opens and death is real.
-  Permadeath as a policy attribute.
+- **Limited lives:** gate `revive` on `clone_count < V('max_clones', 3)` —
+  past the limit, no vat opens and death is real. Permadeath as a policy
+  attribute.
 - **Clone degradation:** subtract a point of `max_hp` (or a stat) each
   rebirth — copies of copies, the genre's favorite tax.
 - **Loot your own corpse:** give players the NPC treatment too — spawn a

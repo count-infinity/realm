@@ -68,13 +68,13 @@ drop Sergeant Kel
 The menu — read straight from the data, so it never goes stale:
 
 ```
-@set Sergeant Kel/cmd_lessons = $lessons:t = get_attr(me, 'teaches', {}); say('I drill: ' + ', '.join(sorted(t)) + '. Coin first, bruises after. Say train and the skill.')
+@set Sergeant Kel/cmd_lessons = $lessons:t = V('teaches', {}); say(f"I drill: {', '.join(sorted(t))}. Coin first, bruises after. Say train and the skill.")
 ```
 
 The lesson — four gates, then the transaction:
 
 ```
-@set Sergeant Kel/cmd_train = $train *:s = trim(arg0).lower().replace(' ', '_'); t = get_attr(me, 'teaches', {}); r = t.get(s); cur = get_attr(enactor, 'skill_' + s, 9); (say('I do not teach ' + s + '. Ask about my lessons.') if not r else say('You are past my lessons in ' + s + '. Spend points, or find a better teacher.') if cur >= r['cap'] else say('Not yet. Come back when your ' + r['needs'][0].replace('_', ' ') + ' reaches ' + str(r['needs'][1]) + '.') if 'needs' in r and get_attr(enactor, 'skill_' + r['needs'][0], 9) < r['needs'][1] else say('My fee is ' + str(r['fee']) + ' credits. You are short.') if credits(enactor) < r['fee'] else (transfer_credits(enactor, me, r['fee']), set_attr(enactor, 'skill_' + s, cur + 1), say('Again! ...Better. Your ' + s.replace('_', ' ') + ' is now ' + str(cur + 1) + '.')))
+@set Sergeant Kel/cmd_train = $train *:s = trim(arg0).lower().replace(' ', '_'); t = V('teaches', {}); r = t.get(s); cur = get_attr(enactor, f'skill_{s}', 9); (say(f'I do not teach {s}. Ask about my lessons.') if not r else say(f'You are past my lessons in {s}. Spend points, or find a better teacher.') if cur >= r['cap'] else say(f"Not yet. Come back when your {r['needs'][0].replace('_', ' ')} reaches {r['needs'][1]}.") if 'needs' in r and get_attr(enactor, f"skill_{r['needs'][0]}", 9) < r['needs'][1] else say(f"My fee is {r['fee']} credits. You are short.") if credits(enactor) < r['fee'] else (transfer_credits(enactor, me, r['fee']), set_attr(enactor, f'skill_{s}', cur + 1), say(f"Again! ...Better. Your {s.replace('_', ' ')} is now {cur + 1}.")))
 ```
 
 The `get_attr(enactor, 'skill_' + s, 9)` default of 9 is her house
@@ -111,7 +111,7 @@ the fundamentals, experience buys mastery.
   the transaction on `now() - ... > 3600` — one lesson per skill per
   hour, the bartender's cooldown idiom pointed at pedagogy.
 - **Teach to her own level:** replace each `cap` with
-  `get_attr(me, 'skill_' + s, 10)` — she can't teach what she can't
+  `V(f'skill_{s}', 10)` — she can't teach what she can't
   do, and *training the trainer* becomes worldbuilding.
 - **Skill prerequisites from data:** `needs` chains arbitrarily deep
   through the same dict — a curriculum tree in one attribute.

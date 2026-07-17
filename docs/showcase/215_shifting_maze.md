@@ -100,7 +100,7 @@ The heartbeat — rotate the destination and announce it (guarantees 1 and
 3):
 
 ```text
-@set maze warden/on_tick = pool = get_attr(me, 'pool'); arch = get('shifting arch'); cur = '#' + str(get_attr(arch, 'destination')); nxt = pool[(pool.index(cur) + 1) % len(pool)] if cur in pool else pool[0]; set_attr(arch, 'destination', nxt[1:]); remit(loc(arch), 'The walls grind and the shifting arch swings toward a new chamber.')
+@set maze warden/on_tick = pool = V('pool'); arch = get('shifting arch'); cur = '#' + str(get_attr(arch, 'destination')); nxt = pool[(pool.index(cur) + 1) % len(pool)] if cur in pool else pool[0]; set_attr(arch, 'destination', nxt[1:]); remit(loc(arch), 'The walls grind and the shifting arch swings toward a new chamber.')
 @behavior maze warden = script_ticker, interval:15
 ```
 

@@ -57,22 +57,22 @@ default heartbeat; a season is minutes, not months):
 ```text
 @create hydro tray
 drop hydro tray
-@desc hydro tray = A chest-high hydroponic vat webbed with drip lines under grow-lamps. [[w = get_attr(me, 'water', 0); result = ('Nutrient gauge: ' + str(w) + '/3.') if has_attr(me, 'stage') else 'Its growth bed sits empty, lamps dimmed to standby.']]
+@desc hydro tray = A chest-high hydroponic vat webbed with drip lines under grow-lamps. [[w = V('water', 0); result = ('Nutrient gauge: ' + str(w) + '/3.') if has_attr(me, 'stage') else 'Its growth bed sits empty, lamps dimmed to standby.']]
 @set hydro tray/stages = [["germinating", 2, "Pale threads spider through the growth foam."], ["flowering", 2, "White blossoms nod under the grow-lamps."], ["fruiting", 0, "Fat helio-tomatoes hang glowing faintly orange."]]
 ```
 
 The verbs — plant (consumes a `seed`-tagged item), water, harvest:
 
 ```text
-@set hydro tray/cmd_plant = $plant *: seeds = [o for o in contents(enactor) if has_tag(o, 'seed')]; pemit(enactor, 'The bed is already planted.') if has_attr(me, 'stage') else (pemit(enactor, 'You carry no seed stock.') if not seeds else (destroy_obj(seeds[0]), set_attr(me, 'stage', 0), set_attr(me, 'stage_left', get_attr(me, 'stages')[0][1]), set_attr(me, 'water', 2), set_attr(me, 'desc_extras', [['', get_attr(me, 'stages')[0][2]]]), remit(here, name(enactor) + ' beds a seed into the growth foam; the lamps hum up to full.')))
+@set hydro tray/cmd_plant = $plant *: seeds = [o for o in contents(enactor) if has_tag(o, 'seed')]; pemit(enactor, 'The bed is already planted.') if has_attr(me, 'stage') else (pemit(enactor, 'You carry no seed stock.') if not seeds else (destroy_obj(seeds[0]), set_attr(me, 'stage', 0), set_attr(me, 'stage_left', V('stages')[0][1]), set_attr(me, 'water', 2), set_attr(me, 'desc_extras', [['', V('stages')[0][2]]]), remit(here, name(enactor) + ' beds a seed into the growth foam; the lamps hum up to full.')))
 @set hydro tray/cmd_water = $water tray: pemit(enactor, 'Nothing is planted.') if not has_attr(me, 'stage') else (set_attr(me, 'water', 3), remit(here, 'Nutrient mist hisses through the drip lines.'))
-@set hydro tray/cmd_harvest = $harvest *: s = get_attr(me, 'stage', None); st = get_attr(me, 'stages', []); ripe = s is not None and s >= len(st) - 1; pemit(enactor, 'Nothing is planted.') if s is None else None; pemit(enactor, 'Not yet -- the crop is still ' + st[s][0] + '.') if s is not None and not ripe else None; ([create_obj('a glowing helio-tomato', ['thing', 'produce'], here) for i in range(3)], del_attr(me, 'stage'), del_attr(me, 'stage_left'), del_attr(me, 'water'), del_attr(me, 'desc_extras'), remit(here, name(enactor) + ' gathers 3 glowing helio-tomatoes; the lamps dim to standby.')) if ripe else None
+@set hydro tray/cmd_harvest = $harvest *: s = V('stage', None); st = V('stages', []); ripe = s is not None and s >= len(st) - 1; pemit(enactor, 'Nothing is planted.') if s is None else None; pemit(enactor, 'Not yet -- the crop is still ' + st[s][0] + '.') if s is not None and not ripe else None; ([create_obj('a glowing helio-tomato', ['thing', 'produce'], here) for i in range(3)], del_attr(me, 'stage'), del_attr(me, 'stage_left'), del_attr(me, 'water'), del_attr(me, 'desc_extras'), remit(here, name(enactor) + ' gathers 3 glowing helio-tomatoes; the lamps dim to standby.')) if ripe else None
 ```
 
 The clock — spend water, advance the stage, swap the visual:
 
 ```text
-@set hydro tray/on_tick = s = get_attr(me, 'stage', None); st = get_attr(me, 'stages', []); w = get_attr(me, 'water', 0); ripe = s is not None and s >= len(st) - 1; go = s is not None and not ripe; (remit(here, 'The hydro tray blinks a dry amber warning.') if w < 1 else (set_attr(me, 'water', w - 1), (set_attr(me, 'stage_left', get_attr(me, 'stage_left', 1) - 1) if get_attr(me, 'stage_left', 1) > 1 else (set_attr(me, 'stage', s + 1), set_attr(me, 'stage_left', st[s + 1][1]), set_attr(me, 'desc_extras', [['', st[s + 1][2]]]), remit(here, 'In the hydro tray: ' + st[s + 1][2]))))) if go else None
+@set hydro tray/on_tick = s = V('stage', None); st = V('stages', []); w = V('water', 0); ripe = s is not None and s >= len(st) - 1; go = s is not None and not ripe; (remit(here, 'The hydro tray blinks a dry amber warning.') if w < 1 else (decr('water'), (decr('stage_left') if V('stage_left', 1) > 1 else (incr('stage'), set_attr(me, 'stage_left', st[s + 1][1]), set_attr(me, 'desc_extras', [['', st[s + 1][2]]]), remit(here, 'In the hydro tray: ' + st[s + 1][2]))))) if go else None
 @behavior hydro tray = script_ticker, interval:60
 ```
 

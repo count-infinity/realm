@@ -87,7 +87,7 @@ cube and fires it. `use` is a built-in; it propagates `ON_USE` to the
 cube with Ada as `enactor`:
 
 ```text
-program cube = pemit(enactor, 'Tick. The cube counts a heartbeat for ' + name(enactor) + '.')
+program cube = pemit(enactor, f'Tick. The cube counts a heartbeat for {name(enactor)}.')
 use cube
 ```
 
@@ -104,7 +104,7 @@ program itself — the review happened once, at the engine level.
 because the cube (owner: Ada) does not control Rook:
 
 ```text
-program cube = pemit(enactor, 'hex result: ' + str(set_attr(get('Rook'), 'hp', 0)))
+program cube = pemit(enactor, f"hex result: {set_attr(get('Rook'), 'hp', 0)}")
 use cube
 ```
 
@@ -164,7 +164,7 @@ to Rook's command search.)
 Give a cube to your most creative player and watch what comes back:
 
 ```text
-> program cube = say('It is ' + ('after' if now() % 86400 > 43200 else 'before') + ' noon, ship time.')
+> program cube = say(f"It is {'after' if now() % 86400 > 43200 else 'before'} noon, ship time.")
 > use cube
 Chrono-Cube says, "It is after noon, ship time."
 ```
@@ -175,8 +175,8 @@ full builder toolkit, fenced by her own authority.
 
 ## Going further
 
-- **A gadget with memory:** `set_attr(me, 'count', get_attr(me, 'count',
-  0) + 1)` — player gadgets keep state like any object; `use` becomes a
+- **A gadget with memory:** `incr('count')` — player gadgets keep state
+  like any object, and it hands back the new count; `use` becomes a
   lap counter, a dice cup, a diary.
 - **Consent in action:** have Ada try `program cube =
   move_to(get('Rook'), 'The Oubliette')` — dropped, no control over

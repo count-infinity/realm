@@ -83,7 +83,7 @@ HT roll decide between a wobble and the floor:
 @create tranq pistol
 drop tranq pistol
 @desc tranq pistol = A snub-nosed gas pistol on a swivel mount by the door, rotary drum full of red-feathered darts. SHOOT someone with it.
-@set tranq pistol/cmd_shoot = $shoot *: t = get(trim(arg0)); (pemit(enactor, 'No sign of them in reach.') if not (t and loc(t) == loc(enactor) and (has_tag(t, 'player') or has_tag(t, 'npc'))) else (remit(loc(enactor), name(enactor) + ' plants a red-feathered dart in ' + name(t) + "'s neck!"), (pemit(t, 'Your vision swims... then steadies. Your neck is numb.') if skill_check(t, 'fortitude', -3) else (apply_effect(t, 'modifier_effect', kind='unconscious', duration=6, apply_msg='The room smears sideways. Then nothing.', expire_msg='You come to, cheek on the cold deck.'), remit(loc(enactor), name(t) + ' crumples bonelessly to the floor.')))))
+@set tranq pistol/cmd_shoot = $shoot *: t = get(trim(arg0)); (pemit(enactor, 'No sign of them in reach.') if not (t and loc(t) == loc(enactor) and (has_tag(t, 'player') or has_tag(t, 'npc'))) else (remit(loc(enactor), f"{name(enactor)} plants a red-feathered dart in {name(t)}'s neck!"), (pemit(t, 'Your vision swims... then steadies. Your neck is numb.') if skill_check(t, 'fortitude', -3) else (apply_effect(t, 'modifier_effect', kind='unconscious', duration=6, apply_msg='The room smears sideways. Then nothing.', expire_msg='You come to, cheek on the cold deck.'), remit(loc(enactor), f'{name(t)} crumples bonelessly to the floor.')))))
 ```
 
 The stim — early wake-up, same proximity authority, same wall cradle:
@@ -92,7 +92,7 @@ The stim — early wake-up, same proximity authority, same wall cradle:
 @create stim injector
 drop stim injector
 @desc stim injector = An emergency stim injector in a wall cradle. JAB the sedated with it.
-@set stim injector/cmd_jab = $jab *: t = get(trim(arg0)); (remove_effect(t, 'unconscious'), remit(loc(enactor), name(enactor) + ' slams a stim injector against ' + name(t) + "'s arm. They jolt awake.")) if t and loc(t) == loc(enactor) and has_tag(t, 'unconscious') else pemit(enactor, 'They are not sedated.')
+@set stim injector/cmd_jab = $jab *: t = get(trim(arg0)); (remove_effect(t, 'unconscious'), remit(loc(enactor), f"{name(enactor)} slams a stim injector against {name(t)}'s arm. They jolt awake.")) if t and loc(t) == loc(enactor) and has_tag(t, 'unconscious') else pemit(enactor, 'They are not sedated.')
 ```
 
 ## Try it

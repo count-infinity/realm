@@ -85,7 +85,7 @@ drop hunting snare
 @desc hunting snare = A whippy sapling, a loop of ground wire, and patience.
 @set hunting snare/armed = 1
 @set hunting snare/skill_hold = 12
-@set hunting snare/on_enter = x = enactor; (set_attr(me, 'armed', 0), remit(loc(me), 'A wire loop snaps tight around ' + name(x) + "'s ankle!"), apply_effect(x, 'modifier_effect', kind='snared', duration=0, apply_msg='The world jerks sideways -- you are caught fast!')) if get_attr(me, 'armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me) else None
+@set hunting snare/on_enter = x = enactor; (set_attr(me, 'armed', 0), remit(loc(me), f"A wire loop snaps tight around {name(x)}'s ankle!"), apply_effect(x, 'modifier_effect', kind='snared', duration=0, apply_msg='The world jerks sideways -- you are caught fast!')) if V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me) else None
 ```
 
 The ward — on the room, the whole restraint in one decision:
@@ -98,7 +98,7 @@ And the way out — win the contest and shed the effect, lose it and
 the wire gives a point of `hold`:
 
 ```text
-@set hunting snare/cmd_struggle = $struggle: pemit(enactor, 'You are not caught in anything.') if not has_tag(enactor, 'snared') else ((remove_effect(enactor, 'snared'), remit(loc(me), name(enactor) + ' tears free of the snare!')) if contest(enactor, 'might', me, 'hold') else (set_attr(me, 'skill_hold', get_attr(me, 'skill_hold', 12) - 1), pemit(enactor, 'You strain against the wire. It gives a little -- and holds.')))
+@set hunting snare/cmd_struggle = $struggle: pemit(enactor, 'You are not caught in anything.') if not has_tag(enactor, 'snared') else ((remove_effect(enactor, 'snared'), remit(loc(me), f'{name(enactor)} tears free of the snare!')) if contest(enactor, 'might', me, 'hold') else (decr('skill_hold'), pemit(enactor, 'You strain against the wire. It gives a little -- and holds.')))
 ```
 
 ## Try it
@@ -126,7 +126,7 @@ wire keeps its stretched `skill_hold` unless you re-set that too.
   from inside a snare should be worse, and every check reads the
   modifier automatically.
 - **A friend with a knife** — a `$cut snare` command on the snare
-  itself: `remove_effect(get_attr(me, 'victim'), 'snared')` if the
+  itself: `remove_effect(V('victim'), 'snared')` if the
   enactor is *not* the one caught (store the victim id when it
   springs). Rescue beats brute force.
 - **Timeout mercy** — give the effect `duration=30` instead of 0 and

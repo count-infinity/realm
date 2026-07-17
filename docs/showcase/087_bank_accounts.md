@@ -63,13 +63,13 @@ The shared audit-row routine — args arrive as `arg0..arg3` (who, verb,
 amount, resulting balance), and the slice keeps the newest ten:
 
 ```text
-@set First Orbital Bank/log_row = k = 'log_' + arg0; set_attr(me, k, (get_attr(me, k, []) + [arg1 + ' ' + arg2 + ' -> balance ' + arg3])[-10:]); result = 1
+@set First Orbital Bank/log_row = k = 'log_' + arg0; set_attr(me, k, (V(k, []) + [f'{arg1} {arg2} -> balance {arg3}'])[-10:]); result = 1
 ```
 
 `bank` — statement on demand: balance, then the audit rows:
 
 ```text
-@set First Orbital Bank/cmd_bank = $bank:pemit(enactor, 'Account balance: ' + str(get_attr(me, 'acct_' + enactor.id, 0)) + ' credits.'); [pemit(enactor, '  ' + row) for row in get_attr(me, 'log_' + enactor.id, [])]
+@set First Orbital Bank/cmd_bank = $bank:pemit(enactor, f"Account balance: {V('acct_' + enactor.id, 0)} credits."); [pemit(enactor, '  ' + row) for row in V('log_' + enactor.id, [])]
 ```
 
 `deposit <amount>` — wallet to vault, then ledger + roster + audit row.
@@ -78,13 +78,13 @@ results into the comprehension (scripts' comprehensions can't see
 body-level names — the arc's standard trick):
 
 ```text
-@set First Orbital Bank/cmd_deposit = $deposit *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); bal = get_attr(me, 'acct_' + enactor.id, 0) + amt; [(set_attr(me, 'acct_' + enactor.id, b), set_attr(me, 'members', sorted(set(get_attr(me, 'members', []) + [enactor.id]))), eval_attr(me, 'log_row', enactor.id, 'deposit', a, b)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, 'Deposited ' + str(amt) + ' credits. Balance: ' + str(bal) + '.' if ok else 'Your wallet cannot cover that.')
+@set First Orbital Bank/cmd_deposit = $deposit *:amt = int(arg0); ok = amt > 0 and transfer_credits(enactor, me, amt); bal = V('acct_' + enactor.id, 0) + amt; [(incr('acct_' + enactor.id, a), set_attr(me, 'members', sorted(set(V('members', []) + [enactor.id]))), eval_attr(me, 'log_row', enactor.id, 'deposit', a, b)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, f'Deposited {amt} credits. Balance: {bal}.' if ok else 'Your wallet cannot cover that.')
 ```
 
 `withdraw <amount>` — the mirror image, gated on the ledger balance:
 
 ```text
-@set First Orbital Bank/cmd_withdraw = $withdraw *:amt = int(arg0); bal = get_attr(me, 'acct_' + enactor.id, 0); ok = 0 < amt <= bal and transfer_credits(me, enactor, amt); [(set_attr(me, 'acct_' + enactor.id, b - a), eval_attr(me, 'log_row', enactor.id, 'withdraw', a, b - a)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, 'Withdrew ' + str(amt) + ' credits. Balance: ' + str(bal - amt) + '.' if ok else 'Insufficient funds on account.')
+@set First Orbital Bank/cmd_withdraw = $withdraw *:amt = int(arg0); bal = V('acct_' + enactor.id, 0); ok = 0 < amt <= bal and transfer_credits(me, enactor, amt); [(decr('acct_' + enactor.id, a), eval_attr(me, 'log_row', enactor.id, 'withdraw', a, b - a)) for g, a, b in [[ok, amt, bal]] if g]; pemit(enactor, f'Withdrew {amt} credits. Balance: {bal - amt}.' if ok else 'Insufficient funds on account.')
 ```
 
 `xfer <amount> to <player>` — ledger to ledger. `get(arg1)` resolves the
@@ -92,7 +92,7 @@ recipient *globally* by name; both sides get audit rows and the recipient
 a `pemit` wherever they are:
 
 ```text
-@set First Orbital Bank/cmd_xfer = $xfer * to *:amt = int(arg0); who = get(arg1); bal = get_attr(me, 'acct_' + enactor.id, 0); ok = who is not None and has_tag(who, 'player') and 0 < amt <= bal; [(set_attr(me, 'acct_' + enactor.id, b - a), set_attr(me, 'acct_' + w.id, get_attr(me, 'acct_' + w.id, 0) + a), set_attr(me, 'members', sorted(set(get_attr(me, 'members', []) + [w.id]))), eval_attr(me, 'log_row', enactor.id, 'transfer to ' + name(w), a, b - a), eval_attr(me, 'log_row', w.id, 'transfer from ' + name(enactor), a, get_attr(me, 'acct_' + w.id, 0)), pemit(w, name(enactor) + ' wires you ' + str(a) + ' credits at First Orbital Bank.')) for g, a, b, w in [[ok, amt, bal, who]] if g]; pemit(enactor, 'Wired ' + str(amt) + ' credits.' if ok else 'No such account holder, or insufficient funds.')
+@set First Orbital Bank/cmd_xfer = $xfer * to *:amt = int(arg0); who = get(arg1); bal = V('acct_' + enactor.id, 0); ok = who is not None and has_tag(who, 'player') and 0 < amt <= bal; [(decr('acct_' + enactor.id, a), incr('acct_' + w.id, a), set_attr(me, 'members', sorted(set(V('members', []) + [w.id]))), eval_attr(me, 'log_row', enactor.id, 'transfer to ' + name(w), a, b - a), eval_attr(me, 'log_row', w.id, 'transfer from ' + name(enactor), a, V('acct_' + w.id, 0)), pemit(w, f'{name(enactor)} wires you {a} credits at First Orbital Bank.')) for g, a, b, w in [[ok, amt, bal, who]] if g]; pemit(enactor, f'Wired {amt} credits.' if ok else 'No such account holder, or insufficient funds.')
 ```
 
 Interest on a heartbeat — per member: mint the reserve, raise the ledger,
@@ -101,7 +101,7 @@ the binding trick again, computing each account's gain once:
 
 ```text
 @behavior First Orbital Bank = script_ticker, interval:150
-@set First Orbital Bank/on_tick = [(adjust_credits(me, gain), set_attr(me, 'acct_' + pid, bal + gain), eval_attr(me, 'log_row', pid, 'interest', gain, bal + gain)) for pid in get_attr(me, 'members', []) for bal in [get_attr(me, 'acct_' + pid, 0)] for gain in [bal * get_attr(me, 'rate', 0) // 100] if gain > 0]
+@set First Orbital Bank/on_tick = [(adjust_credits(me, gain), incr('acct_' + pid, gain), eval_attr(me, 'log_row', pid, 'interest', gain, bal + gain)) for pid in V('members', []) for bal in [V('acct_' + pid, 0)] for gain in [bal * V('rate', 0) // 100] if gain > 0]
 ```
 
 ## Try it

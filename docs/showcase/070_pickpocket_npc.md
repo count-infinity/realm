@@ -77,7 +77,7 @@ drop Fenn
 @set Fenn/max_hp = 8
 @set Fenn/skill_pickpocket = 14
 @set Fenn/skill_melee = 9
-@set Fenn/on_tick = marks = [p for p in contents(here) if has_tag(p, 'player') and not has_tag(p, 'unconscious')]; m = marks[rand(0, len(marks) - 1)] if marks else None; loot = [o for o in contents(m)] if m else []; (((teleport_obj(loot[0], me) if loot else transfer_credits(m, me, 5)), pemit(m, 'A feather-light tug at your belt. Probably nothing.')) if contest(me, 'pickpocket', m, 'observation') else (remit(here, name(m) + " catches a hand in their pouch - Fenn's!"), act(here, 'THIEF! The cry goes up.', targeting='room', action_type='event:theft'))) if m else None
+@set Fenn/on_tick = marks = [p for p in contents(here) if has_tag(p, 'player') and not has_tag(p, 'unconscious')]; m = marks[rand(0, len(marks) - 1)] if marks else None; loot = [o for o in contents(m)] if m else []; (((teleport_obj(loot[0], me) if loot else transfer_credits(m, me, 5)), pemit(m, 'A feather-light tug at your belt. Probably nothing.')) if contest(me, 'pickpocket', m, 'observation') else (remit(here, f"{name(m)} catches a hand in their pouch - Fenn's!"), act(here, 'THIEF! The cry goes up.', targeting='room', action_type='event:theft'))) if m else None
 @behavior Fenn = script_ticker, interval:3
 ```
 
@@ -98,7 +98,7 @@ watchpost
 drop Constable Marsh
 @create Bazaar Watch
 @zone/master Bazaar Watch = bazaar
-@set Bazaar Watch/on_theft = fresh = now() - get_attr(me, 'last_cry', 0) > 60; ((set_attr(me, 'last_cry', now()), adjust_disposition('Constable Marsh', enactor, -5), teleport_obj('Constable Marsh', here), force('Constable Marsh', 'say Hold, cutpurse!'), force('Constable Marsh', 'attack ' + name(enactor))) if fresh else None)
+@set Bazaar Watch/on_theft = fresh = now() - V('last_cry', 0) > 60; ((set_attr(me, 'last_cry', now()), adjust_disposition('Constable Marsh', enactor, -5), teleport_obj('Constable Marsh', here), force('Constable Marsh', 'say Hold, cutpurse!'), force('Constable Marsh', f'attack {name(enactor)}')) if fresh else None)
 drop Bazaar Watch
 shadows
 ```

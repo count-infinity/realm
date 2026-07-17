@@ -51,7 +51,7 @@ The importer, its rows (pasted from the sheet as JSON), and the verb:
 @create room importer
 drop room importer
 @set room importer/rows = ["r1,Guardroom,Spears line the wall.", "r2,Armory,Racks of dented steel."]
-@set room importer/cmd_csv = $csv *: mode = trim(arg0); rows = get_attr(me, 'rows', []); parsed = [[c.strip() for c in row.split(',')] for row in rows]; bad = [p for p in parsed if len(p) != 3]; pemit(enactor, 'VALIDATION FAILED: ' + str(len(bad)) + ' malformed row(s); fix them first.') if bad else None; [(set_attr(hit[0], 'desc_extras', [['', p[2]]]) if hit else set_attr(create_obj(p[1], tags=['room', 'extid:' + p[0]]), 'desc_extras', [['', p[2]]]), pemit(enactor, '  ' + ('updated ' if hit else 'created ') + p[1])) for p in parsed if not bad and mode == 'apply' for hit in [search_world(tag='extid:' + p[0])]]; [pemit(enactor, '  would import ' + p[1] + ' (extid ' + p[0] + ')') for p in parsed if not bad and mode != 'apply']
+@set room importer/cmd_csv = $csv *: mode = trim(arg0); rows = V('rows', []); parsed = [[c.strip() for c in row.split(',')] for row in rows]; bad = [p for p in parsed if len(p) != 3]; pemit(enactor, 'VALIDATION FAILED: ' + str(len(bad)) + ' malformed row(s); fix them first.') if bad else None; [(set_attr(hit[0], 'desc_extras', [['', p[2]]]) if hit else set_attr(create_obj(p[1], tags=['room', 'extid:' + p[0]]), 'desc_extras', [['', p[2]]]), pemit(enactor, '  ' + ('updated ' if hit else 'created ') + p[1])) for p in parsed if not bad and mode == 'apply' for hit in [search_world(tag='extid:' + p[0])]]; [pemit(enactor, '  would import ' + p[1] + ' (extid ' + p[0] + ')') for p in parsed if not bad and mode != 'apply']
 ```
 
 ## Try it

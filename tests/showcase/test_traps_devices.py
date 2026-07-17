@@ -61,7 +61,7 @@ BUILD_50 = [
     "@set tripwire/armed = 1",
     "@set tripwire/conceal_difficulty = 2",
     "@set tripwire/reveal_msg = A glint at ankle height -- a wire, stretched taut across the doorway!",
-    "@set tripwire/on_enter = x = enactor; (None if not (get_attr(me, 'armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step over the exposed tripwire.') if not has_tag(me, 'invisible') else (set_attr(me, 'trips', get_attr(me, 'trips', 0) + 1), pemit(owner(me), '[tripwire] ' + name(x) + ' crossed ' + name(loc(me)) + '.'))))",
+    "@set tripwire/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'You step over the exposed tripwire.') if not has_tag(me, 'invisible') else (incr('trips'), pemit(owner(me), f'[tripwire] {name(x)} crossed {name(loc(me))}.'))))",
     "@tag tripwire = invisible",
     "shop",
 ]
@@ -75,7 +75,7 @@ BUILD_51 = [
     "drop rigged flagstone",
     "@desc rigged flagstone = One flagstone sits a shade lower than its brothers.",
     "@set rigged flagstone/armed = 1",
-    "@set rigged flagstone/on_enter = x = enactor; (None if not (get_attr(me, 'armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'A flagstone shifts under your toe -- you step around it just in time.') if skill_check(x, 'observation', -3) else (set_attr(me, 'armed', 0), remit(loc(me), name(x) + ' vanishes through the floor with a crash!'), pemit(x, 'The floor drops away beneath you!'), teleport_obj(x, 'The Oubliette'), pemit(x, 'You land hard on cold stone, far below.'))))",
+    "@set rigged flagstone/on_enter = x = enactor; (None if not (V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me)) else (pemit(x, 'A flagstone shifts under your toe -- you step around it just in time.') if skill_check(x, 'observation', -3) else (set_attr(me, 'armed', 0), remit(loc(me), f'{name(x)} vanishes through the floor with a crash!'), pemit(x, 'The floor drops away beneath you!'), teleport_obj(x, 'The Oubliette'), pemit(x, 'You land hard on cold stone, far below.'))))",
     "@teleport me = The Oubliette",
     "@desc here = A stone box that smells of old rain. The only light is a grey coin of sky at the top of a rough shaft.",
     "@open climb = The Dusty Gallery",
@@ -121,9 +121,9 @@ BUILD_53 = [
     "@desc hunting snare = A whippy sapling, a loop of ground wire, and patience.",
     "@set hunting snare/armed = 1",
     "@set hunting snare/skill_hold = 12",
-    "@set hunting snare/on_enter = x = enactor; (set_attr(me, 'armed', 0), remit(loc(me), 'A wire loop snaps tight around ' + name(x) + \"'s ankle!\"), apply_effect(x, 'modifier_effect', kind='snared', duration=0, apply_msg='The world jerks sideways -- you are caught fast!')) if get_attr(me, 'armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me) else None",
+    "@set hunting snare/on_enter = x = enactor; (set_attr(me, 'armed', 0), remit(loc(me), f\"A wire loop snaps tight around {name(x)}'s ankle!\"), apply_effect(x, 'modifier_effect', kind='snared', duration=0, apply_msg='The world jerks sideways -- you are caught fast!')) if V('armed', 0) and (has_tag(x, 'player') or has_tag(x, 'npc')) and x != owner(me) else None",
     "@set here/on_check = block('The snare around your ankle jerks taut! (STRUGGLE to break free)') if atype == 'event:on_leave' and has_tag(actor, 'snared') else None",
-    "@set hunting snare/cmd_struggle = $struggle: pemit(enactor, 'You are not caught in anything.') if not has_tag(enactor, 'snared') else ((remove_effect(enactor, 'snared'), remit(loc(me), name(enactor) + ' tears free of the snare!')) if contest(enactor, 'might', me, 'hold') else (set_attr(me, 'skill_hold', get_attr(me, 'skill_hold', 12) - 1), pemit(enactor, 'You strain against the wire. It gives a little -- and holds.')))",
+    "@set hunting snare/cmd_struggle = $struggle: pemit(enactor, 'You are not caught in anything.') if not has_tag(enactor, 'snared') else ((remove_effect(enactor, 'snared'), remit(loc(me), f'{name(enactor)} tears free of the snare!')) if contest(enactor, 'might', me, 'hold') else (decr('skill_hold'), pemit(enactor, 'You strain against the wire. It gives a little -- and holds.')))",
 ]
 
 # docs/showcase/055_motion_sensor.md
@@ -133,9 +133,9 @@ BUILD_55 = [
     "@create motion sensor",
     "drop motion sensor",
     "@desc motion sensor = A black dome in the corner. A red LED blinks, twice a second, forever. REVIEW plays back its log.",
-    "@set motion sensor/on_enter = set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[name(enactor), 'entered', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None",
-    "@set motion sensor/on_leave = set_attr(me, 'log', ((get_attr(me, 'log') or []) + [[name(enactor), 'left', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None",
-    "@set motion sensor/cmd_review = $review: entries = get_attr(me, 'log') or []; (pemit(enactor, 'The log is empty.') if not entries else [pemit(enactor, '[' + str(now() - e[2]) + 's ago] ' + e[0] + ' ' + e[1] + '.') for e in entries])",
+    "@set motion sensor/on_enter = set_attr(me, 'log', ((V('log') or []) + [[name(enactor), 'entered', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None",
+    "@set motion sensor/on_leave = set_attr(me, 'log', ((V('log') or []) + [[name(enactor), 'left', now()]])[-20:]) if has_tag(enactor, 'player') or has_tag(enactor, 'npc') else None",
+    "@set motion sensor/cmd_review = $review: entries = V('log') or []; (pemit(enactor, 'The log is empty.') if not entries else [pemit(enactor, f'[{now() - e[2]}s ago] {e[0]} {e[1]}.') for e in entries])",
 ]
 
 # docs/showcase/056_self_destruct.md
@@ -154,12 +154,12 @@ BUILD_56 = [
     "@set Station Brain/interval = 10",
     "@set Station Brain/code = ZEBRA-9",
     "@attr Station Brain/code = secret",
-    "@set Station Brain/cmd_selfdestruct = $self destruct: pemit(enactor, 'The console demands command authority.') if enactor != owner(me) else (pemit(enactor, 'The countdown is already running.') if get_attr(me, 'pending') else (set_attr(me, 'count', 5), act(me, 'KLAXON: SELF-DESTRUCT SEQUENCE INITIATED. ' + str(5 * get_attr(me, 'interval', 10)) + ' SECONDS TO ZERO. ABORT requires command code.', targeting='zone'), set_attr(me, 'pending', wait(get_attr(me, 'interval', 10), 'trigger me/countdown'))))",
-    "@set Station Brain/countdown = n = get_attr(me, 'count', 0) - 1; (eval_attr(me, 'boom') if n <= 0 else (set_attr(me, 'count', n), act(me, 'SELF-DESTRUCT IN ' + str(n * get_attr(me, 'interval', 10)) + ' SECONDS.', targeting='zone'), set_attr(me, 'pending', wait(get_attr(me, 'interval', 10), 'trigger me/countdown'))))",
-    "@set Station Brain/cmd_abort = $abort: prompt(enactor, 'Enter the abort code:', 'abort_check') if get_attr(me, 'pending') else pemit(enactor, 'The self-destruct is not armed.')",
-    "@set Station Brain/abort_check = (cancel_wait(get_attr(me, 'pending')), del_attr(me, 'pending'), del_attr(me, 'count'), act(me, 'KLAXON: SELF-DESTRUCT ABORTED. Authorization: ' + name(enactor) + '.', targeting='zone')) if trim(arg0) == str(get_attr(me, 'code')) else pemit(enactor, 'INVALID CODE. The countdown continues.')",
+    "@set Station Brain/cmd_selfdestruct = $self destruct: pemit(enactor, 'The console demands command authority.') if enactor != owner(me) else (pemit(enactor, 'The countdown is already running.') if V('pending') else (set_attr(me, 'count', 5), act(me, f'KLAXON: SELF-DESTRUCT SEQUENCE INITIATED. {5 * V(\"interval\", 10)} SECONDS TO ZERO. ABORT requires command code.', targeting='zone'), set_attr(me, 'pending', wait(V('interval', 10), 'trigger me/countdown'))))",
+    "@set Station Brain/countdown = n = V('count', 0) - 1; (eval_attr(me, 'boom') if n <= 0 else (set_attr(me, 'count', n), act(me, f'SELF-DESTRUCT IN {n * V(\"interval\", 10)} SECONDS.', targeting='zone'), set_attr(me, 'pending', wait(V('interval', 10), 'trigger me/countdown'))))",
+    "@set Station Brain/cmd_abort = $abort: prompt(enactor, 'Enter the abort code:', 'abort_check') if V('pending') else pemit(enactor, 'The self-destruct is not armed.')",
+    "@set Station Brain/abort_check = (cancel_wait(V('pending')), del_attr(me, 'pending'), del_attr(me, 'count'), act(me, f'KLAXON: SELF-DESTRUCT ABORTED. Authorization: {name(enactor)}.', targeting='zone')) if trim(arg0) == str(V('code')) else pemit(enactor, 'INVALID CODE. The countdown continues.')",
     "@set Station Brain/blast_tick = [(pemit(o, 'Fire roars over you!'), damage(o, roll('2d6'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')]",
-    "@set Station Brain/boom = del_attr(me, 'pending'); del_attr(me, 'count'); act(me, 'The deck heaves. Fire tears through every compartment!', targeting='zone'); blasts = [b for b in [create_obj('a sheet of roaring flame', location=r) for r in zone_rooms('station')] if b]; [set_attr(b, 'on_tick', get_attr(me, 'blast_tick')) for b in blasts]; [attach_behavior(b, 'script_ticker', interval=1) for b in blasts]; [expire(b, 20) for b in blasts]",
+    "@set Station Brain/boom = del_attr(me, 'pending'); del_attr(me, 'count'); act(me, 'The deck heaves. Fire tears through every compartment!', targeting='zone'); blasts = [b for b in [create_obj('a sheet of roaring flame', location=r) for r in zone_rooms('station')] if b]; [set_attr(b, 'on_tick', V('blast_tick')) for b in blasts]; [attach_behavior(b, 'script_ticker', interval=1) for b in blasts]; [expire(b, 20) for b in blasts]",
 ]
 
 # docs/showcase/057_emp_charge.md
@@ -179,7 +179,7 @@ BUILD_57 = [
     "@create EMP charge",
     "@set EMP charge/cmd_arm = $arm emp: eval_attr(me, 'pulse') if loc(me) and has_tag(loc(me), 'room') else pemit(enactor, 'Not while you are holding it. Set it down first.')",
     "@set EMP charge/pulse = hit = [o for o in contents(loc(me)) if has_tag(o, 'electronic') and not has_tag(o, 'disabled') and o != me]; [add_tag(o, 'disabled') for o in hit]; set_attr(me, 'hit', [o.id for o in hit]); remit(loc(me), 'A soundless white PULSE. Every status light in the room goes dark.'); expire(me, 30)",
-    "@set EMP charge/on_expire = [remove_tag(get('#' + str(i)), 'disabled') for i in (get_attr(me, 'hit') or [])]; remit(loc(me), 'One by one, status lights flicker back to life. The spent EMP casing crumbles to slag.')",
+    "@set EMP charge/on_expire = [remove_tag(get(f'#{i}'), 'disabled') for i in (V('hit') or [])]; remit(loc(me), 'One by one, status lights flicker back to life. The spent EMP casing crumbles to slag.')",
     "drop EMP charge",
 ]
 
@@ -194,12 +194,12 @@ BUILD_58 = [
     "loft",
     "@tag yard = closed",
     "@create fire prototype",
-    "@set fire prototype/fire_tick = s = get_attr(me, 'stage', 1); ([(pemit(o, 'The blaze sears you!'), damage(o, roll(str(s - 1) + 'd4'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')] if s >= 2 else remit(loc(me), 'Smoke thickens. Flames crawl wider.')); (eval_attr(me, 'spread') if s >= 3 else None); (set_attr(me, 'stage', s + 1) if s < 3 else None)",
-    "@set fire prototype/fire_spread = proto = get('fire prototype'); dests = [get('#' + str(get_attr(e, 'destination', ''))) for e in exits(loc(me)) if not has_tag(e, 'closed')]; fresh = [d for d in dests if d and not [o for o in contents(d) if has_tag(o, 'fire')]]; new = [f for f in [create_obj('a hungry fire', ['thing', 'fire'], location=r) for r in fresh] if f]; [set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')) for f in new]; [set_attr(f, 'spread', get_attr(proto, 'fire_spread')) for f in new]; [attach_behavior(f, 'script_ticker', interval=2) for f in new]; [expire(f, 120) for f in new]; [remit(loc(f), 'Fire licks through the doorway -- it catches!') for f in new]",
+    "@set fire prototype/fire_tick = s = V('stage', 1); ([(pemit(o, 'The blaze sears you!'), damage(o, roll(f'{s - 1}d4'))) for o in contents(loc(me)) if has_tag(o, 'player') or has_tag(o, 'npc')] if s >= 2 else remit(loc(me), 'Smoke thickens. Flames crawl wider.')); (eval_attr(me, 'spread') if s >= 3 else None); (set_attr(me, 'stage', s + 1) if s < 3 else None)",
+    "@set fire prototype/fire_spread = proto = get('fire prototype'); dests = [get(f\"#{get_attr(e, 'destination', '')}\") for e in exits(loc(me)) if not has_tag(e, 'closed')]; fresh = [d for d in dests if d and not [o for o in contents(d) if has_tag(o, 'fire')]]; new = [f for f in [create_obj('a hungry fire', ['thing', 'fire'], location=r) for r in fresh] if f]; [set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')) for f in new]; [set_attr(f, 'spread', get_attr(proto, 'fire_spread')) for f in new]; [attach_behavior(f, 'script_ticker', interval=2) for f in new]; [expire(f, 120) for f in new]; [remit(loc(f), 'Fire licks through the doorway -- it catches!') for f in new]",
     "@create box of matches",
-    "@set box of matches/cmd_light = $light fire: proto = get('fire prototype'); f = create_obj('a hungry fire', ['thing', 'fire'], location=loc(enactor)); (set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')), set_attr(f, 'spread', get_attr(proto, 'fire_spread')), attach_behavior(f, 'script_ticker', interval=2), expire(f, 120), remit(loc(enactor), name(enactor) + ' drops a lit match into the straw. Flames catch!')) if f else pemit(enactor, 'The match gutters out.')",
+    "@set box of matches/cmd_light = $light fire: proto = get('fire prototype'); f = create_obj('a hungry fire', ['thing', 'fire'], location=loc(enactor)); (set_attr(f, 'on_tick', get_attr(proto, 'fire_tick')), set_attr(f, 'spread', get_attr(proto, 'fire_spread')), attach_behavior(f, 'script_ticker', interval=2), expire(f, 120), remit(loc(enactor), f'{name(enactor)} drops a lit match into the straw. Flames catch!')) if f else pemit(enactor, 'The match gutters out.')",
     "@create fire extinguisher",
-    "@set fire extinguisher/cmd_spray = $spray *: fires = [o for o in contents(loc(enactor)) if has_tag(o, 'fire')]; s = get_attr(fires[0], 'stage', 1) if fires else 0; (pemit(enactor, 'Nothing here is burning.') if not fires else ((destroy_obj(fires[0]), remit(loc(enactor), name(enactor) + ' smothers the last flames in a white cloud. Steam hisses.')) if s <= 1 else (set_attr(fires[0], 'stage', s - 1), remit(loc(enactor), name(enactor) + ' drives the fire back with a jet of foam!'))))",
+    "@set fire extinguisher/cmd_spray = $spray *: fires = [o for o in contents(loc(enactor)) if has_tag(o, 'fire')]; s = get_attr(fires[0], 'stage', 1) if fires else 0; (pemit(enactor, 'Nothing here is burning.') if not fires else ((destroy_obj(fires[0]), remit(loc(enactor), f'{name(enactor)} smothers the last flames in a white cloud. Steam hisses.')) if s <= 1 else (set_attr(fires[0], 'stage', s - 1), remit(loc(enactor), f'{name(enactor)} drives the fire back with a jet of foam!'))))",
 ]
 
 # docs/showcase/059_tranquilizer.md
@@ -214,11 +214,11 @@ BUILD_59 = [
     "@create tranq pistol",
     "drop tranq pistol",
     "@desc tranq pistol = A snub-nosed gas pistol on a swivel mount by the door, rotary drum full of red-feathered darts. SHOOT someone with it.",
-    "@set tranq pistol/cmd_shoot = $shoot *: t = get(trim(arg0)); (pemit(enactor, 'No sign of them in reach.') if not (t and loc(t) == loc(enactor) and (has_tag(t, 'player') or has_tag(t, 'npc'))) else (remit(loc(enactor), name(enactor) + ' plants a red-feathered dart in ' + name(t) + \"'s neck!\"), (pemit(t, 'Your vision swims... then steadies. Your neck is numb.') if skill_check(t, 'fortitude', -3) else (apply_effect(t, 'modifier_effect', kind='unconscious', duration=6, apply_msg='The room smears sideways. Then nothing.', expire_msg='You come to, cheek on the cold deck.'), remit(loc(enactor), name(t) + ' crumples bonelessly to the floor.')))))",
+    "@set tranq pistol/cmd_shoot = $shoot *: t = get(trim(arg0)); (pemit(enactor, 'No sign of them in reach.') if not (t and loc(t) == loc(enactor) and (has_tag(t, 'player') or has_tag(t, 'npc'))) else (remit(loc(enactor), f\"{name(enactor)} plants a red-feathered dart in {name(t)}'s neck!\"), (pemit(t, 'Your vision swims... then steadies. Your neck is numb.') if skill_check(t, 'fortitude', -3) else (apply_effect(t, 'modifier_effect', kind='unconscious', duration=6, apply_msg='The room smears sideways. Then nothing.', expire_msg='You come to, cheek on the cold deck.'), remit(loc(enactor), f'{name(t)} crumples bonelessly to the floor.')))))",
     "@create stim injector",
     "drop stim injector",
     "@desc stim injector = An emergency stim injector in a wall cradle. JAB the sedated with it.",
-    "@set stim injector/cmd_jab = $jab *: t = get(trim(arg0)); (remove_effect(t, 'unconscious'), remit(loc(enactor), name(enactor) + ' slams a stim injector against ' + name(t) + \"'s arm. They jolt awake.\")) if t and loc(t) == loc(enactor) and has_tag(t, 'unconscious') else pemit(enactor, 'They are not sedated.')",
+    "@set stim injector/cmd_jab = $jab *: t = get(trim(arg0)); (remove_effect(t, 'unconscious'), remit(loc(enactor), f\"{name(enactor)} slams a stim injector against {name(t)}'s arm. They jolt awake.\")) if t and loc(t) == loc(enactor) and has_tag(t, 'unconscious') else pemit(enactor, 'They are not sedated.')",
 ]
 
 BUILD_RED_FLAGS = (

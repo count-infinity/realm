@@ -19,9 +19,12 @@ handle other people's property.
 **Deposit is a `give`.** The golem is tagged `npc`, so the stock
 `give <item> to Coat-Check Golem` works, and — unlike `put`, whose
 hook fires before the item lands — the recipient-side `ON_RECEIVE`
-fires *after* the handover. The script can't be told which item
-arrived (event hooks carry no payload), but it doesn't need to be: the
-new arrival is whatever in `contents(me)` isn't yet stamped. Each
+fires *after* the handover. Since the event namespace landed,
+`adata('item')` names the arrival directly (and `adata('giver')` the
+depositor). This build uses the older **unstamped-item idiom** instead
+— the new arrival is whatever in `contents(me)` isn't yet stamped —
+which still works and is the pattern to reach for whenever an action
+carries no payload at all. Each
 deposit stamps the item (`checked = n`), advances the counter, records
 `held_<n> = '#' + item.id` in the ledger, and mints the token — a
 `claim_ticket`-tagged object with a `claim_no` attribute: the paired
@@ -67,13 +70,13 @@ The deposit script — return stray tickets, stamp the new arrival,
 ledger it, mint the token:
 
 ```text
-@set Coat-Check Golem/on_receive = tk = [o for o in contents(me) if has_tag(o, 'claim_ticket')]; new = [o for o in contents(me) if not has_tag(o, 'claim_ticket') and not has_attr(o, 'checked')]; it = new[0] if new else None; n = get_attr(me, 'counter', 0) + 1 if it else 0; t = create_obj('claim ticket ' + str(n), ['claim_ticket'], me) if it else None; (teleport_obj(tk[0], enactor), pemit(enactor, 'The golem taps the ticket and hands it back: just say claim ' + str(get_attr(tk[0], 'claim_no')) + '.')) if tk else None; (set_attr(me, 'counter', n), set_attr(it, 'checked', n), set_attr(me, 'held_' + str(n), '#' + it.id), set_attr(t, 'claim_no', n), teleport_obj(t, enactor), pemit(enactor, 'The golem stows your ' + name(it) + ' on hook ' + str(n) + ' and punches ticket ' + str(n) + '.')) if it else None
+@set Coat-Check Golem/on_receive = tk = [o for o in contents(me) if has_tag(o, 'claim_ticket')]; new = [o for o in contents(me) if not has_tag(o, 'claim_ticket') and not has_attr(o, 'checked')]; it = new[0] if new else None; n = V('counter', 0) + 1 if it else 0; t = create_obj(f'claim ticket {n}', ['claim_ticket'], me) if it else None; (teleport_obj(tk[0], enactor), pemit(enactor, f"The golem taps the ticket and hands it back: just say claim {get_attr(tk[0], 'claim_no')}.")) if tk else None; (set_attr(me, 'counter', n), set_attr(it, 'checked', n), set_attr(me, f'held_{n}', '#' + it.id), set_attr(t, 'claim_no', n), teleport_obj(t, enactor), pemit(enactor, f'The golem stows your {name(it)} on hook {n} and punches ticket {n}.')) if it else None
 ```
 
 The redeem command — both halves or nothing:
 
 ```text
-@set Coat-Check Golem/cmd_claim = $claim *: tick = [o for o in contents(enactor) if has_tag(o, 'claim_ticket') and str(get_attr(o, 'claim_no')) == trim(arg0)]; held = get_attr(me, 'held_' + trim(arg0)); it = get(held) if held else None; (teleport_obj(it, enactor), del_attr(it, 'checked'), del_attr(me, 'held_' + trim(arg0)), destroy_obj(tick[0]), pemit(enactor, 'The golem lifts your ' + name(it) + ' off hook ' + trim(arg0) + ' and retires the ticket.')) if tick and it else pemit(enactor, 'The golem shows you two empty brass palms: no matching ticket in your hand.' if not tick else 'The golem stares at hook ' + trim(arg0) + ', which is bare. Curious.')
+@set Coat-Check Golem/cmd_claim = $claim *: tick = [o for o in contents(enactor) if has_tag(o, 'claim_ticket') and str(get_attr(o, 'claim_no')) == trim(arg0)]; held = V('held_' + trim(arg0)); it = get(held) if held else None; (teleport_obj(it, enactor), del_attr(it, 'checked'), del_attr(me, 'held_' + trim(arg0)), destroy_obj(tick[0]), pemit(enactor, f'The golem lifts your {name(it)} off hook {trim(arg0)} and retires the ticket.')) if tick and it else pemit(enactor, 'The golem shows you two empty brass palms: no matching ticket in your hand.' if not tick else f'The golem stares at hook {trim(arg0)}, which is bare. Curious.')
 ```
 
 Something worth checking:

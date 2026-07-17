@@ -89,7 +89,7 @@ capture; `trim()` guards against stray spaces; the two `set_attr` paths
 either bank progress or reset it:
 
 ```text
-@set wall safe/cmd_dial = $dial *: seq = (get_attr(me, 'entered') or []) + [trim(arg0)]; code = str(get_attr(me, 'code')).split(); done = len(seq) >= len(code); set_attr(me, 'entered', [] if done else seq); (set_attr(me, 'locked', False), pemit(enactor, 'CLUNK. The last tumbler drops -- the wall safe unlocks.')) if done and seq == code else pemit(enactor, 'Clunk. The dial spins back to zero.' if done else 'Click.')
+@set wall safe/cmd_dial = $dial *: seq = (V('entered') or []) + [trim(arg0)]; code = str(V('code')).split(); done = len(seq) >= len(code); set_attr(me, 'entered', [] if done else seq); (set_attr(me, 'locked', False), pemit(enactor, 'CLUNK. The last tumbler drops -- the wall safe unlocks.')) if done and seq == code else pemit(enactor, 'Clunk. The dial spins back to zero.' if done else 'Click.')
 ```
 
 The reset wizard. Two social rules in two guards: `enactor != owner(me)`
@@ -100,7 +100,7 @@ door). Passing both, `prompt()` captures the player's next line into
 
 ```text
 @set wall safe/cmd_setcode = $setcode: pemit(enactor, 'Only the owner may reset the dial.') if enactor != owner(me) else (pemit(enactor, 'Open the safe first -- the reset switch is inside the door.') if has_tag(me, 'closed') else prompt(enactor, 'New combination (numbers separated by spaces):', 'on_new_code'))
-@set wall safe/on_new_code = (set_attr(me, 'code', trim(arg0)), pemit(enactor, 'The tumblers reseat. New combination: ' + trim(arg0))) if trim(arg0) and trim(arg0).replace(' ', '').isdigit() else pemit(enactor, 'Numbers separated by spaces, nothing else. The dial is unchanged.')
+@set wall safe/on_new_code = (set_attr(me, 'code', trim(arg0)), pemit(enactor, f'The tumblers reseat. New combination: {trim(arg0)}')) if trim(arg0) and trim(arg0).replace(' ', '').isdigit() else pemit(enactor, 'Numbers separated by spaces, nothing else. The dial is unchanged.')
 ```
 
 Arc flavor — leave the combination lying around where a burglar can
