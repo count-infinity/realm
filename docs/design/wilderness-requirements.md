@@ -40,7 +40,7 @@ are tested. Do **not** reinvent these:
 | evacuation guard + reboot reconcile | `engine.py` `destroy` op; `game.py:_reconcile_orphaned_players` | a player mid-wilderness at reboot lands home, never "nowhere" |
 | idle reaper on the world tick | `game.py:_tick_loop` → `instances.reap_idle` | mirror it: `reap_wilderness` on the same pulse |
 | the instances module (the pattern to mirror) | `realm/core/instances.py` — `EPHEMERAL_TAG`, `materialize`, `enter`, `reap_idle`, `destroy_instance`, `evacuation_room` | **copy the shape**; wilderness is `instances.py` keyed by coord not owner |
-| `eval_attr` (Penn `u()`) | softcode | run the map-provider's per-coordinate softcode — the kernel binds `x`/`y` as named globals (`ScriptContext.extra`, the established kernel pattern); softcode-side `eval_attr` passes them as positional `arg0`/`arg1` strings |
+| `eval_attr` (subroutine call; not Penn `u()` — runs as the caller) | softcode | run the map-provider's per-coordinate softcode — the kernel binds `x`/`y` as named globals (`ScriptContext.extra`, the established kernel pattern); softcode-side `eval_attr` passes them as positional `arg0`/`arg1` strings |
 
 The genuinely hard part — a transient, self-reaping, evacuation-safe room
 materialized on demand — is **done**. Wilderness adds: coordinate keying, a

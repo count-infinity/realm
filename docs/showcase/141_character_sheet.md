@@ -9,7 +9,8 @@ plain sheet (`points`); this is the pretty one, and it's a single layout
 function anyone can restyle.
 
 **Concepts:** the built-in `points`/`score` command as the no-build sheet;
-`eval_attr()` as a **layout helper** (Penn's `u()`), building a multi-line
+`eval_attr()` as a **layout helper** (a subroutine call, not Penn's
+`u()` — it runs as the caller), building a multi-line
 panel from open attribute reads; `tags()` for the conditions line; and why
 a sheet needs no special authority — **reads are open**.
 

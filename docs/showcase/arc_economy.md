@@ -67,7 +67,9 @@ Interest, restock, settlement, and price drift all use the same cadence:
 and every tutorial tests its tick instantly with `@tr <master>/on_tick`
 (the MUSH `@trigger` — run an attribute's script right now). Where logic
 outgrows one attribute, it's split into **function attributes** called
-with `eval_attr(me, 'settle', i)` — Penn's `u()`. For one-shot timers,
+with `eval_attr(me, 'settle', i)` — a subroutine call that runs with the
+caller's authority (not Penn's `u()`, which runs as the attribute's
+object). For one-shot timers,
 `expire()`/`ON_EXPIRE` is the persistent alternative (see 089's "Going
 further"); the arc prefers `on_tick` because deadlines here move
 (sniping) and recur (interest).

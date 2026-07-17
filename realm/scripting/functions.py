@@ -1061,10 +1061,22 @@ class ScriptFunctions:
 
     def eval_attr(self, obj, attr_name: str, *args):
         """
-        Evaluate an attribute as a FUNCTION and return its ``result`` —
-        Penn's u(). The code runs with the CALLER's authority (executor
-        unchanged) and the args bound as arg0..argN / %0..%9. Secret
-        attributes respect their read gate; errors return None.
+        Evaluate an attribute as a SUBROUTINE and return its ``result``.
+
+        Runs with the CALLER's authority — the executor is unchanged —
+        with args bound as arg0..argN / %0..%9. Secret attributes respect
+        their read gate; errors return None.
+
+        NOT Penn's u(), despite the resemblance (this docstring used to
+        claim it was): Penn swaps the executor to the object holding the
+        attribute (call_ufun_int -> process_expression(..., ufun->thing,
+        caller, ...)), so v() there reads the *attribute owner's* data and
+        the call can escalate — which is why Penn gates @function behind a
+        power. This runs as the caller and cannot escalate. The practical
+        consequence: inside the routine ``me`` is the CALLER, not ``obj``,
+        so a shared library routine must resolve its own object by name
+        (``get('Quest Warden')``) to read its own attrs. See BACKLOG's
+        @function entry for the Penn-semantics library-call mechanism.
 
         Example: eval_attr(me, 'render_side', n)
         """

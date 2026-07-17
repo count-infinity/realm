@@ -44,7 +44,7 @@ recursion / output). What varies is API surface:
 | Read world | get/name/loc/owner/contents/tags/attrs | SHIPPED |
 | Mutate attrs/tags | set_attr/del_attr/add_tag/remove_tag | SHIPPED (authority-gated) |
 | Move self | `move <exit>` — full movement pathway | SHIPPED |
-| Chain scripts | `trigger obj/attr`, `@tr`, `eval_attr()` (Penn's u() — call an attr as a function) | SHIPPED |
+| Chain scripts | `trigger obj/attr`, `@tr`, `eval_attr()` (call an attr as a subroutine — runs as the *caller*, unlike Penn's u() which runs as the attribute's object) | SHIPPED |
 | Duplicate | `@clone`, spawner prototypes | SHIPPED |
 | Skill system | skill_check / contest | SHIPPED |
 | Create/destroy objects | create_obj / destroy_obj | SHIPPED (authority-gated) |

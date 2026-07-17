@@ -1659,11 +1659,11 @@ the user's numbering.
   `say(f"...")` is explicitly fine. → **DOCS task:** f-strings are the single
   biggest readability win available *today* — teach them; tutorials avoided them
   by idiom (favoring concatenation/`ansi()`), not because of a ban.
-- [ ] **1a. `V('cost', 10)` alias for `get_attr(me, 'cost', 10)`.** Absent. The
+- [x] **1a. `V('cost', 10)` alias — DONE 2026-07-17.** Was absent; The
   most-repeated call in every tutorial. Sketch: register `V` in `ScriptFunctions`
   as `lambda name, default=None: get_attr(me, name, default)` bound to the
   executor's `me`. (PennMUSH `v()` parity; pairs naturally with 1d.)
-- [ ] **1d. `++('key')` increment sugar** for `set_attr(me, k, get_attr(me,k,0)+1)`.
+- [x] **1d. increment sugar — DONE 2026-07-17** (shipped as `incr(k, by=1)`/`decr`, returning the new value; `++(k)` isn't valid Python syntax so a named fn it is). Formerly: for `set_attr(me, k, get_attr(me,k,0)+1)`.
   Absent. Also very frequent (ledgers, cooldowns, tallies). Sketch: `incr(name,
   by=1)` / `decr(...)` functions returning the new value; optionally target-aware
   `incr(obj, name, by)`.
@@ -1737,7 +1737,7 @@ the user's numbering.
 
 ### 8. Customizable dark-room message
 
-- [ ] **Per-room dark message.** HARDCODED: "It is pitch black here. You can't see
+- [x] **Per-room dark message — DONE 2026-07-17** (`db.dark_msg` read at render.py, falling back to the default). Formerly HARDCODED: "It is pitch black here. You can't see
   a thing." (realm/core/render.py:108; gate perception.py:69-75). Sketch: read an
   optional `db.dark_msg` on the room (fallback to the constant) at render.py:108,
   or expose a `set_dark_message()` hook mirroring the existing `set_group_formatter`
@@ -1942,3 +1942,107 @@ Sequence it with the "call-free loops escape the time budget" entry: the same
 `__ctx` object could carry an instruction/loop-iteration counter (Penn's
 `call_limit` per queue cycle is the precedent), closing both holes with one
 mechanism.
+
+### Decided 2026-07-17: do NOT ban lambdas to make injection airtight
+
+The question came up: since lambdas can't be instrumented, ban them and get
+complete coverage? **Technically it would work** — with lambdas gone every user
+callable is a `def` the transformer can wrap, and there is no other route to an
+anonymous callable (dunder names and imports are already blocked). It is a cost
+question, not a correctness one. The cost is too high:
+
+- **Lambdas are the only local-function mechanism at a live prompt.** Scripts
+  are entered one line at a time (no `@edit` — see item 1e). `def f(n): return
+  n+1` fits on one line but cannot be *called* on that line, so at the prompt a
+  lambda is the only way to make a helper at all. Multi-line `def` does work via
+  pack files / JSON-escaped `\n` values, but that pushes helper code out of the
+  live prompt — against REALM's whole thesis.
+- **Load-bearing in shipped content:** 12 tutorials, 25 test sites (017, 020,
+  024, 100, 101, 102, 104, 105, 130, 161, 162, 250). The dominant use is not the
+  exotic recursion trick — it is `sorted(x, key=lambda o: ...)` (bookshelf by
+  title 020, leaderboards 104, race odds 105, poker scoring 100, trivia 102).
+  None have a one-line replacement. Self-passing recursion (017, 024) is the
+  minority use.
+- **The payoff is small:** the process-wide limit already converts runaway
+  recursion into a clean `ScriptRecursionError` — script dies, server lives. A
+  per-script counter only buys failing at depth 50 instead of 1000. Actual DoS
+  is bounded by the time (1500ms) and call-count (25,000) budgets, which
+  lambdas do not evade.
+
+**Therefore:** instrument the `def`s, keep the process-wide limit as the
+backstop for lambda-recursion, accept partial coverage. The residual gap is "a
+lambda can recurse to 1000 and die cleanly", not "a lambda can hurt the server".
+
+**Narrower option if the self-passing idiom specifically is the worry:** ban
+*recursive lambdas*, not lambdas. The AST can flag a lambda assigned to a name
+that appears in its own body (`f = lambda: f()`) and the self-passing form (a
+lambda whose first parameter is called within its body, `w(w, ...)`). That kills
+the uninstrumentable-recursion case and leaves every `key=lambda` untouched.
+Still needs the process-limit backstop for anything cleverer.
+
+**If a ban were ever revisited:** it can only follow 1e (multi-line editing), it
+permanently loses `key=lambda` at the prompt, and it requires rewriting the 12
+tutorials above.
+
+## `@function`: builder-registered softcode functions (filed 2026-07-17)
+
+Penn's `&MYFN obj = <code>` + `@function myfn = obj/MYFN`, so softcode calls
+`myfn(x)` instead of `eval_attr(get('Library'), 'myfn', x)`. Wanted; design
+settled below.
+
+**What already exists:** `eval_attr(obj, 'attr', *args)` is the execution half
+(args as `arg0..argN`/`%0..%9`, `_eval_depth >= 8` recursion guard, secret-attr
+read gates, fail-closed to None). Missing is only the *registry* — a
+name → (obj, attr) mapping merged into the script namespace.
+
+**Semantics: follow Penn — the executor swaps to the function object.**
+Verified in source: `call_ufun_int` (pennmush src/utils.c:363) and `do_userfn`
+(src/funufun.c) both call
+`process_expression(..., ufun->thing, caller, enactor, ...)`, and the prototype
+(hdrs/parse.h:268) is `(..., dbref executor, dbref caller, dbref enactor, ...)`
+— so `ufun->thing`, the object holding the attribute, IS the executor. Inside
+the function, `v(attr)` reads the *function object's* data; the caller drops to
+`%@`. That is what makes a function object (5 routines + their shared data
+attrs) work as a unit, and it is exactly what we want.
+
+**This is not a new security model for REALM — it is the existing one.** A
+`$deposit` verb on an admin-owned bank already runs *as the bank* with the
+bank's authority; the showcase does this everywhere (bank 087, trainer 069,
+jail 177, warden, mint 086). `@function` is that same arrangement reached by
+name instead of by typed command.
+
+**Therefore registration is privileged** (Builder/Admin). Penn gates it behind a
+named power — `if (!Global_Funcs(player)) { notify(player, T("Permission
+denied.")); }` (src/function.c:1658) — precisely because publishing a function
+hands its object's authority to every caller. Same reasoning applies here.
+
+**The two mechanisms are complementary — document them as a pair:**
+
+| | Runs as | Purpose |
+|---|---|---|
+| `eval_attr(me,'helper',x)` | the **caller** (unchanged) | *subroutine* — split up your own object's code |
+| `myfn(x)` (`@function`) | the **function object** | *library call* — shared service with its own data |
+
+**Design decisions to make:**
+- **Collisions.** `registered_bindings()` currently *may override* the
+  vocabulary (functions.py `to_dict()`). `@function get = ...` must not silently
+  shadow a builtin — reject at registration with a clear error, matching the
+  "bad value raises at boot" habit. Decide precedence vs native bindings
+  (suggest: builtins < native bindings < @function, all collisions rejected).
+- **Args.** `eval_attr` stringifies args (`captures=[str(a) for a in args]` —
+  already filed as a gap). Fix it here so library functions can take objects,
+  not just strings.
+- **First-class callables.** If the registry injects a real callable into the
+  namespace (a wrapper around the eval_attr path), then
+  `sorted(items, key=my_sort_key)` works — which erodes the strongest argument
+  for keeping lambdas (see the lambda decision above). Worth doing for that
+  reason alone.
+- **Discovery/lifecycle:** `@function` with no args lists; `/delete`,
+  `/disable` (Penn has ALIAS/BUILTIN/CLONE/DELETE/ENABLE/DISABLE/PRESERVE/
+  RESTORE/RESTRICT — we need a fraction of that).
+- Recursion is already handled (`_eval_depth >= 8`, Penn's `fun_recursions`).
+
+**Companion (separate, trivial):** `&attr obj = value` as shorthand for
+`@set obj/attr = value` — pure MUSH muscle memory. Note Penn requires the
+object; `&myfn1 = ...` with no target would be a REALM divergence (would have
+to default to `me`).

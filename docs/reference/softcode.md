@@ -146,7 +146,7 @@ veto (a cursed item refusing removal).
 | `enter_instance` | `(player: 'GameObject \| str \| None', template: 'str', *, mode: 'str' = 'solo', return_room: 'GameObject \| str \| None' = None, idle_ttl: 'float \| None' = None) -> 'bool'` | Send a player into a private, transient copy of a template area, |  |
 | `enter_wilderness` | `(player: 'GameObject \| str \| None', region: 'str', x, y) -> 'bool'` | Send a player to the wilderness cell at ``(region, x, y)``, | `enter_wilderness(enactor, 'wilds', 10, 10)` |
 | `escape` | `(text: 'str') -> 'str'` | Escape color markup in player-provided text (\|\| literals). | `say('They said: ' + escape(arg0))` |
-| `eval_attr` | `(obj, attr_name: 'str', *args)` | Evaluate an attribute as a FUNCTION and return its ``result`` — | `eval_attr(me, 'render_side', n)` |
+| `eval_attr` | `(obj, attr_name: 'str', *args)` | Evaluate an attribute as a SUBROUTINE and return its ``result``. | `eval_attr(me, 'render_side', n)` |
 | `exits` | `(room: 'GameObject \| str \| None' = None) -> 'list[GameObject]'` | Open exits of a room (default: the executor's location). | `move(name(exits(here)[0]))` |
 | `expire` | `(target: 'GameObject \| str \| None', seconds: 'float') -> 'bool'` | Give an object a lifetime: after ``seconds`` it fires ``ON_EXPIRE`` | `expire(create_obj('a wisp of smoke'), 30)` |
 | `extract` | `(lst: 'list \| str', position: 'int', delimiter: 'str' = ' ') -> 'str'` | Get element at position (1-indexed). | `extract('a b c', 2)       # 'b'` |

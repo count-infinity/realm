@@ -30,7 +30,8 @@ elevator does.
 attribute on the car: give it a target floor's room id and it relinks
 `doors`, opens that floor, seals the rest, and narrates. The in-car
 `$press N` and each landing's `$call` are thin shells that resolve a
-target floor and hand it to `serve` via `eval_attr` (Penn's `u()`), so
+target floor and hand it to `serve` via `eval_attr` (a subroutine call —
+not Penn's `u()`, which would run as the attribute's object), so
 the logic is written **once**. `eval_attr` runs with the caller's
 authority — every button is builder-owned, so it may rewrite the car's
 doors and the landings' seals.

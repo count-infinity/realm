@@ -34,8 +34,10 @@ coins`. Conservation is a checkable invariant, not a hope.
 Change-making is a function attribute, `change`: a greedy walk down the
 100/10/1 ladder via `divmod`. Greedy is optimal because each denomination
 divides the one above it. `$cashout`, and the `$exchange` re-mint, both
-call it with `eval_attr(me, 'change', amount)` — Penn's `u()`, one
+call it with `eval_attr(me, 'change', amount)` — a subroutine call, one
 arithmetic routine shared by every command that needs coins counted out.
+(It runs with the *caller's* authority and `me` stays the caller — so it
+is a subroutine, not Penn's `u()`, which runs as the attribute's object.)
 
 ## Build it
 
