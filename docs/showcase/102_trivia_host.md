@@ -114,11 +114,11 @@ own speaker, so reading out an answer can't award him the point.
   to choose the next category — prompts for the one decision that *is*
   single-player, listens for the race.
 
-**Engine gaps:** the champion line is built with
+**~~Engine gaps~~ — FIXED 2026-07-17.** The champion line is built with
 `', '.join(sorted([nm for nm, pts in sc.items() if pts == top]))` — a
-*list* comprehension, because a bare generator (`sorted(nm for ...)`)
-`NameError`s on the script-local `top` inside its filter. The sandbox
-execs with split `globals`/`locals`, and on Python 3.12+ genexprs and
-`lambda`s (unlike list/set/dict comprehensions) aren't inlined, so their
-bodies can't see script locals. Wrap genexprs in `[...]`; filed for the
-integrator (full note on item 100).
+*list* comprehension, because a bare generator (`sorted(nm for ...)`) used
+to `NameError` on the script-local `top` inside its filter: the sandbox
+exec'd with split `globals`/`locals`, so genexprs and `lambda`s couldn't
+see script locals. Scripts now share one namespace and the bare generator
+works. The list-comp form is left as written and remains correct (full
+note on item 100).

@@ -6,7 +6,7 @@ complexity of a MU* wrapped up so games are written in *softcode*, live,
 from inside the game.
 
 Async (asyncio) with SQLite persistence — a single process, with no
-external services to stand up. Python 3.11+.
+external services to stand up. Python 3.12+.
 
 ```python
 # The whole stack in five in-game lines — no world files, no restart:

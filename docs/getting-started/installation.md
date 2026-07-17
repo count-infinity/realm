@@ -1,6 +1,6 @@
 # Installation
 
-REALM needs Python 3.11 or newer. That's the whole requirements list —
+REALM needs Python 3.12 or newer. That's the whole requirements list —
 the engine is asyncio + SQLite, no external database, no message
 broker.
 

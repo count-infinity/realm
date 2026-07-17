@@ -1562,7 +1562,7 @@ findings below are facets of one fix — bind the action's target + payload into
   apply to hand-rolled margins. A `check_roll(obj, skill, mod) -> CheckResult`
   surface would close it. Affects crafting quality, dice roller, darts,
   arm-wrestling. (125_quality_tiers, 129_cooking_buffs, 098_dice_roller, 107_dart_board)
-- [ ] **Sandbox comprehension-scoping defect.** Scripts run `exec(code, globals,
+- [x] **Sandbox comprehension-scoping defect — RESOLVED 2026-07-17** (single-namespace exec; see the resolution at the end of this file). Was: Scripts run `exec(code, globals,
   locals)` with separate dicts. Under PEP 709 (Py 3.12+; env is 3.13) list/set/
   dict comprehensions are inlined and see script-locals, but **generator
   expressions and lambdas are NOT** — their bodies `LOAD_GLOBAL` and NameError
@@ -2275,3 +2275,66 @@ after the sigil split — builders write `$fetch *: force(...)` with a space, an
 a leading space is an `IndentationError` to `ast.parse` even though the engine
 runs it fine. That produced 72 false warnings before I caught it (the showcase
 suites assert no error markers in build output — the harness earned its keep).
+
+## RESOLVED 2026-07-17: sandbox scoping (Theme C) + Python floor raised to 3.12
+
+**Two bugs, one cause, one line.** Scripts ran `exec(code, globals, locals)`
+with *separate* dicts, which makes code behave like a **class body**:
+assignments land in `locals`, but every nested scope compiles free names to
+`LOAD_GLOBAL` and cannot see them.
+
+Damage, both measured:
+1. **Lambdas and generator expressions could not read script locals — on every
+   Python version.** `n = {...}; sorted(x, key=lambda k: n[k])` raised
+   NameError on a name defined one statement earlier. This forced the
+   `[...]`-wrapping, `key=d.get` and self-passing-lambda workarounds across
+   items 017, 024, 100, 101, 102, 105, 130.
+2. **List comprehensions behaved differently by version.** PEP 709 (3.12)
+   inlines them, so they see locals on 3.12+ and raise NameError on 3.11 —
+   which was the declared floor. An audit of all 984 showcase softcode lines
+   found **175 comprehensions across 66 tutorials** that read a script-local
+   inside the comprehension's own scope: they passed the suite (3.13) and
+   would have broken for any 3.11 user. (First count said 360; that was wrong
+   — the *outermost* `for` iterable is evaluated in the enclosing scope, which
+   is exactly why the smuggle idiom works. 175 is the corrected figure.)
+
+**Fix:** `exec(compiled, safe_globals, safe_globals)` — one namespace, so a
+script behaves like module scope. Uniform across versions; lambdas and
+genexprs read what the script just computed. `safe_globals` is built fresh per
+execution, so scripts still cannot leak state into one another (pinned by a
+test). `result` now reads from the shared dict.
+
+**Floor raised to `requires-python = ">=3.12"`** (pyproject, README,
+installation.md). The one-dict fix makes 3.11 work too, so this is a *support*
+decision, not a correctness one — and it buys PEP 701 f-strings (nested
+same-quotes), which the sweep agents had to hand-avoid.
+
+**Tests:** `tests/test_script_scoping.py` — 15 tests covering every nested
+scope, the version-split cases, backward compatibility of all three
+workaround idioms, and namespace hygiene. Full suite green.
+
+**Docs cleaned:** `arc_economy` (the "comprehension binding trick" now reads as
+optional, not required), `100_poker_table`, `101_chess_board`,
+`102_trivia_host` (their "Engine gaps" sections marked FIXED, workaround code
+left in place and still correct).
+
+### Knock-on: the lambda-ban decision is now weaker still
+
+The earlier "do NOT ban lambdas" entry argued partly that `key=lambda` had no
+one-line replacement. That argument is now *stronger* on one axis and moot on
+another: lambdas finally work with script locals, so `sorted(x, key=lambda o:
+tbl[o])` is idiomatic rather than a trap. The self-passing-lambda recursion
+idiom (017/024) still works, and a *plain* recursive lambda
+(`w = lambda n: ... w(n-1)`) now works too — verified — since the lambda
+resolves its own name in the shared namespace. Both remain uninstrumentable,
+so the AST-injection entry's lambda caveat stands unchanged (if anything the
+plain form is now the likelier thing to encounter).
+
+### Follow-up worth considering
+
+The showcase still *reads* as though the limitation exists: `[...]`-wrapped
+genexprs, `key=d.get` bound methods, and smuggle-through-first-`for` clauses
+in ~175 sites. All correct, none necessary. Simplifying them is a **logic-
+adjacent** sweep (it changes what the build lines say, so transcripts and
+tests move together) — same shape as the deferred ledger→`adata()` rewrite,
+and best done with it.

@@ -335,15 +335,23 @@ class ScriptSandbox:
         # give/open/close/wait/...) — same actuator set as simple scripts.
         safe_globals['cmd'] = lambda line: script_output(str(line))
 
-        # Execute with resource tracking
-        local_vars: dict[str, Any] = {}
-
         try:
+            # ONE namespace, not two. With separate globals/locals a script
+            # runs like a *class body*: assignments land in locals, but every
+            # nested scope (lambda, generator expression — and, before PEP 709,
+            # comprehensions too) compiles its free names to LOAD_GLOBAL and so
+            # cannot see them. That made `n = {...}; sorted(x, key=lambda k:
+            # n[k])` raise NameError on a name defined one statement earlier,
+            # and made list comprehensions behave differently on 3.11 vs 3.12+.
+            # Sharing one dict makes a script behave like module scope: uniform
+            # across versions, and lambdas/genexprs can finally read what the
+            # script just computed.
+            #
             # No recursion-limit fiddling here: it is process-wide state, set
             # once at boot (set_interpreter_recursion_limit). Doing it per
             # execution capped every other thread too. A runaway script still
             # trips the interpreter limit and surfaces as ScriptRecursionError.
-            exec(compiled, safe_globals, local_vars)
+            exec(compiled, safe_globals, safe_globals)
 
         except RecursionError as e:
             import sys
@@ -360,8 +368,10 @@ class ScriptSandbox:
         if elapsed > self.limits.max_time_ms:
             raise ScriptTimeout(f"Script exceeded time limit ({self.limits.max_time_ms}ms)")
 
-        # Return result and output
-        result = local_vars.get('result', None)
+        # Return result and output. `result` now lives in the shared namespace
+        # (see the single-dict exec above); safe_globals is built fresh per
+        # execution, so scripts cannot leak state into each other through it.
+        result = safe_globals.get('result', None)
         return result, self._output
 
     async def execute_async(

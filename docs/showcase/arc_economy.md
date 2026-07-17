@@ -79,13 +79,15 @@ further"); the arc prefers `on_tick` because deadlines here move
 - **One line per attribute.** `@set` takes a single line, so scripts are
   `;`-chained statements and comprehensions — same idiom as the main
   tutorial's softcode part.
-- **The comprehension binding trick.** A comprehension cannot see names
-  you assigned earlier in the same script (scripts execute with separate
-  local/global namespaces, and comprehensions only see their own
-  variables plus globals like `me`, `enactor`, `arg0` and the softcode
-  functions). Smuggle results in through the first `for` clause:
-  `[...  for g, a in [[ok, amt]] if g ...]`. You'll see it in every
-  tutorial; plain `x = ...` statements at the top level are unaffected.
+- **The comprehension binding trick — no longer required (2026-07-17).**
+  Scripts once ran with separate local/global namespaces, so a
+  comprehension, lambda or generator expression could not see names you
+  assigned earlier in the same script. The idiom was to smuggle values in
+  through the first `for` clause: `[... for g, a in [[ok, amt]] if g ...]`.
+  You will still see that shape throughout this arc and it still works —
+  but scripts now share one namespace, so nested scopes read your
+  variables directly and `sorted(rows, key=lambda r: r[1])` just works.
+  Reach for the smuggle only when it reads better, not because you must.
 - **Builtins shadow `$`-commands.** The dispatcher tries built-in
   commands first. That's why the bank's status command is `bank` (not
   `balance`, an alias of the `credits` builtin) and the exchange trades

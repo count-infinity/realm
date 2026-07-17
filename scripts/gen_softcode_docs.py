@@ -14,9 +14,13 @@ HEADER = """# Softcode Reference
 
 Auto-generated from the live API (`python scripts/gen_softcode_docs.py`
 regenerates). Scripts are sandboxed Python: loops, comprehensions,
-function defs, and **f-strings** — under time/call/output limits. Prefer
-f-strings for readable output: `say(f"{name(enactor)} owes {V('debt',0)} cr")`
-reads better than string concatenation.
+generator expressions, lambdas, function defs, and **f-strings** — under
+time/call/output limits. A script runs in one namespace, like module scope,
+so nested scopes read the variables you just assigned:
+`rows = V('scores', {}); result = sorted(rows, key=lambda r: rows[r])`.
+Prefer f-strings for readable output:
+`say(f"{name(enactor)} owes {V('debt',0)} cr")` reads better than string
+concatenation.
 
 ## Context names
 

@@ -114,11 +114,10 @@ works from the opening.
 - **Clocks:** stamp `now()` each move and a `script_ticker` that
   forfeits the seat whose total exceeds ten minutes.
 
-**Engine gaps:** the path-clearance check is written
-`all([... for i in range(1, steps)])`, a *list* comprehension, not the
-tidier generator `all(... for i in range(1, steps))`. The sandbox execs
-scripts with separate `globals`/`locals` dicts, and on Python 3.12+ only
-list/set/dict comprehensions are inlined to see script locals —
-generator expressions and `lambda`s resolve free names against
-`globals` and `NameError` on locals like `b`, `fr`, `sc`. Wrap genexprs
-in `[...]`; filed for the integrator (see item 100 for the full note).
+**~~Engine gaps~~ — FIXED 2026-07-17.** The path-clearance check is written
+`all([... for i in range(1, steps)])`, a *list* comprehension, rather than
+the tidier generator `all(... for i in range(1, steps))`. That was forced:
+the sandbox used to exec scripts with separate `globals`/`locals` dicts, so
+generator expressions and `lambda`s `NameError`ed on locals like `b`, `fr`,
+`sc`. Scripts now share one namespace and the bare generator works. The
+`[...]` form is left as written and remains correct (see item 100).
