@@ -17,6 +17,8 @@ Security model:
 from __future__ import annotations
 
 import asyncio
+import ast
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -247,6 +249,50 @@ class ScriptSandbox:
 
         return globals_dict
 
+    # Node types that can spin without ever calling a function: a bare
+    # loop, or a comprehension/generator over a large/endless iterable.
+    _LOOP_NODES = (ast.While, ast.For, ast.AsyncFor,
+                   ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
+
+    @classmethod
+    def _has_loop(cls, code: str) -> bool:
+        """Could this script iterate without calling anything?
+
+        The call/time budget is checked inside :meth:`_wrap_function`, so a
+        script that spins in a call-free loop (``while True: pass``) is
+        never checked and pins its thread. We install a line-level watchdog
+        to catch that — but only for scripts that can actually loop, so the
+        common case (a guard chain, an inline ``[[...]]`` read) pays
+        nothing.
+        """
+        try:
+            tree = ast.parse(code)
+        except SyntaxError:
+            return True  # let compile() report it; assume the worst meanwhile
+        return any(isinstance(n, cls._LOOP_NODES) for n in ast.walk(tree))
+
+    def _make_watchdog(self) -> Callable:
+        """A line tracer that raises once the time budget is spent.
+
+        Checked every 1024 line events (a cheap integer mask between
+        ``time.time()`` calls), so a runaway loop dies in microseconds
+        while a well-behaved loop barely notices. ``sys`` is not in the
+        sandbox namespace, so a script cannot clear its own trace.
+        """
+        deadline = self._start_time + self.limits.max_time_ms / 1000.0
+        limit_ms = self.limits.max_time_ms
+        clock = time.time
+        state = {"n": 0}
+
+        def _trace(frame, event, arg):
+            state["n"] += 1
+            if (state["n"] & 0x3FF) == 0 and clock() > deadline:
+                raise ScriptTimeout(
+                    f"Script exceeded time limit ({limit_ms}ms)")
+            return _trace
+
+        return _trace
+
     def _wrap_function(self, func: Callable) -> Callable:
         """Wrap a function to track call count and check limits."""
         def wrapped(*args, **kwargs):
@@ -335,6 +381,14 @@ class ScriptSandbox:
         # give/open/close/wait/...) — same actuator set as simple scripts.
         safe_globals['cmd'] = lambda line: script_output(str(line))
 
+        # A line-level watchdog catches call-free infinite loops, which the
+        # per-call budget in _wrap_function cannot see. Installed only when
+        # the script can actually loop, so loop-free scripts pay nothing.
+        watchdog = self._has_loop(expanded_code)
+        old_trace = sys.gettrace() if watchdog else None
+        if watchdog:
+            sys.settrace(self._make_watchdog())
+
         try:
             # ONE namespace, not two. With separate globals/locals a script
             # runs like a *class body*: assignments land in locals, but every
@@ -354,7 +408,6 @@ class ScriptSandbox:
             exec(compiled, safe_globals, safe_globals)
 
         except RecursionError as e:
-            import sys
             raise ScriptRecursionError(
                 f"Exceeded recursion limit ({sys.getrecursionlimit()})"
             ) from e
@@ -362,6 +415,9 @@ class ScriptSandbox:
             raise
         except Exception as e:
             raise ScriptError(f"Execution error: {type(e).__name__}: {e}") from e
+        finally:
+            if watchdog:
+                sys.settrace(old_trace)
 
         # Check time limit one final time
         elapsed = (time.time() - self._start_time) * 1000

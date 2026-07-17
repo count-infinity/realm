@@ -33,12 +33,16 @@ convention), and `durability` is data for a repair system (item 95) to
 burn down. The tier rows carry a multiplier and a durability so a
 balance pass is an `@set` on the table, never a script edit.
 
-**One engine gap, honestly.** `skill_check()` returns a bare bool, so
-a *condition-modified* graded roll (fear, buffs — `check_mods`) isn't
-directly reachable from softcode; we re-derive the roll with
-`margin_under(roll('3d6'), skill_attr)`, which reads the trained skill
-but not active effect modifiers. The [cooking tutorial](129_cooking_buffs.md)
-shows the manual fold if your game needs buffed crafting.
+**On graded rolls and conditions.** This build derives the tier with
+`margin_under(roll('3d6'), skill_attr)` — a fine way to get a *raw*
+graded roll, and what this tutorial teaches. Note the one thing it does
+*not* do: it reads the trained skill directly, so it ignores active
+`check_mods` (fear, a meal buff — see the
+[cooking tutorial](129_cooking_buffs.md)). If you want conditions to
+reach a crafting roll, swap it for `check_roll(enactor, 'smithing')`,
+which returns the same graded `CheckResult` (`.margin`, `.success`) but
+*through* the real `check()` pipeline, folding every modifier in. (This
+was once an engine gap; `check_roll` closed it 2026-07-17.)
 
 ## Build it
 

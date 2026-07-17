@@ -27,11 +27,14 @@ desyncs the sheet and never expires. The engine way is
 check_mods={'throwing': 3})`: the modifier lives exactly as long as
 the effect, every `skill_check()` anywhere folds it in without being
 asked, and the `hearty` tag rides along for flavor text and locks.
-(One honest limit: softcode that re-rolls dice *by hand* with
-`margin_under(roll(...), attr)` — like the
-[lathe](125_quality_tiers.md) — bypasses `check()` and so misses
-these modifiers; buffed *crafting* would need to read
-`check_mods` off the eater and fold it manually.)
+(This *used* to have an honest limit: softcode that re-rolled dice by
+hand with `margin_under(roll(...), attr)` — like the
+[lathe](125_quality_tiers.md) — bypassed `check()` and missed these
+modifiers. `check_roll(obj, skill)` closes it: it returns the graded
+`CheckResult` *through* the real pipeline, so a `check_mods` buff
+reaches a crafting roll too. Reach for `check_roll` when a graded roll
+must honour conditions; `margin_under` stays the tool for a raw,
+unmodified roll.)
 
 **The meal is data; the range is the chef.** `$cook stew` burns two
 `produce`-tagged items and mints the bowl, then stamps everything

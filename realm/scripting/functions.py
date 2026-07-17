@@ -1533,6 +1533,29 @@ class ScriptFunctions:
             return False
         return bool(_check(target, str(skill), int(modifier)))
 
+    def check_roll(self, obj, skill: str, modifier: int = 0):
+        """Roll a skill check and return the GRADED, condition-modified result.
+
+        Like :meth:`skill_check`, but hands back the whole ``CheckResult``
+        instead of just pass/fail — read ``.success``, ``.margin`` (degree
+        of success), ``.roll`` and ``.effective`` off it. And unlike the
+        hand-rolled ``margin_under(roll('3d6'), get_attr(me, 'skill', 8))``
+        idiom, this goes through the real ``check()`` pipeline, so
+        ``check_mods`` (fear, darkness, a meal buff, encumbrance) are folded
+        in. That idiom reads the *trained* level raw and silently ignores
+        every condition — a fear-struck crafter rolled as if calm.
+
+        Returns a failing result (margin 0) for an unresolvable object.
+
+        Example: r = check_roll(enactor, 'cooking'); quality = r.margin // 2
+        """
+        from realm.core.checks import check as _check
+        from realm.core.dice import CheckResult
+        target = self._resolve(obj)
+        if target is None:
+            return CheckResult(False, 0, 0, 0, str(skill))
+        return _check(target, str(skill), int(modifier))
+
     def contest(self, actor, actor_skill: str, opponent, opponent_skill: str) -> bool:
         """Opposed quick contest; True if the actor wins.
 
@@ -1592,7 +1615,7 @@ class ScriptFunctions:
         # dice / checks (roll and resolve; no world mutation)
         'roll', 'margin_under', 'margin_over', 'net_successes', 'highest',
         'band', 'rand', 'now', 'dice', 'clamp', 'floor', 'ceil',
-        'skill_check', 'contest',
+        'skill_check', 'check_roll', 'contest',
         # strings
         'ucfirst', 'lcfirst', 'capstr', 'repeat', 'strlen', 'mid', 'left',
         'right', 'trim', 'replace', 'ansi', 'escape',
@@ -1713,6 +1736,7 @@ class ScriptFunctions:
             'setdiff': self.setdiff,
             # Skill checks
             'skill_check': self.skill_check,
+            'check_roll': self.check_roll,
             'contest': self.contest,
             # Communication
             'pemit': self.pemit,

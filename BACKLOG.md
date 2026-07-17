@@ -1428,7 +1428,7 @@ Found while implementing the showcase arcs (`docs/showcase/`); each verified
 against source by the implementing session. Workarounds are documented in the
 named tutorials, so none of these block showcase progress.
 
-- [ ] **Sandbox: call-free loops escape the time budget.** The 1500 ms limit is
+- [x] **Sandbox: call-free loops escape the time budget — RESOLVED 2026-07-17.** A gated `sys.settrace` line-watchdog raises `ScriptTimeout` on the deadline; installed only when the script's AST contains a loop/comprehension (`_has_loop`), so loop-free scripts (inline `[[...]]` reads, guard chains) are untraced and pay nothing. Catches `while True: pass`, `for i in range(10**12)`, and genexpr-over-huge-range (settrace sees the generator frame). `sys` is not in the sandbox namespace, so a script can't clear its own trace. ~130µs added to a small comprehension-script; the truly-hot loop-free path is untouched. Was: The 1500 ms limit is
   enforced in `ScriptSandbox._wrap_function`, so `while True: pass` (no
   function calls) is never interrupted and pins its worker thread. An
   instruction-count guard or tracing hook would close it.
@@ -1554,7 +1554,7 @@ findings below are facets of one fix — bind the action's target + payload into
 - [ ] **`eval_attr` discards a called routine's `say`/`pose`/`emit` output**
   (functions.py:1059 returns `result`, drops `_output`) — only queued emitters
   (`remit`/`pemit`) reach the caller. (094_job_board)
-- [ ] **No graded, condition-modified check in softcode.** `skill_check()` /
+- [x] **No graded, condition-modified check in softcode — RESOLVED 2026-07-17.** `check_roll(obj, skill, mod)` returns the full `CheckResult` from the real `check()` pipeline: `.success`/`.margin`/`.roll`/`.effective`, with `check_mods` folded in (fear, darkness, a meal buff, encumbrance). Read-only, so usable in `on_check` wards. The `margin_under(roll('3d6'), get_attr(me,'skill',8))` idiom stays valid for a raw ungraded roll, but read the trained level and ignored conditions — now there's a right way. Was: `skill_check()` /
   `contest()` return bare bools; the full-pipeline `CheckResult` (with margin,
   crit bands, and `check_mods` folded in) is unreachable. The `margin_under(
   roll('3d6'), get_attr(actor,'skill_X',8))` idiom recovers margin but reads the

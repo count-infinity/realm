@@ -219,6 +219,7 @@ veto (a cursed item refusing removal).
 | `capstr` | `(text: 'str') -> 'str'` | Capitalize each word. | `capstr('the iron king')   # 'The Iron King'` |
 | `cast` | `(target: 'GameObject \| str \| None', ability: 'str' = '', *, tags: 'list[str] \| None' = None) -> 'bool'` | Direct an ability at a target — the ability analog of ``act``. Fires |  |
 | `ceil` | `(value: 'float') -> 'int'` | Round up to integer. | `ceil(7.1)                 # 8` |
+| `check_roll` | `(obj, skill: 'str', modifier: 'int' = 0)` | Roll a skill check and return the GRADED, condition-modified result. | `r = check_roll(enactor, 'cooking'); quality = r.margin // 2` |
 | `clamp` | `(value: 'int \| float', low: 'int \| float', high: 'int \| float') -> 'int \| float'` | Clamp value between low and high. | `clamp(damage, 1, 10)` |
 | `clear_lock` | `(obj: 'GameObject \| str \| None', lock_type: 'str') -> 'bool'` | Clear a lock from an object the executor controls. | `clear_lock(me, 'basic')` |
 | `contents` | `(obj: 'GameObject \| str \| None') -> 'list[GameObject]'` | Get an object's contents. | `[o for o in contents(here) if has_tag(o, 'npc')]` |
