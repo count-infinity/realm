@@ -138,6 +138,9 @@ class CommandDispatcher:
         # via ctx.persistence / ctx.session_manager.
         self.persistence: PersistenceManager | None = None
         self.session_manager: SessionManager | None = None
+        # monotonic() stamp taken when the server goes live; None until then.
+        # `uptime` reads it through ctx.dispatcher.
+        self.server_started_at: float | None = None
 
         # Handler for unknown commands (for softcode fallback)
         self._unknown_handler: CommandHandler | None = None

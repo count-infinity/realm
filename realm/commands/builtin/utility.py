@@ -154,25 +154,44 @@ async def cmd_commands(ctx: CommandContext) -> None:
 
 async def cmd_time(ctx: CommandContext) -> None:
     """
-    Show the current game time.
+    Show the current server time.
 
     Usage: time
     """
-    # TODO: Implement game time system
     import datetime
     now = datetime.datetime.now()
     await ctx.session.send(f"Server time: {now.strftime('%Y-%m-%d %H:%M:%S')}")
-    # await ctx.session.send(f"Game time: Day 1, Hour 12")
+
+
+def _format_duration(seconds: int) -> str:
+    """Render a second count as a compact "1d 2h 3m 4s" string."""
+    days, rem = divmod(max(0, seconds), 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, secs = divmod(rem, 60)
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+    parts.append(f"{secs}s")
+    return " ".join(parts)
 
 
 async def cmd_uptime(ctx: CommandContext) -> None:
     """
-    Show server uptime.
+    Show how long the server has been running.
 
     Usage: uptime
     """
-    # TODO: Track server start time
-    await ctx.session.send("Server uptime information unavailable.")
+    started = ctx.dispatcher.server_started_at if ctx.dispatcher else None
+    if started is None:
+        await ctx.session.send("Server uptime information unavailable.")
+        return
+    import time
+    await ctx.session.send(
+        f"Server uptime: {_format_duration(int(time.monotonic() - started))}.")
 
 
 async def cmd_think(ctx: CommandContext) -> None:
@@ -197,14 +216,29 @@ async def cmd_recall(ctx: CommandContext) -> None:
 
     Usage: recall
     """
-    # Get home location
-    home = ctx.player.db.get('home')
-    if not home:
+    home_id = ctx.player.db.get('home')
+    if not home_id:
         await ctx.session.send("You don't have a home set.")
         return
 
-    # TODO: Implement actual recall with movement events
-    await ctx.session.send("Recall not yet implemented.")
+    dest = ctx.persistence.get_cached(str(home_id)) if ctx.persistence else None
+    if dest is None:
+        await ctx.session.send("Your home no longer exists.")
+        return
+    if ctx.player.location is dest:
+        await ctx.session.send("You are already home.")
+        return
+
+    # Move through the one relocation core (not forced — recall is voluntary,
+    # so home's ENTER/TELEPORT locks and movement wards still apply).
+    from realm.core.movement import move_to
+    if not await move_to(ctx.player, dest, mover=ctx.player):
+        await ctx.session.send("Something prevents you from recalling home.")
+        return
+
+    if ctx.persistence:
+        await ctx.persistence.save(ctx.player)
+    await ctx.session.send(f"You recall to {dest.name}.")
 
 
 async def cmd_color(ctx: CommandContext) -> None:

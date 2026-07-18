@@ -103,6 +103,42 @@ def get_role(obj: GameObject | None) -> Role:
     return Role.GUEST
 
 
+def role_conferred_by_tag(tag: str) -> Role | None:
+    """The role a privilege tag grants, or ``None`` for an ordinary tag."""
+    return ROLE_TAGS.get(tag.lower())
+
+
+def may_change_role_tag(actor: GameObject | None, tag: str) -> bool:
+    """May ``actor`` add or remove the privilege ``tag``?
+
+    Ordinary (non-role) tags always pass here — object *control* is checked
+    separately, at the mutation site. This predicate governs the one thing
+    control does not: writing a tag that changes **authority itself**.
+
+    ``controls()`` alone is the wrong gate for a role tag, because everyone
+    controls themselves (rule 1) and their own objects (rule 2 + Penn
+    delegation) — so ``@tag me = god`` or a self-owned script's
+    ``add_tag(me, 'admin')`` would otherwise self-promote. The rule: you may
+    change a role tag only if you are GOD (the superuser mints anyone,
+    including gods) **or** your own role *strictly* outranks the privilege the
+    tag confers. Consequences:
+
+    - only GOD may grant/revoke ``admin``/``wizard``;
+    - only ADMIN+ may grant/revoke ``builder``/``staff``;
+    - ``god`` can be conferred by a GOD in-world, but never *reached* by
+      anyone below it — superuser is seeded at the data layer (`auth.py`).
+
+    Note this reads the actor's role *directly* (no owner delegation), so a
+    player-owned script executor stays PLAYER here and cannot launder a grant
+    through an object it controls.
+    """
+    conferred = ROLE_TAGS.get(tag.lower())
+    if conferred is None:
+        return True
+    actor_role = get_role(actor)
+    return actor_role >= Role.GOD or actor_role > conferred
+
+
 def has_permission(actor: GameObject | None, permission: str) -> bool:
     """
     Check if an actor has a specific permission level.

@@ -328,9 +328,17 @@ class ScriptFunctions:
         """Add a tag to an object the executor controls.
 
         Example: add_tag(me, 'glowing')
+
+        Role tags (god/admin/wizard/builder/staff) are refused unless the
+        executor's own role outranks the privilege — control of an object
+        never implies control of its *rank*, or a self-owned script could
+        grant itself admin.
         """
+        from realm.permissions.roles import may_change_role_tag
         target = self._controlled(obj)
         if target is None:
+            return False
+        if not may_change_role_tag(self.executor, str(tag)):
             return False
         target.add_tag(tag)
         self._touch(target)
@@ -340,9 +348,15 @@ class ScriptFunctions:
         """Remove a tag from an object the executor controls.
 
         Example: remove_tag(me, 'hostile')
+
+        Role tags follow the same rank rule as :meth:`add_tag` — you cannot
+        strip a privilege you do not outrank.
         """
+        from realm.permissions.roles import may_change_role_tag
         target = self._controlled(obj)
         if target is None:
+            return False
+        if not may_change_role_tag(self.executor, str(tag)):
             return False
         target.remove_tag(tag)
         self._touch(target)
@@ -779,6 +793,21 @@ class ScriptFunctions:
         behavior = BehaviorRegistry.create(str(effect_id), **params)
         if behavior is None:
             return False
+        # Effects are singletons per kind: their state lives in owner.db under
+        # effect_<kind>_left / _wait and check_mods[<kind>] — one slot per kind
+        # (see TimedEffectBehavior.attach). So re-applying the same kind
+        # REFRESHES (renew/deepen), never stacks: a second same-kind behavior
+        # would share those keys and corrupt both countdowns, and the first to
+        # expire would strip the shared tag/mods out from under the other. Drop
+        # any live same-kind effect and clear its timer so the new one starts
+        # from full duration (side-effect flags like `applied` are preserved).
+        from realm.behaviors.effects import TimedEffectBehavior
+        if isinstance(behavior, TimedEffectBehavior):
+            for existing in list(target.get_behaviors()):
+                if (isinstance(existing, TimedEffectBehavior)
+                        and existing.kind == behavior.kind):
+                    target.remove_behavior(existing)
+            behavior.clear_state(target)
         target.add_behavior(behavior)
         self.command_queue.append(('save', target, ''))
         return True

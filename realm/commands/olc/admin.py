@@ -212,7 +212,13 @@ async def cmd_nuke(ctx: CommandContext) -> None:
         await ctx.session.send("You can't nuke yourself!")
         return
 
-    # TODO: Disconnect the player's session if connected
+    # Hang up the player's live session first, if connected, so their client
+    # isn't left driving a destroyed character.
+    sm = ctx.session_manager
+    session = sm.get_session_by_player(target) if sm else None
+    if session is not None:
+        await session.send("Your character has been removed from the world.")
+        await sm.destroy_session(session)
 
     # Destroy
     await _destroy_recursive(ctx, target)
@@ -349,31 +355,9 @@ async def cmd_examine_full(ctx: CommandContext) -> None:
     await ctx.session.send("")
 
 
-async def cmd_force(ctx: CommandContext) -> None:
-    """
-    Force an object to execute a command.
-
-    Usage: @force <object> = <command>
-    """
-    if not ctx.left_args or not ctx.right_args:
-        await ctx.session.send("Usage: @force <object> = <command>")
-        return
-
-    target = resolve_target(ctx, ctx.left_args.strip())
-    if not target:
-        await ctx.session.send(f"Object '{ctx.left_args}' not found.")
-        return
-
-    command = ctx.right_args
-
-    # TODO: Execute command as target
-    # This requires creating a fake session/context for the target
-    await ctx.session.send(f"@force not fully implemented. Would force {target.name} to: {command}")
-
-
 async def cmd_boot(ctx: CommandContext) -> None:
     """
-    Disconnect a player.
+    Disconnect a player's session (they keep their character).
 
     Usage: @boot <player>
 
@@ -384,8 +368,23 @@ async def cmd_boot(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @boot <player>")
         return
 
-    # TODO: Find player's session and disconnect
-    await ctx.session.send("@boot not fully implemented.")
+    target = find_object_global(ctx, ctx.args.strip())
+    if not target or not target.has_tag('player'):
+        await ctx.session.send(f"Player '{ctx.args.strip()}' not found.")
+        return
+    if target == ctx.player:
+        await ctx.session.send("You can't boot yourself — use quit.")
+        return
+
+    sm = ctx.session_manager
+    session = sm.get_session_by_player(target) if sm else None
+    if session is None:
+        await ctx.session.send(f"{target.name} is not connected.")
+        return
+
+    await session.send("You have been disconnected by an administrator.")
+    await sm.destroy_session(session)
+    await ctx.session.send(f"Booted {target.name}.")
 
 
 async def _destroy_recursive(ctx: CommandContext, obj) -> int:
@@ -467,14 +466,9 @@ def register_admin_commands(dispatcher: CommandDispatcher) -> None:
         permission="builder",
     )
 
-    register(
-        "@force",
-        cmd_force,
-        help_text="Force an object to execute a command",
-        usage="@force <object> = <command>",
-        permission="admin",
-        parse_equals=True,
-    )
+    # NOTE: @force is registered by register_softcode_commands (the real
+    # implementation via server.puppet.force_command). The former stub here
+    # was dead code — softcode registers after admin, so it always won.
 
     register(
         "@boot",

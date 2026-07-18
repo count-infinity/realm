@@ -185,9 +185,25 @@ same day (see Completed); these remain, roughly by impact:
   `realm/core/safe_eval.py` is the one policy module; sandbox, locks,
   and strategy conditions all consume it (locks got strictly stronger —
   `getattr` and private names are now rejected there too).
-- [ ] **Fix the flag namespace.** `flags.py` docstring claims a `flag:` prefix
-  but `_flag_tag` returns bare values — `set_flag(obj, Flag.WIZARD)` silently
-  grants ADMIN via the role check on the `wizard` tag.
+- [x] ~~**Fix the flag namespace.**~~ RESOLVED 2026-07-17. The original
+  `flags.py`/`set_flag(obj, Flag.WIZARD)` collision is gone — that module was
+  deleted; privilege now derives directly from role tags in
+  `permissions/roles.py`. But the *same class* of hole survived in a different
+  form: `@tag` (builder-gated) and softcode `add_tag`/`remove_tag` wrote role
+  tags (god/admin/wizard/builder/staff) gated **only by `controls()`** — and
+  since everyone controls themselves (rule 1) and their own objects (rule 2 +
+  Penn delegation), `@tag me = god` or a self-owned script's
+  `add_tag(me, 'admin')` self-promoted (a builder could reach GOD). Fixed:
+  `roles.may_change_role_tag(actor, tag)` gates every role-tag write behind
+  rank — you must be GOD, or your role must *strictly* outrank the privilege
+  the tag confers (reading role *directly*, no owner delegation, so a
+  player-owned executor can't launder a grant). Wired into `@tag`/`@untag`
+  (`commands/olc/modify.py`) and softcode `add_tag`/`remove_tag`
+  (`scripting/functions.py`). Bootstrap (`auth.py` first-god) and tests use the
+  direct `GameObject.add_tag`, which is intentionally ungated. Tests:
+  `tests/test_permissions.py::TestRoleTagAuthority` (8),
+  `tests/test_olc.py` (3). Ordinary tags are unaffected — the guard only
+  touches the six role tags.
 - [ ] **Lock follow-ups** (core enforcement 2026-07-02; use/listen/
   command + controls() landed 2026-07-04, see Completed): `teleport`
   lock now checked by scripted `teleport_obj` but still not by
@@ -225,9 +241,26 @@ same day (see Completed); these remain, roughly by impact:
 - [ ] **Gateway duplication:** telnet/websocket repeat the server-wrapper
   shape; websocket defines its writer twice (handler swaps mid-connection).
   Extract a small base or shared `connect_session` helper.
-- [ ] **Stub commands registered as real:** `@force`, `@boot`, `recall`,
-  `uptime`, `time` print "not implemented"; `@nuke` doesn't disconnect its
-  target's session. Implement or stop registering.
+- [x] ~~**Stub commands registered as real:**~~ RESOLVED 2026-07-17.
+  - **`@force`** — the `admin.py` "not fully implemented" body was *dead code*:
+    `register_softcode_commands` runs after `register_admin_commands` and
+    last-registration-wins, so the real `@force` (`olc/softcode.py` →
+    `server.puppet.force_command`) always shadowed it. Deleted the stub + its
+    registration; the real one is unchanged.
+  - **`@boot`** — implemented: finds the target's live session via
+    `session_manager.get_session_by_player`, sends a notice, and
+    `destroy_session`s it (mirrors `quit`). Not-connected / self / non-player
+    all handled.
+  - **`@nuke`** — now hangs up the target's session (same session lookup)
+    before destroying the character, instead of leaving a client driving a
+    deleted object.
+  - **`recall`** — implemented via the `move_to` relocation core (unforced, so
+    home's locks/wards still apply); handles no-home, home-deleted, already-home.
+  - **`uptime`** — `GameServer.start` now stamps `dispatcher.server_started_at`
+    (monotonic); the command reports elapsed via a `_format_duration` helper.
+  - **`time`** — already functional (prints server wall-clock); dropped the
+    misleading "not implemented" TODO.
+  Tests: `test_olc.py::TestStubCommandFixes` (11) + `test_format_duration`.
 - [ ] **Half-implemented combat behaviors** silently no-op (attack_delay,
   taunt, flee movement, wander movement — ruff F841 flags the dead locals).
 - [ ] **Config drift:** spacegame `WELCOME_BANNER` key is ignored by the
@@ -1465,17 +1498,22 @@ named tutorials, so none of these block showcase progress.
 - [ ] **Master Room** for global `$`-commands is a live TODO
   (`get_search_objects`) — ~10 showcase items use the `zone:world` master
   workaround meanwhile. (`docs/showcase/capability_audit.md`)
-- [ ] **`apply_effect` silently stacks same-kind effects — design question.**
-  `add_behavior` de-dups with `behavior not in self._behaviors`, but `Behavior`
-  has no `__eq__` (only `GameObject` and `Tag` do), so the check is identity-based and
-  `apply_effect` (which mints a fresh instance per call) always appends. Eating
-  two stews / drinking twice runs two `modifier_effect`s at once, both applying
-  their `check_mods`. Two tutorials (129, 139) assumed re-apply refreshes; both
-  now `remove_effect` first. Decide: should `apply_effect` refresh-by-`kind` by
-  default (find existing `TimedEffectBehavior` with same `kind`, replace it), or
-  is stacking intended and the softcode `stack=False` opt-in the answer? Until
-  then the documented idiom is `remove_effect(x, kind)` before re-applying.
-  (`docs/showcase/129_cooking_buffs.md`, `139_intoxication.md`)
+- [x] ~~**`apply_effect` silently stacks same-kind effects — design
+  question.**~~ RESOLVED 2026-07-17: **refresh-by-kind**, not a preference call.
+  Reading `TimedEffectBehavior.attach`, effect state is keyed by `kind`
+  (`effect_<kind>_left`/`_wait`, `check_mods[<kind>]`, the `<kind>` tag) —
+  one slot per kind. Two same-kind effects therefore *share* those keys: the
+  second corrupts the first's countdown, `check_mods[kind]` holds only one
+  value, and the first to expire strips the shared tag/mods out from under the
+  other. So same-kind stacking was never coherent — refresh is the only correct
+  behavior, no `stack=` opt-in. `apply_effect` now drops any live same-kind
+  `TimedEffectBehavior` and clears its timer (`clear_state`, also used by
+  `_expire`) so the new one starts from full duration; side-effect flags like
+  `disposition_boost`'s `applied` are preserved so a refresh doesn't double- or
+  un-apply a delta. Different kinds still coexist. Tutorials 129/139 no longer
+  need the `remove_effect`-first workaround (dropped from 139's Build-it) and
+  their prose now teaches refresh. Tests: `test_softcode_builders.py`
+  (refresh-not-stack, timer reset, distinct-kinds-coexist).
 
 ## Showcase wave-2 engine gaps (filed 2026-07-16, categories 1-5)
 
@@ -2692,11 +2730,11 @@ in-game softcode driven straight from the doc's Build-it lines:
 Capability-audit gaps **G3 closed** (85/133/134) and **G2 down to item 80 only**
 (80 overheard whispers still wants the whisper ROOM line to carry a body).
 
-**Finding filed while building 139 (not an engine change):** `apply_effect`
-*stacks* same-kind effects — `add_behavior`'s `behavior not in self._behaviors`
-guard is identity-based (`Behavior` has no `__eq__`), and `apply_effect` mints a
-fresh instance each call — so re-eating/re-drinking runs two effects at once.
-Two tutorials (129 cooking, then 139) assumed "same kind re-tags, doesn't stack";
-both docs are now corrected to `remove_effect`-then-`apply_effect` (refresh) or
-gate on a tag. See the showcase-gaps list below for the design question (should
-the engine de-dup by kind?).
+**Finding filed while building 139:** `apply_effect` *stacked* same-kind
+effects — `add_behavior`'s `behavior not in self._behaviors` guard is
+identity-based (`Behavior` has no `__eq__`), and `apply_effect` mints a fresh
+instance each call — so re-eating/re-drinking ran two effects at once. Because
+effect state is keyed by `kind`, that was incoherent, not merely untidy.
+**Resolved the same day** (see the showcase-gaps entry "`apply_effect` silently
+stacks…"): `apply_effect` now refreshes by kind. Tutorials 129/139 teach refresh
+and no longer carry the `remove_effect`-first workaround.

@@ -5,11 +5,18 @@ import pytest
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object_global
 from realm.commands.olc.admin import (
+    cmd_boot,
     cmd_chown,
     cmd_destroy,
     cmd_examine_full,
     cmd_find,
+    cmd_nuke,
     cmd_teleport,
+)
+from realm.commands.builtin.utility import (
+    _format_duration,
+    cmd_recall,
+    cmd_uptime,
 )
 from realm.commands.olc.create import (
     cmd_create,
@@ -484,6 +491,37 @@ class TestModifyCommands:
         assert "Removed tag" in ctx.session.messages[0]
 
     @pytest.mark.asyncio
+    async def test_tag_cannot_self_escalate(self):
+        """A builder cannot `@tag me = admin/god` — control of yourself must
+        not imply control of your rank (the privilege-escalation guard)."""
+        from realm.permissions.roles import Role, get_role
+        for rank in ("admin", "god"):
+            ctx = make_context(self.player, args=f"me = {rank}",
+                               left_args="me", right_args=rank)
+            await cmd_tag(ctx)
+            assert not self.player.has_tag(rank)
+            assert "outranks you" in ctx.session.messages[0]
+        assert get_role(self.player) == Role.BUILDER
+
+    @pytest.mark.asyncio
+    async def test_tag_ordinary_still_works(self):
+        """The guard is surgical: a builder can still tag objects normally."""
+        ctx = make_context(self.player, args="sword = shiny",
+                           left_args="sword", right_args="shiny")
+        await cmd_tag(ctx)
+        assert self.sword.has_tag('shiny')
+
+    @pytest.mark.asyncio
+    async def test_untag_cannot_strip_privilege_above_rank(self):
+        """A builder can't revoke a role tag they don't outrank."""
+        self.player.add_tag('admin')          # seeded directly (bootstrap path)
+        ctx = make_context(self.player, args="me = admin",
+                           left_args="me", right_args="admin")
+        await cmd_untag(ctx)
+        assert self.player.has_tag('admin')   # revoke refused
+        assert "outranks you" in ctx.session.messages[0]
+
+    @pytest.mark.asyncio
     async def test_lock_set(self):
         """@lock sets a lock expression."""
         ctx = make_context(
@@ -841,3 +879,128 @@ class TestOLCAgainstRealPersistence:
             assert resolve_exit_destination(exit_west, pm) == room
         finally:
             await pm.close()
+
+
+def test_format_duration():
+    assert _format_duration(0) == "0s"
+    assert _format_duration(65) == "1m 5s"
+    assert _format_duration(3600) == "1h 0s"
+    assert _format_duration(90061) == "1d 1h 1m 1s"
+
+
+@pytest.mark.asyncio
+class TestStubCommandFixes:
+    """Formerly-stub commands, now implemented (or dead code removed).
+
+    @force's admin.py stub was deleted — the real one lives in
+    olc/softcode.py and, registering after admin, always won; the stub was
+    unreachable. These cover the commands that gained real behavior.
+    """
+
+    def setup_method(self):
+        self.persistence = MockPersistence()
+        use_persistence(self.persistence)
+        self.room = GameObject("Plaza", tags=['room'])
+        self.home = GameObject("Cabin", tags=['room'])
+        self.admin = GameObject("Ada", tags=['player', 'admin'],
+                                location=self.room)
+        self.persistence.add(self.room)
+        self.persistence.add(self.home)
+        self.persistence.add(self.admin)
+
+    def _wire_sessions(self, ctx):
+        from realm.gateway.session import SessionManager
+        manager = SessionManager()
+        ctx.dispatcher.session_manager = manager
+        return manager
+
+    async def _connect(self, manager, player):
+        session = await manager.create_session()
+        session.link_player(player)
+        manager.link_player_to_session(session, player)
+        return session
+
+    # --- uptime -------------------------------------------------------------
+
+    async def test_uptime_unavailable_before_start(self):
+        ctx = make_context(self.admin)               # server_started_at is None
+        await cmd_uptime(ctx)
+        assert "unavailable" in ctx.session.messages[0]
+
+    async def test_uptime_reports_elapsed(self):
+        import time
+        ctx = make_context(self.admin)
+        ctx.dispatcher.server_started_at = time.monotonic() - 65
+        await cmd_uptime(ctx)
+        assert "Server uptime:" in ctx.session.messages[0]
+        assert "1m 5s" in ctx.session.messages[0]
+
+    # --- recall -------------------------------------------------------------
+
+    async def test_recall_no_home(self):
+        ctx = make_context(self.admin)
+        await cmd_recall(ctx)
+        assert "don't have a home" in ctx.session.messages[0]
+
+    async def test_recall_moves_player_home(self):
+        self.admin.db.set('home', self.home.id)
+        ctx = make_context(self.admin)
+        await cmd_recall(ctx)
+        assert self.admin.location is self.home
+        assert "recall to Cabin" in ctx.session.messages[-1]
+
+    async def test_recall_home_gone(self):
+        self.admin.db.set('home', "#nonexistent")
+        ctx = make_context(self.admin)
+        await cmd_recall(ctx)
+        assert "no longer exists" in ctx.session.messages[0]
+
+    async def test_recall_already_home(self):
+        self.admin.db.set('home', self.home.id)
+        self.admin.location = self.home
+        ctx = make_context(self.admin)
+        await cmd_recall(ctx)
+        assert "already home" in ctx.session.messages[0]
+
+    # --- @boot --------------------------------------------------------------
+
+    async def test_boot_disconnects_connected_player(self):
+        vandal = GameObject("Vandal", tags=['player'], location=self.room)
+        self.persistence.add(vandal)
+        ctx = make_context(self.admin, args="Vandal")
+        manager = self._wire_sessions(ctx)
+        await self._connect(manager, vandal)
+
+        await cmd_boot(ctx)
+
+        assert manager.get_session_by_player(vandal) is None   # hung up
+        assert any("Booted Vandal" in m for m in ctx.session.messages)
+
+    async def test_boot_not_connected(self):
+        vandal = GameObject("Vandal", tags=['player'], location=self.room)
+        self.persistence.add(vandal)
+        ctx = make_context(self.admin, args="Vandal")
+        self._wire_sessions(ctx)                       # no session for Vandal
+        await cmd_boot(ctx)
+        assert any("not connected" in m for m in ctx.session.messages)
+
+    async def test_boot_self_refused(self):
+        ctx = make_context(self.admin, args="Ada")
+        self._wire_sessions(ctx)
+        await cmd_boot(ctx)
+        assert any("can't boot yourself" in m for m in ctx.session.messages)
+
+    # --- @nuke --------------------------------------------------------------
+
+    async def test_nuke_disconnects_then_destroys(self):
+        vandal = GameObject("Vandal", tags=['player'], location=self.room)
+        self.persistence.add(vandal)
+        ctx = make_context(self.admin, args="Vandal")
+        manager = self._wire_sessions(ctx)
+        await self._connect(manager, vandal)
+
+        await cmd_nuke(ctx)
+
+        assert manager.get_session_by_player(vandal) is None    # session gone
+        assert vandal in self.persistence.deleted               # and destroyed
+        assert any("has been nuked" in m for m in ctx.session.messages)

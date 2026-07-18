@@ -448,6 +448,8 @@ class GameServer:
                 raise
 
         self._running = True
+        import time as _time
+        self.dispatcher.server_started_at = _time.monotonic()
 
         # Run startup callbacks
         for callback in self._on_start:

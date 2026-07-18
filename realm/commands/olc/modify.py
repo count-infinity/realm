@@ -271,6 +271,12 @@ async def cmd_tag(ctx: CommandContext) -> None:
     if not await require_control(ctx, target):
         return
 
+    from realm.permissions.roles import may_change_role_tag
+    if not may_change_role_tag(ctx.player, tag):
+        await ctx.session.send(
+            f"You can't grant the '{tag}' privilege — it outranks you.")
+        return
+
     if target.has_tag(tag):
         await ctx.session.send(f"{target.name} already has tag '{tag}'.")
         return
@@ -305,6 +311,12 @@ async def cmd_untag(ctx: CommandContext) -> None:
         return
 
     if not await require_control(ctx, target):
+        return
+
+    from realm.permissions.roles import may_change_role_tag
+    if not may_change_role_tag(ctx.player, tag):
+        await ctx.session.send(
+            f"You can't revoke the '{tag}' privilege — it outranks you.")
         return
 
     if not target.has_tag(tag):

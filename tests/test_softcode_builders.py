@@ -1142,6 +1142,63 @@ class TestConditionModifiers:
         assert isinstance(revived, ModifierEffectBehavior)
         assert condition_modifier(clone, "melee") == -2
 
+    async def test_apply_effect_refreshes_same_kind_not_stack(self):
+        """Re-applying the same kind refreshes (deepens/renews), never stacks —
+        effect state is keyed by kind, so a second copy would corrupt both."""
+        from realm.behaviors.effects import TimedEffectBehavior
+        from realm.core.checks import condition_modifier
+        from realm.scripting.functions import ScriptFunctions
+
+        room = GameObject("Bar", tags=["room"])
+        bex = GameObject("Bex", tags=["player"], location=room)
+        funcs = ScriptFunctions(executor=bex, enactor=bex)
+
+        assert funcs.apply_effect(bex, "modifier_effect", kind="drunk",
+                                  duration=12, check_mods={"all": -2}) is True
+        assert funcs.apply_effect(bex, "modifier_effect", kind="drunk",
+                                  duration=12, check_mods={"all": -4}) is True
+
+        drunk = [b for b in bex.get_behaviors()
+                 if isinstance(b, TimedEffectBehavior) and b.kind == "drunk"]
+        assert len(drunk) == 1                             # one effect, not two
+        assert condition_modifier(bex, "stealth") == -4    # deepened, not -6 sum
+        assert bex.has_tag("drunk")
+
+    async def test_apply_effect_refresh_resets_timer(self):
+        """A refresh restarts the countdown from full duration rather than
+        inheriting the replaced effect's remaining beats."""
+        from realm.behaviors.effects import _state_key
+        from realm.scripting.functions import ScriptFunctions
+
+        room = GameObject("Bar", tags=["room"])
+        bex = GameObject("Bex", tags=["player"], location=room)
+        funcs = ScriptFunctions(executor=bex, enactor=bex)
+
+        funcs.apply_effect(bex, "modifier_effect", kind="drunk", duration=12)
+        bex.db.set(_state_key("drunk", "left"), 3)         # several beats elapsed
+        funcs.apply_effect(bex, "modifier_effect", kind="drunk", duration=12)
+
+        # Timer wiped → next beat re-initialises to full duration, not 3.
+        assert bex.db.get(_state_key("drunk", "left")) is None
+
+    async def test_apply_effect_different_kinds_coexist(self):
+        """Refresh only collapses same-kind — distinct kinds stay independent."""
+        from realm.behaviors.effects import TimedEffectBehavior
+        from realm.scripting.functions import ScriptFunctions
+
+        room = GameObject("Field", tags=["room"])
+        vic = GameObject("Vic", tags=["player"], location=room)
+        funcs = ScriptFunctions(executor=vic, enactor=vic)
+
+        funcs.apply_effect(vic, "modifier_effect", kind="drunk",
+                           check_mods={"all": -2})
+        funcs.apply_effect(vic, "modifier_effect", kind="fear",
+                           check_mods={"all": -1})
+
+        kinds = {b.kind for b in vic.get_behaviors()
+                 if isinstance(b, TimedEffectBehavior)}
+        assert {"drunk", "fear"} <= kinds
+
 
 @pytest.mark.asyncio
 class TestTier1AuthorityFixes:

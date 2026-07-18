@@ -140,9 +140,20 @@ class TimedEffectBehavior(BeatBehavior):
     async def pulse(self, obj: GameObject) -> None:
         """Override: the effect's periodic work."""
 
-    async def _expire(self, obj: GameObject) -> None:
+    def clear_state(self, obj: GameObject) -> None:
+        """Delete this effect's per-kind **timer** keys (left/wait).
+
+        Called when the effect expires or is replaced by a fresh application
+        of the same kind, so a refresh restarts from full duration rather than
+        inheriting the old countdown. Deliberately does NOT touch side-effect
+        flags (e.g. ``disposition_boost``'s ``applied``): those must survive a
+        refresh so a re-cast doesn't double- or un-apply the effect's delta.
+        """
         obj.db.delete(_state_key(self.kind, 'left'))
         obj.db.delete(_state_key(self.kind, 'wait'))
+
+    async def _expire(self, obj: GameObject) -> None:
+        self.clear_state(obj)
         expire_msg = self.get_param('expire_msg')
         if expire_msg:
             obj.msg(str(expire_msg))

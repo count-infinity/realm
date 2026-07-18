@@ -118,12 +118,12 @@ keeps the galley's output honest overnight.
   regen chowder (`apply_effect(..., 'regeneration', heal=1)`),
   liquid courage (`check_mods={'all': 1}` — the everything-buff), a
   captain's feast with two effects.
-- **Stacking policy:** `apply_effect` *stacks* — each call attaches a
-  fresh effect, so eating twice runs two `hearty` buffs at once. For
-  one-at-a-time, either `remove_effect(enactor, 'hearty')` immediately
-  before re-applying (refresh, don't stack), or gate `$eat` on
-  `has_tag(enactor, 'hearty')` for an explicit `You are already well
-  fed.` — refuse the second helping outright.
+- **Stacking policy:** `apply_effect` *refreshes* by `kind` — an effect's
+  state is keyed by its kind, so re-applying `hearty` replaces the old one
+  (renewed duration, latest `check_mods`) rather than stacking a second
+  copy. Eating twice keeps a single, freshly-topped-up buff. To refuse the
+  second helping instead, gate `$eat` on `has_tag(enactor, 'hearty')` for an
+  explicit `You are already well fed.`
 - **Buffed crafting:** fold the eater's `check_mods` into a
   hand-rolled craft: read the dict, `sum(v.get('all', 0) +
   v.get('smithing', 0) for v in mods.values())`, add it to the

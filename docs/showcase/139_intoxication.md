@@ -54,13 +54,13 @@ same way — so the transform is testable and a player cannot shake off a bad
 render by re-saying it. The renderer, like all of them, rewrites only the
 words; *"Bex says,"* stays in the bar's own steady voice while Bex does not.
 
-**Progressive, via a counter.** `apply_effect` *stacks* — each call adds
-another effect — so we don't lean on re-application to deepen the buzz.
-Instead `$drink` keeps a `drunks` count on the drinker, bumps it each pull,
-strips the old effect, and re-applies a single one with a deeper penalty
-(`check_mods={'all': -2 * d}`) — while the renderer reads that same counter
-to stretch the vowels further. The count starts fresh once a bout wears off
-and the `drunk` tag is gone.
+**Progressive, via a counter.** `apply_effect` *refreshes* by `kind`, so each
+pull replaces the single `drunk` effect rather than stacking copies. `$drink`
+keeps a `drunks` count on the drinker, bumps it each pull, and re-applies
+`drunk` with a deeper penalty (`check_mods={'all': -2 * d}`) — the counter is
+what deepens the buzz, since the effect itself is one-at-a-time. The renderer
+reads that same counter to stretch the vowels further. The count starts fresh
+once a bout wears off and the `drunk` tag is gone.
 
 **Authority.** `$drink` writes the drinker's own `drunks` counter — a write
 to a patron's sheet — so the bottle is `@create`d by an admin, borrowing
@@ -81,13 +81,13 @@ drunkenness on every pull:
 @create bottle of rotgut
 drop bottle of rotgut
 @desc bottle of rotgut = A squat bottle of unlabelled dock rotgut, three-quarters full. DRINK to take a pull -- each one hits harder than the last.
-@set bottle of rotgut/cmd_drink = $drink: d = (get_attr(enactor, 'drunks', 0) + 1) if has_tag(enactor, 'drunk') else 1; set_attr(enactor, 'drunks', d); remove_effect(enactor, 'drunk'); apply_effect(enactor, 'modifier_effect', kind='drunk', duration=12, check_mods={'all': -2 * d}, apply_msg='The rotgut scorches down. The floor tilts a little further.', expire_msg='Your head clears and the room finally holds still.'); remit(here, name(enactor) + ' tips the bottle back and swallows hard.')
+@set bottle of rotgut/cmd_drink = $drink: d = (get_attr(enactor, 'drunks', 0) + 1) if has_tag(enactor, 'drunk') else 1; set_attr(enactor, 'drunks', d); apply_effect(enactor, 'modifier_effect', kind='drunk', duration=12, check_mods={'all': -2 * d}, apply_msg='The rotgut scorches down. The floor tilts a little further.', expire_msg='Your head clears and the room finally holds still.'); remit(here, name(enactor) + ' tips the bottle back and swallows hard.')
 ```
 
 Each pull bumps the `drunks` count (starting at 1 if the last bout has worn
-off), strips the old effect so it cannot double up, and re-applies `drunk`
-with a penalty scaled to the count. `remove_effect` before `apply_effect`
-guarantees exactly one `drunk` effect carrying the current `-2 * d`.
+off) and re-applies `drunk` with a penalty scaled to the count. Because
+`apply_effect` refreshes by kind, that single call replaces the previous
+effect — exactly one `drunk` at a time, always carrying the current `-2 * d`.
 
 ## Try it
 
