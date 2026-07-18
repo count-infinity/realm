@@ -93,11 +93,13 @@ async def cmd_semipose(ctx: CommandContext) -> None:
         chain=ROOM_TARGET_CHAIN,
         extra={"pose": pose_text},
     )
-    # No space between name and action — the name is pre-formatted here so
-    # {actor} substitution doesn't insert a leading space. The pose text
-    # stays a {speech} token: it is player input, so it must not be
-    # token-substituted, and renderers need a handle on it.
-    line = f"{ctx.player.name}{{speech}}"
+    # No space between name and action. {actor} renders the bare name with
+    # nothing added, so it abuts {speech} cleanly ("Alice's dog barks.") —
+    # and unlike a baked .name it routes through the per-viewer identity seam
+    # (disguise/sdesc) and voice_as, exactly like `pose`. The pose text stays
+    # a {speech} token: player input, never token-substituted, but renderers
+    # need a handle on it.
+    line = "{actor}{speech}"
     action.add_message("actor", line, success_only=True)
     action.add_message("room", line, success_only=True)
     await propagate(action)

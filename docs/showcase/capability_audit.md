@@ -2,7 +2,7 @@
 
 An honest audit of the 250-item showcase checklist (see
 [`checklist.md`](checklist.md)) against REALM's **actual** engine surface as
-of 2026-07-16 — every classification below was checked against source
+of 2026-07-17 — every classification below was checked against source
 (`realm/scripting/functions.py`, `triggers.py`, `realm/behaviors/`,
 `realm/combat/`, `realm/commands/`, `realm/core/`), not the README.
 
@@ -17,7 +17,8 @@ sandboxed-Python function library — no server restart.
 | Class | Meaning | Count |
 |---|---|---|
 | **SOFTCODE-NOW** | expressible today, live in-game | **223** |
-| **ENGINE-SMALL** | needs one modest engine addition (named per row) | **20** |
+| **ENGINE-SMALL — shipped 2026-07-17** | the seam is now in the engine; needs a deploy-time native binding + softcode (items 79/84/85/133/134/139) | **6** |
+| **ENGINE-SMALL — open** | needs one modest engine addition (named per row) | **14** |
 | **ENGINE-MAJOR** | needs a subsystem REALM lacks (named per row) | **7** |
 | | | **250** |
 
@@ -259,7 +260,7 @@ the ranked gap list below.
 |---|---|---|---|
 | 132 | Chargen walkthrough | now | GameSystem ChargenSteps (`rules.py`) *or* an admin-owned clerk `prompt()` wizard writing the sheet live |
 | 133 | Short-descs & introductions | ~~small~~ **SHIPPED 2026-07-17** (`register_name_resolver` sdesc/recog seam; tutorial [133_short_descs](133_short_descs.md)) | **G3 identity layer**: per-viewer naming (sdesc/recog) hook in `perceived_name` |
-| 134 | Disguises | ~~small~~ **SHIPPED 2026-07-17** (disguise resolver + `check_roll` see-through contest; tutorial [134_disguises](134_disguises.md)) | **G3 identity layer**: apparent-name override + softcode rename (no `set_name()` today) |
+| 134 | Disguises | ~~small~~ **SHIPPED 2026-07-17** (disguise resolver + `check_roll` see-through check; tutorial [134_disguises](134_disguises.md)) | **G3 identity layer**: apparent-name override + softcode rename (no `set_name()` today) |
 | 135 | Injury & treatment | now | `modifier_effect` conditions; `firstaid`; `regeneration` behavior; recovery timers |
 | 136 | Encumbrance effects | now | weight-sum softcode on `ON_GET`/`ON_DROP` → `modifier_effect` DX penalty (effects are proximity-gated) |
 | 137 | Hunger & thirst | now | `on_tick` meter attrs; consumable `ON_USE` resets; toggle via zone policy |

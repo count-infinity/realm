@@ -88,8 +88,10 @@ so swallowing the sentence would be the worse failure.
 ### Voice-only disguise (`db.voice_as`)
 
 An actor with a `voice_as` attribute is *attributed* by that name in
-speech — say, pose, whisper, shout, ooc, semipose — for every listener but
-themselves:
+in-character speech — say, pose, whisper, shout, semipose — for every
+listener but themselves. (Out-of-character `ooc` is deliberately exempt: it
+is the *player* speaking, not the character, so it always shows the real
+name — its line bakes `.name` rather than the `{actor}` token.)
 
 ```
 Ada.db.voice_as = "a distorted voice"

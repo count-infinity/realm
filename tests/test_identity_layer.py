@@ -154,6 +154,24 @@ class TestDisguise:
         assert heard(w.sim, w.bob, "know me") == [
             'a hooded figure says, "you don\'t know me"']
 
+    async def test_disguise_covers_semipose(self, world):
+        """Regression: `;` (semipose) once baked the real `.name`, leaking a
+        disguised speaker past the seam. It now renders `{actor}` per viewer
+        like `say`/`pose` — the mask holds for others, the actor still sees
+        themselves, and the no-space form is preserved."""
+        w = world
+        w.alice.db.set('disguise', 'a hooded figure')
+        register_name_resolver(disguise_resolver)
+        w.sim.seen(w.alice)
+        w.sim.seen(w.bob)
+
+        await w.sim.do(w.alice, ";'s hand trembles.")
+
+        assert heard(w.sim, w.bob, "trembles") == [
+            "a hooded figure's hand trembles."]
+        assert heard(w.sim, w.alice, "trembles") == [
+            "Alice's hand trembles."]
+
 
 # --- the boundary: introspection shows the truth ---------------------------
 

@@ -1467,7 +1467,7 @@ named tutorials, so none of these block showcase progress.
   workaround meanwhile. (`docs/showcase/capability_audit.md`)
 - [ ] **`apply_effect` silently stacks same-kind effects — design question.**
   `add_behavior` de-dups with `behavior not in self._behaviors`, but `Behavior`
-  has no `__eq__` (only `GameObject` does), so the check is identity-based and
+  has no `__eq__` (only `GameObject` and `Tag` do), so the check is identity-based and
   `apply_effect` (which mints a fresh instance per call) always appends. Eating
   two stews / drinking twice runs two `modifier_effect`s at once, both applying
   their `check_mods`. Two tutorials (129, 139) assumed re-apply refreshes; both
@@ -2658,6 +2658,17 @@ listener but the speaker, reskins the `{actor}` tokens to that string. `look`,
 the "Players here" list, and `@examine` are untouched — it is deliberately
 narrower than a name resolver. The speaker always hears their own true
 attribution. Pure attr convention, no registration.
+
+**Two coverage notes (verified 2026-07-17):** (a) `ooc` is in the frozenset
+but its command line bakes `.name`, not `{actor}`, so voice_as is inert for
+it — *intentional*: out-of-character speech is the player, not the character,
+and shows the real name. (b) `semipose` (`;`) previously baked `.name` too —
+an oversight that leaked a disguised/unintroduced speaker's real name past
+the whole identity layer. Fixed to use the `{actor}` token
+(`communication.py`), so semipose now honors disguise/sdesc *and* voice_as
+exactly like `pose`; existing no-space output is unchanged (`{actor}` renders
+the bare name with nothing added). So the effective voice_as surface is
+say/pose/whisper/shout/semipose; ooc is the deliberate exception.
 
 This makes 84 and 134 the two clean halves of concealment: `voice_as` hides the
 voice with a known face; a name resolver hides the face while the voice can give

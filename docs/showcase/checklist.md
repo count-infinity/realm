@@ -121,13 +121,13 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 - [x] 76. **Bulletin boards** [now] — per-location or per-org boards with expiring posts. *(board objects, post attrs, on_tick expiry)*
 - [x] 77. **Handheld radios** [now] — tune to frequencies; anyone on the channel hears you. *(^listen relays, search_world by attr, device-gated comms)*
 - [x] 78. **Station PA system** [now] — broadcast announcements to every room in a zone. *(remit loops over zone_rooms())*
-- [x] 79. **Languages** [small] — speech is garbled for listeners lacking the language skill. *(gap G2: per-listener speech transform hook)*
+- [x] 79. **Languages** [small] — speech is garbled for listeners lacking the language skill. *(register_speech_renderer — garble the spoken body per listener)*
 - [ ] 80. **Overheard whispers** [small] — whispering with a Per-based chance of being overheard. *(gap G2: per-bystander leak roll in whisper delivery)*
 - [x] 81. **Graffiti** [now] — write on walls; text persists as a room detail others can read. *(room-owned $-commands, desc_extras, executor authority)*
 - [x] 82. **Newspaper** [now] — periodic issue compiled from player/NPC submissions, sold at kiosks. *(publication attrs, on_tick releases, ON_PAYMENT kiosks)*
 - [x] 83. **Message in a bottle** [now] — send a note that arrives to a random player much later. *(on_tick delayed delivery, rand recipients, serendipity)*
-- [x] 84. **Voice disguise** [small] — modulator that changes your speech attribution. *(gap G2: speaker-attribution override in the speech pipeline)*
-- [x] 85. **Rich emote parser** [small] — targeted emotes with name substitution seen correctly by each viewer. *(gap G3: per-viewer naming/sdesc layer)*
+- [x] 84. **Voice disguise** [small] — modulator that changes your speech attribution. *(db.voice_as — speech-attribution override; face/look unaffected)*
+- [x] 85. **Rich emote parser** [small] — targeted emotes with name substitution seen correctly by each viewer. *(builtin pose /name — per-viewer emote refs; configurable EMOTE_SIGIL)*
 
 ## 8. Economy & Commerce (86–97)
 
@@ -190,13 +190,13 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 ## 12. Character Systems (132–143)
 
 - [x] 132. **Chargen walkthrough** [now] — multi-step chargen with validation and review. *(GameSystem ChargenSteps or admin-owned prompt() wizards)*
-- [x] 133. **Short-descs & introductions** [small] — strangers appear as "a tall woman" until introduced. *(gap G3: per-viewer naming/sdesc-recog layer)*
-- [x] 134. **Disguises** [small] — masks and outfits that change your apparent identity. *(gap G3: apparent-name override + softcode rename)*
+- [x] 133. **Short-descs & introductions** [small] — strangers appear as "a tall woman" until introduced. *(register_name_resolver — per-viewer sdesc/recognition seam)*
+- [x] 134. **Disguises** [small] — masks and outfits that change your apparent identity. *(register_name_resolver disguise + check_roll see-through check)*
 - [x] 135. **Injury & treatment** [now] — wound states affecting stats until treated or healed. *(modifier_effect conditions, firstaid, regeneration)*
 - [x] 136. **Encumbrance effects** [now] — carried weight slows movement and penalizes DX. *(ON_GET/ON_DROP weight sums, modifier_effect penalties)*
 - [x] 137. **Hunger & thirst** [now] — optional survival meters with food/drink satisfying them. *(on_tick meters, ON_USE consumables, zone policy toggles)*
 - [x] 138. **Sleep & rest** [now] — resting recovers FP/HP faster; sleeping players are vulnerable. *(rest tags, regeneration boosts, vulnerability wards)*
-- [x] 139. **Intoxication** [small] — drinks impair stats and slur your speech progressively. *(stacking modifier_effects work now; slurring needs gap G2)*
+- [x] 139. **Intoxication** [small] — drinks impair stats and slur your speech progressively. *(modifier_effect penalty + register_speech_renderer slur, drink-scaled)*
 - [x] 140. **Death & cloning** [now] — death, body handling, and sci-fi clone respawn with costs. *(ON_DEATH, engine corpses/unconsciousness, clone-bay flows)*
 - [x] 141. **Character sheet display** [now] — full sheet rendered attractively. *(the stats command, $sheet via eval_attr layout functions)*
 - [x] 142. **Traits in play** [now] — advantages/disadvantages that actively hook mechanics. *(class_def/skill_def data, trait-driven triggers and wards)*

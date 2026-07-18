@@ -111,7 +111,7 @@ at once: one sweep serves both, each on their own token clock.
   roll an ambush ([tutorial 043](043_hazard_room.md)) on a bad beat, or
   a chance to find something in the ditch.
 - **Reboot-proof journeys:** swap the `wait()` chain for a
-  `script_ticker` on the transit room ([tutorial 152](152_reboot_surviving_timers.md));
+  `script_ticker` on the transit room ([tutorial 152](152_persistent_timers.md));
   the tokens persist, so travel survives a restart.
 - **Faster on a mount:** a [mounted](158_mounts.md) traveller could carry
   a shorter `travel_time` — read a `mounted` marker when minting the
