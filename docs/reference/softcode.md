@@ -248,7 +248,7 @@ veto (a cursed item refusing removal).
 | `get` | `(spec: 'str') -> 'GameObject \| None'` | Get an object by ID or name. | `get('rusty key')  or  get('#3fa9...')` |
 | `get_attr` | `(obj: 'GameObject \| str \| None', attr_name: 'str', default: 'Any' = None) -> 'Any'` | Get an attribute from an object. | `get_attr(enactor, 'hp', 0)` |
 | `has_attr` | `(obj: 'GameObject \| str \| None', attr_name: 'str') -> 'bool'` | Check if an object has an attribute. | `has_attr(me, 'charged')` |
-| `has_entitlement` | `(obj: 'GameObject \| str \| None', entitlement: 'str') -> 'bool'` | Whether an object holds a permission entitlement. |  |
+| `has_entitlement` | `(obj: 'GameObject \| str \| None', entitlement: 'str') -> 'bool'` | Whether an object holds a permission entitlement (read-only). | `has_entitlement(enactor, 'SEE_ALL')` |
 | `has_tag` | `(obj: 'GameObject \| str \| None', tag: 'str') -> 'bool'` | Check if an object has a tag. | `has_tag(enactor, 'player')` |
 | `heal` | `(obj: 'GameObject \| str \| None', amount: 'int') -> 'bool'` | Restore HP (capped at max_hp) to something in the executor's room. | `heal(enactor, 5)` |
 | `highest` | `(pool: 'int', *, sides: 'int' = 6, skill: 'str' = '') -> 'CheckResult'` | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), |  |

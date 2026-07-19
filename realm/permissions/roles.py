@@ -30,14 +30,8 @@ from realm.permissions.entitlements import (
     CONTROL_UNOWNED,
     LOCK_BYPASS,
     LOCK_BYPASS_ALL,
-    PERMISSION_TIER_ENTITLEMENTS,
     SEE_ALL,
     TELEPORT_ANY,
-    TIER_ADMIN,
-    TIER_BUILDER,
-    TIER_GOD,
-    TIER_GUEST,
-    TIER_PLAYER,
     role_def_table,
 )
 
@@ -128,12 +122,11 @@ _BUILTIN_ROLE_ENTITLEMENTS: dict[Role, frozenset[str]] = {}
 
 
 def _build_role_entitlements() -> None:
-    guest = frozenset({TIER_GUEST})
-    player = guest | {TIER_PLAYER}
-    builder = player | {TIER_BUILDER, CONTROL_UNOWNED}
-    admin = builder | {TIER_ADMIN, LOCK_BYPASS, CONTROL_ALL, TELEPORT_ANY,
-                       SEE_ALL}
-    god = admin | {TIER_GOD, LOCK_BYPASS_ALL}
+    guest = frozenset()
+    player = frozenset()
+    builder = player | {CONTROL_UNOWNED}
+    admin = builder | {LOCK_BYPASS, CONTROL_ALL, TELEPORT_ANY, SEE_ALL}
+    god = admin | {LOCK_BYPASS_ALL}
     _BUILTIN_ROLE_ENTITLEMENTS.update({
         Role.GUEST: guest,
         Role.PLAYER: player,
@@ -213,14 +206,17 @@ def has_permission(actor: GameObject | None, permission: str) -> bool:
     """
     Check if an actor may run a command gated at ``permission``.
 
-    The coarse command tiers (guest/player/builder/admin/god) now resolve
-    through the entitlement mechanism: each tier maps to a ``TIER_*``
-    entitlement the built-in roles grant cumulatively, so behaviour is
-    identical to the old rung comparison — but a custom ``role_def`` can be
-    granted a command tier independently of the authority entitlements.
+    This is the *command-access* tier check (guest/player/builder/admin/god),
+    deliberately kept separate from entitlements: it is a coarse rung
+    comparison on the actor's role. Fine-grained *authority* (what a running
+    action may do) lives in the entitlement layer instead. Unifying the two —
+    pushing a command's authorization into the shared service it calls — is a
+    tracked design question (BACKLOG: "Command authorization belongs at the
+    service layer").
     """
-    required = PERMISSION_TIER_ENTITLEMENTS.get(permission.lower(), TIER_PLAYER)
-    return has_entitlement(actor, required)
+    actor_role = get_role(actor)
+    required_level = PERMISSION_LEVELS.get(permission.lower(), Role.PLAYER)
+    return actor_role >= required_level
 
 
 

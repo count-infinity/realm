@@ -42,33 +42,19 @@ TELEPORT_ANY = "TELEPORT_ANY"
 #: See in darkness and through invisibility.
 SEE_ALL = "SEE_ALL"
 
-# --- Command-access tiers -----------------------------------------------------
-# The command dispatcher's coarse permission gate ("player"/"builder"/...),
-# expressed on the same mechanism so a custom role can be granted command
-# access without inheriting the whole rung. Per-command *semantic* entitlements
-# (BUILD, ADMIN_TOOLS, ...) are a future refinement layered on top of these.
-
-TIER_GUEST = "TIER_GUEST"
-TIER_PLAYER = "TIER_PLAYER"
-TIER_BUILDER = "TIER_BUILDER"
-TIER_ADMIN = "TIER_ADMIN"
-TIER_GOD = "TIER_GOD"
-
-#: Command-permission string -> the tier entitlement it requires.
-PERMISSION_TIER_ENTITLEMENTS = {
-    "guest": TIER_GUEST,
-    "player": TIER_PLAYER,
-    "builder": TIER_BUILDER,
-    "admin": TIER_ADMIN,
-    "god": TIER_GOD,
-}
+# NOTE: entitlements deliberately do NOT gate *command access*. Command
+# invocation is still a coarse role-tier check in the dispatcher
+# (``has_permission``). Unifying the two — so a command's authorization lives
+# in the shared service function it calls (``@teleport`` -> ``move_to`` ->
+# entitlement/ownership check), rather than a per-command tier — is a tracked
+# design question (see BACKLOG: "Command authorization belongs at the service
+# layer"). Until then, the registry is authority capabilities only.
 
 #: The closed registry — every valid entitlement name. A ``role_def`` may only
 #: grant names in here; call sites use the constants above.
 ALL_ENTITLEMENTS = frozenset({
     LOCK_BYPASS_ALL, LOCK_BYPASS, CONTROL_ALL, CONTROL_UNOWNED,
     TELEPORT_ANY, SEE_ALL,
-    TIER_GUEST, TIER_PLAYER, TIER_BUILDER, TIER_ADMIN, TIER_GOD,
 })
 
 
@@ -149,8 +135,7 @@ def define_role(name: str, entitlements: list[str]) -> object:
 __all__ = [
     "LOCK_BYPASS_ALL", "LOCK_BYPASS", "CONTROL_ALL", "CONTROL_UNOWNED",
     "TELEPORT_ANY", "SEE_ALL",
-    "TIER_GUEST", "TIER_PLAYER", "TIER_BUILDER", "TIER_ADMIN", "TIER_GOD",
-    "PERMISSION_TIER_ENTITLEMENTS", "ALL_ENTITLEMENTS", "is_entitlement",
+    "ALL_ENTITLEMENTS", "is_entitlement",
     "ROLE_DEF_TAG", "read_role_defs", "reload_role_defs", "role_def_table",
     "define_role",
 ]

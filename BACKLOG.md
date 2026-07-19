@@ -110,13 +110,19 @@ green, +11 tests). What shipped:
   `TestEntitlementDecoupling` (a custom `warden` role granting exactly
   `TELEPORT_ANY` and nothing else — the capability the rung model can't express).
 
+**Command access stays role-tier (deliberately, for now).** Entitlements gate
+*authority* (what a running action may do); **command invocation** is still a
+coarse rung check (`has_permission` → `get_role >= tier`). An interim `TIER_*`
+shim that expressed the command tiers as entitlements was tried and **removed
+2026-07-18** — it re-created the very bundles entitlements exist to break, and
+it exposed a real seam: granting a custom role `TELEPORT_ANY` does *not* let it
+run `@teleport` (the command is tier-gated and never consults the entitlement),
+and `@boot` has no entitlement at all. The sane resolution is architectural, not
+another shim — see the open question below.
+
 **Deferred (follow-ups, not blockers):**
-- **Per-command semantic entitlements.** The dispatcher's coarse tiers
-  (player/builder/admin/god) now resolve through `TIER_*` entitlements
-  (behaviour-identical), so a custom role can be granted a command tier — but
-  individual commands are not yet re-gated on semantic entitlements (`BUILD`,
-  `ADMIN_TOOLS`). `has_permission`/`PERMISSION_LEVELS` are reimplemented on the
-  new mechanism but not deleted (still exported).
+- **Command authorization belongs at the service layer** — the open question,
+  filed separately below.
 - **`may_change_role_tag` stays rank-based** (2026-07-17 fix), deliberately: the
   "grant only below your own rank" rule is *finer* than a flat `GRANT_ROLE`
   boolean would be. Revisit only if a use case needs a custom role to grant
@@ -176,7 +182,7 @@ what makes this cheap):
       `TELEPORT_ANY`
 - [x] `core/perception.py:48` — ADMIN sees in darkness / through
       invisibility → `SEE_ALL`
-- [~] `server/dispatcher.py` — tier strings now resolve via `TIER_*` entitlements (behaviour-identical); per-command semantic entitlements (`BUILD`/`ADMIN_TOOLS`) and deleting `has_permission`/`PERMISSION_LEVELS` are the deferred follow-up. Original: `Command.permission` tier strings
+- [ ] `server/dispatcher.py` — NOT converted. Command access stays a role-tier rung check (`has_permission`/`PERMISSION_LEVELS` unchanged). The interim `TIER_*` entitlement mapping was removed 2026-07-18; the real fix is the "service-layer authorization" open question below, not per-command tier entitlements. Original: `Command.permission` tier strings
       (`"player"/"builder"/"admin"/"god"`) become a required
       entitlement per command (`BUILD` for OLC, `ADMIN_TOOLS`, ...);
       `has_permission()` / `PERMISSION_LEVELS` retire with it
@@ -196,6 +202,53 @@ Open questions (product pass before building):
   namespacing — decide once, registry-enforced either way.
 - NPCs rank as PLAYER today (possession work, 2026-07-05) — keep, via
   the player role's set.
+
+### Command authorization belongs at the service layer (open question, 2026-07-18)
+
+Today authorization lives in **two places with two vocabularies**: the command
+dispatcher gates *invocation* by a coarse role tier (`Command.permission`
+→ `has_permission` → `get_role >= tier`), while *authority* (what the action
+may actually do) is checked deeper, in entitlements + `controls()`. They don't
+share a language, which is why granting a custom role `TELEPORT_ANY` doesn't let
+it run `@teleport`, and why `@boot` (pure `admin` tier) can't be granted to a
+custom role at all.
+
+**The direction (from design discussion):** a command should be a *thin shell*
+— parse args, then call the **shared service function** that does the real work,
+and that service enforces authority uniformly for *every* caller (command,
+softcode, another service). `@teleport` and softcode `move()` both call
+`move_to()`, which already checks `may_relocate`/entitlements — so `@teleport`
+needs no `permission` of its own; the service is the one gate. Authorization
+stops being a property of the *command* and becomes a property of the *action*.
+This collapses the two vocabularies into one and makes custom roles coherent (a
+`role_def` that grants the authority the service checks can run the command).
+
+Sub-problems to resolve before adopting:
+- **Not every command has a service yet.** Many act inline (e.g. `cmd_boot`
+  disconnects a session directly). Those need a service extracted
+  (`boot_player(actor, target)`), which is also where a new authority for the
+  action gets named (a `KICK`-style entitlement, or a `controls()`-based rule).
+  The manipulation verbs (`gate_item_action`) and `move_to` are the reference
+  shape — already service-gated.
+- **Creation/builder commands** (`@dig`, `@create`) have no object to
+  `controls()` yet — their authority is currently just "builder tier." A
+  `create_*` service would check a `BUILD`-type entitlement.
+- **Visual grouping / discoverability.** The permission tier doubles as
+  audience metadata ("staff commands"). Topic grouping already uses
+  `Command.category`; a display-only `audience` field (or deriving it from the
+  service's required entitlement) would preserve the "what can a builder do?"
+  view once tiers are gone. Answering "may I run this?" for a command menu also
+  gets harder when the check is deep in a service (cf. AWS needing a policy
+  *simulator*) — may want a cheap `would_authorize()` probe.
+- **Early rejection UX.** A tier check rejects before parsing; a service check
+  happens after. Minor, but affects error messages.
+
+Recommended shape: incremental. Audit commands, push authorization into the
+shared service each calls (create the service where missing), drop
+`Command.permission` where the service already gates, add a display-only
+`audience`, and name authority for creation-type actions. Do it a cluster at a
+time (movement, then moderation, then building), not a big-bang sweep — driven
+by the preset roles that actually need each capability.
 
 ### Maintainability review findings (2026-07-02) — not yet fixed
 

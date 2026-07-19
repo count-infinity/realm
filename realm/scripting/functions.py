@@ -326,15 +326,13 @@ class ScriptFunctions:
 
     def has_entitlement(self, obj: GameObject | str | None,
                         entitlement: str) -> bool:
-        """Whether an object holds a permission entitlement.
+        """Whether an object holds a permission entitlement (read-only).
 
-        Read-only. The capability layer under roles: instead of asking "is
-        this an admin?", ask what you actually mean —
+        The capability layer under roles: instead of asking "is this an
+        admin?", ask what you actually mean. Built-in roles grant the classic
+        sets; a game's own `role_def` ranks may grant them too.
 
-            has_entitlement(enactor, 'SEE_ALL')
-
-        Built-in roles grant the classic sets; a game's own `role_def` ranks
-        may grant them too.
+        Example: has_entitlement(enactor, 'SEE_ALL')
         """
         from realm.permissions.roles import has_entitlement
         target = self._resolve(obj)

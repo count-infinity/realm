@@ -347,16 +347,16 @@ def _player(name, *roles):
     return GameObject(name, tags=['player', *roles])
 
 
+# Entitlements are authority capabilities only — command tiers are NOT
+# entitlements (command access stays a coarse role rung; see has_permission).
 _LADDER = {
-    'guest':   {E.TIER_GUEST},
-    'player':  {E.TIER_GUEST, E.TIER_PLAYER},
-    'builder': {E.TIER_GUEST, E.TIER_PLAYER, E.TIER_BUILDER, E.CONTROL_UNOWNED},
-    'admin':   {E.TIER_GUEST, E.TIER_PLAYER, E.TIER_BUILDER, E.CONTROL_UNOWNED,
-                E.TIER_ADMIN, E.LOCK_BYPASS, E.CONTROL_ALL, E.TELEPORT_ANY,
-                E.SEE_ALL},
-    'god':     {E.TIER_GUEST, E.TIER_PLAYER, E.TIER_BUILDER, E.CONTROL_UNOWNED,
-                E.TIER_ADMIN, E.LOCK_BYPASS, E.CONTROL_ALL, E.TELEPORT_ANY,
-                E.SEE_ALL, E.TIER_GOD, E.LOCK_BYPASS_ALL},
+    'guest':   set(),
+    'player':  set(),
+    'builder': {E.CONTROL_UNOWNED},
+    'admin':   {E.CONTROL_UNOWNED, E.LOCK_BYPASS, E.CONTROL_ALL,
+                E.TELEPORT_ANY, E.SEE_ALL},
+    'god':     {E.CONTROL_UNOWNED, E.LOCK_BYPASS, E.CONTROL_ALL,
+                E.TELEPORT_ANY, E.SEE_ALL, E.LOCK_BYPASS_ALL},
 }
 
 
@@ -453,8 +453,8 @@ class TestEntitlementDecoupling:
         assert not has_entitlement(warden, E.CONTROL_ALL)
         assert not has_entitlement(warden, E.LOCK_BYPASS)
         assert not has_entitlement(warden, E.LOCK_BYPASS_ALL)
-        # Still a normal player underneath (union with the player base).
-        assert has_entitlement(warden, E.TIER_PLAYER)
+        # ...and it grants no command access: the warden is still role PLAYER,
+        # so command tiers (a separate rung check) refuse admin commands.
         assert not has_permission(warden, 'admin')
 
     def test_custom_role_composes_with_a_builtin_role(self, role_world):

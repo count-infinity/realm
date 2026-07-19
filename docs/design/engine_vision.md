@@ -99,6 +99,33 @@ Applied at three layers:
 Ownership: objects you @create/@clone are yours. World-init objects
 are unowned (staff territory). `@chown` transfers.
 
+### Roles as entitlement sets (2026-07-18)
+
+The role rungs above are no longer bare comparisons. Each cross-cutting
+power a rung used to imply is now a named **entitlement** — `CONTROL_ALL`
+(rule 3, ADMIN+ controls everything), `CONTROL_UNOWNED` (rule 4, builder
+reach), plus `LOCK_BYPASS` / `LOCK_BYPASS_ALL`, `TELEPORT_ANY`, and
+`SEE_ALL` (see-through-dark/invisible). Every former `get_role() >= Role.X`
+check now asks for the one entitlement it actually meant
+(`has_entitlement(actor, 'SEE_ALL')`). A **role** is a named set of these;
+the built-in roles reproduce the old ladder exactly, so this is
+behaviour-preserving. The payoff is **roles as data**: a game `@create`s a
+`role_def` object listing entitlements, and a player tagged with its name
+gains exactly those — a "warden" who can `TELEPORT_ANY` but not
+`CONTROL_ALL`, a rank the five rungs can't express. Exposed to softcode as
+read-only `has_entitlement(obj, ent)` and to the lock DSL as
+`caller.has_entitlement('X')`. `controls()`' ownership/delegation model
+(rules 1–2, 5–7) is unchanged — entitlements are the cross-cutting layer,
+not a replacement for ownership.
+
+Two boundaries kept deliberately separate (tracked in BACKLOG): **command
+access** is still a coarse role-tier check in the dispatcher
+(`has_permission`), not an entitlement — unifying it by pushing a command's
+authorization into the shared service it calls is an open question. And
+granting a *role tag* (god/admin/builder/…) is rank-gated
+(`may_change_role_tag`), so control of an object never implies control of
+its rank.
+
 ## Known trade-off: script threads vs the event loop
 
 Sandbox scripts run in a worker thread (so runaway scripts can't stall
