@@ -311,6 +311,13 @@ class GameServer:
                 logger.error(f"Error in init_world callback: {e}")
                 raise
 
+        # Pick up any custom role_def ranks now the world is in the cache
+        # (built-in roles work without this; this activates data-defined ranks
+        # from boot — including any init_world just created — rather than
+        # waiting for the first @reload).
+        from realm.permissions.entitlements import reload_role_defs
+        reload_role_defs()
+
         # Fall back to a default startup room if the world still lacks one.
         await self._ensure_startup_room()
 

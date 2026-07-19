@@ -216,6 +216,14 @@ class GameObject:
         """Check if this object has a specific tag."""
         return self.tags.has(tag)
 
+    def has_entitlement(self, entitlement: str) -> bool:
+        """Whether this object holds a permission entitlement (see
+        ``permissions.entitlements``). Exposed as a method so lock expressions
+        can gate on capability directly, e.g.
+        ``caller.has_entitlement('TELEPORT_ANY')``."""
+        from realm.permissions.roles import has_entitlement
+        return has_entitlement(self, entitlement)
+
     def add_tag(self, tag: str) -> None:
         """Add a tag to this object."""
         self.tags.add(tag)

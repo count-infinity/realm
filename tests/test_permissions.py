@@ -1,19 +1,29 @@
 """Tests for the permission system."""
 
+import pytest
+
 from realm.core.objects import GameObject
+from realm.permissions import entitlements as E
+from realm.permissions.entitlements import (
+    define_role,
+    reload_role_defs,
+)
 from realm.permissions.locks import (
     Lock,
     LockEvaluator,
     LockType,
     check_lock,
     clear_lock,
+    controls,
     get_lock,
     parse_lock,
     set_lock,
 )
 from realm.permissions.roles import (
     Role,
+    entitlements_of,
     get_role,
+    has_entitlement,
     has_permission,
     may_change_role_tag,
     role_conferred_by_tag,
@@ -329,3 +339,161 @@ class TestRoleTagAuthority:
         assert funcs.add_tag(booth, 'builder') is True   # admin > builder
         assert funcs.add_tag(booth, 'admin') is False    # admin !> admin
 
+
+
+# --- Entitlement refactor (2026-07-18) ---------------------------------------
+
+def _player(name, *roles):
+    return GameObject(name, tags=['player', *roles])
+
+
+_LADDER = {
+    'guest':   {E.TIER_GUEST},
+    'player':  {E.TIER_GUEST, E.TIER_PLAYER},
+    'builder': {E.TIER_GUEST, E.TIER_PLAYER, E.TIER_BUILDER, E.CONTROL_UNOWNED},
+    'admin':   {E.TIER_GUEST, E.TIER_PLAYER, E.TIER_BUILDER, E.CONTROL_UNOWNED,
+                E.TIER_ADMIN, E.LOCK_BYPASS, E.CONTROL_ALL, E.TELEPORT_ANY,
+                E.SEE_ALL},
+    'god':     {E.TIER_GUEST, E.TIER_PLAYER, E.TIER_BUILDER, E.CONTROL_UNOWNED,
+                E.TIER_ADMIN, E.LOCK_BYPASS, E.CONTROL_ALL, E.TELEPORT_ANY,
+                E.SEE_ALL, E.TIER_GOD, E.LOCK_BYPASS_ALL},
+}
+
+
+class TestEntitlementLadderEquivalence:
+    """The built-in roles reproduce the old rung ladder exactly, so the
+    cut-over from ``get_role(x) >= Role.Y`` to ``has_entitlement`` is
+    behaviour-preserving."""
+
+    def test_builtin_role_entitlement_sets(self):
+        # guest tag alone (a guest is not tagged 'player')
+        assert set(entitlements_of(GameObject('Gu', tags=['guest']))) == _LADDER['guest']
+        for role in ('player', 'builder', 'admin', 'god'):
+            got = set(entitlements_of(_player(role.title(), role)))
+            assert got == _LADDER[role], f"{role}: {got}"
+
+    def test_authority_entitlements_track_the_old_rungs(self):
+        god, admin, builder, player = (
+            _player('G', 'god'), _player('A', 'admin'),
+            _player('B', 'builder'), _player('P'))
+        # LOCK_BYPASS_ALL: god only
+        assert has_entitlement(god, E.LOCK_BYPASS_ALL)
+        assert not has_entitlement(admin, E.LOCK_BYPASS_ALL)
+        # LOCK_BYPASS / CONTROL_ALL / TELEPORT_ANY / SEE_ALL: admin+ (was >=ADMIN)
+        for ent in (E.LOCK_BYPASS, E.CONTROL_ALL, E.TELEPORT_ANY, E.SEE_ALL):
+            assert has_entitlement(admin, ent) and has_entitlement(god, ent)
+            assert not has_entitlement(builder, ent)
+        # CONTROL_UNOWNED: builder+ (was >=BUILDER)
+        assert has_entitlement(builder, E.CONTROL_UNOWNED)
+        assert not has_entitlement(player, E.CONTROL_UNOWNED)
+
+    def test_controls_still_matches_the_ladder(self):
+        admin, builder, player = (
+            _player('A', 'admin'), _player('B', 'builder'), _player('P'))
+        world_prop = GameObject('statue', tags=['thing'])       # unowned, non-player
+        # admin controls everything; builder controls unowned world objects;
+        # a plain player controls neither.
+        assert controls(admin, world_prop)
+        assert controls(builder, world_prop)
+        assert not controls(player, world_prop)
+
+    def test_has_permission_matches_the_ladder(self):
+        rungs = ['guest', 'player', 'builder', 'admin', 'god']
+        for i, role in enumerate(rungs):
+            who = GameObject(role, tags=[role]) if role == 'guest' else _player(role, role)
+            for j, tier in enumerate(rungs):
+                assert has_permission(who, tier) == (i >= j), f"{role} vs {tier}"
+
+    def test_quelled_admin_has_only_player_entitlements(self):
+        quelled = _player('A', 'admin')
+        quelled.add_tag('quelled')
+        assert set(entitlements_of(quelled)) == _LADDER['player']
+        assert not has_entitlement(quelled, E.CONTROL_ALL)
+
+
+class _FakeManager:
+    """Minimal active-manager so find_objects can see role_def objects."""
+    def __init__(self, objs):
+        self._objs = list(objs)
+    def all_cached(self):
+        return list(self._objs)
+
+
+@pytest.fixture
+def role_world():
+    """Register a set of world objects as the active manager, and reset the
+    role_def cache after — so custom roles don't leak between tests."""
+    from realm.persistence.manager import set_active_manager
+
+    created = []
+
+    def install(*objs):
+        created.extend(objs)
+        set_active_manager(_FakeManager(created))
+        reload_role_defs()
+
+    try:
+        yield install
+    finally:
+        set_active_manager(None)
+        reload_role_defs()
+
+
+class TestEntitlementDecoupling:
+    """The payoff: a custom role grants exactly what its data lists — a
+    capability the rung ladder could never express."""
+
+    def test_custom_role_grants_only_its_entitlements(self, role_world):
+        role_world(define_role('warden', [E.TELEPORT_ANY, E.SEE_ALL]))
+        warden = _player('W', 'warden')
+        # Gains exactly the two listed authority entitlements...
+        assert has_entitlement(warden, E.TELEPORT_ANY)
+        assert has_entitlement(warden, E.SEE_ALL)
+        # ...and NONE of the rest of the admin bundle.
+        assert not has_entitlement(warden, E.CONTROL_ALL)
+        assert not has_entitlement(warden, E.LOCK_BYPASS)
+        assert not has_entitlement(warden, E.LOCK_BYPASS_ALL)
+        # Still a normal player underneath (union with the player base).
+        assert has_entitlement(warden, E.TIER_PLAYER)
+        assert not has_permission(warden, 'admin')
+
+    def test_custom_role_composes_with_a_builtin_role(self, role_world):
+        role_world(define_role('warden', [E.TELEPORT_ANY]))
+        both = _player('W', 'builder', 'warden')
+        assert has_entitlement(both, E.CONTROL_UNOWNED)   # from builder
+        assert has_entitlement(both, E.TELEPORT_ANY)      # from warden
+        assert not has_entitlement(both, E.CONTROL_ALL)   # neither grants it
+
+    def test_unknown_entitlement_in_role_def_is_dropped(self, role_world):
+        role_world(define_role('bogus', ['NOT_A_REAL_ENTITLEMENT', E.SEE_ALL]))
+        who = _player('X', 'bogus')
+        assert has_entitlement(who, E.SEE_ALL)                    # valid one kept
+        assert 'NOT_A_REAL_ENTITLEMENT' not in entitlements_of(who)  # typo dropped
+
+    def test_quell_suppresses_custom_roles_too(self, role_world):
+        role_world(define_role('warden', [E.TELEPORT_ANY]))
+        warden = _player('W', 'warden')
+        warden.add_tag('quelled')
+        assert not has_entitlement(warden, E.TELEPORT_ANY)
+
+
+class TestEntitlementSoftcodeSurface:
+    """The two softcode-facing entry points: the read-only `has_entitlement`
+    function and the `caller.has_entitlement(...)` lock-DSL method."""
+
+    def test_softcode_has_entitlement(self):
+        admin = GameObject('A', tags=['player', 'admin'])
+        gadget = GameObject('g', tags=['thing'])
+        funcs = ScriptFunctions(executor=gadget, enactor=admin)
+        assert funcs.has_entitlement(admin, 'SEE_ALL') is True
+        assert funcs.has_entitlement(admin, 'LOCK_BYPASS_ALL') is False
+        assert 'has_entitlement' in ScriptFunctions._READONLY  # check-pass safe
+
+    def test_lock_dsl_caller_has_entitlement(self):
+        ev = LockEvaluator()
+        admin = GameObject('A', tags=['player', 'admin'])
+        player = GameObject('P', tags=['player'])
+        door = GameObject('door', tags=['thing'])
+        expr = "caller.has_entitlement('SEE_ALL')"
+        assert ev.evaluate(expr, admin, door) is True
+        assert ev.evaluate(expr, player, door) is False

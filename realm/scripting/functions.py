@@ -324,6 +324,22 @@ class ScriptFunctions:
         target = self._resolve(obj)
         return target.tags.to_list() if target else []
 
+    def has_entitlement(self, obj: GameObject | str | None,
+                        entitlement: str) -> bool:
+        """Whether an object holds a permission entitlement.
+
+        Read-only. The capability layer under roles: instead of asking "is
+        this an admin?", ask what you actually mean —
+
+            has_entitlement(enactor, 'SEE_ALL')
+
+        Built-in roles grant the classic sets; a game's own `role_def` ranks
+        may grant them too.
+        """
+        from realm.permissions.roles import has_entitlement
+        target = self._resolve(obj)
+        return has_entitlement(target, str(entitlement)) if target else False
+
     def add_tag(self, obj: GameObject | str | None, tag: str) -> bool:
         """Add a tag to an object the executor controls.
 
@@ -1638,6 +1654,7 @@ class ScriptFunctions:
         # object / attribute / tag reads
         'get', 'name', 'loc', 'owner', 'contents', 'exits',
         'get_attr', 'V', 'has_attr', 'has_tag', 'tags', 'tag_value', 'tag_values',
+        'has_entitlement',
         # world reads
         'controls', 'search_world', 'zone_rooms', 'zones_of', 'test_lock',
         'credits', 'disposition',
@@ -1684,6 +1701,7 @@ class ScriptFunctions:
             # Tag functions
             'has_tag': self.has_tag,
             'tags': self.tags,
+            'has_entitlement': self.has_entitlement,
             'add_tag': self.add_tag,
             'remove_tag': self.remove_tag,
             # World manipulation (authority-gated)

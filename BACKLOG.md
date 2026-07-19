@@ -87,6 +87,43 @@ framework is fully in place.
 
 ### Entitlement-based security: roles carry granular grants (requested 2026-07-16)
 
+**LARGELY RESOLVED 2026-07-18.** The entitlement layer is built and the
+capability-conflation surface is decoupled, behaviour-preserving (full suite
+green, +11 tests). What shipped:
+- `permissions/entitlements.py` — a closed registry of entitlement constants
+  (`ALL_ENTITLEMENTS`, typo-guarded), and `role_def` objects as data
+  (`read_role_defs`/`reload_role_defs`, mirroring `skill_def`).
+- `roles.py` — `entitlements_of(obj)` / `has_entitlement(obj, ent)`, with the
+  built-in roles reproducing the old ladder *exactly* (cumulative sets), so the
+  cut-over is a no-op for stock games. Custom `role_def` tags union on top; a
+  quelled actor is stripped to the player set and its custom-role tags ignored.
+- The 6 fine-grained authority sites now ask for the entitlement they mean
+  (see checkboxes below). `controls()` and lock evaluation keep their
+  ownership/delegation model unchanged — only their rung comparisons became
+  entitlement checks.
+- Softcode surface: read-only `has_entitlement(obj, ent)` function, and
+  `GameObject.has_entitlement()` so the lock DSL can gate on
+  `caller.has_entitlement('SEE_ALL')`.
+- `role_def` cache refreshed at `@reload`, area `@import`, and server startup.
+- Migration proof: `tests/test_permissions.py::TestEntitlementLadderEquivalence`
+  (ladder-equivalence incl. `controls`, `has_permission`, quell) and
+  `TestEntitlementDecoupling` (a custom `warden` role granting exactly
+  `TELEPORT_ANY` and nothing else — the capability the rung model can't express).
+
+**Deferred (follow-ups, not blockers):**
+- **Per-command semantic entitlements.** The dispatcher's coarse tiers
+  (player/builder/admin/god) now resolve through `TIER_*` entitlements
+  (behaviour-identical), so a custom role can be granted a command tier — but
+  individual commands are not yet re-gated on semantic entitlements (`BUILD`,
+  `ADMIN_TOOLS`). `has_permission`/`PERMISSION_LEVELS` are reimplemented on the
+  new mechanism but not deleted (still exported).
+- **`may_change_role_tag` stays rank-based** (2026-07-17 fix), deliberately: the
+  "grant only below your own rank" rule is *finer* than a flat `GRANT_ROLE`
+  boolean would be. Revisit only if a use case needs a custom role to grant
+  ranks it doesn't itself outrank.
+
+Original design notes below (for the deferred parts).
+
 Today privilege is a five-rung `IntEnum` ladder (GUEST < PLAYER <
 BUILDER < ADMIN < GOD, assigned by player tags) and every privileged
 code path is a rung comparison. That conflates capabilities: `>=
@@ -124,26 +161,26 @@ Design sketch:
 Call-site inventory — the entire ladder surface today (small, which is
 what makes this cheap):
 
-- [ ] `permissions/locks.py:178` — GOD bypasses all locks →
+- [x] `permissions/locks.py:178` — GOD bypasses all locks →
       `LOCK_BYPASS_ALL`
-- [ ] `permissions/locks.py:182` — ADMIN bypasses locks, except
+- [x] `permissions/locks.py:182` — ADMIN bypasses locks, except
       CONTROL of god-owned objects → `LOCK_BYPASS` (keep the
       rival-authority carve-out: a bypass entitlement never beats an
       owner holding `LOCK_BYPASS_ALL`)
-- [ ] `permissions/locks.py:254` — ADMIN controls everything →
+- [x] `permissions/locks.py:254` — ADMIN controls everything →
       `CONTROL_ALL` (this is the `FORCE_ALL` example: @force,
       possession, and mutation all ride `controls()`)
-- [ ] `permissions/locks.py:256` — BUILDER controls unowned non-player
+- [x] `permissions/locks.py:256` — BUILDER controls unowned non-player
       objects → `CONTROL_UNOWNED`
-- [ ] `core/movement.py:271` — ADMIN tunnels destination locks →
+- [x] `core/movement.py:271` — ADMIN tunnels destination locks →
       `TELEPORT_ANY`
-- [ ] `core/perception.py:48` — ADMIN sees in darkness / through
+- [x] `core/perception.py:48` — ADMIN sees in darkness / through
       invisibility → `SEE_ALL`
-- [ ] `server/dispatcher.py` — `Command.permission` tier strings
+- [~] `server/dispatcher.py` — tier strings now resolve via `TIER_*` entitlements (behaviour-identical); per-command semantic entitlements (`BUILD`/`ADMIN_TOOLS`) and deleting `has_permission`/`PERMISSION_LEVELS` are the deferred follow-up. Original: `Command.permission` tier strings
       (`"player"/"builder"/"admin"/"god"`) become a required
       entitlement per command (`BUILD` for OLC, `ADMIN_TOOLS`, ...);
       `has_permission()` / `PERMISSION_LEVELS` retire with it
-- [ ] Migration tests: (a) ladder-equivalence — every existing
+- [x] Migration tests: (a) ladder-equivalence — every existing
       permission test passes unmodified with the default role table;
       (b) decoupling proof — a custom `role_def` granting exactly one
       entitlement gets that capability and no other

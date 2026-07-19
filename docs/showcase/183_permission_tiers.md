@@ -166,6 +166,16 @@ attribute more.
 - **quell in review** — quell before walking your own
   [approval gate](179_approval_queue.md) or [jail](177_jail_system.md) to
   confirm a mortal really can't slip through.
+- **Roles are entitlement sets — mint your own rank.** Under the ladder,
+  each rung is really a *set of capabilities* (`SEE_ALL`, `TELEPORT_ANY`,
+  `CONTROL_ALL`, `LOCK_BYPASS`, …), and every gate above asks for the one it
+  means rather than a rung. That lets a game define a custom rank **as data**:
+  `@create warden`, `@tag warden = role_def`, `@set warden/entitlements =
+  ["TELEPORT_ANY"]`, `@reload` — now a player tagged `warden` can tunnel to any
+  room *without* control-all or lock-bypass, a rank the five rungs can't
+  express. Softcode reads it with `has_entitlement(enactor, 'TELEPORT_ANY')`,
+  and a lock can gate on `caller.has_entitlement('SEE_ALL')`. Unknown
+  entitlement names are refused at load, and `quell` drops custom ranks too.
 - **The capstone** — [restricted player scripting](250_player_scripting.md)
   hands this exact model to *players* and attacks it: same roles, same
   `controls()`, same locks, every wall holding.

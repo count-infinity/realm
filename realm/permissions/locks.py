@@ -27,7 +27,13 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from realm.core.safe_eval import SAFE_EXPR_BUILTINS, compile_expression, eval_bool
-from realm.permissions.roles import Role, get_role
+from realm.permissions.entitlements import (
+    CONTROL_ALL,
+    CONTROL_UNOWNED,
+    LOCK_BYPASS,
+    LOCK_BYPASS_ALL,
+)
+from realm.permissions.roles import has_entitlement
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -174,14 +180,15 @@ class LockEvaluator:
         if isinstance(lock_type, str):
             lock_type = LockType(lock_type)
 
-        # God bypasses all locks
-        if get_role(caller) >= Role.GOD:
+        # Bypass every lock (superuser).
+        if has_entitlement(caller, LOCK_BYPASS_ALL):
             return True
 
-        # Admin bypasses most locks except control on god-owned objects
-        if get_role(caller) >= Role.ADMIN:
+        # Bypass most locks — but not CONTROL of an object owned by someone
+        # whose authority is itself unbypassable (a god): rival authority wins.
+        if has_entitlement(caller, LOCK_BYPASS):
             if lock_type == LockType.CONTROL:
-                if target.owner and get_role(target.owner) >= Role.GOD:
+                if target.owner and has_entitlement(target.owner, LOCK_BYPASS_ALL):
                     return False
             return True
 
@@ -250,10 +257,10 @@ def controls(actor: GameObject | None, obj: GameObject | None,
         return True
     if obj.owner is not None and actor.id == obj.owner.id:
         return True
-    role = get_role(actor)
-    if role >= Role.ADMIN:
+    if has_entitlement(actor, CONTROL_ALL):
         return True
-    if role >= Role.BUILDER and obj.owner is None and not obj.has_tag('player'):
+    if (has_entitlement(actor, CONTROL_UNOWNED)
+            and obj.owner is None and not obj.has_tag('player')):
         return True
     if (actor.owner is None and obj.owner is None
             and not actor.has_tag('player') and not obj.has_tag('player')):

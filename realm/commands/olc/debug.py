@@ -50,9 +50,11 @@ async def cmd_reload(ctx: CommandContext) -> None:
 
     Usage: @reload
     """
+    from realm.permissions.entitlements import reload_role_defs
     from realm.systems import reload_rules
 
     reload_rules()
+    reload_role_defs()   # custom role_def ranks take effect immediately
     await ctx.session.send("Rules reloaded from the world.")
 
 

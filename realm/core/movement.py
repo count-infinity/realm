@@ -266,9 +266,10 @@ def _mover_owns_destination(mover: GameObject | None,
     """
     if mover is None:
         return False
+    from realm.permissions.entitlements import TELEPORT_ANY
     from realm.permissions.locks import controls
-    from realm.permissions.roles import Role, get_role
-    if get_role(mover) >= Role.ADMIN:
+    from realm.permissions.roles import has_entitlement
+    if has_entitlement(mover, TELEPORT_ANY):
         return True
     return destination.owner is not None and controls(mover, destination)
 

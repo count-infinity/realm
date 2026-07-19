@@ -43,9 +43,12 @@ LOUD_ACTIONS = {
 }
 
 
-def _is_admin(viewer: GameObject) -> bool:
-    from realm.permissions.roles import Role, get_role
-    return get_role(viewer) >= Role.ADMIN
+def _sees_all(viewer: GameObject) -> bool:
+    """Whether ``viewer`` sees through darkness and invisibility — the SEE_ALL
+    entitlement (every built-in ADMIN+ has it; a custom role may too)."""
+    from realm.permissions.entitlements import SEE_ALL
+    from realm.permissions.roles import has_entitlement
+    return has_entitlement(viewer, SEE_ALL)
 
 
 def room_is_lit(room: GameObject | None) -> bool:
@@ -72,7 +75,7 @@ def can_see_room(viewer: GameObject | None, room: GameObject | None) -> bool:
         return True
     if room_is_lit(room):
         return True
-    return viewer.has_tag(NIGHTVISION_TAG) or _is_admin(viewer)
+    return viewer.has_tag(NIGHTVISION_TAG) or _sees_all(viewer)
 
 
 def can_see(viewer: GameObject | None, obj: GameObject) -> bool:
@@ -85,7 +88,7 @@ def can_see(viewer: GameObject | None, obj: GameObject) -> bool:
     """
     if viewer is None or viewer is obj:
         return True
-    if _is_admin(viewer):
+    if _sees_all(viewer):
         return True
     if obj.has_tag(INVISIBLE_TAG) and not viewer.has_tag(SEE_INVISIBLE_TAG):
         return False
@@ -116,12 +119,12 @@ def display_markers(obj: GameObject, looker: GameObject | None) -> str:
     if obj.has_tag('glowing'):
         marks.append('glowing')
     if obj.has_tag('magic') and looker is not None and (
-            looker.has_tag('detect_magic') or _is_admin(looker)):
+            looker.has_tag('detect_magic') or _sees_all(looker)):
         marks.append('magic')
-    if obj.has_tag(HIDDEN_TAG) and looker is not None and _is_admin(looker):
+    if obj.has_tag(HIDDEN_TAG) and looker is not None and _sees_all(looker):
         marks.append('hidden')
     if obj.has_tag('invisible') and looker is not None and (
-            looker.has_tag('see_invisible') or _is_admin(looker)):
+            looker.has_tag('see_invisible') or _sees_all(looker)):
         marks.append('invisible')
     return f" ({', '.join(marks)})" if marks else ""
 

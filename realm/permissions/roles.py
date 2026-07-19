@@ -25,6 +25,22 @@ from __future__ import annotations
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
+from realm.permissions.entitlements import (
+    CONTROL_ALL,
+    CONTROL_UNOWNED,
+    LOCK_BYPASS,
+    LOCK_BYPASS_ALL,
+    PERMISSION_TIER_ENTITLEMENTS,
+    SEE_ALL,
+    TELEPORT_ANY,
+    TIER_ADMIN,
+    TIER_BUILDER,
+    TIER_GOD,
+    TIER_GUEST,
+    TIER_PLAYER,
+    role_def_table,
+)
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -103,6 +119,60 @@ def get_role(obj: GameObject | None) -> Role:
     return Role.GUEST
 
 
+# Built-in role -> the entitlements it grants, cumulative up the ladder so the
+# old rung comparisons stay exactly true (a GOD has everything an ADMIN has,
+# etc.). This table is the single definition of "what each rung could do";
+# every former ``get_role(x) >= Role.Y`` gate now asks for the one entitlement
+# it actually meant.
+_BUILTIN_ROLE_ENTITLEMENTS: dict[Role, frozenset[str]] = {}
+
+
+def _build_role_entitlements() -> None:
+    guest = frozenset({TIER_GUEST})
+    player = guest | {TIER_PLAYER}
+    builder = player | {TIER_BUILDER, CONTROL_UNOWNED}
+    admin = builder | {TIER_ADMIN, LOCK_BYPASS, CONTROL_ALL, TELEPORT_ANY,
+                       SEE_ALL}
+    god = admin | {TIER_GOD, LOCK_BYPASS_ALL}
+    _BUILTIN_ROLE_ENTITLEMENTS.update({
+        Role.GUEST: guest,
+        Role.PLAYER: player,
+        Role.BUILDER: builder,
+        Role.ADMIN: admin,
+        Role.GOD: god,
+    })
+
+
+_build_role_entitlements()
+
+
+def entitlements_of(obj: GameObject | None) -> frozenset[str]:
+    """The set of entitlements ``obj`` holds.
+
+    The base set is its built-in role's cumulative grant (via ``get_role``, so
+    quell / guest / npc handling is inherited verbatim). Any ``role_def`` tags
+    it carries union their entitlements on top — the "roles as data" layer that
+    lets a game mint custom ranks. A quelled actor is stripped to the player
+    set and its custom-role tags are ignored, so quell still means quelled.
+    """
+    role = get_role(obj)
+    base = _BUILTIN_ROLE_ENTITLEMENTS[role]
+    defs = role_def_table()
+    if not defs or obj is None or obj.has_tag('quelled'):
+        return base                       # common path: no allocation
+    granted = set(base)
+    for name, ents in defs.items():
+        if obj.has_tag(name):
+            granted |= ents
+    return frozenset(granted)
+
+
+def has_entitlement(obj: GameObject | None, entitlement: str) -> bool:
+    """Whether ``obj`` holds ``entitlement``. Call sites pass the module
+    constants from ``permissions.entitlements`` (never a string literal)."""
+    return entitlement in entitlements_of(obj)
+
+
 def role_conferred_by_tag(tag: str) -> Role | None:
     """The role a privilege tag grants, or ``None`` for an ordinary tag."""
     return ROLE_TAGS.get(tag.lower())
@@ -141,18 +211,16 @@ def may_change_role_tag(actor: GameObject | None, tag: str) -> bool:
 
 def has_permission(actor: GameObject | None, permission: str) -> bool:
     """
-    Check if an actor has a specific permission level.
+    Check if an actor may run a command gated at ``permission``.
 
-    Args:
-        actor: The object trying to perform the action
-        permission: Permission name (guest, player, builder, admin, god)
-
-    Returns:
-        True if actor's role >= required permission level
+    The coarse command tiers (guest/player/builder/admin/god) now resolve
+    through the entitlement mechanism: each tier maps to a ``TIER_*``
+    entitlement the built-in roles grant cumulatively, so behaviour is
+    identical to the old rung comparison — but a custom ``role_def`` can be
+    granted a command tier independently of the authority entitlements.
     """
-    actor_role = get_role(actor)
-    required_level = PERMISSION_LEVELS.get(permission.lower(), Role.PLAYER)
-    return actor_role >= required_level
+    required = PERMISSION_TIER_ENTITLEMENTS.get(permission.lower(), TIER_PLAYER)
+    return has_entitlement(actor, required)
 
 
 
