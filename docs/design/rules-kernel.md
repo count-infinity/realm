@@ -49,6 +49,20 @@ No mode enum, no giant signature; each primitive has its own small,
 natural signature. Simple systems are one line; a bespoke system is a
 longer expression. Complexity only appears when a game needs it.
 
+**One skill number, many meanings.** The load-bearing input above is
+`skill_level(obj, skill)` — a bare integer (the trained `skill_<name>`, else
+*governing attribute + untrained penalty* from the system's `(stat, penalty)`
+table). Its *meaning* is set by the resolver, never the kernel: GURPS reads it
+as a **target** to roll 3d6 under; D20 reads the same integer as a **bonus**
+added to a d20 vs a DC; a dice pool reads it as the **pool size**. That is how a
+single `(stat, penalty)` table drives roll-under, roll-over, *and* pool systems
+without the kernel knowing which — `(stat, penalty)` is just "governing
+attribute + untrained offset," consumed in each family's own frame. It is the
+one opinionated shape in the kernel, and it is not load-bearing: a system that
+doesn't fit it ignores `skill_level` and reads `obj.db` directly in its
+resolver (the kernel uses the tuple only to compute the *default* untrained
+level).
+
 ### Two tiers of extension (the trust boundary)
 
 | Tier | What | Who | Safety |
@@ -119,7 +133,11 @@ Each stage is independently shippable and keeps the built-ins working
 
 - **Stage A — definitions as data. ✅ SHIPPED.** `skill_def` / `class_def`
   objects; `GurpsSystem`/`D20System` read them, built-ins as the
-  merge base / fallback. OLC-editable, `@reload` for cached skills. Proven
+  merge base / fallback. The active system's `(stat, penalty)` table merges
+  *over* a tiny **`ENGINE_SKILL_DEFAULTS`** floor — the skill(s) the *engine
+  itself* rolls (e.g. `flee`) — so engine maneuvers resolve even before a game
+  system loads; the rules package owns everything else.
+  OLC-editable, `@reload` for cached skills. Proven
   in-game via the [Simulator](../development/testing.md) harness. See
   [Skills & Classes as Data](../guides/data-driven-rules.md).
 - **Stage B — system as data (keystone). ✅ SHIPPED.** `realm/core/dice.py`

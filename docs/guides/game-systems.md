@@ -93,3 +93,7 @@ The `resolve_check`, `improve_cost`, `death_award`, and `chargen_steps`
 methods are the seams; everything else inherits sensible defaults. Ship a
 custom combat ruleset by registering it with `RulesetRegistry` and
 pointing `ruleset_name` at it.
+
+For a full worked build — a percentile (d100) system with range-based combat
+and condition-scaled armor, both the `GameSystem` *and* the combat `Ruleset`
+end to end — follow [Creating Your Own System](creating-your-own-system.md).

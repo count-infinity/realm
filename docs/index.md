@@ -47,7 +47,9 @@ adventure in **[the tutorial](tutorial/index.md)**.
   use in-game (`$`-commands, triggers, tickers, inline `[[...]]`), with a
   real authority model
 - **Swappable rules** — [GameSystem](guides/game-systems.md) packages
-  (GURPS and D20 ship in-box): chargen, skills, advancement, combat
+  (GURPS and D20 ship in-box): chargen, skills, advancement, combat. Build
+  your own end-to-end in
+  [Creating Your Own System](guides/creating-your-own-system.md)
 - **Playable immediately** — beat combat (melee + ranged), NPCs with
   brains, shops, dispositions, followers, zones
 - **Protocol agnostic** — telnet (with GMCP), WebSocket, or your own
