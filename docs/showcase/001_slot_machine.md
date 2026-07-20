@@ -58,12 +58,27 @@ The names an `ON_<EVENT>` script can read off that action are the
 
 So `paid = adata('amount')` *is* the wager, exactly.
 
-Note the `if target is me` guard in the script below. An `ON_PAYMENT`
-hook fires on every object in the room, not only the one that was
-paid — so without the guard, paying the vending machine standing next
-to the slot machine would arm a free pull. See
-[Guard on `target`](../reference/softcode.md#guard-on-target) for the
-general rule.
+**Guarding the hook.** An `ON_PAYMENT` hook fires on every object in
+the room, not only the one that was paid — so without a guard, paying
+the vending machine standing next to the slot machine would arm a free
+pull here. The guard is an `if` statement wrapping the whole body:
+
+```text
+if target is me: <everything the hook does>
+```
+
+Everything after the colon is inside the guard, so when the payment
+was not to this machine, none of it runs at all. Two rules to know:
+
+- **The `if` must be the first thing in the script.** A compound
+  statement can't follow a `;`, so `k = ...; if target is me: ...` is a
+  syntax error. Guard first, then do the work.
+- **There is no `return`.** Scripts run at module scope, so a bare
+  `return` is invalid — wrap the body in the guard rather than trying to
+  bail out early.
+
+See [Guard on `target`](../reference/softcode.md#guard-on-target) for
+the general rule and the events it applies to.
 
 **Reading the machine's own attributes.** [`V`](../reference/softcode.md#fn-v)
 reads an attribute off `me` — the object the script is running as.
@@ -109,8 +124,9 @@ drop slot machine
 @set slot machine/cost = 10
 ```
 
-The wager intake. Read the amount off the action, then branch — arm a
-stake and refund any change, or refund everything with an explanation.
+The wager intake. Guard on `target`, read the amount off the action,
+then branch — arm a stake and refund any change, or refund everything
+with an explanation.
 [`incr(k)`](../reference/softcode.md#fn-incr) arms the stake: it bumps
 a numeric attribute on `me` by one
 ([`decr`](../reference/softcode.md#fn-decr) is its mirror), which is
@@ -120,7 +136,7 @@ branch: elements evaluate left to right, so it reads like a tiny
 transaction:
 
 ```text
-@set slot machine/on_payment = cost = V('cost', 10); paid = adata('amount') if target is me else 0; k = 'stake_' + enactor.id; (incr(k), transfer_credits(me, enactor, paid - cost), pemit(enactor, 'Clunk. The lever unlocks: type pull.')) if paid >= cost else (transfer_credits(me, enactor, paid), pemit(enactor, f'A pull costs {cost} credits. Coins returned.'))
+@set slot machine/on_payment = if target is me: cost = V('cost', 10); paid = adata('amount'); k = 'stake_' + enactor.id; (incr(k), transfer_credits(me, enactor, paid - cost), pemit(enactor, 'Clunk. The lever unlocks: type pull.')) if paid >= cost else (transfer_credits(me, enactor, paid), pemit(enactor, f'A pull costs {cost} credits. Coins returned.'))
 ```
 
 The lever. Roll, band into a tier, `switch()` twice (prize, reel art),
