@@ -70,6 +70,13 @@ def roll(expr: str | int) -> int:
     ``NdF`` (each die -1/0/+1), ``!`` explode, ``khK`` / ``klK`` keep
     highest/lowest, and a trailing ``+K`` / ``-K`` modifier. A bare int
     passes through.
+
+    Example:
+        roll('3d6')          # GURPS: 3 six-sided dice, totalled
+        roll('1d20+5')       # D20 with a +5 modifier
+        roll('4d6kh3')       # roll 4, keep the highest 3 (ability scores)
+        roll('4dF')          # Fudge/FATE: each die -1, 0 or +1
+        damage(enactor, roll('2d6'))
     """
     if isinstance(expr, int):
         return expr
@@ -95,20 +102,38 @@ def roll(expr: str | int) -> int:
 
 def margin_under(rolled: int, target: int, *, skill: str = "") -> CheckResult:
     """Roll-under (GURPS, CoC): success if ``rolled <= target``; margin is
-    how far under."""
+    how far under.
+
+    Example:
+        r = margin_under(roll('3d6'), get_attr(enactor, 'skill_stealth', 10))
+        result = 'Clean.' if r.success else 'A board creaks.'
+        # r.margin is how far under the target — the degree of success
+    """
     return CheckResult(rolled <= target, target - rolled, rolled, target, skill)
 
 
 def margin_over(rolled: int, target: int, *, skill: str = "") -> CheckResult:
     """Roll-over (D20): success if ``rolled >= target``; margin is how far
-    over."""
+    over.
+
+    Example:
+        r = margin_over(roll('1d20') + V('attack_bonus', 0), 15)
+        result = 'Hit!' if r.success else 'Miss.'
+        # r.margin >= 10 -> a crit, if your game wants degrees
+    """
     return CheckResult(rolled >= target, rolled - target, rolled, target, skill)
 
 
 def net_successes(pool: int, tn: int, *, sides: int = 6, explode: bool = True,
                   skill: str = "") -> CheckResult:
     """Dice-pool success-counting (Shadowrun, WoD): roll ``pool`` dice,
-    count those ``>= tn``. Graded by the count of successes."""
+    count those ``>= tn``. Graded by the count of successes.
+
+    Example:
+        r = net_successes(V('hacking_pool', 6), 5)
+        result = f'{r.margin} successes.' if r.success else 'Glitch.'
+        # pool of 6 d6, each 5 or 6 counts; r.margin is the count
+    """
     dice = roll_dice(pool, sides, explode=explode)
     count = sum(1 for d in dice if d >= tn)
     return CheckResult(count >= 1, count, count, tn, skill)
@@ -116,7 +141,14 @@ def net_successes(pool: int, tn: int, *, sides: int = 6, explode: bool = True,
 
 def highest(pool: int, *, sides: int = 6, skill: str = "") -> CheckResult:
     """Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1),
-    else miss (0)."""
+    else miss (0).
+
+    Example:
+        r = highest(V('action_rating', 2))
+        result = switch(r.margin, 2, 'You do it clean.',
+                        1, 'You do it, but there is trouble.',
+                        'It goes badly.')
+    """
     dice = roll_dice(pool, sides)
     top = max(dice) if dice else 0
     tier = 2 if top >= 6 else (1 if top >= 4 else 0)
@@ -126,7 +158,14 @@ def highest(pool: int, *, sides: int = 6, skill: str = "") -> CheckResult:
 def band(value: int, *thresholds: int, skill: str = "") -> CheckResult:
     """Tiered outcome (PbtA): tier = how many ascending thresholds
     ``value`` clears. ``band(2d6+stat, 7, 10)`` -> 0 miss / 1 partial /
-    2 full."""
+    2 full.
+
+    Example:
+        r = band(roll('2d6') + get_attr(enactor, 'stat_cool', 0), 7, 10)
+        result = switch(r.margin, 2, 'You pull it off.',
+                        1, 'You manage it, at a cost.',
+                        'It goes wrong.')
+    """
     tier = sum(1 for t in sorted(thresholds) if value >= t)
     floor = min(thresholds) if thresholds else 0
     return CheckResult(tier >= 1, tier, value, floor, skill)

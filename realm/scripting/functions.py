@@ -515,8 +515,15 @@ class ScriptFunctions:
 
         This fires the ward/reaction pass; it does not itself gate your
         script (side effects run after it). Use ``contest()`` for the resist
-        *roll*, and ``cast()`` for the ward + ``ON_CAST`` layer:
-        ``&spell.fear = cast(victim, 'fear', tags=['mind'])``
+        *roll*, and ``cast()`` for the ward + ``ON_CAST`` layer.
+
+        Example:
+            # a fear spell the target's wards can refuse by category
+            cast(victim, 'fear', tags=['mind'])
+
+            # the resist roll and the ward layer, together
+            landed = cast(victim, 'fear', tags=['mind']) and \\
+                     contest(enactor, 'occultism', victim, 'will')
         """
         tgt = self._resolve(target)
         if tgt is None:
@@ -571,8 +578,15 @@ class ScriptFunctions:
         **exit**, prefer a real deferred-destination exit instead:
         ``@set exit/dest_resolver = instance`` +
         ``@set exit/instance_template = crypt`` — a normal traversal, with
-        follower routing. (The legacy dead-end pattern
-        ``&exit ON_FAIL = enter_instance(enactor, 'crypt')`` still works.)
+        follower routing.
+
+        Example:
+            # a private copy of the crypt, just for this player
+            enter_instance(enactor, 'crypt')
+
+            # one copy for the whole party; stragglers evacuate to the inn
+            enter_instance(enactor, 'crypt', mode='shared',
+                           return_room='The Rusty Anchor', idle_ttl=600)
         """
         from realm.core.instances import ENTRY_TAG, TEMPLATE_TAG
         from realm.permissions.locks import LockType, check_lock
@@ -1541,8 +1555,23 @@ class ScriptFunctions:
         The message reaches the far room's occupants (the ``'remote'``
         audience). Reaching a destination is authority-gated by its
         ``reach`` lock (open by default, like teleport) — a room or zone can
-        set ``lock_reach`` to lock out remote actions. Example — a scry:
-        ``act(thing, 'A scrying eye blinks open.', targeting='remote')``.
+        set ``lock_reach`` to lock out remote actions.
+
+        Because ``ON_<EVENT>`` hooks match on the action type's suffix, an
+        ``action_type`` you invent needs no registration: fire
+        ``'event:toll'`` and any object with an ``on_toll`` attribute reacts.
+
+        Example:
+            # scry — watch a distant room
+            act(thing, 'A scrying eye blinks open.', targeting='remote')
+
+            # a zone-wide alarm every room can react to with on_alert
+            act(intruder, 'Klaxons wail!', targeting='zone',
+                action_type='event:alert')
+
+            # a custom local event: objects with an on_toll hook answer
+            act(me, 'A deep bell tolls.', targeting='room',
+                action_type='event:toll')
         """
         obj = self._resolve(target)
         if obj is None:
