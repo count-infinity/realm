@@ -218,6 +218,39 @@ class TestBuiltinCommands:
         assert "sword" in full_output
 
     @pytest.mark.asyncio
+    async def test_inventory_shows_money(self):
+        """Inventory reports the purse alongside the items."""
+        from realm.core.economy import adjust_credits
+        GameObject("sword", tags=['thing'], location=self.player)
+        adjust_credits(self.player, 250)
+
+        await self.dispatcher.dispatch(self.session, "i")
+
+        output = []
+        while not self.session._output_queue.empty():
+            output.append(self.session._output_queue.get_nowait())
+
+        full_output = "\n".join(output)
+        assert "sword" in full_output
+        assert "250 credits" in full_output
+
+    @pytest.mark.asyncio
+    async def test_inventory_shows_money_when_empty_handed(self):
+        """Even with nothing carried, you still see your balance."""
+        from realm.core.economy import adjust_credits
+        adjust_credits(self.player, 7)
+
+        await self.dispatcher.dispatch(self.session, "inventory")
+
+        output = []
+        while not self.session._output_queue.empty():
+            output.append(self.session._output_queue.get_nowait())
+
+        full_output = "\n".join(output)
+        assert "aren't carrying" in full_output
+        assert "7 credits" in full_output
+
+    @pytest.mark.asyncio
     async def test_get_command(self):
         """get command picks up items."""
         sword = GameObject("sword", tags=['thing'], location=self.room)

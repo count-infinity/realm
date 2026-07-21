@@ -9,7 +9,7 @@
 | realm | Player | movement | <direction> (n/s/e/w/u/d...) | any | Directional movement shortcuts |
 | realm | Player | movement | in / out | any | Enter or exit |
 | realm | Player | movement | recall | any | Return to your home |
-| realm | Player | object | inventory (i/inv) | any | Show your inventory |
+| realm | Player | object | inventory (i/inv) | any | Show your inventory and money balance |
 | realm | Player | object | get (take/grab) | any | Pick up an object (get all) |
 | realm | Player | object | drop | any | Drop an object (drop all) |
 | realm | Player | object | give <x>=<who> | any | Give an object to someone |

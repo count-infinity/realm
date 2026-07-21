@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object, find_player, format_list
+from realm.core.economy import currency_name, get_credits
 from realm.core.language import numbered_name
 from realm.core.objects import GameObject
 from realm.core.propagation import deliver_messages
@@ -32,14 +33,19 @@ async def cmd_inventory(ctx: CommandContext) -> None:
            inv
     """
     items = [obj for obj in ctx.player.contents if not obj.has_tag('exit')]
+    # Money is a balance, not an object — the active GameSystem names it
+    # (credits / gold / shillings), so shops and inventory always agree.
+    purse = f"You have {get_credits(ctx.player)} {currency_name()}."
 
     if not items:
         await ctx.session.send("You aren't carrying anything.")
+        await ctx.session.send(purse)
         return
 
     await ctx.session.send("\nYou are carrying:")
     for item in items:
         await ctx.session.send(f"  {item.name}")
+    await ctx.session.send(purse)
     await ctx.session.send("")
 
 
