@@ -569,6 +569,23 @@ class SessionManager:
         session.link_player(player)
         self._by_player[player.id] = session
 
+    def unlink_player_from_session(self, session: Session) -> None:
+        """
+        Return a session to the pre-login state, dropping the player↔session
+        mapping as well as the link itself.
+
+        The exact inverse of :meth:`link_player_to_session`, and distinct from
+        :meth:`destroy_session`: the **connection stays open**, so the client
+        lands back on the connection screen and may ``connect`` again. Used by
+        the ``logout`` command. Leaving the ``_by_player`` entry behind would
+        strand a stale session — ``get_session_by_player`` would hand it to
+        ``@boot``, and a later re-login would unlink the wrong session.
+        """
+        player = session.player
+        if player is not None:
+            self._by_player.pop(player.id, None)
+        session.unlink_player()
+
     def all_sessions(self) -> list[Session]:
         """Get all active sessions."""
         return list(self._sessions.values())

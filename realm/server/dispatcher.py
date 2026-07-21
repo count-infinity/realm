@@ -141,6 +141,9 @@ class CommandDispatcher:
         # monotonic() stamp taken when the server goes live; None until then.
         # `uptime` reads it through ctx.dispatcher.
         self.server_started_at: float | None = None
+        # Returns the connection/welcome screen text. Wired by GameServer so
+        # `logout` can drop a session back to it without reconnecting.
+        self.welcome_screen: Callable[[], str] | None = None
 
         # Handler for unknown commands (for softcode fallback)
         self._unknown_handler: CommandHandler | None = None

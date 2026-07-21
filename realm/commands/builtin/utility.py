@@ -64,6 +64,58 @@ async def cmd_quit(ctx: CommandContext) -> None:
         await ctx.session_manager.destroy_session(ctx.session)
 
 
+async def cmd_logout(ctx: CommandContext) -> None:
+    """
+    Leave your character and return to the connection screen.
+
+    Usage: logout
+
+    Unlike `quit`, your connection stays open: the character leaves play
+    exactly as if you had disconnected, and you land back at the welcome
+    screen where you can `connect` again — as the same character or another.
+    """
+    player = ctx.player
+    if player is None:
+        await ctx.session.send("You aren't logged in.")
+        return
+
+    # A half-finished prompt/wizard must not leak into the login screen.
+    ctx.session.cancel_prompt()
+
+    # Tell the room, as a real disconnect does, so ON_DISCONNECT hooks fire
+    # and onlookers see the character go.
+    location = player.location
+    if location is not None:
+        from realm.core.propagation import (
+            ROOM_TARGET_CHAIN,
+            Action,
+            propagate,
+        )
+        action = Action(
+            actor=player,
+            target=location,
+            action_type="event:disconnect",
+            chain=ROOM_TARGET_CHAIN,
+        )
+        action.add_message("room", "{actor} logs out.")
+        await propagate(action)
+
+    if ctx.persistence:
+        await ctx.persistence.save(player)
+
+    await ctx.session.send("You leave your character behind.\n")
+
+    # Drop the player↔session link but KEEP the connection: with no player,
+    # the dispatcher routes input to the login handler again.
+    if ctx.session_manager:
+        ctx.session_manager.unlink_player_from_session(ctx.session)
+    else:
+        ctx.session.unlink_player()
+
+    if ctx.dispatcher is not None and ctx.dispatcher.welcome_screen:
+        await ctx.session.send(ctx.dispatcher.welcome_screen())
+
+
 async def cmd_help(ctx: CommandContext) -> None:
     """
     Show help on commands.
@@ -285,6 +337,13 @@ def register_utility_commands(dispatcher: CommandDispatcher) -> None:
         cmd_quit,
         aliases=["QUIT"],
         help_text="Disconnect from the game",
+    )
+
+    register(
+        "logout",
+        cmd_logout,
+        help_text="Leave your character, back to the connection screen",
+        usage="logout",
     )
 
     register(

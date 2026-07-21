@@ -59,6 +59,7 @@
 | realm | Player | info | uptime | any | Show server uptime |
 | realm | Player | info | color | any | Toggle color output |
 | realm | Player | info | quit (QUIT) | any | Disconnect from the game |
+| realm | Player | info | logout | any | Leave your character; back to the connection screen (connection stays open) |
 | realm | Player | admin | quell / unquell | any | Drop to / restore full authority |
 | realm | OLC | building | @create | builder | Create a new object |
 | realm | OLC | building | @dig <room>=<exits> | builder | Create a room with exits |

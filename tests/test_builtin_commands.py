@@ -25,9 +25,10 @@ from realm.commands.builtin.communication import (
 from realm.commands.builtin.inventory import cmd_drop, cmd_get, cmd_give, cmd_put
 from realm.commands.builtin.look import cmd_look
 from realm.commands.builtin.movement import cmd_go
+from realm.commands.builtin.utility import cmd_logout
 from realm.core.behaviors import Behavior
 from realm.core.objects import GameObject
-from realm.gateway.session import Session
+from realm.gateway.session import Session, SessionState
 from realm.server.dispatcher import CommandContext
 
 # --- Helpers --------------------------------------------------------------
@@ -497,3 +498,75 @@ class TestOnCommandFlushesAllSessions:
         assert any('hello' in w for w in a_written), f"actor writer empty: {a_written}"
         assert any('Alice says, "hello"' in w for w in b_written), \
             f"bystander writer empty: {b_written}"
+
+
+# --- logout ---------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestLogout:
+    """`logout` is the inverse of *login*, not of `quit`: the character leaves
+    play but the connection stays open, back at the connection screen."""
+
+    def _wire(self, player, sess):
+        """Wire a ctx the way GameServer does — a real SessionManager holding
+        the session, plus the welcome-screen provider."""
+        from realm.gateway.session import SessionManager
+        from realm.server.dispatcher import CommandDispatcher
+
+        manager = SessionManager()
+        manager._sessions[sess.id] = sess
+        manager.link_player_to_session(sess, player)
+
+        dispatcher = CommandDispatcher()
+        dispatcher.session_manager = manager
+        dispatcher.welcome_screen = lambda: "=== WELCOME TO REALM ==="
+
+        ctx = CommandContext(
+            session=sess, player=player, raw_input="logout",
+            command_name="logout", args="", dispatcher=dispatcher,
+        )
+        return manager, ctx
+
+    async def test_logout_returns_to_connection_screen(self):
+        room = GameObject("Plaza", tags=["room"])
+        alice, sess_a = make_player("Alice", room)
+        _bob, sess_b = make_player("Bob", room)
+        manager, ctx = self._wire(alice, sess_a)
+        drain(sess_a)
+        drain(sess_b)
+
+        await cmd_logout(ctx)
+
+        # The room watched the character go.
+        assert any("Alice logs out." in m for m in drain(sess_b))
+        # Back to pre-login: no player + CONNECTED is exactly what routes
+        # further input to the login handler.
+        assert sess_a.player is None
+        assert sess_a.state is SessionState.CONNECTED
+        # The player->session mapping is gone (no stale session left behind).
+        assert manager.get_session_by_player(alice) is None
+        # The connection itself stayed OPEN (unlike quit), showing the screen.
+        assert manager.get_session(sess_a.id) is sess_a
+        assert any("WELCOME TO REALM" in m for m in drain(sess_a))
+
+    async def test_logout_leaves_a_clean_slate_for_the_next_login(self):
+        """Dropping the mapping means a later login is clean rather than
+        fighting a stale session."""
+        room = GameObject("Plaza", tags=["room"])
+        alice, sess_a = make_player("Alice", room)
+        manager, ctx = self._wire(alice, sess_a)
+
+        await cmd_logout(ctx)
+        manager.link_player_to_session(sess_a, alice)   # connect again
+
+        assert sess_a.player is alice
+        assert sess_a.state is SessionState.PLAYING
+        assert manager.get_session_by_player(alice) is sess_a
+
+    async def test_logout_without_a_player(self):
+        sess = make_session()
+        ctx = CommandContext(session=sess, player=None, raw_input="logout",
+                             command_name="logout", args="")
+        await cmd_logout(ctx)
+        assert any("aren't logged in" in m for m in drain(sess))

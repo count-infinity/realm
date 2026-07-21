@@ -340,6 +340,8 @@ class GameServer:
         self.dispatcher.set_unknown_handler(self._handle_unknown)
         self.dispatcher.persistence = self.persistence
         self.dispatcher.session_manager = self.session_manager
+        # `logout` redisplays this without dropping the connection.
+        self.dispatcher.welcome_screen = self._get_welcome_screen
 
         # Softcode scripting: $-command fallback via _handle_unknown, and an
         # action observer so ^listen and ON_<EVENT> triggers fire on the

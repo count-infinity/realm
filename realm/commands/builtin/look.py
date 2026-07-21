@@ -195,6 +195,11 @@ async def _show_object(ctx: CommandContext, target) -> None:
     # `@examine` deliberately does NOT — it shows the truth.
     await ctx.session.send(f"\n{target.get_display_name(ctx.player)}")
 
+    # "You see nothing special." is the fallback for an object that shows
+    # the looker NOTHING — no description and no perceptible details. It
+    # must not follow a description that did render.
+    described = False
+
     if target.description:
         desc = target.description
         if '[[' in desc:
@@ -202,10 +207,12 @@ async def _show_object(ctx: CommandContext, target) -> None:
             desc = eval_inline(desc, target, ctx.player).strip()
         if desc:
             await ctx.session.send(desc)
+            described = True
     from realm.core.describe import detail_lines
     for line in detail_lines(target, ctx.player):
         await ctx.session.send(line)
-    else:
+        described = True
+    if not described:
         await ctx.session.send("You see nothing special.")
 
     # If it's a container with visible contents
