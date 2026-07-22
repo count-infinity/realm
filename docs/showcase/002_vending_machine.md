@@ -1,6 +1,6 @@
 # 002. Vending Machine
 
-> Checklist item 2 — [now] — *ON_PAYMENT, create_obj from prototype attrs, spawner vocabulary*
+> Checklist item 2 ([now]): *ON_PAYMENT, create_obj from prototype attrs, spawner vocabulary*
 
 **What you'll build:** A vending machine with a browsable menu. Feed it
 credits with `pay`, then `vend coffee`, and it spawns a fresh item into the
