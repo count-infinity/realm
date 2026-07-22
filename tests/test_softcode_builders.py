@@ -1250,6 +1250,36 @@ class TestTier1AuthorityFixes:
         assert funcs.create_obj("bomb", location=theirs) is None
         assert funcs.create_obj("rock") is not None  # own room fine
 
+    async def test_create_obj_sets_description_and_attrs(self):
+        from realm.scripting.functions import ScriptFunctions
+
+        here = GameObject("Here", tags=["room"])
+        imp = GameObject("imp", location=here)
+        funcs = ScriptFunctions(executor=imp, persistence=self.persistence)
+
+        obj = funcs.create_obj(
+            "bulb of cold coffee",
+            description="A dented bulb, beaded with condensation.",
+            attrs={"weight": 1, "price": 25},
+        )
+        # description lands on the engine field `look` reads (not db.*).
+        assert obj.description == "A dented bulb, beaded with condensation."
+        assert obj.db.get("weight") == 1 and obj.db.get("price") == 25
+
+    async def test_create_obj_backward_compatible_and_guards_password(self):
+        from realm.scripting.functions import ScriptFunctions
+
+        here = GameObject("Here", tags=["room"])
+        imp = GameObject("imp", location=here)
+        funcs = ScriptFunctions(executor=imp, persistence=self.persistence)
+
+        plain = funcs.create_obj("rock")               # old 1-arg form
+        assert plain.description == "" and plain.has_tag("thing")
+        # birth-time attrs skip protected names, like set_attr does.
+        guarded = funcs.create_obj("safe", attrs={"password": "x", "hp": 5})
+        assert guarded.db.get("password") is None
+        assert guarded.db.get("hp") == 5
+
     async def test_engine_floor_survives_system_swap(self):
         from realm.core.checks import (
             SKILL_DEFAULTS,

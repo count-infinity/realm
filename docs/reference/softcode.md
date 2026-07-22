@@ -347,11 +347,19 @@ controls('lever')
 ### `create_obj` {#fn-create_obj}
 
 ```text
-create_obj(name: str, tags: list[str] | None = None, location: GameObject | str | None = None) -> GameObject | None
+create_obj(name: str, tags: list[str] | None = None, location: GameObject | str | None = None, description: str = '', attrs: dict | None = None) -> GameObject | None
 ```
 
 Create a new thing, owned by the executor's owner (or the
 executor itself), at the executor's location by default.
+
+`description` sets the render description `look` shows; `attrs`
+is a dict of attributes stamped on at birth. Together they mint a whole
+item in one call, instead of a `create_obj`/`set_attr` chain:
+
+    create_obj('bulb of cold coffee',
+               description='A dented bulb, beaded with condensation.',
+               attrs={'weight': 1})
 
 **Example**
 

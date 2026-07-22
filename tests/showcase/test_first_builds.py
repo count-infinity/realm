@@ -315,6 +315,11 @@ class TestVendingMachine:
         bulb = find_one(sim, "bulb of cold coffee")
         assert bulb.location is room
         assert bulb.db.get("weight") == 1
+        # create_obj(description=...) sets the engine field look reads, so
+        # dispensed goods are no longer name-only.
+        assert "condensation" in bulb.description
+        look = await do(sim, bilda, "look bulb of cold coffee")
+        assert any("condensation" in line for line in look)
 
         out = await do(sim, bilda, "get bulb of cold coffee")
         assert "You pick up a bulb of cold coffee." in out

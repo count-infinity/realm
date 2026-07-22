@@ -393,10 +393,20 @@ class ScriptFunctions:
         name: str,
         tags: list[str] | None = None,
         location: GameObject | str | None = None,
+        description: str = "",
+        attrs: dict | None = None,
     ) -> GameObject | None:
         """
         Create a new thing, owned by the executor's owner (or the
         executor itself), at the executor's location by default.
+
+        ``description`` sets the render description ``look`` shows; ``attrs``
+        is a dict of attributes stamped on at birth. Together they mint a whole
+        item in one call, instead of a ``create_obj``/``set_attr`` chain:
+
+            create_obj('bulb of cold coffee',
+                       description='A dented bulb, beaded with condensation.',
+                       attrs={'weight': 1})
 
         Example: sword = create_obj('iron sword')
         """
@@ -404,8 +414,8 @@ class ScriptFunctions:
 
         where = self._resolve(location) if location is not None else (
             self.executor.location if self.executor else None)
-        # Creation lands in the executor's own room, or one it controls —
-        # no seeding objects into strangers' rooms.
+        # Creation lands in the executor's own room, or one it controls, so
+        # scripts cannot seed objects into strangers' rooms.
         if (location is not None and where is not None
                 and self.executor is not None
                 and where is not self.executor.location
@@ -416,10 +426,17 @@ class ScriptFunctions:
             owner = self.executor.owner or self.executor
         obj = GameObjectCls(
             name=str(name),
+            description=str(description),
             tags=[str(t) for t in (tags or ['thing'])],
             owner=owner,
         )
         obj.location = where
+        # Birth-time attributes, mirroring the world-import inflation loop.
+        # The executor owns the fresh object, so this needs no extra authority.
+        for key, value in (attrs or {}).items():
+            if str(key) in PROTECTED_ATTRS:
+                continue
+            obj.db.set(str(key), value)
         self.command_queue.append(('save', obj, ''))
         return obj
 

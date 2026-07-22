@@ -1566,11 +1566,17 @@ named tutorials, so none of these block showcase progress.
   a shop; only destroyed populations repopulate. Audit had recommended spawner
   for shop restock — correction: use `script_ticker` meanwhile.
   (`docs/showcase/063_shopkeeper.md`)
-- [ ] **Things have no softcode-visible description fallback** — `look` reads
-  only the engine description field for things
-  (`realm/commands/builtin/look.py:94-96,195-196`); rooms fall back to
-  `db.description` (`realm/core/render.py:86`) but things don't, so
-  `create_obj()` goods are name-only. (`docs/showcase/002_vending_machine.md`)
+- [x] ~~**Things have no softcode-visible description fallback**~~ RESOLVED
+  2026-07-20. `look` reads the engine description field for things (not
+  `db.description`), so a spawned object was name-only. Rather than add a
+  db-fallback, `create_obj` gained `description=` and `attrs=` params
+  (`scripting/functions.py`), so a script mints a fully-described item in one
+  call: `create_obj(name, description=..., attrs={...})`. The `attrs` loop
+  mirrors the world-import inflation; both replace the awkward
+  `set_attr(create_obj(...), ...)` chain. Tutorial 002 updated to the new
+  syntax (its "Engine gaps" note removed). Tests: `test_softcode_builders.py`
+  (description + attrs, backward-compat, password-guarded),
+  `test_first_builds.py` (vended goods carry a description).
 - [ ] **Keycard fast-path and `pick` mutate `locked` without propagating**
   (`realm/commands/builtin/manipulation.py:256-261, 205`) — `ON_LOCK`/`ON_UNLOCK`
   hooks can't observe those paths; `lock`/`unlock` propagate fine.
