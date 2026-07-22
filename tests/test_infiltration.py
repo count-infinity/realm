@@ -133,6 +133,8 @@ class TestDoors:
     def _door_between(self, room_a, room_b, **attrs):
         door = GameObject("steel door", location=room_a, tags=["exit"])
         door.db.destination_obj = room_b
+        if attrs.pop("locked", False):
+            door.add_tag("locked")          # locked is a tag, not an attr
         for key, value in attrs.items():
             door.db.set(key, value)
         return door
@@ -187,7 +189,7 @@ class TestDoors:
         from realm.commands.builtin.manipulation import cmd_unlock_item
         await cmd_unlock_item(make_ctx(sess, "door"))
 
-        assert door.db.get("locked") is False
+        assert not door.has_tag("locked")
         await cmd_open(make_ctx(sess, "door"))
         assert not door.has_tag("closed")
 
@@ -201,7 +203,7 @@ class TestDoors:
 
         await cmd_use(make_ctx(sess, "keycard on steel door"))
 
-        assert door.db.get("locked") is False
+        assert not door.has_tag("locked")
 
     async def test_pick_lock_with_skill_and_tools(self):
         a = GameObject("Hall", tags=["room"])
@@ -212,7 +214,7 @@ class TestDoors:
         GameObject("lockpick set", location=raven, tags=["thing", "lockpicks"])
 
         await cmd_pick(make_ctx(sess, "door"))
-        assert door.db.get("locked") is False  # 14 - 2 = 12 >= 10
+        assert not door.has_tag("locked")  # 14 - 2 = 12 >= 10
 
     async def test_pick_without_tools_penalized(self):
         a = GameObject("Hall", tags=["room"])
@@ -222,7 +224,7 @@ class TestDoors:
         raven, sess = make_player("Raven", location=a, skill_lockpicking=14)
 
         await cmd_pick(make_ctx(sess, "door"))
-        assert door.db.get("locked") is True  # 14 - 2 - 5 = 7 < 10
+        assert door.has_tag("locked")  # 14 - 2 - 5 = 7 < 10
 
     async def test_electronic_lock_uses_other_skill(self):
         a = GameObject("Hall", tags=["room"])
@@ -232,7 +234,7 @@ class TestDoors:
         raven, sess = make_player("Raven", location=a, skill_electronics=12)
 
         await cmd_pick(make_ctx(sess, "door"))
-        assert door.db.get("locked") is False  # no lockpicks penalty
+        assert not door.has_tag("locked")  # no lockpicks penalty
 
     async def test_skill_gated_exit(self):
         alley = GameObject("Alley", tags=["room"])
@@ -259,7 +261,7 @@ class TestContainers:
     async def test_closed_container_blocks_get_from(self):
         room = GameObject("Office", tags=["room"])
         safe = GameObject("wall safe", location=room, tags=["thing", "closed"])
-        safe.db.container = True
+        safe.add_tag('container')
         GameObject("documents", location=safe, tags=["thing"])
         raven, sess = make_player("Raven", location=room)
 
@@ -270,7 +272,7 @@ class TestContainers:
     async def test_open_then_loot(self):
         room = GameObject("Office", tags=["room"])
         safe = GameObject("wall safe", location=room, tags=["thing", "closed"])
-        safe.db.container = True
+        safe.add_tag('container')
         docs = GameObject("documents", location=safe, tags=["thing"])
         raven, sess = make_player("Raven", location=room)
 

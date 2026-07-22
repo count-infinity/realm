@@ -71,7 +71,7 @@ verb, and `locked_msg` tells the player where the real switch is:
 
 ```text
 @tag vault gate = closed
-@set vault gate/locked = true
+@tag vault gate = locked
 @set vault gate/locked_msg = The vault gate has no handle -- only the levers move it.
 ```
 

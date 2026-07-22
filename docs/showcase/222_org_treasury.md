@@ -62,13 +62,13 @@ safe demands rank 2:
 
 ```text
 @create the crew footlocker
-@set the crew footlocker/container = true
+@tag the crew footlocker = container
 drop the crew footlocker
 @set the crew footlocker/min_rank = 1
 close the crew footlocker
 @set the crew footlocker/on_check = org = get('the Void Runners'); block('The footlocker is sealed to Void Runners members.') if atype == 'item:on_open' and target == me and get_attr(org, 'rank_' + actor.id, 0) < V('min_rank', 1) else None
 @create the officers safe
-@set the officers safe/container = true
+@tag the officers safe = container
 drop the officers safe
 @set the officers safe/min_rank = 2
 close the officers safe

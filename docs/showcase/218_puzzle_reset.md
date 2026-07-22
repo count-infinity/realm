@@ -63,7 +63,7 @@ trial
 @dig The Reward Vault = trial gate, trial
 @desc The Reward Vault = A modest vault. The reward for turning the crank sits on a shelf.
 @tag trial gate = closed
-@set trial gate/locked = true
+@tag trial gate = locked
 @set trial gate/locked_msg = The trial gate is sealed. Turn the crank.
 ```
 

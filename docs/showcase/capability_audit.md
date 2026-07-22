@@ -90,7 +90,7 @@ the ranked gap list below.
 
 | # | Item | Class | Primitives / gap |
 |---|---|---|---|
-| 14 | Basic container | now | `db.container`; `on_check` ward `block()`s put over summed weight attrs |
+| 14 | Basic container | now | `container` tag; `on_check` ward `block()`s put over summed weight attrs |
 | 15 | Locked chest & key | now | `@lock`, `lock`/`unlock`/`pick` commands, key items, `ON_OPEN`/`ON_UNLOCK` (gated) |
 | 16 | Combination safe | now | `prompt(enactor, 'Code?', 'check_code')` vs `secret`-flagged attr |
 | 17 | Bag of holding | now | weight is a softcode convention; this bag's weight function returns 0 |

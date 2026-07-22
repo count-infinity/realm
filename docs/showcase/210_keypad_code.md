@@ -51,7 +51,7 @@ lab
 @dig The Cleanroom = clean gate, lab
 @desc The Cleanroom = A white cell under harsh light. The prototype hums on its cradle.
 @tag clean gate = closed
-@set clean gate/locked = true
+@tag clean gate = locked
 @set clean gate/locked_msg = A keypad blinks beside the clean gate. ENTER CODE to proceed.
 ```
 

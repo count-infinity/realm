@@ -70,7 +70,7 @@ The bin, its terms, and its lid stencil:
 
 ```text
 @create rubbish bin
-@set rubbish bin/container = true
+@tag rubbish bin = container
 drop rubbish bin
 @desc rubbish bin = A dented municipal bin. Stenciled on the lid: CONTENTS INCINERATED WITHOUT NOTICE.
 @set rubbish bin/grace = 60

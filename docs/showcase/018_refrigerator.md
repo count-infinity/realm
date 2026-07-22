@@ -54,7 +54,7 @@ The icebox is a stock container plus one published number:
 
 ```text
 @create icebox
-@set icebox/container = true
+@tag icebox = container
 drop icebox
 @set icebox/decay_rate = 0.25
 @desc icebox = An enameled chest humming to itself. Frost feathers the seams.

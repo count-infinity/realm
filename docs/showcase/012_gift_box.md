@@ -58,7 +58,7 @@ The box and the wrapping — builtins do the first half:
 
 ```text
 @create gift box
-@set gift box/container = true
+@tag gift box = container
 drop gift box
 @desc gift box = A crisp white box under a red ribbon. [[to = V('for_name', ''); result = f"The tag reads: for {to}, from {V('from_name', 'a secret admirer')}." if to else 'The ribbon hangs loose; the tag is blank.']]
 @create silver locket

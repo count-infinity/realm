@@ -66,12 +66,12 @@ lock, in the order a real person would:
 
 ```text
 @create wall safe
-@set wall safe/container = true
+@tag wall safe = container
 drop wall safe
 @create prototype schematics
 put prototype schematics in wall safe
 close wall safe
-@set wall safe/locked = true
+@tag wall safe = locked
 @set wall safe/locked_msg = The safe door doesn't budge. Engraved under the dial: DIAL <NUMBER>.
 @set wall safe/lock_skill = lockpicking
 @set wall safe/lock_difficulty = 4
@@ -89,7 +89,7 @@ capture; `trim()` guards against stray spaces; the two `set_attr` paths
 either bank progress or reset it:
 
 ```text
-@set wall safe/cmd_dial = $dial *: seq = (V('entered') or []) + [trim(arg0)]; code = str(V('code')).split(); done = len(seq) >= len(code); set_attr(me, 'entered', [] if done else seq); (set_attr(me, 'locked', False), pemit(enactor, 'CLUNK. The last tumbler drops -- the wall safe unlocks.')) if done and seq == code else pemit(enactor, 'Clunk. The dial spins back to zero.' if done else 'Click.')
+@set wall safe/cmd_dial = $dial *: seq = (V('entered') or []) + [trim(arg0)]; code = str(V('code')).split(); done = len(seq) >= len(code); set_attr(me, 'entered', [] if done else seq); (remove_tag(me, 'locked'), pemit(enactor, 'CLUNK. The last tumbler drops -- the wall safe unlocks.')) if done and seq == code else pemit(enactor, 'Clunk. The dial spins back to zero.' if done else 'Click.')
 ```
 
 The reset wizard. Two social rules in two guards: `enactor != owner(me)`

@@ -8,7 +8,7 @@ below the Steps, behind a locked trapdoor.
 ```text
 @dig The Cellar = trapdoor, hatch
 @tag trapdoor = closed
-@set trapdoor/locked = true
+@tag trapdoor = locked
 @set trapdoor/key_id = cellar_key
 @set trapdoor/locked_msg = The trapdoor's iron lock is crusted with salt, but solid.
 ```

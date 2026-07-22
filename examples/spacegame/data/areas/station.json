@@ -1015,7 +1015,8 @@
       "description": "",
       "tags": [
         "closed",
-        "exit"
+        "exit",
+        "locked"
       ],
       "attrs": {
         "destination": "nexagen_vp_office",
@@ -1024,7 +1025,6 @@
           "n",
           "door"
         ],
-        "locked": true,
         "key_id": "nexagen_vp_suite",
         "lock_skill": "electronics",
         "lock_difficulty": 3,
@@ -1063,11 +1063,11 @@
       "description": "",
       "tags": [
         "closed",
+        "container",
         "no_group",
         "thing"
       ],
       "attrs": {
-        "container": true,
         "description": "A dented steel locker stenciled NEXAGEN FACILITIES."
       },
       "locks": {},
@@ -1137,11 +1137,11 @@
       "description": "",
       "tags": [
         "closed",
+        "container",
         "no_group",
         "thing"
       ],
       "attrs": {
-        "container": true,
         "description": "A curved slab of pale composite. A drawer sits beneath the top."
       },
       "locks": {},
@@ -1190,15 +1190,15 @@
       "description": "",
       "tags": [
         "closed",
+        "container",
         "invisible",
+        "locked",
         "no_group",
         "thing"
       ],
       "attrs": {
         "conceal_difficulty": 2,
         "reveal_msg": "The painting swings aside on hidden hinges, revealing a wall safe!",
-        "container": true,
-        "locked": true,
         "key_id": "nexagen_safe",
         "lock_difficulty": 5,
         "locked_msg": "The safe's combination dial doesn't budge.",

@@ -436,7 +436,7 @@ def door_sides(sim, workshop):
 
 
 def door_state(exit_obj):
-    return (exit_obj.has_tag("closed"), bool(exit_obj.db.get("locked")))
+    return (exit_obj.has_tag("closed"), exit_obj.has_tag("locked"))
 
 
 class TestLockableDoor:

@@ -197,7 +197,7 @@ async def do_open(actor: GameObject, target: GameObject) -> bool:
     if not target.has_tag('closed'):
         actor.msg(f"{singular_name(target).capitalize()} is already open.")
         return False
-    if target.db.get('locked'):
+    if target.has_tag('locked'):
         actor.msg(
             target.db.get('locked_msg')
             or f"{singular_name(target).capitalize()} is locked."
@@ -223,8 +223,8 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
     if target.has_tag('closed'):
         actor.msg(f"{singular_name(target).capitalize()} is already closed.")
         return False
-    is_door_or_container = target.has_tag('exit') or target.db.get('container')
-    if not is_door_or_container and not target.db.get('closable'):
+    is_door_or_container = target.has_tag('exit') or target.has_tag('container')
+    if not is_door_or_container and not target.has_tag('closable'):
         actor.msg(f"You can't close {target.name}.")
         return False
 

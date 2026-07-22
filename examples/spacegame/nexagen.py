@@ -180,7 +180,7 @@ unlocked.
         aliases=["north", "n", "door"], back_aliases=["south", "s", "out"],
     )
     suite_door.add_tag("closed")
-    suite_door.db.locked = True
+    suite_door.add_tag('locked')
     suite_door.db.key_id = "nexagen_vp_suite"
     suite_door.db.lock_skill = "electronics"
     suite_door.db.lock_difficulty = 3
@@ -194,7 +194,7 @@ unlocked.
     locker = GameObject(id="nexagen_locker", name="supply locker")
     locker.add_tag("thing")
     locker.add_tag("no_group")
-    locker.db.container = True
+    locker.add_tag('container')
     locker.add_tag("closed")
     locker.db.description = "A dented steel locker stenciled NEXAGEN FACILITIES."
     locker.location = maintenance
@@ -228,7 +228,7 @@ unlocked.
     desk = GameObject(id="nexagen_desk", name="reception desk")
     desk.add_tag("thing")
     desk.add_tag("no_group")
-    desk.db.container = True
+    desk.add_tag('container')
     desk.add_tag("closed")
     desk.db.description = "A curved slab of pale composite. A drawer sits beneath the top."
     desk.location = floor46
@@ -259,9 +259,9 @@ unlocked.
     safe.db.conceal_difficulty = 2
     safe.db.reveal_msg = ("The painting swings aside on hidden hinges, "
                           "revealing a wall safe!")
-    safe.db.container = True
+    safe.add_tag('container')
     safe.add_tag("closed")
-    safe.db.locked = True
+    safe.add_tag('locked')
     safe.db.key_id = "nexagen_safe"
     safe.db.lock_difficulty = 5
     safe.db.locked_msg = "The safe's combination dial doesn't budge."

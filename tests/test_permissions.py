@@ -283,13 +283,13 @@ class TestRoleTagAuthority:
         assert role_conferred_by_tag('WIZARD') == Role.ADMIN   # alias, case
         assert role_conferred_by_tag('builder') == Role.BUILDER
         assert role_conferred_by_tag('god') == Role.GOD
-        assert role_conferred_by_tag('container') is None      # ordinary tag
+        assert role_conferred_by_tag('glowing') is None        # ordinary tag
 
     def test_ordinary_tags_always_pass(self):
         """The guard is surgical: non-role tags are governed only by control."""
         guest = GameObject("Nobody")                 # role GUEST
         assert may_change_role_tag(guest, 'glowing')
-        assert may_change_role_tag(None, 'container')
+        assert may_change_role_tag(None, 'shiny')
 
     def test_builder_cannot_grant_admin_or_god(self):
         builder = GameObject("Bob", tags=['player', 'builder'])

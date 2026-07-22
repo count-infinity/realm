@@ -61,7 +61,7 @@ signal room
 @dig The Sealed Cache = vault hatch, chamber
 @desc The Sealed Cache = A dry vault. On a shelf: a data core worth the trouble.
 @tag vault hatch = closed
-@set vault hatch/locked = true
+@tag vault hatch = locked
 @set vault hatch/locked_msg = The vault hatch is smooth steel. The panel must be satisfied.
 ```
 

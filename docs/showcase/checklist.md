@@ -41,7 +41,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 
 ## 2. Containers, Storage & Item Handling (14–24)
 
-- [x] 14. **Basic container** [now] — a sack with weight/volume capacity limits. *(db.container, on_check wards, block(), weight-attr conventions)*
+- [x] 14. **Basic container** [now] — a sack with weight/volume capacity limits. *(container tag, on_check wards, block(), weight-attr conventions)*
 - [x] 15. **Locked chest & key** [now] — openable container guarded by a matching key item. *(@lock, lock/unlock/pick commands, key items, gated ON_UNLOCK)*
 - [x] 16. **Combination safe** [now] — dial a numeric code to open; code settable by owner. *(prompt() input, secret attr flag)*
 - [x] 17. **Bag of holding** [now] — container whose contents weigh nothing to the carrier. *(overriding a softcode weight convention cleanly)*

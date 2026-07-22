@@ -57,7 +57,7 @@ reactor
 @dig The Core Bay = blast shield, reactor
 @desc The Core Bay = The reactor core throbs behind shielded glass. The prize: an intact power cell.
 @tag blast shield = closed
-@set blast shield/locked = true
+@tag blast shield = locked
 @set blast shield/locked_msg = The blast shield is sealed. Route the grid to full power first.
 ```
 

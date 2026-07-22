@@ -152,7 +152,7 @@ class TestLockedChest:
         room, bilda = workshop_and_builder(sim)
         await build(sim, bilda, CHEST_BUILD)
         chest = find_one(sim, "sea chest")
-        assert chest.db.get("locked") is True
+        assert chest.has_tag("locked")
         assert chest.has_tag("closed")
         return room, bilda, chest
 
@@ -168,13 +168,13 @@ class TestLockedChest:
         # Improvised picking (no tools): 14 - 2 - 5 = 7 < 10.
         out = await do(sim, kess, "pick sea chest")
         assert "The lock on sea chest resists your attempt." in out
-        assert chest.db.get("locked") is True
+        assert chest.has_tag("locked")
 
         # With lockpicks: 14 - 2 = 12 >= 10.
         sim.obj("lockpick set", location=kess, tags=["thing", "lockpicks"])
         out = await do(sim, kess, "pick sea chest")
         assert "Click. You defeat the lock on sea chest." in out
-        assert chest.db.get("locked") is False
+        assert not chest.has_tag("locked")
 
     async def test_key_cycle_and_the_audible_unlock(self, sim):
         room, bilda, chest = await self._built(sim)
@@ -197,7 +197,7 @@ class TestLockedChest:
         assert "You close the sea chest." in out
         out = await do(sim, bilda, "lock sea chest")
         assert "You lock sea chest with silver key." in out
-        assert chest.db.get("locked") is True
+        assert chest.has_tag("locked")
 
     async def test_keycard_fast_path_toggles_but_stays_silent(self, sim):
         """The filed gap: `use key on chest` toggles locked by direct
@@ -206,12 +206,12 @@ class TestLockedChest:
 
         out = await do(sim, bilda, "use silver key on sea chest")
         assert "You swipe silver key: sea chest unlocks." in out
-        assert chest.db.get("locked") is False
+        assert not chest.has_tag("locked")
         assert not any("bright click" in line for line in out)
 
         out = await do(sim, bilda, "use silver key on sea chest")
         assert "You swipe silver key: sea chest locks." in out
-        assert chest.db.get("locked") is True
+        assert chest.has_tag("locked")
 
 
 # =========================================================================

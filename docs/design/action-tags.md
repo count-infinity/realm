@@ -4,6 +4,10 @@ Two related pieces of the kernel: the **category-tag vocabulary** every
 propagated action carries, and the **movement primitives** that are the
 biggest consumer of it. Canonical source: `realm/core/action_tags.py`.
 
+> These are tags on *actions*. For tags on *objects* — the boolean-capability
+> vocabulary (`container`, `worn`, `closed`, `npc`…) and when to use a tag vs an
+> attribute — see [Tags vs Attributes](tags-vs-attributes.md).
+
 ## Category tags — the flag-mask vocabulary
 
 Every `Action` carries a set of **category** tags. A ward blocks by

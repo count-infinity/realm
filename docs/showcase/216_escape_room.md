@@ -103,7 +103,7 @@ opens it:
 ```text
 @open escape hatch = Escape Lobby
 @tag escape hatch = closed
-@set escape hatch/locked = true
+@tag escape hatch = locked
 @set escape hatch/locked_msg = The escape hatch is bolted from a keypad beside it.
 ```
 

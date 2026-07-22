@@ -49,7 +49,7 @@ the whole seal:
 
 ```text
 @create supply crate
-@set supply crate/container = true
+@tag supply crate = container
 drop supply crate
 @desc supply crate = A scuffed drop-crate. Stenciled across the lid: CONTENTS RANDOMIZED AT DEPOT.
 close supply crate

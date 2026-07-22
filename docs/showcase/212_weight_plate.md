@@ -63,7 +63,7 @@ chamber
 @dig The Prize Room = prize gate, chamber
 @desc The Prize Room = A small vault. A single reliquary waits on a pedestal.
 @tag prize gate = closed
-@set prize gate/locked = true
+@tag prize gate = locked
 @set prize gate/locked_msg = The prize gate is seamless stone. The plates in the floor must be satisfied.
 ```
 
@@ -73,12 +73,12 @@ items in them) — each declaring the weight it wants:
 ```text
 @create pressure plate
 drop pressure plate
-@set pressure plate/container = true
+@tag pressure plate = container
 @set pressure plate/wants = heavy
 @desc pressure plate = A broad iron plate, sprung to sink under real weight.
 @create feather plate
 drop feather plate
-@set feather plate/container = true
+@tag feather plate = container
 @set feather plate/wants = light
 @desc feather plate = A gossamer plate that trembles at a breath -- too much weight would jam it.
 ```

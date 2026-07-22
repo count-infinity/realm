@@ -1,12 +1,12 @@
 # 014. Basic Container
 
-> Checklist item 14 — [now] — *db.container, on_check wards, block(), weight-attr conventions*
+> Checklist item 14 — [now] — *container tag, on_check wards, block(), weight-attr conventions*
 
 **What you'll build:** A canvas sack that holds at most 3 items and
 10 lbs. Overfill it and you get a specific, numeric refusal — and no
 code path, polite or not, can sneak an eleventh pound inside.
 
-**Concepts:** The `container` attribute convention and the built-in
+**Concepts:** The `container` tag and the built-in
 `put`/`get from`/`open`/`close` machinery, **`on_check` wards** — the
 softcode veto that runs in the engine's permission pass — `block()`,
 action inspection (`atype`, `target`, `adata`), summed `weight`
@@ -17,8 +17,8 @@ of adding commands to it.
 
 ## How it works
 
-**What the engine already gives you.** Set `container = true` on a
-thing and the stock commands do the rest: `put <item> in <it>`,
+**What the engine already gives you.** Tag a thing `container` and
+the stock commands do the rest: `put <item> in <it>`,
 `get <item> from <it>`, `open`/`close` (a `closed` tag blocks both
 directions), and `look` lists its contents. That's a complete working
 container with zero scripting.
@@ -63,7 +63,7 @@ data, and a description that counts its own contents:
 @create canvas sack
 drop canvas sack
 @desc canvas sack = A patched canvas sack. [[n = len(contents(me)); result = f'It bulges around {n} item{"" if n == 1 else "s"}.']]
-@set canvas sack/container = true
+@tag canvas sack = container
 @set canvas sack/capacity = 3
 @set canvas sack/weight_limit = 10
 ```

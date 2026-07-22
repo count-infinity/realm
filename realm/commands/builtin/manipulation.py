@@ -2,12 +2,16 @@
 Object manipulation: doors and containers, keys and lockpicks,
 wearables, hiding and searching.
 
-Everything is lean state on ordinary objects:
+Everything is lean state on ordinary objects — capability and state are
+**tags**, values are attributes:
 
+- ``container`` tag — this object can be opened/closed and holds contents
+  (``get from`` / ``put in`` / ``open`` / ``close``). ``closable`` tags a
+  non-container that can still be closed.
 - ``closed`` tag — a shut door (exit) or container. One mechanism for
   both: movement refuses closed exits, ``get from``/``put in`` refuse
   closed containers.
-- ``db.locked`` + ``db.key_id`` — physically locked; opened by a
+- ``locked`` tag + ``db.key_id`` — physically locked; opened by a
   carried key/keycard whose ``db.unlocks`` matches, by the ``pick``
   skill command (``db.lock_difficulty``, ``db.lock_skill`` for
   electronic locks), or by admins. Distinct from permission locks:
@@ -124,7 +128,7 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
-    if target.db.get('locked'):
+    if target.has_tag('locked'):
         await ctx.session.send("It's already locked.")
         return
     if not target.db.get('key_id'):
@@ -137,7 +141,7 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
     if await _gated(ctx, "item:on_lock", target, tool=key,
                     fail_msg="The lock won't catch.") is None:
         return
-    target.db.locked = True
+    target.add_tag('locked')
     ctx.player.msg(f"You lock {target.name} with {key.name}.")
 
 
@@ -157,7 +161,7 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
-    if not target.db.get('locked'):
+    if not target.has_tag('locked'):
         await ctx.session.send("It isn't locked.")
         return
     key = _find_key(ctx.player, target)
@@ -167,7 +171,7 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
     if await _gated(ctx, "item:on_unlock", target, tool=key,
                     fail_msg="The lock holds fast.") is None:
         return
-    target.db.locked = False
+    target.remove_tag('locked')
     ctx.player.msg(f"You unlock {target.name} with {key.name}.")
 
 
@@ -188,7 +192,7 @@ async def cmd_pick(ctx: CommandContext) -> None:
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
-    if not target.db.get('locked'):
+    if not target.has_tag('locked'):
         await ctx.session.send("It isn't locked.")
         return
 
@@ -202,7 +206,7 @@ async def cmd_pick(ctx: CommandContext) -> None:
 
     result = check(ctx.player, skill, modifier)
     if result.success:
-        target.db.locked = False
+        target.remove_tag('locked')
         ctx.player.msg(f"Click. You defeat the lock on {target.name}.")
         if ctx.player.location:
             ctx.player.location.msg_contents(
@@ -255,8 +259,12 @@ async def cmd_use(ctx: CommandContext) -> None:
     # Keycard on its lock
     if item is not None and item.db.get('unlocks') and \
             item.db.get('unlocks') == target.db.get('key_id'):
-        target.db.locked = not bool(target.db.get('locked'))
-        state = "locks" if target.db.get('locked') else "unlocks"
+        now_locked = not target.has_tag('locked')
+        if now_locked:
+            target.add_tag('locked')
+        else:
+            target.remove_tag('locked')
+        state = "locks" if now_locked else "unlocks"
         ctx.player.msg(f"You swipe {item.name}: {target.name} {state}.")
         return
 

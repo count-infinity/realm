@@ -50,7 +50,7 @@ order a real person would:
 
 ```text
 @create sea chest
-@set sea chest/container = true
+@tag sea chest = container
 drop sea chest
 @create string of pearls
 put string of pearls in sea chest

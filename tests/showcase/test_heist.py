@@ -219,14 +219,14 @@ class TestCombinationSafe:
         assert text(sim, raven).count("Click.") == 2
         await sim.do(raven, "dial 3")
         assert "spins back to zero" in text(sim, raven)
-        assert obj(sim, "wall safe").db.get("locked") is True
+        assert obj(sim, "wall safe").has_tag("locked")
 
         for line in ("dial 17", "dial 4"):
             await sim.do(raven, line)
         sim.seen(raven)
         await sim.do(raven, "dial 33")
         assert "the wall safe unlocks" in text(sim, raven)
-        assert obj(sim, "wall safe").db.get("locked") is False
+        assert not obj(sim, "wall safe").has_tag("locked")
 
         await sim.do(raven, "open wall safe")
         await sim.do(raven, "get prototype schematics from wall safe")
@@ -240,13 +240,13 @@ class TestCombinationSafe:
         # Improvised (no lockpicks): 14 - 4 - 5 = 5 < 10.
         await sim.do(sly, "pick wall safe")
         assert "resists" in text(sim, sly)
-        assert obj(sim, "wall safe").db.get("locked") is True
+        assert obj(sim, "wall safe").has_tag("locked")
 
         # With tools: 14 - 4 = 10.
         sim.obj("lockpick set", location=sly, tags=["thing", "lockpicks"])
         await sim.do(sly, "pick wall safe")
         assert "defeat the lock" in text(sim, sly)
-        assert obj(sim, "wall safe").db.get("locked") is False
+        assert not obj(sim, "wall safe").has_tag("locked")
 
     async def test_owner_resets_code_via_prompt_and_secret_flag_hides_it(self, sim):
         builder = await build_heist(sim, upto=16)
@@ -277,13 +277,13 @@ class TestCombinationSafe:
 
         # Old code is dead; the new one opens it.
         await run_lines(sim, builder, ["close wall safe",
-                                       "@set wall safe/locked = true"])
+                                       "@tag wall safe = locked"])
         for line in ("dial 17", "dial 4", "dial 33"):
             await sim.do(raven, line)
-        assert obj(sim, "wall safe").db.get("locked") is True
+        assert obj(sim, "wall safe").has_tag("locked")
         for line in ("dial 5", "dial 25", "dial 45"):
             await sim.do(raven, line)
-        assert obj(sim, "wall safe").db.get("locked") is False
+        assert not obj(sim, "wall safe").has_tag("locked")
 
         # The secret attr flag: a stranger's softcode reads nothing,
         # the safe's owner still reads it.

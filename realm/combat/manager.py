@@ -242,8 +242,8 @@ class CombatManager:
 
         # Corpse: a container holding the fallen's belongings.
         from realm.core.objects import GameObject as GameObjectCls
-        corpse = GameObjectCls(name=f"corpse of {npc.name}", tags=['thing', 'no_group'])
-        corpse.db.container = True
+        corpse = GameObjectCls(name=f"corpse of {npc.name}",
+                               tags=['thing', 'no_group', 'container'])
         corpse.db.article = "the"
         corpse.db.description = f"The lifeless body of {npc.name}."
         for item in list(npc.contents):

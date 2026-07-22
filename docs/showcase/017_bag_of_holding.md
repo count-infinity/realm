@@ -62,7 +62,7 @@ satchel has no `weight` of its own, so the fold returns pure load):
 
 ```text
 @create porter's satchel
-@set porter's satchel/container = true
+@tag porter's satchel = container
 drop porter's satchel
 @set porter's satchel/weight_limit = 10
 @set porter's satchel/on_check = mine = atype == 'item:on_put' and target is me; w = lambda o: get_attr(o, 'carry_weight') if has_attr(o, 'carry_weight') else get_attr(o, 'weight', 0) + sum(w(c) for c in contents(o)); adding = w(adata('item')) if mine else 0; load = w(me) if mine else 0; limit = V('weight_limit', 10); block(f'At {adding} lbs that would overload the {name(me)} ({load} of {limit} lbs used).') if mine and load + adding > limit else None
@@ -75,9 +75,9 @@ whose entire enchantment is one attribute:
 @create iron anvil
 @set iron anvil/weight = 12
 @create canvas duffel
-@set canvas duffel/container = true
+@tag canvas duffel = container
 @create bag of holding
-@set bag of holding/container = true
+@tag bag of holding = container
 @set bag of holding/carry_weight = 2
 @desc bag of holding = Plain oiled leather, far too light in the hand. [[n = len(contents(me)); result = 'It holds ' + str(n) + ' item' + ('' if n == 1 else 's') + ' and hangs like an empty purse regardless.']]
 ```

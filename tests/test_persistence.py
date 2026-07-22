@@ -437,8 +437,9 @@ class TestDirtySweep:
         obj = GameObject("safe", tags=['thing'])
         await pm.save(obj)
 
-        # Pure gameplay mutation: no save(), no save_deferred().
-        obj.db.locked = False
+        # Pure gameplay mutation: no save(), no save_deferred(). A falsy
+        # attribute value AND a tag must both survive the flush.
+        obj.db.powered = False
         obj.add_tag('closed')
         assert obj.is_dirty()
 
@@ -448,7 +449,7 @@ class TestDirtySweep:
         pm2 = PersistenceManager(db)
         await pm2.initialize()
         loaded = await pm2.load(obj.id)
-        assert loaded.db.locked is False
+        assert loaded.db.powered is False
         assert loaded.has_tag('closed')
         await pm2.close()
 

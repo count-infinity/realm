@@ -50,7 +50,7 @@ Segment alpha, in the workshop — motor, cargo script, and all:
 
 ```text
 @create belt alpha
-@set belt alpha/container = true
+@tag belt alpha = container
 drop belt alpha
 @set belt alpha/on_tick = n = len(contents(me)); [teleport_obj(o, V('next_stop')) for o in contents(me)]; remit(loc(me), 'The belt clatters; the cargo slides out of sight.') if n else None
 @behavior belt alpha = script_ticker, interval:1
@@ -62,7 +62,7 @@ Dig down the line and lay segment beta (same script, same motor):
 @dig Packing Floor = downline, upline
 downline
 @create belt beta
-@set belt beta/container = true
+@tag belt beta = container
 drop belt beta
 @set belt beta/on_tick = n = len(contents(me)); [teleport_obj(o, V('next_stop')) for o in contents(me)]; remit(loc(me), 'The belt clatters; the cargo slides out of sight.') if n else None
 @behavior belt beta = script_ticker, interval:1

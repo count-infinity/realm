@@ -48,7 +48,7 @@ landing
 @dig The Hidden Shrine = sphinx arch, landing
 @desc The Hidden Shrine = A moss-soft chamber. Water drips somewhere, echoing.
 @tag sphinx arch = closed
-@set sphinx arch/locked = true
+@tag sphinx arch = locked
 @set sphinx arch/locked_msg = The arch is solid rock. The sphinx must be answered, not forced.
 ```
 

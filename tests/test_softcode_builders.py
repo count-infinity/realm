@@ -903,7 +903,7 @@ class TestScriptedVerbs:
         room = GameObject("Vault", tags=["room"])
         imp = GameObject("imp", location=room)
         chest = GameObject("chest", location=room, tags=["thing", "closed"])
-        chest.db.container = True
+        chest.add_tag('container')
 
         engine = ScriptEngine()
         await engine._run_script_command(imp, "open chest")
@@ -916,8 +916,8 @@ class TestScriptedVerbs:
         room = GameObject("Vault", tags=["room"])
         imp = GameObject("imp", location=room)
         chest = GameObject("chest", location=room, tags=["thing", "closed"])
-        chest.db.container = True
-        chest.db.locked = True
+        chest.add_tag('container')
+        chest.add_tag('locked')
 
         engine = ScriptEngine()
         await engine._run_script_command(imp, "open chest")
