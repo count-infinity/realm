@@ -454,6 +454,27 @@ class TestDirtySweep:
         await pm2.close()
 
     @pytest.mark.asyncio
+    async def test_delete_retires_behaviors_from_the_tick_registry(self, tmp_path):
+        """@destroy (via persistence.delete) drops the object from the behavior
+        tick registry immediately, so a destroyed ticker stops ticking (and
+        leaves @stats) instead of lingering as a phantom until GC."""
+        from realm.behaviors.ticker import ScriptTickerBehavior
+        from realm.core.behaviors import behavior_owners
+
+        db = tmp_path / "registry.db"
+        pm = PersistenceManager(db)
+        await pm.initialize()
+        juke = GameObject("jukebox", tags=['thing'])
+        juke.add_behavior(ScriptTickerBehavior(interval=1))
+        await pm.save(juke)
+        assert juke in behavior_owners()           # a live tick owner
+
+        await pm.delete(juke)
+        assert juke not in behavior_owners()        # retired immediately
+        assert juke.get_behaviors() == []
+        await pm.close()
+
+    @pytest.mark.asyncio
     async def test_location_move_survives_flush(self, tmp_path):
         db = tmp_path / "sweep2.db"
         pm = PersistenceManager(db)

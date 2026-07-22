@@ -286,7 +286,13 @@ class PersistenceManager:
         return objects
 
     async def delete(self, obj: GameObject) -> None:
-        """Delete an object from the database."""
+        """Delete an object from the database and retire it from live registries."""
+        # Detach behaviors first, regardless of backing store. This drops the
+        # object from the tick-owner registry *immediately*, so its behaviors
+        # stop ticking (and vanish from @stats) rather than lingering, phantom
+        # and unreachable, until Python's cyclic GC happens to collect it.
+        for behavior in obj.get_behaviors():
+            obj.remove_behavior(behavior)
         if not self._db:
             return
 

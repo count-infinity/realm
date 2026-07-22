@@ -124,9 +124,16 @@ async def cmd_stats(ctx: CommandContext) -> None:
 
     owners = behavior_owners()
     total_behaviors = sum(len(o.get_behaviors()) for o in owners)
-    ticking = sum(1 for o in owners for b in o.get_behaviors() if b.should_tick)
+    tickers = [(o, b) for o in owners
+               for b in o.get_behaviors() if b.should_tick]
     lines.append(f"  behavior owners: {len(owners)}  "
-                 f"(behaviors: {total_behaviors}, ticking: {ticking})")
+                 f"(behaviors: {total_behaviors}, ticking: {len(tickers)})")
+    # Name what's ticking, so an admin can find (and @destroy) a runaway or a
+    # forgotten gadget by name or #id rather than guessing.
+    for obj, behavior in tickers[:12]:
+        lines.append(f"    - {obj.name} (#{obj.id[:8]}): {behavior.behavior_id}")
+    if len(tickers) > 12:
+        lines.append(f"    ... and {len(tickers) - 12} more")
 
     engine = get_script_engine()
     if engine is not None:
