@@ -20,8 +20,11 @@ closed doors, and guard behaviors apply. Runaway machines halt like any
 other softcode: ``@tag <obj> = halt``, or detach the behavior.
 
 Parameters:
-    interval: ticks between runs (default 4; at TICK_INTERVAL=4s that's
-        ~16 seconds). Countdown persists in ``db.script_tick_wait``.
+    interval: world beats between runs (default 4). A beat is ``WORLD_TICK``
+        (~4s, configurable), so ``interval:4`` fires roughly every 16 seconds;
+        ``interval:1`` every world beat. This is unrelated to the scheduler's
+        fast ``tick_interval`` pulse (~0.1s), which is only how often the loop
+        wakes to see who is due. Countdown persists in ``db.script_tick_wait``.
     attr: the attribute holding the script (default ``on_tick``).
 """
 

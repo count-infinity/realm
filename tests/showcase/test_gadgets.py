@@ -141,9 +141,15 @@ class TestJukebox:
         await build(sim, bilda, JUKEBOX_BUILD)
         sim.seen(kess)
 
-        # Idle: the window card reads SILENCE.
+        juke = find_one(sim, "jukebox")
+        def has_ticker():
+            return any(b.behavior_id == "script_ticker"
+                       for b in juke.get_behaviors())
+
+        # Idle: the window card reads SILENCE, and NO clock runs yet.
         out = await do(sim, bilda, "look jukebox")
         assert any("The window card reads: SILENCE." in line for line in out)
+        assert not has_ticker()
 
         # play -> the prompt() menu arrives as the player's next question.
         out = await do(sim, bilda, "play")
@@ -152,10 +158,12 @@ class TestJukebox:
         assert "[1] Stardust Rag" in joined
         assert "[2] Vacuum Blues" in joined
 
-        # Answer 1 — the whole room hears the arm drop.
+        # Answer 1 — the whole room hears the arm drop, and the clock
+        # attaches on demand only now that a record is playing.
         await answer(sim, bilda, "1")
         assert ("The jukebox whirs, and the arm drops on Stardust Rag."
                 in sim.seen(kess))
+        assert has_ticker()
 
         # Now playing shows on the window card.
         out = await do(sim, bilda, "look jukebox")
@@ -169,10 +177,12 @@ class TestJukebox:
         await do(sim, bilda, "@tr jukebox/on_tick")
         assert "~ every orbit brings me back to you ~" in sim.seen(kess)
 
-        # The side ends: run-out groove, then silence again.
+        # The side ends: run-out groove, then silence again, and the clock
+        # detaches itself so an idle jukebox runs nothing.
         await do(sim, bilda, "@tr jukebox/on_tick")
         assert ("The record hisses into the run-out groove, and the arm "
                 "lifts." in sim.seen(kess))
+        assert not has_ticker()
         out = await do(sim, bilda, "look jukebox")
         assert any("The window card reads: SILENCE." in line for line in out)
 

@@ -10,8 +10,10 @@ heartbeat, with a window card that always shows what is spinning.
 **Concepts:** [`prompt()`](../reference/softcode.md#fn-prompt) as a menu
 (softcode wizards), function attributes via
 [`eval_attr()`](../reference/softcode.md#fn-eval_attr) (softcode's subroutine),
-the `script_ticker` behavior plus
-[`on_tick`](../reference/softcode.md#lifecycle-hooks) for anything periodic,
+a `script_ticker` running [`on_tick`](../reference/softcode.md#lifecycle-hooks),
+attached and detached on demand with
+[`attach_behavior`](../reference/softcode.md#fn-attach_behavior) and
+[`detach_behavior`](../reference/softcode.md#fn-detach_behavior),
 [`remit()`](../reference/softcode.md#fn-remit) room-wide ambience, tracks as
 pure data, and a `[[...]]` now-playing readout.
 
@@ -42,19 +44,27 @@ can trap anyone.
 Lyrics need a clock, and REALM gives you two. A `wait()` chain, where each line
 schedules the next, is exact but in-memory, so a reboot mid-song loses the rest
 of the record. The `script_ticker` behavior instead runs the object's `on_tick`
-attribute on the server's one heartbeat: attach it once with `@behavior`, and
-the state (`spinning`, `cursor`) lives in plain attributes, so a reboot resumes
-the song where it stopped. Ambient furniture wants the ticker, whereas fuses
-want `wait()` (the [gas bomb](048_gas_bomb.md) makes the same choice the other
-way).
+attribute on the **world beat** (`WORLD_TICK`, roughly four seconds and
+configurable, which is the ambient tempo, not the much faster scheduler pulse),
+and because the state (`spinning`, `cursor`) lives in plain attributes a reboot
+resumes the song where it stopped. Rather than run a permanent clock, this
+jukebox attaches the ticker with
+[`attach_behavior`](../reference/softcode.md#fn-attach_behavior) the moment a
+record starts and drops it with
+[`detach_behavior`](../reference/softcode.md#fn-detach_behavior) at the run-out,
+so a silent jukebox runs no clock at all. Furniture that is always active can
+keep a permanent ticker, whereas an on-demand gadget like this one wants the
+attach and detach pair (a fuse instead wants `wait()`, and the
+[gas bomb](048_gas_bomb.md) makes that choice the other way).
 
 ### What one tick does
 
 `on_tick` reads which track is `spinning` and a `cursor` into its lyric list,
 [`remit()`](../reference/softcode.md#fn-remit)s the next line to the room, and
-advances. Past the last line it clears `spinning` and lifts the arm, which is
-the classic run-out groove. When no track is selected the tick does nothing, so
-an idle jukebox costs one attribute read per beat.
+advances. Past the last line it clears `spinning`, detaches its own ticker, and
+lifts the arm, which is the classic run-out groove. Because that detach is the
+last thing a finished record does, an idle jukebox carries no clock at all: the
+ticker exists only while a record is playing.
 
 ### Why the track library is data
 
@@ -90,24 +100,29 @@ listing from whatever the library holds:
 ```
 
 `play` asks and `on_pick` answers. The callback validates (`isdigit`, range),
-then either starts the record, recording the index and cursor with
-[`set_attr`](../reference/softcode.md#fn-set_attr) and announcing the arm-drop to
-the room, or refuses with [`pemit`](../reference/softcode.md#fn-pemit):
+then either starts the record or refuses. Starting a record writes the index and
+cursor with [`set_attr`](../reference/softcode.md#fn-set_attr), attaches the
+clock with [`attach_behavior`](../reference/softcode.md#fn-attach_behavior), and
+announces the arm-drop to the room; a bad choice is a single
+[`pemit`](../reference/softcode.md#fn-pemit). It detaches any running ticker
+first, so re-selecting mid-song restarts the clock cleanly instead of stacking a
+second one:
 
 ```text
 @set jukebox/cmd_play = $play: prompt(enactor, eval_attr(me, 'menu'), 'on_pick')
-@set jukebox/on_pick = t = V('tracks', []); w = trim(arg0); n = int(w) if w.isdigit() else 0; ok = 1 <= n <= len(t); (set_attr(me, 'spinning', n - 1), set_attr(me, 'cursor', 0), remit(here, f"The jukebox whirs, and the arm drops on {t[n - 1]['title']}.")) if ok else pemit(enactor, 'The jukebox clunks and returns your choice unplayed.')
+@set jukebox/on_pick = t = V('tracks', []); w = trim(arg0); n = int(w) if w.isdigit() else 0; ok = 1 <= n <= len(t); (detach_behavior(me, 'script_ticker'), set_attr(me, 'spinning', n - 1), set_attr(me, 'cursor', 0), attach_behavior(me, 'script_ticker', interval=1), remit(here, f"The jukebox whirs, and the arm drops on {t[n - 1]['title']}.")) if ok else pemit(enactor, 'The jukebox clunks and returns your choice unplayed.')
 ```
 
-The heartbeat follows. `interval:4` is the number of ticks between runs, so at
-the default four-second tick one lyric line lands roughly every sixteen seconds;
-retune it freely, since it is data. Each beat advances the `cursor` with
-[`incr`](../reference/softcode.md#fn-incr), and the run-out clears `spinning`
-with [`del_attr`](../reference/softcode.md#fn-del_attr):
+Finally the `on_tick` script, which the attached ticker runs once per world beat
+while a record spins (`interval=1` above is one beat; use a larger interval to
+space the lyrics further). Each beat advances the `cursor` with
+[`incr`](../reference/softcode.md#fn-incr) and remits the next line, and the
+run-out clears `spinning` with
+[`del_attr`](../reference/softcode.md#fn-del_attr) and detaches the ticker so the
+jukebox falls silent and idle:
 
 ```text
-@behavior jukebox = script_ticker, interval:4
-@set jukebox/on_tick = n = V('spinning', None); t = V('tracks', []); i = V('cursor', 0); lines = t[n]['lines'] if n is not None and n < len(t) else []; (remit(here, f'~ {lines[i]} ~'), incr('cursor')) if n is not None and i < len(lines) else None; (del_attr(me, 'spinning'), remit(here, 'The record hisses into the run-out groove, and the arm lifts.')) if n is not None and i >= len(lines) else None
+@set jukebox/on_tick = n = V('spinning', None); t = V('tracks', []); i = V('cursor', 0); lines = t[n]['lines'] if n is not None and n < len(t) else []; (remit(here, f'~ {lines[i]} ~'), incr('cursor')) if n is not None and i < len(lines) else None; (del_attr(me, 'spinning'), detach_behavior(me, 'script_ticker'), remit(here, 'The record hisses into the run-out groove, and the arm lifts.')) if n is not None and i >= len(lines) else None
 ```
 
 ## Try it

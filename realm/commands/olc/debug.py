@@ -116,7 +116,11 @@ async def cmd_stats(ctx: CommandContext) -> None:
     lines = ["Engine stats:"]
     server = getattr(ctx.dispatcher, 'server', None)
     tick = getattr(server, 'tick_interval', None)
-    lines.append(f"  tick interval: {tick if tick is not None else '?'}s")
+    beat = getattr(server, 'world_beat', None)
+    lines.append(f"  tick interval: {tick if tick is not None else '?'}s "
+                 f"(scheduler resolution)")
+    lines.append(f"  world beat: {beat if beat is not None else '?'}s "
+                 f"(ambient/effect tempo; combat runs on each encounter's beat)")
 
     owners = behavior_owners()
     total_behaviors = sum(len(o.get_behaviors()) for o in owners)
