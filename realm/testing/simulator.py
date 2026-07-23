@@ -24,6 +24,7 @@ exactly the text that player would have received on a live server.
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from realm.core.objects import GameObject
@@ -171,6 +172,25 @@ class Simulator:
         if sess is None:
             raise ValueError(f"{player.name} was not created via .player()")
         await self.dispatcher.dispatch(sess, command)
+
+    async def submit_line(self, player: GameObject, raw: str) -> None:
+        """Feed ONE raw client line through the real input path — the same
+        ``submit_input`` a live connection uses, so heredoc (multi-line)
+        blocks accumulate exactly as they would in-game. A line mid-block
+        dispatches nothing; the closing (or an ordinary) line dispatches the
+        reconstructed command(s). Use this for build transcripts that contain
+        multi-line ``'''`` blocks; ``do`` stays the direct single-command path.
+        """
+        sess = self._sessions.get(player.id)
+        if sess is None:
+            raise ValueError(f"{player.name} was not created via .player()")
+        sess.submit_input(raw)
+        while True:
+            try:
+                command = sess._input_queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            await self.dispatcher.dispatch(sess, command)
 
     # --- Observing -----------------------------------------------------------
 

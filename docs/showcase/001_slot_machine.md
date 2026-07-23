@@ -59,13 +59,49 @@ edge is also what makes the machine a currency sink.
 
 ## Build it
 
+The two scripts use `'''` multi-line blocks (open a line with a trailing
+`'''`, close with a line of just `'''`), so the logic reads as ordinary
+indented Python instead of a semicolon one-liner. See
+[multi-line input](../guides/world-management.md#multi-line-input-heredocs).
+
 ```text
 @create slot machine
 drop slot machine
 @desc slot machine = A one-armed bandit in scuffed chrome, three reels asleep behind smeared glass. [[result = f'The hopper holds {credits(me)} credits.']]
 @set slot machine/cost = 10
-@set slot machine/on_payment = if target is me: cost = V('cost', 10); paid = adata('amount'); k = 'stake_' + enactor.id; (incr(k), transfer_credits(me, enactor, paid - cost), pemit(enactor, 'Clunk. The lever unlocks: type pull.')) if paid >= cost else (transfer_credits(me, enactor, paid), pemit(enactor, f'A pull costs {cost} credits. Coins returned.'))
-@set slot machine/cmd_pull = $pull: k = 'stake_' + enactor.id; staked = V(k, 0); pemit(enactor, 'The lever will not budge. Stake a pull first: pay 10 to slot machine.') if not staked else None; roll = rand(1, 100); tier = 1 if roll <= 1 else (2 if roll <= 5 else (3 if roll <= 15 else (4 if roll <= 35 else 5))); prize = switch(tier, 1, 250, 2, 50, 3, 20, 4, 10, 0); reels = switch(tier, 1, '[ NOVA : NOVA : NOVA ]', 2, '[ BELL : BELL : BELL ]', 3, '[ STAR : STAR : ---- ]', 4, '[ STAR : ---- : ---- ]', '[ ---- : ---- : ---- ]'); (decr(k), oemit(enactor, f'{name(enactor)} pulls the lever. The reels clatter.'), pemit(enactor, reels), (transfer_credits(me, enactor, prize), pemit(enactor, f'Payout! {prize} credits rattle into the tray.')) if prize else pemit(enactor, 'The reels settle on nothing. The house smiles.')) if staked else None
+@set slot machine/on_payment = '''
+if target is me:
+    cost = V('cost', 10)
+    paid = adata('amount')
+    k = 'stake_' + enactor.id
+    if paid >= cost:
+        incr(k)
+        transfer_credits(me, enactor, paid - cost)
+        pemit(enactor, 'Clunk. The lever unlocks: type pull.')
+    else:
+        transfer_credits(me, enactor, paid)
+        pemit(enactor, f'A pull costs {cost} credits. Coins returned.')
+'''
+@set slot machine/cmd_pull = '''
+$pull:
+k = 'stake_' + enactor.id
+staked = V(k, 0)
+if not staked:
+    pemit(enactor, 'The lever will not budge. Stake a pull first: pay 10 to slot machine.')
+else:
+    roll = rand(1, 100)
+    tier = 1 if roll <= 1 else (2 if roll <= 5 else (3 if roll <= 15 else (4 if roll <= 35 else 5)))
+    prize = switch(tier, 1, 250, 2, 50, 3, 20, 4, 10, 0)
+    reels = switch(tier, 1, '[ NOVA : NOVA : NOVA ]', 2, '[ BELL : BELL : BELL ]', 3, '[ STAR : STAR : ---- ]', 4, '[ STAR : ---- : ---- ]', '[ ---- : ---- : ---- ]')
+    decr(k)
+    oemit(enactor, f'{name(enactor)} pulls the lever. The reels clatter.')
+    pemit(enactor, reels)
+    if prize:
+        transfer_credits(me, enactor, prize)
+        pemit(enactor, f'Payout! {prize} credits rattle into the tray.')
+    else:
+        pemit(enactor, 'The reels settle on nothing. The house smiles.')
+'''
 @eval m = get('slot machine'); adjust_credits(m, 500); result = credits(m)
 ```
 

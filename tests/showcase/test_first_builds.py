@@ -96,9 +96,14 @@ def workshop_and_builder(sim):
 
 
 async def build(sim, player, lines):
-    """Run a Build-it transcript; fail loudly if any line misfires."""
+    """Run a Build-it transcript; fail loudly if any line misfires.
+
+    Routes each line through the REAL client input path (``submit_line``),
+    so multi-line ``'''`` heredoc blocks in a tutorial accumulate and
+    dispatch exactly as a player typing them would.
+    """
     for line in lines:
-        await sim.do(player, line)
+        await sim.submit_line(player, line)
         out = "\n".join(sim.seen(player))
         for marker in BUILD_FAILURE_MARKERS:
             assert marker not in out, f"build line {line!r} failed: {out!r}"
