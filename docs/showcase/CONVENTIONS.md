@@ -73,13 +73,20 @@ the action targeted, so a hook that reacts to its own business must say so. The
 guard is an `if` statement wrapping the whole body:
 
 ```text
-@set shopkeeper/on_receive = if target is me: it = adata('item'); pemit(enactor, 'Thanks.')
+@set shopkeeper/on_receive = '''
+if target is me:
+    it = adata('item')
+    pemit(enactor, 'Thanks.')
+'''
 ```
 
 Three rules go with it:
 
-- **The `if` has to come first.** A compound statement cannot follow a
-  semicolon, so `k = ...; if target is me: ...` is a syntax error.
+- **The guard wraps the whole body.** `if target is me:` is the first line and
+  the reaction is indented beneath it. (A one-liner guard,
+  `if target is me: it = adata('item'); pemit(...)`, only works when the body is
+  a single line of simple statements; a multi-line block sidesteps that limit,
+  which is one reason blocks are now the norm.)
 - **There is no `return`.** Scripts run at module scope, where a bare `return`
   is invalid. Note that `@set` does **not** currently warn about this, so a
   stray `return` fails only when the hook fires. Wrap the body in the guard
@@ -118,6 +125,33 @@ dispatcher. So:
 - Keep the heading exactly `## Build it`.
 - Illustrative snippets that are not meant to run belong under a different
   heading, such as `## How it works`.
+
+### Multi-line scripts use `'''` heredoc blocks
+
+Any script attribute with more than a couple of statements, or any control
+flow, is written as a multi-line block, not a semicolon-and-ternary one-liner.
+End the `@set` line with a trailing `'''`, write the body as ordinary indented
+softcode (real `if`/`else`/`for`), and close with a line of just `'''`.
+[001 (slot machine)](001_slot_machine.md) is the reference example, and
+[World Management](../guides/world-management.md#multi-line-input-heredocs)
+documents the input mechanism.
+
+- **Split `## Build it` into narrated steps.** The shell (`@create` / `drop` /
+  `@desc`) comes first, then one fenced block per attribute or tight group, each
+  preceded by a sentence saying what it does. Never one 40-line block.
+- **Comment the gotchas, not every line.** A curated few inline `#` comments may
+  point at what a newcomer would miss (the `target` guard, a non-obvious
+  argument, a per-player key). Showcase code is dense, so let the prose carry the
+  explanation and reserve comments for genuine surprises. Comments persist in the
+  stored attribute, so keep them terse and true.
+- **No blank lines inside a body.** The extractor drops blank lines, so a blank
+  inside a heredoc body will not survive into the stored script.
+- **Tests drive the real input path.** Heredocs accumulate in
+  `Session.submit_input`, so the build helper feeds each line through
+  `sim.submit_line`, not `sim.do`. When you convert the first tutorial in a test
+  file, point that file's `build` helper at `submit_line` (see
+  `tests/showcase/test_first_builds.py`); it runs one-liners identically, so the
+  switch is always safe.
 
 `## Try it` is not parsed, so its blocks should show an annotated session with
 `>` prompts and the responses underneath, which lets a reader check each step
@@ -180,10 +214,11 @@ they matter most in `## How it works`.
 3. **Explain a helper where it is first used, not earlier.** Introducing a
    function far from the code that uses it forces the reader to hold it in
    working memory for nothing. Keep the explanation next to its example.
-4. **Decompose a long one-liner before showing it.** Softcode lines get long,
-   and you cannot shorten what a builder actually types, so precede a dense line
-   with a sentence naming its steps in order. The reader then parses the line
-   against a structure they already hold.
+4. **Name a block's steps before showing it.** Softcode blocks get long, so
+   precede a dense multi-line script with a sentence naming its steps in order.
+   The reader then parses the block against a structure they already hold. (Write
+   multi-statement scripts as `'''` heredoc blocks, not `;` one-liners; see
+   "Multi-line scripts" above.)
 5. **Close the loop in `## Try it`.** Show the command and its response
    together so the learner gets immediate feedback, and call out the one or two
    results worth confirming deliberately.

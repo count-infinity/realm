@@ -68,6 +68,10 @@ behavior and the real `buy`; this build is for furniture that sells things.
 
 ## Build it
 
+The three scripts here are `'''` multi-line blocks (see
+[multi-line input](../guides/world-management.md#multi-line-input-heredocs));
+the menu is plain data.
+
 The cabinet carries a per-viewer credit readout in its description, where
 `viewer` is whoever is looking, so each player sees their own balance:
 
@@ -89,36 +93,66 @@ wear (`@set` parses JSON, so the lists and dicts store as real lists and dicts):
 @set vending machine/stock_ration = 2
 ```
 
-Coin intake banks the payment as the payer's credit in one line.
+Coin intake banks the payment as the payer's credit. The hook guards on
+[`target is me`](../reference/softcode.md#guard-on-target) first, then
 [`incr(k, adata('amount'))`](../reference/softcode.md#fn-incr) adds the amount
 the action carries to the attribute *and* returns the new value, so a single
 call does the read, the write, and the readout:
 
 ```text
-@set vending machine/on_payment = k = 'credit_' + enactor.id; bal = incr(k, adata('amount')) if target is me else None; pemit(enactor, f'The display blinks. CREDIT: {bal}. Type vend <selection>.') if bal else None
+@set vending machine/on_payment = '''
+if target is me:  # ON_PAYMENT fires on every object in the room, so guard it
+    k = 'credit_' + enactor.id
+    bal = incr(k, adata('amount'))  # add the payment, and return the new balance
+    pemit(enactor, f'The display blinks. CREDIT: {bal}. Type vend <selection>.')
+'''
 ```
 
-The menu browser is a loop: scripts are sandboxed Python, so a list
-comprehension over `menu` prints one line per selection, joining each
-prototype's price and name with the live stock count. Each line reaches the
-looker with [`pemit`](../reference/softcode.md#fn-pemit):
+The menu browser is a loop: scripts are sandboxed Python, so a `for` over
+`menu` prints one line per selection, joining each prototype's price and name
+with the live stock count. Each line reaches the looker with
+[`pemit`](../reference/softcode.md#fn-pemit):
 
 ```text
-@set vending machine/cmd_browse = $browse: menu = V('menu', []); pemit(enactor, 'Selections (pay first, then vend <selection>):'); [pemit(enactor, f'  {sel} - {V("item_" + sel)["price"]} cr - {V("item_" + sel)["name"]} ({V("stock_" + sel, 0)} left)') for sel in menu]
+@set vending machine/cmd_browse = '''
+$browse:
+menu = V('menu', [])
+pemit(enactor, 'Selections (pay first, then vend <selection>):')
+for sel in menu:
+    item = V('item_' + sel)
+    pemit(enactor, f'  {sel} - {item["price"]} cr - {item["name"]} ({V("stock_" + sel, 0)} left)')
+'''
 ```
 
 Finally the vend itself, where `$vend *` captures the selection as `arg0`. The
 script is a chain of *guards*: each failure case gets its own specific, numeric
-message, and only when every check passes does the final tuple commit all four
-effects together. It charges the credit with
-[`decr`](../reference/softcode.md#fn-decr), decrements the stock, mints the item
-with [`create_obj`](../reference/softcode.md#fn-create_obj) (which names it,
-writes its description, and stamps the prototype's weight in one call, born in
-the room that serves as the tray), and announces the drop to everyone present
-with [`remit`](../reference/softcode.md#fn-remit):
+message, and only the final `else` commits all four effects together. It charges
+the credit with [`decr`](../reference/softcode.md#fn-decr), decrements the stock,
+mints the item with [`create_obj`](../reference/softcode.md#fn-create_obj) (which
+names it, writes its description, and stamps the prototype's weight in one call,
+born in the room that serves as the tray), and announces the drop to everyone
+present with [`remit`](../reference/softcode.md#fn-remit):
 
 ```text
-@set vending machine/cmd_vend = $vend *: sel = trim(arg0).lower(); item = V('item_' + sel); k = 'credit_' + enactor.id; bal = V(k, 0); left = V('stock_' + sel, 0); price = item['price'] if item else 0; ok = bool(item) and left > 0 and bal >= price; pemit(enactor, 'The panel blinks: NO SUCH SELECTION. Try browse.') if not item else None; pemit(enactor, f'The {sel} coil is empty. SOLD OUT.') if item and left < 1 else None; pemit(enactor, f'CREDIT {bal} of {price}. Feed it: pay {price - bal} to vending machine.') if item and left > 0 and bal < price else None; (decr(k, price), decr('stock_' + sel), create_obj(item['name'], description=item['desc'], attrs={'weight': item['weight']}), remit(here, f'The vending machine whirs and drops a {item["name"]} into the tray.')) if ok else None
+@set vending machine/cmd_vend = '''
+$vend *:
+sel = trim(arg0).lower()  # normalize the wildcard capture: trim spaces, lowercase
+item = V('item_' + sel)
+k = 'credit_' + enactor.id
+bal = V(k, 0)
+left = V('stock_' + sel, 0)
+if not item:
+    pemit(enactor, 'The panel blinks: NO SUCH SELECTION. Try browse.')
+elif left < 1:
+    pemit(enactor, f'The {sel} coil is empty. SOLD OUT.')
+elif bal < item['price']:
+    pemit(enactor, f'CREDIT {bal} of {item["price"]}. Feed it: pay {item["price"] - bal} to vending machine.')
+else:
+    decr(k, item['price'])
+    decr('stock_' + sel)
+    create_obj(item['name'], description=item['desc'], attrs={'weight': item['weight']})  # mint into the room, the tray
+    remit(here, f'The vending machine whirs and drops a {item["name"]} into the tray.')
+'''
 ```
 
 The `weight` attribute is not decorative, since it is exactly what the
