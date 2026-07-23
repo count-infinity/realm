@@ -5,7 +5,9 @@ Two flavours, for two jobs:
 
 - **Clone** (``import_objects``): recreate the file's objects with FRESH
   ids. For distributing a reusable module — three taverns from one file.
-  Never collides; re-importing makes independent copies.
+  Never collides on ids; re-importing makes independent copies. A friendly
+  keyid (unique by definition) carries over only when free — a copy of a
+  keyed object lands keyless, reported, never merged.
 
 - **Sync** (``diff_plan`` → ``apply_plan``): keep an area's live objects
   matching the file, matched by their STABLE ids. The builder-iteration
@@ -24,12 +26,15 @@ room.
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
+
+logger = logging.getLogger(__name__)
 
 FORMAT_VERSION = 1
 STRIPPED_ATTRS = {'password'}
@@ -142,16 +147,29 @@ async def import_objects(data: dict, persistence, *,
             return created[id_map[old_id]]
         return persistence.get_cached(old_id) if persistence else None
 
-    # Pass 2: references, then persist.
+    # Pass 2: references, keyid reconciliation, then persist.
     results = []
+    keyid_conflicts: list[tuple[str, str]] = []
     for entry in entries:
         obj = created[id_map[entry['id']]]
         obj.location = resolve(entry.get('location'))
         obj.owner = resolve(entry.get('owner'))
         obj.parent = resolve(entry.get('parent'))
+        # A friendly keyid carries over on import, but only if free: a keyid
+        # already held by a DIFFERENT live object is a conflict, not a merge —
+        # the copy lands keyless (no forced re-keying of the common,
+        # non-colliding case). See docs/design/object-identity.md.
+        desired = obj.db.get('keyid')
+        if desired and persistence is not None:
+            ok, reason = persistence.claim_keyid(obj, desired)
+            if not ok:
+                obj.db.delete('keyid')
+                keyid_conflicts.append((obj.name, reason))
         if persistence is not None:
             await persistence.save(obj)
         results.append(obj)
+    for name, reason in keyid_conflicts:
+        logger.warning("import: '%s' imported keyless — %s", name, reason)
     return results
 
 
@@ -273,6 +291,19 @@ def diff_plan(data: dict, zone: str, persistence, *, actor=None) -> SyncPlan:
     live = _area_members(zone, persistence)
 
     for oid, entry in entries.items():
+        # A friendly keyid the file assigns to THIS object must not already
+        # belong to a DIFFERENT live one — that's a conflict the plan refuses,
+        # never a silent merge. Same object re-syncing its own keyid is fine.
+        kid = (entry.get('attrs') or {}).get('keyid')
+        if kid and persistence is not None:
+            holder = persistence.keyid_holder(kid)
+            if holder is not None and holder.id != oid:
+                plan.conflict.append(
+                    (str(entry.get('name', oid)),
+                     f"keyid '{kid}' already belongs to {holder.name} "
+                     f"(#{holder.id[:8]})"))
+                continue
+
         existing = live.get(oid) or (
             persistence.get_cached(oid) if persistence else None)
         if existing is None:

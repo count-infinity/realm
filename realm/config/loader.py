@@ -59,6 +59,9 @@ class Settings:
     markup_marker: str = "|"
     # Reference sigil for rich emotes: `pose waves at /Bob`.
     emote_sigil: str = "/"
+    # Friendly-keyid lookup sigil for get()/references: `get('$banknet_core')`.
+    # Any length; may not start with '#' (reserved for raw ids).
+    keyid_sigil: str = "$"
 
     # PROCESS-WIDE Python recursion limit (not per-script!). Applies to every
     # thread including the engine's own main loop, so it must stay well above
@@ -175,6 +178,7 @@ def load_config(game_dir: Path | None = None) -> Settings:
         command_sigil=config.get('COMMAND_SIGIL', '$'),
         listen_sigil=config.get('LISTEN_SIGIL', '^'),
         markup_marker=config.get('MARKUP_MARKER', '|'),
+        keyid_sigil=config.get('KEYID_SIGIL', '$'),
         db_path=_resolve_path(game_dir, config.get('DB_PATH', 'data/game.db')),
         welcome_file=_resolve_path(game_dir, config.get('WELCOME_FILE', 'data/welcome.txt')),
         game_dir=game_dir,

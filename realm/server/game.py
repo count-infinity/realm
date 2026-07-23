@@ -102,6 +102,7 @@ class GameServer:
         listen_sigil: str = "^",
         markup_marker: str = "|",
         emote_sigil: str = "/",
+        keyid_sigil: str = "$",
         recursion_limit: int = 1000,
     ):
         self.db_path = Path(db_path)
@@ -137,6 +138,7 @@ class GameServer:
         # value raises here, at boot, not mid-render.
         from realm.core.markup import set_markup_marker
         from realm.core.verbs import set_emote_sigil
+        from realm.scripting.functions import set_keyid_sigil
         from realm.scripting.inline import set_inline_delimiters
         from realm.scripting.sandbox import set_interpreter_recursion_limit
         from realm.scripting.triggers import set_trigger_sigils
@@ -144,6 +146,7 @@ class GameServer:
         set_trigger_sigils(command=command_sigil, listen=listen_sigil)
         set_markup_marker(markup_marker)
         set_emote_sigil(emote_sigil)
+        set_keyid_sigil(keyid_sigil)
         # Process-wide, every thread — including this one. Set once, here,
         # never per script (see set_interpreter_recursion_limit's docstring).
         set_interpreter_recursion_limit(recursion_limit)
@@ -223,6 +226,7 @@ class GameServer:
             listen_sigil=getattr(settings, 'listen_sigil', '^'),
             markup_marker=getattr(settings, 'markup_marker', '|'),
             emote_sigil=getattr(settings, 'emote_sigil', '/'),
+            keyid_sigil=getattr(settings, 'keyid_sigil', '$'),
             recursion_limit=getattr(settings, 'recursion_limit', 1000),
         )
         server._settings = settings

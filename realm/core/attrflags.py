@@ -73,10 +73,15 @@ def visual_attrs(obj: GameObject) -> list[str]:
 
 
 def cloneable_attrs(attrs: dict, flag_table: dict | None) -> dict:
-    """Filter a db.all() dict for @clone/prototype extraction."""
-    if not isinstance(flag_table, dict):
-        return dict(attrs)
-    skip = {n for n, f in flag_table.items() if 'no_clone' in (f or ())}
+    """Filter a db.all() dict for @clone/prototype extraction.
+
+    Always drops 'keyid' — a unique identity handle can't be shared by a
+    copy any more than a uuid can (see realm/persistence/keyid.py); the
+    clone lands keyless and is re-keyed by hand if it should be a singleton.
+    """
+    skip = {'keyid'}
+    if isinstance(flag_table, dict):
+        skip |= {n for n, f in flag_table.items() if 'no_clone' in (f or ())}
     return {k: v for k, v in attrs.items() if k not in skip}
 
 

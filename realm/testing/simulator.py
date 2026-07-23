@@ -36,19 +36,34 @@ class _Store:
     engine, commands, and world queries use."""
 
     def __init__(self) -> None:
+        from realm.persistence.keyid import KeyidIndex
         self._cache: dict[str, GameObject] = {}
+        self._keyids = KeyidIndex(self.get_cached)
 
     async def save(self, obj: GameObject) -> None:
         self._cache[obj.id] = obj
+        self._keyids.index(obj)
 
     async def delete(self, obj: GameObject) -> None:
+        self._keyids.release(obj)
         self._cache.pop(obj.id, None)
 
     def add(self, obj: GameObject) -> None:
         self._cache[obj.id] = obj
+        self._keyids.index(obj)
 
     def unregister(self, obj: GameObject) -> None:
+        self._keyids.release(obj)
         self._cache.pop(obj.id, None)
+
+    def keyid_holder(self, keyid: str) -> GameObject | None:
+        return self._keyids.holder(keyid)
+
+    def claim_keyid(self, obj: GameObject, keyid: str) -> tuple[bool, str]:
+        return self._keyids.claim(obj, keyid)
+
+    def release_keyid(self, obj: GameObject) -> None:
+        self._keyids.release(obj)
 
     def get_cached(self, obj_id: str) -> GameObject | None:
         return self._cache.get(obj_id)

@@ -498,6 +498,28 @@ same day (see Completed); these remain, roughly by impact:
   - Softcode surface: a way to open the editor on an attr from softcode
     (mirrors how `prompt()` is exposed), so builders can wire "edit this"
     affordances.
+- [ ] **Output pager** (Evennia `EvMore` analog)
+  - Deliver long command output a screenful at a time instead of dumping it all
+    at once: `n`/Enter for the next page, `b` back, `t` top, `q` quit. The
+    *reading* counterpart to the multiline editor above (EvEditor writes, EvMore
+    reads), and near-universal in the field (`more`/`page` in Diku/LP/MUSH).
+  - **Motivating cases already in-tree**: `@stats`'s ticking-owner list (which
+    prompted this), `@find` results, `who`, `help`, `commands`, `browse`/`list`
+    menus, `@examine` — any command whose output can outrun a screen. Today they
+    all send in full.
+  - **Build on what exists**: the same session input-capture that powers
+    `prompt()` (`session.input_handler` / `_prompt_future`) drives the paging
+    loop, and the client's `terminal_height` (already fed by telnet NAWS and
+    websocket resize into session data) sets the page size (fall back to ~20
+    lines when unknown). A command hands its long text to the pager instead of
+    `session.send`; the pager holds the remainder and reveals a page per
+    keystroke until `q`.
+  - **Softcode surface**: a `page(target, text)` function (mirroring how
+    `prompt()` / `pemit()` are exposed) so a builder's long `$`-command output
+    (a bookshelf listing, a big menu) pages too.
+  - Scope note: purely a delivery-side UI over `session.send` — no new authority
+    surface, no persistence, and short output (below one page) sends straight
+    through untouched.
 
 ## Questions for Product Manager
 
@@ -1821,12 +1843,59 @@ the user's numbering.
 
 ### 2. Friendlier object ids
 
-- [ ] **Human-friendly id (`name#<shorthash>`) alongside uuid.** Currently
-  `id = str(uuid.uuid4())` (realm/core/objects.py:148); `get('#<id>')` needs the
-  FULL uuid (exact cache-key lookup, persistence/manager.py:220). Sketch: keep
-  uuid as canonical, add a short-prefix index (first 6-8 hex) + a `#name~shorthash`
-  parse branch in `get()`/`get_cached`; collisions fall back to full-uuid or
-  disambiguation. Keeps uuid uniqueness, adds legibility.
+**Design decision: keep the uuid as the canonical id; add friendliness as
+separate, opt-in layers on top — never by deriving the id from mutable
+fields.** The uuid is stable, globally unique, and O(1) to mint with no
+coordination (`id = str(uuid.uuid4())`, realm/core/objects.py:148), which is
+what keeps object creation fast. The DNS model is the frame: an opaque stable
+address (the uuid, like an IP) plus a friendly, optional, mutable label (like a
+hostname) — layered, not fused. Three complementary mechanisms, none of which
+touches the fast-creation path for ordinary objects:
+
+- [ ] **(a) Short-hash ids for typing (`#<shorthash>`).** `get('#<id>')` today
+  needs the FULL uuid (exact cache-key lookup, persistence/manager.py:220).
+  Sketch: keep uuid canonical, add a short-prefix index (first 6-8 hex) + a
+  `#name~shorthash` parse branch in `get()`/`get_cached`; collisions fall back to
+  full-uuid or disambiguation. This is git's model — makes *any* object typeable
+  (`@teleport #a1b2c3`) without naming it. Cheapest win; doesn't make ids
+  *meaningful*, just *short*. Zero creation cost (shorthash is a prefix of the id
+  already minted).
+
+- [x] **(b) Optional unique keyid (`$<keyid>`) — DONE 2026-07-22.** Shipped as
+  designed; see docs/design/object-identity.md and tests/test_keyid.py (16 tests).
+  A dedicated `@keyid <obj> [= <keyid>]` command (view / set / clear;
+  commands/olc/modify.py) assigns a unique, stable, opt-in handle resolvable as
+  `get('$banknet_core')`. Named `@keyid` (not `@key`/`@set x/key`) so "key" stays
+  free for door/lock keys, `@lock`, and attribute keys. Implementation:
+  - **Index:** `KeyidIndex` (`{keyid → obj_id}`, cache-validated on read so
+    delete/re-key entries self-heal) in realm/persistence/keyid.py, composed by
+    both `PersistenceManager` and the test `_Store`; wired into register/load so
+    it rebuilds as objects enter the cache. Unkeyed objects never touch it — the
+    hot creation path is unchanged.
+  - **Resolution:** `get()` gained a `$`-branch after the `#` id branch
+    (functions.py) → `persistence.keyid_holder(...)`.
+  - **Identity, not data:** `keyid` is in `PROTECTED_ATTRS` (softcode `set_attr`
+    and `@set` refuse it — only `@keyid` writes it) and is always dropped by
+    `@clone`/prototype extraction (`cloneable_attrs`).
+  - **Configurable sigil:** `keyid_sigil` joins the game-tunable family
+    (config/loader.py, `KEYID_SIGIL`; wired in server/game.py); a string, any
+    length, boot-validated non-alnum/non-space and not `#`-leading.
+  - **Import — conflict, never merge:** keyids carry over when free; a keyid held
+    by a *different* live object is a conflict (sync `diff_plan` → `plan.conflict`,
+    which blocks `apply_plan`; clone `import_objects` → object lands keyless +
+    logged). Same object re-importing its own keyid is idempotent.
+
+- Rejected as *identity*: **`<owner>:<name>` namespace.** Tempting (player names
+  are unique), but it derives the id from mutable, non-unique fields and fails on
+  all three id invariants: **not unique** (Alice can build two "sword"s; forcing
+  per-owner name uniqueness breaks the routine "ten identical torches", and a
+  `:2` disambiguator reintroduces an opaque counter *plus* a uniqueness check at
+  creation — the thing we're protecting against); **not stable** (`@name` or
+  `@chown` silently changes the id, breaking every stored reference — the exact
+  breakage the 004 fix exists to prevent); **no root for unowned objects** (rooms,
+  exits, system scenery have `owner=None`). Owner-scoped *lookup* is legitimate —
+  but express it as a filter (`get('sword', owner='alice')`) on top of §3, never
+  as the stored id.
 
 ### 3. `get()` collision handling + filters
 
@@ -2191,6 +2260,87 @@ hands its object's authority to every caller. Same reasoning applies here.
 `@set obj/attr = value` — pure MUSH muscle memory. Note Penn requires the
 object; `&myfn1 = ...` with no target would be a REALM divergence (would have
 to default to `me`).
+
+## Object-command discoverability: `help` lists contextual `$`-commands (filed 2026-07-22)
+
+User-requested. Prompted by Evennia CommandSets, whose merged-set model gives
+"list every command available, including ones on objects in the room" as a
+side effect. We want **that discoverability benefit without the CommandSet
+abstraction** — REALM's dispatch is a flat builtin registry plus lazily-matched
+object `$`-triggers, so there is no set to surface; the listing is built
+directly and more cheaply. Explicitly NOT adopting CommandSets, nor their
+override/removal use cases (access removal is already the `use` lock +
+permission gating; a temporary override is rare enough that a lock flip or a
+state attribute beats a set-merge system).
+
+**What already exists (the enumerator is ~15 lines against these):**
+- `get_search_objects(player)` (realm/scripting/triggers.py:458) — the exact
+  "what's in reach" scope dispatch uses: room contents, the room, inventory,
+  zone objects.
+- `get_command_triggers(obj)` (realm/scripting/triggers.py:287) — parses an
+  object's `cmd_*` attrs into `CommandTrigger`s, each carrying `.pattern`.
+- The `use` lock gate (`check_lock(obj, LockType.USE, player)`,
+  realm/scripting/engine.py:146) — the can-call test, reusable as a listing
+  filter.
+- `_show_command_list` (realm/commands/builtin/utility.py:141) already lists
+  built-ins (role-filtered). It shows *nothing* of object `$`-commands today;
+  they are dispatched only via the unknown-command fallback
+  (`handle_unknown_command`, engine.py:122), i.e. by matching, never by listing.
+
+So the plumbing is the easy part. The three real design questions:
+
+**1. A `$pattern` is a matcher, not a description.** `$buy * from *` / `$pull`
+are regexes; listing them raw leaks wildcards and reads badly. Needs a
+human label the builder supplies.
+
+**2. Secrecy — the load-bearing decision.** Much of the showcase is built on
+commands you are NOT meant to know exist: riddle door `$say friend` (211),
+hidden `$push brick` (209), keypad (210), escape room (216). A `help` that
+enumerates every `$`-command in the room **spoils every puzzle in the game.**
+The `use` lock answers *can-call*, which is not the same question as
+*should-list*. Evennia solves this with a second lock axis (`view:` distinct
+from `cmd:`).
+
+**3. Placement.** Built-ins are global; object commands are contextual. Don't
+blend them into one list.
+
+**Recommendation — resolve 1 and 2 with one rule: listing is opt-in, and the
+presence of a hint IS the visibility flag.** A `$`-command is hidden from
+`help` unless the builder attaches a short human hint to it. Right defaults
+fall out for free:
+- Puzzle commands (undocumented) stay secret automatically — silence is the
+  default, the only safe default. **This is the non-negotiable constraint: a
+  `$`-command must never appear in `help` unless a builder explicitly opted it
+  in.**
+- Real affordances get discovered: `cmd_pull` + `hint = "pull the lever"`,
+  `cmd_buy` + `hint = "buy <item>"` show up. Writing the hint IS the decision
+  to make it public.
+- Layer the existing `use` lock on top (don't list what the player can't call).
+
+**Hint encoding — two options, lean toward the companion attr:**
+
+| option | looks like | trade |
+|---|---|---|
+| companion attr (preferred) | `cmd_pull` + `hint_pull = pull the lever` | explicit; doesn't touch the `$pattern:action` parser; matches the `@attr secret` opt-in habit |
+| inline metadata | `$pull #pull the lever: <action>` | one attr; extends the trigger grammar several things depend on |
+
+**Display sketch** — keep the current global list, add a contextual block:
+
+```
+Here you can also:
+  pull the lever            (slot machine)
+  buy <item>                (bartender)
+```
+
+**Later refinement (not v1):** a `view` lock for the rare "cleared staff see
+it, others don't" case — the opt-in hint covers the common case without it.
+
+**Cost:** the scan runs once per `help`, not per keystroke, over a bounded
+scope; the per-candidate `use` check is the same one dispatch already does. No
+perf concern.
+
+**Ties into:** the global-`$`-command / Master Room TODO (get_search_objects
+item 5) — global verbs, if added, would want the same hint-based listing.
 
 ## RESOLVED 2026-07-17: event payload binding (Theme A, the #1 showcase gap)
 

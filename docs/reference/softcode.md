@@ -254,7 +254,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`first`](#fn-first) | Get first element of list or first word of string. | [Text](#text) |
 | [`floor`](#fn-floor) | Round down to integer. | [Math & logic](#math-logic) |
 | [`force`](#fn-force) | Make something the executor controls run a command (queued; executes through the real dispatcher after the script). | [NPCs & behaviors](#npcs-behaviors) |
-| [`get`](#fn-get) | Get an object by ID or name. | [Objects & attributes](#objects-attributes) |
+| [`get`](#fn-get) | Get an object by ID, friendly keyid, or name. | [Objects & attributes](#objects-attributes) |
 | [`get_attr`](#fn-get_attr) | Get an attribute from an object. | [Objects & attributes](#objects-attributes) |
 | [`has_attr`](#fn-has_attr) | Check if an object has an attribute. | [Objects & attributes](#objects-attributes) |
 | [`has_entitlement`](#fn-has_entitlement) | Whether an object holds a permission entitlement (read-only). | [Locks & permissions](#locks-permissions) |
@@ -462,18 +462,25 @@ move(name(exits(here)[0]))
 get(spec: str) -> GameObject | None
 ```
 
-Get an object by ID or name.
+Get an object by ID, friendly keyid, or name.
 
-Args:
-    spec: Object ID (starting with #) or name
+Three forms, chosen by prefix:
 
-Returns:
-    The GameObject or None if not found
+- `#<uuid>` — exact raw-id lookup (the canonical, stable address).
+- `$<keyid>` — a friendly, unique handle set with `@keyid`
+  (`get('$banknet_core')`); resolves through the keyid index, so it
+  is collision-proof and survives renames. The `$` is the default
+  keyid sigil and is game-configurable.
+- anything else — a NAME match, local first (the executor's room and
+  inventory) then the whole world, taking the FIRST match and never
+  raising on ambiguity. Prefer `#id`/`$keyid` when identity matters.
+
+Returns the GameObject, or None if not found.
 
 **Example**
 
 ```text
-get('rusty key')  or  get('#3fa9...')
+get('rusty key')  or  get('#3fa9...')  or  get('$banknet_core')
 ```
 
 ### `get_attr` {#fn-get_attr}

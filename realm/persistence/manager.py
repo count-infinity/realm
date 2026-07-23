@@ -100,6 +100,11 @@ class PersistenceManager:
         self._save_queue: asyncio.Queue[str] = asyncio.Queue()
         self._flush_task: asyncio.Task[None] | None = None
         self._object_cache: dict[str, GameObject] = {}
+        # Friendly-handle layer: {keyid -> obj_id}, validated against the
+        # cache on read (see realm/persistence/keyid.py). Unkeyed objects
+        # never touch it, so the hot creation path is unchanged.
+        from realm.persistence.keyid import KeyidIndex
+        self._keyids = KeyidIndex(self.get_cached)
         self._running = False
         # obj_id -> the location_id its row named but the cache couldn't
         # resolve at load (an ephemeral room that was never persisted, or
@@ -212,10 +217,26 @@ class PersistenceManager:
     def register(self, obj: GameObject) -> None:
         """Register an object in the cache for deferred saving."""
         self._object_cache[obj.id] = obj
+        self._keyids.index(obj)
 
     def unregister(self, obj: GameObject) -> None:
         """Remove an object from the cache."""
+        self._keyids.release(obj)
         self._object_cache.pop(obj.id, None)
+
+    # --- Friendly keyid handles (see realm/persistence/keyid.py) ---
+
+    def keyid_holder(self, keyid: str) -> GameObject | None:
+        """The live object whose keyid is ``keyid``, or None."""
+        return self._keyids.holder(keyid)
+
+    def claim_keyid(self, obj: GameObject, keyid: str) -> tuple[bool, str]:
+        """Bind ``keyid`` to ``obj`` (conflict, don't merge). ``(ok, reason)``."""
+        return self._keyids.claim(obj, keyid)
+
+    def release_keyid(self, obj: GameObject) -> None:
+        """Free ``obj``'s keyid (the clear path)."""
+        self._keyids.release(obj)
 
     def get_cached(self, obj_id: str) -> GameObject | None:
         """Get a loaded object by ID without touching the database."""
@@ -273,6 +294,7 @@ class PersistenceManager:
                 obj = self._row_to_object(data)
                 if obj:
                     self._object_cache[obj.id] = obj
+                    self._keyids.index(obj)
                     objects.append(obj)
                     refs[obj.id] = (data.get('location_id'),
                                     data.get('parent_id'),
@@ -376,6 +398,7 @@ class PersistenceManager:
             obj = self._row_to_object(dict(row))
             if obj:
                 self._object_cache[obj.id] = obj
+                self._keyids.index(obj)
                 await self._resolve_references(obj)
             return obj
 

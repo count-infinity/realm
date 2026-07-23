@@ -24,8 +24,39 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
-# Attributes softcode may never read (secrets live in ordinary attrs).
-PROTECTED_ATTRS = {'password'}
+# Attributes softcode may never read/write (secrets live in ordinary attrs).
+# 'keyid' is a unique identity handle — writing it must go through the
+# @keyid command so the uniqueness index stays consistent (see
+# realm/persistence/keyid.py), never a bare @set/set_attr.
+PROTECTED_ATTRS = {'password', 'keyid'}
+
+
+# The sigil that marks a get()/reference spec as a friendly keyid lookup
+# ('$banknet_core') rather than a name — game-tunable like the trigger and
+# emote sigils, and (unlike the hardcoded '#' id prefix) any length. Ambient
+# module state, wired at server construction alongside the other sigils.
+DEFAULT_KEYID_SIGIL = '$'
+_keyid_sigil = DEFAULT_KEYID_SIGIL
+
+
+def set_keyid_sigil(sigil: str = DEFAULT_KEYID_SIGIL) -> None:
+    """Install the keyid sigil (game config). Any length (1-16 chars); no
+    whitespace or alphanumerics (a sigil of 'key' would swallow ordinary
+    names), and it may not start with '#' — that prefix is reserved for raw
+    id lookup, which is tested first. A bad sigil raises at boot, not
+    mid-lookup."""
+    global _keyid_sigil
+    s = str(sigil)
+    if (not s or len(s) > 16 or s.startswith('#')
+            or any(c.isalnum() or c.isspace() for c in s)):
+        raise ValueError(
+            "keyid sigil must be 1-16 non-alphanumeric, non-space characters "
+            f"and may not start with '#' (got {sigil!r})")
+    _keyid_sigil = s
+
+
+def get_keyid_sigil() -> str:
+    return _keyid_sigil
 
 
 class ScriptFunctions:
@@ -68,15 +99,22 @@ class ScriptFunctions:
 
     def get(self, spec: str) -> GameObject | None:
         """
-        Get an object by ID or name.
+        Get an object by ID, friendly keyid, or name.
 
-        Args:
-            spec: Object ID (starting with #) or name
+        Three forms, chosen by prefix:
 
-        Returns:
-            The GameObject or None if not found
+        - ``#<uuid>`` — exact raw-id lookup (the canonical, stable address).
+        - ``$<keyid>`` — a friendly, unique handle set with ``@keyid``
+          (``get('$banknet_core')``); resolves through the keyid index, so it
+          is collision-proof and survives renames. The ``$`` is the default
+          keyid sigil and is game-configurable.
+        - anything else — a NAME match, local first (the executor's room and
+          inventory) then the whole world, taking the FIRST match and never
+          raising on ambiguity. Prefer ``#id``/``$keyid`` when identity matters.
 
-        Example: get('rusty key')  or  get('#3fa9...')
+        Returns the GameObject, or None if not found.
+
+        Example: get('rusty key')  or  get('#3fa9...')  or  get('$banknet_core')
         """
         spec = str(spec).strip()
 
@@ -85,6 +123,13 @@ class ScriptFunctions:
             if not self._persistence:
                 return None
             return self._persistence.get_cached(spec[1:])
+
+        # Friendly keyid lookup ($<keyid> by default) — an exact, unique,
+        # rename-proof handle resolved through the keyid index.
+        if _keyid_sigil and spec.startswith(_keyid_sigil):
+            if not self._persistence:
+                return None
+            return self._persistence.keyid_holder(spec[len(_keyid_sigil):])
 
         # Name lookup — local first (executor's room + inventory), like
         # player commands; then the whole world. Same tiered matcher as
@@ -213,6 +258,11 @@ class ScriptFunctions:
         """
         target = self._controlled(obj)
         if target is None:
+            return False
+        # Protected attrs (password, keyid) are identity/secret fields softcode
+        # must not write — keyid goes through @keyid so its uniqueness index
+        # stays consistent; a password is set only through auth.
+        if str(attr_name) in PROTECTED_ATTRS:
             return False
         from realm.core.attrflags import writable_attr
         ok, _reason = writable_attr(target, str(attr_name))

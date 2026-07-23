@@ -90,6 +90,101 @@ async def cmd_name(ctx: CommandContext) -> None:
     await ctx.session.send(f"Renamed '{old_name}' to '{new_name}'.")
 
 
+_KEYID_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:-")
+
+
+def _valid_keyid(kid: str) -> tuple[bool, str]:
+    """A keyid is a slug: letters, digits, and _ . : - only."""
+    if not kid or len(kid) > 64:
+        return False, "A keyid must be 1-64 characters."
+    if kid.startswith('#'):
+        return False, "A keyid may not start with '#' (the raw-id prefix)."
+    if any(c not in _KEYID_CHARS for c in kid):
+        return False, ("A keyid may use only letters, digits, and _ . : - "
+                       "(no spaces or sigils).")
+    return True, ""
+
+
+async def cmd_keyid(ctx: CommandContext) -> None:
+    """
+    Give an object a unique, friendly handle — a *keyid* — so scripts can
+    reference it as ``get('$<keyid>')`` instead of a collision-prone name or
+    an opaque id. Ideal for well-known singletons (a bank core, a weather
+    master). The uuid stays the canonical id; a keyid is an optional, stable,
+    globally-unique alias on top of it, and only one object may hold a given
+    keyid at a time.
+
+    Usage: @keyid <object>              (show the current keyid)
+           @keyid <object> = <keyid>    (set — refused if another object holds it)
+           @keyid <object> =            (clear)
+
+    Example:
+        @keyid BankNet Core = banknet_core
+        @eval get('$banknet_core')
+    """
+    from realm.persistence.keyid import KEYID_ATTR
+    from realm.scripting.functions import get_keyid_sigil
+
+    spec = (ctx.left_args or "").strip()
+    if not spec:
+        await ctx.session.send("Usage: @keyid <object> [= <keyid>]")
+        return
+    target = resolve_target(ctx, spec)
+    if not target:
+        await ctx.session.send(f"Object '{spec}' not found.")
+        return
+    if not await require_control(ctx, target):
+        return
+
+    sigil = get_keyid_sigil()
+    persistence = ctx.persistence
+
+    # No '=' anywhere → show the current keyid.
+    if '=' not in (ctx.args or ""):
+        current = target.db.get(KEYID_ATTR)
+        if current:
+            await ctx.session.send(f"{target.name} keyid: {sigil}{current}")
+        else:
+            await ctx.session.send(
+                f"{target.name} has no keyid. Give it one with "
+                f"'@keyid {spec} = <handle>'.")
+        return
+
+    new = (ctx.right_args or "").strip()
+
+    # '=' with an empty value → clear.
+    if not new:
+        current = target.db.get(KEYID_ATTR)
+        if not current:
+            await ctx.session.send(f"{target.name} has no keyid to clear.")
+            return
+        if persistence is not None:
+            persistence.release_keyid(target)
+        target.db.delete(KEYID_ATTR)
+        await save_object(ctx, target)
+        await ctx.session.send(f"Cleared {target.name}'s keyid ('{current}').")
+        return
+
+    # Set — validate the handle, then claim it (conflict, never merge).
+    ok, reason = _valid_keyid(new)
+    if not ok:
+        await ctx.session.send(reason)
+        return
+    if persistence is None:
+        await ctx.session.send("No persistence available — cannot register a keyid.")
+        return
+    claimed, why = persistence.claim_keyid(target, new)
+    if not claimed:
+        await ctx.session.send(
+            f"Refused: {why}. Clear it there first, or choose another handle.")
+        return
+    target.db.set(KEYID_ATTR, new)
+    await save_object(ctx, target)
+    await ctx.session.send(
+        f"{target.name} is now reachable as {sigil}{new}.")
+
+
 async def cmd_set(ctx: CommandContext) -> None:
     """
     Set an attribute on an object.
@@ -129,6 +224,13 @@ async def cmd_set(ctx: CommandContext) -> None:
         return
 
     if not await require_control(ctx, target):
+        return
+
+    from realm.persistence.keyid import KEYID_ATTR
+    if attr_name == KEYID_ATTR:
+        await ctx.session.send(
+            "'keyid' is a unique identity handle — set it with @keyid, not "
+            "@set, so its uniqueness is enforced.")
         return
 
     from realm.core.attrflags import writable_attr
@@ -655,6 +757,15 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
         cmd_set,
         help_text="Set an attribute on an object",
         usage="@set <object>/<attr> = <value>",
+        permission="builder",
+        parse_equals=True,
+    )
+
+    register(
+        "@keyid",
+        cmd_keyid,
+        help_text="Give an object a unique friendly handle ($keyid)",
+        usage="@keyid <object> [= <keyid>]",
         permission="builder",
         parse_equals=True,
     )
