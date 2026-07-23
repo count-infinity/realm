@@ -1261,6 +1261,69 @@ class ScriptFunctions:
             self._eval_depth -= 1
         return result
 
+    def call(self, obj, attr_name: str, *args):
+        """
+        Call an attribute as a METHOD on ``obj`` — runs AS ``obj`` (``me`` is
+        obj, ``V()``/``get_attr(me, ...)`` read obj's own data, ``here`` is
+        obj's room), with ``enactor`` preserved and args bound as arg0..argN.
+        Returns the routine's ``result``.
+
+        Unlike ``eval_attr`` (which runs as the CALLER — a subroutine of
+        your own object), ``call`` is a method invocation on another object:
+        the shared-service / "function object" form. Allowed when the executor
+        CONTROLS ``obj`` (co-owned, admin, or owner) OR the attribute is
+        flagged ``public`` (the cross-owner opt-in). Protected attrs are never
+        callable; errors return None. Because ``here`` is the target's room,
+        reach the caller's scene with ``pemit(enactor, ...)`` or
+        ``remit(loc(enactor), ...)``.
+
+        Example: call(get('#' + V('bank_core_id')), 'net_deposit', trim(arg0))
+        """
+        if getattr(self, '_eval_depth', 0) >= 8:
+            return None
+        target = self._resolve(obj)
+        if target is None:
+            return None
+        attr = str(attr_name)
+        if attr in PROTECTED_ATTRS:
+            return None
+        from realm.core.attrflags import has_attr_flag
+        from realm.permissions.locks import controls
+        if not (controls(self.executor, target)
+                or has_attr_flag(target, attr, 'public')):
+            return None
+        code = target.db.get(attr)
+        if not isinstance(code, str) or not code.strip():
+            return None
+
+        from realm.scripting.sandbox import (
+            ScriptContext,
+            ScriptError,
+            ScriptSandbox,
+        )
+        ctx = ScriptContext(
+            enactor=self.enactor,
+            executor=target,
+            location=target.location,
+            captures=[str(a) for a in args],
+        )
+        # Run AS the target: rebind executor/location for the duration so the
+        # injected V()/set_attr()/me read the target's own data, then restore.
+        # The shared command_queue and persistence carry through, so the
+        # routine's pemits and saves flush with the outer script.
+        saved_exec, saved_loc = self.executor, self.location
+        self.executor, self.location = target, target.location
+        self._eval_depth = getattr(self, '_eval_depth', 0) + 1
+        try:
+            result, _output = ScriptSandbox().execute(
+                code, ctx, functions=self.to_dict())
+        except ScriptError:
+            return None
+        finally:
+            self._eval_depth -= 1
+            self.executor, self.location = saved_exec, saved_loc
+        return result
+
     # --- Scheduling ---
 
     def prompt(self, target, text: str, callback: str,
@@ -1838,6 +1901,7 @@ class ScriptFunctions:
             'cancel_wait': self.cancel_wait,
             'prompt': self.prompt,
             'eval_attr': self.eval_attr,
+            'call': self.call,
             'force': self.force,
             # String functions
             'ucfirst': self.ucfirst,

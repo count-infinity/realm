@@ -225,6 +225,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`attach_behavior`](#fn-attach_behavior) | Attach a registered behavior to an object the executor controls. | [NPCs & behaviors](#npcs-behaviors) |
 | [`band`](#fn-band) | Tiered outcome (PbtA): tier = how many ascending thresholds `value` clears. | [Dice & skill checks](#dice-skill-checks) |
 | [`behaviors`](#fn-behaviors) | Behavior ids attached to an object. | [NPCs & behaviors](#npcs-behaviors) |
+| [`call`](#fn-call) | Call an attribute as a METHOD on `obj` — runs AS `obj` (`me` is obj, `V()`/`get_attr(me, ...)` read obj's own data, `here` is obj's room), with `enactor` preserved and args bound as arg0..argN. | [Objects & attributes](#objects-attributes) |
 | [`cancel_wait`](#fn-cancel_wait) | Cancel a pending wait by the handle `wait()` returned, before it fires. | [Time & scheduling](#time-scheduling) |
 | [`capstr`](#fn-capstr) | Capitalize each word. | [Text](#text) |
 | [`cast`](#fn-cast) | Direct an ability at a target — the ability analog of `act`. | [Combat & effects](#combat-effects) |
@@ -315,6 +316,32 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`zones_of`](#fn-zones_of) | The zone names an object belongs to (no 'zone:' prefix). | [Tags & zones](#tags-zones) |
 
 ## Objects & attributes
+
+### `call` {#fn-call}
+
+```text
+call(obj, attr_name: str, *args)
+```
+
+Call an attribute as a METHOD on `obj` — runs AS `obj` (`me` is
+obj, `V()`/`get_attr(me, ...)` read obj's own data, `here` is
+obj's room), with `enactor` preserved and args bound as arg0..argN.
+Returns the routine's `result`.
+
+Unlike `eval_attr` (which runs as the CALLER — a subroutine of
+your own object), `call` is a method invocation on another object:
+the shared-service / "function object" form. Allowed when the executor
+CONTROLS `obj` (co-owned, admin, or owner) OR the attribute is
+flagged `public` (the cross-owner opt-in). Protected attrs are never
+callable; errors return None. Because `here` is the target's room,
+reach the caller's scene with `pemit(enactor, ...)` or
+`remit(loc(enactor), ...)`.
+
+**Example**
+
+```text
+call(get('#' + V('bank_core_id')), 'net_deposit', trim(arg0))
+```
 
 ### `contents` {#fn-contents}
 

@@ -21,7 +21,7 @@ CATEGORIES: dict[str, list[str]] = {
         "get", "get_attr", "set_attr", "has_attr", "del_attr", "V",
         "incr", "decr", "name", "loc", "owner", "contents", "exits",
         "create_obj", "destroy_obj", "teleport_obj", "controls",
-        "eval_attr", "search_world",
+        "eval_attr", "call", "search_world",
     ],
     "Tags & zones": [
         "add_tag", "remove_tag", "has_tag", "tags", "tag_value",

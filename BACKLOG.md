@@ -2212,6 +2212,17 @@ tutorials above.
 
 ## `@function`: builder-registered softcode functions (filed 2026-07-17)
 
+**Update 2026-07-23 — the object-scoped half is BUILT.** `call(obj, 'attr',
+*args)` (functions.py) runs a routine AS the target object (`me`/`V()` scoped
+to it, `enactor` preserved) — Penn's `u(obj/attr)` semantics — gated by
+`controls(executor, obj)` OR the new `public` attrflag (cross-owner opt-in;
+co-owned/admin callers need no flag). `public` is orthogonal to read: a
+`secret`+`public` attr is an opaque public method (callable, source hidden,
+not `eval_attr`-able). See tests/test_call.py and docs/reference/softcode.md.
+What remains below is only the **global-name registry** layer — `myfn(x)` with
+the object elided — which is a pure convenience over `call()` and is where the
+flat-namespace / who-may-register questions live. Lower priority now.
+
 Penn's `&MYFN obj = <code>` + `@function myfn = obj/MYFN`, so softcode calls
 `myfn(x)` instead of `eval_attr(get('Library'), 'myfn', x)`. Wanted; design
 settled below.

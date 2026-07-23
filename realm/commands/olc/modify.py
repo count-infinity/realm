@@ -667,7 +667,8 @@ async def cmd_detail(ctx: CommandContext) -> None:
 async def cmd_attr(ctx: CommandContext) -> None:
     """
     Flag attributes: secret (controllers-only read), visual (shown on
-    examine), safe (writes refused), no_clone (skipped by @clone).
+    examine), safe (writes refused), no_clone (skipped by @clone),
+    public (callable AS this object via call() by non-controllers).
 
     Usage: @attr <object>/<attribute> = <flag>[, <flag>...]
            @attr <object>/<attribute> = !<flag>     (remove a flag)
@@ -808,7 +809,7 @@ def register_modify_commands(dispatcher: CommandDispatcher) -> None:
     register(
         "@attr",
         cmd_attr,
-        help_text="Flag attributes: secret, visual, safe, no_clone",
+        help_text="Flag attributes: secret, visual, safe, no_clone, public",
         usage="@attr <object>/<attr> = <flag>[, ...]",
         permission="builder",
         parse_equals=True,

@@ -1,10 +1,15 @@
 """
-Per-attribute flags — the four that earn their keep (of PennMUSH's ~30):
+Per-attribute flags — the five that earn their keep (of PennMUSH's ~30):
 
     secret    unreadable except by controllers (softcode + @examine)
     visual    shown on plain player ``examine``
     safe      @set/@wipe/set_attr refuse until the flag is cleared
     no_clone  skipped by @clone / prototype extraction
+    public    callable AS this object via call() by non-controllers — the
+              deliberate cross-owner "public method" opt-in (co-owned callers
+              never need it, control already suffices). Independent of secret:
+              a secret+public attr is an opaque public method (invoke as the
+              object, source stays hidden, and cannot be run as the caller).
 
 Stored in the house style: one dict on the object —
 ``db.attr_flags = {"gm_notes": ["secret"], "lore": ["visual"]}`` —
@@ -21,7 +26,7 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 FLAGS_ATTR = "attr_flags"
-VALID_FLAGS = ("secret", "visual", "safe", "no_clone")
+VALID_FLAGS = ("secret", "visual", "safe", "no_clone", "public")
 
 
 def attr_flags(obj: GameObject, name: str) -> set[str]:
