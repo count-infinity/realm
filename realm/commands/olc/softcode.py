@@ -154,6 +154,9 @@ async def cmd_clone(ctx: CommandContext) -> None:
            @clone <object> = <new name>
 
     The copy appears in your location. Players and rooms can't be cloned.
+    A unique @keyid handle is NOT copied (a copy can't share a unique
+    identity, like a uuid) — the clone lands keyless; re-key it with @keyid
+    if it should be a singleton.
 
     Example:
         @clone harbor rat

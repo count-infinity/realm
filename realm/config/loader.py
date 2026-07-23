@@ -62,6 +62,11 @@ class Settings:
     # Friendly-keyid lookup sigil for get()/references: `get('$banknet_core')`.
     # Any length; may not start with '#' (reserved for raw ids).
     keyid_sigil: str = "$"
+    # Multi-line (heredoc) input delimiters: a command line ending in
+    # heredoc_open starts collecting until a line of heredoc_close. Same by
+    # default ("'''"); a world may prefer distinct "<<<" / ">>>".
+    heredoc_open: str = "'''"
+    heredoc_close: str = "'''"
 
     # PROCESS-WIDE Python recursion limit (not per-script!). Applies to every
     # thread including the engine's own main loop, so it must stay well above
@@ -179,6 +184,8 @@ def load_config(game_dir: Path | None = None) -> Settings:
         listen_sigil=config.get('LISTEN_SIGIL', '^'),
         markup_marker=config.get('MARKUP_MARKER', '|'),
         keyid_sigil=config.get('KEYID_SIGIL', '$'),
+        heredoc_open=config.get('HEREDOC_OPEN', "'''"),
+        heredoc_close=config.get('HEREDOC_CLOSE', "'''"),
         db_path=_resolve_path(game_dir, config.get('DB_PATH', 'data/game.db')),
         welcome_file=_resolve_path(game_dir, config.get('WELCOME_FILE', 'data/welcome.txt')),
         game_dir=game_dir,

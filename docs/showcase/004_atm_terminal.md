@@ -44,8 +44,11 @@ writes its own `#id` there, every terminal copies that handle, and from
 then on each lookup is
 [`get(V('bank_core_id'))`](../reference/softcode.md#fn-v), an exact,
 collision-proof reference that survives renames and duplicate names
-alike. (Ids are the stable handle; names are for humans. See the
-backlog's *friendlier object ids* note for where legibility is headed.)
+alike. (Ids are the stable handle; names are for humans. A well-known
+object can also carry a friendly
+[`$keyid`](../design/object-identity.md) handle set with `@keyid`, so
+terminals could resolve `get('$banknet_core')`; this build stores the id
+to show the underlying reference-by-identity pattern.)
 
 **`eval_attr` borrows code, not identity.** Each operation lives once,
 as a function attribute on the core (`net_deposit`, `net_withdraw`,

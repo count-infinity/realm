@@ -38,6 +38,27 @@ sandboxed Python with the whole engine API. In the Cellar:
 Walk out and back in: it bites. It'll bite your players too — damage is
 real, and lethal damage is *really* real (corpses and all).
 
+## Writing it readable
+
+One script on one line gets ugly fast. Open a **multi-line block** with a
+trailing `'''` and close it with a line of just `'''`; the lines between keep
+their indentation and store as one script:
+
+```text
+@set here/on_enter='''
+if get_attr(enactor, 'boots'):
+    pemit(enactor, 'Your boots hold. The board creaks but holds.')
+else:
+    damage(enactor, 1)
+    pemit(enactor, 'A rotten board snaps under your weight!')
+'''
+```
+
+It's the same sandboxed Python, now with real `if`/`else` and indentation
+instead of a wall of semicolons. `@abort` on its own line cancels a block,
+and the `'''` delimiter is configurable — see
+[World Management](../guides/world-management.md#multi-line-input-heredocs).
+
 ## Living descriptions
 
 `[[...]]` blocks in any description execute per viewer at render time —

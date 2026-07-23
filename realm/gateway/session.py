@@ -22,6 +22,47 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# Heredoc (multi-line input) delimiters — game settings (HEREDOC_OPEN /
+# HEREDOC_CLOSE in config.py). A command line ending in the OPEN sigil starts
+# collecting; a line that is exactly the CLOSE sigil ends it, and the whole
+# block is dispatched as ONE command with its newlines and indentation intact
+# (so a builder can @set a readable multi-line script instead of a `;`
+# one-liner). Open and close default to the same ''' but may be distinct
+# (<<< ... >>>) for worlds whose scripts use ''' internally. Ambient module
+# state, wired at server construction like the other sigils.
+DEFAULT_HEREDOC_OPEN = "'''"
+DEFAULT_HEREDOC_CLOSE = "'''"
+_heredoc_open = DEFAULT_HEREDOC_OPEN
+_heredoc_close = DEFAULT_HEREDOC_CLOSE
+
+#: Discards a runaway/mistyped block instead of dispatching it.
+HEREDOC_ABORT = "@abort"
+#: Backstop against an unterminated block growing without bound.
+HEREDOC_MAX_LINES = 1000
+
+
+def set_heredoc_sigils(open_sigil: str = DEFAULT_HEREDOC_OPEN,
+                       close_sigil: str = DEFAULT_HEREDOC_CLOSE) -> None:
+    """Install the multi-line-input delimiters (game config). Each is 1-16
+    non-alphanumeric, non-space characters (an alnum sigil would swallow
+    ordinary commands ending in that word). Open and close may be equal
+    (``''' ... '''``) or distinct (``<<< ... >>>``). A bad value raises at
+    boot, not mid-input."""
+    global _heredoc_open, _heredoc_close
+    for name, sig in (("open", str(open_sigil)), ("close", str(close_sigil))):
+        if (not sig or len(sig) > 16
+                or any(c.isalnum() or c.isspace() for c in sig)):
+            raise ValueError(
+                f"heredoc {name} sigil must be 1-16 non-alphanumeric, "
+                f"non-space characters (got {sig!r})")
+    _heredoc_open = str(open_sigil)
+    _heredoc_close = str(close_sigil)
+
+
+def get_heredoc_sigils() -> tuple[str, str]:
+    return _heredoc_open, _heredoc_close
+
+
 class SessionState(Enum):
     """States a session can be in."""
 
@@ -71,6 +112,7 @@ class Session:
         '_data',
         'input_handler',
         '_prompt_future',
+        '_heredoc',
     )
 
     def __init__(
@@ -98,6 +140,9 @@ class Session:
         # the command dispatcher. None = normal command mode.
         self.input_handler: Callable[..., Awaitable[bool]] | None = None
         self._prompt_future: Any = None
+        # Multi-line (heredoc) accumulation state: None in normal mode, else
+        # {'head': <command prefix>, 'body': [<raw lines>]} while collecting.
+        self._heredoc: dict[str, Any] | None = None
 
         self._protocol = protocol
         self._address = address
@@ -223,11 +268,64 @@ class Session:
 
     def submit_input(self, raw: str) -> None:
         """Normalize a decoded line of client input and queue it for the
-        pump. The single entry point protocol adapters should use."""
+        pump. The single entry point protocol adapters should use.
+
+        Multi-line input: a command line ending in the heredoc OPEN sigil
+        (``'''`` by default) starts collecting; the lines that follow
+        accumulate **with their indentation intact** until a line that is
+        exactly the CLOSE sigil, at which point the whole block is emitted as
+        ONE command — so a builder can ``@set`` a readable multi-line script
+        instead of a semicolon one-liner. ``@abort`` on its own line cancels
+        the block. Only active in normal command mode (never during a
+        prompt/wizard or login).
+        """
+        # Collecting a heredoc body: preserve each line verbatim (no strip,
+        # so Python indentation survives). Only the terminators are matched.
+        if self._heredoc is not None:
+            body_line = raw.rstrip("\r\n")
+            marker = body_line.strip()
+            if marker == _heredoc_close:
+                head, body = self._heredoc['head'], self._heredoc['body']
+                self._heredoc = None
+                self.touch()
+                self._queue_input(head + "\n".join(body))
+                return
+            if marker == HEREDOC_ABORT:
+                self._heredoc = None
+                self.send_nowait("Multi-line input aborted.")
+                return
+            if len(self._heredoc['body']) >= HEREDOC_MAX_LINES:
+                self._heredoc = None
+                self.send_nowait(
+                    f"Multi-line input exceeded {HEREDOC_MAX_LINES} lines "
+                    "— aborted.")
+                return
+            self._heredoc['body'].append(body_line)
+            self.touch()
+            return
+
         line = raw.strip()
         if not line:
             return
+
+        # Open a heredoc? A single command line ending in the OPEN sigil, and
+        # only in normal command mode (a pending prompt/wizard or login owns
+        # the input instead). The '\n' guard skips a whole multi-line paste
+        # arriving as one websocket message.
+        if (_heredoc_open and self.player is not None
+                and self._prompt_future is None and self.input_handler is None
+                and "\n" not in line and line.endswith(_heredoc_open)):
+            self._heredoc = {'head': line[:-len(_heredoc_open)], 'body': []}
+            self.touch()
+            self.send_nowait(
+                f"Multi-line input — end with a line of {_heredoc_close}, "
+                f"or {HEREDOC_ABORT} to cancel.")
+            return
+
         self.touch()
+        self._queue_input(line)
+
+    def _queue_input(self, line: str) -> None:
         try:
             self._input_queue.put_nowait(line)
         except asyncio.QueueFull:

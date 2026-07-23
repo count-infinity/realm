@@ -26,6 +26,44 @@ zones_of(here)                 # ['castle', 'haunted']
 tag_value(here, 'zone')        # 'castle' — any key:value tag namespace
 ```
 
+## Referencing objects: names, ids, and keyids
+
+Three ways to name the object you mean — in softcode's `get()` and anywhere
+a command takes an object:
+
+```python
+get('rusty key')      # by NAME  — first match, local first; never raises
+get('#3fa9c2b1-...')  # by raw ID — the exact, permanent uuid
+get('$banknet_core')  # by KEYID — a friendly, unique, stable handle
+```
+
+**Name** is convenient but is not identity: it takes the *first* match and
+never complains about ambiguity, so a second object sharing the name can
+silently capture the reference. Fine for a one-off lookup, a trap for a
+stored reference that must always point at one specific object.
+
+**Keyid** fixes that for the objects that need it — a well-known singleton
+like a bank core, a weather master, or a zone brain. Give one a handle with
+`@keyid`, then reference it as `$<handle>` forever:
+
+```text
+@keyid BankNet Core = banknet_core     set (refused if another object holds it)
+@keyid BankNet Core                    show the current handle
+@keyid BankNet Core =                  clear it
+```
+
+A keyid is **opt-in** (unkeyed objects cost nothing at creation), **unique**
+(only one live object holds a given handle — a clash is refused, never
+merged), **stable** (it does not change when you `@name` or re-own the
+object), and **identity, not data**: `@set obj/keyid` is refused in favor of
+`@keyid`, and `@clone` never copies it (a copy lands keyless, just as it gets
+a fresh uuid). The `$` prefix is the default and is game-tunable
+(`KEYID_SIGIL` in `config.py` — any length, e.g. `"$$"` or `"key:"`).
+
+See [Object identity](../design/object-identity.md) for the full model, and
+the [ATM tutorial](../showcase/004_atm_terminal.md) for referencing a shared
+master object by a stable handle in practice.
+
 ## Zones (areas)
 
 A zone is a `zone:<name>` tag on rooms plus one **master** object —
@@ -97,7 +135,9 @@ per object and managed with `@attr`:
 
 `password` is always unreadable from softcode, no flag needed. `@wipe`
 spares `safe` attributes; `safe` is good insurance on softcode you
-spent an hour writing.
+spent an hour writing. A `keyid` (the unique handle set with `@keyid`,
+above) is always skipped by `@clone` and never writable with `@set` — no
+flag needed; it is a unique identity, like the uuid.
 
 ## Import / export (areas as files)
 
@@ -140,6 +180,11 @@ Rules that keep it safe:
   quest sword out of the Keep, re-import returns it there — and the
   plan shows that (`~ update  iron sword  location: Alice → The Keep`)
   before anything happens. Nothing applies without you seeing the plan.
+- **Keyids carry over; conflicts don't merge.** A friendly `$keyid`
+  (see above) travels in the file like any attribute. Re-importing the
+  *same* object (matched by id) overwrites its keyid in place; but a keyid
+  the file assigns to one object while a *different* live object already
+  holds it becomes a `! conflict` and blocks apply — never a silent steal.
 
 Area membership is computed, not tagged: rooms by their `zone:` tag,
 contents by *being located in* an area room — so NPCs and items don't
@@ -160,7 +205,10 @@ realm import castle.realm                  # merge as a fresh copy
 
 Both forms carry attributes (softcode included — it's just strings),
 tags, locks, behaviors, and references. Passwords are always stripped;
-for a full backup, copying the SQLite file is simplest.
+for a full backup, copying the SQLite file is simplest. A `$keyid` handle
+carries over only when free: cloning a keyed object into a world that
+already holds that handle lands the copy **keyless** (logged), never
+merged — re-key it with `@keyid` if it should be the new singleton.
 
 ## Builder power tools
 
@@ -179,6 +227,40 @@ quell / unquell           drop to (and restore from) mortal perception
 Admins bypass ALL perception (dark, hidden, invisible) and authority —
 which is why the superuser sees a hidden key. `quell` is how you test a
 scene honestly as a mortal without making a second character.
+
+## Multi-line input (heredocs)
+
+Softcode attributes are just strings, so a whole script can go on one line
+with `;` between statements — but that gets brutal to read. Instead, open a
+**multi-line block**: end a command line with `'''`, and the session collects
+every line after it — *indentation intact* — until a line that is exactly
+`'''`. The block runs as one command:
+
+```text
+@set here/on_enter='''
+if get_attr(enactor, 'boots'):
+    pemit(enactor, 'Your boots hold.')
+else:
+    damage(enactor, 1)
+    pemit(enactor, 'A board snaps under your weight!')
+'''
+```
+
+That stores the whole indented body in `on_enter`, and it execs as real
+sandboxed Python — blocks, loops, `if`/`else`, same engine as a one-liner,
+just readable. It works with any command that takes a value (`@set`,
+`@desc`, and friends).
+
+- **`@abort`** on its own line discards a block — handy if you mistype the
+  opening line. A block is also capped at a sane line count as a backstop
+  against an unterminated one.
+- **Normal command mode only** — a heredoc never starts while a `prompt()`
+  wizard is capturing input, or at the login screen.
+- **Configurable delimiters.** `HEREDOC_OPEN` / `HEREDOC_CLOSE` in `config.py`
+  (both `'''` by default). Make them **distinct** — `HEREDOC_OPEN = '<<<'`,
+  `HEREDOC_CLOSE = '>>>'` — if your scripts contain `'''` themselves (a
+  triple-quoted string, say), so a body line of `'''` no longer ends the
+  block.
 
 ## Ownership and safety valves
 

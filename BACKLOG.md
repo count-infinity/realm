@@ -1834,12 +1834,24 @@ the user's numbering.
   Absent. Also very frequent (ledgers, cooldowns, tallies). Sketch: `incr(name,
   by=1)` / `decr(...)` functions returning the new value; optionally target-aware
   `incr(obj, name, by)`.
-- [ ] **1e. Multi-line attribute editor (`@edit obj/attr`).** ABSENT — no
-  EvEditor analog. `@set obj/attr = value` is single-line (`_parse_value`,
-  realm/commands/olc/modify.py:407-434); the `@desc` `\`-continuation is
-  documented but unimplemented. Newlines only survive as JSON `"\n"` literals.
-  Sketch: a session line-buffer state machine (accumulate until a `.` terminator),
-  store joined text with `\n`. Solves the telnet newline=command limit.
+- [x] **1e-i. Multi-line input (heredocs) — DONE 2026-07-22.** The
+  telnet-newline=command limit is solved: a command line ending in the
+  `HEREDOC_OPEN` sigil (`'''` by default) starts a session-level line buffer
+  that accumulates raw lines (indentation intact) until a line of
+  `HEREDOC_CLOSE`, then dispatches the whole block as one command with `\n`s
+  preserved — so `@set obj/attr='''\n...\n'''` stores a readable multi-line
+  script instead of a `;` one-liner. Lives in `Session.submit_input`
+  (realm/gateway/session.py) *before* the per-line strip that would eat
+  indentation; gated to normal command mode (off during prompts/login);
+  `@abort` cancels, a line cap backstops runaways; `HEREDOC_OPEN`/`_CLOSE`
+  are game-tunable and may be distinct (`<<<`/`>>>`). See
+  docs/guides/world-management.md and tests/test_heredoc.py (11 tests).
+- [ ] **1e-ii. Interactive multi-line editor (`@edit obj/attr`).** STILL OPEN —
+  no EvEditor analog for *revising* an existing multi-line attribute line by
+  line (`:list`/`:dd`/`:w`). Heredocs (1e-i) cover authoring/pasting a block in
+  one shot; this is the complementary interactive-revise tool. The `@desc`
+  `\`-continuation remains documented-but-unimplemented (superseded by heredocs
+  for the common case).
 
 ### 2. Friendlier object ids
 
