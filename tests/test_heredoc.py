@@ -95,6 +95,25 @@ class TestAccumulation:
         assert not any(q.startswith("@set") for q in _drain(s))
 
 
+class TestNoticeFlush:
+
+    async def test_open_notice_reaches_the_client_immediately(self):
+        # A collecting line dispatches nothing, so the normal post-command
+        # flush never runs — the open notice must flush on its own.
+        s = _session_with_player()
+        written: list[str] = []
+
+        async def writer(msg):
+            written.append(msg)
+
+        s.set_writer(writer)
+        s.submit_input("@set x/s='''")
+        await asyncio.sleep(0)  # let the scheduled flush task run
+        await asyncio.sleep(0)
+        assert s._heredoc is not None
+        assert any("Multi-line input" in m for m in written)
+
+
 class TestGating:
 
     def test_no_heredoc_before_login(self):

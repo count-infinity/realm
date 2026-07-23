@@ -113,6 +113,7 @@ class Session:
         'input_handler',
         '_prompt_future',
         '_heredoc',
+        '_flush_tasks',
     )
 
     def __init__(
@@ -143,6 +144,9 @@ class Session:
         # Multi-line (heredoc) accumulation state: None in normal mode, else
         # {'head': <command prefix>, 'body': [<raw lines>]} while collecting.
         self._heredoc: dict[str, Any] | None = None
+        # Fire-and-forget flush tasks (see _flush_soon) kept referenced until
+        # done so they aren't GC'd mid-flight.
+        self._flush_tasks: set[asyncio.Task] = set()
 
         self._protocol = protocol
         self._address = address
@@ -293,12 +297,14 @@ class Session:
             if marker == HEREDOC_ABORT:
                 self._heredoc = None
                 self.send_nowait("Multi-line input aborted.")
+                self._flush_soon()
                 return
             if len(self._heredoc['body']) >= HEREDOC_MAX_LINES:
                 self._heredoc = None
                 self.send_nowait(
                     f"Multi-line input exceeded {HEREDOC_MAX_LINES} lines "
                     "— aborted.")
+                self._flush_soon()
                 return
             self._heredoc['body'].append(body_line)
             self.touch()
@@ -320,10 +326,24 @@ class Session:
             self.send_nowait(
                 f"Multi-line input — end with a line of {_heredoc_close}, "
                 f"or {HEREDOC_ABORT} to cancel.")
+            self._flush_soon()
             return
 
         self.touch()
         self._queue_input(line)
+
+    def _flush_soon(self) -> None:
+        """Flush queued output now, from a sync context, if we're inside the
+        event loop. Used for messages emitted mid-heredoc — a collecting line
+        dispatches nothing, so the normal post-command flush never runs and
+        the notice would otherwise sit in the queue until the block closes."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return  # no loop (e.g. a direct unit-test call) — nothing to do
+        task = loop.create_task(self.flush_output())
+        self._flush_tasks.add(task)
+        task.add_done_callback(self._flush_tasks.discard)
 
     def _queue_input(self, line: str) -> None:
         try:

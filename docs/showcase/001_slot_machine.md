@@ -59,29 +59,59 @@ edge is also what makes the machine a currency sink.
 
 ## Build it
 
-The two scripts use `'''` multi-line blocks (open a line with a trailing
-`'''`, close with a line of just `'''`), so the logic reads as ordinary
-indented Python instead of a semicolon one-liner. See
-[multi-line input](../guides/world-management.md#multi-line-input-heredocs).
+Each script below is a `'''` multi-line block: open a line with a trailing
+`'''`, write the body, close with a line of just `'''`. The logic reads as
+ordinary indented Python instead of a semicolon one-liner (see
+[multi-line input](../guides/world-management.md#multi-line-input-heredocs)),
+and you can even leave `#` comments in it.
+
+**The cabinet.** Create the machine and give it a living face. The `[[...]]`
+block in the description runs per viewer at look time, so the hopper figure is
+read fresh from [`credits(me)`](../reference/softcode.md#fn-credits) on every
+look and never goes stale:
 
 ```text
 @create slot machine
 drop slot machine
 @desc slot machine = A one-armed bandit in scuffed chrome, three reels asleep behind smeared glass. [[result = f'The hopper holds {credits(me)} credits.']]
+```
+
+**Take the wager.** Set the price, then the `ON_PAYMENT` hook that fires when
+someone `pay`s the machine. It reads the stake off the action with
+[`adata('amount')`](../reference/softcode.md#event-data-namespace), arms a pull
+when the money covers the cost, and refunds otherwise:
+
+```text
 @set slot machine/cost = 10
 @set slot machine/on_payment = '''
-if target is me:
+if target is me:  # ON_PAYMENT fires on EVERY object in the room, so guard it
     cost = V('cost', 10)
     paid = adata('amount')
-    k = 'stake_' + enactor.id
+    k = 'stake_' + enactor.id  # per-player, so two gamblers never share a lever
     if paid >= cost:
         incr(k)
-        transfer_credits(me, enactor, paid - cost)
+        transfer_credits(me, enactor, paid - cost)  # refund any overpay
         pemit(enactor, 'Clunk. The lever unlocks: type pull.')
     else:
-        transfer_credits(me, enactor, paid)
+        transfer_credits(me, enactor, paid)  # underpaid: refund it all, no pull
         pemit(enactor, f'A pull costs {cost} credits. Coins returned.')
 '''
+```
+
+That first line is the one to never forget: an `ON_PAYMENT` hook fires on
+*every* object in the room, so without `if target is me:` the machine would arm
+a free pull whenever someone paid the vending machine next to it (see
+[Guard on `target`](../reference/softcode.md#guard-on-target)). The stake is
+written to a per-player key, `'stake_' + enactor.id`, so paying arms it and
+pulling spends it. [`V('cost', 10)`](../reference/softcode.md#fn-v) is shorthand
+for `get_attr(me, 'cost', 10)`, and [`incr`](../reference/softcode.md#fn-incr)
+bumps that key by one.
+
+**Spin the reels.** The `$pull` command refuses without a stake, rolls once,
+sorts the roll into a weighted tier, and maps the tier to both a prize and a
+line of reel art with [`switch()`](../reference/softcode.md#fn-switch):
+
+```text
 @set slot machine/cmd_pull = '''
 $pull:
 k = 'stake_' + enactor.id
@@ -91,32 +121,32 @@ if not staked:
 else:
     roll = rand(1, 100)
     tier = 1 if roll <= 1 else (2 if roll <= 5 else (3 if roll <= 15 else (4 if roll <= 35 else 5)))
-    prize = switch(tier, 1, 250, 2, 50, 3, 20, 4, 10, 0)
+    prize = switch(tier, 1, 250, 2, 50, 3, 20, 4, 10, 0)  # trailing arg is the default: a loss
     reels = switch(tier, 1, '[ NOVA : NOVA : NOVA ]', 2, '[ BELL : BELL : BELL ]', 3, '[ STAR : STAR : ---- ]', 4, '[ STAR : ---- : ---- ]', '[ ---- : ---- : ---- ]')
     decr(k)
-    oemit(enactor, f'{name(enactor)} pulls the lever. The reels clatter.')
-    pemit(enactor, reels)
+    oemit(enactor, f'{name(enactor)} pulls the lever. The reels clatter.')  # the whole room
+    pemit(enactor, reels)  # only the puller sees the reels
     if prize:
         transfer_credits(me, enactor, prize)
         pemit(enactor, f'Payout! {prize} credits rattle into the tray.')
     else:
         pemit(enactor, 'The reels settle on nothing. The house smiles.')
 '''
-@eval m = get('slot machine'); adjust_credits(m, 500); result = credits(m)
 ```
 
-The `[[...]]` block runs per viewer at render time, so the hopper figure is
-never stale. [`V('cost', 10)`](../reference/softcode.md#fn-v) is shorthand for
-`get_attr(me, 'cost', 10)`, and [`incr`](../reference/softcode.md#fn-incr) with
-[`decr`](../reference/softcode.md#fn-decr) bump a numeric attribute by one.
-`cmd_pull` refuses without a stake, then rolls, tiers, and commits the spin,
-using [`oemit`](../reference/softcode.md#fn-oemit) to tell the room and
-[`pemit`](../reference/softcode.md#fn-pemit) to tell only the player, which is
-why the room hears the lever but only the gambler sees the reels. Neither script
+[`decr`](../reference/softcode.md#fn-decr) spends the stake, then
+[`oemit`](../reference/softcode.md#fn-oemit) tells the room while
+[`pemit`](../reference/softcode.md#fn-pemit) tells only the gambler, which is
+why everyone hears the lever but only the player sees the reels. Neither script
 tracks the machine's balance, because
-[`credits(me)`](../reference/softcode.md#fn-credits) always knows it. That last
-`@eval` stocks the hopper, since a machine that cannot cover a jackpot fails its
-payout silently.
+[`credits(me)`](../reference/softcode.md#fn-credits) always knows it.
+
+**Stock the hopper.** A machine that cannot cover a jackpot fails its payout
+silently, so seed it with a reserve before anyone plays:
+
+```text
+@eval m = get('slot machine'); adjust_credits(m, 500); result = credits(m)
+```
 
 ## Try it
 
