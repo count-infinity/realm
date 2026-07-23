@@ -77,6 +77,10 @@ needed.
 
 ## Build it
 
+The scripts here are `'''` multi-line blocks (see
+[multi-line input](../guides/world-management.md#multi-line-input-heredocs));
+the track library is plain data.
+
 The cabinet carries a living window card, where `spinning` is a track index or
 is absent for silence:
 
@@ -93,10 +97,16 @@ The record library is pure data (`@set` parses JSON):
 ```
 
 The menu renderer is a function attribute, so one place builds the numbered
-listing from whatever the library holds:
+listing from whatever the library holds. It is called with
+[`eval_attr(me, 'menu')`](../reference/softcode.md#fn-eval_attr), which returns
+whatever the script assigns to `result`:
 
 ```text
-@set jukebox/menu = t = V('tracks', []); result = 'Pick a track: ' + ' '.join(f"[{i + 1}] {tr['title']}" for i, tr in enumerate(t)) + ' -- or anything else to walk away.'
+@set jukebox/menu = '''
+t = V('tracks', [])
+labels = [f"[{i + 1}] {tr['title']}" for i, tr in enumerate(t)]
+result = 'Pick a track: ' + ' '.join(labels) + ' -- or anything else to walk away.'
+'''
 ```
 
 `play` asks and `on_pick` answers. The callback validates (`isdigit`, range),
@@ -110,7 +120,19 @@ second one:
 
 ```text
 @set jukebox/cmd_play = $play: prompt(enactor, eval_attr(me, 'menu'), 'on_pick')
-@set jukebox/on_pick = t = V('tracks', []); w = trim(arg0); n = int(w) if w.isdigit() else 0; ok = 1 <= n <= len(t); (detach_behavior(me, 'script_ticker'), set_attr(me, 'spinning', n - 1), set_attr(me, 'cursor', 0), attach_behavior(me, 'script_ticker', interval=1), remit(here, f"The jukebox whirs, and the arm drops on {t[n - 1]['title']}.")) if ok else pemit(enactor, 'The jukebox clunks and returns your choice unplayed.')
+@set jukebox/on_pick = '''
+t = V('tracks', [])
+w = trim(arg0)
+n = int(w) if w.isdigit() else 0
+if 1 <= n <= len(t):
+    detach_behavior(me, 'script_ticker')  # drop any running clock first, so re-picking restarts it cleanly
+    set_attr(me, 'spinning', n - 1)
+    set_attr(me, 'cursor', 0)
+    attach_behavior(me, 'script_ticker', interval=1)  # attach the clock on demand, only while a record plays
+    remit(here, f"The jukebox whirs, and the arm drops on {t[n - 1]['title']}.")
+else:
+    pemit(enactor, 'The jukebox clunks and returns your choice unplayed.')
+'''
 ```
 
 Finally the `on_tick` script, which the attached ticker runs once per world beat
@@ -122,7 +144,19 @@ run-out clears `spinning` with
 jukebox falls silent and idle:
 
 ```text
-@set jukebox/on_tick = n = V('spinning', None); t = V('tracks', []); i = V('cursor', 0); lines = t[n]['lines'] if n is not None and n < len(t) else []; (remit(here, f'~ {lines[i]} ~'), incr('cursor')) if n is not None and i < len(lines) else None; (del_attr(me, 'spinning'), detach_behavior(me, 'script_ticker'), remit(here, 'The record hisses into the run-out groove, and the arm lifts.')) if n is not None and i >= len(lines) else None
+@set jukebox/on_tick = '''
+n = V('spinning', None)
+t = V('tracks', [])
+i = V('cursor', 0)
+lines = t[n]['lines'] if n is not None and n < len(t) else []
+if n is not None and i < len(lines):
+    remit(here, f'~ {lines[i]} ~')
+    incr('cursor')
+elif n is not None:
+    del_attr(me, 'spinning')  # run-out: clear state and detach the clock, so an idle jukebox runs nothing
+    detach_behavior(me, 'script_ticker')
+    remit(here, 'The record hisses into the run-out groove, and the arm lifts.')
+'''
 ```
 
 ## Try it
