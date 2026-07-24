@@ -345,10 +345,13 @@ DOOR_DOC = "025_lockable_door.md"
 
 def door_wiring_lines():
     """The build up to and including the @eval that pairs the two faces —
-    everything the wiring test needs, and no more."""
+    everything the wiring test needs, and no more. The @eval is a heredoc
+    block, so the cut runs through its closing quote line."""
     lines = build_lines(DOOR_DOC)
-    cut = next(i for i, l in enumerate(lines) if l.startswith("@eval"))
-    return lines[:cut + 1]
+    start = next(i for i, l in enumerate(lines) if l.startswith("@eval"))
+    end = next(i for i in range(start + 1, len(lines))
+               if lines[i].strip() == "'''")
+    return lines[:end + 1]
 
 
 def door_sides(sim, workshop):
@@ -377,11 +380,11 @@ class TestLockableDoor:
     async def test_wiring_reports_both_sides(self, sim):
         workshop, bilda = workshop_and_builder(sim)
         wiring = door_wiring_lines()
-        await sim.do(bilda, wiring[0])
+        await sim.submit_line(bilda, wiring[0])
         out = sim.seen(bilda)
         assert any("Room created: The Vault" in line for line in out)
         for line in wiring[1:]:
-            await sim.do(bilda, line)
+            await sim.submit_line(bilda, line)
         out = sim.seen(bilda)
         assert any("both sides wired" in line for line in out)
         _vault, side_a, side_b = door_sides(sim, workshop)
@@ -442,3 +445,23 @@ class TestLockableDoor:
         assert "The wheel spins uselessly. Locked tight." in out
         out = await do(sim, kess, "unlock vault door")
         assert "You don't have the key." in out
+
+    async def test_other_openables_do_not_trip_the_mirror(self, sim):
+        """The mirror hooks are guarded with `target is me`: opening a
+        CRATE beside the door must not un-close the door's far side (the
+        room-wide ON_OPEN misfire the unguarded version had)."""
+        workshop, vault, bilda, side_a, side_b = await self._built(sim)
+        crate = sim.obj("crate", location=workshop,
+                        tags=["thing", "container", "closable", "closed"])
+
+        await do(sim, bilda, "close vault door")
+        assert door_state(side_a) == (True, False)
+        assert door_state(side_b) == (True, False)
+
+        out = await do(sim, bilda, "open crate")
+        assert any("crate" in line for line in out)
+        assert not crate.has_tag("closed")
+        # Both faces of the DOOR are untouched.
+        assert door_state(side_a) == (True, False)
+        assert door_state(side_b) == (True, False)
+
