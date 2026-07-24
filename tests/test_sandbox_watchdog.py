@@ -24,6 +24,7 @@ from realm.scripting.sandbox import (
     ScriptContext,
     ScriptError,
     ScriptLimits,
+    ScriptRecursionError,
     ScriptSandbox,
     ScriptTimeout,
 )
@@ -127,3 +128,82 @@ class TestHasLoopClassifier:
     ])
     def test_loop_free_is_detected(self, code):
         assert ScriptSandbox._has_loop(code) is False
+
+
+class TestKillIsUncatchable:
+    """A script must not be able to catch its own resource-limit kill and
+    keep running. The kills are ``BaseException`` (so ``except Exception``
+    misses them) and the validator forbids the catch-all handlers that
+    reach ``BaseException`` — because the watchdog is a ``sys.settrace``
+    tracer that CPython disables once it raises, so one swallowed timeout
+    would leave the rest of the script running with no watchdog at all,
+    pinning an uninterruptible worker thread.
+    """
+
+    def test_try_except_cannot_swallow_the_timeout(self):
+        t = time.time()
+        with pytest.raises(ScriptTimeout):
+            _run("try:\n    while True:\n        pass\n"
+                 "except Exception:\n    while True:\n        pass")
+        assert time.time() - t < 2.0, "watchdog was swallowed"
+
+    def test_swallowed_timeout_then_a_fresh_loop_still_dies(self):
+        t = time.time()
+        with pytest.raises(ScriptTimeout):
+            _run("try:\n    while True:\n        pass\n"
+                 "except Exception:\n    pass\nwhile True:\n    pass")
+        assert time.time() - t < 2.0
+
+    def test_recursion_that_catches_its_own_error_is_bounded(self):
+        """Catch-and-re-recurse can't be killed by the time watchdog (near
+        the recursion ceiling the tracer can't be called), so the shallow
+        depth ceiling must stop it."""
+        t = time.time()
+        with pytest.raises(ScriptRecursionError):
+            _run("def f():\n    try:\n        f()\n"
+                 "    except Exception:\n        f()\nf()")
+        assert time.time() - t < 2.0
+
+    def test_bare_except_is_rejected_at_validation(self):
+        errors = ScriptSandbox().validate("try:\n    x = 1\nexcept:\n    pass")
+        assert errors and "except" in errors[0].lower()
+
+    def test_except_baseexception_is_rejected_at_validation(self):
+        errors = ScriptSandbox().validate(
+            "try:\n    x = 1\nexcept BaseException:\n    pass")
+        assert errors and "baseexception" in errors[0].lower()
+
+    def test_except_baseexception_in_a_tuple_is_rejected(self):
+        errors = ScriptSandbox().validate(
+            "try:\n    x = 1\nexcept (ValueError, BaseException):\n    pass")
+        assert errors
+
+
+class TestLegitimateControlFlowStillWorks:
+    """The fix must not break ordinary error handling or shallow recursion."""
+
+    def test_except_exception_still_catches_ordinary_errors(self):
+        result, _ = _run(
+            "acc = 0\nfor i in range(5):\n    try:\n"
+            "        acc = acc + int('x')\n    except Exception:\n"
+            "        acc = acc + 1\nresult = acc")
+        assert result == 5
+
+    def test_named_except_still_works(self):
+        result, _ = _run(
+            "try:\n    result = 1 // 0\nexcept ZeroDivisionError:\n"
+            "    result = 'caught'")
+        assert result == "caught"
+
+    def test_shallow_recursion_within_the_ceiling_succeeds(self):
+        result, _ = _run(
+            "def fib(n):\n    return n if n < 2 else fib(n-1) + fib(n-2)\n"
+            "result = fib(15)")
+        assert result == 610
+
+    def test_recursion_under_a_try_within_the_ceiling_succeeds(self):
+        result, _ = _run(
+            "def down(n):\n    return 0 if n == 0 else down(n-1)\n"
+            "try:\n    result = down(150)\nexcept Exception:\n"
+            "    result = 'err'")
+        assert result == 0

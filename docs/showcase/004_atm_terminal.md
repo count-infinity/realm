@@ -39,10 +39,14 @@ it delegates to, and the tempting way is
 match and never complains about ambiguity, so the day someone builds a
 second "BankNet Core" anywhere in the world, half your kiosks may
 silently wire themselves to the impostor. Instead, capture the core's
-**id** once, at build time, into each terminal's `bank_core_id`
-attribute: `get(V('bank_core_id'))` is then an exact, collision-proof
-reference that survives renames and duplicate names alike. (Ids are the
-stable handle; names are for humans. A well-known object can also carry a
+**id** once, at build time, into each terminal's `bank_core_id`, and look
+it up with `get('#' + V('bank_core_id'))`: an exact, collision-proof
+reference that survives renames and duplicate names alike. Store the
+*bare* id, not a `#`-prefixed string, because that is what a fresh-id
+import remaps: worldio rewrites a bare exported id to each copy's own
+core, so importing the branch as a fresh copy yields an independent bank
+rather than a second face on the same vault. (Ids are the stable handle;
+names are for humans. A well-known object can also carry a
 friendly [`$keyid`](../design/object-identity.md) handle set with
 `@keyid`; this build stores the id to show the underlying
 reference-by-identity pattern.)
@@ -50,7 +54,7 @@ reference-by-identity pattern.)
 **`call` runs the routine *as the core*.** Each operation lives once, as
 a function attribute on the core (`net_deposit`, `net_withdraw`,
 `net_balance`), and a terminal command is one line:
-[`call(get(V('bank_core_id')), 'net_deposit', trim(arg0))`](../reference/softcode.md#fn-call).
+[`call(get('#' + V('bank_core_id')), 'net_deposit', trim(arg0))`](../reference/softcode.md#fn-call).
 The point is *whose* the routine runs as.
 [`call`](../reference/softcode.md#fn-call) is a **method invocation on
 the core**: inside the routine `me` *is* the core, so
@@ -95,7 +99,7 @@ drop BankNet Core
 
 The three shared routines, each running *as the core*, so `me` is the
 vault. Each validates, moves real credits wallet-to-vault (or back),
-updates the ledger attribute on `me`, and answers the customer. `arg0`
+bumps the ledger on `me` with [`incr`](../reference/softcode.md#fn-incr) / [`decr`](../reference/softcode.md#fn-decr), and answers the customer. `arg0`
 arrives from the calling terminal, and `isdigit` keeps `deposit lots`
 from crashing anything:
 
@@ -108,9 +112,7 @@ result = 1
 amt = int(arg0) if arg0.isdigit() else 0
 k = 'acct_' + enactor.id
 if amt > 0 and transfer_credits(enactor, me, amt):  # me = the core, so it debits the consenting player
-    new = get_attr(me, k, 0) + amt
-    set_attr(me, k, new)
-    pemit(enactor, f'Deposit accepted. Balance: {new} credits.')
+    pemit(enactor, f'Deposit accepted. Balance: {incr(k, amt)} credits.')
 else:
     pemit(enactor, 'The terminal buzzes: your wallet cannot cover that.')
 result = 1
@@ -120,8 +122,7 @@ amt = int(arg0) if arg0.isdigit() else 0
 k = 'acct_' + enactor.id
 bal = get_attr(me, k, 0)
 if 0 < amt <= bal and transfer_credits(me, enactor, amt):
-    set_attr(me, k, bal - amt)
-    pemit(enactor, f'Notes whir out of the slot. Balance: {bal - amt} credits.')
+    pemit(enactor, f'Notes whir out of the slot. Balance: {decr(k, amt)} credits.')
 else:
     pemit(enactor, 'The terminal buzzes: insufficient funds on account.')
 result = 1
@@ -138,11 +139,11 @@ alias of the `credits` builtin and builtins dispatch first.)
 ```text
 @create atm terminal
 drop atm terminal
-@eval set_attr(get('atm terminal'), 'bank_core_id', '#' + get('BankNet Core').id)
-@desc atm terminal = A steel kiosk with a scratched screen and a cash slot polished by thumbs. [[result = f"The screen glows: ACCT {get_attr(get(V('bank_core_id')), 'acct_' + viewer.id, 0)} CR."]]
-@set atm terminal/cmd_atm = $atm: call(get(V('bank_core_id')), 'net_balance')
-@set atm terminal/cmd_deposit = $deposit *: call(get(V('bank_core_id')), 'net_deposit', trim(arg0))
-@set atm terminal/cmd_withdraw = $withdraw *: call(get(V('bank_core_id')), 'net_withdraw', trim(arg0))
+@eval set_attr(get('atm terminal'), 'bank_core_id', get('BankNet Core').id)
+@desc atm terminal = A steel kiosk with a scratched screen and a cash slot polished by thumbs. [[result = f"The screen glows: ACCT {get_attr(get('#' + V('bank_core_id')), 'acct_' + viewer.id, 0)} CR."]]
+@set atm terminal/cmd_atm = $atm: call(get('#' + V('bank_core_id')), 'net_balance')
+@set atm terminal/cmd_deposit = $deposit *: call(get('#' + V('bank_core_id')), 'net_deposit', trim(arg0))
+@set atm terminal/cmd_withdraw = $withdraw *: call(get('#' + V('bank_core_id')), 'net_withdraw', trim(arg0))
 ```
 
 A second branch is a walk and a clone. The copy carries every attribute,
@@ -190,6 +191,10 @@ vault: 35 credits of reserve and one `acct_<id>` per customer.
   and a player can build their own branded terminal that `call`s your
   core without owning it. The `public` flag is the deliberate cross-owner
   opt-in; co-owned kiosks like the ones above never need it.
+- **A second, independent branch:** import the bank as a fresh copy
+  (fresh ids); because `bank_core_id` holds a bare id, each copy's
+  terminals re-wire to *its* core, so it is a separate bank, not a second
+  face on the same vault.
 - **Withdrawal fees:** debit `amt + 1` from the ledger and keep the fee
   in the vault, a credit sink, which player economies need more than
   faucets.

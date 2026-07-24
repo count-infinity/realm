@@ -239,7 +239,7 @@ class ScriptEngine:
         Returns:
             True if a script was found and executed.
         """
-        if obj.has_tag('halt'):
+        if obj.is_halted:
             return False
 
         code = obj.db.get(attr_name)
@@ -280,7 +280,7 @@ class ScriptEngine:
         script chain spent the depth budget. The sandbox's own call/time
         limits bound it.
         """
-        if obj.has_tag('halt'):
+        if obj.is_halted:
             return
         code = obj.db.get('on_check')
         if not isinstance(code, str) or not code.strip():
@@ -479,7 +479,7 @@ class ScriptEngine:
         """
         from realm.scripting.sandbox import ScriptContext
 
-        if executor.has_tag('halt') or self._depth >= self.MAX_SCRIPT_DEPTH:
+        if executor.is_halted or self._depth >= self.MAX_SCRIPT_DEPTH:
             return None, "halted or too deep"
 
         script_ctx = ScriptContext(
@@ -544,7 +544,7 @@ class ScriptEngine:
         add(action.target)
 
         for obj in candidates:
-            if obj.has_tag('halt'):
+            if obj.is_halted:
                 continue
             # Consent: the actor deliberately walked into THIS exit, and its
             # ON_FAIL is now running — the one witnessed-event case where
@@ -569,7 +569,7 @@ class ScriptEngine:
         # somewhere new (plan.md: "this object arrives somewhere new").
         if event_type == 'ENTER' and action.actor is not None:
             actor = action.actor
-            if not actor.has_tag('halt'):
+            if not actor.is_halted:
                 for trigger in self.trigger_manager.get_event_triggers(actor, 'ARRIVE'):
                     match = TriggerMatch(
                         trigger=trigger,  # type: ignore[arg-type]
@@ -900,7 +900,7 @@ class ScriptEngine:
         if entry is None:
             return
         _at, executor, command, _task = entry
-        if executor.has_tag('halt'):
+        if executor.is_halted:
             return
         await self._run_script_command(executor, command)
 

@@ -58,6 +58,31 @@ class ScriptSecurityError(ScriptError):
     pass
 
 
+class _ScriptKill(BaseException):
+    """A resource-limit kill that sandboxed code cannot catch.
+
+    Derives from ``BaseException`` (not ``Exception``), so a script's
+    ``except Exception`` can never swallow it — and the validator forbids
+    the catch-all handlers (``except:`` / ``except BaseException``) that
+    could. It is raised inside ``exec`` by the watchdog and the per-call
+    budget, and translated back to its public ``ScriptError`` flavour at the
+    ``execute()`` boundary, so trusted callers still catch a normal
+    ``ScriptTimeout`` / ``ScriptFunctionLimitError``.
+
+    Why it must be uncatchable: the watchdog is a ``sys.settrace`` tracer
+    that raises, and CPython DISABLES a trace function that raises. So a
+    script that catches the first kill (``try: while True: pass; except
+    Exception: while True: pass``) runs the rest of its body with no
+    watchdog at all — pinning an uninterruptible executor thread. Making the
+    kill uncatchable closes that hole.
+    """
+
+    def __init__(self, public: ScriptError):
+        super().__init__(str(public))
+        self.public = public
+    pass
+
+
 # Validation rules live in realm.core.safe_eval — the one engine shared
 # with locks and strategy conditions. Re-exported here for compatibility.
 ASTValidator = SafeAstValidator
@@ -151,17 +176,20 @@ def set_interpreter_recursion_limit(limit: int = DEFAULT_RECURSION_LIMIT) -> Non
 class ScriptLimits:
     """Per-script resource limits.
 
-    These are per-execution and thread-safe. Note recursion depth is NOT
-    here: it is bounded process-wide by
-    :func:`set_interpreter_recursion_limit` (a game setting), because
-    user scripts recurse in real CPython frames the engine cannot count.
-    See BACKLOG for the per-execution AST-counter idea that would let a
-    true per-script depth limit return.
+    These are per-execution and thread-safe. ``max_recursion_depth`` is a
+    per-script nesting ceiling counted by the watchdog's call/return trace
+    events (so it needs the watchdog installed, which any looping or
+    ``try``-containing script gets). It fires at a shallow depth where the
+    tracer still has stack to run — unlike the process-wide
+    :func:`set_interpreter_recursion_limit`, whose RecursionError a script
+    can catch and re-trigger forever near the ceiling, where the tracer can
+    no longer be called. Kept well below the process limit for that reason.
     """
 
     max_time_ms: int = 1500  # Maximum execution time
     max_function_calls: int = 25000  # Maximum function invocations
     max_output_chars: int = 10000  # Maximum output length
+    max_recursion_depth: int = 200  # Per-script frame-nesting ceiling
 
 
 @dataclass
@@ -271,6 +299,24 @@ class ScriptSandbox:
             return True  # let compile() report it; assume the worst meanwhile
         return any(isinstance(n, cls._LOOP_NODES) for n in ast.walk(tree))
 
+    @classmethod
+    def _needs_watchdog(cls, code: str) -> bool:
+        """Install the watchdog for anything that can run unboundedly.
+
+        A loop is the obvious case. A ``try`` is the subtle one: a script can
+        catch its own ``RecursionError`` and re-recurse forever with no loop
+        node at all, and post-``except`` code runs after the first (now
+        uncatchable) kill would otherwise have fired. So watch any script that
+        loops OR contains a ``try``. Straight-line, try-free scripts (the vast
+        majority of one-line softcode) still pay nothing.
+        """
+        try:
+            tree = ast.parse(code)
+        except SyntaxError:
+            return True
+        return any(isinstance(n, (*cls._LOOP_NODES, ast.Try))
+                   for n in ast.walk(tree))
+
     def _make_watchdog(self) -> Callable:
         """A line tracer that raises once the time budget is spent.
 
@@ -282,13 +328,27 @@ class ScriptSandbox:
         deadline = self._start_time + self.limits.max_time_ms / 1000.0
         limit_ms = self.limits.max_time_ms
         clock = time.time
-        state = {"n": 0}
+        # Kill runaway nesting a safe margin below the process recursion
+        # limit, so the tracer still has stack to fire (near the real limit
+        # it cannot be called — which is how catch-and-re-recurse evades the
+        # time check). ``d`` is live nesting depth; call/return balance even
+        # under exception unwinding.
+        max_depth = min(self.limits.max_recursion_depth,
+                        sys.getrecursionlimit() - 50)
+        state = {"n": 0, "d": 0}
 
         def _trace(frame, event, arg):
+            if event == 'call':
+                state["d"] += 1
+                if state["d"] > max_depth:
+                    raise _ScriptKill(ScriptRecursionError(
+                        f"Script exceeded recursion depth ({max_depth})"))
+            elif event == 'return':
+                state["d"] -= 1
             state["n"] += 1
             if (state["n"] & 0x3FF) == 0 and clock() > deadline:
-                raise ScriptTimeout(
-                    f"Script exceeded time limit ({limit_ms}ms)")
+                raise _ScriptKill(ScriptTimeout(
+                    f"Script exceeded time limit ({limit_ms}ms)"))
             return _trace
 
         return _trace
@@ -298,13 +358,14 @@ class ScriptSandbox:
         def wrapped(*args, **kwargs):
             self._call_count += 1
             if self._call_count > self.limits.max_function_calls:
-                raise ScriptFunctionLimitError(
+                raise _ScriptKill(ScriptFunctionLimitError(
                     f"Exceeded function call limit ({self.limits.max_function_calls})"
-                )
+                ))
             # Check time limit
             elapsed = (time.time() - self._start_time) * 1000
             if elapsed > self.limits.max_time_ms:
-                raise ScriptTimeout(f"Script exceeded time limit ({self.limits.max_time_ms}ms)")
+                raise _ScriptKill(ScriptTimeout(
+                    f"Script exceeded time limit ({self.limits.max_time_ms}ms)"))
             return func(*args, **kwargs)
         return wrapped
 
@@ -384,7 +445,7 @@ class ScriptSandbox:
         # A line-level watchdog catches call-free infinite loops, which the
         # per-call budget in _wrap_function cannot see. Installed only when
         # the script can actually loop, so loop-free scripts pay nothing.
-        watchdog = self._has_loop(expanded_code)
+        watchdog = self._needs_watchdog(expanded_code)
         old_trace = sys.gettrace() if watchdog else None
         if watchdog:
             sys.settrace(self._make_watchdog())
@@ -407,6 +468,10 @@ class ScriptSandbox:
             # trips the interpreter limit and surfaces as ScriptRecursionError.
             exec(compiled, safe_globals, safe_globals)
 
+        except _ScriptKill as kill:
+            # A resource-limit kill from inside the sandbox. Re-raise its
+            # public flavour so callers' ``except ScriptError`` still works.
+            raise kill.public from None
         except RecursionError as e:
             raise ScriptRecursionError(
                 f"Exceeded recursion limit ({sys.getrecursionlimit()})"

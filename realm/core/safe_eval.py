@@ -67,6 +67,24 @@ class SafeAstValidator(ast.NodeVisitor):
         if isinstance(node, ast.Attribute) and node.attr.startswith('_'):
             self.errors.append(f"Private attribute access not allowed: {node.attr}")
 
+        # A catch-all handler could swallow the sandbox's resource-limit kill
+        # (a BaseException) and run on unwatched — the try/except DoS. Forbid
+        # the two shapes that reach BaseException; ``except Exception`` and
+        # named exceptions stay allowed for ordinary error handling.
+        if isinstance(node, ast.ExceptHandler):
+            if node.type is None:
+                self.errors.append(
+                    "Bare 'except:' is not allowed; catch a specific "
+                    "exception (e.g. 'except Exception')")
+            else:
+                caught = (node.type.elts if isinstance(node.type, ast.Tuple)
+                          else [node.type])
+                if any(isinstance(n, ast.Name) and n.id == 'BaseException'
+                       for n in caught):
+                    self.errors.append(
+                        "'except BaseException' is not allowed; catch "
+                        "'Exception' or a specific exception instead")
+
         self.generic_visit(node)
 
 

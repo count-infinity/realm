@@ -398,8 +398,8 @@ class TriggerManager:
             TriggerMatch if found, None otherwise
         """
         for obj in search_objects:
-            # Skip objects with HALT flag
-            if obj.has_tag('halt'):
+            # Skip halted objects (their own halt tag, or their owner's)
+            if obj.is_halted:
                 continue
 
             triggers = self.get_command_triggers(obj)
@@ -436,8 +436,8 @@ class TriggerManager:
         matches = []
 
         for obj in search_objects:
-            # Skip objects with HALT flag
-            if obj.has_tag('halt'):
+            # Skip halted objects (their own halt tag, or their owner's)
+            if obj.is_halted:
                 continue
 
             triggers = self.get_listen_triggers(obj)

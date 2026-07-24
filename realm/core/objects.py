@@ -216,6 +216,24 @@ class GameObject:
         """Check if this object has a specific tag."""
         return self.tags.has(tag)
 
+    @property
+    def is_halted(self) -> bool:
+        """Whether this object's softcode is frozen — its own ``halt`` tag,
+        or (fail-safe) its owner's.
+
+        Halting a player thus freezes every object they own in one move,
+        without touching the player's own built-in commands (those dispatch
+        outside the softcode path). Every softcode gate — ``$``-command and
+        ``^listen`` matching, ``ON_<EVENT>`` and ``on_check`` firing, and
+        queued script commands — consults this, so the freeze is total and
+        consistent. Ownership is single-level (an object and its owner);
+        this deliberately does not walk the whole owner chain.
+        """
+        if self.has_tag('halt'):
+            return True
+        owner = self.owner
+        return owner is not None and owner.has_tag('halt')
+
     def has_entitlement(self, entitlement: str) -> bool:
         """Whether this object holds a permission entitlement (see
         ``permissions.entitlements``). Exposed as a method so lock expressions

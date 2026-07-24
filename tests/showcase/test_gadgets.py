@@ -282,6 +282,29 @@ class TestAtmTerminal:
         assert "The terminal buzzes: your wallet cannot cover that." in out
         assert get_credits(bob) == 10
 
+    async def test_branch_clones_to_an_independent_bank(self, sim):
+        # bank_core_id stores a BARE id, so a fresh-id import remaps each
+        # terminal to ITS copy's core — a separate bank, not a second face
+        # on the same vault.
+        from realm.persistence.worldio import export_objects, import_objects
+
+        _plaza, _docks, _vala = await self._built(sim)
+        core = find_one(sim, "BankNet Core")
+        terminals = sim.store.find_cached(name="atm terminal")
+        assert terminals and all(
+            t.db.get("bank_core_id") == core.id for t in terminals)  # bare, ==
+
+        data = export_objects([core, *terminals])
+        made = await import_objects(data, sim.store)  # fresh-id clone
+        new_core = next(o for o in made if o.name == "BankNet Core")
+        new_terms = [o for o in made if o.name == "atm terminal"]
+
+        assert new_core.id != core.id
+        for t in new_terms:
+            # re-wired to the clone's own core, not the original
+            assert t.db.get("bank_core_id") == new_core.id
+            assert t.db.get("bank_core_id") != core.id
+
 
 # =========================================================================
 # 006. Flashlight — docs/showcase/006_flashlight.md

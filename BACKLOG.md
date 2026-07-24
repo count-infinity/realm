@@ -1985,6 +1985,64 @@ touches the fast-creation path for ordinary objects:
   removes the speaker-skip for those patterns, kept depth-guarded to avoid feedback
   loops. Lets an object react to its own emissions (PennMUSH `@amhear` parity).
 
+## SHIPPED 2026-07-23: sandbox kill-switch was catchable → thread-pinning DoS
+
+Found while surveying RhostMUSH's Lua sandbox (which deletes `pcall`/`xpcall`
+so scripts can't catch its timer-hook kill — `~/RhostMUSH/trunk/Server/src/
+lua.c:357`). The same class of hole was **live in REALM** and is now fixed. See
+[rhostmush-comparison.md](../docs/design/rhostmush-comparison.md) Part 2c.
+
+**The hole.** The loop watchdog is a `sys.settrace` tracer that raises
+`ScriptTimeout` (`sandbox.py:_make_watchdog`). `ScriptTimeout` subclassed
+`Exception`, `ast.Try` was **not** in `FORBIDDEN_NODES`, and **CPython disables
+a trace function that raises**. So:
+
+```python
+try:
+    while True: pass          # watchdog raises ScriptTimeout here…
+except Exception:
+    while True: pass          # …caught; tracing now OFF; spins forever
+```
+
+The second loop runs with no watchdog. `execute_async` runs on
+`run_in_executor`, and Python can't kill a thread, so the loop **pins a pool
+thread permanently**; enough of them wedge the server. Even
+`try: … except Exception: pass` followed by a plain loop hangs — swallowing the
+first kill disables the tracer for the rest of the exec. Verified by running the
+exploit under an OS-level timeout (100ms budget → 6s OS-kill before the fix,
+100ms after).
+
+**The fix** (`sandbox.py`, `safe_eval.py`, tests in `test_sandbox_watchdog.py`):
+
+1. **Uncatchable kill.** Resource-limit kills raise through
+   `_ScriptKill(BaseException)`, so a script's `except Exception` can't catch
+   them; `execute()` translates it back to the public `ScriptTimeout` /
+   `ScriptFunctionLimitError` at its boundary, so trusted callers are unchanged.
+2. **No catch-all.** The validator rejects the two handler shapes that reach
+   `BaseException` — bare `except:` and `except BaseException` (verified: no
+   existing softcode uses either; `except Exception` and named handlers still
+   work).
+3. **Recursion-depth ceiling.** A per-script nesting ceiling
+   (`ScriptLimits.max_recursion_depth`, default 200) counted via the tracer's
+   call/return events, firing at a *shallow* depth where the tracer still has
+   stack. This closes a sibling vector — recursion that catches its own
+   `RecursionError` (`def f(): try: f() except Exception: f()`) — which the
+   *time* watchdog cannot catch near the real ceiling (no stack to call the
+   tracer). Watchdog install broadened from "has loop" to "has loop OR `try`"
+   (`_needs_watchdog`), so post-catch code is always watched.
+
+**This partly delivers the "Per-execution recursion counting via AST injection"
+entry below (filed 2026-07-17):** it is the `sys.settrace` route that entry
+named but didn't pursue, and — unlike AST injection — it **counts lambda calls**
+(a lambda call is a trace `call` event), closing that entry's "lambdas slip
+through" blind spot. AST injection remains a possible always-on/cheaper
+alternative; the process-wide limit still backstops C-level recursion.
+
+Regression coverage: `TestKillIsUncatchable` + `TestLegitimateControlFlowStillWorks`
+in `tests/test_sandbox_watchdog.py` (10 tests: exploit killed, catch-all
+rejected, recursion-oscillation bounded, legit `try/except` + shallow recursion
+still work). Full suite green (2037).
+
 ## ~~URGENT~~ RESOLVED 2026-07-17: the sandbox recursion guard was process-global
 
 Sharpens the earlier "inline blocks inherit the caller's stack" entry — same
@@ -2364,6 +2422,71 @@ perf concern.
 
 **Ties into:** the global-`$`-command / Master Room TODO (get_search_objects
 item 5) — global verbs, if added, would want the same hint-based listing.
+
+## RhostMUSH survey: authority-shape steals (filed 2026-07-23)
+
+Full delta in [rhostmush-comparison.md](../docs/design/rhostmush-comparison.md).
+Rhost is a Penn/MUX cousin (~85% shared), so the 45k-line function library and
+the "side-effect functions" are already covered; `senses.c` is weaker than
+REALM's perception kernel; MDBX/transports/Lua-dialect are non-lessons; and
+`NoCode` is already REALM's `halt` tag (PennMUSH-`HALT` parity). The **one
+security find is already SHIPPED** (the sandbox-DoS entry above). The residue
+worth building — Rhost's reusable idea is that **authority can be subtractive,
+hidden, and data-driven**, three shapes REALM's *additive* role+entitlement
+model can't express, each binding to an existing layer with no new flag
+machinery:
+
+- [ ] **Subtractive capability denial** (entitlement layer). "Full admin minus
+  `LOCK_BYPASS`." Today the only subtraction is all-or-nothing `quell`
+  (`roles.py:87`); `role_def` can only *union* grants. Sketch: a per-holder
+  entitlement-denial set subtracted from `entitlements_of()` after the
+  role/role_def union resolves. Steal at REALM's coarse grain, not Rhost's
+  37-way FORCE/BOOT/NUKE split. (Rhost `DePriv`, `flags.c:4878`.)
+- [ ] **Permissioned + hidden tags via a `tag_def` registry** (tag layer).
+  REALM tags have no ACL and no hidden state — cannot express "only admins set
+  `FROZEN`," "`SUSPECT` is invisible to non-staff," "valid only on rooms."
+  Sketch: an optional `tag_def` object (mirroring `role_def`) naming a tag +
+  `set`/`unset`/**`see`**/`type` policy; free-form tags stay the default. The
+  **hidden-tag (`see`-mask)** half is the highest-value piece — staff-only
+  invisible state that survives `@examine`, which REALM has no expression for.
+  Pairs with the `halt`-owner-inheritance nicety below. (Rhost `@flagdef`/
+  `listperm`, `flags.h:594`, `flags.c:5831`.)
+- [ ] **Data-driven runtime command/switch access** (dispatch layer). **This is
+  REALM's own parked open question** (`roles.py:224`: "command authorization
+  belongs at the service layer") — Rhost is the worked answer. A command-access
+  table overridable per command (ideally per switch) that the dispatcher
+  consults, defaulting to the code-declared tier; a deny-if-tag/boolexp clause
+  subsumes Rhost's `CA_NO_GUEST`/`NO_SUSPECT` negative gates. **Pairs with the
+  object-command discoverability entry above** — both make the command layer
+  data-driven. Take the table, not the CA-bit encoding. (Rhost `cf_access`,
+  `command.c:5704`.)
+- [ ] **Per-task state-mutation budget** (scheduler). When softcode can
+  create/set in loops, cap *mutations* per evaluation, separate from
+  call/recursion limits — the runaway-sidefx DoS guard Penn/MUX lack. (Rhost
+  `sidefx_maxcalls`, `eval.c:1872`.)
+- [ ] **Scripting-as-capability-gated-HTTP-API** (HTTP layer; *optional*). A
+  first-class endpoint that runs Python against the live world and returns
+  JSON, gated by entitlement + IP allowlist — a trust tier between sandboxed
+  in-game softcode and deploy-time native bindings, for dashboards/bots/tooling.
+  Orthogonal to the settled "second in-game dialect = NO." Downgrade to won't-do
+  if REALM never wants remote scripting. (Rhost `X-Lua` header, `netcommon.c:6407`.)
+- [ ] **`@saystring`** (small; completes the `voice_as` seam). A per-speaker
+  say-verb: `@saystring me=growls` → "Zeke growls, …". Read an optional
+  `db.say_verb` in the say template (`verbs.py:257`). (Rhost `A_SAYSTRING`,
+  `speech.c:178`.)
+- [ ] **`@function` constraint (folds into that entry):** a mutating softcode
+  binding must reuse the equivalent command's own permission check, so softcode
+  can't out-authorize the hard command. (Rhost `fun_create` → `@create` gates,
+  `functions.c:41190`.)
+- [x] **owner-inherited `halt` — SHIPPED 2026-07-23.** Freeze a player → all
+  their objects' softcode inert in one move. Centralized the ten duplicated
+  `has_tag('halt')` gates into a single `GameObject.is_halted` property
+  (own tag OR immediate owner's, single-level), documented in
+  [world-management.md](../docs/guides/world-management.md) § Ownership and
+  safety valves. Player built-ins are unaffected (they dispatch off the
+  softcode path). Tests in `tests/test_script_engine.py`.
+- Minor / file-only: **MushNews data model** (per-group read/post/admin lock
+  triples + per-user unread) as a reference for the known comms gap.
 
 ## RESOLVED 2026-07-17: event payload binding (Theme A, the #1 showcase gap)
 

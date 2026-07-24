@@ -113,9 +113,9 @@ genuine two-objects-one-keyid situation, never for "I re-ran the import."
 
 ## See also
 
-- [BACKLOG](../../BACKLOG.md) §2 "Friendlier object ids" — the remaining
-  layers (short-hash `#a1b2c3` typing, `get()` refinement filters) and the
-  rejected `<owner>:<name>` scheme.
+- BACKLOG.md §2 "Friendlier object ids" — the remaining layers (short-hash
+  `#a1b2c3` typing, `get()` refinement filters) and the rejected
+  `<owner>:<name>` scheme.
 - [ATM tutorial](../showcase/004_atm_terminal.md) — referencing a shared
   master object by stable id in practice.
 - [`get` reference](../reference/softcode.md#fn-get).

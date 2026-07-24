@@ -120,6 +120,42 @@ class TestCommandFallback:
 
         assert handled is False
 
+    async def test_halted_owner_freezes_owned_object(self):
+        """A halted owner freezes its objects' softcode (the fail-safe) —
+        even though the object itself carries no halt tag."""
+        room = GameObject("Cantina", tags=["room"])
+        builder = GameObject("Bilda", tags=["builder"])
+        gadget = GameObject("Zeke", location=room, owner=builder)
+        gadget.db.cmd_greet = "$greet*:say Welcome!"
+        alice, sess = make_player("Alice", location=room)
+        engine = wired_engine()
+
+        # Baseline: neither halted -> the $-command fires.
+        assert gadget.is_halted is False
+        assert await engine.handle_unknown_command(make_ctx(sess, "greet")) is True
+
+        # Halt the OWNER (not the gadget) -> the gadget goes inert.
+        builder.add_tag("halt")
+        assert gadget.is_halted is True
+        assert gadget.has_tag("halt") is False  # inherited, not direct
+        assert await engine.handle_unknown_command(make_ctx(sess, "greet")) is False
+
+
+def test_is_halted_is_single_level():
+    """Own tag or the immediate owner's — not a full owner-chain walk."""
+    grandowner = GameObject("Root")
+    owner = GameObject("Mid", owner=grandowner)
+    obj = GameObject("Leaf", owner=owner)
+
+    assert obj.is_halted is False
+    grandowner.add_tag("halt")
+    assert obj.is_halted is False   # grand-owner does not propagate
+    owner.add_tag("halt")
+    assert obj.is_halted is True    # immediate owner does
+    owner.remove_tag("halt")
+    obj.add_tag("halt")
+    assert obj.is_halted is True    # own tag still works
+
 
 # --- ^listen triggers via propagation ---------------------------------------
 

@@ -248,7 +248,7 @@ async def cmd_trigger(ctx: CommandContext) -> None:
     fired = await engine.run_object_script(target, attr_name, enactor=ctx.player)
     if fired:
         await ctx.session.send(f"Triggered {target.name}/{attr_name}.")
-    elif target.has_tag('halt'):
+    elif target.is_halted:
         await ctx.session.send(f"{target.name} is halted.")
     else:
         await ctx.session.send(f"{target.name} has no script in '{attr_name}'.")

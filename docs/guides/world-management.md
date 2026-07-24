@@ -267,7 +267,20 @@ just readable. It works with any command that takes a value (`@set`,
 - `controls()` is the one authority predicate: self, owner, admins,
   builders-over-unowned, and your objects act with *your* authority
   (Penn-style delegation).
-- `@chown` **halts** objects carrying scripts — old code never runs
+- **`halt` freezes softcode.** An object tagged `halt` runs no softcode
+  at all — its `$`-commands and `^listen` patterns stop matching, its
+  `ON_<EVENT>` and `on_check` hooks stop firing, and its queued script
+  commands are dropped. `@tag <obj> = halt` to freeze, `@untag <obj> =
+  halt` to release. Player built-in commands are unaffected (they
+  dispatch outside the softcode path), so halting a *player* quarantines
+  their automation without locking them out of the game.
+- **A halted owner freezes everything they own** — the fail-safe. `halt`
+  is inherited one level: an object is frozen if its own tag is set *or*
+  its owner's is. So `@tag <someplayer> = halt` instantly silences every
+  gadget, NPC, and room-script that player owns, in one move, without
+  tagging each. (Inheritance is single-level by design — it does not walk
+  a whole owner chain.)
+- `@chown` **auto-halts** objects carrying scripts — old code never runs
   with the new owner's authority. `@untag <obj> = halt` after review.
 - `@force <target> = <command>` runs a command as something you
   control, through the real dispatcher (target's own permissions
