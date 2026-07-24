@@ -85,7 +85,7 @@ async def town():
 
     async def run(lines):
         for line in lines:
-            await sim.do(tam, line)
+            await sim.submit_line(tam, line)   # real input path: heredocs work
             for msg in sim.seen(tam):
                 if any(mark in msg for mark in _ERROR_MARKS):
                     errors.append(f"{line!r} -> {msg!r}")
