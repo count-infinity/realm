@@ -1804,11 +1804,56 @@ few precise engine facts:
   worlds, Penn's model: a template owner sets `@lock/parent` and anyone
   passing it may adopt the template without controlling it (penncmd.hlp:2189).
   Layer on the existing locks dict when needed.
+- [x] **RESOLVED 2026-07-23: action phases unified — before/apply/after trio.**
+  Effect placement was per-caller (pay moved money THEN propagated, so wards
+  could never veto a payment; the lock/open/get family propagated THEN mutated,
+  so ON_LOCK observed pre-state; movement hand-rolled before/after as two
+  actions). Now `propagate(action, apply=...)` threads the engine effect
+  between the permission and reaction passes: `on_check` sees before and may
+  block; `ON_<EVENT>` sees after and fires only if applied; apply may refuse
+  (`action.block`) so insufficient-funds reads like a veto. Migrated: pay +
+  all gate_item_action/_gated call sites (get/drop/give/open/close/lock/
+  unlock/pick/use/wear/remove). Also: `_in_reach` gained the carried-by-target
+  case the post-state model exposed. See docs/design/action-phases.md;
+  tests/test_action_phases.py (9).
 - [ ] **`@parent/kit` — one-time identity copy (filed 2026-07-23).** Tags and
   behaviors deliberately do not inherit (instance state; role-tag safety).
   The exemplar+`@clone` workflow covers stamping copies; if it ever chafes,
   a `/kit` switch could copy the parent's tags + behaviors ONCE at parenting
   time (copy, not live inheritance — no security change).
+- [ ] **`@export/with-references` — chase referenced objects into the file
+  (filed 2026-07-23).** Today the export set is exactly what you name; any
+  uuid-valued reference to an object OUTSIDE the set exports as a dangling id
+  (parents warn on import since 2026-07-23; a `partner`/`bank_core_id`
+  pointing at an un-exported object still drops silently on a foreign world).
+  Sketch: a discovery pass reusing the `_remap_value` deep-walk in reverse —
+  scan the export set's attrs (strings bare or `#`-prefixed that equal a live
+  object's id, INCLUDING inside lists/dicts: `attr = [uuid1, uuid2]`) plus
+  `parent` fields, and pull the referenced objects in transitively
+  (depth-capped, deduped, reported: "also exported: LockableDoor Template,
+  BankNet Core"). Deliberately exclude `location`/`owner` refs (chasing those
+  drags in rooms and players). Maybe two switches: `/with-templates` (parent
+  chain only) and `/with-references` (everything remappable). Trade-off to
+  keep documented: a pack that carries its template FORKS it on import, so
+  same-world branch-stamping usually wants the default (no chase, live-world
+  resolution).
+- [ ] **Fine-grained export: by tag / by search / by id-list attribute (filed
+  2026-07-23).** `@export` is zone-scoped only; a builder can't export "all my
+  guild furniture" or a hand-picked set. Sketch, composing with the existing
+  file sandbox and `export_objects` (which already takes an arbitrary object
+  list):
+  - `@export/tag <tag> = <file>` — everything carrying a tag (`guild:thieves`).
+  - `@export/attr <obj>/<attr> = <file>` — the attr holds a LIST OF IDS,
+    typically minted by softcode:
+    `@eval set_attr(me, 'to_export', [o.id for o in search_world(tag='door')])`
+    then `@export/attr me/to_export = doors`. The eval-a-list-then-export
+    pattern makes any query exportable without inventing an export query
+    language.
+  - Both compose with `/with-references` above. Open question: the export
+    permission model — zone export is implicitly builder-gated; a search
+    export should probably require control (or at least examine) of every
+    object it writes out, with non-controlled matches reported and skipped
+    like sync conflicts.
 - [ ] **Sandbox forbids `isinstance`/`type`** and disallows `_` as a loop var —
   world-audit/auto-map idioms use `len(str(v))` and named vars instead.
   (172_world_audit, 174_auto_map)

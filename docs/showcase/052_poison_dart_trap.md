@@ -74,7 +74,7 @@ then the HT roll decides whether venom takes hold:
 @create jade idol
 drop jade idol
 @desc jade idol = A grinning green figurine on a wall bracket. Its eyes follow you.
-@set jade idol/dart = remit(loc(me), 'A hidden nozzle spits a needle-thin dart!'); damage(enactor, roll('1d2')); (pemit(enactor, 'A cold numbness spreads from the scratch.'), apply_effect(enactor, 'damage_over_time', kind='poison', damage=1, interval=1, duration=6, tick_msg='Venom burns through your veins!', room_msg='{name} shivers, grey-faced and sweating.', expire_msg='The fever finally breaks.')) if not skill_check(enactor, 'fortitude', -2) else pemit(enactor, 'Your head swims for a moment -- then clears. Only a scratch.')
+@set jade idol/dart = remit(loc(enactor), 'A hidden nozzle spits a needle-thin dart!'); damage(enactor, roll('1d2')); (pemit(enactor, 'A cold numbness spreads from the scratch.'), apply_effect(enactor, 'damage_over_time', kind='poison', damage=1, interval=1, duration=6, tick_msg='Venom burns through your veins!', room_msg='{name} shivers, grey-faced and sweating.', expire_msg='The fever finally breaks.')) if not skill_check(enactor, 'fortitude', -2) else pemit(enactor, 'Your head swims for a moment -- then clears. Only a scratch.')
 @set jade idol/cmd_touch = $touch idol: eval_attr(me, 'dart')
 @set jade idol/on_get = eval_attr(me, 'dart')
 ```

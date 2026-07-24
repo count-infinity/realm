@@ -123,6 +123,10 @@ class Action:
     tool: GameObject | None = None
     chain: list[Step] | None = None
     tags: set[str] = field(default_factory=set)
+    #: True once the action's APPLY step (the engine effect) has run —
+    #: see PropagationEngine.propagate. Reaction-pass code and ON_* hooks
+    #: can rely on: applied=True and post-state visible.
+    applied: bool = False
     extra: dict[str, Any] = field(default_factory=dict)
 
     # Permission-pass accumulators
@@ -504,10 +508,28 @@ class PropagationEngine:
         action: Action,
         _depth: int = 0,
         deliver: bool = False,
+        apply: Callable[[Action], Any] | None = None,
     ) -> Action:
         """
         Run an action through both passes, then optionally deliver its
         messages, then recursively propagate any trailing actions.
+
+        ``apply`` is the action's ENGINE EFFECT (flip the tag, move the
+        credits), threaded between the two passes — the before/apply/after
+        trio:
+
+          1. permission pass — sees PRE-state; wards/behaviors may block();
+          2. ``apply(action)`` — runs only if not blocked (sync or async);
+             it may itself refuse by calling ``action.block(reason)`` or
+             returning False (blocked with a generic reason);
+          3. reaction pass — sees POST-state; ON_* hooks fire only for
+             actions that actually applied (the script observer skips
+             blocked ones).
+
+        So the one rule every hook can rely on: ``on_check`` sees the world
+        before, ``ON_<EVENT>`` sees the world after, and the veto is the only
+        thing that stops the middle. Callers with no engine effect (pure
+        notifications like event:on_fail) simply pass no apply.
 
         ``deliver`` propagates through the recursion — when True, every action
         in the trailing tree gets its messages delivered as soon as its react
@@ -523,6 +545,14 @@ class PropagationEngine:
 
         for step in chain:
             await step.on_check(action)
+
+        if apply is not None and not action.blocked:
+            result = apply(action)
+            if hasattr(result, '__await__'):
+                result = await result
+            if result is False and not action.blocked:
+                action.block("It doesn't work.")
+            action.applied = not action.blocked
 
         for step in chain:
             await step.on_react(action)
@@ -569,9 +599,14 @@ async def propagate(
     action: Action,
     engine: PropagationEngine | None = None,
     deliver: bool = True,
+    apply: Callable[[Action], Any] | None = None,
 ) -> Action:
     """
     Propagate an action through the engine, optionally delivering messages.
+
+    ``apply`` is the action's engine effect, run between the permission and
+    reaction passes (see PropagationEngine.propagate — the before/apply/after
+    trio).
 
     With ``deliver=True`` (default), every action in the propagation tree —
     the parent and any trailing actions, recursively — gets its messages
@@ -580,7 +615,8 @@ async def propagate(
     or when a test wants to inspect raw accumulated messages without side
     effects.
     """
-    return await (engine or get_engine()).propagate(action, deliver=deliver)
+    return await (engine or get_engine()).propagate(
+        action, deliver=deliver, apply=apply)
 
 
 async def gate_action(
@@ -588,20 +624,24 @@ async def gate_action(
     *,
     fail_msg: str = "You can't do that.",
     engine: PropagationEngine | None = None,
+    apply: Callable[[Action], Any] | None = None,
 ) -> bool:
     """
     Propagate an action that a lock or behavior may veto.
 
     The gated calling convention: build the action WITHOUT success
-    messages, gate it, and only on True mutate state, add the success
-    messages, and call deliver_messages(action).
+    messages, pass the engine effect as ``apply`` (run between the
+    permission and reaction passes, so reaction-pass hooks see POST-state),
+    and on True add the success messages and call deliver_messages(action).
+    ``apply`` may itself refuse (``action.block(reason)`` / return False) —
+    an insufficient-funds transfer reads exactly like a ward veto.
 
     On a block this messages the actor with the block reason (or
     ``fail_msg``) and delivers any behavior-added messages (a trap
     announcing itself), then returns False. Trailing actions propagate
     without delivery here — the same trade-off as the movement gate.
     """
-    await propagate(action, engine=engine, deliver=False)
+    await propagate(action, engine=engine, deliver=False, apply=apply)
     if action.blocked:
         if action.actor is not None:
             action.actor.msg(action.block_reason or fail_msg)

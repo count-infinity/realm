@@ -46,8 +46,11 @@ async def _gated(
     tool: GameObject | None = None,
     data: dict | None = None,
     fail_msg: str,
+    apply=None,
 ) -> Action | None:
-    """Propagate a manipulation action; behaviors/locks may veto."""
+    """Propagate a manipulation action with its engine effect as ``apply``
+    (run between the passes — reaction hooks see POST-state); behaviors/
+    locks may veto, in which case the effect never runs."""
     action = Action(
         actor=ctx.player,
         target=target,
@@ -56,7 +59,7 @@ async def _gated(
     )
     for key, value in (data or {}).items():
         action.add_data(key, value)
-    if not await gate_action(action, fail_msg=fail_msg):
+    if not await gate_action(action, fail_msg=fail_msg, apply=apply):
         return None
     return action
 
@@ -142,9 +145,9 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
         await ctx.session.send("You don't have the key.")
         return
     if await _gated(ctx, "item:on_lock", target, tool=key,
-                    fail_msg="The lock won't catch.") is None:
+                    fail_msg="The lock won't catch.",
+                    apply=lambda _a: target.add_tag('locked')) is None:
         return
-    target.add_tag('locked')
     ctx.player.msg(f"You lock {target.name} with {key.name}.")
 
 
@@ -172,9 +175,9 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
         await ctx.session.send("You don't have the key.")
         return
     if await _gated(ctx, "item:on_unlock", target, tool=key,
-                    fail_msg="The lock holds fast.") is None:
+                    fail_msg="The lock holds fast.",
+                    apply=lambda _a: target.remove_tag('locked')) is None:
         return
-    target.remove_tag('locked')
     ctx.player.msg(f"You unlock {target.name} with {key.name}.")
 
 
@@ -214,9 +217,9 @@ async def cmd_pick(ctx: CommandContext) -> None:
         # `picked` in the action data lets scripts tell a jimmy from a key.
         if await _gated(ctx, "item:on_unlock", target, data={'picked': True},
                         fail_msg=f"The lock on {target.name} defies your "
-                                 f"tools.") is None:
+                                 f"tools.",
+                        apply=lambda _a: target.remove_tag('locked')) is None:
             return
-        target.remove_tag('locked')
         ctx.player.msg(f"Click. You defeat the lock on {target.name}.")
         if ctx.player.location:
             ctx.player.location.msg_contents(
@@ -274,12 +277,16 @@ async def cmd_use(ctx: CommandContext) -> None:
         now_locked = not target.has_tag('locked')
         atype = "item:on_lock" if now_locked else "item:on_unlock"
         fail = "The lock won't catch." if now_locked else "The lock holds fast."
-        if await _gated(ctx, atype, target, tool=item, fail_msg=fail) is None:
+
+        def _flip(_a):
+            if now_locked:
+                target.add_tag('locked')
+            else:
+                target.remove_tag('locked')
+
+        if await _gated(ctx, atype, target, tool=item, fail_msg=fail,
+                        apply=_flip) is None:
             return
-        if now_locked:
-            target.add_tag('locked')
-        else:
-            target.remove_tag('locked')
         state = "locks" if now_locked else "unlocks"
         ctx.player.msg(f"You swipe {item.name}: {target.name} {state}.")
         return
@@ -334,18 +341,20 @@ async def cmd_wear(ctx: CommandContext) -> None:
                 )
                 return
 
+    def _don(_a):
+        item.add_tag('worn')
+        granted = []
+        for tag in item.db.get('grants_tags') or []:
+            if not ctx.player.has_tag(tag):
+                ctx.player.add_tag(tag)
+                granted.append(tag)
+        item.db.granted_active = granted
+
     action = await _gated(ctx, "item:on_wear", item,
-                          fail_msg=f"You can't wear {item.name}.")
+                          fail_msg=f"You can't wear {item.name}.",
+                          apply=_don)
     if action is None:
         return
-
-    item.add_tag('worn')
-    granted = []
-    for tag in item.db.get('grants_tags') or []:
-        if not ctx.player.has_tag(tag):
-            ctx.player.add_tag(tag)
-            granted.append(tag)
-    item.db.granted_active = granted
 
     action.add_message("actor", "You put on {target:the}.")
     action.add_message("room", "{actor} puts on {target:a}.")
@@ -371,16 +380,18 @@ async def cmd_unwear(ctx: CommandContext) -> None:
 
     # ON_REMOVE — gated, the mirror of item:on_wear: a cursed item's on_check
     # can refuse (block) removal.
+    def _doff(_a):
+        item.remove_tag('worn')
+        for tag in item.db.get('granted_active') or []:
+            ctx.player.remove_tag(tag)
+        item.db.granted_active = []
+
     removing = await _gated(
         ctx, "item:on_remove", item,
-        fail_msg="You can't seem to take it off.")
+        fail_msg="You can't seem to take it off.",
+        apply=_doff)
     if removing is None:
         return
-
-    item.remove_tag('worn')
-    for tag in item.db.get('granted_active') or []:
-        ctx.player.remove_tag(tag)
-    item.db.granted_active = []
 
     ctx.player.msg(f"You take off {item.name}.")
     if ctx.player.location:

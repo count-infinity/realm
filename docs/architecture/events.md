@@ -2,14 +2,27 @@
 
 REALM's single message pathway. Every game action — speech, movement,
 getting an item, a sword blow — is an ``Action`` propagated through the
-room in **two passes** (CoffeeMud-style):
+room in **two passes with the engine effect between them** (CoffeeMud-style
+check/execute, completed into a before/apply/after trio — see
+[Action phases](../design/action-phases.md)):
 
 1. **Check pass** — every visited object (and its behaviors) may
-   inspect, modify, or ``block()`` the action. Locks are enforced here
-   too. The pass always runs to completion, so observers see even
-   blocked attempts.
-2. **React pass** — objects accumulate audience messages, queue
-   trailing actions, and mutate state in response.
+   inspect, modify, or ``block()`` the action, seeing the world **before**
+   the effect. Locks are enforced here too. The pass always runs to
+   completion, so observers see even blocked attempts.
+2. **Apply** — the action's engine effect (the tag flip, the credit
+   transfer, the item move), passed by the caller as
+   ``propagate(action, apply=...)``. Runs only if the action was not
+   blocked; it may itself refuse (``action.block(reason)``), which reads
+   exactly like a ward veto.
+3. **React pass** — objects accumulate audience messages, queue trailing
+   actions, and react, seeing the world **after** the effect. ``ON_<EVENT>``
+   softcode fires here (via the engine observer) only for actions that
+   actually applied.
+
+The one rule every hook can rely on: **``on_check`` sees the world before,
+``ON_<EVENT>`` sees the world after, and the veto is the only thing that
+stops the middle.**
 
 ```python
 from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate

@@ -16,7 +16,12 @@ from realm.core.economy import (
     get_credits,
     transfer_credits,
 )
-from realm.core.propagation import Action, propagate
+from realm.core.propagation import (
+    Action,
+    deliver_messages,
+    gate_action,
+    propagate,
+)
 from realm.core.search import match_one
 
 
@@ -176,10 +181,13 @@ async def cmd_pay(ctx: CommandContext) -> None:
         await ctx.session.send(f"You don't see '{target_spec}' here.")
         return
 
-    if not transfer_credits(ctx.player, target, amount):
-        await ctx.session.send(
-            f"You don't have {amount} {currency_name()}.")
-        return
+    # Before/apply/after: wards may veto the payment BEFORE any money
+    # moves; the transfer is the apply step; ON_PAYMENT (and every other
+    # reaction) fires after it, seeing the moved money. An insufficient
+    # wallet refuses inside apply, reading exactly like a ward veto.
+    def _transfer(a):
+        if not transfer_credits(ctx.player, target, amount):
+            a.block(f"You don't have {amount} {currency_name()}.")
 
     action = Action(
         actor=ctx.player,
@@ -188,11 +196,16 @@ async def cmd_pay(ctx: CommandContext) -> None:
         extra={"amount": amount},
     )
     action.add_message("actor",
-                       f"You pay {{target}} {amount} {currency_name()}.")
+                       f"You pay {{target}} {amount} {currency_name()}.",
+                       success_only=True)
     action.add_message("target",
-                       f"{{actor}} pays you {amount} {currency_name()}.")
-    action.add_message("room", "{actor} pays {target}.")
-    await propagate(action)
+                       f"{{actor}} pays you {amount} {currency_name()}.",
+                       success_only=True)
+    action.add_message("room", "{actor} pays {target}.", success_only=True)
+    if not await gate_action(action, apply=_transfer,
+                             fail_msg="The payment is refused."):
+        return
+    deliver_messages(action)
 
 
 def register_economy_commands(dispatcher: CommandDispatcher) -> None:

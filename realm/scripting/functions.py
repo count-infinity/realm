@@ -788,6 +788,8 @@ class ScriptFunctions:
             return True
         if target.location is self.executor:
             return True  # standing inside the executor (room traps, containers)
+        if self.executor.location is target:
+            return True  # carried BY the target (a cursed idol biting its taker)
         return (target.location is not None
                 and target.location is self.executor.location)
 

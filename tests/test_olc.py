@@ -90,6 +90,12 @@ class MockSession:
 
     def link_player(self, player):
         self.player = player
+        # Wire player.msg() -> this session, as the real Session does —
+        # gated refusals (lock/pay/wear) message the ACTOR, not the session.
+        if player is not None and getattr(player, '_msg_handler', None) is None:
+            # Never steal wiring from a real Session created elsewhere in
+            # the same test.
+            player.set_msg_handler(self.messages.append)
 
 
 def make_context(player, raw_input="", command_name="", args="",

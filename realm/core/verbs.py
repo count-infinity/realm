@@ -96,14 +96,18 @@ async def gate_item_action(
     tool: GameObject | None = None,
     extra: dict | None = None,
     fail_msg: str,
+    apply=None,
 ) -> Action | None:
     """
-    Run an item action's permission pass through propagation.
+    Run an item action through propagation, with its engine effect as
+    ``apply`` (executed between the permission and reaction passes — the
+    before/apply/after trio, so reaction hooks see POST-state).
 
     Locks (via the check-pass lock guard) and behaviors both get a chance
-    to block. Returns the action on success, None on a block (the actor
-    has been messaged). Every item transfer — single or bulk, typed or
-    scripted — goes through this one gate.
+    to block; a block means the effect never ran. Returns the action on
+    success, None on a block (the actor has been messaged). Every item
+    transfer — single or bulk, typed or scripted — goes through this one
+    gate.
     """
     action = Action(
         actor=actor,
@@ -112,7 +116,7 @@ async def gate_item_action(
         tool=tool,
         extra=extra or {},
     )
-    if not await gate_action(action, fail_msg=fail_msg):
+    if not await gate_action(action, fail_msg=fail_msg, apply=apply):
         return None
     return action
 
@@ -123,14 +127,16 @@ async def do_get(actor: GameObject, target: GameObject) -> bool:
         actor.msg("You can't pick up players!")
         return False
 
+    def _apply(_a):
+        target.location = actor
+
     action = await gate_item_action(
         actor, "item:on_get", target,
         fail_msg=f"You can't pick up {target.name}.",
+        apply=_apply,
     )
     if action is None:
         return False
-
-    target.location = actor
 
     action.add_message("actor", "You pick up {target:a}.")
     action.add_message("room", "{actor} picks up {target:a}.")
@@ -144,14 +150,16 @@ async def do_drop(actor: GameObject, target: GameObject) -> bool:
         actor.msg("You can't drop things here.")
         return False
 
+    def _apply(_a):
+        target.location = actor.location
+
     action = await gate_item_action(
         actor, "item:on_drop", target,
         fail_msg=f"You can't drop {target.name}.",
+        apply=_apply,
     )
     if action is None:
         return False
-
-    target.location = actor.location
 
     action.add_message("actor", "You drop {target:a}.")
     action.add_message("room", "{actor} drops {target:a}.")
@@ -168,16 +176,18 @@ async def do_give(actor: GameObject, item: GameObject, target: GameObject) -> bo
     # For 'give', the target is the recipient and the item travels via
     # 'tool' so {tool} substitution works and the actor-side give-lock
     # check can find it.
+    def _apply(_a):
+        item.location = target
+
     action = await gate_item_action(
         actor, "item:on_give", target,
         tool=item,
         extra={"item": item},
         fail_msg=f"You can't give {item.name} to {target.name}.",
+        apply=_apply,
     )
     if action is None:
         return False
-
-    item.location = target
 
     action.add_message("actor", "You give {tool:a} to {target}.")
     action.add_message("target", "{actor} gives you {tool:a}.")
@@ -207,11 +217,11 @@ async def do_open(actor: GameObject, target: GameObject) -> bool:
     action = await gate_item_action(
         actor, "item:on_open", target,
         fail_msg=f"You can't open {target.name}.",
+        apply=lambda _a: target.remove_tag('closed'),
     )
     if action is None:
         return False
 
-    target.remove_tag('closed')
     action.add_message("actor", "You open {target:the}.")
     action.add_message("room", "{actor} opens {target:the}.")
     deliver_messages(action)
@@ -231,11 +241,11 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
     action = await gate_item_action(
         actor, "item:on_close", target,
         fail_msg=f"You can't close {target.name}.",
+        apply=lambda _a: target.add_tag('closed'),
     )
     if action is None:
         return False
 
-    target.add_tag('closed')
     action.add_message("actor", "You close {target:the}.")
     action.add_message("room", "{actor} closes {target:the}.")
     deliver_messages(action)

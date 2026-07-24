@@ -56,6 +56,10 @@ edit `tests/showcase/__init__.py`, which already exists.
   whenever you use it.
 - `on_check` wards gate actions; admin-owned masters may write other players'
   sheets under owner authority; sandboxed Python `[[...]]` allows loops.
+- **Hook timing is a trio** (docs/design/action-phases.md): `on_check` sees the
+  world BEFORE the effect and may `block()`; `ON_<EVENT>` sees the world AFTER
+  and fires only if the effect ran. Consequence: inside `ON_GET`, `loc(me)` is
+  the taker, so announce to the scene with `loc(enactor)`.
 - GMCP is live (telnet option 201 and websocket) through `oob()`.
 - **Keep `[[...]]` inline blocks cheap and local.** They run per look, per
   viewer, on the look's own call stack, and the sandbox recursion cap is
