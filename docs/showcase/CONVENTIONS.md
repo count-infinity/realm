@@ -144,7 +144,10 @@ documents the input mechanism.
   point at what a newcomer would miss (the `target` guard, a non-obvious
   argument, a per-player key). Showcase code is dense, so let the prose carry the
   explanation and reserve comments for genuine surprises. Comments persist in the
-  stored attribute, so keep them terse and true.
+  stored attribute, so keep them terse and true, and make each one
+  **self-contained**: name the mechanism plainly ("schedule the next note"),
+  never a metaphor the reader must trace back through the prose ("pass the
+  baton").
 - **Blank lines inside a body are fine.** The harness keeps blank lines
   internal to a fenced block (edge padding is trimmed), and the session
   preserves them into the stored script, so a long body may breathe.
@@ -211,7 +214,10 @@ define a domain term on first use if you need it ("its credit balance, which
 slot-machine people call the hopper").
 
 **Link every primitive to the reference.** The first mention of a softcode
-function or concept links to its anchor in the auto-generated reference:
+function or concept links to its anchor in the auto-generated reference.
+Likewise link references to **other tutorials** (the jukebox, the gas bomb)
+wherever they appear, not only in the intro; a reader deep in "How it works"
+should be one click from the build being contrasted:
 
 | What | Anchor |
 |---|---|

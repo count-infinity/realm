@@ -33,7 +33,7 @@ the names in the
 [event data namespace](../reference/softcode.md#event-data-namespace). It also
 has to open with `if target is me:`, because an `ON_PAYMENT` fires on every
 object in the room, and unguarded it would arm a free pull whenever somebody
-paid the vending machine standing next to it. See
+paid the [vending machine](002_vending_machine.md) standing next to it. See
 [Guard on `target`](../reference/softcode.md#guard-on-target).
 
 Paying and pulling are separate moments, so the stake is written to a per-player

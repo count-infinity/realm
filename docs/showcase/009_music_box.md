@@ -26,7 +26,7 @@ timer rather than the world heartbeat. If that script *ends by
 scheduling the same wait again*, you get a timer that runs precisely at
 its own tempo, each note passing the baton to the next. The chain dies
 the moment a link declines to re-arm, which is exactly what a wind-down
-spring wants. The trade-off against the jukebox's ticker: `wait()` is
+spring wants. The trade-off against the [jukebox](003_jukebox.md)'s ticker: `wait()` is
 in-memory, so a reboot mid-tune silences the box. That is harmless here;
 where it matters, use [`expire()`](../reference/softcode.md#fn-expire),
 the persistent timer, and the [gas bomb](048_gas_bomb.md) shows the two
@@ -89,7 +89,7 @@ if t > 0 and notes:
     incr('cursor')
     decr('turns')
     if t > 1:
-        wait(V('tempo', 5), 'trigger me/play_note')  # pass the baton
+        wait(V('tempo', 5), 'trigger me/play_note')  # schedule the next note
     else:
         pose('slows... and stops with a final, drooping plink.')
 '''

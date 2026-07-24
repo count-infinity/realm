@@ -52,7 +52,7 @@ consent, its [`ON_PAYMENT`](../reference/softcode.md#lifecycle-hooks) fires, and
 [`adata('amount')`](../reference/softcode.md#event-data-namespace) is what you
 fed in. Because `ON_PAYMENT` reaches every object in the room, the hook first
 checks [`target is me`](../reference/softcode.md#guard-on-target) so a coin
-handed to someone else never credits the machine. Unlike the slot machine it
+handed to someone else never credits the machine. Unlike the [slot machine](001_slot_machine.md) it
 does not demand exact change: everything you feed it accumulates as *your*
 credit on *this* machine, spent selection by selection, so you can overpay now
 and vend twice later.

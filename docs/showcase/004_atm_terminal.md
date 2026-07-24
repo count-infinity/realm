@@ -71,7 +71,7 @@ objects its runner controls, and `call` runs `net_deposit` *as the core*,
 so it is the **core's** authority that debits the customer:
 [`transfer_credits(enactor, me, amt)`](../reference/softcode.md#fn-transfer_credits)
 works because the admin-owned core controls the typing player (Penn-style
-delegation), the same owner-authority lesson as 087's counter. The
+delegation), the same owner-authority lesson as [087](087_bank_accounts.md)'s counter. The
 consent is the typed command: nobody's wallet moves until they ask a
 terminal to move it. The **terminals** need no special ownership; built
 by the same admin, they co-own the core, and `call` is allowed between
