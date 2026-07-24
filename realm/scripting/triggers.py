@@ -285,10 +285,12 @@ class TriggerManager:
         self._trigger_cache.pop(obj_id, None)
 
     def get_command_triggers(self, obj: GameObject) -> list[CommandTrigger]:
-        """Get all command triggers from an object."""
+        """Get all command triggers from an object (its own and any
+        inherited through the @parent chain — a template's $-commands
+        work on every child)."""
         triggers = []
 
-        for key, value in obj.db.all().items():
+        for key, value in obj.db.merged().items():
             if key.upper().startswith(self.CMD_PREFIX):
                 trigger = self._parse_command_trigger(value)
                 if trigger:
@@ -297,10 +299,10 @@ class TriggerManager:
         return triggers
 
     def get_listen_triggers(self, obj: GameObject) -> list[ListenTrigger]:
-        """Get all listen triggers from an object."""
+        """Get all listen triggers from an object (own + @parent-inherited)."""
         triggers = []
 
-        for key, value in obj.db.all().items():
+        for key, value in obj.db.merged().items():
             if key.upper().startswith(self.LISTEN_PREFIX):
                 trigger = self._parse_listen_trigger(value)
                 if trigger:
@@ -318,7 +320,7 @@ class TriggerManager:
         triggers = []
         attr_name = f'{EVENT_ATTR_PREFIX}{event_type.upper()}'
 
-        for key, value in obj.db.all().items():
+        for key, value in obj.db.merged().items():
             if key.upper() == attr_name and isinstance(value, str) and value:
                 triggers.append(EventTrigger(event_type=event_type, action=value))
 

@@ -337,12 +337,21 @@ async def cmd_examine_full(ctx: CommandContext) -> None:
         for lock_type, expr in target.locks.items():
             await ctx.session.send(f"  {lock_type}: {expr}")
 
-    # Attributes
+    # Attributes — own first, then anything inherited through @parent
+    # (invisible inheritance is a debugging nightmare; show it, marked).
     attrs = target.db.all()
     if attrs:
         await ctx.session.send("\nAttributes:")
         for key, value in sorted(attrs.items()):
             await ctx.session.send(f"  {key}: {value!r}")
+    if target.parent is not None:
+        inherited = {k: v for k, v in target.db.merged().items()
+                     if k not in attrs}
+        if inherited:
+            await ctx.session.send(
+                f"\nInherited (from {target.parent.name}):")
+            for key, value in sorted(inherited.items()):
+                await ctx.session.send(f"  {key}: {value!r}")
 
     # Behaviors
     behaviors = target.get_behaviors()

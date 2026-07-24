@@ -124,8 +124,9 @@ vault door
 ```
 
 Expected beats: `close` and `lock` succeed (`You lock vault door with
-brass key.`), and `@examine` the *far* side at any point to watch its
-`closed` and `locked` tags change in lockstep. Walking into the closed
+brass key.`); `@pair vault door` names the far side at any time, and
+`@examine` that far side to watch its `closed` and `locked` tags change
+in lockstep. Walking into the closed
 door refuses with `The vault door is closed.`; `open` refuses with your
 `locked_msg`; the key unlocks, the door opens, and you're in the vault.
 Now prove the point of the whole build: lock yourself in, and have a
@@ -159,6 +160,12 @@ have the key.` on `unlock`. One door, two faces, one truth.
   or [`act(...)`](../reference/softcode.md#fn-act) to a guard post; the
   guarded-exit items in the [checklist](checklist.md) build on exactly
   this.
+- **Template the door.** The four hooks are identical on every door
+  you will ever build, so write them once on a `LockableDoor Template`
+  object and `@parent` each new door's two faces to it: the hooks
+  inherit, the per-door data (`key_id`, `locked_msg`) stays on the
+  exits, and fixing the template fixes every door on the map. See
+  [Templates](../design/templates.md).
 - **The same mirror pattern** runs linked teleporter pads, both halves
   of an intercom, and a lever in one room that raises a bridge in
   another: store a `partner`, write raw state, never call the partner's

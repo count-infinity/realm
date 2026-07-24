@@ -199,6 +199,9 @@ async def cmd_clone(ctx: CommandContext) -> None:
     clone = spawn_from_prototype(prototype, ctx.player.location)
     clone.locks.update(original.locks)
     clone.owner = ctx.player
+    # A clone of a templated object stays templated — the parent link is
+    # identity-safe to share (it is a reference, not a unique handle).
+    clone.parent = original.parent
 
     await save_object(ctx, clone)
     await ctx.session.send(f"Cloned {original.name} → {clone.name} (#{clone.id[:8]}).")

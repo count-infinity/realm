@@ -1785,11 +1785,30 @@ few precise engine facts:
   — objects can't scan their own `skill_*`/`topic_*` attrs, so index-carrying
   objects (a `skills`/`topics` list attr) are the idiom. Affects score screens,
   help/guide boards, snapshot/restore. (190_score_screen, 182_snapshot_restore)
-- [ ] **`@parent` does not propagate attribute reads** — the link is stored and
-  shown in `@examine`, but `get_attr(child,x)` never falls through to the parent.
-  Blocks native prototype/room-template inheritance; worked around with dict-merge
-  and `@clone`. `@clone` additionally refuses rooms (use a `$stamp` minting verb).
-  (165_prototype_library, 168_room_templates)
+- [x] **RESOLVED 2026-07-23: `@parent` attribute inheritance implemented.**
+  A child now reads through its parent chain for db attributes it lacks —
+  values, `ON_*` hooks, `$`-commands/`^`-listens (trigger gathering uses
+  `db.merged()`) — child's own always wins; writes land on the child
+  (copy-on-write); deleting a child attr re-exposes the template's. Never
+  inherit: tags, behaviors, engine fields, `PROTECTED_ATTRS`, `attr_flags`,
+  and `secret`-flagged template attrs. Chain depth-capped at 8, cycles
+  refused. Gate: control child AND parent. `@examine` shows an
+  "Inherited (from X)" section; `@clone` keeps the parent link (exemplar
+  workflow: template = code, exemplar child = tags/behaviors, `@clone` =
+  replication). `db.all()` stays own-only so persistence/export/clone are
+  inheritance-clean. Tests: tests/test_parent.py (16). See
+  docs/design/templates.md. `@clone` still refuses rooms (unchanged).
+  Follow-ups filed below.
+- [ ] **`@lock/parent` — shared-template opt-in (filed 2026-07-23).** The
+  `@parent` gate is control-both for now (single-builder world). For shared
+  worlds, Penn's model: a template owner sets `@lock/parent` and anyone
+  passing it may adopt the template without controlling it (penncmd.hlp:2189).
+  Layer on the existing locks dict when needed.
+- [ ] **`@parent/kit` — one-time identity copy (filed 2026-07-23).** Tags and
+  behaviors deliberately do not inherit (instance state; role-tag safety).
+  The exemplar+`@clone` workflow covers stamping copies; if it ever chafes,
+  a `/kit` switch could copy the parent's tags + behaviors ONCE at parenting
+  time (copy, not live inheritance — no security change).
 - [ ] **Sandbox forbids `isinstance`/`type`** and disallows `_` as a loop var —
   world-audit/auto-map idioms use `len(str(v))` and named vars instead.
   (172_world_audit, 174_auto_map)

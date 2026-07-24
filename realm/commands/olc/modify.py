@@ -302,7 +302,11 @@ async def cmd_wipe(ctx: CommandContext) -> None:
 
 async def cmd_parent(ctx: CommandContext) -> None:
     """
-    Set an object's parent for attribute inheritance.
+    Set an object's parent — the child inherits the template's db
+    attributes (defaults, ON_* hooks, $-commands) wherever it lacks its
+    own. Child's own attribute shadows the template's; writes land on
+    the child; tags/behaviors/fields never inherit. You must control
+    BOTH objects. See docs/design/templates.md.
 
     Usage: @parent <object> = <parent>
            @parent <object> =             (clear parent)
@@ -331,6 +335,12 @@ async def cmd_parent(ctx: CommandContext) -> None:
         parent = find_object_global(ctx, parent_name)
         if not parent:
             await ctx.session.send(f"Parent '{parent_name}' not found.")
+            return
+
+        # Adopting a template runs its code with YOUR object's authority,
+        # so you must control the template too. (A Penn-style @lock/parent
+        # opt-in for shared templates is backlogged.)
+        if not await require_control(ctx, parent):
             return
 
         # Prevent circular inheritance

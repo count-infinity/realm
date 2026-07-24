@@ -33,10 +33,9 @@ class AttributeProxy:
         object.__setattr__(self, '_owner', owner)
 
     def __getattr__(self, name: str) -> Any:
-        attrs = object.__getattribute__(self, '_attrs')
         if name.startswith('_'):
             raise AttributeError(f"Attribute names cannot start with underscore: {name}")
-        return attrs.get(name)
+        return self.get(name)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if name.startswith('_'):
@@ -61,12 +60,51 @@ class AttributeProxy:
 
     def __contains__(self, name: str) -> bool:
         attrs = object.__getattribute__(self, '_attrs')
-        return name in attrs
+        if name in attrs:
+            return True
+        owner = object.__getattribute__(self, '_owner')
+        if owner.parent is None:
+            return False
+        _MISSING = object()
+        return self._inherited(name, _MISSING) is not _MISSING
+
+    #: Attributes that never inherit through @parent: identity and secrets
+    #: (password, keyid), and the flag table itself (a child's flag lookups
+    #: must not silently adopt the template's).
+    _NO_INHERIT = frozenset({'password', 'keyid', 'attr_flags'})
+    #: Parent-chain walk cap (cycles are refused at @parent time; this is
+    #: the backstop).
+    _MAX_PARENT_DEPTH = 8
+
+    def _inherited(self, name: str, default: Any = None) -> Any:
+        """Walk the owner's @parent chain for ``name`` (child-shadows-parent;
+        secret/protected template attrs do not inherit)."""
+        if name in self._NO_INHERIT:
+            return default
+        owner = object.__getattribute__(self, '_owner')
+        ancestor = owner.parent
+        depth = 0
+        while ancestor is not None and depth < self._MAX_PARENT_DEPTH:
+            attrs = object.__getattribute__(ancestor.db, '_attrs')
+            if name in attrs:
+                from realm.core.attrflags import has_attr_flag
+                if has_attr_flag(ancestor, name, 'secret'):
+                    return default  # template internals stay on the template
+                return attrs[name]
+            ancestor = ancestor.parent
+            depth += 1
+        return default
 
     def get(self, name: str, default: Any = None) -> Any:
-        """Get an attribute with a default value."""
+        """Get an attribute, falling through the @parent chain on a miss
+        (the child's own value always wins)."""
         attrs = object.__getattribute__(self, '_attrs')
-        return attrs.get(name, default)
+        if name in attrs:
+            return attrs[name]
+        owner = object.__getattribute__(self, '_owner')
+        if owner.parent is None:
+            return default
+        return self._inherited(name, default)
 
     def set(self, name: str, value: Any) -> None:
         """Set an attribute (alternative to dot notation)."""
@@ -77,9 +115,33 @@ class AttributeProxy:
         self.__delattr__(name)
 
     def all(self) -> dict[str, Any]:
-        """Return all attributes as a dictionary."""
+        """This object's OWN attributes only — persistence, export, and
+        @clone depend on inherited values never appearing here."""
         attrs = object.__getattribute__(self, '_attrs')
         return dict(attrs)
+
+    def merged(self) -> dict[str, Any]:
+        """Own attributes overlaid on everything inherited through the
+        @parent chain (child wins; secret/protected template attrs
+        excluded). For trigger gathering and @examine — NOT persistence."""
+        from realm.core.attrflags import has_attr_flag
+        owner = object.__getattribute__(self, '_owner')
+        chain = []
+        ancestor = owner.parent
+        depth = 0
+        while ancestor is not None and depth < self._MAX_PARENT_DEPTH:
+            chain.append(ancestor)
+            ancestor = ancestor.parent
+            depth += 1
+        result: dict[str, Any] = {}
+        for ancestor in reversed(chain):   # farthest ancestor first; children overlay
+            attrs = object.__getattribute__(ancestor.db, '_attrs')
+            for key, value in attrs.items():
+                if key in self._NO_INHERIT or has_attr_flag(ancestor, key, 'secret'):
+                    continue
+                result[key] = value
+        result.update(object.__getattribute__(self, '_attrs'))
+        return result
 
 
 # The check-pass softcode hook — installed by the script engine (dependency

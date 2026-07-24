@@ -140,6 +140,30 @@ on a paired exit **dissolve** the pairing on both sides (loudly, so a
 retargeted exit never drags a mirror along to an unrelated door), and
 `@destroy` of one side clears the survivor.
 
+## Templates (`@parent`)
+
+Write a capability once, as attributes on a **template** object, and any
+object you `@parent` to it inherits the lot: default values, `ON_<EVENT>`
+hooks, `$`-commands. The child's own attribute always shadows the
+template's; writes always land on the child (a template value is a
+default, never shared state); deleting a child's attribute re-exposes the
+template's. Editing the template fixes every child at once.
+
+```text
+@create LockableDoor Template
+@set LockableDoor Template/on_open = if target is me: remove_tag(V('partner'), 'closed')
+@set LockableDoor Template/on_close = if target is me: add_tag(V('partner'), 'closed')
+@parent vault door = LockableDoor Template     adopt (control both objects)
+@parent vault door =                           clear
+```
+
+Tags, behaviors, locks, and fields do **not** inherit — they are
+per-instance identity. The idiom for stamping fully-kitted copies is one
+**exemplar**: parent it, tag it, attach behaviors, then `@clone` it
+(clones copy tags and behaviors and keep the parent link). `@examine`
+shows anything inherited in its own marked section. The full model:
+[Templates](../design/templates.md).
+
 ## Attribute flags
 
 Attributes are **readable by default** (game mechanics depend on it —
