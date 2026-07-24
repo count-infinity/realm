@@ -1816,6 +1816,33 @@ few precise engine facts:
   unlock/pick/use/wear/remove). Also: `_in_reach` gained the carried-by-target
   case the post-state model exposed. See docs/design/action-phases.md;
   tests/test_action_phases.py (9).
+- [ ] **`create_obj` into an uncontrolled location fails SILENTLY (filed
+  2026-07-23, batch wave 006-014).** `create_obj(location=<player>)` returns
+  None when the executor doesn't control that player (correct authority rule:
+  machines can't stuff strangers' pockets), but the None is silent — 013's
+  fortune teller told paying strangers "You lift the card" while minting
+  nothing. The working idiom is mint-into-room + `move_to(obj, enactor)`
+  (013/008 now teach it). Fix: have create_obj queue a visible script error
+  (or return a sentinel the docs can check) instead of None-and-shrug. Sweep
+  list for future conversions still using `location=enactor` for strangers:
+  086_currency, 092, 108_casino, 165_prototype_rack.
+- [ ] **`oemit` is hard-anchored to the executor's room (filed 2026-07-23).**
+  An inventory-operable gadget (a held gift box, a carried recorder) cannot
+  address the scene with oemit — the "room" is its holder's inventory. The
+  working idiom is `remit(loc(enactor), ...)`; consider an optional room arg
+  (`oemit(enactor, msg, room=...)`) so the etiquette pair stays symmetric.
+- [ ] **Blocked attempts are invisible to softcode (filed 2026-07-23).** A
+  blocked action fires no ON_* hook on its target (by design: hooks mean it
+  happened) and `on_check` wards run in a READ-ONLY namespace, so "count the
+  failed break-in attempts" is inexpressible. Options: an `ON_BLOCKED` hook
+  (fires on the target with the block reason in adata), or a narrowly
+  writable ward primitive (`note_attr(...)`) — decide deliberately; both
+  have foot-gun potential.
+- [ ] **`^listen` concept has no reference anchor (filed 2026-07-23,
+  doc-tooling).** gen_softcode_docs emits `{#fn-...}` anchors for functions
+  and `{#lifecycle-hooks}` etc., but the trigger-syntax table (`$`-commands,
+  `^listen`) has no stable anchor, so tutorials cannot deep-link the concept.
+  Add `{#triggers}` / `{#listen-triggers}` anchors to the generator.
 - [ ] **`@parent/kit` — one-time identity copy (filed 2026-07-23).** Tags and
   behaviors deliberately do not inherit (instance state; role-tag safety).
   The exemplar+`@clone` workflow covers stamping copies; if it ever chafes,

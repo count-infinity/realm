@@ -137,13 +137,15 @@ async def _get_all(ctx: CommandContext, from_container=None) -> None:
     gotten = []
     for item in items:
         # Same gate as single-item get: locks and behaviors apply per item.
+        def _take(_a, item=item):
+            item.location = ctx.player
         action = await gate_item_action(
             ctx.player, "item:on_get", item,
             fail_msg=f"You can't pick up {item.name}.",
+            apply=_take,
         )
         if action is None:
             continue
-        item.location = ctx.player
         deliver_messages(action)
         gotten.append(item)
 
@@ -202,13 +204,15 @@ async def _drop_all(ctx: CommandContext) -> None:
     dropped = []
     for item in items:
         # Same gate as single-item drop: locks and behaviors apply per item.
+        def _release(_a, item=item):
+            item.location = ctx.player.location
         action = await gate_item_action(
             ctx.player, "item:on_drop", item,
             fail_msg=f"You can't drop {item.name}.",
+            apply=_release,
         )
         if action is None:
             continue
-        item.location = ctx.player.location
         deliver_messages(action)
         dropped.append(item)
 
@@ -312,16 +316,18 @@ async def cmd_put(ctx: CommandContext) -> None:
         return
 
     # For 'put', the target is the container and the item travels via tool/extra.
+    def _stow(_a):
+        item.location = container
+
     action = await gate_item_action(
         ctx.player, "item:on_put", container,
         tool=item,
         extra={"item": item},
         fail_msg=f"You can't put {item.name} in {container.name}.",
+        apply=_stow,
     )
     if action is None:
         return
-
-    item.location = container
 
     action.add_message("actor", "You put {tool:a} in {target:the}.")
     action.add_message("room", "{actor} puts {tool:a} in {target:the}.")

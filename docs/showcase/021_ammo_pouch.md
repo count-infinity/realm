@@ -32,9 +32,10 @@ scripted stow or a spawner, because everything that files an
 `has_tag` question, and the message says *why* — vague refusals are
 how typed containers frustrate players.
 
-**The reaction is a hook.** `ON_PUT` fires as the action is being
-gated, before the item lands (014's timing fact), so the friendly
-round-count is `contents + 1`.
+**The reaction is a hook.** `ON_PUT` fires after the item lands (the
+action-phases trio: reactions see post-state), so the friendly
+round-count is simply `len(contents(me))` — and it opens with
+`if target is me:` because the hook fires on every object in the room.
 
 ## Build it
 
@@ -46,7 +47,7 @@ The pouch, its ward, and its counter:
 drop ammo pouch
 @desc ammo pouch = Stiff leather, the loops and slots inside sized exactly for charge cells.
 @set ammo pouch/on_check = mine = atype == 'item:on_put' and target is me; item = adata('item'); block(f'The loops inside the {name(me)} fit ammunition and nothing else - the {name(item)} stays out.') if mine and not has_tag(item, 'ammo') else None
-@set ammo pouch/on_put = pemit(enactor, f'Slotted. The {name(me)} now carries {len(contents(me)) + 1} rounds.')
+@set ammo pouch/on_put = if target is me: pemit(enactor, f'Slotted. The {name(me)} now carries {len(contents(me))} rounds.')
 ```
 
 Two rounds and one piece of trail lunch:
@@ -75,7 +76,7 @@ works as ever; the ward gates only what goes *in*.
 ## Going further
 
 - **Fix the grammar while you're in there:** `'1 rounds'` earns a
-  `('round' if len(contents(me)) + 1 == 1 else 'rounds')` — the same
+  `('round' if len(contents(me)) == 1 else 'rounds')` — the same
   pluralization trick 014's description uses.
 - **Capacity too:** stack 014's count ward alongside — wards compose;
   each guarded `block()` is its own rule. Thirty rounds to a pouch.

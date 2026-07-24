@@ -69,6 +69,17 @@ class TestHooksSeePostState:
         assert idol.location is ada
         assert idol.db.get("holder") == "Ada"       # loc(me) is the TAKER now
 
+    async def test_on_put_sees_item_inside(self, sim):
+        room = sim.room("R")
+        ada = player_with_key(sim, room)
+        pebble = sim.obj("pebble", location=ada)
+        sack = sim.obj("sack", location=room, tags=["thing", "container"])
+        sack.db.set("on_put",
+                    "if target is me: set_attr(me, 'count_at_hook', len(contents(me)))")
+        await sim.do(ada, "put pebble in sack")
+        assert pebble.location is sack
+        assert sack.db.get("count_at_hook") == 1   # POST-state: already inside
+
     async def test_on_payment_sees_moved_money(self, sim):
         room = sim.room("R")
         ada = player_with_key(sim, room)
