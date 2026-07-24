@@ -79,9 +79,14 @@ diffs, and `@clone` never bake inherited values into instances;
 `db.merged()` is the combined view used by trigger gathering and
 `@examine` (which shows an "Inherited (from X)" section). worldio
 exports the parent reference; a fresh-id import remaps in-file parents
-to the copies and resolves out-of-file parents against the live world,
-so exporting five doors without their template keeps them linked to the
-shared one.
+to the copies (a self-contained pack forks its template) and resolves
+out-of-file parents against the live world, so exporting five doors
+without their template keeps them linked to the shared one. Importing
+into a world that has neither drops the link — with a logged warning,
+since the child arrives without its inherited hooks. To ship a portable
+pack, export the template with the objects (note `@export <zone>` only
+gathers the zone's rooms, contents, and masters — a template kept
+elsewhere must ride along explicitly).
 
 ## See also
 

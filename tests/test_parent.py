@@ -217,6 +217,24 @@ class TestGateAndTools:
         copy = sim.store.find_cached(name="kiosk two")[0]
         assert copy.parent is t
 
+    async def test_foreign_import_without_template_warns(self, sim, caplog):
+        # The reference always exports; the OBJECT only if in the set.
+        # Importing into a world lacking the template drops the link —
+        # loudly, never silently.
+        import logging
+        from realm.persistence.worldio import export_objects, import_objects
+        t = sim.obj("template"); t.db.set("cmd_ping", "$ping: pemit(enactor, 'pong')")
+        gadget = sim.obj("gadget"); gadget.parent = t
+
+        foreign = Simulator()
+        try:
+            with caplog.at_level(logging.WARNING):
+                made = await import_objects(export_objects([gadget]), foreign.store)
+            assert made[0].parent is None
+            assert any("lost its @parent" in r.message for r in caplog.records)
+        finally:
+            foreign.close()
+
     async def test_softcode_V_reads_inherited(self, sim):
         room = sim.room("Shop")
         t = sim.obj("template"); t.db.set("motto", "measure twice")

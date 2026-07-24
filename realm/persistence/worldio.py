@@ -155,11 +155,16 @@ async def import_objects(data: dict, persistence, *,
     # Pass 2: references, keyid reconciliation, then persist.
     results = []
     keyid_conflicts: list[tuple[str, str]] = []
+    dropped_parents: list[str] = []
     for entry in entries:
         obj = created[id_map[entry['id']]]
         obj.location = resolve(entry.get('location'))
         obj.owner = resolve(entry.get('owner'))
         obj.parent = resolve(entry.get('parent'))
+        # A dropped @parent is silent capability loss (the child arrives
+        # without its template's hooks/commands) — say so.
+        if entry.get('parent') and obj.parent is None:
+            dropped_parents.append(obj.name)
         # A friendly keyid carries over on import, but only if free: a keyid
         # already held by a DIFFERENT live object is a conflict, not a merge —
         # the copy lands keyless (no forced re-keying of the common,
@@ -175,6 +180,12 @@ async def import_objects(data: dict, persistence, *,
         results.append(obj)
     for name, reason in keyid_conflicts:
         logger.warning("import: '%s' imported keyless — %s", name, reason)
+    for name in dropped_parents:
+        logger.warning(
+            "import: '%s' lost its @parent (template not in the file and "
+            "not in this world) — inherited hooks/commands are gone; "
+            "include the template in the export or re-@parent by hand",
+            name)
     return results
 
 

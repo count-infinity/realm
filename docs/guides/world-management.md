@@ -254,7 +254,10 @@ tags, locks, behaviors, and references. On a fresh-id (clone) import,
 any attribute value that IS an exported id — bare or `#`-prefixed, a
 door's `partner`, a terminal's stored core id — is rewritten to the
 copy's own object, so stored references re-wire instead of pointing
-back at the original. Passwords are always stripped;
+back at the original. A `@parent` link resolves to the in-file template
+(forked with the pack) or, failing that, the live world; if neither has
+it the link is dropped with a logged warning, so include templates in
+an export meant for another world. Passwords are always stripped;
 for a full backup, copying the SQLite file is simplest. A `$keyid` handle
 carries over only when free: cloning a keyed object into a world that
 already holds that handle lands the copy **keyless** (logged), never
