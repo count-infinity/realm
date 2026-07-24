@@ -18,107 +18,20 @@ resolver.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
 
-import pytest
 
 from realm.core.economy import get_credits
-from realm.testing import Simulator
 
-DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
-
-# Output that must never appear while running a "Build it" transcript —
-# catches typos, permission problems, and validation failures in any
-# tutorial line.
-BUILD_FAILURE_MARKERS = (
-    "Unknown command",
-    "Permission denied",
-    "Usage:",
-    "not found",
-    "Script error",
-    "Eval error",
-    "error",
+from tests.showcase.harness import (  # noqa: F401 — shared doc-driven harness
+    build,
+    build_lines,
+    build_section,
+    do,
+    find_one,
+    lines_in,
+    workshop_and_builder,
 )
-
-
-def build_section(doc_name: str) -> str:
-    """The raw text of a tutorial's "Build it" section."""
-    body = (DOCS / doc_name).read_text(encoding="utf-8")
-    match = re.search(r"^## Build it$(.*?)^## ", body, re.M | re.S)
-    assert match, f"{doc_name}: no Build it section"
-    return match.group(1)
-
-
-def lines_in(section: str) -> list[str]:
-    """Every command line in a section's ```text fenced blocks."""
-    lines: list[str] = []
-    for block in re.findall(r"```text\n(.*?)```", section, re.S):
-        lines.extend(line for line in block.splitlines() if line.strip())
-    return lines
-
-
-def build_lines(doc_name: str) -> list[str]:
-    """Every command line in the tutorial's "Build it" fenced blocks."""
-    lines = lines_in(build_section(doc_name))
-    assert lines, f"{doc_name}: empty Build it"
-    return lines
-
-
-@pytest.fixture
-def sim():
-    s = Simulator()
-    try:
-        yield s
-    finally:
-        s.close()
-
-
-@pytest.fixture
-def pinned_rand(monkeypatch):
-    """Pin rand(): random.randint returns holder['value'] clamped to range."""
-    holder = {"value": 1}
-
-    def fake_randint(low, high):
-        return max(low, min(holder["value"], high))
-
-    monkeypatch.setattr(
-        "realm.scripting.functions.random.randint", fake_randint)
-    return holder
-
-
-def workshop_and_builder(sim):
-    """The standing start of every tutorial: a room and a builder in it."""
-    room = sim.room("The Workshop")
-    bilda = sim.player("Bilda", location=room)
-    bilda.add_tag("builder")
-    return room, bilda
-
-
-async def build(sim, player, lines):
-    """Run a Build-it transcript; fail loudly if any line misfires.
-
-    Routes each line through the REAL client input path (``submit_line``),
-    so multi-line ``'''`` heredoc blocks in a tutorial accumulate and
-    dispatch exactly as a player typing them would.
-    """
-    for line in lines:
-        await sim.submit_line(player, line)
-        out = "\n".join(sim.seen(player))
-        for marker in BUILD_FAILURE_MARKERS:
-            assert marker not in out, f"build line {line!r} failed: {out!r}"
-
-
-async def do(sim, player, line):
-    """Run one command and return everything the player saw."""
-    await sim.do(player, line)
-    return sim.seen(player)
-
-
-def find_one(sim, name):
-    matches = sim.store.find_cached(name=name)
-    assert matches, f"no object named {name!r} in the world"
-    return matches[0]
 
 
 # =========================================================================

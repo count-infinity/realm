@@ -1852,6 +1852,32 @@ the user's numbering.
   one shot; this is the complementary interactive-revise tool. The `@desc`
   `\`-continuation remains documented-but-unimplemented (superseded by heredocs
   for the common case).
+- [ ] **1e-iii. `@tr` honesty + `$`-trigger/payload testing (filed 2026-07-23).**
+  Found while fact-checking tutorial 005. Three related gaps in the script
+  test-fire tool:
+  (a) **`@tr` lies on failure** — `engine.run_object_script` catches the script
+  error (logged only) and `@tr` still prints "Triggered <obj>/<attr>." even when
+  the script died on a syntax error. Surface the error to the invoker (the
+  `@set` warn-path already renders validation errors; reuse it).
+  (b) **`@tr` cannot fire a `$`-trigger attribute** — it execs the raw value, and
+  a `$pattern:` prefix is not Python, so `@tr obj/cmd_shake` always syntax-errors
+  (and then claims success, per (a)). Either strip a leading trigger pattern
+  (run the action half, binding no captures) or refuse with a clear "type the
+  command instead" message. Refusing clearly is the minimum.
+  (c) **No way to synthesize an event payload** — an `ON_PAYMENT` that reads
+  `adata('amount')` cannot be `@tr`'d at all (no action behind it); testing it
+  requires the real `pay`. Sketch: `@tr/with obj/attr key=value, ...` builds a
+  fake action carrying that data (admin-only; it can forge consent).
+- [ ] **1e-iv. Multi-line paste bypasses the heredoc (filed 2026-07-23).**
+  `Session.submit_input` deliberately skips heredoc-opening when a single
+  submitted message contains a `\n` (the websocket whole-paste guard), so a
+  client that delivers a pasted Build-it block as ONE message dispatches it as
+  one line — the stored attribute would contain literal `'''` markers. Since
+  pasting a tutorial block is exactly how builders will use the showcase docs,
+  submit_input should instead SPLIT a multi-line submission into lines and feed
+  them through the normal path (each line then opens/fills/closes heredocs
+  correctly, and blank lines are no-ops). Telnet clients already send
+  line-by-line, so this only changes the paste case.
 
 ### 2. Friendlier object ids
 

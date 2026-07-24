@@ -10,8 +10,9 @@ below keep implementers from colliding.
 A showcase tutorial is a **sequence of in-game commands a builder types live**
 (`@dig`, `@create`, `@behavior`, `@set obj/on_tick = ...`, `[[...]]` inline
 expressions, wards, wizards, masters). REALM's thesis is that games are built
-from inside the game, and every tutorial proves it. **No Python appears in the
-tutorial path.**
+from inside the game, and every tutorial proves it. **No Python *files* appear
+in the tutorial path** — no engine edits, nothing on disk; script bodies are
+sandboxed Python, but always typed in-game as attribute values.
 
 If you hit an engine gap (a primitive the audit promised is missing, or a small
 addition would be needed), do **not** edit engine source. Note the gap precisely
@@ -116,9 +117,9 @@ Each `NNN_<item_slug>.md`:
 ```
 
 **`## Build it` is machine-executed.** The test harness's `build_lines()` reads
-every non-blank line from the ```` ```text ```` fenced blocks under the literal
-heading `## Build it`, up to the next `##` heading, and runs them through the
-dispatcher. So:
+every line from the ```` ```text ```` fenced blocks under the literal heading
+`## Build it`, up to the next `##` heading (keeping blank lines inside a block,
+trimming blank padding at its edges), and runs them through the dispatcher. So:
 
 - Put **only** commands a builder types in those fenced blocks. No prose, no
   `>` prompts, no expected output.
@@ -144,14 +145,37 @@ documents the input mechanism.
   argument, a per-player key). Showcase code is dense, so let the prose carry the
   explanation and reserve comments for genuine surprises. Comments persist in the
   stored attribute, so keep them terse and true.
-- **No blank lines inside a body.** The extractor drops blank lines, so a blank
-  inside a heredoc body will not survive into the stored script.
+- **Blank lines inside a body are fine.** The harness keeps blank lines
+  internal to a fenced block (edge padding is trimmed), and the session
+  preserves them into the stored script, so a long body may breathe.
 - **Tests drive the real input path.** Heredocs accumulate in
   `Session.submit_input`, so the build helper feeds each line through
-  `sim.submit_line`, not `sim.do`. When you convert the first tutorial in a test
-  file, point that file's `build` helper at `submit_line` (see
-  `tests/showcase/test_first_builds.py`); it runs one-liners identically, so the
-  switch is always safe.
+  `sim.submit_line`, not `sim.do`. The canonical helpers live in ONE module,
+  `tests/showcase/harness.py` (`build`, `build_lines`, `do`, `answer`,
+  `find_one`, `make_sim`, ...), with the `sim`/`pinned_rand` fixtures in
+  `tests/showcase/conftest.py`. When you convert the first tutorial in a test
+  file, replace that file's pasted local helpers with harness imports (see
+  `tests/showcase/test_first_builds.py`); a suite with special wiring keeps a
+  local `sim` fixture composing `make_sim()`. The harness runs one-liners
+  identically, so the switch is always safe.
+
+### Converting an existing tutorial to this format
+
+The pre-heredoc tutorials were written against an older engine, so a
+conversion is a re-verification, not a reformat. Per tutorial:
+
+1. Convert multi-statement scripts to `'''` blocks with real control flow;
+   split `## Build it` into narrated steps; add the few gotcha comments.
+2. **Verify every factual claim against the live engine** (run the commands,
+   read the source): scope claims, tool behavior (`@tr`, `@examine`),
+   authority statements, cross-references to other tutorials' code. The
+   engine has moved under these docs; wrong claims are common and worse than
+   missing ones.
+3. If this is the file's first conversion, migrate its test helpers to
+   `tests/showcase/harness.py` imports.
+4. Run the file's tests, then the doc checks (no em dashes in prose, links
+   resolve, metadata line format).
+5. Convert form only: do not grow a tutorial's concept load in passing.
 
 `## Try it` is not parsed, so its blocks should show an annotated session with
 `>` prompts and the responses underneath, which lets a reader check each step
