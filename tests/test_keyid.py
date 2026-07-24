@@ -201,6 +201,21 @@ class TestImportKeyid:
         assert imported[0].db.get("note") == "hi"
         assert sim.store.keyid_holder("banknet_core").id == core.id
 
+    async def test_hash_prefixed_id_references_remap_on_clone_import(self, sim):
+        # A stored '#<id>' handle (a door's partner, a terminal's core ref)
+        # re-wires to the COPY's object, same as a bare id.
+        from realm.persistence.worldio import export_objects, import_objects
+        room = sim.room("R")
+        a = sim.obj("side a", location=room)
+        b = sim.obj("side b", location=room)
+        a.db.set("partner", "#" + b.id)
+        b.db.set("partner", "#" + a.id)
+        made = await import_objects(export_objects([a, b]), sim.store)
+        new_a = next(o for o in made if o.name == "side a")
+        new_b = next(o for o in made if o.name == "side b")
+        assert new_a.db.get("partner") == "#" + new_b.id
+        assert new_b.db.get("partner") == "#" + new_a.id
+
     async def test_clone_import_free_keyid_carries_over(self, sim):
         from realm.persistence.worldio import import_objects
         data = {"realm_format": 1, "objects": [

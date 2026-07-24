@@ -89,6 +89,16 @@ anything 1–16 non-alphanumeric, non-space characters that does not start with
 `#` (reserved for raw ids) — `"$$"`, `"key:"`, etc. `get()` tests the sigil
 after the `#` branch and strips it before the index lookup.
 
+## Stored id references survive cloning
+
+An attribute whose value is an exported id — bare (`<uuid>`) or
+reference-form (`#<uuid>`) — is rewritten by a fresh-id import to the
+corresponding copy (worldio `_remap_value`). A door's `partner`, a
+terminal's stored core id: clone the area and each copy's references
+point at *its own* objects. Ids embedded inside a longer string (a
+hardcoded `get('#...')` in softcode) are not remapped; keep stored
+references in their own attributes.
+
 ## Import and clone
 
 A keyid is a unique identity, so across worldio it carries over only when it

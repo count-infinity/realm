@@ -343,15 +343,7 @@ class TestBasicContainer:
 DOOR_DOC = "025_lockable_door.md"
 
 
-def door_wiring_lines():
-    """The build up to and including the @eval that pairs the two faces —
-    everything the wiring test needs, and no more. The @eval is a heredoc
-    block, so the cut runs through its closing quote line."""
-    lines = build_lines(DOOR_DOC)
-    start = next(i for i, l in enumerate(lines) if l.startswith("@eval"))
-    end = next(i for i in range(start + 1, len(lines))
-               if lines[i].strip() == "'''")
-    return lines[:end + 1]
+
 
 
 def door_sides(sim, workshop):
@@ -377,16 +369,16 @@ class TestLockableDoor:
         vault, side_a, side_b = door_sides(sim, workshop)
         return workshop, vault, bilda, side_a, side_b
 
-    async def test_wiring_reports_both_sides(self, sim):
+    async def test_dig_pairs_the_two_faces(self, sim):
+        """The tutorial's @dig line alone wires the door: the engine pairs
+        a two-way dig's exits at creation (realm/core/pairing.py)."""
         workshop, bilda = workshop_and_builder(sim)
-        wiring = door_wiring_lines()
-        await sim.submit_line(bilda, wiring[0])
+        dig = build_lines(DOOR_DOC)[0]
+        assert dig.startswith("@dig")
+        await sim.submit_line(bilda, dig)
         out = sim.seen(bilda)
         assert any("Room created: The Vault" in line for line in out)
-        for line in wiring[1:]:
-            await sim.submit_line(bilda, line)
-        out = sim.seen(bilda)
-        assert any("both sides wired" in line for line in out)
+        assert any("paired" in line for line in out)
         _vault, side_a, side_b = door_sides(sim, workshop)
         assert side_a.db.get("partner") == "#" + side_b.id
         assert side_b.db.get("partner") == "#" + side_a.id

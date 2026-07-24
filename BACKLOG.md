@@ -1599,7 +1599,15 @@ named tutorials, so none of these block showcase progress.
   syntax (its "Engine gaps" note removed). Tests: `test_softcode_builders.py`
   (description + attrs, backward-compat, password-guarded),
   `test_first_builds.py` (vended goods carry a description).
-- [ ] **Keycard fast-path and `pick` mutate `locked` without propagating**
+- [x] **RESOLVED 2026-07-23: Keycard fast-path and `pick` mutate `locked` without propagating**
+  — both now route through the same gated `item:on_lock`/`item:on_unlock`
+  events as the `lock`/`unlock` commands (wards apply; mirrors/alarms hear
+  every path; `pick` sets `picked: True` in the action data so scripts can
+  tell a jimmy from a key). Same chunk: worldio `_remap_value` now also
+  remaps `#`-prefixed exported ids, and exit PAIRING is first-class
+  (realm/core/pairing.py: `@dig` auto-pairs two-way exits, `@link`/`@unlink`/
+  `@destroy` dissolve on both sides, `@pair` marries/divorces by hand).
+  Tests: tests/test_pairing.py. Was: fast paths
   (`realm/commands/builtin/manipulation.py:256-261, 205`) — `ON_LOCK`/`ON_UNLOCK`
   hooks can't observe those paths; `lock`/`unlock` propagate fine.
   (`docs/showcase/025_lockable_door.md`)

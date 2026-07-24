@@ -199,15 +199,16 @@ class TestLockedChest:
         assert "You lock sea chest with silver key." in out
         assert chest.has_tag("locked")
 
-    async def test_keycard_fast_path_toggles_but_stays_silent(self, sim):
-        """The filed gap: `use key on chest` toggles locked by direct
-        write, so ON_UNLOCK reactions never fire on the swipe path."""
+    async def test_keycard_fast_path_fires_the_unlock_event(self, sim):
+        """The swipe path speaks the same language as `unlock`: it fires
+        the gated ON_UNLOCK event, so reactions hear a keycard exactly
+        like a turned key (the formerly-filed silent-fast-path gap)."""
         _room, bilda, chest = await self._built(sim)
 
         out = await do(sim, bilda, "use silver key on sea chest")
         assert "You swipe silver key: sea chest unlocks." in out
         assert not chest.has_tag("locked")
-        assert not any("bright click" in line for line in out)
+        assert any("bright click" in line for line in out)
 
         out = await do(sim, bilda, "use silver key on sea chest")
         assert "You swipe silver key: sea chest locks." in out

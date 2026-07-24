@@ -44,6 +44,7 @@ async def _gated(
     target: GameObject,
     *,
     tool: GameObject | None = None,
+    data: dict | None = None,
     fail_msg: str,
 ) -> Action | None:
     """Propagate a manipulation action; behaviors/locks may veto."""
@@ -53,6 +54,8 @@ async def _gated(
         action_type=action_type,
         tool=tool,
     )
+    for key, value in (data or {}).items():
+        action.add_data(key, value)
     if not await gate_action(action, fail_msg=fail_msg):
         return None
     return action
@@ -206,6 +209,13 @@ async def cmd_pick(ctx: CommandContext) -> None:
 
     result = check(ctx.player, skill, modifier)
     if result.success:
+        # The same gated unlock event the `unlock` command fires — wards may
+        # veto a picked lock too, and ON_UNLOCK mirrors/alarms hear it.
+        # `picked` in the action data lets scripts tell a jimmy from a key.
+        if await _gated(ctx, "item:on_unlock", target, data={'picked': True},
+                        fail_msg=f"The lock on {target.name} defies your "
+                                 f"tools.") is None:
+            return
         target.remove_tag('locked')
         ctx.player.msg(f"Click. You defeat the lock on {target.name}.")
         if ctx.player.location:
@@ -256,10 +266,16 @@ async def cmd_use(ctx: CommandContext) -> None:
         await ctx.session.send("Use it on what?")
         return
 
-    # Keycard on its lock
+    # Keycard on its lock — the same gated lock/unlock events the `lock`/
+    # `unlock` commands fire, so wards apply and ON_LOCK/ON_UNLOCK mirrors
+    # hear a swipe exactly like a turned key.
     if item is not None and item.db.get('unlocks') and \
             item.db.get('unlocks') == target.db.get('key_id'):
         now_locked = not target.has_tag('locked')
+        atype = "item:on_lock" if now_locked else "item:on_unlock"
+        fail = "The lock won't catch." if now_locked else "The lock holds fast."
+        if await _gated(ctx, atype, target, tool=item, fail_msg=fail) is None:
+            return
         if now_locked:
             target.add_tag('locked')
         else:

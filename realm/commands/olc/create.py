@@ -140,9 +140,15 @@ async def cmd_dig(ctx: CommandContext) -> None:
                 tags=['exit'],
             )
             exit_back.db.destination = current_room.id
+            # The two faces of one passage are born together — pair them
+            # now, while it is unambiguous (see realm/core/pairing.py).
+            from realm.core.pairing import pair_exits
+            pair_exits(exit_out, exit_back)
+            await save_object(ctx, exit_out)
             await save_object(ctx, exit_back)
             await ctx.session.send(
-                f"  Exit '{back_name}' created -> {current_room.name}")
+                f"  Exit '{back_name}' created -> {current_room.name} "
+                f"(paired with '{out_name}')")
 
 
 async def cmd_open(ctx: CommandContext) -> None:
@@ -231,6 +237,16 @@ async def cmd_link(ctx: CommandContext) -> None:
         await ctx.session.send(f"Destination '{dest_spec}' not found.")
         return
 
+    # Retargeting an exit must not silently drag a paired mirror along to
+    # an unrelated door — dissolve the pairing, loudly, on both sides.
+    from realm.core.pairing import dissolve_pairing
+    former = dissolve_pairing(exit_obj)
+    if former is not None:
+        await save_object(ctx, former)
+        await ctx.session.send(
+            f"Pairing with '{former.name}' dissolved — re-pair with @pair "
+            f"if you mean it.")
+
     # Update the exit
     exit_obj.db.destination = destination.id
 
@@ -268,6 +284,13 @@ async def cmd_unlink(ctx: CommandContext) -> None:
     if not await require_control(ctx, exit_obj):
         return
 
+    # An unlinked exit is no longer anyone's far side.
+    from realm.core.pairing import dissolve_pairing
+    former = dissolve_pairing(exit_obj)
+    if former is not None:
+        await save_object(ctx, former)
+        await ctx.session.send(f"Pairing with '{former.name}' dissolved.")
+
     # Remove destination
     exit_obj.db.delete('destination')
     exit_obj.db.delete('destination_obj')
@@ -275,6 +298,106 @@ async def cmd_unlink(ctx: CommandContext) -> None:
     await save_object(ctx, exit_obj)
 
     await ctx.session.send(f"Exit '{exit_name}' unlinked.")
+
+
+async def cmd_pair(ctx: CommandContext) -> None:
+    """
+    Marry two exits as the faces of ONE door, so mirror scripts
+    (ON_OPEN/ON_CLOSE/ON_LOCK/ON_UNLOCK writing the far side) know their
+    sibling. @dig pairs its two-way exits automatically; @pair covers
+    hand-built @open exits, double doors between the same rooms, and
+    re-pairing after @link dissolved a marriage.
+
+    Usage: @pair <exit>                    (show the current partner)
+           @pair <exit> = <far exit>       (marry — far side by name in the
+                                            destination room, or by #id)
+           @pair <exit> =                  (divorce, both sides)
+
+    Example:
+        @pair vault door = vault door
+    """
+    from realm.commands.base import match_one
+    from realm.core.pairing import dissolve_pairing, pair_exits, partner_of
+
+    if not ctx.player or not ctx.player.location:
+        return
+    spec = (ctx.left_args or "").strip()
+    if not spec:
+        await ctx.session.send("Usage: @pair <exit> [= <far exit>]")
+        return
+
+    exits = [o for o in ctx.player.location.contents if o.has_tag('exit')]
+    exit_obj = match_one(spec, exits, allow_substring=False)
+    if not exit_obj:
+        await ctx.session.send(f"Exit '{spec}' not found here.")
+        return
+    if not await require_control(ctx, exit_obj):
+        return
+
+    # No '=' → show.
+    if '=' not in (ctx.args or ""):
+        partner = partner_of(exit_obj)
+        if partner is not None:
+            room = partner.location.name if partner.location else "nowhere"
+            await ctx.session.send(
+                f"'{exit_obj.name}' is paired with '{partner.name}' "
+                f"(in {room}).")
+        else:
+            await ctx.session.send(f"'{exit_obj.name}' is not paired.")
+        return
+
+    far_spec = (ctx.right_args or "").strip()
+
+    # '=' with nothing → divorce.
+    if not far_spec:
+        former = dissolve_pairing(exit_obj)
+        if former is not None:
+            await save_object(ctx, former)
+            await save_object(ctx, exit_obj)
+            await ctx.session.send(
+                f"Pairing between '{exit_obj.name}' and '{former.name}' "
+                f"dissolved.")
+        else:
+            await ctx.session.send(f"'{exit_obj.name}' was not paired.")
+        return
+
+    # Resolve the far side: #id anywhere, or by name among the exits of
+    # this exit's destination room.
+    far = None
+    if far_spec.startswith('#'):
+        far = ctx.persistence.get_cached(far_spec[1:]) if ctx.persistence else None
+    else:
+        dest_id = exit_obj.db.get('destination')
+        dest = ctx.persistence.get_cached(str(dest_id)) if (
+            ctx.persistence and dest_id) else None
+        if dest is None:
+            await ctx.session.send(
+                f"'{exit_obj.name}' has no destination — link it first, or "
+                f"name the far side by #id.")
+            return
+        far_exits = [o for o in dest.contents if o.has_tag('exit')]
+        far = match_one(far_spec, far_exits, allow_substring=False)
+    if far is None:
+        await ctx.session.send(f"Far exit '{far_spec}' not found.")
+        return
+    if not far.has_tag('exit'):
+        await ctx.session.send(f"'{far.name}' is not an exit.")
+        return
+    if far.id == exit_obj.id:
+        await ctx.session.send("An exit cannot be its own partner.")
+        return
+    if not await require_control(ctx, far):
+        return
+
+    # A marriage replaces any prior ones, cleanly, on all involved sides.
+    for prior in (dissolve_pairing(exit_obj), dissolve_pairing(far)):
+        if prior is not None:
+            await save_object(ctx, prior)
+    pair_exits(exit_obj, far)
+    await save_object(ctx, exit_obj)
+    await save_object(ctx, far)
+    await ctx.session.send(
+        f"Paired: '{exit_obj.name}' <-> '{far.name}'.")
 
 
 def register_create_commands(dispatcher: CommandDispatcher) -> None:
@@ -305,6 +428,15 @@ def register_create_commands(dispatcher: CommandDispatcher) -> None:
         cmd_open,
         help_text="Create an exit to a room",
         usage="@open <exit name> = <destination>",
+        permission="builder",
+        parse_equals=True,
+    )
+
+    register(
+        "@pair",
+        cmd_pair,
+        help_text="Marry two exits as the faces of one door",
+        usage="@pair <exit> [= <far exit>]",
         permission="builder",
         parse_equals=True,
     )

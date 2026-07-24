@@ -178,6 +178,13 @@ async def cmd_destroy(ctx: CommandContext) -> None:
         await ctx.session.send(f"{target.name} is protected from destruction.")
         return
 
+    # A destroyed exit is no longer anyone's far side.
+    if target.has_tag('exit'):
+        from realm.core.pairing import dissolve_pairing
+        former = dissolve_pairing(target)
+        if former is not None:
+            await save_object(ctx, former)
+
     # Recursively destroy contents
     destroyed_count = await _destroy_recursive(ctx, target)
 

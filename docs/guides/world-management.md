@@ -118,6 +118,28 @@ canonical contents (not ephemeral). An occupied zone simply defers — it
 resets the instant it empties (by design: an area never returns to canonical
 while someone's watching).
 
+## Paired exits (doors)
+
+A two-way `@dig` creates *two* exit objects, and anything that treats
+them as one door (the mirror hooks of the
+[lockable door](../showcase/025_lockable_door.md)) needs each side to
+know its sibling. The engine owns that relationship end to end:
+
+```text
+@dig The Vault = vault door, vault door   the two faces are PAIRED at birth
+@pair vault door                          show the partner
+@pair vault door = <far exit or #id>      marry hand-built @open exits,
+                                          double doors, or re-pair
+@pair vault door =                        divorce (both sides)
+```
+
+Each side's `partner` attribute holds the other's `#id`; scripts read it
+with `V('partner')`. Because a stored reference can go stale, every
+write path that could invalidate it maintains it: `@link` and `@unlink`
+on a paired exit **dissolve** the pairing on both sides (loudly, so a
+retargeted exit never drags a mirror along to an unrelated door), and
+`@destroy` of one side clears the survivor.
+
 ## Attribute flags
 
 Attributes are **readable by default** (game mechanics depend on it —
@@ -204,7 +226,11 @@ realm import castle.realm                  # merge as a fresh copy
 ```
 
 Both forms carry attributes (softcode included — it's just strings),
-tags, locks, behaviors, and references. Passwords are always stripped;
+tags, locks, behaviors, and references. On a fresh-id (clone) import,
+any attribute value that IS an exported id — bare or `#`-prefixed, a
+door's `partner`, a terminal's stored core id — is rewritten to the
+copy's own object, so stored references re-wire instead of pointing
+back at the original. Passwords are always stripped;
 for a full backup, copying the SQLite file is simplest. A `$keyid` handle
 carries over only when free: cloning a keyed object into a world that
 already holds that handle lands the copy **keyless** (logged), never

@@ -41,11 +41,11 @@ second "BankNet Core" anywhere in the world, half your kiosks may
 silently wire themselves to the impostor. Instead, capture the core's
 **id** once, at build time, into each terminal's `bank_core_id`, and look
 it up with `get('#' + V('bank_core_id'))`: an exact, collision-proof
-reference that survives renames and duplicate names alike. Store the
-*bare* id, not a `#`-prefixed string, because that is what a fresh-id
-import remaps: worldio rewrites a bare exported id to each copy's own
-core, so importing the branch as a fresh copy yields an independent bank
-rather than a second face on the same vault. (Ids are the stable handle;
+reference that survives renames and duplicate names alike. A stored id
+also survives *export*: on a fresh-id import, worldio rewrites any
+attribute value that is an exported id (bare or `#`-prefixed) to each
+copy's own object, so importing the branch as a fresh copy yields an
+independent bank rather than a second face on the same vault. (Ids are the stable handle;
 names are for humans. A well-known object can also carry a
 friendly [`$keyid`](../design/object-identity.md) handle set with
 `@keyid`; this build stores the id to show the underlying

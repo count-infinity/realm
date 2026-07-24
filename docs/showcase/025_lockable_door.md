@@ -6,9 +6,10 @@
 one *physical* door: close it, lock it with a brass key, open it from
 either side, and both sides always agree.
 
-**Concepts:** `@dig` paired exits, the door state convention (`closed`
-and `locked` tags plus a `key_id` attribute), key items (`unlocks`),
-the built-in `open`/`close`/`lock`/`unlock` commands, and the **mirror
+**Concepts:** `@dig` paired exits (and the `@pair` command that
+marries hand-built ones), the door state convention (`closed` and
+`locked` tags plus a `key_id` attribute), key items (`unlocks`), the
+built-in `open`/`close`/`lock`/`unlock` commands, and the **mirror
 pattern**: [`ON_OPEN`/`ON_CLOSE`/`ON_LOCK`/`ON_UNLOCK`](../reference/softcode.md#lifecycle-hooks)
 hooks that copy every state change onto a partner object. The mirror
 pattern reuses anywhere two objects must share state.
@@ -27,7 +28,15 @@ gives you what every MU* gives you: *two independent exit objects*
 wearing the same name, A→B in this room and B→A in the new one. Tag one
 side `closed` and the other side still stands open; unlock the north
 face and walk through, and the south face still claims to be locked.
-Nothing links them. Every multi-room build hits this eventually.
+Every multi-room build hits this eventually. What links them is the
+**pairing** the engine made at birth: a two-way `@dig` stamps each
+exit's `partner` attribute with the other's `#id`, and the engine owns
+that relationship end to end. Relinking a paired exit (`@link`,
+`@unlink`) *dissolves* the pairing on both sides, loudly, rather than
+silently dragging a mirror along to an unrelated door, and `@destroy`
+of one side clears the survivor; `@pair <exit> = <far exit>` marries
+hand-built `@open` exits, disambiguates double doors between the same
+two rooms, and re-marries after a relink.
 
 **The fix: mirror on events.** Whenever a door changes state, the engine
 propagates an action (`item:on_open`, `item:on_close`, `item:on_lock`,
@@ -53,38 +62,20 @@ sound:
   wins, and since every write mirrors immediately, they can never
   drift.)
 
-Each side stores its partner's `#id` in a `partner` attribute; one
-`@eval` wires both directions by following `destination` attributes, so
-no ids are copied by hand.
+The mirror scripts simply read that engine-maintained `partner`
+attribute with `V('partner')`; nothing is wired by hand.
 
 ## Build it
 
-The wiring script is a `'''` multi-line block (see
-[multi-line input](../guides/world-management.md#multi-line-input-heredocs));
-the mirror hooks are single guarded statements and stay on one line.
-
 Dig the vault with the same name on both faces, and cut the key
-(`@create` leaves it in your hand; keep it there):
+(`@create` leaves it in your hand; keep it there). The `@dig` output
+confirms the two faces were **paired** at creation, which is the whole
+wiring step:
 
 ```text
 @dig The Vault = vault door, vault door
 @create brass key
 @set brass key/unlocks = vault_brass
-```
-
-Wire the two sides to each other: `a` is this room's `vault door`; `b`
-is the exit *in a's destination room* that leads back here; then each
-remembers the other:
-
-```text
-@eval '''
-a = [o for o in contents(here) if has_tag(o, 'exit') and name(o) == 'vault door'][0]
-dest = get('#' + str(get_attr(a, 'destination')))
-b = [o for o in contents(dest) if has_tag(o, 'exit') and str(get_attr(o, 'destination')) == here.id][0]
-set_attr(a, 'partner', '#' + b.id)
-set_attr(b, 'partner', '#' + a.id)
-result = 'both sides wired'
-'''
 ```
 
 Now configure the near side: the lock identity, the refusal line, and
@@ -149,21 +140,16 @@ Your friend in the workshop gets `The vault door is closed.` walking in,
 `The wheel spins uselessly. Locked tight.` on `open`, and `You don't
 have the key.` on `unlock`. One door, two faces, one truth.
 
-## Engine gap
-
-The `use <key> on <door>` keycard fast-path toggles the `locked` tag
-directly without propagating a lock/unlock event, so
-`ON_LOCK`/`ON_UNLOCK` mirrors never hear it; `pick` likewise unlocks
-with a direct write. On a mirrored door, stick to `lock`/`unlock`
-(which do propagate), or accept a one-sided picked door as a feature
-(you crawled in through *this* face).
-
 ## Going further
 
 - **Pickable:** `@set vault door/lock_skill = lockpicking` and
   `@set vault door/lock_difficulty = 2` let `pick vault door` roll
-  against the lock (carry lockpicks or take -5); see the engine gap
-  above for how picking interacts with the mirror.
+  against the lock (carry lockpicks or take -5). A successful pick fires
+  the same `ON_UNLOCK` event a key does, with `picked` set in the
+  [event data](../reference/softcode.md#event-data-namespace), so the
+  mirror follows and an alarm script can single out picks
+  (`if adata('picked'): ...`). A keycard swipe (`use card on door`)
+  mirrors the same way.
 - **Auto-closing:** after an `on_open` mirror, add
   [`wait(30, 'trigger me/do_shut')`](../reference/softcode.md#fn-wait)
   and a `do_shut` script that re-tags both sides `closed`; banks and

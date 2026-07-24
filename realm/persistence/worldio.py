@@ -82,8 +82,13 @@ def export_zone(zone: str) -> dict:
 
 
 def _remap_value(value: Any, id_map: dict[str, str]) -> Any:
-    """Deep-walk JSON data, rewriting any string that IS an exported id."""
+    """Deep-walk JSON data, rewriting any string that IS an exported id —
+    bare (``<uuid>``) or reference-form (``#<uuid>``), so a stored handle
+    like a door's ``partner`` re-wires to the copy on a fresh-id import
+    whichever way the builder stored it."""
     if isinstance(value, str):
+        if value.startswith('#') and value[1:] in id_map:
+            return '#' + id_map[value[1:]]
         return id_map.get(value, value)
     if isinstance(value, list):
         return [_remap_value(v, id_map) for v in value]
