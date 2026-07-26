@@ -123,7 +123,9 @@ async def build(sim, player, doc_name):
     """Run a tutorial's Build-it transcript, straight from its markdown;
     fail loudly if any line misfires."""
     for line in build_lines(doc_name):
-        await sim.do(player, line)
+        # submit_line (not do): the real input path, so multi-line '''
+        # heredoc blocks accumulate; one-liners dispatch identically.
+        await sim.submit_line(player, line)
         out = "\n".join(sim.seen(player))
         for marker in BUILD_FAILURE_MARKERS:
             assert marker not in out, f"build line {line!r} failed: {out!r}"

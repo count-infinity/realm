@@ -1,72 +1,136 @@
 # 054. Security Camera & Monitor
 
-> Checklist item 54 — now — *bug objects: ^listen + ON_ENTER/ON_LEAVE relays via pemit*
+> Checklist item 54 ([now]): *bug objects: ^listen + ON_ENTER/ON_LEAVE relays via pemit*
 
 **What you'll build:** A camera that relays speech and movement from its
-room to a monitor console in another room, where characters `watch` the
-feed live — and a way for the heist crew to cut it. Part of the
-[Heist arc](arc_heist.md): camera in the Vault Antechamber, monitor in
-the Security Office.
+room to a monitor console in another room, where characters `watch` the feed
+live, plus a way for the heist crew to cut it. Part of the
+[Heist arc](arc_heist.md), with the camera in the Vault Antechamber and the
+monitor in the Security Office.
 
-**Concepts:** the bug/tap pattern (`^`-listen for speech,
-`ON_ENTER`/`ON_LEAVE` for movement), cross-room delivery with `pemit()`,
-an opt-in watcher list with self-pruning, `eval_attr()` as a shared
-subroutine, and same-owner gadget pairs.
+**Concepts:** the bug pattern (`^`-listen for speech,
+[`ON_ENTER`/`ON_LEAVE`](../reference/softcode.md#lifecycle-hooks) for
+movement), cross-room delivery with
+[`pemit()`](../reference/softcode.md#fn-pemit), an opt-in watcher list that
+prunes itself, [`eval_attr()`](../reference/softcode.md#fn-eval_attr) as a
+shared subroutine, and same-owner gadget pairs.
 
 ## How it works
 
-An object in a room overhears what happens there through two engine
-seams:
+The finished device is two objects owned by one builder. The camera stands in
+the room being watched and does nothing but forward: every line it overhears or
+witnesses becomes one message sent straight to whoever is sitting at the far
+console. The monitor is the console, and it keeps the list of who is currently
+watching. This section answers three questions: how the camera picks up what
+happens, how a single line crosses to a console in another room, and why the
+listen and movement hooks need no `target` guard when most event hooks do.
 
-- **Speech** — a `^pattern:code` listen trigger fires for anything said
-  in the object's room. The pattern `^*` matches everything, the spoken
-  text arrives as `arg0`, and the speaker is `enactor`.
-- **Movement** — the camera is a *witness*: arrivals fire its `ON_ENTER`
-  attribute, departures its `ON_LEAVE`, with the mover as `enactor`.
+### How the camera picks up speech and movement
 
-That's the whole bug. The camera doesn't transform anything; it forwards
-each line to whoever subscribed at the far console using `pemit()` —
-which delivers to a named target anywhere, no shared room required.
+The camera reads its room through two inputs. The first is a **listen
+trigger**, exactly the microphone from the [voice recorder](007_voice_recorder.md):
+an attribute named `listen_*` whose value is `^pattern: code` fires when speech
+matching the pattern is heard where the object stands. Under `^*` the whole
+line arrives as `arg0` and the speaker is bound as `enactor`. Listen dispatch
+scans the room's contents and the room itself and never anyone's inventory, so
+a bug must be planted in the room, not carried, and the speaker never overhears
+its own words.
 
-Three details carry the design:
+The second input is movement. The camera is a **witness**: when someone walks
+in, the engine fires every room object's `ON_ENTER`, and when someone walks
+out, its `ON_LEAVE`, with the mover bound as `enactor`. A departure fires while
+the mover still stands in the origin room and an arrival fires once the mover
+has reached the destination, which is the two-action shape movement always
+takes (see [action phases](../design/action-phases.md)).
 
-1. **One relay, three callers.** The forwarding logic lives in a single
-   `relay` attribute; the listen and both event hooks call it with
-   `eval_attr(me, 'relay', text)`. Fix the relay once, all three feeds
-   change.
-2. **The feed is diegetic.** `watch` adds you to the monitor's
-   `watchers` list; each relayed line goes only to watchers *still
-   standing in the monitor's room*, and anyone who wandered off is
-   pruned on the next relay — no ticker needed. (`unwatch` is just the
-   list minus you.)
-3. **Same owner, or no deal.** The camera writes the monitor's watcher
-   list (`set_attr` on another object), which works only because both
-   gadgets belong to one builder — softcode wields its owner's
-   authority. A pair split across owners fails quietly, and should.
+### How one line reaches a console in another room
 
-One honest note: `name(enactor)` is the *true* name. Perception masking
-("Someone arrives.") is a message-delivery concern; softcode reads the
-world as it is. Your camera sees through stealth's anonymity — decide
-whether that's a feature (thermal optics) before you hang one where
-sneaks matter. Also, `@teleport` skips the departure event by design
-(it's a placement, not a walk), so only walkers trip `ON_LEAVE`.
+The camera does not transform anything. It hands each line to a single `relay`
+attribute, and `relay` sends the line to every current watcher with
+[`pemit()`](../reference/softcode.md#fn-pemit), which delivers to a named
+target wherever that target stands, so no shared room is required. The listen
+trigger and both movement hooks all call the same routine with
+[`eval_attr(me, 'relay', text)`](../reference/softcode.md#fn-eval_attr): fix the
+relay once and all three feeds change. Because `eval_attr` runs as the caller,
+inside `relay` the executor is still the camera, so
+[`V('feed')`](../reference/softcode.md#fn-v) reads the camera's own console
+name and [`name(me)`](../reference/softcode.md#fn-name) is the camera's own
+name for the feed label.
+
+`relay` looks the console up fresh every time from the camera's `feed`
+attribute with [`get()`](../reference/softcode.md#fn-get), which is late
+binding: re-point `feed` and the next line goes to the new console. It then
+reads the console's `watchers` list, keeps only the watchers still standing in
+the console's room, delivers to those, and rewrites the list so anyone who
+wandered off is dropped on this same pass. No ticker is needed because the
+prune rides on the delivery. `watch` adds you to the list and `unwatch` removes
+you.
+
+The camera writes the monitor's `watchers` list, which is
+[`set_attr`](../reference/softcode.md#fn-set_attr) on a *different* object. That
+works only because both gadgets belong to one builder: softcode wields its
+owner's authority, so the camera reaches anything its owner controls. Split the
+pair across two owners and the write fails quietly, and it should.
+
+### Why the hooks need no `target` guard
+
+Most `ON_<EVENT>` hooks fire on every object in the room, so a hook that reacts
+to its own business must open with `if target is me:` (see
+[Guard on `target`](../reference/softcode.md#guard-on-target)). The camera is
+the deliberate exception, because it is a watcher of the whole room and *wants*
+to react to everyone. The engine already skips the mover's own hooks and fires
+each remaining witness exactly once, so the movement hooks take no `target`
+guard, and the listen trigger takes none either since the engine never fires it
+on the speaker. Their only filter is `if enactor` to skip a sourceless event.
+Confirmed with a second camera in the same room: each camera relays every line
+once, with no double or crossed feed.
+
+Two honest notes. First, `name(enactor)` is the true name, so a camera relays
+"Wraith arrives." even for a mover hidden from the room's own bystanders, since
+perception masking is a message-delivery concern and softcode reads the world
+as it is. Decide whether that x-ray vision is a feature before you hang one
+where sneaks matter. Second, `@teleport` skips the leave event by design, since
+a placement is not a walk, so only walkers trip `ON_LEAVE`. A teleported
+arrival still fires `ON_ENTER`, so a mover dropped in by teleport does register
+on the feed.
 
 ## Build it
 
-The console first, in the office. The two `$`-commands just edit the
-watcher list:
+Start with the console in the office. `@teleport` positions the builder, and
+the two commands below create the monitor and describe it:
 
 ```text
 @teleport me = The Security Office
 @create security monitor
 drop security monitor
 @desc security monitor = A bank of grainy feeds. WATCH to put an eye on the vault approach; UNWATCH to look away.
-@set security monitor/cmd_watch = $watch: ws = V('watchers') or []; set_attr(me, 'watchers', ws if enactor.id in ws else ws + [enactor.id]); pemit(enactor, 'You settle in at the console. The antechamber feed flickers to life.')
-@set security monitor/cmd_unwatch = $unwatch: set_attr(me, 'watchers', [i for i in (V('watchers') or []) if i != enactor.id]); pemit(enactor, 'You look away from the monitor.')
 ```
 
-The camera, in the antechamber. `feed` names its console (looked up
-fresh on every relay — late binding, so you can re-point it live):
+`watch` adds the caller to the monitor's `watchers` list. The list stores each
+watcher's id so the relay can resolve the player later:
+
+```text
+@set security monitor/cmd_watch = '''
+$watch:
+ws = V('watchers') or []
+if enactor.id not in ws:  # store the watcher's id, one row per player
+    set_attr(me, 'watchers', ws + [enactor.id])
+pemit(enactor, 'You settle in at the console. The antechamber feed flickers to life.')
+'''
+```
+
+`unwatch` is the same list minus the caller:
+
+```text
+@set security monitor/cmd_unwatch = '''
+$unwatch:
+set_attr(me, 'watchers', [i for i in (V('watchers') or []) if i != enactor.id])
+pemit(enactor, 'You look away from the monitor.')
+'''
+```
+
+Now the camera, over in the antechamber. `feed` names its console, which the
+relay resolves fresh on every line:
 
 ```text
 @teleport me = Vault Antechamber
@@ -77,15 +141,26 @@ drop security camera
 @set security camera/feed = security monitor
 ```
 
-The relay — resolve the console, collect watchers still in its room,
-deliver, prune. The `powered` guard is the sabotage switch; note it
-zeroes the audience, so every feed dies at one point:
+The relay resolves the console, collects the watchers still in its room,
+delivers a labelled line to each, and prunes the rest. The `powered` guard is
+the sabotage switch: when it is zero the watcher list reads empty, so no line
+goes out:
 
 ```text
-@set security camera/relay = m = get(V('feed', '')); ws = (get_attr(m, 'watchers') or []) if (m and V('powered', 1)) else []; live = [w for w in [get('#' + str(i)) for i in ws] if w and loc(w) == loc(m)]; [pemit(w, f'[{name(me)}] {arg0}') for w in live]; set_attr(m, 'watchers', [w.id for w in live]) if m and len(live) != len(ws) else None
+@set security camera/relay = '''
+m = get(V('feed', ''))
+ws = (get_attr(m, 'watchers') or []) if (m and V('powered', 1)) else []
+live = [w for w in [get('#' + str(i)) for i in ws] if w and loc(w) is loc(m)]  # only watchers still at the console
+for w in live:
+    pemit(w, f'[{name(me)}] {arg0}')
+if m and len(live) != len(ws):  # someone wandered off; drop them from the list
+    set_attr(m, 'watchers', [w.id for w in live])
+'''
 ```
 
-The three taps, each a one-line caller:
+The three taps each hand one line to the relay. The listen trigger fires on
+speech, and the two movement hooks fire as the camera witnesses walkers, one
+call apiece:
 
 ```text
 @set security camera/listen_feed = ^*: eval_attr(me, 'relay', f'{name(enactor)} says, "{arg0}"') if enactor else None
@@ -93,21 +168,29 @@ The three taps, each a one-line caller:
 @set security camera/on_leave = eval_attr(me, 'relay', f'{name(enactor)} leaves.') if enactor else None
 ```
 
-And counterplay — an Electronics check at -2 to kill the power:
+Finally the crew's counterplay, an Electronics check at -2 to kill the power
+with [`skill_check`](../reference/softcode.md#fn-skill_check):
 
 ```text
-@set security camera/cmd_cut = $cut *: (set_attr(me, 'powered', 0), remit(loc(me), f'{name(enactor)} snips a cable -- the camera light dies.')) if skill_check(enactor, 'electronics', -2) else pemit(enactor, 'Sparks jump; the housing is trickier than it looks.')
+@set security camera/cmd_cut = '''
+$cut *:
+if skill_check(enactor, 'electronics', -2):
+    set_attr(me, 'powered', 0)
+    remit(loc(me), f'{name(enactor)} snips a cable and the camera light dies.')
+else:
+    pemit(enactor, 'Sparks jump; the housing is trickier than it looks.')
+'''
 ```
 
 ## Try it
 
-In the office:
+In the office, settle in at the console:
 
 ```text
 watch                        -> You settle in at the console. ...
 ```
 
-Now have anyone act in the Vault Antechamber:
+Now have anyone act in the Vault Antechamber, and each line arrives labelled:
 
 ```text
 (they say "psst")            -> [security camera] Zeke says, "psst"
@@ -116,8 +199,9 @@ Now have anyone act in the Vault Antechamber:
 unwatch                      -> silence
 ```
 
-Walk away from the console mid-watch and the next relay drops you from
-the list. And from the antechamber side, the crew's answer:
+Walk away from the console mid-watch and the next relayed line reaches only the
+watchers still there, dropping you from the list on that same pass. And from
+the antechamber side, the crew's answer, which zeroes the audience for everyone:
 
 ```text
 cut camera                   -> (Electronics -2) ... the camera light dies.
@@ -125,12 +209,16 @@ cut camera                   -> (Electronics -2) ... the camera light dies.
 
 ## Going further
 
-- **Multi-camera console** — keep `watchers` per camera name and a
-  `$watch *` that picks a feed; `relay` already knows which camera it is
-  (`name(me)`).
-- **Recording** — append each relayed line to a `log` list attribute on
-  the monitor, capped with a slice, and add a `$playback` command.
-- **Two-way intercom** — a `$page *` on the monitor that
-  `remit(loc(get(V('camera'))), ...)` — the tap reversed.
-- **Combat coverage** — the camera can witness any event: an `ON_ATTACK`
-  tap turns it into a gun-camera that calls guards via a zone `act()`.
+- **Multi-camera console:** keep `watchers` per camera name and a `$watch *`
+  that picks a feed. The relay already knows which camera it is through
+  `name(me)`.
+- **Recording:** append each relayed line to a `log` list attribute on the
+  monitor, capped with a slice as the [voice recorder](007_voice_recorder.md)
+  caps its tape, and add a `$playback` command.
+- **Two-way intercom:** a `$page *` on the monitor that
+  [`remit`](../reference/softcode.md#fn-remit)s into
+  `loc(get(V('camera')))`, which is the tap reversed. Because `remit` is plain
+  delivery rather than speech, it will not trip the camera's own listen.
+- **Combat coverage:** the camera can witness any event, so an `ON_ATTACK` tap
+  turns it into a gun-camera that calls guards. See the propagation model in
+  [events](../architecture/events.md).
