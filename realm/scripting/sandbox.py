@@ -28,6 +28,7 @@ from realm.core.safe_eval import (
     SafeAstValidator,
     validate_code,
 )
+from realm.scripting.handle import SandboxRuntime
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -127,7 +128,35 @@ SAFE_BUILTINS = {
     'bin': bin,
     'oct': oct,
     'slice': slice,
+    'frozenset': frozenset,
     'print': lambda *args, **kwargs: None,  # Silently ignore prints
+    # Exception types scripts may raise/catch. These used to arrive via the
+    # real ``builtins`` module CPython auto-injected into the exec frame; now
+    # that the frame carries an empty ``__builtins__`` (an allowlist, not a
+    # blocklist — the adversarial-safe posture), the names must be provided
+    # explicitly or ``except ValueError:`` raises NameError. Safe to expose:
+    # they are plain classes, and the escape via ``__subclasses__``/
+    # ``__bases__`` is already blocked by the underscore-attribute ban.
+    # ``BaseException`` and its non-Exception children (SystemExit,
+    # KeyboardInterrupt, GeneratorExit) are deliberately ABSENT — the
+    # resource-limit kill is a BaseException the script must never name.
+    'Exception': Exception,
+    'ArithmeticError': ArithmeticError,
+    'ZeroDivisionError': ZeroDivisionError,
+    'OverflowError': OverflowError,
+    'FloatingPointError': FloatingPointError,
+    'AssertionError': AssertionError,
+    'AttributeError': AttributeError,
+    'LookupError': LookupError,
+    'IndexError': IndexError,
+    'KeyError': KeyError,
+    'NameError': NameError,
+    'TypeError': TypeError,
+    'ValueError': ValueError,
+    'RuntimeError': RuntimeError,
+    'RecursionError': RecursionError,
+    'NotImplementedError': NotImplementedError,
+    'StopIteration': StopIteration,
 }
 
 
@@ -219,6 +248,7 @@ class ScriptSandbox:
         self._call_count = 0
         self._start_time = 0.0
         self._output: list[str] = []
+        self._rt: SandboxRuntime | None = None  # per-run handle runtime
 
     def validate(self, code: str) -> list[str]:
         """
@@ -354,7 +384,14 @@ class ScriptSandbox:
         return _trace
 
     def _wrap_function(self, func: Callable) -> Callable:
-        """Wrap a function to track call count and check limits."""
+        """Wrap a function to track limits and cross the handle boundary.
+
+        Handle args are unwrapped to raw GameObjects before the call (the
+        functions operate on real objects and enforce ``controls()``), and
+        any GameObject the function returns is wrapped back into an interned
+        handle — so a softcode caller only ever holds handles, never raw
+        objects.
+        """
         def wrapped(*args, **kwargs):
             self._call_count += 1
             if self._call_count > self.limits.max_function_calls:
@@ -366,6 +403,11 @@ class ScriptSandbox:
             if elapsed > self.limits.max_time_ms:
                 raise _ScriptKill(ScriptTimeout(
                     f"Script exceeded time limit ({self.limits.max_time_ms}ms)"))
+            rt = self._rt
+            if rt is not None:
+                args = tuple(rt.unwrap(a) for a in args)
+                kwargs = {k: rt.unwrap(v) for k, v in kwargs.items()}
+                return rt.wrap(func(*args, **kwargs))
             return func(*args, **kwargs)
         return wrapped
 
@@ -417,6 +459,26 @@ class ScriptSandbox:
         # Create safe globals
         safe_globals = self._make_safe_globals(ctx)
 
+        # Per-run handle runtime (Wall 2, docs/design/sandbox-security.md).
+        # Reads route through the guarded, secret-gating get_attr; the
+        # object-valued names are wrapped into interned handles below, and the
+        # function wrapper unwraps handle args / wraps object returns, so
+        # softcode never holds a raw GameObject.
+        raw_get_attr = functions.get('get_attr') if functions else None
+        self._rt = SandboxRuntime(raw_get_attr, ctx.executor)
+
+        # Strip the interpreter's builtins from the exec frame. Without an
+        # explicit key, CPython auto-injects the REAL ``builtins`` module here,
+        # leaving every real builtin reachable if any underscore path ever
+        # leaks. The expression evaluator (safe_eval.eval_expression) already
+        # passes ``{"__builtins__": {}}``; the script sandbox must match it.
+        # Our safe builtins live as ordinary top-level names in safe_globals,
+        # so scripts keep len()/range()/etc.; only the fallback plumbing goes.
+        # (Defense-in-depth, not a lone fix: reachable function objects still
+        # carry their own module __globals__, which is why FORBIDDEN_ATTRS
+        # closes the str.format channel that walked to them.)
+        safe_globals['__builtins__'] = {}
+
         # Inject provided game functions, limit-wrapped
         if functions:
             for fn_name, fn_value in functions.items():
@@ -441,6 +503,15 @@ class ScriptSandbox:
         # Generic escape hatch: emit any script command line (get/drop/
         # give/open/close/wait/...) — same actuator set as simple scripts.
         safe_globals['cmd'] = lambda line: script_output(str(line))
+
+        # Cross the handle boundary: wrap every object-valued name in the
+        # namespace (me/enactor/here/target/actor/... and any object bound via
+        # the event namespace or extra) into an interned handle. rt.wrap is a
+        # no-op on non-objects, so builtins, captures, and callables pass
+        # through untouched. Interning makes `target is me` hold.
+        for _name, _value in list(safe_globals.items()):
+            if _name != '__builtins__' and not callable(_value):
+                safe_globals[_name] = self._rt.wrap(_value)
 
         # A line-level watchdog catches call-free infinite loops, which the
         # per-call budget in _wrap_function cannot see. Installed only when
@@ -493,6 +564,11 @@ class ScriptSandbox:
         # (see the single-dict exec above); safe_globals is built fresh per
         # execution, so scripts cannot leak state into each other through it.
         result = safe_globals.get('result', None)
+        # Unwrap so a handle never leaks back into engine code (inline
+        # [[...]] blocks stringify their result; a script returning `me`
+        # hands back the raw object, as before).
+        if self._rt is not None:
+            result = self._rt.unwrap(result)
         return result, self._output
 
     async def execute_async(

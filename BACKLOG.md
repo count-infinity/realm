@@ -79,6 +79,53 @@ REALM must be usable as a library, not an application to fork.
 
 ## Priority 1 - Should Address Soon
 
+### Sandbox security: authority façade + isolation (untrusted-player model, 2026-07-25)
+
+Threat model confirmed: untrusted players may attach softcode to their own
+objects, so softcode is adversarial input. Full design in
+`docs/design/sandbox-security.md`. Wall 1 (host safety) is **landed** this
+change: `str.format`/`format_map` blocked at the AST (data-channel escape
+that reached `__globals__`/`__builtins__` past the underscore ban), exec
+frame given an empty `__builtins__` (allowlist, not blocklist), safe
+`Exception` classes added to `SAFE_BUILTINS`. Remaining:
+
+- [x] **Wall 2 — authority capability façade — SHIPPED 2026-07-25 (zero
+  migration, 2101 green).** `me`/`here`/`enactor`/`get()` now return an
+  opaque **handle** (`realm/scripting/handle.py`, interned per run) whose
+  attribute access delegates to the guarded reader, wired at the sandbox
+  boundary (`ScriptSandbox`: namespace wrapped, function args unwrapped /
+  object returns wrapped, `result` unwrapped out). `.db` returns a
+  read-only view, so `.db.get`/`.db.all` reads survive but `.db.x = 9` /
+  `.db.set(...)` die; attribute assignment and structural writes raise. All
+  six battery exploits (cross-owner attr-assign, `.db.set`, teleport,
+  ownership/tag escalation, protected read) blocked; reads and `target is
+  me` preserved via interning. Migration turned out to be ZERO — the
+  read-only view kept `.db.get`/field reads working, so no existing softcode
+  changed. Also closed the **expression paths** (a confirmed exploit: a
+  hostile `@detail` row `viewer.db.set(...)` mutated anyone who looked):
+  `guard_namespace()` wraps raw objects in locks + `@detail`
+  (`describe.py`/`locks.py`); strategy (`CombatantView`) and checks (lambdas
+  only) were already safe. Tests: `tests/test_sandbox_handle.py` (21).
+- [ ] **Wall 2 — function-layer authority audit (partly verified).** The
+  façade routes all mutation through the functions; confirm each gates
+  `controls()` on the right subject. VERIFIED via `test_sandbox_handle.py`:
+  `set_attr` (cross-owner write blocked), `get_attr`/`V` (secret + protected
+  gated), `move_to`/location (teleport blocked), tag writes (escalation
+  blocked). STILL TO AUDIT explicitly: `incr`/`decr`/`del_attr`/
+  `create_obj(location=...)`/`transfer_credits`/pairing. (A hostile object
+  runs with a *victim* as enactor, so the check subject is the executor, not
+  the enactor.)
+- [ ] **Wall 2 — guarded db-attr write-sugar (deferred, 2026-07-25).**
+  After the read handle ships: allow `me.hp = 5` → `set_attr(me,'hp',5)`
+  (guarded), while structural fields keep raising "use the verb". Optional
+  ergonomic follow-up; do NOT build until the read handle is proven.
+- [ ] **Wall 3 — isolation belt (roadmap).** Sub-interpreter (PEP 734) or
+  separate process with `setrlimit` for memory + CPU. The one thing
+  in-process CPython cannot do: cap `'x' * 10**10`, which allocates in a
+  single bytecode op before the line-watchdog fires. Design Wall 2's façade
+  as the marshalling boundary so Wall 3 slots in without a softcode-visible
+  rewrite. Also the durable answer to unknown future host gadgets.
+
 ### Action Propagation
 
 The propagation engine, `GameObject.msg()` wiring, the EventBus retirement, the

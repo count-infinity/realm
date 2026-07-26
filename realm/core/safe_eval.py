@@ -47,6 +47,19 @@ FORBIDDEN_NAMES = {
     'breakpoint', 'exit', 'quit',
 }
 
+# Forbidden attribute METHODS: the str-formatting family is a data-channel
+# escape. Its mini-language does attribute access at runtime, from inside a
+# string literal the AST cannot inspect — so ``'{0.__class__.__mro__}'`` or
+# ``'{0.__globals__[__builtins__]}'.format(V)`` walks straight past the
+# underscore-attribute ban to the interpreter's plumbing (disclosure of
+# types, module globals, and the real builtins as text). f-strings are AST
+# ``FormattedValue`` nodes and stay fully validated, so this costs real
+# softcode nothing. Blocking the attribute catches both ``x.format(...)`` and
+# ``str.format(x, ...)``, whatever the receiver.
+FORBIDDEN_ATTRS = {
+    'format', 'format_map',
+}
+
 
 class SafeAstValidator(ast.NodeVisitor):
     """Collects security violations in a parsed tree."""
@@ -64,8 +77,11 @@ class SafeAstValidator(ast.NodeVisitor):
             if node.id.startswith('_'):
                 self.errors.append(f"Private names not allowed: {node.id}")
 
-        if isinstance(node, ast.Attribute) and node.attr.startswith('_'):
-            self.errors.append(f"Private attribute access not allowed: {node.attr}")
+        if isinstance(node, ast.Attribute):
+            if node.attr.startswith('_'):
+                self.errors.append(f"Private attribute access not allowed: {node.attr}")
+            elif node.attr in FORBIDDEN_ATTRS:
+                self.errors.append(f"Forbidden attribute: {node.attr}")
 
         # A catch-all handler could swallow the sandbox's resource-limit kill
         # (a BaseException) and run on unwatched — the try/except DoS. Forbid
@@ -182,6 +198,7 @@ def eval_bool(expression: str, namespace: dict[str, Any]) -> bool:
 __all__ = [
     "FORBIDDEN_NODES",
     "FORBIDDEN_NAMES",
+    "FORBIDDEN_ATTRS",
     "SAFE_EXPR_BUILTINS",
     "SafeAstValidator",
     "validate_code",

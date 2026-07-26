@@ -10,6 +10,13 @@ Prefer f-strings for readable output:
 `say(f"{name(enactor)} owes {V('debt',0)} cr")` reads better than string
 concatenation.
 
+The sandbox validates before it runs (see `docs/design/sandbox-security.md`):
+private `_names`/`.attrs`, imports, and names like `eval`/`getattr`/`type`
+are rejected, and so is the `str.format`/`.format_map` family (its
+mini-language reaches attributes a string hides from the validator). Use
+f-strings, which are checked normally. Builtins are an allowlist: the common
+functions, types, and exception classes are present; anything else is not.
+
 ## Context names
 
 | Name | Meaning |

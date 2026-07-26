@@ -151,11 +151,12 @@ class LockEvaluator:
 
         # Validation, compilation, and fail-closed evaluation all live in
         # the shared safe_eval engine.
-        return eval_bool(lock.expression, {
+        from realm.scripting.handle import guard_namespace
+        return eval_bool(lock.expression, guard_namespace({
             'caller': caller,
             'target': target,
             'owner': target.owner if target.owner else target,
-        })
+        }, principal=caller))
 
     def check(
         self,
@@ -200,11 +201,12 @@ class LockEvaluator:
             lock_expr = DEFAULT_LOCKS.get(lock_type, "False")
 
         # eval_bool validates, compiles (lru-cached), and fails closed.
-        return eval_bool(lock_expr, {
+        from realm.scripting.handle import guard_namespace
+        return eval_bool(lock_expr, guard_namespace({
             'caller': caller,
             'target': target,
             'owner': target.owner if target.owner else target,
-        })
+        }, principal=caller))
 
 
 # Global evaluator instance

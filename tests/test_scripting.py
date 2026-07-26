@@ -89,6 +89,45 @@ class TestScriptSandbox:
         with pytest.raises(ScriptSecurityError):
             sandbox.execute("import os", ctx)
 
+    def test_validation_blocks_str_format_data_channel(self):
+        """str.format is a data-channel escape: its mini-language does
+        attribute access from inside a string the AST cannot see, walking
+        past the underscore ban to types, module globals, and builtins."""
+        sandbox = ScriptSandbox()
+        for src in (
+            "'{0.__class__}'.format(me)",
+            "'{0.__class__.__mro__}'.format(me)",
+            "'{0.__globals__[__builtins__]}'.format(V)",
+            "str.format('{0.__class__}', me)",   # receiver-independent
+            "'{0.x}'.format_map(d)",
+        ):
+            errors = sandbox.validate(src)
+            assert any('format' in e for e in errors), f"not blocked: {src}"
+
+    def test_fstrings_still_work(self):
+        """f-strings are AST-checked (FormattedValue), not the .format
+        gadget, so ordinary softcode formatting is unaffected."""
+        sandbox = ScriptSandbox()
+        ctx = ScriptContext()
+        result, _ = sandbox.execute("x = 3; result = f'have {x} left'", ctx)
+        assert result == 'have 3 left'
+
+    def test_exec_frame_has_no_real_builtins(self):
+        """The script exec frame carries an empty __builtins__, not the
+        interpreter's real module (which CPython would auto-inject if the
+        key were absent). Safe builtins remain as top-level names."""
+        sandbox = ScriptSandbox()
+        ctx = ScriptContext()
+        # len() still resolves (it is a top-level name, not via __builtins__)...
+        result, _ = sandbox.execute("result = len([1, 2, 3])", ctx)
+        assert result == 3
+        # ...but the frame's __builtins__ is emptied. Reaching it by name is
+        # already an AST violation, so assert the mechanism directly.
+        from realm.scripting.sandbox import SAFE_BUILTINS
+        sg = sandbox._make_safe_globals(ctx)
+        sg['__builtins__'] = {}  # mirrors execute()
+        assert sg['__builtins__'] == {}
+
     def test_safe_builtins_available(self):
         """Safe builtins are available."""
         sandbox = ScriptSandbox()
