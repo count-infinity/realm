@@ -1620,6 +1620,23 @@ Found while implementing the showcase arcs (`docs/showcase/`); each verified
 against source by the implementing session. Workarounds are documented in the
 named tutorials, so none of these block showcase progress.
 
+- [ ] **Reactive `ON_*` hooks fire room-wide; the missing `if target is me:`
+  guard is a systemic foot-gun (filed 2026-07-26).** Across the heredoc
+  conversion waves, **8 tutorials shipped with an unguarded reactive hook
+  that misfired on neighbors** before it was caught by empirical probing:
+  011 mirror, 012 gift box, 014 sack (wave 1); 015 chest, 019 incinerator,
+  024 loot crate, 030 toll gate, 034 climbing exit (wave 2). Each fired its
+  effect (announce / loot / refund lecture / fall damage) when a *different*
+  object in the room was acted on, because `_fire_event_triggers` iterates
+  room + contents + target. The guard is easy to forget and invisible until
+  a second same-type object shares the room. Options: (a) a builder-facing
+  lint/`@examine` warning when an `ON_<EVENT>` body references loc/remit/
+  state-mutation without a `target is me`/`atype` guard; (b) a first-class
+  scoping default (hooks fire target-scoped unless the builder opts into
+  room-wide). Decide deliberately; (b) changes semantics. Until then the
+  guard convention + `docs/showcase/CONVENTIONS.md` #guard-on-target is the
+  only defense.
+
 - [x] **Sandbox: call-free loops escape the time budget — RESOLVED 2026-07-17.** A gated `sys.settrace` line-watchdog raises `ScriptTimeout` on the deadline; installed only when the script's AST contains a loop/comprehension (`_has_loop`), so loop-free scripts (inline `[[...]]` reads, guard chains) are untraced and pay nothing. Catches `while True: pass`, `for i in range(10**12)`, and genexpr-over-huge-range (settrace sees the generator frame). `sys` is not in the sandbox namespace, so a script can't clear its own trace. ~130µs added to a small comprehension-script; the truly-hot loop-free path is untouched. Was: The 1500 ms limit is
   enforced in `ScriptSandbox._wrap_function`, so `while True: pass` (no
   function calls) is never interrupted and pins its worker thread. An

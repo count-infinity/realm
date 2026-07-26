@@ -1,66 +1,91 @@
 # 032. Airlock
 
-> Checklist item 32 — now — *interlocked on_check wards across objects, $cycle wait sequence*
+> Checklist item 32 ([now]): *interlocked on_check wards across objects, $cycle wait sequence*
 
-**What you'll build:** A ship airlock: an inner door to the crew deck,
-an outer door to the hull, and an iron rule — **both doors are never
-open at once**. Try to `open` the wrong one and the interlock refuses;
-the chamber's `CYCLE IN` / `CYCLE OUT` panel seals everything, runs the
-pumps, and unseals the far side.
+**What you'll build:** A ship airlock with an inner door to the crew deck, an
+outer door to the hull, and one iron rule: the two doors are never open at
+once. Try to `open` the wrong one and the interlock refuses; the chamber's
+`CYCLE IN` / `CYCLE OUT` panel seals everything, runs the pumps, and unseals
+the far side for you.
 
-**Concepts:** a **cross-object invariant** held by `on_check` wards
-(each door reads the *other* door's state and vetoes its own opening),
-the mirror pattern from [tutorial 025](025_lockable_door.md) keeping
-each door's two faces agreed, and a `$cycle` sequence that changes
-state safely *because* raw writes bypass wards — automation as the
-sanctioned path through your own interlock.
+**Concepts:** a cross-object invariant held by two `on_check` wards that each
+read the *other* door's state and veto their own opening, the mirror pattern
+from the [lockable door](025_lockable_door.md) keeping each door's two faces
+in agreement, and a `$cycle` command whose [`wait()`](../reference/softcode.md#fn-wait)
+sequence is allowed to change state directly because its raw writes bypass the
+wards.
 
 ## How it works
 
-**Why the ward CAN sit on the door this time.** Traversal wards live on
-rooms (the walk's actions target rooms) — but `open` is different: it
-propagates `item:on_open` **targeting the door itself**, and gated
-events run the target's own `on_check` before the state changes. So
-each door face carries a ward that reads the opposite door and
-`block()`s the open while it stands open. The invariant is enforced at
-the *command* level, symmetric from every side, with a reason the
-player reads off the interlock light.
+An airlock is two paired doors plus a panel, wired so a plain `open` can never
+leave both doors open at the same instant, while the panel's `cycle` command
+is allowed to seal both and then open one. This section answers three
+questions: how one door refuses to open while the other stands open, how a
+door's two faces stay in agreement, and why the cycle may do what a player's
+`open` may not.
 
-**Four faces, two doors, one truth.** Each door is a pair of exit
-objects (one face per room), kept in lockstep by the 025 mirror:
-`ON_OPEN`/`ON_CLOSE` hooks copy the `closed` tag onto the partner face
-with raw writes (which don't re-propagate — recursion-proof). Because
-the faces mirror, the interlock only needs to check **one** canonical
-face of the other door; a one-line `@eval` wires every face's
-`partner` (its twin) and `other` (the opposite door), plus the panel's
-face lists, so no ids are copied by hand.
+### How one door vetoes the other
 
-**`target == me` is load-bearing on the mirrors.** An `ON_<EVENT>` hook
-fires for every witness in the room, not just the thing that was acted
-on — and the chamber holds a face of **both** doors. So `open inner
-door`, typed in the chamber, runs the outer door's `ON_OPEN` too.
-Reactions are handed the action's payload, so each hook asks whether it
-*is* the target before mirroring: `... if target == me else None`. Drop
-that clause and opening either door from the chamber quietly unseals
-the far face of the *other* one — the mirror desynced and the
-invariant broken, by the very hook that exists to preserve it. The
-wards below key on `target == me` for the same reason; a witness must
-always establish that an event is about *it*.
+Opening a door propagates an `item:on_open` action that targets the door
+itself, and a gated action runs the target's own `on_check` during the
+permission pass, before the `closed` tag is cleared
+([action phases](../design/action-phases.md)). That is the
+[gift box](012_gift_box.md)'s interception point, aimed at a sibling object
+instead of at the opener: each door face carries a ward that reads the
+*opposite* door and calls [`block()`](../reference/softcode.md#event-data-namespace)
+while that door is open. The refusal is symmetric from every side, and the
+player reads the reason off the interlock light.
 
-**The cycle is a raw-write choreography.** The panel's `$cycle in|out`
-seals *all four faces* first (`add_tag` — raw writes don't fire the
-mirrors and don't consult the wards, and both-closed is a legal state,
-so the invariant holds at every instant), narrates the pumps, then a
-`wait()` later unseals the requested door's two faces. A `cycling`
-latch keeps overlapping cycles from interleaving. This is the same
-lesson as the mirror itself, scaled up: **commands** are gated by
-wards; **your own automation** writes state directly and is responsible
-for stepping through legal states only.
+### How a door's two faces stay agreed
+
+Each door is a pair of exit objects, one face in each room, and a two-way
+`@dig` pairs them at creation exactly as the
+[lockable door](025_lockable_door.md) describes. The mirror keeps that pair in
+lockstep: [`ON_OPEN`/`ON_CLOSE`](../reference/softcode.md#lifecycle-hooks)
+hooks copy the `closed` tag onto the partner face with a raw
+[`add_tag`](../reference/softcode.md#fn-add_tag)/[`remove_tag`](../reference/softcode.md#fn-remove_tag)
+write, which does not re-propagate, so the mirror cannot echo back and forth.
+Because the two faces always agree, each ward needs to read only *one*
+canonical face of the other door. A single `@eval` at build time stamps every
+face's `partner` (its twin) and `other` (a chamber face of the opposite door)
+and fills the panel's two face lists, so no ids are copied by hand.
+
+### Why a hook must check its target
+
+An [`ON_<EVENT>`](../reference/softcode.md#lifecycle-hooks) hook fires for
+every object in the room, not only the one the action targeted, and the
+chamber holds a face of *both* doors. So `open inner door`, typed in the
+chamber, runs the outer door's `ON_OPEN` too. Each hook is handed the action's
+`target`, so it mirrors only when it *is* the target:
+[`if target is me:`](../reference/softcode.md#guard-on-target), an identity
+check written with `is`, never `==`. Drop that guard and opening either door
+from the chamber quietly unseals the far face of the *other* door, breaking
+the invariant with the very hook meant to preserve it. The two wards test
+`target is me` for the same reason: a witness must first establish that an
+event is about *it*.
+
+### Why the cycle may do what open may not
+
+The panel's `$cycle in|out` seals *all four faces* first with a raw
+`add_tag`, which neither fires the mirrors nor consults the wards, and
+both-closed is a legal state, so the invariant holds at every instant. It
+narrates the pumps, then schedules the unseal with
+[`wait()`](../reference/softcode.md#fn-wait); when that fires, `finish_cycle`
+clears the `closed` tag from the requested door's two faces. A `cycling` latch
+keeps a second `cycle` from interleaving while the pumps run. This is the same
+division the mirror draws, scaled up: a player's *commands* are gated by the
+wards, while your *own automation* writes state directly and is responsible
+for stepping through legal states only. Because `wait()` is in-memory, a
+scheduled unseal does not survive a server reboot; a timer that must survive
+uses [`expire()`](../reference/softcode.md#fn-expire) instead, as the
+[gas bomb](048_gas_bomb.md) shows.
 
 ## Build it
 
-Geometry — deck, chamber, hull, both doors paired, and the panel in
-the chamber:
+Dig the geometry from the crew deck: the inner door pairs the deck to the
+chamber, the outer door pairs the chamber to the hull, and the panel is
+dropped in the chamber between them. Each two-way `@dig` names the same door on
+both faces, so it creates the pair and marries them:
 
 ```text
 @dig Crew Deck
@@ -72,52 +97,107 @@ inner door
 drop airlock panel
 ```
 
-Wire everything from the chamber in one `@eval`: find both local faces,
-follow their `destination`s to find the far faces, then hand out
-`partner` (mirror twin), `other` (the opposite door's chamber face),
-and the panel's door lists:
+Standing in the chamber, wire everything in one `@eval`: find the two local
+faces by name, follow each `destination` to its far face, then stamp `partner`
+(the mirror twin) and `other` (a chamber face of the opposite door) on all
+four, and hand the panel its two face lists. `.id` is already a string, so
+only the numeric `destination` needs `str()`:
 
 ```text
-@eval ch = here; inn = [o for o in contents(ch) if has_tag(o, 'exit') and name(o) == 'inner door'][0]; out = [o for o in contents(ch) if has_tag(o, 'exit') and name(o) == 'outer door'][0]; deck = get('#' + str(get_attr(inn, 'destination'))); hull = get('#' + str(get_attr(out, 'destination'))); inn2 = [o for o in contents(deck) if has_tag(o, 'exit') and name(o) == 'inner door'][0]; out2 = [o for o in contents(hull) if has_tag(o, 'exit') and name(o) == 'outer door'][0]; [set_attr(a, 'partner', '#' + p.id) for a, p in [(inn, inn2), (inn2, inn), (out, out2), (out2, out)]]; [set_attr(f, 'other', '#' + g.id) for f, g in [(inn, out), (inn2, out), (out, inn), (out2, inn)]]; panel = get('airlock panel'); set_attr(panel, 'inner_doors', ['#' + inn.id, '#' + inn2.id]); set_attr(panel, 'outer_doors', ['#' + out.id, '#' + out2.id]); result = 'airlock wired'
+@eval '''
+ch = here
+inn = [o for o in contents(ch) if has_tag(o, 'exit') and name(o) == 'inner door'][0]
+out = [o for o in contents(ch) if has_tag(o, 'exit') and name(o) == 'outer door'][0]
+deck = get('#' + str(get_attr(inn, 'destination')))
+hull = get('#' + str(get_attr(out, 'destination')))
+inn2 = [o for o in contents(deck) if has_tag(o, 'exit') and name(o) == 'inner door'][0]
+out2 = [o for o in contents(hull) if has_tag(o, 'exit') and name(o) == 'outer door'][0]
+for face, twin in [(inn, inn2), (inn2, inn), (out, out2), (out2, out)]:
+    set_attr(face, 'partner', '#' + twin.id)
+for face, opposite in [(inn, out), (inn2, out), (out, inn), (out2, inn)]:
+    set_attr(face, 'other', '#' + opposite.id)
+panel = get('airlock panel')
+set_attr(panel, 'inner_doors', ['#' + inn.id, '#' + inn2.id])
+set_attr(panel, 'outer_doors', ['#' + out.id, '#' + out2.id])
+result = 'airlock wired'
+'''
 ```
 
-Every face gets the same three lines — two mirror hooks and the
-interlock ward. `@set` resolves names locally, so the identical stanza
-configures whichever face you're standing at; walk the loop and apply
-it to all four (here: both chamber faces, then the deck face, then the
-hull face):
+Every face gets the same three lines: two mirror hooks that copy the `closed`
+tag onto the twin, and the interlock ward that blocks an open while the other
+door is not `closed`. `@set` resolves the door name locally, so configure the
+two faces you are standing among first, in the chamber:
 
 ```text
-@set inner door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
-@set inner door/on_close = add_tag(V('partner'), 'closed') if target == me else None
-@set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
-@set outer door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
-@set outer door/on_close = add_tag(V('partner'), 'closed') if target == me else None
-@set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
+@set inner door/on_open = if target is me: remove_tag(V('partner'), 'closed')
+@set inner door/on_close = if target is me: add_tag(V('partner'), 'closed')
+@set inner door/on_check = if atype == 'item:on_open' and target is me and not has_tag(get(V('other', '')), 'closed'): block('The interlock light burns red: the other door is open.')
+@set outer door/on_open = if target is me: remove_tag(V('partner'), 'closed')
+@set outer door/on_close = if target is me: add_tag(V('partner'), 'closed')
+@set outer door/on_check = if atype == 'item:on_open' and target is me and not has_tag(get(V('other', '')), 'closed'): block('The interlock light burns red: the other door is open.')
+```
+
+Now walk out to each far face and apply the identical stanza: through the inner
+door to the deck face, back, then out the outer door to the hull face, and
+back to the chamber where you started:
+
+```text
 inner door
-@set inner door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
-@set inner door/on_close = add_tag(V('partner'), 'closed') if target == me else None
-@set inner door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
+@set inner door/on_open = if target is me: remove_tag(V('partner'), 'closed')
+@set inner door/on_close = if target is me: add_tag(V('partner'), 'closed')
+@set inner door/on_check = if atype == 'item:on_open' and target is me and not has_tag(get(V('other', '')), 'closed'): block('The interlock light burns red: the other door is open.')
 inner door
 outer door
-@set outer door/on_open = remove_tag(V('partner'), 'closed') if target == me else None
-@set outer door/on_close = add_tag(V('partner'), 'closed') if target == me else None
-@set outer door/on_check = block('The interlock light burns red: the other door is open.') if atype == 'item:on_open' and target == me and not has_tag(get(V('other', '')), 'closed') else None
+@set outer door/on_open = if target is me: remove_tag(V('partner'), 'closed')
+@set outer door/on_close = if target is me: add_tag(V('partner'), 'closed')
+@set outer door/on_check = if atype == 'item:on_open' and target is me and not has_tag(get(V('other', '')), 'closed'): block('The interlock light burns red: the other door is open.')
 outer door
 ```
 
-The panel: `cycle_time` is data; `$cycle` latches, seals all faces,
-narrates, and schedules the unseal; `finish_cycle` opens the requested
-door and releases the latch:
+The panel keeps its delay as data, so you can retune it with `@set`:
 
 ```text
 @set airlock panel/cycle_time = 5
-@set airlock panel/cmd_cycle = $cycle *: side = trim(arg0).lower(); pemit(enactor, 'Cycle which way? CYCLE IN or CYCLE OUT.') if side not in ('in', 'out') else (pemit(enactor, 'The pumps are already running.') if V('cycling', 0) else (set_attr(me, 'cycling', 1), set_attr(me, 'goal', side), [add_tag(get(d), 'closed') for d in V('inner_doors', []) + V('outer_doors', [])], remit(loc(me), 'Bolts thud home; both doors seal. The pumps roar.'), wait(V('cycle_time', 5), 'trigger me/finish_cycle')))
-@set airlock panel/finish_cycle = doors = V('inner_doors', []) if V('goal') == 'in' else V('outer_doors', []); [remove_tag(get(d), 'closed') for d in doors]; set_attr(me, 'cycling', 0); remit(loc(me), f"The pumps fall silent. The {'inner' if V('goal') == 'in' else 'outer'} door unseals with a hiss.")
 ```
 
-Finally, put the airlock in a legal starting state — seal both from
-the chamber (the mirrors close the far faces for you):
+The `$cycle *` command reads the direction, refuses a bad word or an already
+running cycle, then latches, seals every face with a raw `add_tag`, narrates,
+and schedules the unseal:
+
+```text
+@set airlock panel/cmd_cycle = '''
+$cycle *:
+side = trim(arg0).lower()
+if side not in ('in', 'out'):
+    pemit(enactor, 'Cycle which way? CYCLE IN or CYCLE OUT.')
+elif V('cycling', 0):
+    pemit(enactor, 'The pumps are already running.')
+else:
+    set_attr(me, 'cycling', 1)
+    set_attr(me, 'goal', side)
+    for d in V('inner_doors', []) + V('outer_doors', []):
+        add_tag(get(d), 'closed')  # raw write: seals every face without firing the mirrors or consulting the wards
+    remit(loc(me), 'Bolts thud home; both doors seal. The pumps roar.')
+    wait(V('cycle_time', 5), 'trigger me/finish_cycle')  # schedule the unseal; the latch stays set until it runs
+'''
+```
+
+When the wait fires, `finish_cycle` unseals only the requested door's two
+faces (again a raw `remove_tag`) and releases the latch:
+
+```text
+@set airlock panel/finish_cycle = '''
+doors = V('inner_doors', []) if V('goal') == 'in' else V('outer_doors', [])
+for d in doors:
+    remove_tag(get(d), 'closed')
+set_attr(me, 'cycling', 0)
+side = 'inner' if V('goal') == 'in' else 'outer'
+remit(loc(me), f"The pumps fall silent. The {side} door unseals with a hiss.")
+'''
+```
+
+Finally, seal both doors from the chamber to reach a legal starting state; the
+mirror closes each far face for you, so all four end `closed`:
 
 ```text
 close inner door
@@ -126,49 +206,56 @@ close outer door
 
 ## Try it
 
-From the crew deck:
+From the crew deck, the inner door opens because the outer is sealed, but the
+chamber will not let you open the outer while the inner still stands open:
 
 ```text
-open inner door     -> You open the inner door.       (outer is shut: allowed)
-inner door          -> you're in the chamber
-open outer door     -> The interlock light burns red: the other door is open.
-cycle out           -> Bolts thud home; both doors seal. The pumps roar.
-                       ...The pumps fall silent. The outer door unseals
-                       with a hiss.
-outer door          -> you're on the hull
+> open inner door
+You open the inner door.
+
+> inner door
+Airlock Chamber
+
+> open outer door
+The interlock light burns red: the other door is open.
 ```
 
-Try `open inner door` from the deck while the outer door stands open —
-red light, from a room away, because the deck face's ward reads the
-same mirrored truth. Cycle back with `cycle in` from the chamber.
-`@examine` any face mid-sequence: at no instant are both doors ever
-untagged `closed`.
+The cycle is the sanctioned way across. It seals both doors, runs the pumps,
+and unseals the far side after `cycle_time` seconds (the middle line arrives on
+the timer):
 
-> **Note — co-located door faces.** An `ON_OPEN` fires for *every* door in
-> the room, and this airlock's chamber holds a face of both doors — so the
-> cross-firing case isn't hypothetical here, it's the room you're standing
-> in. The `target == me` clause on each mirror hook is what makes it safe:
-> a hook that can ask "was this event about *me*?" simply declines to
-> mirror someone else's door. (This tutorial once carried a caveat saying
-> co-located faces couldn't be made safe, because `ON_<EVENT>` hooks had no
-> way to read the action's target. They do now — **fixed 2026-07-17** — and
-> the guard above is the whole fix.) The **raw-write cycle** idiom
-> (seal-all-then-open-one) remains the better tool when one panel owns
-> every face and you'd rather not hang a hook on each; the
-> [spaceship](164_small_spaceship.md) capstone does exactly that.
+```text
+> cycle out
+Bolts thud home; both doors seal. The pumps roar.
+The pumps fall silent. The outer door unseals with a hiss.
+
+> outer door
+Hull Exterior
+```
+
+The invariant holds a room away, too: with the outer door open, `open inner
+door` from the deck gets the same red light, because the deck face's ward reads
+the same mirrored truth. Cycle back with `cycle in` from the chamber, and
+`@examine` any face mid-sequence to confirm that at no instant are both doors
+untagged `closed`. A face of *both* doors sits in the chamber, so opening the
+inner door there also fires the outer door's `ON_OPEN`; the `target is me`
+guard on each mirror is what stops that stray fire from unsealing the far side
+of the untouched door.
 
 ## Going further
 
-- **Vacuum consequences** — put an `ON_ENTER` on the hull that
-  `apply_effect`s suffocation on anyone without a `sealed_suit` tag;
-  the [gas bomb](048_gas_bomb.md)'s exposure pattern in reverse.
-- **Emergency override** — a `$override` on the panel that raw-writes
-  both doors open *is* writable — the invariant is yours, so breaking
-  it is a design decision with a klaxon attached (`remit` + an `act()`
-  to the bridge).
-- **Auto-close** — fold in the [timed door](029_timed_door.md) ticket
-  pattern so an opened door seals itself after 30 seconds; airlocks
-  and banks love it.
-- **One-button cycle** — a `$cycle` with no argument that opens
-  whichever door is currently sealed (read both states, pick the
-  closed one): the panel already owns all four faces.
+- **Vacuum consequences:** put an `ON_ENTER` on the hull that
+  [`apply_effect`](../reference/softcode.md#fn-apply_effect)s suffocation on
+  anyone without a `sealed_suit` tag, the [gas bomb](048_gas_bomb.md)'s
+  exposure pattern in reverse.
+- **Emergency override:** a `$override` on the panel that raw-writes both
+  doors open is entirely writable, because the invariant is yours to break; do
+  it with a klaxon attached ([`remit`](../reference/softcode.md#fn-remit) plus
+  an [`act()`](../reference/softcode.md#fn-act) to the bridge).
+- **Auto-close:** fold in the [timed door](029_timed_door.md)'s countdown so an
+  opened door seals itself after thirty seconds; airlocks and banks both like
+  it.
+- **One-button cycle:** a `$cycle` with no argument that opens whichever door
+  is currently sealed (read both states, pick the closed one), since the panel
+  already owns all four faces. The [spaceship](164_small_spaceship.md) capstone
+  runs a whole hull on this seal-all-then-open-one idiom.
