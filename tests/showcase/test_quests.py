@@ -76,7 +76,9 @@ def joined(msgs):
 async def build(sim, who, doc_name):
     """Run one tutorial's Build-it transcript, read live from its doc."""
     for line in build_lines(doc_name):
-        await sim.do(who, line)
+        # submit_line (not do): real input path, so '''-heredoc blocks
+        # accumulate; one-liners dispatch identically.
+        await sim.submit_line(who, line)
 
 
 async def answer(sim, player, line):

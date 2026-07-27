@@ -229,16 +229,26 @@ New combination (numbers separated by spaces):
 The tumblers reseat. New combination: 5 25 45
 ```
 
-The `secret` flag shows at work when a stranger's softcode tries to read
-the code and gets nothing:
+The `secret` flag shows at work when another builder's softcode reads the
+code. Pass a default so the refusal is visible, since a bare read returns
+nothing and `@eval` reports that as `Done.`:
 
 ```text
-> @eval result = get_attr(get('wall safe'), 'code')
-=> None
+> @eval result = get_attr(get('wall safe'), 'code', 'no reading')
+=> 'no reading'
 ```
 
 Run as the owner, that same line returns `=> '5 25 45'`, because
-controllers are exempt from the flag.
+controllers are exempt from the flag. A player without builder permission
+never reaches this at all: `@eval` answers them `Permission denied.`
+
+The flag gates softcode reads, and that is the whole of its reach today.
+The `examine` command prints an object's stored attributes to anyone who
+asks, so a curious player still reads `code: 5 25 45` straight off the
+safe. Treat `secret` as a guard on scripted access rather than as
+concealment, and keep a combination players are meant to earn somewhere
+they cannot examine, such as an attribute on an admin-owned object kept
+out of the room.
 
 ## Going further
 

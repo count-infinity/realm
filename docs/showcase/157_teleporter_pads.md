@@ -1,47 +1,83 @@
 # 157. Teleporter pads
 
-> Checklist item 157 — now — *a self-describing network via search_world, consenting teleports, arrival effects*
+> Checklist item 157 ([now]): *networked teleport pads, a tag registry via `search_world`, consenting `move_to`, arrival remits*
 
 **What you'll build:** A network of teleport pads. Stand on one, `dial`
-the name of any other, and light swallows you — you rematerialize on the
-far pad, which announces your arrival to the room. Add a fourth pad
-later and it joins the network automatically; nothing is wired by hand.
+the name of any other, and light swallows you, then you rematerialize on
+the far pad, which announces your arrival to the room. Add a fourth pad
+later and it joins the network automatically, with nothing wired by hand.
 
-**Concepts:** a **tag-based registry** — pads find each other with
-`search_world` ([tutorial 083](083_message_in_bottle.md)), never a
-hardcoded list; **consenting relocation** with `move_to` (you dialed, so
-you may be moved); **arrival effects** with `remit`; and `@clone` to
-stamp out the network from one template.
+**Concepts:** a tag-based registry (pads find each other with
+[`search_world`](../reference/softcode.md#fn-search_world), never a
+hardcoded list), consenting relocation with
+[`move_to`](../reference/softcode.md#fn-move_to), arrival effects with
+[`remit`](../reference/softcode.md#fn-remit), and `@clone` to stamp out
+the network from one template.
 
 ## How it works
 
-**The network is a tag, not a table.** Every pad carries the
-`teleport_pad` tag and a `pad_name`. `$dial <name>` runs
-`search_world(tag='teleport_pad')`, filters to the pad whose `pad_name`
-matches, and jumps you to *its* room. No pad stores a list of the
-others — membership *is* the tag, so a pad built tomorrow is dialable
-today. `$pads` prints the whole roster the same way.
+The finished network is a handful of rooms, each holding one pad, and
+every pad runs the same two `$`-commands: `$dial <name>` sends the caller
+to another pad's room, and `$pads` prints the roster. No pad knows the
+others by name ahead of time; they discover each other at the moment you
+dial. This section answers three questions: how a pad finds its siblings,
+why a pad is allowed to move you, and how the trip is narrated at both
+ends.
 
-**Dialing is consent to be moved.** A pad can't shove a stranger around —
-but typing its `$dial` command is you asking to go, and the engine
-grants a `$`-command's enactor the right to be relocated by it (the
-portal rule). So the pad calls plain `move_to(enactor, ...)`, which
-still honors the destination's locks — a warded pad-room can refuse
-arrivals. (Contrast the wizardly `teleport_obj`, which needs *control*
-of whoever it moves and is the wrong tool here.)
+### How does a pad find the others without a wiring list?
 
-**Arrival is just narration.** `oemit` covers your vanishing for the
-people you leave behind; a `remit` to the destination announces the
-shimmer of your arrival to everyone already there.
+Every pad carries the `teleport_pad` tag and a `pad_name` attribute. When
+you dial, the local pad runs
+[`search_world`](../reference/softcode.md#fn-search_world)`(tag='teleport_pad')`
+to gather every pad in the world, then keeps the one whose `pad_name`
+matches what you typed. Membership *is* the tag, so a pad built tomorrow
+is dialable today, and `$pads` lists the whole roster the same way. This
+is the same live-query idea as the bottle registry in
+[083 (message in a bottle)](083_message_in_bottle.md); nothing stores a
+list of siblings.
 
-**Built once, cloned out.** One template pad carries the `$dial`/`$pads`
-logic; `@clone` copies its commands into each station, where you tag it
-and name it. Destroying the template leaves a clean network of identical
-pads.
+The filter also drops `p is not me` so a pad never counts itself as a
+destination. Because both commands are `$`-commands rather than reactive
+`ON_<EVENT>` hooks, they need no whole-room
+[`target` guard](../reference/softcode.md#guard-on-target): a `$`-command
+fires only on the object whose command word the caller typed, and only
+that pad, the one in your room, responds.
+
+### Why is a pad allowed to move you?
+
+A pad has no authority over a stranger standing on it, so it cannot shove
+people around at will. Typing its `$dial` command, though, is you asking
+to go, and the engine grants a `$`-command's enactor the right to be
+relocated by that object, which is the portal rule. So the pad calls
+plain [`move_to`](../reference/softcode.md#fn-move_to)`(enactor, ...)`,
+and because this is an ordinary consenting move rather than a forced one,
+the destination's locks still apply. A warded pad-room may refuse the
+arrival. Contrast the wizardly
+[`teleport_obj`](../reference/softcode.md#fn-teleport_obj), which requires
+*control* of whoever it moves; that is the wrong tool here, since a pad
+controls no one.
+
+### How is the trip narrated at both ends?
+
+The queued move runs only after the script finishes, so at the moment the
+pad narrates, the dialer is still standing on the origin pad.
+[`oemit`](../reference/softcode.md#fn-oemit) covers the vanishing for the
+people left behind, and a [`remit`](../reference/softcode.md#fn-remit) to
+the destination announces the shimmer of arrival to everyone already
+there. A private [`pemit`](../reference/softcode.md#fn-pemit) tells the
+dialer the trip landed.
+
+### Built once, cloned out
+
+One template pad carries the `$dial` and `$pads` logic. `@clone` copies
+its attributes, tags, and locks into each station, where you then add the
+`teleport_pad` tag and a `pad_name`. Destroying the template afterward
+leaves a clean network of identical pads.
 
 ## Build it
 
-Three rooms for the network, and the template pad with both commands:
+Dig the three rooms, stand in the first, and create the template pad that
+both commands will live on:
 
 ```text
 @dig Alpha Station
@@ -49,12 +85,41 @@ Three rooms for the network, and the template pad with both commands:
 @dig Gamma Relay
 @teleport me = Alpha Station
 @create translocator pad
-@set translocator pad/cmd_dial = $dial *: goal = trim(arg0).lower(); net = [p for p in search_world(tag='teleport_pad') if get_attr(p,'pad_name','').lower()==goal and p is not me]; (pemit(enactor, 'No pad answers to ' + trim(arg0) + '.') if not net else (oemit(enactor, name(enactor) + ' dissolves into a column of light.'), move_to(enactor, loc(net[0])), remit(loc(net[0]), name(enactor) + ' shimmers into being on the ' + get_attr(net[0],'pad_name') + ' pad.'), pemit(enactor, 'The world folds; you are elsewhere.')))
-@set translocator pad/cmd_pads = $pads: pemit(enactor, 'Network: ' + ', '.join(sorted([get_attr(p,'pad_name','?') for p in search_world(tag='teleport_pad')])))
 ```
 
-Now stamp a live pad into each station — clone, name, tag, drop — then
-scrap the template:
+`$dial <name>` is the heart of it. It lowercases the dialed name, searches
+the world for the matching pad, and either reports no answer or performs
+the trip: narrate the departure to the origin room, move the caller,
+announce the arrival at the far room, and confirm to the caller:
+
+```text
+@set translocator pad/cmd_dial = '''
+$dial *:
+goal = trim(arg0).lower()
+net = [p for p in search_world(tag='teleport_pad') if get_attr(p, 'pad_name', '').lower() == goal and p is not me]
+if not net:
+    pemit(enactor, 'No pad answers to ' + trim(arg0) + '.')
+else:
+    dest = loc(net[0])
+    # the move is queued until the script ends, so this oemit still
+    # reaches the pad you are leaving, not the one you land on
+    oemit(enactor, name(enactor) + ' dissolves into a column of light.')
+    move_to(enactor, dest)
+    remit(dest, name(enactor) + ' shimmers into being on the ' + get_attr(net[0], 'pad_name') + ' pad.')
+    pemit(enactor, 'The world folds; you are elsewhere.')
+'''
+```
+
+`$pads` is a single expression, so it stays a one-liner: it collects every
+pad's `pad_name` and prints them sorted.
+
+```text
+@set translocator pad/cmd_pads = $pads: pemit(enactor, 'Network: ' + ', '.join(sorted([get_attr(p, 'pad_name', '?') for p in search_world(tag='teleport_pad')])))
+```
+
+Now stamp a live pad into each station by cloning the template, then
+naming, tagging, and dropping it. Repeat for all three, then scrap the
+template and return to Alpha:
 
 ```text
 @clone translocator pad = Alpha Pad
@@ -77,30 +142,45 @@ drop Gamma Pad
 
 ## Try it
 
-From Alpha Station:
+From Alpha Station, with a companion standing beside you:
 
 ```text
-pads                -> Network: Alpha, Beta, Gamma
-dial Gamma          -> "The world folds; you are elsewhere."
-                       you're on the Gamma Relay; the room saw you shimmer in
-dial Nowhere        -> No pad answers to Nowhere.
+> pads
+Network: Alpha, Beta, Gamma
+
+> dial Gamma
+Pat shimmers into being on the Gamma pad.
+The world folds; you are elsewhere.
+
+> dial Nowhere
+No pad answers to Nowhere.
 ```
 
-Everyone you left on Alpha saw "...dissolves into a column of light."
-`@clone Gamma Pad = Delta Pad` in a fourth room, tag and name it Delta,
-and `pads` lists it instantly — `search_world` never needed telling.
+Dialing Gamma moves you to the Gamma Relay. You see the two lines above:
+the arrival `remit` reaches the room you land in (which now includes you),
+followed by your private confirmation. Meanwhile everyone left behind on
+Alpha sees `Pat dissolves into a column of light.` Dialing a name no pad
+answers to leaves you exactly where you were.
+
+To grow the network, `@clone Gamma Pad = Delta Pad` in a fourth room, then
+tag and name it Delta. `pads` lists it instantly, because `search_world`
+never needed telling.
 
 ## Going further
 
-- **Keyed pads:** put an [enter lock](026_keycard_door.md) on a pad's
-  room and `move_to` respects it — a restricted destination that refuses
-  arrivals without the keycard, no change to `$dial`.
-- **Arrival effects with teeth:** the destination room's `ON_ENTER` can
-  do more than narrate — a disoriented `apply_effect`, a scan that
-  `oob`s the room to the arriver's client ([GMCP](077_handheld_radios.md)).
-- **A dialing cost:** charge with a [pay](030_toll_gate.md) step, or a
-  `charge` attribute the pad checks against `credits(enactor)` before
-  it fires.
-- **Private lines:** a `network` attribute on each pad and a filter in
-  the search — two separate mesh networks that ignore each other while
-  sharing the same `$dial` code.
+- **Keyed pads:** put an [enter lock](026_keycard_door.md) on a pad's room
+  and `move_to` respects it, so a restricted destination refuses arrivals
+  without the keycard, with no change to `$dial`.
+- **Arrival effects with teeth:** the destination room's `ON_ENTER` can do
+  more than narrate. It might land a disorienting
+  [`apply_effect`](../reference/softcode.md#fn-apply_effect), or run a scan
+  that [`oob`](../reference/softcode.md#fn-oob)s the room to the arriver's
+  client ([GMCP](077_handheld_radios.md)).
+- **A dialing cost:** charge with a [pay](030_toll_gate.md) step, or add a
+  `charge` attribute the pad checks against
+  [`credits`](../reference/softcode.md#fn-credits)`(enactor)` before it
+  fires.
+- **Private lines:** add a `network` attribute to each pad and a matching
+  filter in the search, giving two separate meshes that ignore each other
+  while sharing the same `$dial` code.
+```

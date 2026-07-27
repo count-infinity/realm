@@ -3366,3 +3366,189 @@ effect state is keyed by `kind`, that was incoherent, not merely untidy.
 **Resolved the same day** (see the showcase-gaps entry "`apply_effect` silently
 stacks…"): `apply_effect` now refreshes by kind. Tutorials 129/139 teach refresh
 and no longer carry the `remove_effect`-first workaround.
+
+## Showcase heredoc-conversion pass: engine/doc gaps surfaced (filed 2026-07-26, items 115-175)
+
+While converting the pre-heredoc tutorials to readable multi-line softcode and
+empirically re-verifying every claim, agents surfaced these gaps (docs were
+corrected in place; engine items are for the integrator):
+
+- **`prompt()` docstring vs behavior (softcode path).** The softcode
+  `prompt()` docstring claims "Requires the executor to control the target's
+  own object," but `functions.py:1342` only checks `who.has_tag('player')` — no
+  control check is enforced. The softcode path also lacks the
+  `abort`/`choices`/`allow` handling that async `Session.prompt` has, so
+  `help`/`quit`/`exit` fall through to the dispatcher rather than cancelling a
+  wizard, and validation/re-ask must be done by the callback itself. Flagged
+  building 132 and 170; docs now describe only the real softcode behavior.
+- **`_destroy_recursive` skips the `safe`-tag re-check on children**
+  (`realm/commands/olc/admin.py:406`). Top-level `@destroy` honors a `safe` tag
+  (line 177), but recursion into a room's contents does not, so `@destroy <room>`
+  deletes even `safe`-tagged furniture inside it. There is currently no way to
+  protect a resident's furniture from a room-level `@destroy`; the `safe` tag
+  only protects a piece from being `@destroy`ed directly by name. Surfaced by 175.
+- **`create_obj()` has no `parent` kwarg.** It accepts
+  `name`/`tags`/`location`/`description`/`attrs` but not `parent`, so a minted
+  object gets no object-level `@parent` link at birth (inheritance must be done
+  by data-merge, or `@parent` applied afterward). Surfaced by 165.
+- **No `#fn-move` / `#fn-pose` anchors in `docs/reference/softcode.md`.** The
+  script-actuator commands live under the "Script commands" section with no
+  `#fn-` anchor; several showcase docs linked a dangling `softcode.md#fn-move`.
+  Converters now link the real section anchor instead; the reference could add
+  explicit anchors. Surfaced by 158.
+
+**Doc-fact corrections worth noting (fixed in the docs, not engine bugs):**
+- The render-`description` slot IS writable from softcode: `create_obj(description=)`
+  sets the field, and for **rooms** `room_description()` (`render.py:86`) falls
+  back to the `db.description` attribute. For non-room **objects**, `look` reads
+  only the `.description` field (`look.py:94/203`), so per-object decoration goes
+  through `desc_extras`. Several old docs wrongly claimed softcode "cannot write
+  the description slot" (165/168/175 corrected; the room-vs-object distinction is
+  the real rule).
+- `get_attr` DOES read through the `@parent` chain (`objects.py` `_AttrView.get`);
+  old docs claiming otherwise were corrected (165/168).
+- Driving a vehicle (155) reads the outer exit's `destination` and teleports the
+  doors rather than traversing, so outer-exit locks/wards do NOT apply; docs now
+  say so and offer a `test_lock` terrain-gate opt-in.
+
+## Showcase conversion pass, part 2: engine gaps surfaced (filed 2026-07-26, items 198-218)
+
+Found while converting the quests/puzzles tutorials and empirically re-verifying
+every claim. Docs were corrected in place; these are the engine-side items.
+
+- **`secret` attribute flag is bypassed by both examine commands.** `attrflags.py`
+  documents secret attrs as "unreadable except by controllers (softcode +
+  @examine)", and softcode `get_attr` does honor it via `readable_attr`. But
+  player-level `examine` (`realm/commands/builtin/look.py:145-152`) prints
+  `target.db.all()` unfiltered, so any player can read a `secret` attribute (a
+  keypad's `code`, a puzzle answer) just by examining the object. `@examine`
+  (`realm/commands/olc/admin.py:340-347`) likewise never calls `readable_attr`,
+  so a non-controlling builder sees secret attrs too. Neither call site invokes
+  the gate. `look.py` already carries a `# TODO: Check if player has builder
+  permission`. Surfaced by 210 and 205; this is a real read-gating hole, not
+  just untidiness.
+- **`@set` parses values with `json.loads` only, so Python-literal data is
+  silently stored as a string.** `_parse_value` (`realm/commands/olc/modify.py:545`)
+  means `@set obj/pool = ["a","b"]` stores a real list but `@set obj/pool =
+  ['a','b']` stores the raw *string* with no warning; the failure surfaces much
+  later as `len()` counting characters or `.get()` raising inside a script.
+  Found independently by 213 and 215. A "looks like a Python literal, did you
+  mean JSON?" warning at write time (alongside the existing script-validation
+  warning) would catch it at the prompt.
+- **`prompt()` docstring overstates its guarantee** (third confirmation: 132,
+  170, 214). The docstring says "Requires the executor to control the target's
+  own object (self/owned/admin)", but neither `ScriptFunctions.prompt`
+  (`functions.py:1331`) nor the `'prompt'` branch of `_deliver_queued`
+  (`engine.py:1083`) performs any control check; the only test is
+  `who.has_tag('player')`. Any object may capture any player's next line
+  anywhere in the world. Either add the check or fix the docstring (it is
+  generated into `docs/reference/softcode.md#fn-prompt`).
+- **`ON_PUSH` is documented but never raised.** It is published in the hook
+  catalogue (`realm/scripting/triggers.py:228`, "this object is pushed (button,
+  lever)") and listed in `softcode.md#lifecycle-hooks`, but nothing in `realm/`
+  propagates an `item:on_push` action and there is no `push` command. An
+  `ON_PUSH` attribute never fires. Checklist item 209 names this hook in its own
+  tags, and the tutorial has to supply the verb as a `$`-command instead.
+  Surfaced by 209.
+- ~~**`article_for()` double-articles a name that already has one.**~~
+  **FIXED 2026-07-26.** `realm/core/language.py` now recognizes a leading
+  article via `leading_article()` / `strip_article()`, so `article_for` returns
+  "" for an already-articled name, `definite_name` trades an indefinite for
+  "the" ("a sheet of roaring flame" -> "the sheet of roaring flame") and leaves
+  an existing "the" alone, and `pluralize` drops an indefinite (plurals never
+  take one). A word that merely starts with those letters ("anvil", "theory")
+  is unaffected, since the check requires a following word. Ten tests added in
+  `tests/test_language.py::TestNamesThatAlreadyCarryAnArticle`. Surfaced by 202
+  ("an a raider") and by `056_self_destruct.md`, which spawns
+  `'a sheet of roaring flame'` and now renders it as written.
+- **`script_ticker`'s `interval` is denominated in world beats while every
+  softcode time primitive is in seconds.** `now()`, `wait()`, and `expire()` are
+  epoch/real seconds; `interval:N` is N x `WORLD_TICK` (default 4.0s). Pairing a
+  ticker with a `now()`-based TTL is easy to get wrong. **This trap shipped
+  broken builds in two tutorials and wrong numbers in two more** (206, 215,
+  227, 228), which makes it the highest-value fix in this list:
+  - **206** was unrunnable: `interval:20` (~80s) against `ttl = 3` seconds, so
+    every tick discarded its own rumor before speaking.
+  - **227** was unrunnable: `interval:30` (~120s) against a 60-second reminder
+    `window`, so every event crossed the whole window between two beats and the
+    advance warning never fired, only the "starting now" ping.
+  - **215** and **228** stated wrong real-world cadences (`interval:15` read as
+    15s but is ~60s; `interval:60` read as a minute but is ~4 minutes).
+  There is also no in-game way to ask what a beat is worth. A `beat_seconds()`
+  softcode function, an `interval:60s` suffix form, or an `@behavior` echo
+  showing the resolved real-time cadence would each remove the trap.
+- **No `wait_pending(handle)` predicate, so a device cannot self-heal after a
+  reboot.** `wait()` is in-memory and dies on restart, but a script's stashed
+  handle attribute persists, so a chain-style device (item 203's holoprojector,
+  item 214's Simon panel) comes back permanently latched as "busy" until a human
+  clears the attribute. `cancel_wait` returns `False` for both "unknown handle"
+  and "not yours", so softcode cannot distinguish a dead handle from a live one.
+- **Minor: `render.py` hard-codes the inline delimiter.** `realm/core/render.py:118`
+  gates on `if '[[' in desc:` before calling `eval_inline`, even though the
+  delimiters are configurable (`INLINE_OPEN`/`INLINE_CLOSE`,
+  `realm/scripting/inline.py:52-58`). A game that configures `${ ... }` gets its
+  description blocks silently skipped in room rendering. Surfaced by 217.
+
+**Engine facts worth knowing (verified, corrected in the docs, not bugs):**
+- Reaction hooks see POST-state. `gate_action` runs the engine effect *between*
+  the check and reaction passes (`realm/core/propagation.py:506-558`), so
+  `ON_GET`/`ON_PUT` reaction hooks see the item already moved. Two tutorials
+  (200, 212) taught the opposite as a "timing lesson".
+- `eval_attr` runs as the CALLER and cannot escalate; it is explicitly NOT
+  Penn's `u()` (which swaps the executor to the attribute's owner). Three
+  tutorials had this backwards (189, 198, 213).
+- `@tr` binds `target` to `None` rather than leaving it unbound, so an
+  `if target is me:` guard silently skips the entire body under manual
+  triggering. Relevant to any hook a builder tests with `@tr` (202).
+- For `ON_ENTER`, the room is the target and every in-room object's hook fires,
+  so `target is me` on an in-room object is false forever; filter on `enactor`
+  instead (215, 217).
+- `find_command_match` returns on the FIRST matching object, unlike
+  `ON_<EVENT>` propagation which fans out to every object in the room. So the
+  hazard for `$`-commands is shadowing, not misfire (201, 209, 211, 213).
+
+### Cross-doc corrections applied to already-converted tutorials (2026-07-26)
+
+Conversion agents working on later items spotted the same false claims living
+in earlier, already-converted docs. Verified by probe and fixed in place:
+
+- **016 (combination safe)** claimed a stranger's `@eval get_attr(safe,'code')`
+  returns `=> None`. Probed: the owner gets `=> '5 25 45'`, a non-owning builder
+  gets `Done.` (a bare `None` result prints as `Done.`, so the refusal needs a
+  default to be visible), and a plain player gets `Permission denied.` because
+  `@eval` is builder-gated. Rewritten, and the section now states the real
+  limit: `secret` gates softcode reads only, and `examine wall safe` prints the
+  code to any player (see the read-gating hole above).
+- **066 (puppet)** showed the `[marionette]` tag prefixing every line of a
+  forced `look`, and listed the puppet's own description in the room render.
+  Probed: the prefix is applied once to the whole message, and the render is the
+  room the puppet stands in (its own description is not included). Also removed
+  a "sensory-only puppets" bullet recommending `force(me, 'look')` for remote
+  eyes, which contradicted the same file's correct note that softcode `force()`
+  has no output forwarding; probed to confirm it delivers nothing. Replaced with
+  a `pemit`-over-`contents` readout. The depth-3 puppet-chain claim IS correct
+  (`MAX_FORCE_DEPTH = 3`, and softcode `force()` chains work); only the nested
+  `@force` route is refused, at the permission tier, so that bullet was
+  clarified rather than removed.
+
+**Resolved without touching the doc or its tests:** `056_self_destruct.md`
+creates `'a sheet of roaring flame'`, which used to render as "an a sheet of
+roaring flame". Rather than rename the object (which would have forced a
+matching edit to the three assertions in `tests/showcase/test_traps_devices.py`),
+the doubling was fixed in `article_for()` itself, so the name now renders as
+written and those tests pass unchanged.
+
+- **`pemit` has no store-and-forward.** A notification sent to a logged-out
+  player is silently discarded: `GameObject.msg` (`realm/core/objects.py:449`)
+  drops the text when no `_msg_handler` is installed, with no error and no
+  queue. Every showcase build that must reach an absent player therefore
+  hand-rolls a per-player inbox attribute plus an `ON_CONNECT` drain (075 does
+  exactly this; 224 documents the limitation). A `pemit_offline`-style
+  primitive, or a queue-on-no-handler flag, would remove that boilerplate.
+  Surfaced by 224.
+- **`search_world` caps at 500 results with no truncation signal.** The `limit`
+  argument is clamped `max(1, min(limit, 500))` (`realm/scripting/functions.py:1102`),
+  so an aggregation over a world with more than 500 matching objects silently
+  ranks a subset: no truncation flag, no total count, nothing a script can test.
+  A `count=`/`offset=` pair or a returned "truncated" marker would let softcode
+  aggregate correctly at scale. Surfaced by 228 (leaderboards).

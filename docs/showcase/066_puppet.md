@@ -94,12 +94,19 @@ words in its mouth, then send it out the door and back:
 ## Try it
 
 Each forced command answers back with the puppet's name in front, and
-the room description you get is the one the marionette can see:
+the room description you get is the one the marionette can see. The tag
+prefixes the whole reply once, not every line of it:
 
 ```text
 > @force marionette = look
-[marionette] The Puppeteer's Booth
-[marionette] A jointed wooden figure, strings trailing up into nothing.
+[marionette]
+The Puppeteer's Booth
+---------------------
+
+Players here:
+  Bob
+
+Exits: None
 
 > @force marionette = say I dance for no one.
 marionette says, "I dance for no one."
@@ -107,6 +114,10 @@ marionette says, "I dance for no one."
 > @force marionette = @dig Vault
 [marionette] Permission denied.
 ```
+
+A `look` renders the room the marionette stands in, listing the people
+and exits it can see. The marionette's own description is not part of
+that render; `look marionette` is what shows you the figure itself.
 
 The `say` line has no prefix because its speech is real speech: you hear
 it in the room like anyone standing there. The `@dig` is refused because
@@ -144,9 +155,17 @@ her, owned by her.
 - **A haunted body:** give a ghost NPC softcode that `force(victim,
   ...)`, and it works exactly when the victim's control lock admits the
   ghost, so the horror is opt-in by construction.
-- **Sensory-only puppets:** a `$peer` command on a crystal ball that
-  runs `force(me, 'look')` from wherever the ball sits gives you remote
-  eyes with the same authority story (see also the
-  [security camera](054_security_camera.md)).
-- **Puppet chains:** force the marionette to `@force` a second puppet,
-  which is legal to depth 3, after which the engine cuts the strings.
+- **Sensory-only puppets:** a crystal ball that reports who stands
+  wherever it sits. Build the readout with
+  [`pemit`](../reference/softcode.md#fn-pemit) over
+  [`contents`](../reference/softcode.md#fn-contents), not with
+  `force(me, 'look')`: softcode `force()` runs its command under a puppet
+  session with no watcher attached, so a `look` fired that way renders to
+  nobody and the typist reads silence. The forwarding shown above belongs
+  to the `@force` command alone. See also the
+  [security camera](054_security_camera.md).
+- **Puppet chains:** a puppet's own softcode may `force()` a second
+  puppet, and the engine caps the nesting at depth 3, after which it cuts
+  the strings. The chain runs through softcode rather than through nested
+  `@force`, since a body acting at player tier is refused a
+  builder-permission command.

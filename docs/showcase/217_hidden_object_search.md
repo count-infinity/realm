@@ -1,53 +1,94 @@
 # 217. Hidden object search
 
-> Checklist item 217 — now — *concealed tags, the search command, Observation vs conceal_difficulty*
+> Checklist item 217 ([now]): *concealment tags, the search command, seeded secrets*
 
-**What you'll build:** A study salted with hidden things — a key in the
-dust, a ledger behind a false book, a wall cache flush with the plaster —
-each harder to spot than the last. `search` rolls the seeker's
-Observation against each hiding place; sharp eyes turn up the easy finds,
-a real expert turns up everything.
+**What you'll build:** A scholar's study salted with three hidden things, a key
+in the dust, a ledger behind a false book spine, and a wall cache flush with the
+plaster, each one harder to spot than the last. The built-in `search` command
+rolls the seeker's Observation against every hiding place in the room at once,
+so sharp eyes turn up the easy finds while only a real expert clears the study.
 
-**Concepts:** the perception engine's `invisible` tag and
-`conceal_difficulty` (the same machinery the [secret door](027_secret_door.md)
-and [landmine](049_landmine.md) use, here applied to *objects*), the
-built-in `search` command, and the design of layered secrets that reward
-a better roll with a better find.
+**Concepts:** the perception engine's `invisible` tag paired with the
+`conceal_difficulty` and `reveal_msg` attributes (the concealment kit the
+[secret door](027_secret_door.md) and the [landmine](049_landmine.md) also use,
+here applied to plain objects rather than an exit or a trap), the built-in
+`search` command, and the design of layered secrets that reward a better roll
+with a better find.
 
 ## How it works
 
-This build is almost entirely *configuration of an existing engine
-feature* — the point of the tutorial is to show how little softcode a
-search puzzle needs:
+The finished study holds three perfectly ordinary objects that happen to be
+invisible, each carrying one number saying how hard it is to spot. There is no
+script anywhere in this build, because the engine already owns the whole puzzle:
+you type six attribute values and three tags, and `search` supplies the rest.
+This section answers what makes a thing hidden, what `search` actually rolls,
+why the three difficulties differ, and who a find is true for once it happens.
 
-1. **Hiding is a tag.** Anything tagged `invisible` drops out of the
-   room's contents display and can't be targeted by name. Put it on a
-   thing and the thing is concealed.
+### What makes a thing hidden?
 
-2. **`search` is built in.** It rolls the searcher's Observation at
-   `-conceal_difficulty` against **every** concealed object in the room.
-   Each one it beats loses its `invisible` tag and prints its
-   `reveal_msg`. One command, any number of hiding places, no softcode at
-   all — the difficulty per object is just an attribute.
+A single tag. Anything tagged `invisible` drops out of room displays and stops
+resolving by name, so the key sits in the study the whole time while `get brass
+key` reports that no such thing is here. Two exemptions are worth knowing: a
+viewer tagged `see_invisible` (and any admin, who holds the SEE_ALL
+entitlement) perceives concealed things normally, and exits are deliberately
+left out of the name-resolution half so a concealed exit stays walkable, which
+is the rule the [secret door](027_secret_door.md) is built on.
 
-3. **Difficulty layers the finds.** `conceal_difficulty` is the penalty
-   on the roll: 1 is "barely tucked away", 5 is "master-concealed". A
-   searcher with middling Observation turns up the easy caches and walks
-   right past the hard one; only a keen-eyed expert clears the room. Same
-   command, different outcomes — the search *is* the skill check.
+### What does `search` actually roll?
 
-4. **Found is found (world state).** Revealing strips a shared tag, so
-   once anyone finds the cache it's visible to everyone. That's usually
-   what you want for a physical hiding place; a per-character variant (the
-   secret stays hidden except in *your* view) is in Going further, lifted
-   straight from [item 27](027_secret_door.md).
+`search` walks the room's contents once and treats two kinds of concealment
+differently. A concealed *object* has no Stealth of its own, so it gets a flat
+Observation check at `-conceal_difficulty`. A *hidden character*, someone who
+typed `hide`, opposes with their own Stealth in a quick
+[`contest`](../reference/softcode.md#fn-contest), where a tie leaves them
+hidden because the status quo holds. This tutorial is about the object half,
+but the same sweep covers both, so a thief lurking in your study is spotted by
+the same command.
 
-Once revealed, a hidden object is an ordinary thing — `look` it, `get`
-it, read it — because concealment was only ever a tag.
+On a success against an object the engine strips its `invisible` tag, delivers
+the object's `reveal_msg` to **everyone in the room** rather than to the
+searcher alone, and then reports the sweep back to the searcher as `Your search
+turns up: brass key, leather ledger.` A sweep that beats nothing answers `You
+find nothing unusual.`
+
+One condition is easy to miss: `search` considers an invisible object only once
+it also carries a `conceal_difficulty`. An object tagged `invisible` with no
+such attribute stays permanently unfindable this way, which is how the engine
+separates "concealed, go find it" from "invisible as a lasting special effect".
+
+### Why three difficulties instead of one?
+
+`conceal_difficulty` is subtracted straight from the searcher's Observation, so
+it is a penalty measured in skill points. The default resolver rolls 3d6 under
+the effective skill, which means every point of difficulty bites hard: a
+searcher at Observation 13 clears difficulty 1 on a 12 or less, difficulty 3 on
+a 10 or less, and difficulty 5 on an 8 or less. Reading those as design dials, 1
+is barely tucked away, 3 takes real looking, and 5 is master work, so the same
+command produces three different stories depending on who types it. The search
+*is* the skill check.
+
+Give your test characters a trained Observation before you try this, since an
+untrained searcher falls back to whatever the installed game system defaults
+Observation to. Under the GURPS reference ruleset that is Intelligence minus 5,
+which lands at 5 for a character with no Intelligence set, low enough to find
+nothing at any difficulty.
+
+### Who is the find true for?
+
+Revealing strips a tag the object carries once for the whole world, so the
+moment anybody finds the cache it is open for everyone who walks in afterwards.
+That is usually right for a physical hiding place, because a cache that springs
+open should stay open. When you want the opposite, a secret that stays hidden in
+everyone else's view, the tools are per-viewer description machinery rather than
+tags, and both variants are in Going further.
+
+Once revealed, a hidden object is an ordinary thing again. You `look` it, `get`
+it, and carry it off, because concealment was only ever a tag.
 
 ## Build it
 
-Dig the study:
+Dig the study, walk in, and describe it. The `out` exit is the way back to where
+you started:
 
 ```text
 @dig The Study = study, out
@@ -55,73 +96,179 @@ study
 @desc The Study = A scholar's study gone to dust: a great desk, sagging shelves, a cracked oil painting.
 ```
 
-Three finds of rising difficulty. Each is a real object; the pattern is
-identical — set `conceal_difficulty`, write the `reveal_msg`, tag it
-`invisible`:
+Create the three finds as plain objects and drop them where they will be hidden.
+Nothing is secret yet, so a `look` at this point lists all three in the room:
 
 ```text
 @create brass key
 drop brass key
 @desc brass key = A small brass key, filmed with dust.
-@set brass key/conceal_difficulty = 1
-@set brass key/reveal_msg = Something glints behind the desk leg -- a brass key in the dust!
-@tag brass key = invisible
 @create leather ledger
 drop leather ledger
 @desc leather ledger = A slim ledger of cramped figures.
-@set leather ledger/conceal_difficulty = 3
-@set leather ledger/reveal_msg = One book spine is false -- a leather ledger slides out from behind it.
-@tag leather ledger = invisible
 @create wall cache
 drop wall cache
 @desc wall cache = A palm-sized cavity behind the painting, lined with felt.
+```
+
+Now conceal each one, easiest first. The pattern is three lines every time:
+the difficulty, the line `search` prints on a success, and the tag that takes
+the object out of sight. The brass key is the gift, findable by almost anyone
+who bothers to look:
+
+```text
+# search reveals an invisible object only once it also carries a conceal_difficulty
+@set brass key/conceal_difficulty = 1
+@set brass key/reveal_msg = Something glints behind the desk leg -- a brass key in the dust!
+@tag brass key = invisible
+```
+
+The ledger is a step up at difficulty 3, which a middling searcher finds about
+half the time:
+
+```text
+@set leather ledger/conceal_difficulty = 3
+@set leather ledger/reveal_msg = One book spine is false -- a leather ledger slides out from behind it.
+@tag leather ledger = invisible
+```
+
+The wall cache is the master-concealed one at difficulty 5, so it is the find
+that separates a keen eye from an ordinary one:
+
+```text
 @set wall cache/conceal_difficulty = 5
 @set wall cache/reveal_msg = Your fingertips catch a seam in the plaster -- a wall cache springs open!
 @tag wall cache = invisible
 ```
 
-That's the whole build — the `search` command does the rest.
+That is the entire build, since `search` does the rest.
 
 ## Try it
 
-As a searcher of middling skill (Observation around 13), the easy and
-medium caches turn up but the wall cache stays hidden:
+Prime a test character with a real Observation first. Writing another player's
+sheet takes admin authority, so this line is one you type as staff rather than
+as a plain builder:
 
 ```text
-look                 -> the desk and shelves, but nothing hidden shows
-search               -> Something glints behind the desk leg -- a brass key in the dust!
-                        One book spine is false -- a leather ledger slides out...
-look                 -> You see: a brass key, a leather ledger
+> @set Scout/skill_observation = 13
+Set Scout/skill_observation = 13
 ```
 
-The wall cache needs a sharper eye — an expert (Observation 16) clears it
-in one sweep:
+Now play Scout, standing in the study. The room looks empty of anything
+interesting, because all three finds are tagged out of the display:
 
 ```text
-search               -> ...a wall cache springs open!
-get wall cache       -> now it's a thing like any other
+> look
+
+The Study
+---------
+A scholar's study gone to dust: a great desk, sagging shelves, a cracked oil painting.
+
+Exits: out
 ```
 
-Each revealed object is fully real — `look brass key`, `get leather
-ledger`. And because reveal is world state, once one player finds the
-cache, the next walks in and sees it already open.
+One sweep turns up what Scout's eyes are good for. The two reveal lines are the
+objects' own `reveal_msg` values and the last line is the command's summary:
+
+```text
+> search
+Something glints behind the desk leg -- a brass key in the dust!
+One book spine is false -- a leather ledger slides out from behind it.
+Your search turns up: brass key, leather ledger.
+```
+
+Those are the lines that vary. Scout needs a 12 or less for the key (near
+certain), a 10 or less for the ledger (a coin flip), and an 8 or less for the
+cache (about one sweep in four), so on an unlucky roll the ledger line is
+missing and on a lucky one the cache line appears early. Anyone else standing in
+the study reads the two reveal lines as well, though only Scout gets the
+summary.
+
+The finds are now real objects in the room, and they behave like any other
+prop:
+
+```text
+> look
+
+The Study
+---------
+A scholar's study gone to dust: a great desk, sagging shelves, a cracked oil painting.
+
+You see:
+  a brass key
+  a leather ledger
+
+Exits: out
+
+> look brass key
+
+brass key
+A small brass key, filmed with dust.
+
+> get leather ledger
+You pick up a leather ledger.
+```
+
+Sweeping again with only the hard cache left is the outcome worth confirming
+deliberately, because it is what a player who is out of their depth actually
+sees:
+
+```text
+> search
+You find nothing unusual.
+```
+
+An expert at Observation 16 needs only an 11 or less for the cache, so she
+clears the room where Scout stalled, and the find is hers to carry:
+
+```text
+> search
+Your fingertips catch a seam in the plaster -- a wall cache springs open!
+Your search turns up: wall cache.
+
+> get wall cache
+You pick up a wall cache.
+```
+
+Because the reveal is world state, the next player through the door walks in on
+a study whose cache is already open.
 
 ## Going further
 
-- **A passive glance** — mirror [item 27](027_secret_door.md): a room
-  `ON_ENTER` that rolls `skill_check(enactor, 'observation', -N)` and
-  reveals the *easiest* cache on a sharp enough look, so the obvious find
-  doesn't even need a deliberate `search`.
-- **Per-character finds** — instead of stripping the tag, cache the find
-  per player (`set_attr(me, 'found_' + enactor.id, 1)`) and gate a
-  `[[...]]` line in the room description on it; the object stays
-  `invisible` to everyone else. Item 27's memoization trick.
-- **Search costs time or noise** — wrap `search` behind a `$ransack`
-  command that also `remit`s "drawers bang and papers fly" so a
-  [tripwire](050_tripwire_alarm.md) or guard can hear a thief tossing the
-  room.
-- **Tools help** — grant a bonus if the searcher carries a `magnifier` or
-  `flashlight` (item 6): read `contents(enactor)` in a custom search verb
-  and pass the modifier to `skill_check`.
-- **Reset** — to re-hide everything for the next explorer, see
-  [item 218](218_puzzle_reset.md)'s attribute-restore lifecycle.
+- **A passive glance.** Mirror the [secret door](027_secret_door.md) by giving
+  the room an [`ON_ENTER`](../reference/softcode.md#lifecycle-hooks) that rolls
+  [`skill_check`](../reference/softcode.md#fn-skill_check)`(enactor,
+  'observation', -1)` and
+  [`remove_tag`](../reference/softcode.md#fn-remove_tag)s the easiest find, so
+  the obvious one costs no deliberate `search`. Hang it on the room rather than
+  on a prop: `ON_ENTER` reaches every object in the room and binds `target` to
+  the *location* for all of them, which means a prop-mounted copy fires on
+  arrivals too and has no `target is me` distinction to guard itself with (see
+  [Guard on `target`](../reference/softcode.md#guard-on-target)).
+- **Per-viewer finds.** For a secret that stays hidden in everyone else's view,
+  skip the tag entirely and hang a conditional line on the room with `@detail
+  here = check('observation', -5) -> Your fingertips catch a seam in the
+  plaster.`, which [room details](042_room_details.md) covers. The condition is
+  evaluated per looker on every `look`, with `viewer`, `skill(name)`,
+  `check(name, mod)`, and `has_tag(tag)` in scope. To make one player's find
+  stick instead of rerolling it, put the state in a `[[...]]` description block
+  that keys off the looker,
+  [`set_attr`](../reference/softcode.md#fn-set_attr)`(me, 'found_' + viewer.id,
+  1)` on a success and reading it back with
+  [`get_attr`](../reference/softcode.md#fn-get_attr) on later looks.
+- **Search costs noise.** Builtins dispatch ahead of `$`-triggers, so a trigger
+  named `$search` would never fire and the builtin keeps the word. Add a
+  `$ransack` command on the room instead, one that reveals
+  the finds and also [`remit`](../reference/softcode.md#fn-remit)s "drawers bang
+  and papers fly", and a [tripwire](050_tripwire_alarm.md) or a posted guard
+  hears the thief tossing the room.
+- **Tools help.** In that custom verb, read
+  [`contents`](../reference/softcode.md#fn-contents)`(enactor)` and pass a
+  positive modifier to `skill_check` when the searcher is carrying a magnifier
+  or a lit [flashlight](006_flashlight.md), which turns equipment into a real
+  edge without touching the hiding places.
+- **Re-hide for the next explorer.** Restoring the puzzle is just re-adding the
+  `invisible` tags, which is exactly the restore routine
+  [puzzle reset](218_puzzle_reset.md) generalises across triggers. The
+  [escape room](216_escape_room.md) gets the same effect for free by handing
+  every party its own instance of the room.

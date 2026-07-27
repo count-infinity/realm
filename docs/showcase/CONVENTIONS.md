@@ -148,6 +148,12 @@ softcode (real `if`/`else`/`for`), and close with a line of just `'''`.
 [World Management](../guides/world-management.md#multi-line-input-heredocs)
 documents the input mechanism.
 
+- **Keep data-value attributes one-line.** The heredoc form is for *scripts*
+  (code the engine runs). A plain data attribute whose value is a literal dict,
+  list, or table stays a single-line `@set`: a `'''` block stores its body as a
+  raw string, so `V('traits', {}).get(t)` on a heredoc-stored dict raises
+  `AttributeError` instead of reading the dict. Convert control flow to a
+  heredoc; leave a data literal inline.
 - **Split `## Build it` into narrated steps.** The shell (`@create` / `drop` /
   `@desc`) comes first, then one fenced block per attribute or tight group, each
   preceded by a sentence saying what it does. Never one 40-line block.

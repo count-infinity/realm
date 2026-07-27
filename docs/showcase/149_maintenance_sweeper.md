@@ -1,44 +1,52 @@
 # 149. Maintenance sweeper
 
-> Checklist item 149 — [now] — *housekeeping over tagged objects, search_world queries, dry-run-first safety*
+> Checklist item 149 ([now]): *on_tick housekeeping, search_world queries, destroy_obj*
 
-**What you'll build:** A janitor bot that clears litter from a
-promenade — but **shows you what it would remove before it removes
-anything**. `sweep` previews; `sweep confirm` commits. The
-dry-run-first discipline for any destructive bulk operation.
+**What you'll build:** A janitor bot that clears tagged litter and shows you
+what it would remove before it removes anything. `sweep` previews; `sweep
+confirm` commits. This is the dry-run-first discipline for any destructive bulk
+operation.
 
-**Concepts:** `search_world()` as a housekeeping query, `destroy_obj()`
-over a result set, and the **preview/commit** split that keeps a bulk
-purge from being a bulk mistake — the softcode cousin of `@foreach`'s
-echo-first habit.
+**Concepts:** [`search_world()`](../reference/softcode.md#fn-search_world) as a
+housekeeping query, [`destroy_obj()`](../reference/softcode.md#fn-destroy_obj)
+over a result set, and the **preview/commit** split that keeps a bulk purge
+from becoming a bulk mistake. It is the same read-before-write discipline a
+builder keeps by running a read-only pass before a destructive one.
 
 ## How it works
 
-Maintenance is a query plus an action: *find the junk, then remove it.*
-The danger is the second half — a search that's one tag too broad, run
-straight into `destroy_obj`, quietly eats things you meant to keep.
+Maintenance is a query plus an action: find the junk, then remove it. The
+finished janitor splits those two halves across two separate commands so the
+removal never runs without a look first. This section explains why the split
+exists, then how the tag defines what the janitor touches.
 
-**So the query runs twice, and only the second one destroys.** `sweep`
-does the `search_world(tag='litter')` and **reports** the matches — count
-and names — changing nothing. You read the list, confirm it's really
-junk, and `sweep confirm` runs the same query and reaps it. The preview
-*is* the safety: you never destroy a set you haven't seen.
+**Why run the query twice?** The danger lives in the second half. A search that
+is one tag too broad, run straight into `destroy_obj`, quietly eats things you
+meant to keep. So the query runs twice, and only the second run destroys.
+`sweep` does the `search_world(tag='litter')` and reports the matches, both the
+count and the names, changing nothing. You read the list, confirm it is really
+junk, and `sweep confirm` runs the same query and reaps it. The preview is the
+safety, because you never destroy a set you have not seen.
 
-This mirrors how a builder runs bulk edits from the command line —
+This mirrors how a builder runs bulk edits from the command line, using
 `@foreach tag:litter = @examine %o` to look before `@foreach tag:litter =
-@destroy %o` to leap — and how zone mass-edits
-(tutorial 169) echo first. Automating housekeeping doesn't mean
-skipping the look; it means baking the look into the tool.
+@destroy %o` to leap, and how the zone mass-edit in
+[tutorial 169](169_zone_mass_edit.md) is dry-run by default. Automating
+housekeeping does not mean skipping the look; it means baking the look into the
+tool.
 
-**Tags scope the sweep.** Only `litter`-tagged objects are in range;
-everything else in the world is invisible to the janitor. Widen or narrow
-the beat by changing one tag in the query — never by hoping the search
-was specific enough.
+**What defines the janitor's reach?** The tag does, not the room.
+`search_world` scans the whole world, so `tag='litter'` finds every
+`litter`-tagged object anywhere, and everything untagged is invisible to the
+janitor. In this build the only litter happens to sit on the promenade, so that
+is all the sweep touches. Widen or narrow the reach by changing the one tag in
+the query, rather than by hoping the search was specific enough.
 
 ## Build it
 
-A promenade with two bits of litter (tagged, so the janitor can find
-them) and one thing that should survive (untagged):
+First the shell: a promenade with two bits of litter (tagged, so the janitor
+can find them), one janitor bot that should survive (untagged, so the sweep
+passes it by), and the bot's description telling players the two commands:
 
 ```text
 @dig Promenade = prom, out
@@ -49,17 +57,47 @@ drop discarded wrapper
 @create broken bottle
 @tag broken bottle = litter
 drop broken bottle
-```
-
-The janitor. `sweep` previews; `sweep confirm` commits — two distinct
-exact patterns, so one can never trigger the other:
-
-```text
 @create janitor bot
 drop janitor bot
 @desc janitor bot = A squat cleaning drone, brushes folded. SWEEP to preview a cleanup, SWEEP CONFIRM to run it.
-@set janitor bot/cmd_sweep = $sweep: junk = search_world(tag='litter'); pemit(enactor, 'The promenade is spotless.') if not junk else pemit(enactor, 'DRY RUN -- would remove ' + str(len(junk)) + ': ' + ', '.join([name(o) for o in junk]) + '. Type SWEEP CONFIRM to run it.')
-@set janitor bot/cmd_sweep_confirm = $sweep confirm: junk = search_world(tag='litter'); (pemit(enactor, 'Nothing to sweep.') if not junk else ([destroy_obj(o) for o in junk], remit(loc(me), 'The janitor bot hums through, collecting ' + str(len(junk)) + ' items, and trundles off.')))
+```
+
+The preview command runs the query and reports it, touching nothing. It sends
+the count and the names with [`pemit`](../reference/softcode.md#fn-pemit) so
+only the person who typed `sweep` sees the report, and
+[`name`](../reference/softcode.md#fn-name) renders each match:
+
+```text
+@set janitor bot/cmd_sweep = '''
+$sweep:
+junk = search_world(tag='litter')
+if not junk:
+    pemit(enactor, 'The promenade is spotless.')
+else:
+    listing = ', '.join([name(o) for o in junk])
+    pemit(enactor, f'DRY RUN -- would remove {len(junk)}: {listing}. Type SWEEP CONFIRM to run it.')
+'''
+```
+
+The commit command runs the identical query and reaps it. The `$sweep confirm`
+pattern is a distinct exact match from `$sweep` (both compile anchored, so one
+never triggers the other), which is what lets a single accidental `sweep` stop
+at the preview. It counts the set before destroying, since `destroy_obj` is
+deferred, then announces to the whole room with
+[`remit`](../reference/softcode.md#fn-remit) at
+[`loc(me)`](../reference/softcode.md#fn-loc):
+
+```text
+@set janitor bot/cmd_sweep_confirm = '''
+$sweep confirm:
+junk = search_world(tag='litter')
+if not junk:
+    pemit(enactor, 'Nothing to sweep.')
+else:
+    for o in junk:
+        destroy_obj(o)  # queued: each object is removed after this script ends
+    remit(loc(me), f'The janitor bot hums through, collecting {len(junk)} items, and trundles off.')
+'''
 ```
 
 ## Try it
@@ -69,8 +107,8 @@ sweep
    -> DRY RUN -- would remove 2: discarded wrapper, broken bottle. Type SWEEP CONFIRM to run it.
 ```
 
-Nothing has changed — the wrapper and bottle are still on the ground.
-Look the list over, then commit:
+Nothing has changed, so the wrapper and bottle are still on the ground. Look
+the list over, then commit:
 
 ```text
 sweep confirm
@@ -79,21 +117,20 @@ sweep
    -> The promenade is spotless.
 ```
 
-The litter is gone; anything you *didn't* tag was never in danger.
-Preview, confirm, commit — the same three beats every safe purge should
-have.
+The litter is gone, and anything you did not tag was never in danger. Preview,
+confirm, commit: the same three steps every safe purge should have.
 
 ## Going further
 
-- **Orphan hunting:** point the query at real cruft —
-  `search_world(attr='expires_at')` for stuck timers, or objects with no
-  `location` — for a world-audit janitor (the shape of tutorial 172's
-  audit report).
-- **Scheduled with a preview log:** put the *dry run* on an `on_tick` that
-  pages the owner a report, and leave the *confirm* manual — automated
-  eyes, human hands on the trigger.
-- **Age-gated sweeps:** only reap litter older than an hour by stamping
-  `dropped_at = now()` on drop and filtering `now() - dropped_at > 3600`
-  in the query — grace before the broom, using `now()` arithmetic.
-- **Undo insurance:** `@export` the area before a big `sweep confirm`; the
+- **Orphan hunting:** point the query at real cruft, such as
+  `search_world(attr='expires_at')` for stuck timers, for a world-audit
+  janitor. [Tutorial 172](172_world_audit.md) builds that audit report.
+- **Scheduled with a preview log:** put the dry run on an `on_tick` that pages
+  the owner a report, and leave the confirm manual, so the eyes are automated
+  but a human hand is on the trigger.
+- **Age-gated sweeps:** reap only litter older than an hour by stamping
+  `dropped_at = now()` on drop and filtering `now() - dropped_at > 3600` in the
+  query, which grants a grace period before the broom using
+  [`now()`](../reference/softcode.md#fn-now) arithmetic.
+- **Undo insurance:** `@export` the area before a big `sweep confirm`, and the
   file is your snapshot if the purge went one tag too wide.

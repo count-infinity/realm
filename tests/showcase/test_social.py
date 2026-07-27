@@ -75,7 +75,9 @@ class World:
         gather the mortals into her room. Red-flag scanned."""
         for doc in docs:
             for line in build_lines(doc):
-                await self.sim.do(self.vala, line)
+                # submit_line (not do): real input path, so '''-heredoc
+                # blocks accumulate; one-liners dispatch identically.
+                await self.sim.submit_line(self.vala, line)
         out = "\n".join(self.sim.seen(self.vala))
         for flag in BUILD_RED_FLAGS:
             assert flag not in out, f"{docs} build tripped {flag!r}:\n{out}"

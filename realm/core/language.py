@@ -26,6 +26,9 @@ if TYPE_CHECKING:
 
 _VOWELS = set("aeiou")
 
+# Articles a name may already carry, so nothing stacks a second one on top.
+_ARTICLES = frozenset({"a", "an", "the", "some"})
+
 # Last-word irregulars. Extend freely; db.plural overrides per object.
 IRREGULAR_PLURALS = {
     "child": "children",
@@ -49,14 +52,37 @@ def is_proper_noun(name: str) -> bool:
     return bool(name) and name[0].isupper()
 
 
+def leading_article(name: str) -> str:
+    """
+    The article a name already carries, lowercased, or "".
+
+    Names are meant to be bare nouns, but a builder who writes "a sheet of
+    roaring flame" should read that back unchanged rather than as "an a
+    sheet of roaring flame". Every article-producing function below checks
+    this first so an already-articled name is left alone.
+    """
+    if not name:
+        return ""
+    first, _, rest = name.partition(" ")
+    lowered = first.lower()
+    return lowered if rest and lowered in _ARTICLES else ""
+
+
+def strip_article(name: str) -> str:
+    """The name without any article it already carries."""
+    art = leading_article(name)
+    return name[len(art) + 1:] if art else name
+
+
 def article_for(name: str) -> str:
     """
     The indefinite article for a bare noun — "" for proper nouns.
 
-    Pure heuristic; callers should prefer ``singular_name(obj)`` which
-    honors the ``db.article`` override.
+    Also "" when the name already carries an article, so the two never
+    stack. Pure heuristic; callers should prefer ``singular_name(obj)``
+    which honors the ``db.article`` override.
     """
-    if not name or is_proper_noun(name):
+    if not name or is_proper_noun(name) or leading_article(name):
         return ""
     return "an" if name[0].lower() in _VOWELS else "a"
 
@@ -65,11 +91,15 @@ def pluralize(name: str) -> str:
     """
     Pluralize a bare noun phrase by its last word.
 
-    "energy cell" → "energy cells", "staff" → "staves". Heuristic only;
-    callers should prefer ``plural_name(obj)`` which honors ``db.plural``.
+    "energy cell" → "energy cells", "staff" → "staves". An indefinite
+    article on the front is dropped, since a plural never takes one.
+    Heuristic only; callers should prefer ``plural_name(obj)`` which
+    honors ``db.plural``.
     """
     if not name:
         return name
+    if leading_article(name) in ("a", "an"):
+        name = strip_article(name)
     head, _, last = name.rpartition(" ")
     prefix = f"{head} " if head else ""
     lower = last.lower()
@@ -114,10 +144,17 @@ def definite_name(obj: GameObject) -> str:
     """
     The definite display form: "the apple"; proper nouns unchanged
     ("Zeke the Bartender", never "the Zeke the Bartender").
+
+    A name that already reads "the ..." is returned as written, and one
+    carrying an indefinite article trades it for "the" ("a sheet of
+    roaring flame" becomes "the sheet of roaring flame").
     """
     if is_proper_noun(obj.name):
         return obj.name
-    return f"the {obj.name}"
+    art = leading_article(obj.name)
+    if art == "the":
+        return obj.name
+    return f"the {strip_article(obj.name)}"
 
 
 def numbered_name(obj: GameObject, count: int) -> str:
@@ -132,6 +169,8 @@ def numbered_name(obj: GameObject, count: int) -> str:
 __all__ = [
     "IRREGULAR_PLURALS",
     "is_proper_noun",
+    "leading_article",
+    "strip_article",
     "article_for",
     "pluralize",
     "singular_name",

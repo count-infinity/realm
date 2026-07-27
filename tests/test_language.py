@@ -13,6 +13,8 @@ import pytest
 
 from realm.core.language import (
     article_for,
+    definite_name,
+    leading_article,
     numbered_name,
     plural_name,
     pluralize,
@@ -70,6 +72,58 @@ class TestArticles:
         hour = GameObject("hourglass")  # 'an' by vowel rule would be wrong
         hour.db.article = "an"  # builder decides; heuristic said "a"? no — h
         assert singular_name(hour) == "an hourglass"
+
+
+class TestNamesThatAlreadyCarryAnArticle:
+    """Names are meant to be bare nouns, but a builder who writes the
+    article in reads it back as written, never doubled."""
+
+    def test_article_for_declines_to_double(self):
+        assert article_for("a sheet of roaring flame") == ""
+        assert article_for("an ember") == ""
+        assert article_for("the Founder's Key") == ""
+        assert article_for("some sand") == ""
+
+    def test_singular_name_leaves_it_alone(self):
+        flame = GameObject("a sheet of roaring flame")
+        assert singular_name(flame) == "a sheet of roaring flame"
+
+    def test_bare_noun_still_gets_its_article(self):
+        assert article_for("sheet of roaring flame") == "a"
+        assert singular_name(GameObject("ember")) == "an ember"
+
+    def test_a_word_merely_starting_with_an_article_is_untouched(self):
+        # "anvil" starts with "an", "theory" with "the": neither is an article.
+        assert article_for("anvil") == "an"
+        assert article_for("theory") == "a"
+        assert singular_name(GameObject("anvil")) == "an anvil"
+
+    def test_a_lone_article_word_is_the_name_not_an_article(self):
+        # No noun follows, so "a" is the whole name and keeps normal handling.
+        assert leading_article("a") == ""
+        assert leading_article("the") == ""
+
+    def test_override_still_wins(self):
+        flame = GameObject("a sheet of roaring flame")
+        flame.db.article = ""
+        assert singular_name(flame) == "a sheet of roaring flame"
+
+    def test_definite_name_swaps_the_indefinite(self):
+        flame = GameObject("a sheet of roaring flame")
+        assert definite_name(flame) == "the sheet of roaring flame"
+
+    def test_definite_name_keeps_an_existing_the(self):
+        key = GameObject("the last ember")
+        assert definite_name(key) == "the last ember"
+
+    def test_plural_drops_the_indefinite(self):
+        # Pluralizing still works on the last word; the article just goes.
+        assert pluralize("a sheet of roaring flame") == "sheet of roaring flames"
+
+    def test_numbered_name_reads_correctly_either_way(self):
+        flame = GameObject("a sheet of roaring flame")
+        assert numbered_name(flame, 1) == "a sheet of roaring flame"
+        assert numbered_name(flame, 3) == "3 sheet of roaring flames"
 
 
 # --- Plurals -----------------------------------------------------------------

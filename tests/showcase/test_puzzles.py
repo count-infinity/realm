@@ -97,7 +97,9 @@ async def run_lines(sim, player, lines):
     the game's dice resolver — none of these builds do, but it's cheap
     insurance and matches the sibling suites)."""
     for line in lines:
-        await sim.do(player, line)
+        # submit_line (not do): real input path, so '''-heredoc blocks
+        # accumulate; one-liners dispatch identically.
+        await sim.submit_line(player, line)
         set_check_resolver(level_resolver)
 
 
