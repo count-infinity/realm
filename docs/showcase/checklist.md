@@ -338,6 +338,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 - [x] 248. **Custom input handling** [now] — capture raw input for a minigame, code entry, or editor. *(prompt()/choose()/confirm() wizards, persistent prompts)*
 - [x] 249. **Writing a contrib** [now] — package a build from this list as a reusable, configurable module. *(content packs, area files, versioning)*
 - [x] 250. **Restricted player scripting** [now] — a sandboxed mini-language letting players script their own gadgets safely. *(the sandbox itself: limits, controls() authority — the capstone)*
+- [x] 251. **Add a skill** [now] — define a skill as data and watch the world start treating trained characters differently. *(skill_def objects, @reload, skill-gated details, banded checks paying into an economy)*
 
 ---
 
