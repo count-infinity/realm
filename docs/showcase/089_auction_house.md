@@ -1,21 +1,34 @@
 # 089. Auction house
 
-> Checklist item 89 — [now] — *auction state attrs, escrow inventory, on_tick settlement*
+> Checklist item 89 ([now]): *auction state attrs, escrow inventory, on_tick settlement*
 
 **What you'll build:** an auction kiosk with timed listings, double-sided
-escrow (items in the kiosk's inventory, bids in its credit balance),
-anti-sniping deadline extension, automatic settlement on a heartbeat, and
-an audit history.
+escrow (items held in the kiosk's inventory, bids held in its credit balance),
+anti-sniping deadline extension, automatic settlement on a heartbeat, and an
+audit history.
 
 **Concepts:** a state machine in attribute data (`lot_<n>` dicts); storing
-*ids*, not object references; escrow via `move_to` into the master's own
-inventory and `transfer_credits` into its balance; sniping windows with
-`now()`; `on_tick` settlement through an `eval_attr` routine; graceful
+*ids*, not object references; escrow via
+[`move_to`](../reference/softcode.md#fn-move_to) into the master's own
+inventory and [`transfer_credits`](../reference/softcode.md#fn-transfer_credits)
+into its balance; a sniping window measured with
+[`now()`](../reference/softcode.md#fn-now); heartbeat settlement through a
+[`script_ticker`](../reference/softcode.md#lifecycle-hooks) `on_tick` and an
+[`eval_attr`](../reference/softcode.md#fn-eval_attr) routine; graceful
 degradation when objects vanish.
 
 ## How it works
 
-Each listing is one dict in one attribute on **the Auction Kiosk**:
+The finished kiosk is one dropped object that holds everything: the open lots
+as data, the escrowed items in its own inventory, and the escrowed bids in its
+own credit balance. A builder lists an item, bidders raise each other, and a
+heartbeat closes each lot when its clock runs out. This section answers three
+questions in turn: where the state lives, why money and items are held by the
+house, and how a lot closes on its own.
+
+### Where does a listing live?
+
+Each listing is one dict in one attribute on the kiosk, keyed by lot number:
 
 ```text
 lot_3 = {'seller': <id>, 'seller_name': 'Vala', 'item': <id>,
@@ -23,37 +36,57 @@ lot_3 = {'seller': <id>, 'seller_name': 'Vala', 'item': <id>,
          'bidder': <id>, 'bidder_name': 'Cass', 'ends': <epoch>}
 ```
 
-Note what's *stored*: ids and scalars. At settlement time the ids are
-re-resolved with `get('#' + id)`; if a bidder or item has been destroyed
-since, the lookup returns None and the branch degrades gracefully instead
-of crashing on a dead reference.
+Note what is stored: ids and scalars, never live object references. At
+settlement the ids are re-resolved with
+[`get`](../reference/softcode.md#fn-get)`('#' + id)`, and if a bidder or item
+was destroyed since the bid, that lookup returns None and the branch degrades
+quietly instead of failing on a dead reference. This is the same one-master
+pattern the [bank](087_bank_accounts.md) uses, with the balances replaced by a
+book of lots.
 
-The design keystone is **escrow on both sides**:
+### Why does the house hold the money and the goods?
 
-- Listing an item `move_to`s it *into the kiosk* — you can't sell the
-  sword you're still swinging. The kiosk is admin-owned, so its script
-  has the authority to take the enactor's item (they asked, by typing the
-  command).
-- Bidding moves the credits *immediately* into the kiosk's balance.
-  Getting outbid refunds you on the spot. Consequence: settlement can
-  never bounce — the winning bid is already in the house when the timer
-  runs out.
+The design keystone is escrow on both sides, and it exists so that settlement
+can never fail for lack of funds or goods.
 
-**Sniping protection:** a bid landing inside the last `snipe` seconds
-pushes `ends` out to `now() + snipe`. Last-second sniping just converts
-the endgame into open bidding rounds.
+Listing an item calls [`move_to`](../reference/softcode.md#fn-move_to) to pull
+it out of the seller's hands and into the kiosk, so a seller cannot walk off
+with an item that is already on the block. The kiosk is admin-owned, and a
+script acts with its owner's authority, so the kiosk may relocate a player's
+item into itself even though it does not own the item.
 
-**Timed settlement** is the arc's standard heartbeat: `script_ticker`
-fires `on_tick`, which sweeps every open lot past its deadline and hands
-each to a `settle` function attribute — deliver item to winner and
-escrowed credits to seller (or walk the item home unsold), announce the
-gavel, archive a history row, delete the lot. Deadlines are compared with
-`now() >= ends`, so a due lot settles on the *next* tick — auctions don't
-need to end on the second, they need to end reliably.
+Bidding moves the credits into the kiosk's balance the instant the bid lands,
+using [`transfer_credits`](../reference/softcode.md#fn-transfer_credits) out of
+the bidder's wallet. Because the transfer either succeeds or fails on the spot,
+the same call doubles as the affordability check: a bidder who cannot cover the
+amount never becomes the high bidder. Getting outbid refunds the earlier bidder
+immediately, so at any moment the house holds exactly one live bid. The
+consequence is that when the timer runs out the winning credits are already in
+the house, and settlement is a pure handover.
+
+### How does a lot close on its own?
+
+A bid that lands inside the last `snipe` seconds pushes `ends` out to
+`now() + snipe`, so last-second sniping simply reopens the bidding for another
+short round rather than stealing the lot in the final tick.
+
+Closing runs on the arc's standard heartbeat. The
+[`script_ticker`](../reference/softcode.md#lifecycle-hooks) behavior fires the
+kiosk's `on_tick`, which sweeps every open lot and hands any that are past
+their deadline to a `settle` function attribute through
+[`eval_attr`](../reference/softcode.md#fn-eval_attr). Where the
+[shopkeeper](063_shopkeeper.md) uses the same ticker to refill shelves, here it
+closes auctions. Because `eval_attr` runs the routine as its caller and the
+caller is the kiosk running `on_tick`, inside `settle` the name `me` is the
+kiosk, so the routine reads and writes the kiosk's own data with a bare `me`.
+Deadlines are compared with `now() >= ends`, so a due lot settles on the next
+tick: an auction does not need to end on the exact second, it needs to end
+reliably.
 
 ## Build it
 
-The kiosk and its timing knobs (seconds):
+Create the kiosk and drop it in the room, then set its two timing knobs in
+seconds: how long a fresh listing runs, and how large the anti-snipe window is.
 
 ```text
 @create the Auction Kiosk
@@ -62,60 +95,128 @@ drop the Auction Kiosk
 @set the Auction Kiosk/snipe = 30
 ```
 
-`auction <item> for <min>` — escrow the item, open the lot, bump the
-counter, announce. The item must be in your inventory and is matched by
-its exact name. `for o in item if ok` does double duty: it unpacks the
-one match *and* gates the whole body on the checks; `for n in
-[V('next_lot', 1)]` binds the lot number for the two places it's used.
-The counter's own bump is `incr('next_lot', default=1)` — lot numbers
-start at 1, not 0, and `default` is what an *unset* attribute counts
-as, so the first listing leaves the counter on 2 exactly as the read
-expects:
+`auction <item> for <min>` escrows the item and opens a lot. It matches the
+item by exact name in the seller's inventory, and gates the whole listing on
+having a match and a positive minimum. The lot number comes from a `next_lot`
+counter that [`incr`](../reference/softcode.md#fn-incr) bumps as each lot opens:
 
 ```text
-@set the Auction Kiosk/cmd_auction = $auction * for *:item = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]; ok = bool(item) and int(arg1) > 0; [(move_to(o, me), set_attr(me, 'lot_' + str(n), {'seller': enactor.id, 'seller_name': name(enactor), 'item': o.id, 'item_name': name(o), 'min': int(arg1), 'bid': 0, 'bidder': '', 'bidder_name': '', 'ends': now() + V('duration', 120)}), incr('next_lot', default=1), remit(here, f'{name(enactor)} lists {name(o)} as lot #{n} (min {int(arg1)}).')) for o in item if ok for n in [V('next_lot', 1)]]; pemit(enactor, 'Listed.' if ok else 'You are not carrying that, or the minimum is bad.')
+@set the Auction Kiosk/cmd_auction = '''
+$auction * for *:
+matches = [o for o in contents(enactor) if name(o).lower() == arg0.strip().lower()]
+ok = bool(matches) and int(arg1) > 0
+if ok:
+    item = matches[0]
+    n = V('next_lot', 1)   # lot numbers start at 1, so an unset counter reads as 1
+    move_to(item, me)
+    set_attr(me, 'lot_' + str(n), {'seller': enactor.id, 'seller_name': name(enactor), 'item': item.id, 'item_name': name(item), 'min': int(arg1), 'bid': 0, 'bidder': '', 'bidder_name': '', 'ends': now() + V('duration', 120)})
+    incr('next_lot', default=1)   # default=1 so the first bump lands on 2, matching the read
+    remit(here, f'{name(enactor)} lists {name(item)} as lot #{n} (min {int(arg1)}).')
+    pemit(enactor, 'Listed.')
+else:
+    pemit(enactor, 'You are not carrying that, or the minimum is bad.')
+'''
 ```
 
-`auctions` — the open book, walked by lot number (closed lots read as
-None and are skipped):
+`auctions` prints the open book, walking lot numbers and skipping any that have
+already closed (a closed lot reads back as None):
 
 ```text
-@set the Auction Kiosk/cmd_auctions = $auctions:pemit(enactor, 'Open lots:'); [pemit(enactor, f"  #{i} {lot['item_name']} — min {lot['min']}, bid {str(lot['bid']) + ' by ' + lot['bidder_name'] if lot['bidder'] else 'none'}, {max(0, int(lot['ends'] - now()))}s left") for i in range(1, V('next_lot', 1)) for lot in [V('lot_' + str(i))] if lot]
+@set the Auction Kiosk/cmd_auctions = '''
+$auctions:
+pemit(enactor, 'Open lots:')
+for i in range(1, V('next_lot', 1)):
+    lot = V('lot_' + str(i))
+    if lot:
+        standing = str(lot['bid']) + ' by ' + lot['bidder_name'] if lot['bidder'] else 'none'
+        left = max(0, int(lot['ends'] - now()))
+        pemit(enactor, f"  #{i} {lot['item_name']} — min {lot['min']}, bid {standing}, {left}s left")
+'''
 ```
 
-`bid <lot> <amount>` — where most of the rules live. Floor = current bid
-+ 1 (or the minimum); sellers can't bid on their own lots; the transfer
-*is* the validity check for affordability; the outbid party is refunded
-and told; `dict(lot, bid=amt, ...)` rewrites the lot in one
-read-modify-write, extending the deadline if the bid landed inside the
-sniping window. Everything after `ok` hangs off one `... if ok else
-None`, so a bad lot number never dereferences a `None`:
+`bid <lot> <amount>` is where the rules live. The floor is the current bid plus
+one, or the minimum on a lot that has no bid yet; a seller may not bid on their
+own lot; and the credit transfer is itself the affordability check, so a bid
+only stands if the money actually moves. If it does, the previous high bidder
+is refunded and told, and the lot is rewritten with the new bid, extending the
+deadline when the bid arrived inside the snipe window:
 
 ```text
-@set the Auction Kiosk/cmd_bid = $bid * *:lot = V('lot_' + arg0.strip()); amt = int(arg1); low = (lot['bid'] + 1 if lot['bidder'] else lot['min']) if lot else 0; ok = bool(lot) and lot['seller'] != enactor.id and amt >= low and transfer_credits(enactor, me, amt); (transfer_credits(me, get('#' + lot['bidder']), lot['bid']) if lot['bidder'] else None, pemit(get('#' + lot['bidder']), f"You are outbid on lot #{arg0.strip()}; {lot['bid']} credits refunded.") if lot['bidder'] else None, set_attr(me, 'lot_' + arg0.strip(), dict(lot, bid=amt, bidder=enactor.id, bidder_name=name(enactor), ends=(now() + V('snipe', 30) if lot['ends'] - now() < V('snipe', 30) else lot['ends']))), remit(here, f'{name(enactor)} bids {amt} on lot #{arg0.strip()}.')) if ok else None; pemit(enactor, 'Bid placed.' if ok else f'No such lot, your own lot, or bid below {low}.')
+@set the Auction Kiosk/cmd_bid = '''
+$bid * *:
+lot = V('lot_' + arg0.strip())
+amt = int(arg1)
+low = (lot['bid'] + 1 if lot['bidder'] else lot['min']) if lot else 0
+ok = bool(lot) and lot['seller'] != enactor.id and amt >= low and transfer_credits(enactor, me, amt)
+if ok:
+    if lot['bidder']:   # refund whoever we just outbid, straight from escrow
+        transfer_credits(me, get('#' + lot['bidder']), lot['bid'])
+        pemit(get('#' + lot['bidder']), f"You are outbid on lot #{arg0.strip()}; {lot['bid']} credits refunded.")
+    ends = now() + V('snipe', 30) if lot['ends'] - now() < V('snipe', 30) else lot['ends']
+    set_attr(me, 'lot_' + arg0.strip(), dict(lot, bid=amt, bidder=enactor.id, bidder_name=name(enactor), ends=ends))
+    remit(here, f'{name(enactor)} bids {amt} on lot #{arg0.strip()}.')
+    pemit(enactor, 'Bid placed.')
+else:
+    pemit(enactor, f'No such lot, your own lot, or bid below {low}.')
+'''
 ```
 
-`settle` — the gavel, as a function attribute taking the lot number.
-Re-resolve everything from ids; winner branch pays the seller from escrow
-and delivers; no-winner branch walks the item home; either way archive to
-`history` (capped at 20) and delete the lot:
+`settle` is the gavel, written as a function attribute that takes the lot
+number. It re-resolves seller, bidder, and item from their stored ids; a
+winning lot pays the seller from escrow and delivers the item, while an unsold
+lot walks the item home. Either way it appends one history row (capped at the
+newest twenty) and deletes the lot:
 
 ```text
-@set the Auction Kiosk/settle = lot = V('lot_' + arg0); w = get('#' + lot['bidder']) if lot['bidder'] else None; s = get('#' + lot['seller']); it = get('#' + lot['item']); r = (move_to(it, w), transfer_credits(me, s, lot['bid']), remit(here, f"The gavel falls: {lot['item_name']} goes to {lot['bidder_name']} for {lot['bid']} credits.")) if w else (move_to(it, s) if it and s else None, remit(here, f"{lot['item_name']} finds no buyer and returns to {lot['seller_name']}.")); set_attr(me, 'history', (V('history', []) + [f"{lot['item_name']} -> {lot['bidder_name'] or 'unsold'} at {lot['bid']}"])[-20:]); del_attr(me, 'lot_' + arg0); result = 1
+@set the Auction Kiosk/settle = '''
+lot = V('lot_' + arg0)
+w = get('#' + lot['bidder']) if lot['bidder'] else None   # None if the bidder was destroyed
+s = get('#' + lot['seller'])
+it = get('#' + lot['item'])
+if w:
+    move_to(it, w)
+    transfer_credits(me, s, lot['bid'])
+    remit(here, f"The gavel falls: {lot['item_name']} goes to {lot['bidder_name']} for {lot['bid']} credits.")
+else:
+    if it and s:
+        move_to(it, s)
+    remit(here, f"{lot['item_name']} finds no buyer and returns to {lot['seller_name']}.")
+set_attr(me, 'history', (V('history', []) + [f"{lot['item_name']} -> {lot['bidder_name'] or 'unsold'} at {lot['bid']}"])[-20:])
+del_attr(me, 'lot_' + arg0)
+result = 1
+'''
 ```
 
-`cancel <lot>` — seller only, and only before the first bid:
+`cancel <lot>` lets the seller withdraw a lot, but only their own and only
+before the first bid has escrowed money:
 
 ```text
-@set the Auction Kiosk/cmd_cancel = $cancel *:lot = V('lot_' + arg0.strip()); ok = bool(lot) and lot['seller'] == enactor.id and not lot['bidder']; (move_to(get('#' + lot['item']), enactor), del_attr(me, 'lot_' + arg0.strip()), remit(here, f'{name(enactor)} withdraws lot #{arg0.strip()}.')) if ok else None; pemit(enactor, 'Listing withdrawn.' if ok else 'Not your lot, already bid on, or no such lot.')
+@set the Auction Kiosk/cmd_cancel = '''
+$cancel *:
+lot = V('lot_' + arg0.strip())
+ok = bool(lot) and lot['seller'] == enactor.id and not lot['bidder']
+if ok:
+    move_to(get('#' + lot['item']), enactor)
+    del_attr(me, 'lot_' + arg0.strip())
+    remit(here, f'{name(enactor)} withdraws lot #{arg0.strip()}.')
+    pemit(enactor, 'Listing withdrawn.')
+else:
+    pemit(enactor, 'Not your lot, already bid on, or no such lot.')
+'''
 ```
 
-The heartbeat — sweep due lots every 4 ticks:
+Finally the heartbeat. The `script_ticker` behavior runs `on_tick` every four
+beats, and the tick is a single sweep that hands each due lot to `settle`. It
+stays one line because it is one comprehension:
 
 ```text
 @behavior the Auction Kiosk = script_ticker, interval:4
 @set the Auction Kiosk/on_tick = [eval_attr(me, 'settle', i) for i in range(1, V('next_lot', 1)) for lot in [V('lot_' + str(i))] if lot and now() >= lot['ends']]
 ```
+
+`on_tick` runs as the kiosk itself on a timer, so it is not a reactive
+`ON_<EVENT>` hook and needs no `target` guard: nothing else in the room can
+trigger it.
 
 ## Try it
 
@@ -125,32 +226,36 @@ auction plasma torch for 50     -> "Vala lists plasma torch as lot #1 (min 50)."
 auctions                        -> #1 plasma torch — min 50, bid none, 119s left
 ```
 
-As Bob: `bid 1 60` — 60 credits leave his wallet instantly. As Cass:
-`bid 1 75` — Bob's 60 come straight back ("You are outbid on lot #1...").
-Bob tries `bid 1 70`: refused, "bid below 76". Bid again inside the last
-30 seconds and watch `auctions` show the clock jump. When the deadline
-passes, the next tick calls it:
+As Bob, `bid 1 60` moves 60 credits out of his wallet at once. As Cass,
+`bid 1 75` sends Bob's 60 straight back, and he sees "You are outbid on lot
+#1; 60 credits refunded." Bob then tries `bid 1 70` and is refused with "bid
+below 76", because the floor is now the standing 75 plus one. Bid again inside
+the last 30 seconds and `auctions` shows the clock jump outward. When the
+deadline passes, the next tick closes it:
 
 ```text
 The gavel falls: plasma torch goes to Cass for 75 credits.
 ```
 
-To watch settlement without waiting: `@set the Auction Kiosk/duration = 0`
-before listing, then `@tr the Auction Kiosk/on_tick` — the lot is due the
-moment it opens. Sellers back out with `cancel <lot>` (only before bids).
+To watch settlement without waiting, set `@set the Auction Kiosk/duration = 0`
+before listing, then run `@tr the Auction Kiosk/on_tick`: the lot is already
+due the moment it opens, and `@tr` fires the named `on_tick` attribute directly
+with the kiosk as executor. Sellers back out with `cancel <lot>`, which works
+only before the first bid.
 
 ## Going further
 
-- **House cut.** Settle with `transfer_credits(me, s, lot['bid'] * 95 //
-  100)` and leave the remainder in the kiosk — auction houses are
-  excellent credit sinks.
-- **Buyout.** A `'buyout'` key in the lot; `bid` at or above it rewrites
-  `ends` to `now()` and lets the next tick settle immediately.
-- **One-shot timers instead of a sweep.** Give each lot a companion
-  "gavel token" object with `expire(token, duration)` and an `ON_EXPIRE`
-  of `eval_attr(get('the Auction Kiosk'), 'settle', '<n>')` — persistent,
-  per-lot timers; the sweep version wins here only because sniping keeps
-  moving the deadline.
-- **Reserve prices.** A `'reserve'` above `min`: settlement checks
-  `lot['bid'] >= lot['reserve']` and otherwise runs the unsold branch —
-  bids escrow as usual, the seller just keeps the floor hidden.
+- **House cut.** Settle with `transfer_credits(me, s, lot['bid'] * 95 // 100)`
+  and leave the remainder in the kiosk. An auction house is an excellent credit
+  sink.
+- **Buyout.** Add a `'buyout'` key to the lot; a `bid` at or above it rewrites
+  `ends` to `now()` so the next tick settles immediately.
+- **One-shot timers instead of a sweep.** Give each lot a companion gavel token
+  object with [`expire`](../reference/softcode.md#fn-expire)`(token, duration)`
+  and an [`ON_EXPIRE`](../reference/softcode.md#lifecycle-hooks) of
+  `eval_attr(get('the Auction Kiosk'), 'settle', '<n>')`, for persistent per-lot
+  timers. The sweep version wins here only because sniping keeps moving the
+  deadline.
+- **Reserve prices.** Add a `'reserve'` above `min`; settlement checks
+  `lot['bid'] >= lot['reserve']` and otherwise runs the unsold branch, so bids
+  escrow as usual while the seller keeps the floor hidden.

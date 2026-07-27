@@ -59,7 +59,9 @@ class World:
         """Type one tutorial's build transcript — read from the doc — as
         the wizard."""
         for line in build_lines(doc_name):
-            await self.sim.do(self.vala, line)
+            # submit_line (not do): real input path, so '''-heredoc blocks
+            # accumulate; one-liners dispatch identically.
+            await self.sim.submit_line(self.vala, line)
         room = self.vala.location
         self.bob.location = room
         self.cass.location = room

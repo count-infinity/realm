@@ -47,7 +47,9 @@ def build_lines(doc_name: str) -> list[str]:
 
 async def run_build(sim, builder, doc):
     for line in build_lines(doc):
-        await sim.do(builder, line)
+        # submit_line (not do): real input path, so '''-heredoc blocks
+        # accumulate; one-liners dispatch identically.
+        await sim.submit_line(builder, line)
     out = "\n".join(sim.seen(builder))
     for flag in RED_FLAGS:
         assert flag not in out, f"{doc} build tripped {flag!r}:\n{out}"

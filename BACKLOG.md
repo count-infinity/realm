@@ -1622,8 +1622,15 @@ named tutorials, so none of these block showcase progress.
 
 - [ ] **Reactive `ON_*` hooks fire room-wide; the missing `if target is me:`
   guard is a systemic foot-gun (filed 2026-07-26).** Across the heredoc
-  conversion waves, **15 tutorials shipped with an unguarded reactive hook
-  that misfired on neighbors** before it was caught by empirical probing:
+  conversion waves, **20 tutorials shipped with an unguarded reactive hook
+  that misfired on neighbors** before it was caught by empirical probing
+  (wave 4 added 075 mail ON_RECEIVE, 083 message-bottle + 090 pawn ON_EXPIRE,
+  and 082 newspaper + 093 housing ON_PAYMENT). Wave 4 also surfaced a
+  distinct **partial-guard** sub-pattern: a one-liner `paid = adata('amount')
+  if target is me else 0` reads zero for a neighbor's payment but still falls
+  through to the `else` and emits refund/lecture text at the wrong player
+  (082, 093, and earlier 030). A guard on the READ is not a guard on the
+  BODY; the whole reaction must sit under `if target is me:`. Original list:
   011 mirror, 012 gift box, 014 sack (wave 1); 015 chest, 019 incinerator,
   024 loot crate, 030 toll gate, 034 climbing exit (wave 2); 051 pit trap,
   052 poison dart trap (wave 3a); 057 EMP (ON_EXPIRE), 062 aggressive mob

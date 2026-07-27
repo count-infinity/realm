@@ -120,6 +120,13 @@ Each `NNN_<item_slug>.md`:
 ## Going further      <- 2 to 4 short variation ideas
 ```
 
+**The metadata token is the item's own classification, not a default.** The
+`([now|small|major])` token must match how `docs/showcase/checklist.md`
+classifies THAT item (grep the checklist for the item number). Most are
+`[now]`, but some are `[small]` (blocked on a modest engine gap) — e.g. 79,
+84, 85. Do not blanket every doc to `[now]`; a wrong token is a false claim
+about whether the feature is buildable in softcode today.
+
 **`## Build it` is machine-executed.** The test harness's `build_lines()` reads
 every line from the ```` ```text ```` fenced blocks under the literal heading
 `## Build it`, up to the next `##` heading (keeping blank lines inside a block,
