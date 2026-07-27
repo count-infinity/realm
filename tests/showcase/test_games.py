@@ -112,7 +112,9 @@ def parlor_and_staff(sim):
 async def build(sim, player, lines):
     """Run a Build-it transcript; fail loudly if any line misfires."""
     for line in lines:
-        await sim.do(player, line)
+        # submit_line (not do): real input path, so '''-heredoc blocks
+        # accumulate; one-liners dispatch identically.
+        await sim.submit_line(player, line)
         out = "\n".join(sim.seen(player))
         for marker in BUILD_FAILURE_MARKERS:
             assert marker not in out, f"build line {line!r} failed: {out!r}"

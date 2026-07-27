@@ -138,7 +138,9 @@ async def run_lines(sim, player, lines):
     deterministic resolver pinned (a build's @reload re-installs the
     GURPS dice resolver)."""
     for line in lines:
-        await sim.do(player, line)
+        # submit_line (not do): real input path, so '''-heredoc blocks
+        # accumulate; one-liners dispatch identically.
+        await sim.submit_line(player, line)
         set_check_resolver(level_resolver)
 
 

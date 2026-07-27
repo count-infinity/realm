@@ -1622,10 +1622,15 @@ named tutorials, so none of these block showcase progress.
 
 - [ ] **Reactive `ON_*` hooks fire room-wide; the missing `if target is me:`
   guard is a systemic foot-gun (filed 2026-07-26).** Across the heredoc
-  conversion waves, **20 tutorials shipped with an unguarded reactive hook
+  conversion waves, **22 tutorials shipped with an unguarded reactive hook
   that misfired on neighbors** before it was caught by empirical probing
   (wave 4 added 075 mail ON_RECEIVE, 083 message-bottle + 090 pawn ON_EXPIRE,
-  and 082 newspaper + 093 housing ON_PAYMENT). Wave 4 also surfaced a
+  and 082 newspaper + 093 housing ON_PAYMENT; wave 5 added 095 durability
+  ON_USE — a two-welder probe showed using one welder wore down and messaged
+  about the OTHER — and 100 poker ON_PAYMENT). Beyond those, wave 5 fixed a
+  steady drip of `target == me` → `target is me` on already-wrapping guards
+  (103, 105, 106, 113, 114) — the identity-vs-equality half of the same
+  convention. Wave 4 also surfaced a
   distinct **partial-guard** sub-pattern: a one-liner `paid = adata('amount')
   if target is me else 0` reads zero for a neighbor's payment but still falls
   through to the `else` and emits refund/lecture text at the wrong player

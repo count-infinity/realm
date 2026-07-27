@@ -1,65 +1,80 @@
 # 097. Barter NPC
 
-> Checklist item 97 — [now] — *want-list attrs, ON_RECEIVE matching*
+> Checklist item 97 ([now]): *want-list attrs, ON_RECEIVE matching*
 
-**What you'll build:** Rook the Tinker, who has no use for your money:
-hand him anything off his want-list and he presses a counter-gift into
-your hands on the spot. Item for item, wallets untouched.
+**What you'll build:** Rook the Tinker, who has no use for your money. Hand
+him anything off his want-list and he presses a counter-gift into your hands on
+the spot, item for item, with both wallets untouched.
 
-**Concepts:** a want-list as a data attribute (`[[want-tag,
-counter-gift], ...]`); `give` + `ON_RECEIVE` as the entire trade
-interface; **tag matching** so whole categories barter (any
-`scrap_metal`-tagged thing, not one blessed item name); counter-gift
-delivery via the create-at-self + `teleport_obj` idiom; the push-back
+**Concepts:** a want-list as a data attribute (rows of `[want-tag,
+counter-gift]`); `give` plus [`ON_RECEIVE`](../reference/softcode.md#lifecycle-hooks)
+as the whole trade interface; tag matching, so a whole category barters rather
+than one blessed item name; counter-gift delivery by the create-at-self plus
+[`teleport_obj`](../reference/softcode.md#fn-teleport_obj) idiom; the push-back
 pattern for refusals.
 
 ## How it works
 
-A barter NPC is a shopkeeper with the money deleted — which makes it
-*simpler*, not harder. There are no prices, no wallet checks, no till:
-the whole trade is one `give` and one reaction.
+A barter NPC is a [shopkeeper](063_shopkeeper.md) with the money deleted, which
+makes it simpler rather than harder. There are no prices, no wallet checks, and
+no till: the whole trade is one `give` and one reaction. This section walks the
+two moving parts, the want-list Rook reads and the receive hook that acts on it,
+and says why each takes the shape it does.
 
-**The want-list is data, matched by tag.** `wants` holds rows of
-`[want-tag, counter-gift-name]`. Matching by **tag** rather than name is
-the load-bearing choice: tag your world's junk `scrap_metal` and every
-bent plate, snapped strut and shredded hull panel is currency here,
-without Rook's script ever learning their names. (The shopkeeper's
-`value` attr prices *everything*; a barter tag *classifies* everything —
-same trick, different axis.)
+### How Rook decides what to take
 
-**`ON_RECEIVE` is the deal.** `give <thing> to Rook the Tinker` works
-because Rook is `npc`-tagged, and his recipient-side hook fires after
-the item lands, with `adata('item')` naming exactly what arrived. The
-script walks the want-list for the first row whose tag the item
-carries:
+`wants` holds rows of `[want-tag, counter-gift-name]`, and Rook matches an
+offered item by its **tag**, never by its value or its name. That is the
+load-bearing choice. Tag your world's junk `scrap_metal` and every bent plate,
+snapped strut, and shredded hull panel is currency here, without Rook's script
+ever learning their names. The [shopkeeper](063_shopkeeper.md)'s `value`
+attribute prices everything on a single numeric axis; a barter tag classifies
+everything into buckets instead, and Rook reads no `value` at all.
 
-- **Match:** stamp the item `kept` — Rook hoards his takings, and the
-  stamp is how the hoard is marked. (This is the one spot where a
-  barter NPC used to be subtle: with no way to be told what had just
-  landed, the hook had to find the arrival by elimination — the one
-  thing in Rook's hands not yet stamped `kept` — which made the stamp
-  load-bearing for the *next* trade's scan as well. It doesn't have to
-  be any more. `adata('item')` says which object arrived, so `kept`
-  means "mine" and nothing else, and Rook can hold whatever he likes
-  without confusing his own till.) Then conjure the counter-gift.
-  `create_obj` refuses to create directly into another player's pockets
-  — the documented engine behavior — so Rook crafts it *in his own
-  hands* and `teleport_obj`s it over: handing over what you hold is
-  always yours to do.
-- **No match:** the item goes straight back (`teleport_obj` again) with
-  a spoken refusal. A barter counter that silently keeps non-matching
-  goods is a theft bug, the same rule every escrow build in this arc
-  follows.
+### How the deal happens
 
-**Wallets are never touched.** No `transfer_credits`, no
-`adjust_credits`, no `pay` anywhere in the build — the trade is real
-goods for real goods, which also means it works for characters with
-zero credits, which is exactly who barter economies are for.
+`give <thing> to Rook the Tinker` works because Rook is `npc`-tagged, so `give`
+finds him as a recipient. The item lands in his hands, and then his
+[`ON_RECEIVE`](../reference/softcode.md#lifecycle-hooks) hook fires as the
+after-the-fact reaction (see [action phases](../design/action-phases.md): the
+effect ran first, and the hook observes the result). The payload names exactly
+what arrived: [`adata('item')`](../reference/softcode.md#event-data-namespace)
+is the object Rook was just handed. The hook walks the want-list for the first
+row whose tag the item carries with
+[`has_tag`](../reference/softcode.md#fn-has_tag), and the two outcomes are the
+two branches at the end:
+
+- **A match.** Rook stamps the item `kept` with
+  [`set_attr`](../reference/softcode.md#fn-set_attr), so his own takings are
+  marked as his, then conjures the counter-gift.
+  [`create_obj`](../reference/softcode.md#fn-create_obj) refuses to create
+  directly into another player's pockets, because creation is confined to the
+  executor's own location or somewhere it controls. So Rook mints the gift in
+  his own hands and [`teleport_obj`](../reference/softcode.md#fn-teleport_obj)s
+  it across, since handing over what you already hold is always yours to do.
+- **No match.** The item goes straight back, again with `teleport_obj`, and
+  Rook speaks a refusal. A counter that silently keeps non-matching goods would
+  be a theft bug, the same rule every escrow build in this arc follows, such as
+  the [job board](094_job_board.md) that bounces the wrong delivery.
+
+### How Rook knows the item was handed to him
+
+`event:on_receive` is heard by every object in the room, not only the recipient
+(see [Guard on `target`](../reference/softcode.md#guard-on-target)), so the hook
+gates on [`target is me`](../reference/softcode.md#guard-on-target) before it
+reacts. Skip that guard and a second trader in the same yard would pay out a
+cloak for scrap that was handed to someone else. Write `is`, not `==`: it is an
+identity check.
+
+Wallets are never touched anywhere in the build. There is no
+`transfer_credits`, no `adjust_credits`, and no `pay`. The trade is real goods
+for real goods, which also means it works for a character with zero credits,
+who is exactly who a barter economy is for.
 
 ## Build it
 
-The yard, the tinker, and his list — two rows: scrap buys a cloak,
-power cells buy a lantern:
+The yard and the tinker come first. Rook is a plain `npc`-tagged object dropped
+into the room, so `give` can find him:
 
 ```text
 @dig The Tinker Yard
@@ -67,25 +82,52 @@ power cells buy a lantern:
 @create Rook the Tinker
 @tag Rook the Tinker = npc
 drop Rook the Tinker
+```
+
+Give him his want-list as data. `@set` parses JSON, so this saves as a real
+list of rows, each `[want-tag, counter-gift]`: scrap buys a cloak, power cells
+buy a lantern.
+
+```text
 @set Rook the Tinker/wants = [["scrap_metal", "a patched thermal cloak"], ["power_cell", "a tinkered lantern"]]
 ```
 
-The menu, for the asking:
+The menu, for the asking. `$wants` is a plain command anyone can type, so it
+needs no target guard; it prints the header and then one line per want-row read
+off Rook with [`V`](../reference/softcode.md#fn-v), each sent privately with
+[`pemit`](../reference/softcode.md#fn-pemit):
 
 ```text
-@set Rook the Tinker/cmd_wants = $wants:pemit(enactor, 'Rook trades goods for goods. No coin.'); [pemit(enactor, f'  anything {w} -> {g}') for w, g in V('wants', [])]
+@set Rook the Tinker/cmd_wants = '''
+$wants:
+pemit(enactor, 'Rook trades goods for goods. No coin.')
+[pemit(enactor, f'  anything {w} -> {g}') for w, g in V('wants', [])]
+'''
 ```
 
-And the deal itself — his receive hook. `it` is the arrival, `deal` is
-every want-row whose tag it carries (the first one wins), and the two
-outcomes are the two conditionals at the end:
+Now the deal itself, his receive hook. The whole body sits under the
+`target is me` guard. Inside it, `it` is the item that arrived, `deal` collects
+the counter-gifts of every want-row whose tag `it` carries (the first one
+wins), and the `if`/`else` at the end is the two outcomes: swap or hand back.
 
 ```text
-@set Rook the Tinker/on_receive = it = adata('item') if target is me else None; deal = [[w, g] for w, g in V('wants', []) if it is not None and has_tag(it, w)]; [(set_attr(it, 'kept', 1), teleport_obj(c, enactor), say(f'A fair swap: {name(c)} for your {name(it)}.')) for w, g in ([deal[0]] if deal else []) for c in [create_obj(g, tags=['thing'], location=me)]]; (teleport_obj(it, enactor), say('No use to me. Ask me what I want.')) if it is not None and not deal else None
+@set Rook the Tinker/on_receive = '''
+if target is me:  # event:on_receive is heard by the whole room, so gate on the target
+    it = adata('item')
+    deal = [g for w, g in V('wants', []) if has_tag(it, w)]
+    if deal:
+        set_attr(it, 'kept', 1)  # mark the takings as Rook's own
+        gift = create_obj(deal[0], location=me)  # in his own hands; create_obj refuses a stranger's pockets
+        teleport_obj(gift, enactor)
+        say(f'A fair swap: {name(gift)} for your {name(it)}.')
+    else:
+        teleport_obj(it, enactor)  # no match: hand it straight back, never keep it
+        say('No use to me. Ask me what I want.')
+'''
 ```
 
-Something to trade with (any object carrying the tag qualifies — that's
-the point):
+Finally, something to trade with. Any object carrying the tag qualifies, which
+is the whole point, so the plate needs no special name:
 
 ```text
 @create a bent hull plate
@@ -95,35 +137,34 @@ the point):
 ## Try it
 
 ```text
-wants
+> wants
     Rook trades goods for goods. No coin.
       anything scrap_metal -> a patched thermal cloak
       anything power_cell -> a tinkered lantern
 
-give a bent hull plate to Rook the Tinker
-    Rook the Tinker says, "A fair swap: a patched thermal cloak for
-    your a bent hull plate."
+> give a bent hull plate to Rook the Tinker
+    Rook the Tinker says, "A fair swap: a patched thermal cloak for your a bent hull plate."
 ```
 
-The cloak is in your pack, the plate is in Rook's hoard, and — check
-`credits` before and after — not one credit moved on either side. Hand
-him something off-list (a ration bar, your boots) and it comes straight
-back: "No use to me. Ask me what I want." Any *other*
-`scrap_metal`-tagged thing in the world trades just the same, without
-touching his script.
+The cloak is now in your pack and the plate sits in Rook's hands stamped
+`kept`. Check `credits` before and after and not one credit moved on either
+side. Hand him something off-list, a ration bar or your boots, and it comes
+straight back with "No use to me. Ask me what I want." Any other
+`scrap_metal`-tagged thing in the world trades just the same, without touching
+his script.
 
 ## Going further
 
 - **Exchange rates.** Rows of `[want-tag, count, gift]` and a `pile_<tag>`
-  counter on Rook: stamp arrivals, count them, and only gift when the
-  pile hits `count` — "three scrap for one cloak" in one extra attr.
-- **Finite stock.** Give the gift rows a `stock` count that decrements
-  to refusal ("Come back next week.") and let a `script_ticker`
-  replenish it — the shopkeeper restock heartbeat (063) without money.
-- **Want what he lacks.** Have `on_receive` re-derive the want-list from
-  what he's short of (`len([o for o in contents(me) if has_tag(o, w)])`)
-  — a tinker who stops wanting scrap once he's drowning in it is a tiny
+  counter on Rook: stamp arrivals, count them, and only gift when the pile hits
+  `count`, so "three scrap for one cloak" is one extra attribute.
+- **Finite stock.** Give the gift rows a `stock` count that decrements to a
+  refusal ("Come back next week.") and let a `script_ticker` replenish it, the
+  [shopkeeper](063_shopkeeper.md) restock heartbeat without any money.
+- **Want what he lacks.** Have `on_receive` re-derive the want-list from what
+  he is short of (`len([o for o in contents(me) if has_tag(o, w)])`), so a
+  tinker who stops wanting scrap once he is drowning in it becomes a tiny
   economy simulation.
-- **Chained crafting.** Make the counter-gift itself tagged for the
-  *next* NPC's want-list — a barter chain across the zone is a quest
-  line with no quest system, the trade-up folktale as world design.
+- **Chained crafting.** Make the counter-gift itself tagged for the next NPC's
+  want-list, so a barter chain across the zone is a quest line with no quest
+  system, the trade-up folktale as world design.
