@@ -1622,18 +1622,24 @@ named tutorials, so none of these block showcase progress.
 
 - [ ] **Reactive `ON_*` hooks fire room-wide; the missing `if target is me:`
   guard is a systemic foot-gun (filed 2026-07-26).** Across the heredoc
-  conversion waves, **10 tutorials shipped with an unguarded reactive hook
+  conversion waves, **15 tutorials shipped with an unguarded reactive hook
   that misfired on neighbors** before it was caught by empirical probing:
   011 mirror, 012 gift box, 014 sack (wave 1); 015 chest, 019 incinerator,
   024 loot crate, 030 toll gate, 034 climbing exit (wave 2); 051 pit trap,
-  052 poison dart trap (wave 3, both damage traps — two armed traps in one
-  room both sprang on one trigger). Each fired its effect (announce / loot /
-  refund lecture / fall or trap damage) when a *different* object in the room
-  was acted on, because `_fire_event_triggers` iterates room + contents +
-  target. Note the correct guard differs by hook: `target is me` for
-  ON_GET/ON_OPEN (target is the object), but a same-room `loc(enactor) is
-  loc(me)` / `enactor`-filter for ON_ENTER (target is the room) — another
-  reason it is error-prone. The guard is easy to forget and invisible until
+  052 poison dart trap (wave 3a); 057 EMP (ON_EXPIRE), 062 aggressive mob
+  (ON_RECEIVE), 063 shopkeeper + 064 bartender (ON_PAYMENT, since shops and
+  taverns naturally cluster payees), 073 boss (ON_HITPRCNT) (wave 3b). The
+  spread of hook types — ON_GET/OPEN/ENTER/EXPIRE/RECEIVE/PAYMENT/HITPRCNT —
+  shows this is not tied to any one event. Each fired its effect (announce /
+  loot / refund lecture / trap damage / phase advance) when a *different*
+  object in the room was acted on, because `_fire_event_triggers` iterates
+  room + contents + target. Note the correct guard differs by hook: `target
+  is me` for ON_GET/ON_OPEN/ON_EXPIRE/ON_PAYMENT/ON_HITPRCNT (target is the
+  object), but a same-room `loc(enactor) is loc(me)` / `enactor`-filter for
+  ON_ENTER (target is the room) — another reason it is error-prone; a few
+  hooks (zone-master global witnesses, ON_FAIL) deliberately take no target
+  guard, so a blanket lint must special-case them. The guard is easy to
+  forget and invisible until
   a second same-type object shares the room. Options: (a) a builder-facing
   lint/`@examine` warning when an `ON_<EVENT>` body references loc/remit/
   state-mutation without a `target is me`/`atype` guard; (b) a first-class
@@ -1641,6 +1647,17 @@ named tutorials, so none of these block showcase progress.
   room-wide). Decide deliberately; (b) changes semantics. Until then the
   guard convention + `docs/showcase/CONVENTIONS.md` #guard-on-target is the
   only defense.
+
+- [ ] **The `halt` tag silently does NOT stop engine-driven behaviors
+  (filed 2026-07-26, 060 wandering NPC).** `halt` freezes softcode execution
+  (`run_object_script` checks it) — `$`/`^listen` triggers and `script_ticker`
+  `on_tick` — but the behavior tick loop (`realm/server/game.py` ~1012,
+  `behavior_owners()`) never consults `is_halted`, so a `wandering`/`patrol`/
+  `aggressive` NPC keeps acting while "halted". Probe: a `halt`-tagged wanderer
+  moved on all 30 ticks. A builder trap (halt reads as a universal freeze).
+  Fix: either make the behavior loop honor `halt`, or rename/scope the tag so
+  its softcode-only meaning is explicit. 060 now documents `@behavior/remove`
+  as the real stop.
 
 - [ ] **`exits()` docstring says "Open exits" but returns closed ones too
   (filed 2026-07-26, 048 gas bomb).** The softcode `exits()` returns every

@@ -67,11 +67,13 @@ class ArcWorld:
         """Type one tutorial's Build-it transcript, read from its doc."""
         lines = build_lines(doc_name)
         # 086's own first lines dig the square; the rest need the prologue.
+        # submit_line (not do): real input path, so '''-heredoc blocks
+        # accumulate; one-liners dispatch identically.
         if PROLOGUE[0] not in lines:
             for line in PROLOGUE:
-                await self.sim.do(self.vala, line)
+                await self.sim.submit_line(self.vala, line)
         for line in lines:
-            await self.sim.do(self.vala, line)
+            await self.sim.submit_line(self.vala, line)
         self.square = self.find("Market Square")
         assert self.square is not None
         assert self.vala.location is self.square

@@ -118,7 +118,9 @@ def _make_world(*, role="builder"):
 
     async def run(lines, player=staff):
         for line in lines:
-            await sim.do(player, line)
+            # submit_line (not do): real input path, so '''-heredoc blocks
+            # accumulate; one-liners dispatch identically.
+            await sim.submit_line(player, line)
             for msg in sim.seen(player):
                 if any(mark in msg for mark in _ERROR_MARKS):
                     errors.append(f"{line!r} -> {msg!r}")

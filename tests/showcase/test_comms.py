@@ -69,7 +69,9 @@ async def build(sim, doc_name):
     builder = sim.player("Bob", location=limbo)
     builder.add_tag("builder")
     for line in build_lines(doc_name):
-        await sim.do(builder, line)
+        # submit_line (not do): real input path, so '''-heredoc blocks
+        # accumulate; one-liners dispatch identically.
+        await sim.submit_line(builder, line)
     out = "\n".join(sim.seen(builder))
     for flag in BUILD_RED_FLAGS:
         assert flag not in out, f"build tripped {flag!r}:\n{out}"
