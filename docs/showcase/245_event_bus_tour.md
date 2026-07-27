@@ -209,14 +209,23 @@ name free. `targeting` chooses the audience:
   that room's `reach` lock.
 - `'zone'` — every room in the target's zone (an alarm).
 
+Be precise about what the wider two buy you. The **message** reaches those
+rooms, and each room's wards get the two-pass, so an action can be vetoed
+at either end. The softcode `ON_<EVENT>` hook, though, fires in the
+**actor's room only**: a witness two rooms away reads the klaxon line and
+never runs its `on_alert`. Put a reactor where the action is, or give the
+far room a hook of its own to trigger.
+
 The action's **actor** becomes the `enactor` of every reaction it
 triggers (the actor never fires its *own* `ON_<EVENT>` — the bell below
 does not hear itself), so a witness always knows who set the event off.
 
 An `act()`ed event binds the data namespace too: `target` is the object
-you passed, and the message lands as `adata('message')`. `act()` has no
-parameter for arbitrary keys, so a custom event's payload is its message —
-stamp richer state on an attribute and let the witness read it.
+you passed, and the message lands as `adata('message')`. Pass `extra` for
+a structured payload and every key becomes an `adata(key)` the witness
+reads; pass `tags` and a ward can key on them with `has_atag`. Item
+[252](252_custom_action.md) builds an event that carries both and gets
+edited in flight.
 
 ## Build it
 

@@ -30,6 +30,10 @@ if TYPE_CHECKING:
 # realm/persistence/keyid.py), never a bare @set/set_attr.
 PROTECTED_ATTRS = {'password', 'keyid'}
 
+# act() payload keys the propagation layer owns; a caller's copy is dropped
+# rather than allowed to shadow the message or the remote-room routing list.
+_ACT_RESERVED_KEYS = {'message', 'remote_rooms'}
+
 
 # The sigil that marks a get()/reference spec as a friendly keyid lookup
 # ('$banknet_core') rather than a name — game-tunable like the trigger and
@@ -1671,7 +1675,9 @@ class ScriptFunctions:
             self.command_queue.append(('oemit', exclude_obj, str(message)))
 
     def act(self, target: GameObject | str, message: str = "",
-            targeting: str = "remote", action_type: str = "event:act") -> bool:
+            targeting: str = "remote", action_type: str = "event:act",
+            extra: dict | None = None,
+            tags: list | set | tuple | None = None) -> bool:
         """
         Fire a PROPAGATED action that can reach BEYOND your own room —
         unlike pemit/remit (which just deliver text), this runs the
@@ -1693,23 +1699,48 @@ class ScriptFunctions:
         ``action_type`` you invent needs no registration: fire
         ``'event:toll'`` and any object with an ``on_toll`` attribute reacts.
 
+        ``extra`` is the event's payload: each key becomes an
+        ``adata(key)`` a reactor can read, and an ``on_check`` ward can
+        rewrite it with ``set_adata``. The ``message`` is always present as
+        ``adata('message')``; keys named ``message`` or ``remote_rooms``
+        are reserved and ignored. ``tags`` are action tags a ward can key
+        on with ``has_atag``.
+
+        Note that one action object crosses every leg of a ``'zone'`` or
+        ``'remote'`` send, so a ward that rewrites the payload in one room
+        changes what the *later* rooms receive. That is the mechanism
+        behind a containment bulkhead, and a surprise if you expected each
+        room to be judged independently.
+
         Example:
             # scry — watch a distant room
             act(thing, 'A scrying eye blinks open.', targeting='remote')
 
-            # a zone-wide alarm every room can react to with on_alert
+            # a zone-wide alarm: the message reaches every room in the
+            # zone, and each room's wards get the two-pass. The softcode
+            # ON_<EVENT> hook fires in the actor's room only.
             act(intruder, 'Klaxons wail!', targeting='zone',
                 action_type='event:alert')
 
             # a custom local event: objects with an on_toll hook answer
             act(me, 'A deep bell tolls.', targeting='room',
                 action_type='event:toll')
+
+            # a payload the reactors read and a ward can rewrite
+            act(me, 'Coolant vents!', targeting='zone',
+                action_type='event:breach',
+                extra={'severity': 8}, tags=['hazard'])
         """
         obj = self._resolve(target)
         if obj is None:
             return False
+        payload = {}
+        if isinstance(extra, dict):
+            payload = {str(k): v for k, v in extra.items()
+                       if str(k) not in _ACT_RESERVED_KEYS}
         self.command_queue.append(
-            ('act', obj, (str(message), str(targeting), str(action_type))))
+            ('act', obj, (str(message), str(targeting), str(action_type),
+                          payload, [str(t) for t in (tags or [])])))
         return True
 
     def oob(self, target: GameObject | str, package: str, data: dict) -> None:

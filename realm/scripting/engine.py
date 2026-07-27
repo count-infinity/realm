@@ -1089,9 +1089,10 @@ class ScriptEngine:
                     from realm.server.puppet import force_command
                     await force_command(self.dispatcher, obj, message)
             elif kind == 'act':
-                msg, targeting, action_type = message
+                msg, targeting, action_type, payload, act_tags = message
                 await self._propagate_act(
-                    functions.executor, obj, msg, targeting, action_type)
+                    functions.executor, obj, msg, targeting, action_type,
+                    payload, act_tags)
             elif kind == 'cast':
                 from realm.core.events import fire_event
                 from realm.core.propagation import _room_of
@@ -1159,7 +1160,7 @@ class ScriptEngine:
         functions.command_queue.clear()
 
     async def _propagate_act(self, actor, target, message, targeting,
-                             action_type):
+                             action_type, payload=None, act_tags=None):
         """Drive a softcode act() through propagation with a targeting
         vocabulary — the multiroom surface (scry, remote cast, zone alarm).
         Every leg (origin room + each destination) gets the two-pass, so
@@ -1195,14 +1196,16 @@ class ScriptEngine:
             action = Action(
                 actor=actor, target=target, action_type=action_type,
                 chain=remote_chain(lambda a: a.extra.get('remote_rooms') or []),
-                tags={SCRIPTED},
-                extra={'message': message, 'remote_rooms': allowed},
+                tags={SCRIPTED} | set(act_tags or ()),
+                extra={**(payload or {}),
+                       'message': message, 'remote_rooms': allowed},
             )
             action.add_message('remote', message, success_only=True)
         else:  # 'room' — local, but propagated (wards apply)
             action = Action(
                 actor=actor, target=target, action_type=action_type,
-                tags={SCRIPTED}, extra={'message': message},
+                tags={SCRIPTED} | set(act_tags or ()),
+                extra={**(payload or {}), 'message': message},
             )
             action.add_message('room', message, success_only=True)
 
