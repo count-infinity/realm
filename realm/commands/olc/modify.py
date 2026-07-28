@@ -234,7 +234,7 @@ async def cmd_set(ctx: CommandContext) -> None:
         return
 
     from realm.core.attrflags import writable_attr
-    ok, reason = writable_attr(target, attr_name)
+    ok, reason = writable_attr(target, attr_name, ctx.player)
     if not ok:
         await ctx.session.send(reason)
         return
@@ -286,10 +286,13 @@ async def cmd_wipe(ctx: CommandContext) -> None:
     if not await require_control(ctx, target):
         return
 
-    # Clear all attributes (safe-flagged ones survive the wipe)
-    from realm.core.attrflags import has_attr_flag
+    # Clear all attributes, but honor the same write gate as @set: safe
+    # attrs always survive, and system attrs survive unless the wiper is
+    # admin+ (so a builder's @wipe can't strip a character's stats).
+    from realm.core.attrflags import writable_attr
     attrs = target.db.all()
-    keys = [k for k in attrs if not has_attr_flag(target, k, 'safe')]
+    keys = [k for k in attrs
+            if writable_attr(target, k, ctx.player)[0]]
     count = len(keys)
 
     for key in keys:
@@ -677,8 +680,10 @@ async def cmd_detail(ctx: CommandContext) -> None:
 async def cmd_attr(ctx: CommandContext) -> None:
     """
     Flag attributes: secret (controllers-only read), visual (shown on
-    examine), safe (writes refused), no_clone (skipped by @clone),
-    public (callable AS this object via call() by non-controllers).
+    examine), safe (writes refused for everyone), system (writes refused
+    below admin+ — stats are stamped this at creation), no_clone (skipped
+    by @clone), public (callable AS this object via call() by
+    non-controllers).
 
     Usage: @attr <object>/<attribute> = <flag>[, <flag>...]
            @attr <object>/<attribute> = !<flag>     (remove a flag)

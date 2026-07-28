@@ -269,7 +269,7 @@ class ScriptFunctions:
         if str(attr_name) in PROTECTED_ATTRS:
             return False
         from realm.core.attrflags import writable_attr
-        ok, _reason = writable_attr(target, str(attr_name))
+        ok, _reason = writable_attr(target, str(attr_name), self.executor)
         if not ok:
             return False
         target.db.set(attr_name, value)
@@ -298,6 +298,12 @@ class ScriptFunctions:
         """
         target = self._controlled(obj)
         if target is None:
+            return False
+        # Deleting a safe/system attr is a write — gate it like set_attr,
+        # so a system-owned stat can't be zeroed by deletion.
+        from realm.core.attrflags import writable_attr
+        ok, _reason = writable_attr(target, str(attr_name), self.executor)
+        if not ok:
             return False
         if attr_name in target.db:
             target.db.delete(attr_name)

@@ -163,6 +163,12 @@ class GurpsSystem(GameSystem):
         player.db.hp = strength
         player.db.max_hp = strength
         player.db.dodge = 7 + (dexterity + health) // 8
+        # Lock the characteristics and their derived stats as system-owned.
+        # (apply_class already stamped the four when a template was chosen;
+        # this covers a point-buy path and the derived values either way.)
+        from realm.core.attrflags import mark_system
+        mark_system(player, 'strength', 'dexterity', 'intelligence',
+                    'health', 'hp', 'max_hp', 'dodge')
         template = player.db.get('template') or 'adventurer'
         return f"You are ready — a {template} walks into the world."
 

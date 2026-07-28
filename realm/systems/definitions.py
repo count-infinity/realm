@@ -102,12 +102,18 @@ def apply_class(player: GameObject, blurb_stats_skills: tuple[str, dict, dict],
     """Write a class definition's stats and skills onto a character; record
     the chosen class under ``marker`` (GURPS uses ``template``, D20
     ``character_class``)."""
+    from realm.core.attrflags import mark_system
     _blurb, stats, skills = blurb_stats_skills
     for stat, value in stats.items():
         player.db.set(stat, value)
     for skill, level in skills.items():
         player.db.set(f"skill_{skill}", level)
     player.db.set(marker, name)
+    # A class's stats are the character's characteristics — system-owned, so
+    # neither the player nor a plain builder can rewrite them after creation.
+    # Skills stay writable: they are earned and spent through the CP economy.
+    if stats:
+        mark_system(player, *stats.keys())
 
 
 __all__ = [

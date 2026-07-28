@@ -166,6 +166,25 @@ def has_entitlement(obj: GameObject | None, entitlement: str) -> bool:
     return entitlement in entitlements_of(obj)
 
 
+def has_entitlement_delegated(obj: GameObject | None, entitlement: str,
+                              _depth: int = 0) -> bool:
+    """Whether ``obj`` holds ``entitlement`` directly OR by owner delegation.
+
+    A script runs AS an object, and an object wields its owner's authority
+    (``controls`` rule 6). So "does this writer act with admin power" must
+    walk the owner chain, exactly as ``controls`` does — otherwise an
+    admin's own chargen wizard, acting as an ordinary gadget, would be
+    treated as unprivileged. Cycle/depth-guarded like ``controls``.
+    """
+    if obj is None:
+        return False
+    if has_entitlement(obj, entitlement):
+        return True
+    if obj.owner is not None and _depth < 4:
+        return has_entitlement_delegated(obj.owner, entitlement, _depth + 1)
+    return False
+
+
 def role_conferred_by_tag(tag: str) -> Role | None:
     """The role a privilege tag grants, or ``None`` for an ordinary tag."""
     return ROLE_TAGS.get(tag.lower())

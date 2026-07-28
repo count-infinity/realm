@@ -27,6 +27,7 @@ from realm.permissions.roles import (
     entitlements_of,
     get_role,
     has_entitlement,
+    has_entitlement_delegated,
     has_permission,
 )
 
@@ -40,6 +41,7 @@ __all__ = [
     # Entitlements
     "entitlements_of",
     "has_entitlement",
+    "has_entitlement_delegated",
     "is_entitlement",
     "ALL_ENTITLEMENTS",
     "reload_role_defs",

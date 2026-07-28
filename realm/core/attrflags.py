@@ -4,6 +4,11 @@ Per-attribute flags — the five that earn their keep (of PennMUSH's ~30):
     secret    unreadable except by controllers (softcode + @examine)
     visual    shown on plain player ``examine``
     safe      @set/@wipe/set_attr refuse until the flag is cleared
+    system    system-owned: only ADMIN+ (CONTROL_ALL, delegated) may write
+              or delete it. Character stats (ST/DX/HT…) are stamped this at
+              creation so neither the player nor a plain builder can rewrite
+              them; the native GameSystem, writing raw ``db.set`` in Python,
+              is unaffected (it is the "system" that owns them).
     no_clone  skipped by @clone / prototype extraction
     public    callable AS this object via call() by non-controllers — the
               deliberate cross-owner "public method" opt-in (co-owned callers
@@ -26,7 +31,7 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 FLAGS_ATTR = "attr_flags"
-VALID_FLAGS = ("secret", "visual", "safe", "no_clone", "public")
+VALID_FLAGS = ("secret", "visual", "safe", "system", "no_clone", "public")
 
 
 def attr_flags(obj: GameObject, name: str) -> set[str]:
@@ -62,12 +67,45 @@ def readable_attr(obj: GameObject, name: str,
     return controls(reader, obj)
 
 
-def writable_attr(obj: GameObject, name: str) -> tuple[bool, str]:
-    """safe attrs refuse writes; returns (ok, reason)."""
+def writable_attr(obj: GameObject, name: str,
+                  writer: GameObject | None = None) -> tuple[bool, str]:
+    """May this attribute be written (or deleted)? Returns (ok, reason).
+
+    - ``safe`` refuses everyone until cleared (a manual, per-attr brake).
+    - ``system`` refuses everyone below ADMIN+ (``CONTROL_ALL``, walked up
+      the writer's owner chain so an admin's own script still qualifies).
+      ``writer=None`` means no authenticated writer in context, so a
+      system attr is refused — the native GameSystem never calls this; it
+      writes ``db.set`` directly.
+    """
     if has_attr_flag(obj, name, 'safe'):
         return False, (f"'{name}' is flagged safe — "
                        f"@attr it !safe to modify it.")
+    if has_attr_flag(obj, name, 'system'):
+        from realm.permissions.entitlements import CONTROL_ALL
+        from realm.permissions.roles import has_entitlement_delegated
+        if not has_entitlement_delegated(writer, CONTROL_ALL):
+            return False, (f"'{name}' is system-owned and cannot be changed "
+                           f"here.")
     return True, ""
+
+
+def add_attr_flag(obj: GameObject, name: str, flag: str) -> None:
+    """Union one flag onto an attribute, keeping any it already has.
+
+    ``set_attr_flags`` replaces the whole flag list; this is the additive
+    form for stamping a single flag (e.g. chargen marking each stat
+    ``system``) without clobbering an unrelated ``secret``/``visual``.
+    """
+    current = attr_flags(obj, name)
+    if flag not in current:
+        set_attr_flags(obj, name, sorted(current | {flag}))
+
+
+def mark_system(obj: GameObject, *names: str) -> None:
+    """Stamp each named attribute ``system`` (chargen locking stats)."""
+    for name in names:
+        add_attr_flag(obj, name, 'system')
 
 
 def visual_attrs(obj: GameObject) -> list[str]:
@@ -91,5 +129,6 @@ def cloneable_attrs(attrs: dict, flag_table: dict | None) -> dict:
 
 
 __all__ = ["FLAGS_ATTR", "VALID_FLAGS", "attr_flags", "has_attr_flag",
-           "set_attr_flags", "readable_attr", "writable_attr",
+           "set_attr_flags", "add_attr_flag", "mark_system",
+           "readable_attr", "writable_attr",
            "visual_attrs", "cloneable_attrs"]

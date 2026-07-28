@@ -3633,3 +3633,50 @@ Findings from the CoffeeMud survey worth keeping (full report in agent log):
   behaviors a typed param spec + blurb; that metadata is also exactly what a
   future drag-drop mob-builder GUI needs for its palette (compose = @behavior,
   save = prototype/165 + @export/pack).
+
+## SHIPPED 2026-07-27: system-owned attributes (the `system` flag)
+
+Character stats are now system-owned. `attrflags.py` gained a `system` flag:
+`writable_attr(obj, name, writer)` refuses it below ADMIN+ (`CONTROL_ALL`,
+walked up the writer's owner chain via new `has_entitlement_delegated`, so an
+admin's own script still qualifies). Wired through every write/delete path —
+`@set`, `@wipe` (per-key now, replacing the safe-only skip), softcode
+`set_attr` AND `del_attr` (the latter previously gated nothing, a hole). The
+native GameSystem writes raw `db.set` and is unaffected — it IS the owner;
+`damage()`/`heal()` likewise mutate `db.hp` directly so combat is untouched.
+Chargen stamps the characteristics: `apply_class` marks each class stat
+`system` (skills stay writable — CP economy), `finish_chargen` marks the four
+characteristics + derived hp/max_hp/dodge. New `add_attr_flag` (additive) and
+`mark_system` helpers. 14 tests (`test_system_attrs.py`); full suite green
+(2164). Decision recorded: NOT reusing `@lock person/st=...` syntax — locks
+are object-scoped and per-action; per-attribute write policy is the flag
+table, already wired into both write gates.
+
+## Design: builder-restricted harmful softcode (scoped 2026-07-27, not built)
+
+The problem: softcode capability is uniform. Any builder-owned object's
+scripts may call `damage()`, `teleport_obj()` (of others), forced `move_to`,
+unbounded `create_obj`/`destroy_obj`, and room-shaping (`@dig`). So a builder
+can make a vending machine (good, economy) OR a room whose `on_enter` calls
+`damage(enactor, 100)` — an inescapable death trap — with the same authority.
+The user wants to encourage the former while gating the latter.
+
+The engine already has the vocabulary: entitlements (`has_entitlement`,
+resolved per-object, extensible via `role_def`). The fix is to tier the ~90
+softcode functions and check an entitlement at the call site in
+`ScriptFunctions` (the executor is known there; owner-chain delegation via the
+new `has_entitlement_delegated`), same shape as `set_attr`'s control check.
+
+Open decision (deferred by the user 2026-07-27 — "scope it out for now"):
+one tier vs two.
+- **HARM** — combat/harm verbs: `damage`, forced effects/`apply_effect` on
+  others, maybe `move_to`/`teleport_obj` of another player.
+- **WORLDEDIT** — world-shaping: `@dig`/room creation, `create_obj` with a
+  `location` the executor does not own, mass `destroy_obj`.
+Two tiers let a "crafter" role build damage-free minigames without being able
+to dig, and a "worldbuilder" dig without combat verbs; one **TRUSTED** tier is
+simpler but coarser. Either way it is opt-in per deployment: the built-in
+`builder` role can ship WITH the entitlement (today's behavior, nothing
+changes) or without it (a locked-down world), set in the role table with no
+code fork. Decide the exact verb list and the split when the verbs that matter
+in practice are clearer.
