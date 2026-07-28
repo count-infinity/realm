@@ -3,7 +3,7 @@
 The five-minute version.
 
 ```bash
-git clone https://github.com/realm-mud/realm.git
+git clone https://github.com/count-infinity/realm.git
 python -m venv venv && source venv/bin/activate
 pip install -e realm
 

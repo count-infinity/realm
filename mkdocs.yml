@@ -1,8 +1,8 @@
 site_name: REALM Documentation
 site_description: Real-time Event-Action Layered MUD framework
-site_url: https://realm-mud.github.io/realm/
-repo_url: https://github.com/realm-mud/realm
-repo_name: realm-mud/realm
+site_url: https://count-infinity.github.io/realm/
+repo_url: https://github.com/count-infinity/realm
+repo_name: count-infinity/realm
 
 theme:
   name: material
@@ -139,4 +139,4 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/realm-mud/realm
+      link: https://github.com/count-infinity/realm

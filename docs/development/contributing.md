@@ -6,7 +6,7 @@ Thank you for your interest in contributing to REALM!
 
 ```bash
 # Clone and install
-git clone https://github.com/realm-mud/realm.git
+git clone https://github.com/count-infinity/realm.git
 cd realm
 python -m venv venv
 source venv/bin/activate

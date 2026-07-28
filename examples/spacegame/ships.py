@@ -6,6 +6,45 @@ Ships are special GameObjects that can:
 - Travel between sectors
 - Engage in ship-to-ship combat
 - Be upgraded with components
+
+Why this one subsystem is Python (the drop-to-native example)
+-------------------------------------------------------------
+Most of what a ship "is" needs no code and is already covered in-game:
+
+- **Templates** (the five ``SHIP_TEMPLATES`` below) are pure data — tags
+  plus attributes. They belong in a content pack or the prototype library
+  (showcase item 165), the same as any weapon or class.
+- **Enter/crew/travel/docking** — a ship you board, fly between bays, and
+  dock with its crew aboard — is a *vehicle-as-room*, built entirely in
+  softcode in showcase item 164 (composing 155 drive + 032 airlock + 163
+  fuel + 033 exit-relink). No Python.
+- **Status readout** (``get_status_string``) is a ``$status`` command with
+  an f-string and hull-percent bands, exactly like the score screen (190)
+  or character sheet (141).
+- **repair / recharge** are ``set_attr`` with a ``min()`` clamp.
+
+The single thing that does NOT map cleanly onto the engine is
+``take_damage``: a ship has a **layered health model** — shields absorb
+first, armor mitigates the overflow, hull takes the remainder — whereas
+the combat engine speaks one ``hp`` track plus damage-resistance. To make
+ship-to-ship combat run through the *real* combat loop in-game you would
+need either:
+
+  (a) alias ``hull`` to ``hp`` (so defeat/destruction and the death path
+      work) and model shields as a depleting **absorb** effect via an
+      ``on_check`` ward that soaks incoming ``combat:on_damage`` into the
+      shield pool before it reaches hull (see docs/guides/interception.md);
+      the awkward part is a *pool that overflows* rather than a flat
+      ``mod``/``set_adata``, which one check pass does not express neatly; or
+  (b) run ship combat as a parallel softcode loop (a ``$fire`` command that
+      computes shields→armor→hull itself), which works but sits beside the
+      engine rather than inside it.
+
+Neither is clean today, so ships keep their damage model in Python. If a
+future engine affordance lands — an alternate health track, or a
+first-class depleting-absorb effect — ships could become data like
+everything else. Until then this file is the honest "when to write Python"
+specimen: reach for it when the data model genuinely does not fit.
 """
 
 from __future__ import annotations

@@ -134,15 +134,22 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
 
     print(f"Creating REALM project: {game_name} (from template: {template})")
 
-    # Copy the template directory
+    # Copy the template directory, leaving out engine-repo scaffolding a
+    # scaffolded game shouldn't carry:
+    #   __init__.py       — makes the example an importable package; a game
+    #                       dir isn't one, and its imports are repo-relative.
+    #   world.py/nexagen.py — build-time generators for the area file, run by
+    #                       scripts/build_spacegame_area.py; not used at boot.
+    #   equipment.py      — superseded by the gurps-scifi content pack, which
+    #                       init_world imports as the single source of gear.
+    # Ships stay (ships.py) — the deliberate drop-to-Python example.
     shutil.copytree(
         template_dir,
         project_dir,
-        # __init__.py makes the example an importable package; a scaffolded
-        # game directory isn't a package, and the example's __init__ imports
-        # from ``examples.spacegame`` (wrong in the copy), so skip it.
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db",
-                                      "*.sqlite*", "__init__.py"),
+                                      "*.sqlite*", "__init__.py",
+                                      "world.py", "nexagen.py",
+                                      "equipment.py"),
     )
 
     # List what was created

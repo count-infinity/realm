@@ -20,7 +20,7 @@ external services to stand up. Python 3.12+.
 ## Install & run
 
 ```bash
-git clone https://github.com/realm-mud/realm.git
+git clone https://github.com/count-infinity/realm.git
 python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -e realm              # install the cloned engine (stay in the parent dir)
 

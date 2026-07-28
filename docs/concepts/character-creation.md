@@ -46,7 +46,7 @@ GameSystem. That's the whole design: swap the object, swap the game.
 ## The birth sequence
 
 Here is what actually happens, in order, when a character is created
-([realm/server/game.py](https://github.com/realm-mud/realm) `_do_create`):
+([realm/server/game.py](https://github.com/count-infinity/realm) `_do_create`):
 
 ```
 create Rook hunter2

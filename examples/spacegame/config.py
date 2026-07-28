@@ -33,18 +33,27 @@ async def init_world(server):
     """
     Initialize the space game world.
 
-    Called on first startup when the database is empty. The world (Space
-    Station Alpha + Nexagen Tower) is **data** — an importable area file,
-    ``data/areas/station.json``, generated from world.py/nexagen.py by
-    ``scripts/build_spacegame_area.py``. init_world just imports it, the
-    same way a builder would ``@import`` an area or ``@pack`` content.
+    Called on first startup when the database is empty. Everything the game
+    ships with is content, imported the way a builder would:
+
+    - **World** (Space Station Alpha + Nexagen Tower): the area file
+      ``data/areas/station.json`` (imported like ``@import``).
+    - **Classes, skills, and gear**: the built-in ``gurps-scifi`` content
+      pack (imported like ``@pack import gurps-scifi``).
+    - **Ships**: ``ships.py`` — the one subsystem kept in Python, because
+      its layered shields/armor/hull damage model does not map onto the
+      character ``hp`` track (see the note in that file).
+
+    The area file is generated from world.py/nexagen.py by
+    ``scripts/build_spacegame_area.py``; those generators live in the engine
+    repo, not in a scaffolded game.
     """
     import json
     from pathlib import Path
 
-    from equipment import create_equipment_prototypes
     from ships import create_ship_prototypes
 
+    from realm.packs import import_pack
     from realm.persistence.worldio import import_objects
 
     area = Path(__file__).parent / "data" / "areas" / "station.json"
@@ -59,9 +68,13 @@ async def init_world(server):
             server.startup_room = obj
             break
 
-    # Equipment and ship prototypes (a richer standalone example subsystem).
-    await create_equipment_prototypes(server.persistence)
+    # Classes, skills, and gear come from the content pack — one source of
+    # truth, importable into any REALM game.
+    pack = await import_pack("gurps-scifi", server.persistence)
+
+    # Ship prototypes: the deliberate drop-to-Python example.
     await create_ship_prototypes(server.persistence)
 
-    print(f"Imported {len(created)} world objects from station.json")
+    print(f"Imported {len(created)} world objects from station.json, "
+          f"{len(pack)} from the gurps-scifi pack.")
     print(f"Starting room: {server.startup_room.name if server.startup_room else 'None'}")
