@@ -171,9 +171,71 @@ class TestBehaviorRegistry:
     def test_from_dict_missing_id(self):
         assert BehaviorRegistry.from_dict({}) is None
 
-    def test_from_dict_unknown_id(self):
+    def test_from_dict_unknown_id_falls_back_to_scripted(self):
+        # An id with no Python class is assumed to name a behavior_def
+        # (see realm.behaviors.scripted): the load path must hand back a
+        # ScriptedBehavior rather than dropping the saved behavior, even
+        # when the def object has not loaded yet.
+        from realm.behaviors.scripted import ScriptedBehavior
         data = {'behavior_id': 'unknown', 'params': {}}
-        assert BehaviorRegistry.from_dict(data) is None
+        restored = BehaviorRegistry.from_dict(data)
+        assert isinstance(restored, ScriptedBehavior)
+        assert restored.behavior_id == 'unknown'
+
+    def test_describe_falls_back_to_docstring_first_line(self):
+        class Documented(Behavior):
+            """Does one thing well.
+
+            Longer prose a builder never sees.
+            """
+            behavior_id = "documented"
+
+        assert Documented.describe()['blurb'] == "Does one thing well."
+
+    def test_describe_explicit_blurb_wins(self):
+        class Labeled(Behavior):
+            """Docstring line that should lose."""
+            behavior_id = "labeled"
+            blurb = "the declared one-liner"
+
+        assert Labeled.describe()['blurb'] == "the declared one-liner"
+
+    def test_describe_merges_param_specs_down_the_mro(self):
+        class BaseSpec(Behavior):
+            behavior_id = "base_spec"
+            param_spec = {'duration': (15, 'beats until expiry'),
+                          'kind': ('generic', 'the condition name')}
+
+        class SubSpec(BaseSpec):
+            behavior_id = "sub_spec"
+            param_spec = {'damage': (1, 'HP per pulse'),
+                          'kind': ('bleeding', 'overridden name')}
+
+        params = SubSpec.describe()['params']
+        assert set(params) == {'duration', 'kind', 'damage'}
+        assert params['kind']['default'] == 'bleeding'   # subclass wins
+        assert params['duration']['default'] == 15       # base survives
+
+    def test_describe_infers_types_from_defaults(self):
+        class Typed(Behavior):
+            behavior_id = "typed"
+            param_spec = {'count': (3, ''), 'tags': (['x'], ''),
+                          'chance': (0.5, ''), 'label': (None, 'anything')}
+
+        params = Typed.describe()['params']
+        assert params['count']['type'] == 'int'
+        assert params['tags']['type'] == 'list'
+        assert params['chance']['type'] == 'float'
+        assert params['label']['type'] == 'any'
+
+    def test_shipped_palette_is_fully_described(self):
+        # Every registered behavior must offer a blurb (declared or from
+        # its docstring); this is what keeps @behavior/info and a future
+        # builder palette from showing blank cards.
+        import realm.behaviors    # noqa: F401 — registers the kit
+        import realm.combat.behaviors    # noqa: F401
+        for entry in BehaviorRegistry.describe_all():
+            assert entry['blurb'], f"{entry['id']} has no blurb"
 
     def test_list_all(self):
         BehaviorRegistry.register(SimpleBehavior)

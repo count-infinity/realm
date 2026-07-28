@@ -83,6 +83,48 @@ Bundle skills, classes, and gear into a **[content pack](content-packs.md)**
 built-in `gurps-scifi` pack does exactly this. See also
 [World Management](world-management.md).
 
+## Behaviors as data
+
+Behavior *logic* has the same data path. A **behavior_def** is an object
+tagged `behavior_def` whose attributes are softcode hook bodies —
+`on_check` (decision pass: the restricted `block`/`mod`/`set_adata` ward
+namespace), `on_react` (reaction pass, full namespace, event data bound),
+and `on_tick` (periodic, paced by an `interval` param in world beats):
+
+```text
+@create hazard_filter
+@tag hazard_filter = behavior_def
+@set hazard_filter/blurb = cuts hazard severity while its carrier is online
+@set hazard_filter/on_check = if has_atag('hazard'): set_adata('severity', param('cut_to', 2))
+```
+
+Attach it by name exactly like a compiled behavior, tuning each carrier
+with parameters the hook reads via `param(key, default)`:
+
+```text
+@behavior carbon filter = hazard_filter, cut_to:2
+@behavior air vent = hazard_filter, cut_to:4
+```
+
+The hooks run **as the carrying object** (`me` and `V()` are the filter,
+not the def), and the def is resolved by name at fire time, so unlike the
+skill table there is **no `@reload`**: edit the def and every attachment
+changes on the next action. A missing def leaves its attachments inert.
+`@behavior/list` shows world defs alongside the registered Python
+behaviors, and `@export`/packs ship them like any other object. The
+worked example is [252](../showcase/252_custom_action.md).
+
+Every behavior can also describe itself. `@behavior/info <id>` prints a
+one-line blurb plus each parameter's default, type, and purpose — for a
+Python behavior these come from optional class metadata (`blurb` and
+`param_spec = {name: (default, about)}`, falling back to the docstring's
+first line), and for a behavior_def from optional `blurb` and
+`param_spec` attributes (JSON: `{"cut_to": [2, "severity ceiling"]}`),
+with the hooks it carries listed alongside. All of it is optional; an
+undescribed behavior still runs. Programs get the same data from
+`BehaviorRegistry.describe_all()`, which is the palette a builder tool
+would render.
+
 ## Where the built-ins live
 
 The default tables are `BUILTIN_SKILL_DEFAULTS` and `TEMPLATES` (GURPS) /

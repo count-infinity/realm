@@ -46,6 +46,12 @@ class AggressiveBehavior(Behavior):
     """
 
     behavior_id = "aggressive"
+    param_spec = {
+        'target_tags': (['player'], 'tags marking who to attack on sight'),
+        'spare_at': (2, 'disposition at or above which a target is spared'),
+        'attack_chance': (1.0, 'probability per sighting that it attacks'),
+        'taunt': (None, 'line said when moving to attack'),
+    }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
         entering = action.actor
@@ -100,6 +106,9 @@ class DefensiveBehavior(Behavior):
     """
 
     behavior_id = "defensive"
+    param_spec = {
+        'flee_percent': (25, 'HP percent below which it tries to flee'),
+    }
 
     def attach(self, obj: GameObject) -> None:
         super().attach(obj)
@@ -118,6 +127,9 @@ class FleeingBehavior(Behavior):
     """
 
     behavior_id = "fleeing"
+    param_spec = {
+        'flee_percent': (50, 'HP percent below which it tries to flee'),
+    }
 
     def attach(self, obj: GameObject) -> None:
         super().attach(obj)
@@ -137,6 +149,13 @@ class GuardBehavior(Behavior):
     """
 
     behavior_id = "guard"
+    param_spec = {
+        'guard_tags': (['player'], 'tags marking who to block'),
+        'allow_tags': (['guard', 'admin'], 'tags marking who passes'),
+        'allow_disposition': (2, 'disposition at or above which one passes'),
+        'challenge_message': ('Halt! You shall not pass!',
+                              'the block reason shown'),
+    }
 
     async def on_check(self, obj: GameObject, action: Action) -> None:
         if action.action_type not in ("event:on_enter", "event:on_leave"):
@@ -176,6 +195,12 @@ class HealerBehavior(Behavior):
     """
 
     behavior_id = "healer"
+    param_spec = {
+        'heal_threshold': (50, 'ally HP percent that triggers a heal'),
+        'ally_tags': (['player'], 'tags marking who counts as an ally'),
+        'heal_amount': (5, 'HP restored per heal'),
+        'cooldown': (3, 'world beats between heals'),
+    }
 
     @property
     def should_tick(self) -> bool:
@@ -227,6 +252,9 @@ class CombatantBehavior(Behavior):
     """
 
     behavior_id = "combatant"
+    param_spec = {
+        'death_message': (None, 'line emitted to the room on death'),
+    }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
         if action.action_type != "combat:on_death" or action.target is not obj:
@@ -252,6 +280,12 @@ class WanderingBehavior(Behavior):
     """
 
     behavior_id = "wandering"
+    param_spec = {
+        'pause': (7, 'world beats between wander attempts'),
+        'wander_chance': (0.25, 'probability per attempt that it moves'),
+        'avoid_tags': (['no_wander'], 'exit tags never taken'),
+        'stay_in_zone': (True, 'keep to rooms sharing a zone tag'),
+    }
 
     @property
     def should_tick(self) -> bool:

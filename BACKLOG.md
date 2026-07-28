@@ -3552,3 +3552,84 @@ written and those tests pass unchanged.
   ranks a subset: no truncation flag, no total count, nothing a script can test.
   A `count=`/`offset=` pair or a returned "truncated" marker would let softcode
   aggregate correctly at scale. Surfaced by 228 (leaderboards).
+
+## ~~Design: behavior_def — softcode-authored behaviors~~ SHIPPED 2026-07-27
+
+The user wants behavior LOGIC definable in-game the way `skill_def`/`class_def`
+define rules data, so one interception/reaction/tick script can be reused
+across many objects without Python. CoffeeMud survey (CMMsg report, agent run
+2026-07-27) confirms the precedent: its `Scriptable` behavior is exactly this
+escape hatch — a thin Behavior adapter whose parameter string IS the script,
+riding the same attach/serialize slot as compiled behaviors.
+
+**Implemented as designed** (same day): `realm/behaviors/scripted.py`
+(`ScriptedBehavior`, `find_behavior_def`, `list_behavior_defs`),
+`BehaviorRegistry.set_scripted_factory` fallback (strict at attach so a typo
+errors; non-strict on the persistence load path so a def loading later never
+drops a saved behavior), `engine.run_check_code` (split out of
+`run_check_hook`, + `param()` binding) and `engine.run_behavior_script`
+(full-namespace react/tick runner via `_execute_trigger`). `@behavior`
+accepts def names, lists world defs, removes/edits by def name;
+serialization stores the def name as `behavior_id`. Defs resolve BY NAME AT
+FIRE TIME, so edits are live with no reload; a missing def is inert. The
+authority open question was resolved by leaning on the existing gate:
+attach is builder-permission, and hook code runs as the attached object.
+12 engine tests (`tests/test_scripted_behavior.py`); showcase 252 now
+builds its filter this way; guides updated (data-driven-rules "Behaviors
+as data", interception "Who gets an on_check").
+
+**Follow-up shipped same day — self-describing palette:** optional
+`blurb` + `param_spec = {name: (default, about)}` class metadata on
+`Behavior` with `describe()` (docstring-first-line fallback, MRO-merged
+specs, types inferred from defaults) and `BehaviorRegistry.describe_all()`;
+`describe_behavior_def()` mirrors it for defs (optional `blurb`/`param_spec`
+attributes + a hooks list); `@behavior/info <id>` renders either. All 18
+registered behaviors populated (zone_reset documents its config-by-attributes
+in its blurb instead of a spec). This closes CoffeeMud's admitted
+`parmsFormat()` debt and is the data source a drag-drop mob-builder GUI
+reads. Tests in test_behaviors.py (describe semantics) and
+test_scripted_behavior.py (/info command).
+
+Original proposal follows for the record. Proposed shape (mirrors skill_def):
+- An object tagged `behavior_def` named e.g. `venting_scrubber`, carrying
+  optional hook attributes: `on_check` (restricted decide-pass namespace via
+  the existing `run_check_hook` machinery: block/mod/set_adata + reads),
+  `on_react` (full script namespace), `on_tick` (interval param like
+  script_ticker), plus `blurb` and param defaults.
+- `BehaviorRegistry.create(id)` falls back: unknown id -> look up a
+  `behavior_def` object by name -> generic `ScriptedBehavior(def_name=id,
+  **params)`. `@behavior filter = venting_scrubber, cut_to:2` then works
+  unchanged, including `@behavior/list` and serialization (`to_dict` already
+  stores behavior_id + params).
+- Resolve the def BY NAME AT FIRE TIME: softcode stays always-live (edit the
+  def, every attached instance updates; no @reload, unlike the cached skill
+  table). Missing def -> inert hook, log once.
+- Authority: `@behavior` is builder-gated (verified softcode.py:375), and the
+  def's code runs with the ATTACHED object as executor, same as an on_check
+  ward today. Open question: attaching a def you don't control runs its
+  author's code with your object's authority — require controls(attacher, def)
+  or a `shared` tag on the def.
+
+Findings from the CoffeeMud survey worth keeping (full report in agent log):
+- Consult-everything is NOT the cost problem: empty handler lists are ~free,
+  ticks are a separate direct-call path (objects with no periodic logic
+  deregister), and passive stat math is a CACHED PULL (recoverStats) rebuilt on
+  invalidation, never per-message. The one bad scaler is fan-out into carried
+  inventories (mobs x items) — REALM's RoomContentsStep already avoids that.
+  So REALM's bystander opt-in via @behavior is an AUTHORITY choice (any player
+  can @set their own object's attrs; only builders attach behaviors), not a
+  performance one — and behavior_def keeps that gate.
+- The real taxonomy split is message hooks vs PASSIVE STAT hooks: 13 CoffeeMud
+  Prop_* classes have only affectStats hooks and are inexpressible as message
+  handlers. Keep stat modification a pull with cache invalidation (REALM's
+  check_mods reads at roll time are the current form); if behavior_def ever
+  grows a `modify_stats` hook, it must not be a message.
+- Two stealable details: (1) the X / X-ING trigger naming (GET_PROG fires
+  after, GETTING_PROG fires in the decide pass) makes two-pass self-evident to
+  script authors; (2) Prop_PeaceMaker neuters a message's codes to no-ops
+  instead of vetoing — a softer block with no "who stopped me" UX cliff.
+- CoffeeMud's admitted debt: behavior params are one opaque string with
+  `parmsFormat()` "Unimplemented as of yet" — no schema. REALM should give
+  behaviors a typed param spec + blurb; that metadata is also exactly what a
+  future drag-drop mob-builder GUI needs for its palette (compose = @behavior,
+  save = prototype/165 + @export/pack).

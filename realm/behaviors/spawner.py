@@ -101,6 +101,13 @@ class SpawnerBehavior(Behavior):
     """
 
     behavior_id = "spawner"
+    param_spec = {
+        'prototype': ({}, 'the object minted: name, tags, attrs'),
+        'count': (1, 'population kept alive at once'),
+        'respawn_ticks': (150, 'world beats before a dead spawn returns'),
+        'key': (None, 'marker tag naming this spawner\'s brood (default: derived)'),
+        'announce': (None, 'room line on each respawn'),
+    }
 
     @property
     def should_tick(self) -> bool:

@@ -59,6 +59,15 @@ class TimedEffectBehavior(BeatBehavior):
     """
 
     behavior_id = "timed_effect"
+    param_spec = {
+        'kind': (None, 'the condition name, mirrored as a tag (default: the behavior id)'),
+        'duration': (15, 'beats until the effect expires (0 = permanent)'),
+        'interval': (1, 'beats between pulses'),
+        'jitter': (True, 'randomize the first pulse of a multi-beat interval'),
+        'check_mods': (None, 'check modifiers held while active, e.g. {"all": -2}'),
+        'expire_msg': (None, 'line shown to the bearer when it wears off'),
+        'source_id': (None, 'id of whoever applied it (apply_effect stamps this)'),
+    }
 
     @property
     def kind(self) -> str:
@@ -170,6 +179,11 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
     """
 
     behavior_id = "damage_over_time"
+    param_spec = {
+        'kind': ('bleeding', 'the condition name, mirrored as a tag'),
+        'damage': (1, 'HP lost per pulse'),
+        'room_msg': (None, 'room line on each pulse'),
+    }
 
     @property
     def kind(self) -> str:
@@ -228,6 +242,10 @@ class ModifierEffectBehavior(TimedEffectBehavior):
     """
 
     behavior_id = "modifier_effect"
+    param_spec = {
+        'kind': ('shaken', 'the condition name, mirrored as a tag'),
+        'apply_msg': (None, 'line shown to the bearer on attach'),
+    }
 
     @property
     def kind(self) -> str:
@@ -253,6 +271,10 @@ class DispositionBoostBehavior(TimedEffectBehavior):
     """
 
     behavior_id = "disposition_boost"
+    param_spec = {
+        'target_id': ('', 'id of whose opinion is swayed'),
+        'delta': (2, 'disposition shift while active (reversed on expiry)'),
+    }
 
     @property
     def kind(self) -> str:
@@ -308,6 +330,10 @@ class RegenerationBehavior(TimedEffectBehavior):
     """
 
     behavior_id = "regeneration"
+    param_spec = {
+        'kind': ('regenerating', 'the condition name, mirrored as a tag'),
+        'heal': (1, 'HP restored per pulse'),
+    }
 
     @property
     def kind(self) -> str:

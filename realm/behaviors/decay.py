@@ -30,6 +30,10 @@ class DecayBehavior(Behavior):
     """
 
     behavior_id = "decay"
+    param_spec = {
+        'ticks': (150, 'world beats until the object crumbles'),
+        'decay_msg': (None, 'room line on crumbling (default "<name> crumbles away.")'),
+    }
 
     @property
     def should_tick(self) -> bool:

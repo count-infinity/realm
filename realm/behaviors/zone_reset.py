@@ -53,6 +53,8 @@ class ZoneResetBehavior(Behavior):
     """Repop a zone's canonical contents on a timer, while nobody's inside."""
 
     behavior_id = "zone_reset"
+    blurb = ("repops a zone on a timer while nobody is inside; configured "
+             "by reset_interval/reset_spec attributes on the master")
 
     @property
     def should_tick(self) -> bool:

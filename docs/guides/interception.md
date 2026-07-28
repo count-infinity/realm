@@ -76,3 +76,16 @@ combat ruleset's own damage-resistance and type multipliers, so it
 composes with them (an `on_check` `mod(-3)` and a native DR of 2 both
 apply). It's sandboxed softcode under the usual limits — keep it small and
 cheap, since it fires for every action you participate in.
+
+## Who gets an `on_check`
+
+The `on_check` *attribute* is consulted only on an action's
+**participants** — the actor, the target, and the room. A bystander
+object standing in the room never has its attribute read: participants
+decide, bystanders react. A bystander joins the decision pass by carrying
+an **attached behavior**, and that logic can itself be data — a
+[`behavior_def`](data-driven-rules.md#behaviors-as-data) object whose
+`on_check` runs with this same restricted namespace, as the carrying
+object. Attachment (`@behavior`, builder-gated) is the authority line
+that keeps a player's dropped junk from vetoing the room's actions.
+Item [252](../showcase/252_custom_action.md) demonstrates both surfaces.

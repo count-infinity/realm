@@ -38,6 +38,10 @@ class ShopkeeperBehavior(Behavior):
     """
 
     behavior_id = "shopkeeper"
+    param_spec = {
+        'markup': (1.2, 'sale price as a multiple of item value'),
+        'buyback': (0.5, 'buy price as a fraction of item value'),
+    }
 
     def _disposition_factor(self, keeper: GameObject, customer: GameObject,
                             *, selling: bool) -> float:

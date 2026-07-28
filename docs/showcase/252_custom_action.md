@@ -1,16 +1,19 @@
 # 252. Invent an action: a coolant breach
 
-> Checklist item 252 ([now]): *act() with a payload, adata reactors, on_check interception with set_adata and block*
+> Checklist item 252 ([now]): *act() with a payload, adata reactors, on_check interception, behavior_def filters*
 
 **What you'll build:** a reactor that declares its own emergency. A purge
 console fires a `breach` event nobody coded into the engine, carrying a
 severity and a section number. Three unrelated objects hear it and answer
-differently, and a scrubber wired into the room catches the event in
-flight and cuts the severity before any of them ever see it.
+differently, and a carbon filter standing in the room catches the event
+in flight and cuts the severity before any of them ever see it. The
+filter's logic is itself data: a `hazard_filter` behavior definition any
+number of objects can carry.
 
 **Concepts:** `act()` with an `extra` payload and action `tags`,
-`adata()` and `has_atag()` in a reactor, and the `on_check` decision pass
-where `set_adata()` rewrites a payload and `block()` vetoes it outright.
+`adata()` and `has_atag()` in a reactor, the `on_check` decision pass
+where `set_adata()` rewrites a payload and `block()` vetoes it outright,
+and `behavior_def` objects that put reusable hook logic in the world.
 
 ## How it works
 
@@ -38,14 +41,29 @@ and are ignored if you pass them.
 
 This is the part worth slowing down for. Propagation runs two passes: a
 **decision** pass (`on_check`) and a **reaction** pass (`on_react` and
-the `ON_<EVENT>` hooks). Softcode `on_check` runs only on the action's
-**participants**: the actor, the target, and the room. An ordinary object
-standing in the room is a bystander, and a bystander's `on_check` is
-never consulted, only its behaviors.
+the `ON_<EVENT>` hooks). A bare `on_check` *attribute* is consulted only
+on the action's **participants**: the actor, the target, and the room. An
+ordinary object standing in the room is a bystander, and a bystander's
+`on_check` attribute is never read. Participants decide, bystanders
+react.
 
-So a scrubber sitting on the floor with an `on_check` attribute does
-nothing at all. Put the same line on the **room** and it fires. That is
-the design in one sentence: participants decide, bystanders react.
+What a bystander *does* get consulted for, on both passes, is its
+**attached behaviors**. So an object earns a seat at the decision by
+carrying one, and since `@behavior` is builder-gated, that attachment is
+the authority line: a player scribbling `on_check` onto a dropped rock
+changes nothing, while a builder deliberately installing a filter does.
+
+### Where does the filter's logic live?
+
+In the world, as data. A **behavior_def** is an object tagged
+`behavior_def` whose attributes are hook bodies: `on_check` runs in the
+decision pass with the same restricted namespace as a participant ward,
+`on_react` and `on_tick` run with the full one. Attach it by name and the
+hooks run **as the carrying object**, with `param(key, default)` reading
+that attachment's own settings, so one definition serves many
+differently-tuned carriers. The def is resolved by name each time it
+fires: edit it once and every filter in the game changes on the next
+event, no reload.
 
 ### What can the decision pass do to the payload?
 
@@ -136,23 +154,34 @@ set_attr(me, 'entries', ((V('entries') or []) + [row])[-20:])
 '''
 ```
 
-Last the scrubber, and note where the script goes. The hook lives on the
-**room**, because only a participant's `on_check` is consulted. The
-scrubber object is there to be looked at; the room is what decides.
+Last, the filter. First its logic, as a behavior definition: cut any
+hazard's severity down to `cut_to` while the carrying object is online.
+Inside the hook, `me` and `V()` are the carrier, not the def.
 
 ```text
-@create scrubber array
-drop scrubber array
-@set here/on_check = '''
-if has_atag('hazard') and get_attr(get('scrubber array'), 'online'):
-    set_adata('severity', 2)
+@create hazard_filter
+@tag hazard_filter = behavior_def
+@set hazard_filter/blurb = cuts hazard severity while its carrier is online
+@set hazard_filter/on_check = '''
+if has_atag('hazard') and V('online') and adata('severity', 0) > param('cut_to', 2):
+    set_adata('severity', param('cut_to', 2))
 '''
-@set scrubber array/online = 1
+```
+
+Then the object that carries it. Attaching by the def's name is what
+gives a bystander a voice in the decision pass; the parameter tunes this
+particular filter.
+
+```text
+@create carbon filter
+drop carbon filter
+@set carbon filter/online = 1
+@behavior carbon filter = hazard_filter, cut_to:2
 ```
 
 ## Try it
 
-With the scrubber online, the check pass rewrites the payload before any
+With the filter online, the check pass rewrites the payload before any
 subscriber reads it, so the monitor takes the quiet branch.
 
 ```text
@@ -162,12 +191,12 @@ MEDBAY: logged a minor exposure, no team dispatched.
 The blast door slams and seals.
 ```
 
-Take the scrubber offline and fire the same event. Nothing about the
+Take the filter offline and fire the same event. Nothing about the
 console changed; the severity simply arrives intact.
 
 ```text
-> @set scrubber array/online = 0
-Set scrubber array/online = 0
+> @set carbon filter/online = 0
+Set carbon filter/online = 0
 
 > purge
 A coolant klaxon shrills through the deck.
@@ -176,9 +205,10 @@ The blast door slams and seals.
 ```
 
 The blast door answered both times, because it reads the tag rather than
-the number. To watch a veto instead of an edit, swap the room's hook for
-`block` and fire again: the klaxon line still prints, and not one
-subscriber runs.
+the number. To watch a veto instead of an edit, use the other
+interception surface: the room is a participant, so its own `on_check`
+attribute fires without any behavior. Give it a `block` ward and purge
+again: the klaxon line still prints, and not one subscriber runs.
 
 ```text
 > @set here/on_check = if has_atag('hazard'): block('containment holds')
@@ -194,6 +224,10 @@ A coolant klaxon shrills through the deck.
   `action_type='event:breach'` with `tags=['hazard']` from a ruptured
   pipe and the blast door seals for that too. Subscribers bind to the
   event, not the emitter.
+- **A second carrier, no new logic.** `@create air vent`, set it online,
+  `@behavior air vent = hazard_filter, cut_to:4`. Same definition, its
+  own tuning, and filters stack: each sees the previous one's edit. Then
+  edit the def's `on_check` and watch both change on the next purge.
 - **Escalate on repeats.** Have the logbook count entries in a window and
   fire its own `act()` at a higher severity once the count passes a
   threshold, so events beget events.

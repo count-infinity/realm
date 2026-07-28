@@ -61,6 +61,15 @@ class Behavior(ABC):
     # Class-level configuration
     behavior_id: str = "base"  # Unique identifier for this behavior type
 
+    # Optional builder-facing metadata. ``blurb`` is a one-line description
+    # (empty -> the first docstring line stands in); ``param_spec`` maps each
+    # parameter name to ``(default, about)``. Neither is required — a
+    # behavior without them works untouched — but together they make the
+    # registry self-describing: ``@behavior/info`` and any future builder
+    # palette read them via ``describe()`` instead of parsing docstrings.
+    blurb: str = ""
+    param_spec: dict[str, tuple] = {}
+
     __slots__ = ('__weakref__', '_owner', '_params')
 
     def __init__(self, **params: Any):
@@ -86,6 +95,37 @@ class Behavior(ABC):
     def get_param(self, name: str, default: Any = None) -> Any:
         """Get a parameter value with default."""
         return self._params.get(name, default)
+
+    @classmethod
+    def describe(cls) -> dict[str, Any]:
+        """
+        Machine-readable metadata for this behavior type: id, blurb, and
+        parameter specs. Subclass ``param_spec``s merge over their bases'
+        (a damage-over-time effect reports its own ``damage`` alongside
+        the timed-effect ``duration``/``interval`` it inherits), and each
+        entry infers a type name from its default so tooling can render a
+        sensible input without a separate schema language.
+        """
+        blurb = cls.blurb
+        if not blurb and cls.__doc__:
+            blurb = cls.__doc__.strip().splitlines()[0].strip()
+        merged: dict[str, tuple] = {}
+        for klass in reversed(cls.__mro__):
+            spec = getattr(klass, 'param_spec', None)
+            if isinstance(spec, dict):
+                merged.update(spec)
+        params: dict[str, dict[str, Any]] = {}
+        for name, entry in merged.items():
+            if isinstance(entry, (list, tuple)) and len(entry) == 2:
+                default, about = entry
+            else:
+                default, about = entry, ''
+            params[name] = {
+                'default': default,
+                'about': str(about),
+                'type': type(default).__name__ if default is not None else 'any',
+            }
+        return {'id': cls.behavior_id, 'blurb': blurb, 'params': params}
 
     # --- Lifecycle methods ---
 
@@ -251,6 +291,18 @@ class BehaviorRegistry:
 
     _behaviors: dict[str, type[Behavior]] = {}
 
+    # Fallback factory for ids with no Python class: behavior logic defined
+    # in-world as `behavior_def` objects (see realm.behaviors.scripted, which
+    # installs it). Signature: (behavior_id, params, strict) -> Behavior|None.
+    # `strict` asks the factory to verify the definition exists — used at
+    # attach time so a typo errors; the persistence load path passes False so
+    # a def that merely loads later never drops a saved behavior.
+    _scripted_factory = None
+
+    @classmethod
+    def set_scripted_factory(cls, factory) -> None:
+        cls._scripted_factory = factory
+
     @classmethod
     def register(cls, behavior_class: type[Behavior]) -> type[Behavior]:
         """
@@ -271,10 +323,17 @@ class BehaviorRegistry:
 
     @classmethod
     def create(cls, behavior_id: str, **params: Any) -> Behavior | None:
-        """Create a behavior instance by ID with parameters."""
+        """Create a behavior instance by ID with parameters.
+
+        An id with no registered Python class falls through to the
+        scripted-behavior factory (strict: the ``behavior_def`` object must
+        exist), so world-defined behaviors attach exactly like compiled ones.
+        """
         behavior_class = cls._behaviors.get(behavior_id)
         if behavior_class:
             return behavior_class(**params)
+        if cls._scripted_factory is not None:
+            return cls._scripted_factory(behavior_id, params, True)
         return None
 
     @classmethod
@@ -286,9 +345,21 @@ class BehaviorRegistry:
         behavior_class = cls._behaviors.get(behavior_id)
         if behavior_class:
             return behavior_class.from_dict(data)
+        if cls._scripted_factory is not None:
+            # Non-strict: a load must never drop a saved behavior just
+            # because its behavior_def object happens to load later.
+            return cls._scripted_factory(
+                behavior_id, data.get('params', {}), False)
         return None
 
     @classmethod
     def list_all(cls) -> list[str]:
         """List all registered behavior IDs."""
         return list(cls._behaviors.keys())
+
+    @classmethod
+    def describe_all(cls) -> list[dict[str, Any]]:
+        """``describe()`` for every registered behavior, sorted by id —
+        the palette a builder tool renders."""
+        return [bc.describe()
+                for _, bc in sorted(cls._behaviors.items())]

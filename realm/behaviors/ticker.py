@@ -43,6 +43,10 @@ class ScriptTickerBehavior(Behavior):
     """Runs the owner's ``on_tick`` softcode attribute periodically."""
 
     behavior_id = "script_ticker"
+    param_spec = {
+        'interval': (4, 'world beats between runs'),
+        'attr': ('on_tick', 'the attribute holding the script'),
+    }
 
     @property
     def should_tick(self) -> bool:

@@ -76,7 +76,7 @@ class TestCustomAction:
         """severity and section ride the event, not the emitter's attrs."""
         sim, bob = reactor
         await run_build(sim, bob)
-        await sim.submit_line(bob, "@set scrubber array/online = 0")
+        await sim.submit_line(bob, "@set carbon filter/online = 0")
 
         out = await purge(sim, bob)
         assert "trauma team standing by for section C" in out
@@ -95,19 +95,31 @@ class TestCustomAction:
         entries = find(sim, "logbook").db.get("entries")
         assert entries and "coolant klaxon" in entries[0]
 
-    async def test_room_on_check_rewrites_the_payload(self, reactor):
-        """The headline: a participant edits the event in flight, and the
-        subscriber downstream reads the edited value."""
+    async def test_attached_filter_rewrites_the_payload(self, reactor):
+        """The headline: a bystander carrying the hazard_filter behavior_def
+        edits the event in flight, and the subscriber downstream reads the
+        edited value."""
         sim, bob = reactor
         await run_build(sim, bob)
 
-        out = await purge(sim, bob)                    # scrubber online
+        out = await purge(sim, bob)                    # filter online
         assert "minor exposure" in out
         assert "trauma team" not in out
 
-        await sim.submit_line(bob, "@set scrubber array/online = 0")
+        await sim.submit_line(bob, "@set carbon filter/online = 0")
         out = await purge(sim, bob)                    # same event, intact
         assert "trauma team" in out
+
+    async def test_editing_the_def_retunes_the_filter_live(self, reactor):
+        sim, bob = reactor
+        await run_build(sim, bob)
+
+        await sim.submit_line(
+            bob,
+            "@set hazard_filter/on_check = "
+            "if has_atag('hazard'): set_adata('severity', 9)")
+        out = await purge(sim, bob)
+        assert "trauma team" in out    # the def now raises instead of cuts
 
     async def test_block_stops_every_subscriber(self, reactor):
         sim, bob = reactor
@@ -121,14 +133,17 @@ class TestCustomAction:
         assert "blast door slams" not in out
         assert find(sim, "blast door").db.get("sealed") is None
 
-    async def test_bystander_on_check_is_not_consulted(self, reactor):
-        """Participants decide, bystanders react: the identical hook on a
-        floor object never runs, which is why the doc puts it on the room."""
+    async def test_bystander_on_check_attribute_is_not_consulted(self, reactor):
+        """Participants decide, bystanders react: a raw on_check ATTRIBUTE
+        on a floor object never runs. Attaching a behavior is the opt-in,
+        which is why the filter carries hazard_filter instead."""
         sim, bob = reactor
         await run_build(sim, bob)
-        await sim.submit_line(bob, "@set here/on_check = ")
+        await sim.submit_line(bob, "@set carbon filter/online = 0")
+        await sim.submit_line(bob, "@create loose rock")
+        await sim.submit_line(bob, "drop loose rock")
         await sim.submit_line(
-            bob, "@set scrubber array/on_check = if has_atag('hazard'): set_adata('severity', 2)")
+            bob, "@set loose rock/on_check = if has_atag('hazard'): set_adata('severity', 0)")
 
         out = await purge(sim, bob)
-        assert "trauma team" in out, "a bystander must not intercept"
+        assert "trauma team" in out, "a bystander attribute must not intercept"

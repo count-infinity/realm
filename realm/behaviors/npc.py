@@ -56,6 +56,13 @@ class WatchfulBehavior(Behavior):
     """
 
     behavior_id = "watchful"
+    param_spec = {
+        'perception': ('observation', 'skill rolled against a sneaker\'s stealth'),
+        'alert_on_spot': (True, 'raise alert_level each time someone is spotted'),
+        'spot_msg': ("Hey! Who's there?", 'line said on spotting a sneaker'),
+        'hostile': (False, 'attack whoever it spots'),
+        'challenge': (None, 'line said to anyone visible who walks in'),
+    }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
         if action.action_type != "event:on_enter":
@@ -106,6 +113,10 @@ class PatrolBehavior(Behavior):
     """
 
     behavior_id = "patrol"
+    param_spec = {
+        'route': ([], 'exit names walked in order, wrapping'),
+        'pause': (3, 'world beats between steps'),
+    }
 
     @property
     def should_tick(self) -> bool:

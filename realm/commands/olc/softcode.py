@@ -31,10 +31,16 @@ async def cmd_behavior(ctx: CommandContext) -> None:
            @behavior/set <object> = <id>, key:value    (edit params in place)
            @behavior/remove <object> = <id>           (detach)
            @behavior/list                             (all registered ids)
+           @behavior/info <id>                        (blurb + parameters)
 
     Multiple tickers are fine — give each its own attr and interval:
         @behavior bell = script_ticker, interval:2, attr:on_fast
         @behavior bell = script_ticker, interval:20, attr:on_slow
+
+    The id may also name a `behavior_def` object — behavior logic defined
+    in-world as softcode hook attributes (on_check / on_react / on_tick),
+    resolved live by name so editing the def updates every attachment:
+        @behavior carbon filter = hazard_filter, cut_to:2
 
     Parameter values parse like @set values (numbers, booleans, JSON).
 
@@ -44,8 +50,55 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         @behavior/remove guard = wandering
     """
     if ctx.switches and ctx.switches[0].lower() == 'list':
+        from realm.behaviors.scripted import list_behavior_defs
         ids = sorted(BehaviorRegistry.list_all())
-        await ctx.session.send("Registered behaviors: " + ", ".join(ids))
+        lines = ["Registered behaviors: " + ", ".join(ids)]
+        defs = list_behavior_defs()
+        if defs:
+            lines.append("World behavior defs: " + ", ".join(defs))
+        await ctx.session.send("\n".join(lines))
+        return
+
+    if ctx.switches and ctx.switches[0].lower() == 'info':
+        from realm.behaviors.scripted import (describe_behavior_def,
+                                              find_behavior_def)
+        ident = (ctx.left_args or '').strip()
+        if not ident:
+            await ctx.session.send(
+                "Usage: @behavior/info <behavior id or def name>")
+            return
+        behavior_class = BehaviorRegistry.get(ident)
+        if behavior_class is not None:
+            info = behavior_class.describe()
+            origin = "registered behavior"
+            hooks = None
+        else:
+            definition = find_behavior_def(ident)
+            if definition is None:
+                await ctx.session.send(
+                    f"No behavior or behavior_def named '{ident}'.")
+                return
+            info = describe_behavior_def(definition)
+            origin = "behavior_def object"
+            hooks = info.get('hooks', [])
+        head = f"{info['id']} ({origin})"
+        if info['blurb']:
+            head += f": {info['blurb']}"
+        lines = [head]
+        if hooks is not None:
+            lines.append("  hooks: "
+                         + (", ".join(hooks) if hooks else "(none yet)"))
+        if info['params']:
+            lines.append("  parameters:")
+            for name, meta in sorted(info['params'].items()):
+                entry = (f"    {name} = {json.dumps(meta['default'])}"
+                         f" ({meta['type']})")
+                if meta['about']:
+                    entry += f" - {meta['about']}"
+                lines.append(entry)
+        elif hooks is None:
+            lines.append("  parameters: (none declared)")
+        await ctx.session.send("\n".join(lines))
         return
 
     if not ctx.left_args:
@@ -108,10 +161,13 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         await ctx.session.send(f"{target.name} has no '{behavior_id}' behavior.")
         return
 
-    if BehaviorRegistry.get(behavior_id) is None:
+    from realm.behaviors.scripted import find_behavior_def
+    if (BehaviorRegistry.get(behavior_id) is None
+            and find_behavior_def(behavior_id) is None):
         known = ", ".join(sorted(BehaviorRegistry.list_all()))
         await ctx.session.send(
-            f"Unknown behavior '{behavior_id}'. Registered: {known}"
+            f"Unknown behavior '{behavior_id}' (no registered behavior or "
+            f"behavior_def object by that name). Registered: {known}"
         )
         return
 

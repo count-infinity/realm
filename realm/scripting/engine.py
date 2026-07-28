@@ -285,6 +285,20 @@ class ScriptEngine:
         code = obj.db.get('on_check')
         if not isinstance(code, str) or not code.strip():
             return
+        await self.run_check_code(obj, action, code)
+
+    async def run_check_code(self, obj: GameObject, action: Action,
+                             code: str, *,
+                             params: dict | None = None) -> None:
+        """
+        Run ``code`` as a decision-pass ward for ``obj`` — the execution
+        half of :meth:`run_check_hook`, split out so a scripted behavior
+        can run a ``behavior_def``'s ``on_check`` with the same restricted
+        namespace and the same fail-closed reporting. ``params`` binds a
+        ``param(key, default)`` reader for per-attachment configuration.
+        """
+        if obj.is_halted:
+            return
         from realm.scripting.sandbox import ScriptContext
 
         ctx = ScriptContext(enactor=action.actor, executor=obj,
@@ -294,10 +308,47 @@ class ScriptEngine:
             persistence=self._persistence)
         namespace = functions.readonly_dict()
         namespace.update(self._check_namespace(action))
+        if params is not None:
+            bound = dict(params)
+            namespace['param'] = (
+                lambda key, default=None: bound.get(str(key), default))
         try:
             await self.sandbox.execute_async(code, ctx, functions=namespace)
         except ScriptError as exc:
             self._ward_failed(obj, action, code, exc, set(namespace))
+
+    async def run_behavior_script(self, obj: GameObject, code: str, *,
+                                  action: Action | None = None,
+                                  enactor: GameObject | None = None,
+                                  params: dict | None = None) -> None:
+        """
+        Run ``code`` as ``obj`` with the FULL script namespace — the
+        reaction/tick half of a scripted behavior. With an ``action``, the
+        event namespace (``atype``/``adata``/``has_atag``/``target``) binds
+        to it, so a ``behavior_def``'s ``on_react`` observes the action the
+        way an ``ON_<EVENT>`` attribute does; without one (a tick), those
+        names are bound but empty. ``params`` binds ``param(key, default)``.
+        Depth-guarded and halt-honoring like every trigger path.
+        """
+        if obj.is_halted or not isinstance(code, str) or not code.strip():
+            return
+        extra = None
+        if params is not None:
+            bound = dict(params)
+            extra = {'param':
+                     lambda key, default=None: bound.get(str(key), default)}
+        match = TriggerMatch(
+            trigger=None,  # type: ignore[arg-type]
+            captures=[],
+            full_match='behavior',
+            obj=obj,
+            action=code,
+        )
+        if enactor is None and action is not None:
+            enactor = action.actor
+        await self._execute_trigger(match, enactor or obj,
+                                    location=obj.location, action=action,
+                                    extra_namespace=extra)
 
     @staticmethod
     def _ward_can_deny(code: str, known: set[str]) -> bool:
@@ -615,6 +666,7 @@ class ScriptEngine:
         location: GameObject | None = None,
         enactor_consent: bool = False,
         action: Action | None = None,
+        extra_namespace: dict | None = None,
     ) -> None:
         """Execute a matched trigger, depth-guarded.
 
@@ -670,6 +722,8 @@ class ScriptEngine:
                 # $-command). See _event_namespace: a hook reading adata()
                 # must not die of NameError when a builder @tr's it.
                 namespace.update(self._event_namespace(action, enactor))
+                if extra_namespace:
+                    namespace.update(extra_namespace)
                 try:
                     _result, output = await self.sandbox.execute_async(
                         action_code,
