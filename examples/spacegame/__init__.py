@@ -1,24 +1,19 @@
 """
-REALM Space Game - A GURPS-based space exploration game.
+REALM Space Game — a reference game project.
 
-This is a reference implementation demonstrating REALM's features:
-- GURPS 3d6 combat ruleset
-- Softcode scripting on objects
-- Event-driven behaviors
-- Permission system
-- OLC commands for building
+A GURPS-flavored space station, built the way REALM wants games built:
+
+- **World** — the area file ``data/areas/station.json`` (imported at first
+  boot; regenerate it with ``scripts/build_spacegame_area.py``).
+- **Classes, skills, gear** — the built-in ``gurps-scifi`` content pack
+  (``realm/packs/gurps-scifi``), imported like any ``@pack``.
+- **Ships** — ``ships.py``, the one subsystem kept in Python because its
+  layered shields/armor/hull damage model does not map onto the character
+  ``hp`` track (see that file's note).
+
+``realm init --template spacegame`` scaffolds a game from this directory.
 """
 
-from examples.spacegame.equipment import create_equipment_prototypes
 from examples.spacegame.ships import Spaceship
-from examples.spacegame.world import create_world
 
-# Character classes/skills are DATA now — the built-in ``gurps-scifi``
-# content pack (realm/packs/gurps-scifi), not a bespoke SpaceCharacter
-# class. Import it with ``realm pack import gurps-scifi`` or ``@pack``.
-
-__all__ = [
-    'create_world',
-    'Spaceship',
-    'create_equipment_prototypes',
-]
+__all__ = ['Spaceship']

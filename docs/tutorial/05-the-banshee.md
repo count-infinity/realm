@@ -61,7 +61,7 @@ world code.
     - **Players can't find things?** `help` is category-grouped and
       searchable (`help fear`).
     - **Bigger worlds**: spawners with respawn timers, patrols, zones —
-      see the behavior kit and `examples/spacegame/nexagen.py`.
+      see the behavior kit and `scripts/spacegame_world/nexagen.py`.
     - **Your own rules**: GameSystems swap chargen/skills/combat
       (GURPS and D20 ship in-box) — docs/design/engine_vision.md.
     - **Modern clients**: the engine speaks GMCP (room info, vitals,

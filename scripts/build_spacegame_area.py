@@ -17,7 +17,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "examples" / "spacegame"))
+# The world generators are dev tooling, not part of the runnable game, so
+# they live here in scripts/ rather than in examples/spacegame/.
+sys.path.insert(0, str(ROOT / "scripts" / "spacegame_world"))
 
 OUT = ROOT / "examples" / "spacegame" / "data" / "areas" / "station.json"
 
