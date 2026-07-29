@@ -2,11 +2,24 @@
 
 `scripts/rom_import.py` converts a ROM 2.4 `.are` file (the Diku/Merc/ROM
 lineage — Midgaard and the thousands of areas built on it) into a REALM
-area file (worldio JSON) you can `@import` or load at boot.
+area file (worldio JSON) you can `@import` or load at boot. Pair it with
+the [`merc` game system](../guides/game-systems.md) and a converted area
+plays like a real Diku.
 
 ```bash
 python scripts/rom_import.py midgaard.are -o midgaard.area.json --report
+
+# a whole directory tree at once, with a parity report:
+python scripts/rom_import_batch.py areas/ -o converted/ --report parity.md
 ```
+
+> **Field-tested at scale.** The batch tool was run over the full public
+> ansalon.net area collection — **189 files, 8 MB** — and converted **all
+> 189 with zero parse failures**: 9,794 rooms, 22,487 exits, 3,236 mob and
+> 4,407 object prototypes, 13,285 placed instances. Every output file is
+> valid worldio JSON and imports into a live world with its exits linked.
+> The [MERC parity](#merc-parity-the-punch-list) section below is the
+> aggregate gap analysis from that run.
 
 ```python
 # then, in-game or in init_world:
@@ -53,16 +66,23 @@ These are the honest lossy edges. Most are *stored* on `rom_*` attributes
 rather than dropped, so nothing is lost — it just has no first-class home
 in REALM yet, and a builder can wire it up in softcode.
 
-- **Combat stat model.** ROM mobs carry Diku **armor class** (THAC0-style,
-  lower-is-better) and `hitroll`; REALM resolves defense through
-  dodge/DR/skills. AC and hitroll are **dropped** (not stored) because they
-  have no meaningful target. `hp`/`level`/`damage_dice` do carry over, so a
-  mob is present and killable, but its defenses will need tuning to your
-  ruleset.
-- **Immunity / resist / vulnerability flags.** ROM has a damage-type
-  resist table; REALM has no equivalent table yet (an `on_check` ward is
-  the manual path, see the interception guide). Kept as `rom_imm`/
-  `rom_res`/`rom_vuln` attrs for hand-porting.
+- **Combat stat model.** ROM mobs carry Diku **armor class** (descending,
+  lower-is-better) and level-based to-hit. These now map straight onto the
+  [`merc` game system](../guides/game-systems.md): the converter emits
+  `armor_class`, a level-derived `thac0`, and a natural-attack
+  `damage_dice`, so a converted mob is combat-ready on `merc` with no
+  hand-work (see [MERC parity](#merc-parity-the-punch-list)). On a
+  *non-Diku* ruleset (GURPS/D20), those attrs carry as data but the
+  defenses still want tuning, since AC/THAC0 have no target there.
+- **Immunity / resist / vulnerability flags.** *Now mapped.* The converter
+  normalizes ROM's imm/res/vuln damage bits into a portable `resistances`
+  attr — a damage-taken multiplier per type (immune → 0.0, resist → 0.5,
+  vuln → 1.5) that `merc`'s `apply_damage` consumes directly (see [MERC
+  parity](#merc-parity-the-punch-list)). The map is continuous, so a
+  hand-authored `0.85` (15% resistance) works too. The raw `rom_imm`/
+  `rom_res`/`rom_vuln` letters are kept alongside, since ROM's *affect*
+  immunities (summon/charm/disease/…) carry no damage-type meaning and are
+  intentionally dropped from the multiplier map.
 - **Weapon & object value semantics.** A ROM object's five value fields
   mean different things per item type (a weapon's dice, a container's
   capacity, a wand's spell). The converter maps weapon damage to a
@@ -108,3 +128,94 @@ gear — in faithfully and to tell you exactly what it could not carry. The
 *liveliness* (respawns, special behaviors, scripted mobs) is deliberately
 left for you to add with REALM's own tools, because that is where ROM and
 REALM genuinely diverge.
+
+## MERC parity: the punch list
+
+Running the whole ansalon collection through the converter turns the
+abstract "capability gaps" into a ranked, real punch list. Where a gap is
+already closed, it says so; where it is not, it names the best way to
+reach parity. (Counts are areas-affected out of 189.)
+
+### Already closed — imported areas are combat-ready on `merc`
+
+The converter emits MERC-native combat stats, so a converted mob fights
+with no hand-work (verified: an imported Midgaard sexton — hp 42, AC 7,
+THAC0 17 — trades blows with a warrior on the `merc` ruleset):
+
+- **Mob armor class** → `armor_class` (ROM's descending AC, straight to
+  MERC's), and **THAC0** derived from level. (Was the #1 gap, 145 areas.)
+- **Mob natural attack** → `damage_dice`; MercRuleset uses it when the mob
+  is unarmed.
+- **Weapon** → `damage_dice` (what MercRuleset reads) + a `damage` alias.
+- **Armor** → `ac_apply`; MERC's `recompute_ac` subtracts it.
+- **Damage-type resistance** (was 115 areas) → a portable `resistances`
+  multiplier map. The converter decodes ROM's imm/res/vuln bits to a
+  per-type damage-taken multiplier (immune 0.0, resist 0.5, vuln 1.5), and
+  `MercRuleset.apply_damage` scales each typed hit through the neutral
+  `apply_type_resistance` helper. Because the value is a float, not one of
+  three tiers, a builder can author *any* resistance (`0.85` = 15%); Diku's
+  tiers are just three points on it. `DamageType.TRUE` bypasses the map.
+- **Worn-armor AC for players** (was 101 areas of equip resets) → live.
+  `wear`/`remove` fire `item:on_wear`/`item:on_remove`; the boot-registered
+  `equipment_observer` forwards an applied gear change to the active
+  system's `on_equipment_change` hook, which `MercSystem` overrides to
+  `recompute_ac`. The command stays system-neutral — the rules package is
+  just one more reactor on the event bus, like the stealth and hostile
+  observers. (Mob AC is authored in the file, so this is about players,
+  not imported NPCs.)
+- **Shops** → the `shopkeeper` behavior. **Doors** → initial lock tags.
+
+### The one real framework gap: spells
+
+Half the ROM special procedures are **spell casters** — `spec_cast_mage`
+(61 areas), `spec_cast_cleric` (47), `spec_cast_undead` (31),
+`spec_cast_adept`, `_judge`, `_druid`, `_necromancer` — plus the
+`spec_breath_*` family (fire/frost/gas/acid/lightning, ~90 attachments).
+These need a **spell/mana-cost casting framework**, which `merc` does not
+have yet. This is the genuine parity project, not a field mapping:
+
+- A spell is a named ability with a mana cost, a target, an effect, and a
+  save. REALM already has the pieces — `act()` custom events, the
+  `on_check` save path, `damage()`/effect behaviors, mana attrs — but no
+  framework that ties "cast X, spend mana, roll a save, apply the effect."
+- Recommended shape: spells as `class_def`-style **data** (a `spell_def`
+  object: name, mana, level, target type, effect), a `cast` command, and a
+  `caster` behavior that picks and casts in combat. The `spec_cast_*` /
+  `spec_breath_*` mobs then map to the `caster` behavior parameterized by
+  their spell list — no per-proc code.
+
+### Behavioral spec_procs — map to existing tools now
+
+The non-casting procedures already have homes; the parity step is a
+`rom_spec:* → behavior` mapping the importer applies:
+
+| spec_proc | areas | maps to |
+|---|---:|---|
+| `spec_thief` | 49 | a steal behavior (showcase 070, pickpocket) |
+| `spec_guard` / `spec_patrolman` / `spec_executioner` | 32 | the shipped `guard` behavior |
+| `spec_poison` | 32 | `damage_over_time` behavior applied on hit |
+| `spec_fido` / `spec_janitor` | 30 | a scavenger `behavior_def` (eat corpses / pick up trash) — a textbook data-defined behavior |
+| `spec_*_member`, `spec_snake_charm`, `spec_mayor` | ~8 | faction / bespoke softcode |
+
+The mobs are already tagged `rom_spec:<name>`, so a lookup table plus
+`@behavior` (or the importer attaching them) is all it takes for the
+behavioral half.
+
+### Lower priority
+
+- **MOBprogs / OBJprogs — 13 areas.** ROM's trigger scripting. Skipped
+  today; transpiling to `$`-commands / `ON_<EVENT>` hooks is its own
+  project (a language port, not a field mapping).
+- **Exotic item types.** `portal` (64) and `warp_stone` (12) → a teleport
+  behavior (showcase 157 / 033); `gem` (39) already works as a valued
+  object; `map` (17) → a readable desc; corpses → containers. All import
+  as objects; only their *behavior* is missing, and it is softcode.
+
+### Summary
+
+Geography, population, gear, shops, basic combat, **damage-type
+resistance**, and **live worn-armor AC** are **done** — 189 areas convert,
+load, and fight on `merc` with imm/res/vuln honored and player armor that
+matters. Reaching full Diku parity is then a short, ranked list: a spell
+framework (the one real project) and a spec-proc→behavior map
+(mechanical). Nothing is blocked; each gap has a named path.

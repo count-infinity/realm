@@ -133,11 +133,32 @@ class TestParse:
         assert "wieldable" in area.obj_protos[3010]["tags"]
         assert area.obj_protos[3010]["attrs"]["damage"] == "1d8"
 
+    def test_merc_combat_stats_are_emitted(self):
+        # The mob's descending AC, level-derived THAC0, and natural-attack
+        # dice come through as MERC-native attrs, so an imported area is
+        # combat-ready on the merc ruleset with no hand-work.
+        area = _convert(ARE)
+        wiz = area.mob_protos[3000]["attrs"]
+        assert wiz["armor_class"] == -15            # ROM ac[pierce]
+        assert wiz["thac0"] == 0                    # 20 - level 23, clamped
+        assert wiz["damage_dice"] == "1d8+32"
+        sword = area.obj_protos[3010]["attrs"]
+        assert sword["damage_dice"] == "1d8"        # what MercRuleset reads
+
     def test_gaps_are_reported(self):
         area = _convert(ARE)
-        joined = " ".join(area.gaps)
-        assert "AC" in joined                        # Diku AC dropped
         assert any("SHOPS" in g for g in area.gaps)
+        # Resistance is no longer a gap -- it is normalized (below).
+        assert not any("resistance" in g.lower() for g in area.gaps)
+
+    def test_resistances_are_normalized(self):
+        # The wizard's imm=ABCD -> C(magic)/D(weapon) map to damage types;
+        # A(summon)/B(charm) are affect immunities and are dropped. MERC reads
+        # the multiplier map directly (immune -> 0.0).
+        area = _convert(ARE)
+        wiz = area.mob_protos[3000]["attrs"]
+        assert wiz["resistances"] == {"magical": 0.0, "physical": 0.0}
+        assert wiz["rom_imm"] == ["A", "B", "C", "D"]      # raw letters kept
 
 
 @pytest.mark.asyncio

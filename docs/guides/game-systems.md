@@ -64,6 +64,24 @@ advancement and sharing only the deposit. If your system needs leveling,
 override `grant_award` and add your own advancement methods; if it's
 point-buy, do nothing and use `improve`.
 
+## Equipment-derived stats: an event, not a command hook
+
+When a character wears or removes gear, the command fires
+`item:on_wear`/`item:on_remove` like any other propagated action, and a
+boot-registered observer (`equipment_observer`, alongside the stealth and
+hostile observers) forwards the applied change to the active system:
+
+```python
+def on_equipment_change(self, player) -> None:
+    # default: nothing is equipment-derived
+```
+
+`MercSystem` overrides it to `recompute_ac` (Diku AC comes from worn
+armor's `ac_apply`); the default no-op means systems that cache nothing
+from gear ignore it. The wear command never touches the rules package —
+any path that fires the event (softcode, a future auto-equip) reaches the
+hook for free. A GURPS armor→DR pipeline would override this same hook.
+
 ## Changing systems after launch — don't
 
 `GAME_SYSTEM` is a **boot-time deployment choice, not a live toggle.**

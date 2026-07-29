@@ -111,6 +111,43 @@ class DamageResult:
     effects: list[str] = field(default_factory=list)  # Effects from damage
 
 
+def apply_type_resistance(
+    damage_by_type: dict[DamageType, int],
+    resistances: dict[str, float] | None,
+) -> tuple[dict[DamageType, int], int]:
+    """Scale typed damage by a creature's resistance multipliers.
+
+    ``resistances`` maps a damage-type name (``DamageType`` value, e.g.
+    ``"fire"``) to a *damage-taken multiplier*: ``0.0`` = immune, ``0.5`` =
+    half (the Diku "resist" tier), ``1.5`` = the Diku "vuln" tier, ``0.85`` =
+    15% resistance, ``1.0`` or absent = normal. It is a continuous knob, not
+    three fixed tiers -- any non-negative float works, so 15% or 77%
+    resistance is just ``0.85`` / ``0.23``.
+
+    This is deliberately ruleset-agnostic: the *data* (what a creature
+    resists) is a portable creature property, while each ruleset decides in
+    its own ``apply_damage`` how this composes with flat armor/DR and in what
+    order. ``DamageType.TRUE`` bypasses the table entirely.
+
+    Returns ``(scaled_by_type, resisted)`` -- a new per-type dict and the net
+    damage removed (negative if a vulnerability *added* damage).
+    """
+    if not resistances:
+        return dict(damage_by_type), 0
+    scaled: dict[DamageType, int] = {}
+    resisted = 0
+    for dtype, amount in damage_by_type.items():
+        if dtype == DamageType.TRUE:
+            scaled[dtype] = amount
+            continue
+        key = dtype.value if isinstance(dtype, DamageType) else dtype
+        mult = resistances.get(key, 1.0)
+        new_amount = max(0, round(amount * mult))
+        resisted += amount - new_amount
+        scaled[dtype] = new_amount
+    return scaled, resisted
+
+
 @dataclass
 class DefenseResult:
     """Result of a defense/saving throw."""

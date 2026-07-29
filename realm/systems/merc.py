@@ -162,6 +162,10 @@ class MercSystem(GameSystem):
         player.db.armor_class = ac
         return ac
 
+    def on_equipment_change(self, player: GameObject) -> None:
+        """Diku AC is worn-gear-derived; re-derive on every wear/remove."""
+        self.recompute_ac(player)
+
     # --- advancement (XP + level): add-on methods, NOT the ABC ---
 
     def grant_award(self, player: GameObject, amount: int) -> None:

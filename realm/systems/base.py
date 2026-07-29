@@ -162,6 +162,18 @@ class GameSystem(ABC):
             return resolve_with_rule(obj, skill, modifier, self.resolve_rule)
         return default_resolver(obj, skill, modifier)
 
+    # --- Derived stats ---
+
+    def on_equipment_change(self, player: GameObject) -> None:
+        """Re-derive whatever this system caches from worn gear.
+
+        Fired by ``equipment_observer`` whenever an ``item:on_wear`` /
+        ``item:on_remove`` action applies — the wear command itself stays
+        system-neutral; the rules package is just one more reactor on the
+        event bus (like the stealth and hostile observers). Default: nothing
+        is equipment-derived. MercSystem overrides to recompute Diku AC; a
+        GURPS armor-DR pipeline would override the same hook."""
+
     # --- Character creation ---
 
     def apply_baseline(self, player: GameObject) -> None:
@@ -248,6 +260,25 @@ def get_game_system() -> GameSystem | None:
     return _active_system
 
 
+#: Action types that mean a character's worn gear changed.
+EQUIPMENT_EVENTS = frozenset({"item:on_wear", "item:on_remove"})
+
+
+async def equipment_observer(action: Any) -> None:
+    """Propagation observer: gear changed -> let the rules package react.
+
+    The event-bus bridge for equipment-derived stats. Any path that fires
+    ``item:on_wear``/``item:on_remove`` (the wear command, softcode, a future
+    auto-equip) reaches the active system's ``on_equipment_change`` — no
+    command ever calls the system directly. Registered at boot alongside the
+    stealth and hostile observers."""
+    if not action.applied or action.action_type not in EQUIPMENT_EVENTS:
+        return
+    system = get_game_system()
+    if system is not None and action.actor is not None:
+        system.on_equipment_change(action.actor)
+
+
 def reload_rules() -> None:
     """
     Re-install the active system's data-driven tables, picking up edits to
@@ -267,6 +298,7 @@ __all__ = [
     "ChargenStep",
     "ChoiceStep",
     "GameSystem",
+    "equipment_observer",
     "resolve_game_system",
     "reload_rules",
     "set_game_system",

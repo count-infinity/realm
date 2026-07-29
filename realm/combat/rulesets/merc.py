@@ -12,8 +12,11 @@ ROM area (see scripts/rom_import.py) wants to run on:
 - **Damage**: weapon dice + a strength ``damroll``. Armor does **not**
   reduce damage here — in Diku, AC changes whether you are hit, not how
   hard. (Contrast GURPS DR / the ships shield model.)
-- **Apply**: straight HP loss, honoring any softcode ``on_check`` ward or
-  ruleset-agnostic resistance the engine already applies.
+- **Apply**: HP loss after a damage-type ``resistances`` pass. Diku has no
+  flat DR, so the only mitigation is the per-type multiplier (immune 0.0,
+  resist 0.5, vuln 1.5, or any float) read from the target's ``resistances``
+  attr — the same portable creature property the ROM importer emits from
+  imm/res/vuln flags. Softcode ``on_check`` wards still run before this.
 
 Expected combatant stats: ``thac0``, ``armor_class`` (lower is better),
 ``strength``, ``hp``/``max_hp``. Expected weapon attrs: ``damage_dice``
@@ -32,6 +35,7 @@ from realm.combat.ruleset import (
     DamageType,
     RollResult,
     Ruleset,
+    apply_type_resistance,
 )
 
 if TYPE_CHECKING:
@@ -113,8 +117,13 @@ class MercRuleset(Ruleset):
         attack_result: AttackResult,
         weapon: Any | None = None,
     ) -> DamageResult:
-        spec = self._weapon_attr(weapon, "damage_dice", "1d4")
-        n, s, b = _parse_dice(spec)
+        # A wielded weapon's dice, else the attacker's own natural-attack
+        # dice (imported Diku mobs carry their own ``damage_dice``), else 1d4.
+        spec = self._weapon_attr(weapon, "damage_dice", None)
+        if spec is None:
+            spec = getattr(attacker, "_obj", None) and \
+                attacker._obj.db.get("damage_dice")
+        n, s, b = _parse_dice(spec or "1d4")
         if attack_result.critical_hit:
             n *= 2                                   # Diku crit: double dice
         dice = [random.randint(1, s) for _ in range(n)]
@@ -133,13 +142,31 @@ class MercRuleset(Ruleset):
                             roll=roll)
 
     def apply_damage(self, target: Combatant, damage: DamageResult) -> int:
-        # Diku armor does not mitigate damage (that was the to-hit roll);
-        # HP simply drops. Softcode on_check wards and any engine-level
-        # resistance already ran before this.
+        # Diku armor does not mitigate damage (that was the to-hit roll), but
+        # a creature's damage-type resistances do: scale each typed component
+        # by the target's ``resistances`` multipliers, then HP simply drops.
+        # Softcode on_check wards already ran before this.
+        resist = self._resistances(target)
+        if resist and damage.damage_by_type:
+            scaled, resisted = apply_type_resistance(damage.damage_by_type,
+                                                     resist)
+            damage.damage_by_type = scaled
+            damage.total = sum(scaled.values())
+            damage.resisted = resisted
         hp = target.get_stat("hp", 0)
         dealt = max(0, damage.total)
         target.set_stat("hp", hp - dealt)
         return dealt
+
+    def _resistances(self, combatant: Combatant) -> dict[str, float] | None:
+        """The target's damage-type multiplier map, if it carries one."""
+        obj = getattr(combatant, "_obj", None)
+        db = getattr(obj, "db", None)
+        if db is not None:
+            r = db.get("resistances")
+            if isinstance(r, dict):
+                return r
+        return None
 
     def is_defeated(self, combatant: Combatant) -> bool:
         """Defeated at 0 HP (Diku goes to negatives before true death, but

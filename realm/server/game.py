@@ -49,7 +49,7 @@ from realm.persistence.manager import PersistenceManager, set_active_manager
 from realm.scripting.engine import ScriptEngine, set_script_engine
 from realm.server.auth import AuthService
 from realm.server.dispatcher import CommandContext, CommandDispatcher
-from realm.systems import resolve_game_system, set_game_system
+from realm.systems import equipment_observer, resolve_game_system, set_game_system
 
 if TYPE_CHECKING:
     from realm.config.loader import Settings
@@ -376,6 +376,9 @@ class GameServer:
         # ruleset (explicit COMBAT_RULESET config overrides it).
         self.game_system = resolve_game_system(self.game_system_spec)
         set_game_system(self.game_system)
+        # Gear changes reach the rules package via the event bus, not the
+        # wear command: on_wear/on_remove -> on_equipment_change (Merc AC).
+        get_propagation_engine().add_observer(equipment_observer)
         from realm.core.checks import set_check_resolver, set_skill_defaults
         set_skill_defaults(self.game_system.skill_defaults())
         set_check_resolver(self.game_system.resolve_check)
@@ -513,6 +516,7 @@ class GameServer:
             from realm.core.objects import set_check_hook
             set_check_hook(None)
         get_propagation_engine().remove_observer(stealth_observer)
+        get_propagation_engine().remove_observer(equipment_observer)
         if self.combat_manager is not None:
             get_propagation_engine().remove_observer(self.combat_manager.hostile_observer)
             self.combat_manager.stop_all()

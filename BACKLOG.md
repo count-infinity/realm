@@ -434,6 +434,16 @@ same day (see Completed); these remain, roughly by impact:
 
 ## Priority 2 - Nice to Have
 
+### GURPS armor→DR pipeline (the other side of the equipment seam, 2026-07-29)
+- [ ] GURPS combat reads `damage_resistance` at damage time
+  (`rulesets/gurps.py`) but nothing ever writes it — armor contributes no
+  DR. The seam already exists: give armor items a `dr_apply` attr, add a
+  `recompute_dr` on `GurpsSystem` summing worn `dr_apply` into
+  `damage_resistance`, and override `on_equipment_change` (the same hook
+  `MercSystem` uses for AC — wired via `equipment_observer` on the event
+  bus, no command changes). A deliberate follow-up, not part of the ROM
+  parity work.
+
 ### Configuration
 - [x] ~~Make welcome file path configurable~~ DONE: `WELCOME_FILE` in
   config.py (realm/config/loader.py; default `data/welcome.txt`).

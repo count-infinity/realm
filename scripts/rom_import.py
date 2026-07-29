@@ -66,6 +66,29 @@ WEAR_SLOTS = {
     12: "wrist", 13: "wield", 14: "hold", 16: "float",
 }
 
+# ROM immune/resist/vuln flag letters -> REALM damage-type name. ROM's
+# IMM_/RES_/VULN_ bitvectors share one layout (merc.h); only the
+# damage-typed bits map to a DamageType. The affect immunities
+# (A=summon, B=charm, Q=disease, R=drowning, S=light, T=sound, X/Y/Z=
+# wood/silver/iron) carry no damage-resistance meaning and are dropped from
+# the resistance map (the raw letters stay on rom_imm/res/vuln for porting).
+IRV_DAMAGE = {
+    "C": "magical",      # IMM_MAGIC
+    "D": "physical",     # IMM_WEAPON
+    "E": "bludgeoning",  # IMM_BASH
+    "F": "piercing",     # IMM_PIERCE
+    "G": "slashing",     # IMM_SLASH
+    "H": "fire",         # IMM_FIRE
+    "I": "cold",         # IMM_COLD
+    "J": "lightning",    # IMM_LIGHTNING
+    "K": "acid",         # IMM_ACID
+    "L": "poison",       # IMM_POISON
+    "M": "necrotic",     # IMM_NEGATIVE
+    "N": "radiant",      # IMM_HOLY
+    "O": "force",        # IMM_ENERGY
+    "P": "psychic",      # IMM_MENTAL
+}
+
 # ROM wear *locations* (the enum used by 'E' reset lines and equip slots) —
 # a DIFFERENT numbering from the wear-flag bits above.
 WEAR_LOC = {
@@ -100,6 +123,22 @@ def flag_letters(token: str) -> list[str]:
     if not token or token.lstrip("-").isdigit():
         return []
     return [c for c in token if c.isalpha()]
+
+
+def resistance_map(imm: str, res: str, vuln: str) -> dict[str, float]:
+    """ROM imm/res/vuln flag tokens -> a REALM ``resistances`` multiplier map.
+
+    A damage-taken multiplier per damage type: immune -> 0.0, resist -> 0.5,
+    vuln -> 1.5. Applied vuln, then res, then imm so the strongest (immune)
+    wins when a type somehow appears in more than one band. Non-damage affect
+    immunities are ignored (see ``IRV_DAMAGE``)."""
+    out: dict[str, float] = {}
+    for token, mult in ((vuln, 1.5), (res, 0.5), (imm, 0.0)):
+        for ch in flag_letters(token):
+            dtype = IRV_DAMAGE.get(ch)
+            if dtype:
+                out[dtype] = mult
+    return out
 
 
 def dice_avg(spec: str) -> int:
@@ -308,10 +347,10 @@ def _mobiles(r: Reader, area: Area) -> None:
         r.word()  # mana dice
         dam = r.word()
         r.word()                                       # damage type
+        ac0 = r.number()                               # ac[pierce] (descending)
         r.number()
         r.number()
         r.number()
-        r.number()  # ac[4]
         off = r.word()
         imm = r.word()
         res = r.word()
@@ -335,19 +374,26 @@ def _mobiles(r: Reader, area: Area) -> None:
             "gold": wealth,
             "max_hp": dice_avg(hit),
             "hp": dice_avg(hit),
+            # MERC-native combat stats: descending AC, level-derived THAC0,
+            # and a natural-attack damage die (used when the mob is unarmed).
+            "armor_class": ac0,
+            "thac0": max(0, 20 - level),
             "damage_dice": dam,
             "rom_act": flag_letters(act),
             "rom_affect": flag_letters(aff),
             "rom_offense": flag_letters(off),
         }
         if rom_flags(imm) or rom_flags(res) or rom_flags(vuln):
-            area.gap("mob immunity/resist/vuln flags: no REALM damage-type "
-                     "resistance table yet; stored as rom_* attrs")
+            # Normalize the ROM damage bits into a portable ``resistances``
+            # multiplier map that MercRuleset.apply_damage consumes directly.
+            # The raw letters stay too, for non-MERC hand-porting and for the
+            # non-damage affect immunities the map drops.
+            resist = resistance_map(imm, res, vuln)
+            if resist:
+                attrs["resistances"] = resist
             attrs["rom_imm"] = flag_letters(imm)
             attrs["rom_res"] = flag_letters(res)
             attrs["rom_vuln"] = flag_letters(vuln)
-        area.gap("mob AC is Diku THAC0-style (lower better); REALM uses "
-                 "DR/dodge — AC dropped, not mapped")
         area.mob_protos[vnum] = obj_record(
             f"rom_mob_{vnum}", name, look, tags, attrs)
 
@@ -397,14 +443,23 @@ def _objects(r: Reader, area: Area) -> None:
         if wslot:
             attrs["slot"] = wslot
         if type_name == "weapon":
-            # ROM weapon values: [class, num_dice, dice_type, attack, flags]
+            # ROM weapon values: [class, num_dice, dice_type, attack, flags].
+            # Emit ``damage_dice`` (what MercRuleset reads) and a plain
+            # ``damage`` alias for other systems.
             try:
-                attrs["damage"] = f"{int(values[1])}d{int(values[2])}"
+                dice = f"{int(values[1])}d{int(values[2])}"
+                attrs["damage_dice"] = dice
+                attrs["damage"] = dice
+            except (ValueError, TypeError):
+                area.gap("weapon has non-standard ROM damage values; left in "
+                         "rom_values for hand-mapping")
+        if type_name == "armor":
+            # ROM armor value0 = AC-apply (how much it improves AC). MERC's
+            # recompute_ac subtracts this from the wearer's armor_class.
+            try:
+                attrs["ac_apply"] = int(values[0])
             except (ValueError, TypeError):
                 pass
-            area.gap("weapon damage mapped from ROM 'NdS' value fields to a "
-                     "damage attr; REALM's weapon/skill model differs, so "
-                     "verify the numbers land where your ruleset reads them")
         area.obj_protos[vnum] = obj_record(
             f"rom_obj_{vnum}", name, look, tags, attrs)
 
