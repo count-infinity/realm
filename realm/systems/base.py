@@ -118,8 +118,26 @@ class GameSystem(ABC):
         return 4
 
     def death_award(self, victim: GameObject) -> int:
-        """Character points a kill is worth (split across the party)."""
+        """How much a kill is worth (split across the party). The unit is
+        the system's advancement currency — character points by default,
+        experience for an XP system."""
         return max(1, int(victim.db.get('points') or 10) // 10)
+
+    def grant_award(self, player: GameObject, amount: int) -> None:
+        """Deposit one share of a kill's reward on ``player``.
+
+        The single advancement seam the ABC owns, and the only place the
+        two progression models meet. The DEFAULT banks character points —
+        point-buy, what GURPS/D20 use with the ``improve`` command. An
+        XP/level system overrides this to bank experience and level up
+        (see MercSystem). Everything model-specific — an XP curve, a
+        level-up routine — lives in the subclass, deliberately NOT here, so
+        CP and XP systems coexist by each owning their own advancement and
+        sharing only this deposit."""
+        player.db.character_points = \
+            int(player.db.get('character_points') or 0) + int(amount)
+        player.msg(f"You gain {amount} character point"
+                   f"{'s' if amount != 1 else ''}.")
 
     # --- Skill resolution ---
     #

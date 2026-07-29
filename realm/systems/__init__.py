@@ -17,6 +17,7 @@ from realm.systems.base import (
 )
 from realm.systems.d20 import D20System
 from realm.systems.gurps import GurpsSystem
+from realm.systems.merc import MercSystem
 
 __all__ = [
     "ChargenStep",
@@ -24,6 +25,7 @@ __all__ = [
     "GameSystem",
     "GurpsSystem",
     "D20System",
+    "MercSystem",
     "get_game_system",
     "reload_rules",
     "resolve_game_system",

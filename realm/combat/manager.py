@@ -235,10 +235,15 @@ class CombatManager:
                 sharers = [killer]
             share = max(1, award // len(sharers))
             for member in sharers:
-                member.db.character_points = \
-                    int(member.db.get('character_points') or 0) + share
-                member.msg(f"You gain {share} character point"
-                           f"{'s' if share != 1 else ''}.")
+                if system is not None:
+                    # The system decides how a reward lands — CP by default,
+                    # XP + level-up for an XP system (grant_award).
+                    system.grant_award(member, share)
+                else:
+                    member.db.character_points = \
+                        int(member.db.get('character_points') or 0) + share
+                    member.msg(f"You gain {share} character point"
+                               f"{'s' if share != 1 else ''}.")
 
         # Corpse: a container holding the fallen's belongings.
         from realm.core.objects import GameObject as GameObjectCls

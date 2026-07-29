@@ -20,20 +20,49 @@ GAME_SYSTEM = "realm.systems.GurpsSystem"  # a built-in, unmodified (or ".D20Sys
 class in `rules.py`, so what it subclasses is the *only* place the rules
 are decided — there's no id string to fall out of sync with it.
 
-Two systems ship in-box:
+Three systems ship in-box:
 
-| | **GURPS** (`gurps`) | **D20** (`d20`) |
-|---|---|---|
-| Skill checks | 3d6 roll-UNDER effective skill | d20 + skill bonus vs DC 15 (roll-HIGH) |
-| Chargen | pick a template + bonus skill | pick a class |
-| Combat | 3d6 vs skill; AoA/AoD/Feint | d20 + ability mod + proficiency vs AC |
-| Advancement | flat 4 CP / skill level | escalating cost |
-| Currency | credits | gold |
-| Derived | HP from ST, dodge from DX/HT | HP from HT, AC 10 + DEX mod |
+| | **GURPS** (`gurps`) | **D20** (`d20`) | **Merc** (`merc`) |
+|---|---|---|---|
+| Skill checks | 3d6 roll-UNDER effective skill | d20 + bonus vs DC 15 (roll-HIGH) | d100 roll-UNDER skill % |
+| Chargen | template + bonus skill | pick a class | pick a class (of four) |
+| Combat | 3d6 vs skill; AoA/AoD/Feint | d20 + mod + prof vs AC | d20 THAC0 vs descending AC |
+| Advancement | flat 4 CP / skill level | escalating CP cost | **XP + leveling** (per-level HP) |
+| Currency | credits | gold | gold |
+| Derived | HP from ST | HP from HT, AC 10 + DEX | HP by class hit die; AC from worn armor |
+
+`merc` is the Diku/Merc/ROM-lineage package (`realm.systems.MercSystem`) —
+the rules a converted ROM area wants ([Importing ROM
+areas](../development/rom-import.md)). Convert Midgaard, run it on `merc`,
+and it plays like a real Diku.
 
 The whole package swaps: under `d20`, `stealth` and `persuade` roll a
 d20 too — not just combat. (This wiring was completed 2026-07-07;
 before that, non-combat checks ignored the system.)
+
+## Advancement: two models, one seam
+
+The two ways characters grow — **point-buy** (GURPS/D20: a kill banks
+character points, `improve` spends them per skill) and **XP leveling**
+(Merc: a kill banks experience that auto-converts to levels, each rolling
+HP and granting practices) — are genuinely different, and the ABC does
+**not** try to unify them into one model. Instead it exposes the single
+point they share: a method that deposits a kill's reward.
+
+```python
+def grant_award(self, player, amount) -> None:
+    # default: bank character points (point-buy)
+    player.db.character_points = (player.db.get('character_points') or 0) + amount
+```
+
+The combat death path calls `system.grant_award(member, share)` and asks
+no more. GURPS/D20 use the default; `MercSystem` overrides it to bank XP
+and call its own `advance_level`. Everything model-specific — the XP
+curve, the level-up routine — lives on the subclass, **not** on the ABC.
+So a point-buy system and an XP system coexist by each owning its own
+advancement and sharing only the deposit. If your system needs leveling,
+override `grant_award` and add your own advancement methods; if it's
+point-buy, do nothing and use `improve`.
 
 ## Changing systems after launch — don't
 

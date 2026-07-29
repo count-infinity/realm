@@ -104,10 +104,13 @@ class RulesetRegistry:
         if 'gurps' not in cls._rulesets:
             from realm.combat.rulesets.d20 import D20Ruleset
             from realm.combat.rulesets.gurps import GURPSRuleset
+            from realm.combat.rulesets.merc import MercRuleset
             cls._rulesets.setdefault('d20', D20Ruleset)
             cls._rulesets.setdefault('dnd', D20Ruleset)
             cls._rulesets.setdefault('gurps', GURPSRuleset)
             cls._rulesets.setdefault('3d6', GURPSRuleset)
+            cls._rulesets.setdefault('merc', MercRuleset)
+            cls._rulesets.setdefault('diku', MercRuleset)
 
 
 def find_wielded(obj) -> Any | None:
