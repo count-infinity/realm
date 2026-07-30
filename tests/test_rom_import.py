@@ -102,6 +102,44 @@ S
 """
 
 
+# A minimal area with a single NON-keeper mob, for the --repop spawner path.
+REPOP_ARE = """\
+#AREA
+test.are~
+Test~
+{ All } Test    Test~
+100 199
+#MOBILES
+#100
+rat~
+a rat~
+A rat scurries here.
+~
+It is a rat.
+~
+rodent~
+AB D 0 0
+2 0 1d1+7 1d1+7 1d4 bite
+5 5 5 5
+0 0 0 0
+stand stand neuter 0
+0 0 small 0
+#0
+#ROOMS
+#101
+A Cellar~
+A dank cellar.
+~
+0 0 0
+S
+#0
+#RESETS
+M 0 100 2 101 2
+S
+#$
+"""
+
+
 def _convert(text):
     return rom_import.convert(text)
 
@@ -159,6 +197,38 @@ class TestParse:
         wiz = area.mob_protos[3000]["attrs"]
         assert wiz["resistances"] == {"magical": 0.0, "physical": 0.0}
         assert wiz["rom_imm"] == ["A", "B", "C", "D"]      # raw letters kept
+
+    def test_repop_keeper_stays_a_static_fixture(self):
+        # The wizard (vnum 3000) is a shopkeeper (#SHOPS), so under --repop it
+        # is placed statically WITH its stock and gets NO spawner (respawning
+        # a keeper empty would break its shop).
+        area = rom_import.convert(ARE, repop=True)
+        placed = [o for o in area.objects
+                  if o["attrs"].get("prototype_vnum") == 3000
+                  and "npc" in o["tags"]]
+        assert len(placed) == 1                            # still placed
+        temple = [o for o in area.objects if "room" in o["tags"]
+                  and o["attrs"].get("rom_vnum") == 3001][0]
+        assert not any(b["behavior_id"] == "spawner"
+                       for b in temple["behaviors"])       # no respawn
+
+    def test_repop_adopts_and_respawns_a_nonkeeper(self):
+        # A non-keeper mob: placed statically AND adopted by a spawner (tagged,
+        # tracking seeded) so it respawns on death without duplicating.
+        area = rom_import.convert(REPOP_ARE, repop=True)
+        cellar = [o for o in area.objects if "room" in o["tags"]
+                  and o["attrs"].get("rom_vnum") == 101][0]
+        spawners = [b for b in cellar["behaviors"]
+                    if b["behavior_id"] == "spawner"]
+        assert len(spawners) == 1
+        sp = spawners[0]["params"]
+        assert sp["prototype"]["name"] == "rat" and sp["count"] == 1
+        rat = [o for o in area.objects
+               if o["attrs"].get("prototype_vnum") == 100 and "npc" in o["tags"]]
+        assert len(rat) == 1                               # static instance
+        assert "spawned:m100" in rat[0]["tags"]            # adopted, not dup'd
+        assert cellar["attrs"]["spawner_m100_ids"] == [rat[0]["id"]]
+        assert cellar["attrs"]["spawner_m100_seeded"] is True
 
 
 @pytest.mark.asyncio

@@ -34,7 +34,11 @@ Three systems ship in-box:
 `merc` is the Diku/Merc/ROM-lineage package (`realm.systems.MercSystem`) —
 the rules a converted ROM area wants ([Importing ROM
 areas](../development/rom-import.md)). Convert Midgaard, run it on `merc`,
-and it plays like a real Diku.
+and it plays like a real Diku. `examples/midgaard` is exactly that, ready to
+run: a level-1 **barbarian** wakes in the Common Square with a club, kills
+respawning fidos for XP, and trades at the shops (`realm init --template
+midgaard`). Its five classes are warrior, barbarian, thief, cleric, and
+mage; each starts with its class weapon (the ``outfit_new_character`` seam).
 
 The whole package swaps: under `d20`, `stealth` and `persuade` roll a
 d20 too — not just combat. (This wiring was completed 2026-07-07;

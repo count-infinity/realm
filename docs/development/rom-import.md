@@ -9,6 +9,10 @@ plays like a real Diku.
 ```bash
 python scripts/rom_import.py midgaard.are -o midgaard.area.json --report
 
+# --repop: mobs respawn on death (see "Repopulation" below) — the flag the
+# playable Midgaard example (examples/midgaard) is built with:
+python scripts/rom_import.py midgaard.are -o midgaard.json --repop
+
 # a whole directory tree at once, with a parity report:
 python scripts/rom_import_batch.py areas/ -o converted/ --report parity.md
 ```
@@ -20,6 +24,14 @@ python scripts/rom_import_batch.py areas/ -o converted/ --report parity.md
 > valid worldio JSON and imports into a live world with its exits linked.
 > The [MERC parity](#merc-parity-the-punch-list) section below is the
 > aggregate gap analysis from that run.
+
+> **Playable example.** `examples/midgaard` is a complete, runnable game
+> built from this pipeline: the ROM Midgaard converted with `--repop`, the
+> `merc` game system, and the `merc-classic` spell pack. `realm init
+> --template midgaard`, connect, make a level-1 **barbarian**, and you wake
+> in the Common Square with a club to thrash respawning fidos and shops to
+> trade at. `tests/test_midgaard_playable.py` walks that whole loop
+> (chargen → kit → kill → XP → respawn → trade → a mage's fireball).
 
 ```python
 # then, in-game or in init_world:
@@ -89,12 +101,17 @@ in REALM yet, and a builder can wire it up in softcode.
   `damage` attr and keeps all five raw in `rom_values`; a light's duration,
   a potion's spells, a container's key, etc. are **not** wired to REALM
   mechanics — they are data waiting for softcode.
-- **Resets are frozen, not respawning.** ROM resets are a *repop spec* the
-  server re-runs on a cycle; the converter runs them **once** to place the
-  initial population. The dynamic respawn maps to REALM's `zone_reset`
-  behavior + `reset_spec` (showcase 147), which the converter does **not**
-  emit — an imported area is a static world until you add repop. Reset `R`
-  (randomize exits) and reset `D` door-state are noted in `--report`.
+- **Resets: static by default, respawning with `--repop`.** ROM resets are
+  a *repop spec* the server re-runs on a cycle; the converter runs them
+  **once** to place the initial population (a static snapshot). Pass
+  `--repop` and it *also* attaches a `spawner` behavior to each room a mob
+  reset into: the spawner **adopts** the statically-placed instances (so no
+  duplication) and respawns each on death (`respawn_ticks`, not
+  presence-gated — the classic "keep killing them" loop, unlike the
+  whole-zone `zone_reset` which only fires when a zone empties).
+  Shopkeepers are left as static fixtures (their stock is their inventory,
+  so respawning them empty would break the shop). Reset `R` (randomize
+  exits) and reset `D` door-state are noted in `--report`.
 - **`#SPECIALS` (spec_procs).** Compiled C behavior functions. The
   **casting family is mapped**: `spec_cast_*` / `spec_breath_*` mobs get
   the `caster` behavior with that proc's canonical spell list (import the

@@ -205,6 +205,13 @@ class GameSystem(ABC):
         """Final fixups (derived stats). Returns the welcome line."""
         return "Character creation complete."
 
+    async def outfit_new_character(self, player: GameObject,
+                                   persistence: Any) -> None:
+        """Give a freshly finished character its starting kit — the async,
+        persistence-having companion to ``finish_chargen`` (minting items
+        needs both). Default: nothing. A class-based system overrides it to
+        hand out a starting weapon/armor (see MercSystem)."""
+
 
 def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem:
     """

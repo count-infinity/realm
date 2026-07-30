@@ -77,6 +77,29 @@ REALM must be usable as a library, not an application to fork.
 
 - [ ] Auto-discover commands from user's `commands/` directory
 
+### Playable Midgaard on merc (DONE 2026-07-30)
+- [x] A complete, runnable Diku: `examples/midgaard` (config + the
+  ROM Midgaard converted with `--repop`, on `MercSystem` + the
+  `merc-classic` spell pack). Connect, make a level-1 barbarian, wake in
+  the Common Square with a club, kill respawning fidos for XP, trade at the
+  shops. Proven end-to-end by `tests/test_midgaard_playable.py` (6:
+  chargen→kit→kill→XP→respawn→trade→a mage's fireball). Pieces built:
+  - **Importer `--repop`** (`scripts/rom_import.py`): attaches a `spawner`
+    per mob-reset room that ADOPTS the static instances (tags + seeds
+    tracking, no duplication) and respawns on death; shopkeepers stay static
+    fixtures (their stock is inventory). Reusable for any area. Also emits a
+    level-scaled `points` on mobs so `death_award` (points//10) yields real
+    XP (ROM does not store per-kill XP).
+  - **`barbarian` class** + per-class **starting weapon** (a club),
+    delivered via a new async `GameSystem.outfit_new_character(player,
+    persistence)` seam (default no-op; Merc mints + wields the class
+    weapon), called after `finish_chargen` in the connect flow.
+- [ ] **Deferred:** repop of O/G/E object resets (only mobs respawn today —
+  a killed mob returns, but consumed shop stock / floor loot does not
+  restock); a `zone_reset` master emission for whole-area SMAUG-style reset
+  (the presence-gated tool, complementary to the per-mob spawner); ROM mob
+  wander/scavenger ACT flags (fidos stand still — no wander behavior mapped).
+
 ## Priority 1 - Should Address Soon
 
 ### Sandbox security: authority façade + isolation (untrusted-player model, 2026-07-25)

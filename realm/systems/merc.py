@@ -43,6 +43,15 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
         "hit_die": 10, "thac0_rate": 1, "mana_per_level": 0,
         "stats": {"strength": 16, "constitution": 15},
         "skills": {"melee": 40, "shield_block": 25, "rescue": 20},
+        "starting_weapon": {"name": "a short sword", "damage_dice": "1d6"},
+    },
+    "barbarian": {
+        "blurb": "a savage warrior: the biggest hit die, a brutal club, "
+                 "no spells",
+        "hit_die": 12, "thac0_rate": 1, "mana_per_level": 0,
+        "stats": {"strength": 17, "constitution": 16},
+        "skills": {"melee": 40, "dodge": 20, "rescue": 15},
+        "starting_weapon": {"name": "a heavy wooden club", "damage_dice": "1d8"},
     },
     "thief": {
         "blurb": "a skirmisher: stealth, locks, and a wicked backstab",
@@ -50,18 +59,21 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
         "stats": {"dexterity": 16, "intelligence": 13},
         "skills": {"stealth": 45, "lockpicking": 40, "backstab": 30,
                    "melee": 20},
+        "starting_weapon": {"name": "a dagger", "damage_dice": "1d4"},
     },
     "cleric": {
         "blurb": "a divine caster: healing and protective prayers",
         "hit_die": 8, "thac0_rate": 2, "mana_per_level": 8,
         "stats": {"wisdom": 16, "strength": 13},
         "skills": {"heal": 40, "bless": 30, "melee": 15},
+        "starting_weapon": {"name": "a wooden mace", "damage_dice": "1d6"},
     },
     "mage": {
         "blurb": "an arcane caster: fragile, but the deadliest spells",
         "hit_die": 4, "thac0_rate": 3, "mana_per_level": 10,
         "stats": {"intelligence": 16, "dexterity": 13},
         "skills": {"magic_missile": 35, "detect_magic": 40, "stealth": 10},
+        "starting_weapon": {"name": "a gnarled dagger", "damage_dice": "1d4"},
     },
 }
 
@@ -147,6 +159,28 @@ class MercSystem(GameSystem):
         player.db.mana = player.db.max_mana
         self.recompute_ac(player)
         return f"Your {cls} steps into the world, ready to earn their name."
+
+    async def outfit_new_character(self, player: GameObject,
+                                   persistence: Any) -> None:
+        """Hand the new character its class starting weapon, wielded."""
+        from realm.core.objects import GameObject
+
+        cls = str(player.db.get("character_class") or "warrior")
+        spec = self._classes().get(cls, self._classes()["warrior"])
+        weapon = spec.get("starting_weapon")
+        if not weapon:
+            return
+        dice = str(weapon.get("damage_dice", "1d4"))
+        item = GameObject(name=str(weapon["name"]),
+                          tags=["thing", "weapon", "wieldable", "wielded"],
+                          location=player)
+        item.db.set("damage_dice", dice)
+        item.db.set("damage", dice)
+        item.owner = player
+        if persistence is not None:
+            await persistence.save(item)
+        player.msg(f"You grip {weapon['name']}, ready for trouble.")
+        self.recompute_ac(player)
 
     def recompute_ac(self, player: GameObject) -> int:
         """Armor class from dexterity and worn armor (lower is better).

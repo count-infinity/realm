@@ -248,6 +248,10 @@ class Area:
     rooms: dict[int, dict] = field(default_factory=dict)
     gaps: dict[str, int] = field(default_factory=dict)
     name: str = "Imported Area"
+    #: --repop: emit a per-room ``spawner`` for each mob reset instead of a
+    #: one-shot static placement, so the area repopulates itself.
+    repop: bool = False
+    mob_resets: list = field(default_factory=list)   # (mob_v, room_v, count)
     _inst: int = 0
 
     def gap(self, msg: str) -> None:
@@ -274,9 +278,10 @@ def obj_record(oid: str, name: str, desc: str, tags: list[str],
     }
 
 
-def convert(text: str) -> Area:
+def convert(text: str, repop: bool = False) -> Area:
     r = Reader(text)
     area = Area()
+    area.repop = repop
     while not r.eof():
         ch = r.peek_char()
         if ch != "#":
@@ -396,6 +401,10 @@ def _mobiles(r: Reader, area: Area) -> None:
             "alignment": align,
             "sex": sex,
             "gold": wealth,
+            # ROM does not store a kill's XP (the server derives it); a
+            # level-scaled ``points`` gives the death award something to
+            # divide (GameSystem.death_award = points // 10).
+            "points": max(1, level) * 100,
             "max_hp": dice_avg(hit),
             "hp": dice_avg(hit),
             # MERC-native combat stats: descending AC, level-derived THAC0,
@@ -575,8 +584,12 @@ def _resets(r: Reader, area: Area) -> None:
             mob_v = r.number()
             r.number()
             room_v = r.number()
-            r.number()
+            r.number()                        # ROM room limit
             last_mob_iid = _place_mob(area, mob_v, room_v)
+            if area.repop and last_mob_iid is not None:
+                # Placed statically (so keepers keep their G/E stock); a
+                # spawner is attached at finalize to respawn it on death.
+                area.mob_resets.append((mob_v, room_v))
         elif letter == "O":
             obj_v = r.number()
             r.number()
@@ -752,8 +765,56 @@ def _specials(r: Reader, area: Area) -> None:
             r.line()
 
 
+def _attach_spawners(area: Area) -> None:
+    """--repop: for each room a mob reset into, attach a ``spawner`` that
+    ADOPTS the statically-placed instances (tags them, seeds the spawner's
+    tracking) so they respawn on death without duplicating the initial
+    population. Shopkeepers are skipped — they are fixtures whose stock is
+    their inventory, so respawning them (empty) would be wrong."""
+    made = 0
+    for (mob_v, room_v) in dict.fromkeys(area.mob_resets):   # unique, ordered
+        proto = area.mob_protos.get(mob_v)
+        room = area.rooms.get(room_v)
+        if proto is None or room is None:
+            continue
+        if any(b["behavior_id"] == "shopkeeper" for b in proto["behaviors"]):
+            continue                                         # keeper = fixture
+        key = f"m{mob_v}"
+        instances = [o for o in area.objects
+                     if o["attrs"].get("prototype_vnum") == mob_v
+                     and o.get("location") == f"rom_{room_v}"
+                     and "npc" in o["tags"]]
+        if not instances:
+            continue
+        for inst in instances:
+            if f"spawned:{key}" not in inst["tags"]:
+                inst["tags"].append(f"spawned:{key}")
+        prototype = {
+            "name": proto["name"],
+            "description": proto["description"],
+            "tags": [t for t in proto["tags"] if t != "prototype"],
+            "attrs": dict(proto["attrs"]),
+            "behaviors": [dict(b) for b in proto["behaviors"]],
+        }
+        room["behaviors"].append({
+            "behavior_id": "spawner",
+            "params": {"key": key, "prototype": prototype,
+                       "count": len(instances), "respawn_ticks": 20},
+        })
+        # Seed the spawner's tracking so it adopts (not duplicates) the
+        # static instances: it respawns only after one is killed.
+        room["attrs"][f"spawner_{key}_ids"] = [o["id"] for o in instances]
+        room["attrs"][f"spawner_{key}_seeded"] = True
+        made += 1
+    if made:
+        area.gap(f"--repop: {made} respawning mob spawners (killed mobs "
+                 "return; shopkeepers stay static fixtures)")
+
+
 def _finalize(area: Area) -> None:
     """Rooms and prototypes into the object list; doors into exit objects."""
+    if area.repop:
+        _attach_spawners(area)         # after #SHOPS patched keeper protos
     for vnum, room in area.rooms.items():
         exits = room.pop("_exits", [])
         area.objects.append(room)
@@ -792,12 +853,15 @@ def main(argv: list[str] | None = None) -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("area_file", help="path to a ROM .are file")
     ap.add_argument("-o", "--output", help="write JSON here (default: stdout)")
+    ap.add_argument("--repop", action="store_true",
+                    help="emit self-repopulating spawners for mob resets "
+                         "(instead of a one-shot static placement)")
     ap.add_argument("--report", action="store_true",
                     help="print a capability-gap report to stderr")
     args = ap.parse_args(argv)
 
     text = Path(args.area_file).read_text(errors="replace")
-    area = convert(text)
+    area = convert(text, repop=args.repop)
     doc = {"realm_format": 1, "objects": area.objects}
     out = json.dumps(doc, indent=2) + "\n"
     if args.output:

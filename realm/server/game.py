@@ -929,6 +929,10 @@ class GameServer:
             welcome = self.game_system.finish_chargen(player)
             if self.persistence:
                 await self.persistence.save(player)
+                # Starting kit (a weapon, armor): async companion to
+                # finish_chargen, since minting items needs persistence.
+                await self.game_system.outfit_new_character(
+                    player, self.persistence)
             await session.send(welcome)
             await self._enter_world(session, player)
         else:
