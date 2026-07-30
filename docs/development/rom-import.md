@@ -95,12 +95,13 @@ in REALM yet, and a builder can wire it up in softcode.
   behavior + `reset_spec` (showcase 147), which the converter does **not**
   emit — an imported area is a static world until you add repop. Reset `R`
   (randomize exits) and reset `D` door-state are noted in `--report`.
-- **`#SPECIALS` (spec_procs).** Compiled C behavior functions
-  (`spec_cast_mage`, `spec_thief`, …). No portable equivalent; the mob is
-  tagged `rom_spec:<name>` so you can find them and reimplement in softcode
-  or a behavior. This is the biggest "content looks imported but isn't
-  alive" trap — a shopkeeper works (it became a behavior), a casting mage
-  does not.
+- **`#SPECIALS` (spec_procs).** Compiled C behavior functions. The
+  **casting family is mapped**: `spec_cast_*` / `spec_breath_*` mobs get
+  the `caster` behavior with that proc's canonical spell list (import the
+  `merc-classic` pack for the spell_defs — see [Spells as
+  Data](../guides/spells.md)). The rest (`spec_thief`, `spec_guard`, …)
+  are tagged `rom_spec:<name>` for mapping to existing behaviors — see
+  the punch list below.
 - **`#MOBPROGS` / `#OBJPROGS`.** ROM's trigger-scripting (a MOBprog is the
   Diku-family answer to REALM softcode). Skipped with a warning. These
   *could* be transpiled to `$`-commands / `ON_<EVENT>` hooks — a worthwhile
@@ -165,24 +166,26 @@ THAC0 17 — trades blows with a warrior on the `merc` ruleset):
   not imported NPCs.)
 - **Shops** → the `shopkeeper` behavior. **Doors** → initial lock tags.
 
-### The one real framework gap: spells
+### Spells — closed
 
-Half the ROM special procedures are **spell casters** — `spec_cast_mage`
-(61 areas), `spec_cast_cleric` (47), `spec_cast_undead` (31),
-`spec_cast_adept`, `_judge`, `_druid`, `_necromancer` — plus the
-`spec_breath_*` family (fire/frost/gas/acid/lightning, ~90 attachments).
-These need a **spell/mana-cost casting framework**, which `merc` does not
-have yet. This is the genuine parity project, not a field mapping:
+Half the ROM special procedures are **spell casters** — `spec_cast_mage`,
+`_cleric`, `_undead`, `_adept`, `_judge`, `_druid`, `_necromancer`, plus
+the `spec_breath_*` family. These are now alive end to end (see [Spells
+as Data](../guides/spells.md)):
 
-- A spell is a named ability with a mana cost, a target, an effect, and a
-  save. REALM already has the pieces — `act()` custom events, the
-  `on_check` save path, `damage()`/effect behaviors, mana attrs — but no
-  framework that ties "cast X, spend mana, roll a save, apply the effect."
-- Recommended shape: spells as `class_def`-style **data** (a `spell_def`
-  object: name, mana, level, target type, effect), a `cast` command, and a
-  `caster` behavior that picks and casts in combat. The `spec_cast_*` /
-  `spec_breath_*` mobs then map to the `caster` behavior parameterized by
-  their spell list — no per-proc code.
+- **`spell_def` objects** carry each spell as data (mana, level, target,
+  typed damage, save, heal, timed-effect attachment); casting is one
+  propagated `spell:<name>` action — wards, saves, and the damage-type
+  `resistances` layer all apply.
+- The **`caster` behavior** is the whole spec_cast family as one
+  parameterized behavior; it casts through the same pipeline players use.
+- The **importer attaches it automatically**: `spec_cast_*` /
+  `spec_breath_*` mobs get `caster` with that proc's canonical spell list
+  (ROM `special.c`). Over the ansalon collection this brings **86 areas
+  and 649 caster mob prototypes** to life.
+- The **`merc-classic` pack** (`@pack import merc-classic`) supplies the
+  23 classic spells those lists reference — import it alongside a
+  converted area and its guildmasters cast.
 
 ### Behavioral spec_procs — map to existing tools now
 
@@ -214,8 +217,9 @@ behavioral half.
 ### Summary
 
 Geography, population, gear, shops, basic combat, **damage-type
-resistance**, and **live worn-armor AC** are **done** — 189 areas convert,
-load, and fight on `merc` with imm/res/vuln honored and player armor that
-matters. Reaching full Diku parity is then a short, ranked list: a spell
-framework (the one real project) and a spec-proc→behavior map
-(mechanical). Nothing is blocked; each gap has a named path.
+resistance**, **live worn-armor AC**, and **spellcasting** are **done** —
+189 areas convert, load, and fight on `merc` with imm/res/vuln honored,
+player armor that matters, and 649 spec_cast/breath mobs casting from the
+`merc-classic` pack. What remains is the behavioral spec-proc→behavior
+map (mechanical) and MOBprogs (a language port). Nothing is blocked;
+each gap has a named path.

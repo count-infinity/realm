@@ -89,6 +89,30 @@ IRV_DAMAGE = {
     "P": "psychic",      # IMM_MENTAL
 }
 
+# ROM casting spec_procs -> the `caster` behavior, parameterized with each
+# proc's canonical spell list (ROM special.c) trimmed to the spells the
+# merc-classic pack ships. Import that pack alongside the area and these
+# mobs cast; without it the behavior ticks but finds no spell_defs.
+SPEC_CASTERS = {
+    "spec_cast_adept": ["bless", "cure light"],
+    "spec_cast_cleric": ["blindness", "curse", "flamestrike", "harm"],
+    "spec_cast_judge": ["magic missile"],
+    "spec_cast_mage": ["blindness", "chill touch", "colour spray",
+                       "fireball", "acid blast"],
+    "spec_cast_undead": ["curse", "chill touch", "blindness", "poison",
+                         "harm"],
+    "spec_cast_druid": ["poison", "curse", "flamestrike"],
+    "spec_cast_necromancer": ["curse", "chill touch", "blindness", "poison",
+                              "harm"],
+    "spec_breath_fire": ["fire breath"],
+    "spec_breath_frost": ["frost breath"],
+    "spec_breath_acid": ["acid breath"],
+    "spec_breath_gas": ["gas breath"],
+    "spec_breath_lightning": ["lightning breath"],
+    "spec_breath_any": ["fire breath", "frost breath", "acid breath",
+                        "gas breath", "lightning breath"],
+}
+
 # ROM wear *locations* (the enum used by 'E' reset lines and equip slots) —
 # a DIFFERENT numbering from the wear-flag bits above.
 WEAR_LOC = {
@@ -707,9 +731,23 @@ def _specials(r: Reader, area: Area) -> None:
             proto = area.mob_protos.get(vnum)
             if proto is not None:
                 proto["tags"].append(f"rom_spec:{spec}")
-            area.gap(f"#SPECIALS ({spec}): a compiled C spec_proc — no REALM "
-                     "equivalent; tagged rom_spec:* for hand-porting to "
-                     "softcode")
+            spells = SPEC_CASTERS.get(spec)
+            if spells and proto is not None:
+                behavior = {"behavior_id": "caster",
+                            "params": {"spells": list(spells), "chance": 0.5}}
+                # Like #SHOPS: resets ran first, so patch the placed
+                # instances of this vnum as well as the prototype.
+                for target in [proto, *(o for o in area.objects
+                                        if o["attrs"].get("prototype_vnum")
+                                        == vnum)]:
+                    target["behaviors"].append(dict(behavior))
+                area.gap(f"#SPECIALS ({spec}): mapped to the caster behavior "
+                         "(spell list from ROM special.c; import the "
+                         "merc-classic pack for the spell_defs)")
+            else:
+                area.gap(f"#SPECIALS ({spec}): a compiled C spec_proc — no "
+                         "REALM equivalent; tagged rom_spec:* for "
+                         "hand-porting to softcode")
         else:
             r.line()
 

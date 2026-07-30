@@ -83,6 +83,10 @@ Bundle skills, classes, and gear into a **[content pack](content-packs.md)**
 built-in `gurps-scifi` pack does exactly this. See also
 [World Management](world-management.md).
 
+The same def-object pattern also covers spells — a **spell_def** carries
+mana/level/damage/save/effect as attributes and `cast` fires one
+propagated action from it ([Spells as Data](spells.md)).
+
 ## Behaviors as data
 
 Behavior *logic* has the same data path. A **behavior_def** is an object

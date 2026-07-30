@@ -41,6 +41,16 @@ CONTROL_UNOWNED = "CONTROL_UNOWNED"
 TELEPORT_ANY = "TELEPORT_ANY"
 #: See in darkness and through invisibility.
 SEE_ALL = "SEE_ALL"
+#: Author softcode that harms others: the primitives that damage / apply a
+#: harmful effect to a target you do not control, or MINT currency. Gates
+#: the *authoring* of harm, not its use — a builder's poison dart (authored
+#: with HARM) still fires in a player's hand, because harm rides the trusted
+#: engine paths (combat / cast) and this only governs who may write the
+#: harmful primitive into softcode in the first place. Composition model
+#: (see BACKLOG "builder-restricted harmful softcode"): a human player may
+#: not author harm; unowned world content and NPCs are trusted by
+#: construction; builder+ hold this by default.
+HARM = "HARM"
 
 # NOTE: entitlements deliberately do NOT gate *command access*. Command
 # invocation is still a coarse role-tier check in the dispatcher
@@ -54,7 +64,7 @@ SEE_ALL = "SEE_ALL"
 #: grant names in here; call sites use the constants above.
 ALL_ENTITLEMENTS = frozenset({
     LOCK_BYPASS_ALL, LOCK_BYPASS, CONTROL_ALL, CONTROL_UNOWNED,
-    TELEPORT_ANY, SEE_ALL,
+    TELEPORT_ANY, SEE_ALL, HARM,
 })
 
 

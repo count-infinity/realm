@@ -1,0 +1,578 @@
+{
+  "realm_format": 1,
+  "objects": [
+    {
+      "id": "spell_magic_missile",
+      "name": "magic missile",
+      "description": "A dart of pure force unerringly strikes your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 1,
+        "mana": 8,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "1d4+1",
+        "damage_type": "force",
+        "save": "none"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_chill_touch",
+      "name": "chill touch",
+      "description": "Your touch drains warmth and life.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 3,
+        "mana": 10,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "1d6+2",
+        "damage_type": "cold",
+        "save": "none"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_burning_hands",
+      "name": "burning hands",
+      "description": "A fan of flame springs from your fingertips.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 5,
+        "mana": 12,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "2d4+2",
+        "damage_type": "fire",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_shocking_grasp",
+      "name": "shocking grasp",
+      "description": "Lightning arcs from your hand into your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 7,
+        "mana": 12,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "2d6+2",
+        "damage_type": "lightning",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_colour_spray",
+      "name": "colour spray",
+      "description": "A blinding wedge of clashing colors erupts.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 11,
+        "mana": 15,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "3d6+3",
+        "damage_type": "radiant",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_lightning_bolt",
+      "name": "lightning bolt",
+      "description": "A stroke of lightning blasts your target.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 13,
+        "mana": 15,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "4d6+2",
+        "damage_type": "lightning",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_fireball",
+      "name": "fireball",
+      "description": "A roaring sphere of flame engulfs your target.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 15,
+        "mana": 15,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "6d6",
+        "damage_type": "fire",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_acid_blast",
+      "name": "acid blast",
+      "description": "A jet of hissing acid burns everything it touches.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 20,
+        "mana": 20,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "damage_dice": "6d8",
+        "damage_type": "acid",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_cause_light",
+      "name": "cause light",
+      "description": "You channel harm into a touched foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 1,
+        "mana": 8,
+        "classes": [
+          "cleric"
+        ],
+        "target": "victim",
+        "damage_dice": "1d8",
+        "damage_type": "necrotic",
+        "save": "none"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_flamestrike",
+      "name": "flamestrike",
+      "description": "A column of holy fire descends on your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 15,
+        "mana": 20,
+        "classes": [
+          "cleric"
+        ],
+        "target": "victim",
+        "damage_dice": "5d6",
+        "damage_type": "fire",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_harm",
+      "name": "harm",
+      "description": "You flood a foe's body with rot and agony.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 19,
+        "mana": 35,
+        "classes": [
+          "cleric"
+        ],
+        "target": "victim",
+        "damage_dice": "8d8",
+        "damage_type": "necrotic",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_cure_light",
+      "name": "cure light",
+      "description": "Minor wounds close under your hands.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 1,
+        "mana": 10,
+        "classes": [
+          "cleric"
+        ],
+        "target": "ally",
+        "heal_dice": "1d8+2"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_cure_serious",
+      "name": "cure serious",
+      "description": "Serious wounds knit together.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 7,
+        "mana": 15,
+        "classes": [
+          "cleric"
+        ],
+        "target": "ally",
+        "heal_dice": "2d8+4"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_heal",
+      "name": "heal",
+      "description": "A surge of life force mends grievous wounds.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 14,
+        "mana": 50,
+        "classes": [
+          "cleric"
+        ],
+        "target": "ally",
+        "heal_dice": "4d8+16"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_bless",
+      "name": "bless",
+      "description": "A divine favor steadies hand and heart.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 2,
+        "mana": 5,
+        "classes": [
+          "cleric"
+        ],
+        "target": "ally",
+        "effect": {
+          "behavior_id": "modifier_effect",
+          "params": {
+            "kind": "blessed",
+            "duration": 60,
+            "check_mods": {
+              "all": 1
+            },
+            "apply_msg": "You feel righteous.",
+            "expire_msg": "You feel less righteous."
+          }
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_curse",
+      "name": "curse",
+      "description": "You lay a malediction on your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 5,
+        "mana": 20,
+        "classes": [
+          "cleric"
+        ],
+        "target": "victim",
+        "hostile": true,
+        "save": "negates",
+        "effect": {
+          "behavior_id": "modifier_effect",
+          "params": {
+            "kind": "cursed",
+            "duration": 60,
+            "check_mods": {
+              "all": -1
+            },
+            "apply_msg": "You feel unclean.",
+            "expire_msg": "The curse lifts."
+          }
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_blindness",
+      "name": "blindness",
+      "description": "Darkness swallows your foe's sight.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 8,
+        "mana": 15,
+        "classes": [
+          "mage",
+          "cleric"
+        ],
+        "target": "victim",
+        "hostile": true,
+        "save": "negates",
+        "effect": {
+          "behavior_id": "modifier_effect",
+          "params": {
+            "kind": "blind",
+            "duration": 30,
+            "check_mods": {
+              "all": -4
+            },
+            "apply_msg": "You are blinded!",
+            "expire_msg": "You can see again."
+          }
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_poison",
+      "name": "poison",
+      "description": "Venom courses through your foe's veins.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 10,
+        "mana": 15,
+        "classes": [
+          "mage",
+          "cleric"
+        ],
+        "target": "victim",
+        "hostile": true,
+        "save": "negates",
+        "effect": {
+          "behavior_id": "damage_over_time",
+          "params": {
+            "kind": "poisoned",
+            "damage": 2,
+            "interval": 4,
+            "duration": 40,
+            "expire_msg": "The poison runs its course."
+          }
+        }
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_fire_breath",
+      "name": "fire breath",
+      "description": "A torrent of fire washes over your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 20,
+        "mana": 0,
+        "target": "victim",
+        "damage_dice": "8d6",
+        "damage_type": "fire",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_frost_breath",
+      "name": "frost breath",
+      "description": "A torrent of cold washes over your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 20,
+        "mana": 0,
+        "target": "victim",
+        "damage_dice": "8d6",
+        "damage_type": "cold",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_acid_breath",
+      "name": "acid breath",
+      "description": "A torrent of acid washes over your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 20,
+        "mana": 0,
+        "target": "victim",
+        "damage_dice": "8d6",
+        "damage_type": "acid",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_gas_breath",
+      "name": "gas breath",
+      "description": "A torrent of poison washes over your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 20,
+        "mana": 0,
+        "target": "victim",
+        "damage_dice": "8d6",
+        "damage_type": "poison",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
+      "id": "spell_lightning_breath",
+      "name": "lightning breath",
+      "description": "A torrent of lightning washes over your foe.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 20,
+        "mana": 0,
+        "target": "victim",
+        "damage_dice": "8d6",
+        "damage_type": "lightning",
+        "save": "half"
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    }
+  ]
+}

@@ -166,6 +166,14 @@ class MercSystem(GameSystem):
         """Diku AC is worn-gear-derived; re-derive on every wear/remove."""
         self.recompute_ac(player)
 
+    def saving_throw(self, target: GameObject, level: int) -> bool:
+        """Diku save vs spell: level differential swings the d100 chance
+        5%/level around an even 50, clamped to 5..95 so nothing is a
+        certainty either way."""
+        target_level = int(target.db.get("level") or 1)
+        chance = max(5, min(95, 50 + 5 * (target_level - int(level))))
+        return random.randint(1, 100) <= chance
+
     # --- advancement (XP + level): add-on methods, NOT the ABC ---
 
     def grant_award(self, player: GameObject, amount: int) -> None:

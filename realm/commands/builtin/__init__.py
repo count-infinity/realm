@@ -9,6 +9,7 @@ from realm.commands.builtin.communication import register_communication_commands
 from realm.commands.builtin.economy import register_economy_commands
 from realm.commands.builtin.inventory import register_inventory_commands
 from realm.commands.builtin.look import register_look_commands
+from realm.commands.builtin.magic import register_magic_commands
 from realm.commands.builtin.manipulation import register_manipulation_commands
 from realm.commands.builtin.movement import register_movement_commands
 from realm.commands.builtin.social import register_social_commands
@@ -24,6 +25,7 @@ def register_all_commands(dispatcher) -> None:
     register_inventory_commands(dispatcher)
     register_manipulation_commands(dispatcher)
     register_combat_commands(dispatcher)
+    register_magic_commands(dispatcher)
     register_social_commands(dispatcher)
     register_economy_commands(dispatcher)
     register_utility_commands(dispatcher)

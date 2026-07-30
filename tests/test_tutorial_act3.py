@@ -296,6 +296,10 @@ def world():
 
     # --- The player: the builder herself, as in the tutorial ---
     alice = sim.player("Alice", location=jetty)
+    # She authored this world, so she holds builder authority — her enthrall
+    # spell's apply_effect() rides HARM (the composition trust model gates
+    # harm-authoring to builders; an ordinary player could not write it).
+    alice.add_tag("builder")
     alice.db.set("credits", 100)
     alice.db.set("dexterity", 13)
     alice.db.set("intelligence", 12)

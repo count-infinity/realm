@@ -434,6 +434,35 @@ same day (see Completed); these remain, roughly by impact:
 
 ## Priority 2 - Nice to Have
 
+### DataGameSystem: the whole rules package as a `system_def` object (designed, 2026-07-29)
+- [ ] Complete the "games are softcode" vision for the RULES layer: one
+  generic `DataGameSystem` class whose every seam reads from a tagged
+  `system_def` object, so a game system imports like any pack — no
+  Python fork. Seam inventory (most already have a data path):
+  `skill_defaults` (skill_def objects — done), classes (class_def —
+  done), `resolve_check` (`resolve_rule` — done), `baseline_stats` /
+  `ruleset_name` / `currency_name` (plain attrs), `saving_throw` (a
+  softcode expression, same shape as resolve_rule), `grant_award` /
+  advancement (a softcode body, ~15 lines for the Merc XP loop),
+  `on_equipment_change` (softcode body), chargen (ChoiceStep is already
+  declarative). The combat ruleset stays Python-native (selected by
+  name); a scripted ruleset (`hit_rule`/`damage_rule` expressions) is a
+  possible later tier for simple systems. Shipped GURPS/D20/Merc remain
+  Python reference implementations — this is additive, not a migration.
+  Security: system_def softcode runs with its owner's authority and
+  writes `system`-flagged attrs, so defs belong to #1/admin.
+
+### ToolStep: consult `action.tool` in the propagation chain (deferred by choice, 2026-07-29)
+- [ ] Today `action.tool` is only used for message formatting; the check
+  pass never consults it. A ~8-line generic `ToolStep` (visit
+  `action.tool`'s behaviors/softcode like any participant) would let the
+  *instrument* of an action carry its own `on_check`/`on_react` — a
+  cursed key refusing to turn, a wand with opinions, a spell_def with
+  bespoke check logic (the cast pipeline already passes
+  `tool=spell_def`). Deliberately deferred: it is a kernel touch, and
+  caster/room/target wards cover the current cases. Revisit when a
+  concrete spell or tool needs it.
+
 ### GURPS armor→DR pipeline (the other side of the equipment seam, 2026-07-29)
 - [ ] GURPS combat reads `damage_resistance` at damage time
   (`rulesets/gurps.py`) but nothing ever writes it — armor contributes no
@@ -3690,3 +3719,59 @@ simpler but coarser. Either way it is opt-in per deployment: the built-in
 changes) or without it (a locked-down world), set in the role table with no
 code fork. Decide the exact verb list and the split when the verbs that matter
 in practice are clearer.
+
+### DECISION (2026-07-29): composition model, not code-signing
+
+Promoted from deferred polish to the organizing principle after a
+multi-lens architecture review (PennMUSH/LPMud/CoffeeMud/Evennia +
+adversarial pass). The unanimous cross-reference finding: authored code
+must carry its **author's** authority, never the invoker's (LPMud
+uid/euid, MUSH executor-vs-enactor). But REALM gets that for free by NOT
+letting harm be hand-written in softcode at all:
+
+- **Harm is DATA interpreted by trusted engine paths**, not a softcode
+  primitive. A poison dart = a weapon with `damage_dice`/effect *data*;
+  the combat / `cast_spell` engine (Python) applies it. The builder
+  authored inert numbers; the trusted engine did the damage. This makes a
+  sold dart chown-proof (the engine reads data regardless of owner) and
+  removes the author-vs-invoker question entirely for tradeable harm — so
+  **no per-attribute author stamp, no chown-preservation, no per-frame
+  namespace filter** (all of which the review's first-draft synthesis
+  proposed and the adversarial pass showed were unnecessary; its
+  "aliasing defeats save-time scanning" justification is false under
+  REALM's empty-`__builtins__` + AST-allowlist sandbox anyway).
+- **The gate collapses to: who may author harmful DATA?** — creating a
+  `spell_def`, setting `damage_dice`, parameterizing a `damage_over_time`
+  behavior. Already builder-gated (0 player authoring commands today).
+- **Bespoke builder harm-in-softcode** (a trap's `on_enter` calling
+  `damage()`) stays possible but binds the harmful primitives only for a
+  builder+-owned executor, via `has_entitlement_delegated(executor, HARM)`
+  at palette-build time (per-object, NOT per-frame). Not chown-proof, but
+  traps are not sold, so that is acceptable.
+- **Players** get the safe palette; harmful primitives are simply not
+  bound names in a player-authored frame.
+
+Concrete fixes this makes non-optional (independent of the big picture):
+- `adjust_credits` (mints currency) → behind HARM; `transfer_credits`
+  (moves existing money) stays in the safe palette. Otherwise a "harmless"
+  player slot machine is an inflation exploit.
+- `set_attr`/`del_attr` writing `$`-command / `on_*` attrs is
+  **meta-authoring** — it can install harm one level down; must respect
+  the same HARM consideration, not sit unqualified on the safe list.
+- Reconcile the softcode `damage(type=)` primitive (functions.py:806, added
+  2026-07-28) with the gate — it stays but binds builder+ only.
+
+One tier (**HARM**) to start; HARM/WORLDEDIT split later is a `role_def`
+data change, no code fork. Rejected: **`Damageable` as an attachable
+behavior** — taking damage is entity-agnostic (people/mobs/ships/doors),
+must not be attach-or-forget. Still needed and orthogonal: a
+**target/PvP-consent axis** (author-tier says the code may harm, not
+*whom* — a builder's over-generic `$zap <target>` is a confused deputy);
+seed exists at `enactor_consent` (functions.py:86). Next increments: (1)
+HARM-gate the harmful primitives + the two credit/set_attr fixes; (2) the
+consent axis; (3) a player authoring surface (needs the entitlement-based
+command-authorization refactor, L160-168) — only then can players build
+slot machines in-game. The author-stamp capability model is recorded here
+as the **not-chosen** alternative: revisit only if a concrete need for
+builders to hand-write *novel* harmful softcode (beyond parameterizing
+engine primitives) ever appears.

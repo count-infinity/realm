@@ -174,6 +174,15 @@ class GameSystem(ABC):
         is equipment-derived. MercSystem overrides to recompute Diku AC; a
         GURPS armor-DR pipeline would override the same hook."""
 
+    def saving_throw(self, target: GameObject, level: int) -> bool:
+        """Did ``target`` save against a level-``level`` hostile effect?
+
+        Consulted by the spell apply step when a spell_def declares
+        ``save='half'``/``'negates'``. Default: this system has no save
+        concept (False = full effect). MercSystem overrides with the Diku
+        level-differential save."""
+        return False
+
     # --- Character creation ---
 
     def apply_baseline(self, player: GameObject) -> None:

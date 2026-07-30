@@ -803,13 +803,20 @@ class ScriptFunctions:
         return (target.location is not None
                 and target.location is self.executor.location)
 
-    def damage(self, obj: GameObject | str | None, amount: int) -> bool:
+    def damage(self, obj: GameObject | str | None, amount: int,
+               dtype: str | None = None) -> bool:
         """
         Deal damage to something in the executor's room. Lethal damage
         routes through the combat manager's death path (corpses, CP
         awards, unconsciousness) after the script finishes.
 
+        With a damage type, the hit routes through the active ruleset's
+        ``apply_damage`` — so a target's ``resistances`` (and any other
+        ruleset mitigation) apply: a fire-immune mob shrugs off
+        damage(enactor, 12, 'fire'). Untyped damage stays raw.
+
         Example: damage(enactor, 3)
+                 damage(enactor, 12, 'fire')
         """
         target = self._resolve(obj)
         if not self._in_reach(target) or int(amount) <= 0:
@@ -817,7 +824,11 @@ class ScriptFunctions:
         hp = target.db.get('hp')
         if hp is None:
             return False
-        target.db.hp = int(hp) - int(amount)
+        if dtype:
+            from realm.systems.spells import apply_typed_damage
+            apply_typed_damage(target, int(amount), str(dtype))
+        else:
+            target.db.hp = int(hp) - int(amount)
         self.command_queue.append(('death_check', target, self.executor))
         self.command_queue.append(('save', target, ''))
         return True
@@ -2000,4 +2011,45 @@ class ScriptFunctions:
         # Native bindings registered by the operator/pack author extend
         # (and may override) the vocabulary — the trusted escape hatch.
         namespace.update(registered_bindings())
+        # Composition trust model: harm-authoring primitives are simply not
+        # BOUND in a frame whose responsible principal is a mortal player
+        # without HARM. The sandbox has empty __builtins__ + an AST allowlist,
+        # so an unbound name is unrecoverable (no reflection, no alias source)
+        # — removing the name IS the boundary, no per-call-site guard needed.
+        if not self._may_harm():
+            for name in self._HARM_GATED:
+                namespace.pop(name, None)
         return namespace
+
+    #: Softcode primitives that harm a target you need not control (damage /
+    #: effect a stranger) or mint currency. Bound only for HARM-authorized
+    #: frames (see _may_harm). NOT gated: heal (beneficial), transfer_credits
+    #: (moves existing money, control-gated), force/teleport/destroy (already
+    #: control-gated — those want the target-consent axis, a later increment).
+    _HARM_GATED = frozenset({
+        'damage', 'apply_effect', 'remove_effect', 'adjust_credits',
+    })
+
+    def _may_harm(self) -> bool:
+        """May the executing frame author harm? (composition trust model)
+
+        Walk the executor's owner-delegation chain: HARM anywhere -> allow
+        (builder+, or a role_def grant); a ``player``/``guest`` mortal as the
+        responsible principal with no HARM -> deny; an unowned / NPC / system
+        world object -> allow (trusted by construction — designers, imports,
+        and the world itself are not untrusted players). This gates the
+        AUTHOR, carried as the executor's delegated authority, never the
+        invoker: a builder's dart still fires in a player's hand because the
+        dart delegates to its builder owner."""
+        from realm.permissions import has_entitlement
+        from realm.permissions.entitlements import HARM
+
+        node, depth = self.executor, 0
+        while node is not None and depth < 5:
+            if has_entitlement(node, HARM):
+                return True
+            if node.has_tag('player') or node.has_tag('guest'):
+                return False
+            node = node.owner
+            depth += 1
+        return True

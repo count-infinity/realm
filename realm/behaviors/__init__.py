@@ -5,6 +5,7 @@ Importing this package registers every behavior with the
 BehaviorRegistry, so persisted worlds can rehydrate them by id.
 """
 
+from realm.behaviors.caster import CasterBehavior
 from realm.behaviors.decay import DecayBehavior
 from realm.behaviors.effects import (
     DamageOverTimeBehavior,
@@ -21,6 +22,7 @@ from realm.behaviors.ticker import ScriptTickerBehavior
 from realm.behaviors.zone_reset import ZoneResetBehavior
 
 __all__ = [
+    "CasterBehavior",
     "ScriptedBehavior",
     "ScriptTickerBehavior",
     "SpawnerBehavior",

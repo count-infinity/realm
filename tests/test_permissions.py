@@ -352,10 +352,10 @@ def _player(name, *roles):
 _LADDER = {
     'guest':   set(),
     'player':  set(),
-    'builder': {E.CONTROL_UNOWNED},
-    'admin':   {E.CONTROL_UNOWNED, E.LOCK_BYPASS, E.CONTROL_ALL,
+    'builder': {E.CONTROL_UNOWNED, E.HARM},
+    'admin':   {E.CONTROL_UNOWNED, E.HARM, E.LOCK_BYPASS, E.CONTROL_ALL,
                 E.TELEPORT_ANY, E.SEE_ALL},
-    'god':     {E.CONTROL_UNOWNED, E.LOCK_BYPASS, E.CONTROL_ALL,
+    'god':     {E.CONTROL_UNOWNED, E.HARM, E.LOCK_BYPASS, E.CONTROL_ALL,
                 E.TELEPORT_ANY, E.SEE_ALL, E.LOCK_BYPASS_ALL},
 }
 
