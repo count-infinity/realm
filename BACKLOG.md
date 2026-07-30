@@ -434,6 +434,34 @@ same day (see Completed); these remain, roughly by impact:
 
 ## Priority 2 - Nice to Have
 
+### Abilities generalized: spells are one flavor of a generic capability (DONE 2026-07-30)
+- [x] Recognized that "spell" was a genre skin (mana + class/level + fixed
+  damage/heal fields) over a generic mechanism. Built `systems/abilities.py`:
+  `invoke_ability` (gate -> propagate `<domain>:<name>` -> pay a **cost spec**
+  -> apply an **effect-spec list**), so a spell, a skill, a shout, and a
+  room "bless" are one object with different data. Cost is a spec
+  (`{pool, n}` for mana/stamina/any attr, `{per_day}` for a daily counter;
+  legacy `mana=N` still works), eligibility is a rule (classes/level/
+  `skill_req`), effects are specs (damage/heal/behavior/softcode), targeting
+  includes `room` (AoE via the propagation chain's bystanders). `spells.py`
+  is now a thin flavor (cast verb, `spell:` domain, spellbook) delegating to
+  it; all 23 spell tests, the caster behavior, the importer, and the
+  merc-classic pack are untouched behaviorally. Docs:
+  docs/guides/abilities.md. Tests: tests/test_abilities.py (7, incl. the
+  rally-cry == fireball proof).
+- [x] **Damage is one interceptable event.** Extracted `combat/damage.py`
+  `deal_damage`: the single chokepoint that fires `combat:on_damage`
+  (interceptable: block / `set_adata('damage')`), honors the reduction, then
+  applies via the ruleset. Combat's `resolve` and ability damage both use
+  it, so a room's "sanctuary" behavior nerfs a fireball and a swing alike.
+  Softcode `damage()` still deals directly (opt-out is fine, by design).
+  Name kept `combat:on_damage` (woven through ~27 sites incl. showcase
+  tutorials); a neutral rename (`on_damage`) is a deferred cosmetic sweep.
+- [ ] **Deferred:** cooldown cost spec (needs a clock seam); a real
+  day/night reset for `per_day` (today the counter is rest/manual-reset);
+  a generic `use`/`perform` command sibling to `cast`; the neutral
+  `on_damage` rename.
+
 ### DataGameSystem: the whole rules package as a `system_def` object (designed, 2026-07-29)
 - [ ] Complete the "games are softcode" vision for the RULES layer: one
   generic `DataGameSystem` class whose every seam reads from a tagged

@@ -825,8 +825,8 @@ class ScriptFunctions:
         if hp is None:
             return False
         if dtype:
-            from realm.systems.spells import apply_typed_damage
-            apply_typed_damage(target, int(amount), str(dtype))
+            from realm.combat.damage import apply_resisted
+            apply_resisted(target, int(amount), str(dtype))
         else:
             target.db.hp = int(hp) - int(amount)
         self.command_queue.append(('death_check', target, self.executor))

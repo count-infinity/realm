@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from realm.combat.combatant import Combatant, CombatState, get_combatant
+from realm.combat.damage import deal_damage
 from realm.combat.ruleset import (
     AttackResult,
     DamageResult,
@@ -223,10 +224,12 @@ class CombatSystem:
         # Roll damage
         damage_result = self.ruleset.roll_damage(atk, dfn, attack_result, weapon)
 
-        # Propagate damage action — a ward/shield/resistance (a behavior or
-        # on_check softcode) can block damage outright, or reduce it via
-        # mod()/set_adata('damage', ...) in the check pass.
-        damage_action = await self._propagate_damage(atk, dfn, damage_result)
+        # Deal it through the shared chokepoint: fires the interceptable
+        # combat:on_damage event (a ward/shield/room rule may block or
+        # reduce it), honors the reduction, then applies via the ruleset.
+        old_pct = dfn.hp_percent * 100
+        _dealt, damage_action = await deal_damage(
+            atk.obj, dfn, damage_result, self.ruleset)
         if damage_action.blocked:
             return CombatResult(
                 success=True,
@@ -235,25 +238,6 @@ class CombatSystem:
                     'attacker_msg': damage_action.block_reason or "Damage prevented.",
                 },
             )
-
-        # Honor a reduced payload: extra['damage'] (mutated) + any modifiers.
-        # This is a reducer applied to the raw damage BEFORE the ruleset's
-        # own DR/multipliers (apply_damage) — it composes with them. Scale
-        # the per-type breakdown and DERIVE total from it, so total and
-        # damage_by_type can never disagree (apply_damage reads the types).
-        final = max(0, int(damage_action.extra.get('damage', damage_result.total))
-                    + damage_action.total_modifier)
-        if final != damage_result.total and damage_result.total > 0:
-            ratio = final / damage_result.total
-            damage_result.damage_by_type = {
-                dtype: max(0, round(amount * ratio))
-                for dtype, amount in damage_result.damage_by_type.items()
-            }
-            damage_result.total = sum(damage_result.damage_by_type.values())
-
-        # Apply damage
-        old_pct = dfn.hp_percent * 100
-        self.ruleset.apply_damage(dfn, damage_result)
 
         # Check if defeated
         target_defeated = self.ruleset.is_defeated(dfn)
@@ -428,25 +412,6 @@ class CombatSystem:
                 'weapon': weapon,
                 'attacker_hp': attacker.hp,
                 'defender_hp': defender.hp,
-            },
-        )
-        await propagate(action, deliver=False)
-        return action
-
-    async def _propagate_damage(
-        self,
-        attacker: Combatant,
-        defender: Combatant,
-        damage: DamageResult,
-    ) -> Action:
-        action = Action(
-            actor=attacker.obj,
-            target=defender.obj,
-            action_type="combat:on_damage",
-            tags={HOSTILE},
-            extra={
-                'damage': damage.total,
-                'damage_types': {k.value: v for k, v in damage.damage_by_type.items()},
             },
         )
         await propagate(action, deliver=False)

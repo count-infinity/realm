@@ -1,5 +1,13 @@
 # Spells as Data
 
+> A spell is a **flavor of the generic [ability](abilities.md)**: an
+> `ability_def` tagged `spell_def`, invoked with the `cast` verb, where
+> mana is one cost pool and class/level one eligibility rule. Read
+> [Abilities as Data](abilities.md) for the underlying mechanism (cost
+> specs, effect specs, room targeting, the shared damage event); this page
+> is the spell-shaped view: the `cast` command, the spellbook, and the
+> `merc-classic` pack.
+
 A spell in REALM is **not a framework** — it is one ordinary two-pass
 propagated action (`spell:<name>`) whose payload is built from a
 `spell_def` object, the same def-object pattern as `skill_def` /

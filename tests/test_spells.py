@@ -106,7 +106,7 @@ class TestCasting:
                        damage_dice="6d6", damage_type="fire", save="half")
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.spells.random.randint",
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
                             lambda a, b: 4)             # 6d6 all 4s = 24
         action = await cast_spell(mage, spell, target)
         assert action is not None and action.applied
@@ -143,7 +143,7 @@ class TestCasting:
                        damage_type="fire")
         mage = _mage(sim, room)
         target = _dummy(sim, room, resistances={"fire": 0.0})
-        monkeypatch.setattr("realm.systems.spells.random.randint",
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
                             lambda a, b: 4)
         action = await cast_spell(mage, spell, target)
         assert action.extra["dealt"] == 0
@@ -156,7 +156,7 @@ class TestCasting:
                        damage_dice="6d6", damage_type="fire", save="half")
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.spells.random.randint",
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
                             lambda a, b: 4)             # 24 rolled
         monkeypatch.setattr(MercSystem, "saving_throw",
                             lambda self, t, level: True)
@@ -172,7 +172,7 @@ class TestCasting:
                        damage_type="fire", save="half")
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.spells.random.randint",
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
                             lambda a, b: 4)
         action = await cast_spell(mage, spell, target)
         assert action.extra["dealt"] == 24              # full: no save concept
@@ -225,7 +225,7 @@ class TestCasting:
         wounded = sim.player("Conan", location=room)
         wounded.db.hp = 95
         wounded.db.max_hp = 100
-        monkeypatch.setattr("realm.systems.spells.random.randint",
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
                             lambda a, b: 8)             # 8+2 = 10 healed
         action = await cast_spell(cleric, spell, wounded)
         assert wounded.db.get("hp") == 100              # capped at max
@@ -291,7 +291,7 @@ class TestCastCommand:
                damage_dice="1d4+1", damage_type="force")
         mage = _mage(sim, room, level=5)
         _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.spells.random.randint",
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
                             lambda a, b: 3)
         await sim.do(mage, "cast 'magic missile' dummy")
         out = "\n".join(sim.seen(mage))
@@ -365,7 +365,7 @@ class TestCasterBehavior:
                           target.name if target else None))
 
         monkeypatch.setattr("realm.systems.spells.cast_spell", fake_cast)
-        monkeypatch.setattr("realm.systems.spells.random.random",
+        monkeypatch.setattr("realm.behaviors.caster.random.random",
                             lambda: 0.0, raising=False)
         behavior = CasterBehavior(spells=["fireball", "undefined spell"],
                                   chance=1.0)
@@ -488,7 +488,7 @@ class TestMercClassicPack:
         assert fireball.db.get("damage_type") == "fire"
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.spells.random.randint",
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
                             lambda a, b: 4)
         action = await cast_spell(mage, fireball, target)
         assert action is not None and action.applied
