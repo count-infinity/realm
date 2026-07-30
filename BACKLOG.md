@@ -3775,3 +3775,20 @@ slot machines in-game. The author-stamp capability model is recorded here
 as the **not-chosen** alternative: revisit only if a concrete need for
 builders to hand-write *novel* harmful softcode (beyond parameterizing
 engine primitives) ever appears.
+
+- [x] **Increment (1) DONE (2026-07-30):** `HARM` entitlement added
+  (`entitlements.py`; builder+ hold it, granted in the role table).
+  `ScriptFunctions._may_harm` walks the executor's owner chain and the harm
+  primitives (`damage`, `apply_effect`, `remove_effect`, `adjust_credits`)
+  are removed from the namespace for a mortal-player principal;
+  `transfer_credits`/`heal` stay safe. Namespace-removal (not a save-time
+  scan or per-call guard) is the boundary — empty `__builtins__` makes an
+  unbound name unrecoverable. Author-not-invoker via delegated authority (a
+  builder's dart fires in a player's hand). Docs:
+  docs/design/sandbox-security.md "Harm-authoring gate". Tests:
+  tests/test_harm_gate.py (15) + updated test_permissions (`_LADDER`) and
+  test_tutorial_act3 (alice tagged builder — she authored the world).
+  `set_attr`-as-meta-authoring needed NO separate gate: installed code runs
+  with the *installing object's* authority at runtime, so harm on a
+  player-owned object is inert regardless of who wrote the attr. Remaining:
+  (2) consent axis, (3) player authoring surface.

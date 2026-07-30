@@ -194,6 +194,56 @@ be audited to check `controls()` on the *correct subject*:
   mutator (`incr`, `decr`, `del_attr`, `create_obj(location=...)`,
   `transfer_credits`, pairing, tag writes) does the same.
 
+## Harm-authoring gate — domain authority (LANDED, increment 1)
+
+Walls 1-2 stop softcode from escaping the sandbox or forging authority.
+A separate axis governs what *in-world* harm a trusted-but-untrusted
+author may write: a player should be able to build a slot machine, but not
+a functioning poison dart. This is the **composition trust model** (see
+BACKLOG "builder-restricted harmful softcode"): harm is authored as
+*data* interpreted by trusted engine paths (a weapon's `damage_dice`, a
+`spell_def`, an effect behavior), so no untrusted softcode is ever in the
+position of dealing harm; and the few softcode primitives that *can* harm
+directly are bound only for authorized frames.
+
+**The rule** (`ScriptFunctions._may_harm`, `functions.py`): walk the
+executor's owner-delegation chain — a `HARM` entitlement anywhere allows
+(builders hold it by default; a `role_def` can grant it to a custom rank);
+a `player`/`guest` mortal as the responsible principal denies; an unowned /
+NPC / system world object is trusted by construction (designers, imports,
+and the world itself are not untrusted players). Gated primitives —
+`damage`, `apply_effect`, `remove_effect`, `adjust_credits` (mint) — are
+**removed from the namespace** for a denied frame; `heal` (beneficial) and
+`transfer_credits` (moves existing money, control-gated) stay.
+
+**Why removal is the boundary, not a per-call guard.** With Wall 1's empty
+`__builtins__` + AST allowlist, an unbound name is unrecoverable — no
+reflection, no alias source, no `getattr`. So `fn = damage` cannot
+resurrect a name that was never bound; deleting it from `to_dict()` *is*
+the wall. (A static save-time scan for `damage(` is neither necessary nor
+sufficient — it is defeated by cross-`call()` composition and unneeded
+given the namespace filter.)
+
+**Author, not invoker.** The gate reads the *executor's* delegated
+authority, never the enactor's. A builder's dart still fires in a player's
+hand because the dart delegates to its builder owner; the player who
+triggers it lends identity, not authority (the LPMud uid/euid and MUSH
+executor-vs-enactor property). Caveat: this rides *ownership*, so a
+builder who sells a harm-*softcode* object by `@chown` to a player
+disarms it — tradeable harm must use the data path (a `damage_dice` weapon
+through combat), which is chown-proof because the engine, not the object's
+softcode, deals the damage.
+
+**Not yet covered (next increment):** author-tier authorizes the *code* to
+harm, not *which target*. A builder's over-generic `$zap <target>` is a
+confused deputy; that needs a target/PvP-consent axis (seed:
+`enactor_consent`). `force`/`teleport_obj`/`destroy_obj` are already
+`controls()`-gated (destroy is "players never"), so they are on that
+target-axis, not this author-axis.
+
+Tests: `tests/test_harm_gate.py` (15) — the palette filter matrix and the
+author-not-invoker cases through the real `eval` path.
+
 ## Wall 3 — Isolation belt (ROADMAP)
 
 Walls 1-2 are suspenders. The belt, for the adversarial model, is real
@@ -216,6 +266,7 @@ softcode-visible rewrite.
 |---|---|---|
 | 1 | Host: AST filter + empty `__builtins__` + `str.format` block + allowlist | **Landed** (`tests/test_scripting.py::TestScriptSandbox`) |
 | 2 | Authority: read handle (interned, guarded reads, writes blocked) — sandbox, inline `[[...]]`, AND expression paths (locks/`@detail`) | **Landed** (`tests/test_sandbox_handle.py`, 21); write-sugar + full mutator audit remain, see BACKLOG |
+| Harm | Domain authority: harm-authoring primitives bound only for HARM-authorized frames (composition model) | **Landed** — increment 1 (`tests/test_harm_gate.py`, 15); target-consent axis remains, see BACKLOG |
 | 3 | Isolation: sub-interpreter/process + `setrlimit` (memory) | Roadmap; see BACKLOG |
 
 See also: [object identity](object-identity.md) (the authority model,
