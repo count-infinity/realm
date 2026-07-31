@@ -90,7 +90,33 @@ The master is consulted three ways:
 Rooms may belong to several zones; a room's masters are whoever shares
 its zone tags.
 
-### Area reset (repop)
+### Keeping a world alive: four tools
+
+A living world has two different jobs, and mixing them up is why any single
+"repop" knob feels wrong:
+
+- **Maintain** — keep populations and stock topped up *continuously, while
+  players are present*. Additive; never destroys anything. `population`
+  (mobs), `spawner` (one room), and `restock` (objects) do this and are
+  **not** presence-gated.
+- **Restore** — return an area to its *exact authored state*, destructively
+  (clears player-added mess, re-locks doors, resets puzzles), and only when
+  it is safe: *nobody watching*. `zone_reset` does this, and its
+  empty-zone gate is the point, not a limitation — you must not re-lock a
+  door under a player's hand or vanish a boss mid-fight.
+
+| behavior | job | scope | fires | reach for it when |
+|---|---|---|---|---|
+| `spawner` | maintain | one room, fixed `count` | a tracked spawn dies | a specific room should always hold N of something |
+| `population` | maintain | many rooms (a zone or a `room_tags` filter), `min`–`max` | continuously | keep the wilds/streets stocked and spread around |
+| `restock` | maintain | one owner (a room's floor loot, a shopkeeper's wares) | continuously | shop stock / floor loot should never run dry |
+| `zone_reset` | restore | the whole zone, at once | on a timer, only when the zone is empty of players | a dungeon or puzzle area must snap back to its authored state between visits |
+
+Every behavior's parameters are self-documented: `@behavior/info <id>` (e.g.
+`@behavior/info population`) prints its blurb and each param's default and
+purpose. The rest of this section shows the two zone-level tools.
+
+#### `zone_reset` — restore an area (presence-gated)
 
 A zone can **return to its authored state on a timer, but only while no
 player is inside** — the whole area repops at once when nobody's watching
@@ -118,15 +144,7 @@ canonical contents (not ephemeral). An occupied zone simply defers — it
 resets the instant it empties (by design: an area never returns to canonical
 while someone's watching).
 
-### Population — a zone-level mob orchestrator
-
-Three spawning tools, matched to intent:
-
-| behavior | scope | when it fills |
-|---|---|---|
-| `spawner` | one room, a fixed `count` | a tracked spawn dies |
-| `zone_reset` | the whole zone, at once | on a timer, only when empty of players |
-| `population` | many rooms, `min`–`max` alive | continuously, wherever players are |
+#### `population` — a zone-level mob orchestrator (continuous)
 
 `population` is the "keep the wilds stocked" tool: it maintains a mob count
 spread at **random across every room matching `room_tags`** — a whole zone,
