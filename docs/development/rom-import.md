@@ -113,13 +113,25 @@ in REALM yet, and a builder can wire it up in softcode.
   **Objects restock too**: a room's floor loot (O resets) and a keeper's
   wares get a `restock` behavior that snapshots the canonical objects at
   boot and re-mints any that get taken or sold, so shops never run dry.
-  Shopkeepers themselves stay static fixtures. Reset `R` (randomize exits)
-  and reset `D` door-state are noted in `--report`.
+  Shopkeepers themselves stay static fixtures.
+  **`--zone-reset` is the alternative strategy**: instead of per-room
+  spawners it emits one zone master carrying a `zone_reset` behavior whose
+  `reset_spec` reloads the area's canonical mobs and objects — the SMAUG
+  *whole-area restore*, presence-gated (fires only when the zone empties).
+  Use `--repop` to keep a lived-in world stocked continuously, `--zone-reset`
+  for a dungeon that should snap back between delves (see [maintain vs
+  restore](../guides/world-management.md#keeping-a-world-alive-four-tools)).
+  Reset `R` (randomize exits) and reset `D` door-state are noted in
+  `--report`.
 - **`#SPECIALS` (spec_procs).** Compiled C behavior functions, **mapped to
   shipped behaviors** where one fits: `spec_cast_*` / `spec_breath_*` →
   `caster` (with that proc's canonical spell list; import the `merc-classic`
   pack — see [Spells as Data](../guides/spells.md)), `spec_fido` /
-  `spec_janitor` → `scavenger`, and `spec_thief` → `steal` (pickpocket).
+  `spec_janitor` → `scavenger`, `spec_thief` → `steal` (pickpocket),
+  `spec_poison` → `venomous` (poisons on a landed hit; the DoT routes through
+  the damage path, so poison resistance/immunity apply), and `spec_guard` /
+  `spec_executioner` → `peacekeeper` (attacks WANTED criminals — see the
+  [crime layer](../guides/crime.md)).
   `spec_guard` is deliberately left unmapped — ROM's is a peacekeeper that
   attacks criminals, which needs a crime/aggro-flag system REALM lacks; the
   shipped `guard` blocks movement (a different concept that would wall off

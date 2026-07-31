@@ -242,6 +242,26 @@ class TestParse:
         rooms = [o for o in area.objects if "room" in o["tags"]]
         assert "zone:test" in rooms[0]["tags"]
 
+    def test_zone_reset_emits_a_master_with_spec(self):
+        # --zone-reset: one zone master with a zone_reset behavior + a
+        # reset_spec, statics adopted, and NO per-room spawners (a different
+        # strategy from --repop).
+        area = rom_import.convert(ARE, zone_reset=True)
+        masters = [o for o in area.objects if "zone_master" in o["tags"]]
+        assert len(masters) == 1
+        master = masters[0]
+        assert any(b["behavior_id"] == "zone_reset"
+                   for b in master["behaviors"])
+        assert "zone:midgaard" in master["tags"]
+        spec = master["attrs"]["reset_spec"]
+        wiz = [e for e in spec if e["prototype"]["name"] == "wizard"]
+        assert wiz and wiz[0]["room"] == "rom_3001"    # mob 3000 in room 3001
+        assert any("reset:rom_reset_master" in o["tags"]
+                   for o in area.objects if "npc" in o["tags"])
+        assert not any(b["behavior_id"] == "spawner"
+                       for o in area.objects if "room" in o["tags"]
+                       for b in o["behaviors"])
+
     def test_sentinel_and_keepers_do_not_wander(self):
         # The wizard is ACT_SENTINEL (B) AND a shopkeeper: it stays put.
         area = _convert(ARE)

@@ -121,11 +121,66 @@ REALM must be usable as a library, not an application to fork.
   to the master's zone. The importer now tags rooms `outdoor` (any
   non-interior sector) to feed it. Docs: guides/world-management.md
   "Population". Tests: tests/test_orchestrator.py (7).
-- [ ] **Still deferred:** a `zone_reset` master *emission* from the importer
-  (the behavior exists; the converter does not auto-attach one — you add it
-  by hand or use `population`); `spec_guard` (needs a crime/aggro-flag
-  system — the shipped `guard` blocks movement, the wrong semantic);
-  `spec_poison` (46 areas) → a poison-on-hit behavior.
+- [x] **Importer `--zone-reset` (2026-07-30):** emits one zone master with a
+  `zone_reset` behavior + a `reset_spec` built from the M/O resets (mobs +
+  floor objects), tagging the static instances with the master's reset
+  marker so the first reset adopts them (no duplication). The SMAUG
+  whole-area *restore* strategy, alternative to `--repop`'s continuous
+  per-room spawners. Docs: rom-import.md + world-management.md.
+- [x] **spec_poison → venomous (2026-07-30):** a `VenomousBehavior`
+  (combat/behaviors.py) reacts to the attacker's own `combat:on_damage` and,
+  on a chance roll unless the victim saves or is poison-immune, applies a
+  `poison` `damage_over_time`. `DamageOverTimeBehavior` gained a
+  `damage_type` param that routes the tick through `apply_resisted`, so
+  poison resistance/immunity apply (CoffeeMud's "DoT is real typed damage").
+  Also fixed: `realm.behaviors.__init__` now imports `realm.combat.behaviors`
+  so the combat AI behaviors (aggressive/wandering/guard/venomous) register
+  on package import (the docstring promised it; it didn't). Tests:
+  test_venom.py (7).
+- [ ] **`spec_guard` / a crime-justice layer** — needs the crime-flag system
+  below; the shipped `guard` blocks movement, the wrong semantic.
+
+### Crime & justice layer (core BUILT 2026-07-30; richer tiers deferred)
+Reference survey (tbaMUD / CoffeeMud / SMAUG) synthesized.
+
+- [x] **Core tier built:** `systems/crime.py` (`crime_observer` +
+  `flag_wanted`/`clear_wanted`/`is_wanted`), `WantedBehavior` (timed decay,
+  clears the tags on expiry), `PeacekeeperBehavior` (attacks the highest-heat
+  wanted player — ROM `spec_guard`/`spec_executioner` now map to it). The
+  observer flags the *initiator* on player-vs-player `combat:on_damage`
+  (assault) / `combat:on_death` (murder); attacking an outlaw is free; death
+  pardons. Wired at boot; docs guides/crime.md; tests test_crime.py (8).
+- [ ] **Tier 2 — jurisdiction & consent (deferred):** `lawful`/`safe` zone
+  tags decide what's a crime where; a PvP-consent axis (the deferred harm-
+  model increment) so consented duels / wilderness run no enforcement.
+  Currently ANY player-on-player hit is a crime.
+- [ ] **Tier 3 — arrest & jail (deferred):** officer seek/subdue/escort, a
+  judge sentencing, a timed jail (relocate + auto-release, à la SMAUG hell),
+  fines. Split CrimeDetector / WarrantStore / Enforcer / LawConfig.
+
+The consensus minimal-viable shape (for reference / the deferred tiers):
+- **Wanted state = a timed tag** (`wanted:murder` / `wanted:theft`) with a
+  `heat` integer and expiry — not a global flag (SMAUG/Diku clear only on
+  death; add decay).
+- **Jurisdiction = room/zone tags** (`lawful`/`safe`): a crime is judged by
+  where it happened; guards enforce only in their jurisdiction. Pairs with
+  the deferred **PvP/consent axis** (consented-PvP zones run no enforcement).
+- **Passive detection**: one listener on the existing `combat:on_damage` /
+  death / theft events sets the wanted tag on the *initiator* (the
+  enactor-not-invoker signal we already have) when the victim isn't already
+  wanted and the room is lawful. (Diku's elegant `check_killer`: attacking an
+  outlaw is free — self-enforcing, no courts needed.)
+- **Enforcement = a `guard`/`peacekeeper` behavior** scanning for `wanted:*`
+  and engaging (revives `spec_guard`); optional reinforcement summon
+  (spec_executioner). Open-season: wanted suppresses victim-protection.
+- **Discharge**: tag expiry, death, or arrest → a jail (a timed relocate
+  effect, à la SMAUG "hell", but triggered by the crime layer, destination a
+  zone property).
+- Optionally later: a faction/deity **reputation scalar** (data-driven
+  per-action deltas) unifying god-favor with the wanted system.
+Avoid: CoffeeMud's conquest/tax/7-state-escort monolith, SMAUG's disjoint
+favor-vs-law systems and hardcoded VNUMs. Split into CrimeDetector /
+WarrantStore / Enforcer / LawConfig.
 
 ## Priority 1 - Should Address Soon
 

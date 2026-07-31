@@ -182,6 +182,8 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
     param_spec = {
         'kind': ('bleeding', 'the condition name, mirrored as a tag'),
         'damage': (1, 'HP lost per pulse'),
+        'damage_type': (None, 'damage type routed through resistances '
+                              '(e.g. "poison"); None = raw HP loss'),
         'room_msg': (None, 'room line on each pulse'),
     }
 
@@ -196,8 +198,18 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
         if hp is None:
             return
         damage = int(self.get_param('damage', 1))
-        new_hp = max(0, int(hp) - damage)
-        obj.db.hp = new_hp
+        dtype = self.get_param('damage_type')
+        if dtype:
+            # Route through resistances so a poison-immune target takes 0
+            # (the single most important idea: DoT is real typed damage).
+            from realm.combat.damage import apply_resisted
+            damage = apply_resisted(obj, damage, str(dtype))
+            new_hp = int(obj.db.get('hp') or 0)
+            if damage <= 0:
+                return                      # fully resisted: nothing to narrate
+        else:
+            new_hp = max(0, int(hp) - damage)
+            obj.db.hp = new_hp
 
         obj.msg(self.get_param(
             'tick_msg', f"You are wracked by {self.kind} ({damage} damage)!",
@@ -350,10 +362,39 @@ class RegenerationBehavior(TimedEffectBehavior):
         obj.db.hp = min(int(max_hp), int(hp) + heal)
 
 
+@BehaviorRegistry.register
+class WantedBehavior(TimedEffectBehavior):
+    """
+    A criminal's ticking wanted status (see systems/crime.py). No pulse — it
+    just counts down; on expiry the sentence is served, so it strips the
+    ``wanted:*`` tags and heat. Guards read the tags while it lasts.
+    """
+
+    behavior_id = "wanted"
+    param_spec = {
+        'duration': (100, 'world beats the wanted status lasts'),
+    }
+
+    @property
+    def kind(self) -> str:
+        return "wanted"
+
+    async def _expire(self, obj: GameObject) -> None:
+        from realm.systems.crime import WANTED_PREFIX
+
+        for tag in list(obj.tags.to_list()):
+            if tag.startswith(WANTED_PREFIX):
+                obj.remove_tag(tag)
+        obj.db.delete("wanted_heat")
+        obj.msg("Your name is clean once more.")
+        await super()._expire(obj)
+
+
 __all__ = [
     "TimedEffectBehavior",
     "DamageOverTimeBehavior",
     "DispositionBoostBehavior",
     "ModifierEffectBehavior",
     "RegenerationBehavior",
+    "WantedBehavior",
 ]

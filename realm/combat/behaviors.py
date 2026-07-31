@@ -327,3 +327,112 @@ class WanderingBehavior(Behavior):
             return
         exit_obj, destination = random.choice(candidates)
         await move_through_exit(obj, destination, exit_obj=exit_obj)
+
+
+@BehaviorRegistry.register
+class VenomousBehavior(Behavior):
+    """
+    Envenoms a victim on a landed hit (ROM spec_poison, a poisoned fang).
+
+    Reacts to this mob's own ``combat:on_damage``: on a chance roll, and
+    unless the victim saves or is poison-immune, it applies a ``poison``
+    damage-over-time whose ticks route through the damage path — so poison
+    resistance and immunity apply exactly as they do to a direct hit
+    (immunity vetoes the poison at application, the CoffeeMud way).
+
+    Params:
+        chance (float): probability of envenoming on a landed hit (0.5).
+        damage (int): poison damage per tick (2).
+        duration (int): poison duration in beats (24).
+        interval (int): beats between poison ticks (4).
+        save (bool): a failed saving throw is required to poison (True).
+    """
+
+    behavior_id = "venomous"
+    param_spec = {
+        'chance': (0.5, 'probability of envenoming on a landed hit'),
+        'damage': (2, 'poison damage per tick'),
+        'duration': (24, 'poison duration in beats'),
+        'interval': (4, 'beats between poison ticks'),
+        'save': (True, 'a failed saving throw is required to poison'),
+    }
+
+    async def on_react(self, obj: GameObject, action: Action) -> None:
+        if action.action_type != "combat:on_damage" or action.actor is not obj:
+            return
+        if action.blocked:
+            return
+        target = action.target
+        if target is None or target is obj:
+            return
+        if int(action.extra.get('damage', 0) or 0) <= 0:
+            return                                  # the blow did not land
+        if random.random() > float(self.get_param('chance', 0.5)):
+            return
+        # Immune? (poison resistance 0) — veto at application, no dead effect.
+        resist = target.db.get('resistances')
+        if isinstance(resist, dict) and float(resist.get('poison', 1.0)) == 0:
+            return
+        if self.get_param('save', True):
+            from realm.systems.base import get_game_system
+            system = get_game_system()
+            level = int(obj.db.get('level') or 1)
+            if system is not None and system.saving_throw(target, level):
+                target.msg("You fight off the venom.")
+                return
+        poison = BehaviorRegistry.create(
+            'damage_over_time', kind='poisoned',
+            damage=int(self.get_param('damage', 2)),
+            duration=int(self.get_param('duration', 24)),
+            interval=int(self.get_param('interval', 4)),
+            damage_type='poison',
+            tick_msg="Venom courses through your veins!",
+            room_msg="{name} shudders, poisoned.")
+        if poison is not None:
+            target.add_behavior(poison)
+            target.msg("You are poisoned!")
+
+
+@BehaviorRegistry.register
+class PeacekeeperBehavior(Behavior):
+    """
+    Attacks WANTED criminals in its room (ROM spec_guard, done right).
+
+    Unlike the `guard` behavior — which blocks *movement* — a peacekeeper
+    enforces the law: each tick it scans its room for players carrying a
+    ``wanted:*`` tag (see systems/crime.py) and engages the highest-heat one.
+    The importer maps `spec_guard` to this.
+
+    Params:
+        yell (str): line shouted when it moves to arrest (optional).
+    """
+
+    behavior_id = "peacekeeper"
+    param_spec = {
+        'yell': ("HALT! You are under arrest!",
+                 'line shouted when it engages a criminal'),
+    }
+
+    @property
+    def should_tick(self) -> bool:
+        return True
+
+    async def tick(self, obj: GameObject, delta: float) -> None:
+        if obj.location is None or obj.has_tag('in_combat'):
+            return
+        from realm.combat.manager import get_combat_manager, is_combat_capable
+        from realm.systems.crime import is_wanted, wanted_heat
+        manager = get_combat_manager()
+        if manager is None:
+            return
+        criminals = [c for c in obj.location.contents
+                     if c.has_tag('player') and is_wanted(c)
+                     and is_combat_capable(c)]
+        if not criminals:
+            return
+        target = max(criminals, key=wanted_heat)
+        yell = self.get_param('yell')
+        if yell:
+            from realm.behaviors.npc import _npc_say
+            await _npc_say(obj, str(yell))
+        await manager.initiate(obj, target)

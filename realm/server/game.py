@@ -395,6 +395,11 @@ class GameServer:
         set_combat_manager(self.combat_manager)
         get_propagation_engine().add_observer(self.combat_manager.hostile_observer)
 
+        # Crime: a player who assaults/murders another player is flagged
+        # wanted (a timed tag); peacekeeper guards attack the wanted.
+        from realm.systems.crime import crime_observer
+        get_propagation_engine().add_observer(crime_observer)
+
         # Pin the world tempo (ambient beat length + default behavior cadence)
         # before the loops start reading it. WORLD_TICK is a process global.
         from realm.core.beats import set_world_tick
@@ -517,6 +522,8 @@ class GameServer:
             set_check_hook(None)
         get_propagation_engine().remove_observer(stealth_observer)
         get_propagation_engine().remove_observer(equipment_observer)
+        from realm.systems.crime import crime_observer
+        get_propagation_engine().remove_observer(crime_observer)
         if self.combat_manager is not None:
             get_propagation_engine().remove_observer(self.combat_manager.hostile_observer)
             self.combat_manager.stop_all()

@@ -121,10 +121,11 @@ SPEC_BEHAVIORS = {
     "spec_janitor": {"behavior_id": "scavenger",
                      "params": {"eat_corpses": False, "pick_up": True}},
     "spec_thief": {"behavior_id": "steal", "params": {}},
-    # NOTE: spec_guard (a peacekeeper that attacks criminals / breaks up
-    # fights) has no clean map -- the shipped `guard` behavior blocks
-    # movement, a different concept, and would wall off thoroughfares. Left
-    # tagged rom_spec:spec_guard until a crime/aggro-flag system exists.
+    "spec_poison": {"behavior_id": "venomous", "params": {}},
+    # spec_guard is a peacekeeper (attacks WANTED criminals), now that the
+    # crime layer exists -- NOT the movement-blocking `guard` behavior.
+    "spec_guard": {"behavior_id": "peacekeeper", "params": {}},
+    "spec_executioner": {"behavior_id": "peacekeeper", "params": {}},
 }
 
 # ROM wear *locations* (the enum used by 'E' reset lines and equip slots) —
@@ -271,7 +272,12 @@ class Area:
     #: --repop: emit a per-room ``spawner`` for each mob reset instead of a
     #: one-shot static placement, so the area repopulates itself.
     repop: bool = False
+    #: --zone-reset: emit a single zone master carrying a ``zone_reset``
+    #: behavior + reset_spec (the SMAUG whole-area restore), an ALTERNATIVE
+    #: mob strategy to --repop's per-room spawners.
+    zone_reset: bool = False
     mob_resets: list = field(default_factory=list)   # (mob_v, room_v)
+    obj_resets: list = field(default_factory=list)   # (obj_v, room_v)
     obj_reset_rooms: set = field(default_factory=set)   # rooms with O resets
     _inst: int = 0
 
@@ -299,10 +305,11 @@ def obj_record(oid: str, name: str, desc: str, tags: list[str],
     }
 
 
-def convert(text: str, repop: bool = False) -> Area:
+def convert(text: str, repop: bool = False, zone_reset: bool = False) -> Area:
     r = Reader(text)
     area = Area()
     area.repop = repop
+    area.zone_reset = zone_reset
     while not r.eof():
         ch = r.peek_char()
         if ch != "#":
@@ -631,9 +638,9 @@ def _resets(r: Reader, area: Area) -> None:
             room_v = r.number()
             r.number()                        # ROM room limit
             last_mob_iid = _place_mob(area, mob_v, room_v)
-            if area.repop and last_mob_iid is not None:
+            if (area.repop or area.zone_reset) and last_mob_iid is not None:
                 # Placed statically (so keepers keep their G/E stock); a
-                # spawner is attached at finalize to respawn it on death.
+                # spawner (or zone_reset spec) is built from these at finalize.
                 area.mob_resets.append((mob_v, room_v))
         elif letter == "O":
             obj_v = r.number()
@@ -643,6 +650,8 @@ def _resets(r: Reader, area: Area) -> None:
             _place_obj(area, obj_v, room_v)
             if area.repop:
                 area.obj_reset_rooms.add(room_v)     # floor loot restocks
+            if area.zone_reset:
+                area.obj_resets.append((obj_v, room_v))
         elif letter == "P":
             obj_v = r.number()
             r.number()
@@ -888,9 +897,64 @@ def _attach_restockers(area: Area) -> None:
             room["behaviors"].append({"behavior_id": "restock", "params": {}})
 
 
+def _instance_prototype(proto: dict) -> dict:
+    """A spawn prototype from a #MOBILES/#OBJECTS proto (drop the
+    prototype tag; keep name/desc/tags/attrs/behaviors)."""
+    return {
+        "name": proto["name"],
+        "description": proto["description"],
+        "tags": [t for t in proto["tags"] if t != "prototype"],
+        "attrs": dict(proto["attrs"]),
+        "behaviors": [dict(b) for b in proto["behaviors"]],
+    }
+
+
+def _attach_zone_reset(area: Area) -> None:
+    """--zone-reset: one zone master carrying a ``zone_reset`` behavior whose
+    ``reset_spec`` reloads the area's canonical mobs and floor objects when
+    the zone empties of players (the SMAUG whole-area restore). The static
+    instances are tagged with the master's reset marker so the first reset
+    ADOPTS them (clears + reloads, no duplication)."""
+    master_id = "rom_reset_master"
+    marker = f"reset:{master_id}"
+    spec: list[dict] = []
+
+    def _entries(resets, protos, kind):
+        counts: dict[tuple[int, int], int] = {}
+        for vnum, room_v in resets:
+            counts[(vnum, room_v)] = counts.get((vnum, room_v), 0) + 1
+        for (vnum, room_v), count in counts.items():
+            proto = protos.get(vnum)
+            if proto is None or room_v not in area.rooms:
+                continue
+            spec.append({"prototype": _instance_prototype(proto),
+                         "room": f"rom_{room_v}", "count": count})
+            for inst in area.objects:
+                if inst["attrs"].get("prototype_vnum") == vnum \
+                        and inst.get("location") == f"rom_{room_v}" \
+                        and kind in inst["tags"] and marker not in inst["tags"]:
+                    inst["tags"].append(marker)
+
+    _entries(area.mob_resets, area.mob_protos, "npc")
+    _entries(area.obj_resets, area.obj_protos, "thing")
+    if not spec:
+        return
+    master = obj_record(
+        master_id, f"{area.name} Reset",
+        "The unseen hand that returns this area to its authored state.",
+        ["zone_master", f"zone:{area_zone(area)}"],
+        {"reset_interval": 300, "reset_spec": spec})
+    master["behaviors"].append({"behavior_id": "zone_reset", "params": {}})
+    area.objects.append(master)
+    area.gap(f"--zone-reset: a zone master with {len(spec)} reset_spec entries "
+             "(whole-area restore, presence-gated)")
+
+
 def _finalize(area: Area) -> None:
     """Rooms and prototypes into the object list; doors into exit objects."""
-    if area.repop:
+    if area.zone_reset:
+        _attach_zone_reset(area)       # restore strategy (excludes spawners)
+    elif area.repop:
         _attach_spawners(area)         # after #SHOPS patched keeper protos
         _attach_restockers(area)
     for vnum, room in area.rooms.items():
@@ -934,12 +998,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--repop", action="store_true",
                     help="emit self-repopulating spawners for mob resets "
                          "(instead of a one-shot static placement)")
+    ap.add_argument("--zone-reset", action="store_true",
+                    help="emit a zone master with a zone_reset behavior "
+                         "(whole-area restore when empty; SMAUG-style). An "
+                         "alternative mob strategy to --repop")
     ap.add_argument("--report", action="store_true",
                     help="print a capability-gap report to stderr")
     args = ap.parse_args(argv)
 
     text = Path(args.area_file).read_text(errors="replace")
-    area = convert(text, repop=args.repop)
+    area = convert(text, repop=args.repop, zone_reset=args.zone_reset)
     doc = {"realm_format": 1, "objects": area.objects}
     out = json.dumps(doc, indent=2) + "\n"
     if args.output:

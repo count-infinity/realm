@@ -373,6 +373,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
         }
       ],
       "location": "rom_3109",
@@ -637,6 +641,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
         }
       ],
       "location": "rom_3111",
@@ -895,6 +903,10 @@
         },
         {
           "behavior_id": "scavenger",
+          "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
           "params": {}
         }
       ],
@@ -1391,6 +1403,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
         }
       ],
       "location": "rom_3117",
@@ -1615,6 +1631,10 @@
         },
         {
           "behavior_id": "scavenger",
+          "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
           "params": {}
         }
       ],
@@ -1894,6 +1914,10 @@
         },
         {
           "behavior_id": "scavenger",
+          "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
           "params": {}
         }
       ],
@@ -2355,7 +2379,12 @@
         "prototype_vnum": 3069
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3138",
       "owner": null,
       "parent": null
@@ -2533,7 +2562,12 @@
         "prototype_vnum": 3069
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3138",
       "owner": null,
       "parent": null
@@ -2711,7 +2745,12 @@
         "prototype_vnum": 3069
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3138",
       "owner": null,
       "parent": null
@@ -2889,7 +2928,12 @@
         "prototype_vnum": 3069
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3138",
       "owner": null,
       "parent": null
@@ -5672,6 +5716,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
         }
       ],
       "location": "rom_3004",
@@ -7377,6 +7425,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
         }
       ],
       "location": "rom_3014",
@@ -7789,6 +7841,10 @@
         },
         {
           "behavior_id": "scavenger",
+          "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
           "params": {}
         }
       ],
@@ -9107,6 +9163,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
         }
       ],
       "location": "rom_3021",
@@ -10164,6 +10224,10 @@
         },
         {
           "behavior_id": "scavenger",
+          "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
           "params": {}
         }
       ],
@@ -12442,7 +12506,12 @@
         "prototype_vnum": 3068
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3040",
       "owner": null,
       "parent": null
@@ -12694,7 +12763,12 @@
         "prototype_vnum": 3068
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3040",
       "owner": null,
       "parent": null
@@ -12946,7 +13020,12 @@
         "prototype_vnum": 3067
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3041",
       "owner": null,
       "parent": null
@@ -13198,7 +13277,12 @@
         "prototype_vnum": 3067
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": "rom_3041",
       "owner": null,
       "parent": null
@@ -15453,6 +15537,10 @@
                 {
                   "behavior_id": "scavenger",
                   "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
                 }
               ]
             },
@@ -15639,6 +15727,10 @@
                 },
                 {
                   "behavior_id": "scavenger",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
                   "params": {}
                 }
               ]
@@ -16339,6 +16431,10 @@
                 {
                   "behavior_id": "scavenger",
                   "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
                 }
               ]
             },
@@ -16623,6 +16719,10 @@
                 },
                 {
                   "behavior_id": "scavenger",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
                   "params": {}
                 }
               ]
@@ -17120,6 +17220,10 @@
                 },
                 {
                   "behavior_id": "scavenger",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
                   "params": {}
                 }
               ]
@@ -18109,7 +18213,12 @@
                 ],
                 "rom_vuln": []
               },
-              "behaviors": []
+              "behaviors": [
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
+                }
+              ]
             },
             "count": 4,
             "respawn_ticks": 20
@@ -21911,6 +22020,10 @@
                 {
                   "behavior_id": "scavenger",
                   "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
                 }
               ]
             },
@@ -22729,6 +22842,10 @@
                 {
                   "behavior_id": "scavenger",
                   "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
                 }
               ]
             },
@@ -23228,6 +23345,10 @@
                 {
                   "behavior_id": "scavenger",
                   "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
                 }
               ]
             },
@@ -23571,6 +23692,10 @@
                 },
                 {
                   "behavior_id": "scavenger",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
                   "params": {}
                 }
               ]
@@ -24442,6 +24567,10 @@
                 {
                   "behavior_id": "scavenger",
                   "params": {}
+                },
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
                 }
               ]
             },
@@ -25275,7 +25404,12 @@
                 ],
                 "rom_vuln": []
               },
-              "behaviors": []
+              "behaviors": [
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
+                }
+              ]
             },
             "count": 2,
             "respawn_ticks": 20
@@ -25429,7 +25563,12 @@
                 ],
                 "rom_vuln": []
               },
-              "behaviors": []
+              "behaviors": [
+                {
+                  "behavior_id": "peacekeeper",
+                  "params": {}
+                }
+              ]
             },
             "count": 2,
             "respawn_ticks": 20
@@ -27667,7 +27806,12 @@
         ]
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -28892,6 +29036,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
         }
       ],
       "location": null,
@@ -29307,7 +29455,12 @@
         "rom_vuln": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -29361,7 +29514,12 @@
         "rom_vuln": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -29419,7 +29577,12 @@
         "rom_vuln": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "peacekeeper",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null

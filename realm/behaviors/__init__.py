@@ -5,6 +5,7 @@ Importing this package registers every behavior with the
 BehaviorRegistry, so persisted worlds can rehydrate them by id.
 """
 
+import realm.combat.behaviors  # noqa: F401 — register the combat AI behaviors
 from realm.behaviors.caster import CasterBehavior
 from realm.behaviors.decay import DecayBehavior
 from realm.behaviors.effects import (
