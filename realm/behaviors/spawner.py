@@ -175,4 +175,81 @@ class SpawnerBehavior(Behavior):
         logger.info(f"Spawner '{key}' spawned {spawn.name} in {room.name}")
 
 
-__all__ = ["SpawnerBehavior", "spawn_from_prototype", "spawn_tracked"]
+def object_prototype(obj: GameObject) -> dict[str, Any]:
+    """Snapshot a live object into a spawn prototype (name, description,
+    tags, attrs, behaviors) — the object half of a repop."""
+    return {
+        'name': obj.name,
+        'description': str(obj.db.get('description') or ''),
+        'tags': [t for t in obj.tags.to_list()
+                 if not t.startswith('stocked:') and t != 'prototype'],
+        'attrs': {k: v for k, v in obj.db.all().items()
+                  if k != 'description'},
+        'behaviors': [{'behavior_id': b.behavior_id, 'params': dict(b.params)}
+                      for b in obj.get_behaviors()],
+    }
+
+
+@BehaviorRegistry.register
+class RestockBehavior(Behavior):
+    """
+    Keep an owner's canonical objects present: a shop's wares, a room's floor
+    loot — the object half of a repop (ROM O/G/E resets). On the first tick
+    it snapshots what the owner holds (things, not mobs or exits); thereafter
+    it re-mints any that get bought, taken, or destroyed.
+
+    Attach to a room (floor loot) or a shopkeeper (stock). Snapshotting at
+    boot means only imported/authored objects are captured, never a player's
+    later droppings.
+
+    Params:
+        interval (int): world beats between restock checks (default 30).
+        filter_tag (str): only restock objects carrying this tag
+            (default 'thing').
+    """
+
+    behavior_id = "restock"
+    param_spec = {
+        'interval': (30, 'world beats between restock checks'),
+        'filter_tag': ('thing', 'only restock objects with this tag'),
+    }
+
+    @property
+    def should_tick(self) -> bool:
+        return True
+
+    async def tick(self, owner: GameObject, delta: float) -> None:
+        from realm.persistence.manager import get_active_manager
+        persistence = get_active_manager()
+        ftag = str(self.get_param('filter_tag', 'thing'))
+
+        # First tick: snapshot the canonical contents.
+        if owner.db.get('restock_stock') is None:
+            stock = []
+            for o in list(owner.contents):
+                if not o.has_tag(ftag) or o.has_tag('exit'):
+                    continue
+                stock.append({'key': o.id, 'prototype': object_prototype(o)})
+                o.add_tag(f"stocked:{o.id}")
+            owner.db.set('restock_stock', stock)
+            owner.db.set('restock_wait', int(self.get_param('interval', 30)))
+            return
+
+        wait = int(owner.db.get('restock_wait') or 0)
+        if wait > 0:
+            owner.db.set('restock_wait', wait - 1)
+            return
+        owner.db.set('restock_wait', int(self.get_param('interval', 30)))
+
+        for entry in owner.db.get('restock_stock') or []:
+            key = entry['key']
+            if any(o.has_tag(f"stocked:{key}") for o in owner.contents):
+                continue                        # a copy is still here
+            item = spawn_from_prototype(entry['prototype'], owner)
+            item.add_tag(f"stocked:{key}")
+            if persistence is not None:
+                await persistence.save(item)
+
+
+__all__ = ["SpawnerBehavior", "RestockBehavior", "spawn_from_prototype",
+           "spawn_tracked", "object_prototype"]

@@ -164,31 +164,33 @@ class PatrolBehavior(Behavior):
         # If blocked (closed door, lock), stay and retry after the pause.
 
 
-@BehaviorRegistry.register
-class WanderBehavior(Behavior):
-    """
-    Roam at random through the room's exits, a step now and then.
+# NOTE: wandering and aggression already ship as `wandering` and
+# `aggressive` in realm/combat/behaviors.py (zone-bounded roaming;
+# disposition- and perception-aware attack-on-sight). The ROM importer maps
+# ACT_STAY_AREA/ACT_AGGRESSIVE onto THOSE — this module only adds the
+# scavenger, which had no equivalent.
 
-    The Diku townsfolk/scavenger that makes an area feel alive. The ROM
-    importer maps it from a mob's ACT flags: any non-SENTINEL mob wanders,
-    and ACT_STAY_AREA keeps it inside its zone. Topology-safe: it takes real
-    exits through the movement gate, so closed doors, locks, and combat stop
-    it like anyone else.
+
+@BehaviorRegistry.register
+class ScavengerBehavior(Behavior):
+    """
+    Eat corpses and pick up litter (ROM ACT_SCAVENGER / spec_fido).
+
+    The beastly fido's day job: devour any corpse in the room (and whatever
+    it held), else pocket a loose object. The importer maps it from the
+    ACT_SCAVENGER flag and from ``spec_fido``/``spec_janitor``.
 
     Params:
-        chance (float): probability per tick of taking a step (default 0.25).
-        stay_area (bool): only step to rooms sharing a ``zone:`` tag with the
-            current room (ROM ACT_STAY_AREA); default False = roam anywhere.
-        pause (int): minimum world beats between steps (default 2).
-
-    State in owner.db: wander_wait (countdown).
+        eat_corpses (bool): consume corpses in the room (default True).
+        pick_up (bool): pocket a loose object otherwise (default True).
+        chance (float): probability per tick of acting (default 0.5).
     """
 
-    behavior_id = "wander"
+    behavior_id = "scavenger"
     param_spec = {
-        'chance': (0.25, 'probability per tick of taking a step'),
-        'stay_area': (False, 'stay within the current zone (ROM STAY_AREA)'),
-        'pause': (2, 'minimum world beats between steps'),
+        'eat_corpses': (True, 'devour corpses found in the room'),
+        'pick_up': (True, 'pocket a loose object otherwise'),
+        'chance': (0.5, 'probability per tick of scavenging'),
     }
 
     @property
@@ -199,34 +201,37 @@ class WanderBehavior(Behavior):
         import random
 
         if obj.location is None or obj.has_tag('in_combat'):
-            return                          # never wander off mid-fight
-        wait = int(obj.db.get('wander_wait') or 0)
-        if wait > 0:
-            obj.db.wander_wait = wait - 1
             return
-        if random.random() > float(self.get_param('chance', 0.25)):
+        if random.random() > float(self.get_param('chance', 0.5)):
             return
+        from realm.persistence.manager import get_active_manager
+        room = obj.location
+        persistence = get_active_manager()
 
-        exits = [c for c in obj.location.contents if c.has_tag('exit')]
-        random.shuffle(exits)
-        from realm.core.movement import (
-            has_dest_resolver,
-            move_through_exit,
-            resolve_exit_destination,
-        )
-        from realm.core.zones import zone_tags
-        home = set(zone_tags(obj.location)) if self.get_param('stay_area') \
-            else set()
-        for exit_obj in exits:
-            destination = resolve_exit_destination(exit_obj)
-            if destination is None and not has_dest_resolver(exit_obj):
-                continue
-            if home and destination is not None and \
-                    not (home & set(zone_tags(destination))):
-                continue                    # would leave the area (STAY_AREA)
-            if await move_through_exit(obj, destination, exit_obj=exit_obj):
-                obj.db.wander_wait = int(self.get_param('pause', 2))
+        if self.get_param('eat_corpses', True):
+            corpse = next((c for c in room.contents
+                           if 'corpse' in c.name.lower()), None)
+            if corpse is not None:
+                room.msg_contents(f"{obj.name} noses into {corpse.name} and "
+                                  "devours it, bones and all.", exclude=[])
+                for item in list(corpse.contents):
+                    item.location = None
+                    if persistence is not None:
+                        await persistence.delete(item)
+                corpse.location = None
+                if persistence is not None:
+                    await persistence.delete(corpse)
                 return
 
+        if self.get_param('pick_up', True):
+            loot = next((c for c in room.contents
+                         if c.has_tag('thing') and not c.has_tag('exit')
+                         and not c.has_tag('fixed') and c is not obj
+                         and 'corpse' not in c.name.lower()), None)
+            if loot is not None:
+                loot.location = obj
+                room.msg_contents(f"{obj.name} snatches up {loot.name}.",
+                                  exclude=[obj])
 
-__all__ = ["WatchfulBehavior", "PatrolBehavior", "WanderBehavior"]
+
+__all__ = ["WatchfulBehavior", "PatrolBehavior", "ScavengerBehavior"]

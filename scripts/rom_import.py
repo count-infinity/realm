@@ -113,6 +113,15 @@ SPEC_CASTERS = {
                         "gas breath", "lightning breath"],
 }
 
+# Non-casting spec_procs that map onto a shipped behavior (the beastly
+# fido's spec is spec_fido: it eats corpses).
+SPEC_BEHAVIORS = {
+    "spec_fido": {"behavior_id": "scavenger",
+                  "params": {"eat_corpses": True, "pick_up": False}},
+    "spec_janitor": {"behavior_id": "scavenger",
+                     "params": {"eat_corpses": False, "pick_up": True}},
+}
+
 # ROM wear *locations* (the enum used by 'E' reset lines and equip slots) —
 # a DIFFERENT numbering from the wear-flag bits above.
 WEAR_LOC = {
@@ -257,7 +266,8 @@ class Area:
     #: --repop: emit a per-room ``spawner`` for each mob reset instead of a
     #: one-shot static placement, so the area repopulates itself.
     repop: bool = False
-    mob_resets: list = field(default_factory=list)   # (mob_v, room_v, count)
+    mob_resets: list = field(default_factory=list)   # (mob_v, room_v)
+    obj_reset_rooms: set = field(default_factory=set)   # rooms with O resets
     _inst: int = 0
 
     def gap(self, msg: str) -> None:
@@ -437,11 +447,19 @@ def _mobiles(r: Reader, area: Area) -> None:
         # ACT flags -> behavior: a non-SENTINEL mob wanders (ACT_STAY_AREA
         # keeps it in its zone), so towns feel alive. Keepers get this
         # stripped in _shops (a shopkeeper who walks off has no shop).
+        # ACT flags -> the shipped NPC-AI behaviors (wandering/aggressive in
+        # realm/combat/behaviors.py; scavenger in realm/behaviors/npc.py).
         act_letters = flag_letters(act)
         if "B" not in act_letters:                       # not ACT_SENTINEL
             proto["behaviors"].append(
-                {"behavior_id": "wander",
-                 "params": {"stay_area": "G" in act_letters}})  # ACT_STAY_AREA
+                {"behavior_id": "wandering",
+                 "params": {"stay_in_zone": "G" in act_letters}})  # STAY_AREA
+        if "F" in act_letters:                           # ACT_AGGRESSIVE
+            proto["behaviors"].append(
+                {"behavior_id": "aggressive", "params": {}})
+        if "C" in act_letters:                           # ACT_SCAVENGER
+            proto["behaviors"].append(
+                {"behavior_id": "scavenger", "params": {}})
         area.mob_protos[vnum] = proto
 
 
@@ -613,6 +631,8 @@ def _resets(r: Reader, area: Area) -> None:
             room_v = r.number()
             r.number()
             _place_obj(area, obj_v, room_v)
+            if area.repop:
+                area.obj_reset_rooms.add(room_v)     # floor loot restocks
         elif letter == "P":
             obj_v = r.number()
             r.number()
@@ -737,8 +757,13 @@ def _shops(r: Reader, area: Area) -> None:
             # A shopkeeper stays at their counter: drop any wander the ACT
             # flags gave them.
             target["behaviors"] = [b for b in target["behaviors"]
-                                   if b["behavior_id"] != "wander"]
+                                   if b["behavior_id"] != "wandering"]
             target["behaviors"].append(dict(behavior))
+            if area.repop and not any(b["behavior_id"] == "restock"
+                                      for b in target["behaviors"]):
+                # Wares replenish: the shop never runs dry.
+                target["behaviors"].append(
+                    {"behavior_id": "restock", "params": {}})
             target["attrs"]["rom_shop_buys"] = buys
         area.gap("#SHOPS: mapped to the shopkeeper behavior (markup/buyback); "
                  "ROM per-item-type buy filters kept as rom_shop_buys attr")
@@ -766,18 +791,27 @@ def _specials(r: Reader, area: Area) -> None:
             if proto is not None:
                 proto["tags"].append(f"rom_spec:{spec}")
             spells = SPEC_CASTERS.get(spec)
-            if spells and proto is not None:
+            behavior = None
+            if spells:
                 behavior = {"behavior_id": "caster",
                             "params": {"spells": list(spells), "chance": 0.5}}
+                note = ("caster behavior (spell list from ROM special.c; "
+                        "import the merc-classic pack for the spell_defs)")
+            elif spec in SPEC_BEHAVIORS:
+                b = SPEC_BEHAVIORS[spec]
+                behavior = {"behavior_id": b["behavior_id"],
+                            "params": dict(b.get("params") or {})}
+                note = f"{b['behavior_id']} behavior"
+            if behavior is not None and proto is not None:
                 # Like #SHOPS: resets ran first, so patch the placed
                 # instances of this vnum as well as the prototype.
                 for target in [proto, *(o for o in area.objects
                                         if o["attrs"].get("prototype_vnum")
                                         == vnum)]:
-                    target["behaviors"].append(dict(behavior))
-                area.gap(f"#SPECIALS ({spec}): mapped to the caster behavior "
-                         "(spell list from ROM special.c; import the "
-                         "merc-classic pack for the spell_defs)")
+                    target["behaviors"].append(
+                        {"behavior_id": behavior["behavior_id"],
+                         "params": dict(behavior["params"])})
+                area.gap(f"#SPECIALS ({spec}): mapped to the {note}")
             else:
                 area.gap(f"#SPECIALS ({spec}): a compiled C spec_proc — no "
                          "REALM equivalent; tagged rom_spec:* for "
@@ -832,10 +866,23 @@ def _attach_spawners(area: Area) -> None:
                  "return; shopkeepers stay static fixtures)")
 
 
+def _attach_restockers(area: Area) -> None:
+    """--repop: a room with floor-loot (O) resets gets a ``restock`` behavior,
+    which snapshots its objects at boot and re-mints any that get taken. Shop
+    wares restock via a keeper-side ``restock`` (attached in _shops)."""
+    for room_v in area.obj_reset_rooms:
+        room = area.rooms.get(room_v)
+        if room is None:
+            continue
+        if not any(b["behavior_id"] == "restock" for b in room["behaviors"]):
+            room["behaviors"].append({"behavior_id": "restock", "params": {}})
+
+
 def _finalize(area: Area) -> None:
     """Rooms and prototypes into the object list; doors into exit objects."""
     if area.repop:
         _attach_spawners(area)         # after #SHOPS patched keeper protos
+        _attach_restockers(area)
     for vnum, room in area.rooms.items():
         exits = room.pop("_exits", [])
         area.objects.append(room)

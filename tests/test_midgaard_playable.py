@@ -56,8 +56,13 @@ async def _barbarian(sim, system, name="Grog"):
 
 
 def _teardown(sim):
+    from realm.combat.combatant import clear_combatant_cache
     set_combat_manager(None)
     set_game_system(None)
+    # These tests import with preserve_ids, so the same mob id recurs across
+    # sims; drop the id-keyed combatant cache so a later test never wraps a
+    # stale, closed-sim object.
+    clear_combatant_cache()
     sim.close()
 
 
@@ -98,11 +103,13 @@ class TestMidgaardPlayable:
             fido = [o for o in square.contents
                     if "npc" in o.tags and "fido" in o.name][0]
             wander = next((b for b in fido.get_behaviors()
-                           if b.behavior_id == "wander"), None)
+                           if b.behavior_id == "wandering"), None)
             assert wander is not None, "the beastly fido should wander"
             # Force a step every tick, first exit each time.
-            monkeypatch.setattr("random.random", lambda: 0.0)
-            monkeypatch.setattr("random.shuffle", lambda x: None)
+            monkeypatch.setattr("realm.combat.behaviors.random.random",
+                                lambda: 0.0)
+            monkeypatch.setattr("realm.combat.behaviors.random.choice",
+                                lambda seq: seq[0])
             start = fido.location.id
             moved = False
             for _ in range(6):
@@ -113,6 +120,75 @@ class TestMidgaardPlayable:
             assert moved, "the fido should roam to an adjacent room"
             # ACT_STAY_AREA: it stays inside Midgaard.
             assert "zone:midgaard" in fido.location.tags
+        finally:
+            _teardown(sim)
+
+    async def test_the_fido_is_aggressive(self):
+        # ACT_AGGRESSIVE: the fido pounces when a mortal enters its room
+        # (the shipped `aggressive` behavior reacts to event:on_enter).
+        sim, system, mgr = await _world()
+        try:
+            from realm.core.propagation import Action
+            square = sim.store.get_cached(COMMON_SQUARE)
+            fido = [o for o in square.contents
+                    if "npc" in o.tags and "fido" in o.name][0]
+            grog = await _barbarian(sim, system)          # a mortal walks in
+            aggro = next(b for b in fido.get_behaviors()
+                         if b.behavior_id == "aggressive")
+            arrival = Action(actor=grog, target=square,
+                             action_type="event:on_enter")
+            await aggro.on_react(fido, arrival)
+            assert fido.has_tag("in_combat")              # it attacked
+            assert grog.has_tag("in_combat")
+        finally:
+            _teardown(sim)
+
+    async def test_the_fido_eats_a_corpse(self):
+        # spec_fido -> scavenger: the fido devours a corpse left in its room.
+        sim, system, mgr = await _world()
+        try:
+            square = sim.store.get_cached(COMMON_SQUARE)
+            fido = [o for o in square.contents
+                    if "npc" in o.tags and "fido" in o.name][0]
+            corpse = sim.obj("corpse of a rat", location=square,
+                             tags=["thing", "container"])
+            scav = next(b for b in fido.get_behaviors()
+                        if b.behavior_id == "scavenger")
+            # chance defaults to 0.5; force it to act.
+            import random
+            random.seed(1)
+            for _ in range(10):
+                await scav.tick(fido, 4.0)
+                if sim.store.get_cached(corpse.id) is None:
+                    break
+            assert sim.store.get_cached(corpse.id) is None  # devoured
+        finally:
+            _teardown(sim)
+
+    async def test_shop_wares_restock(self):
+        # A bought ware comes back: the keeper's restock re-mints it.
+        sim, system, mgr = await _world()
+        try:
+            from realm.behaviors.shop import find_shopkeeper
+            keeper = None
+            for room in sim.store.all_cached():
+                found = room.has_tag("room") and find_shopkeeper(room)
+                if found and found[1].wares(found[0]):
+                    keeper, shop = found[0], found[1]
+                    break
+            assert keeper is not None
+            restock = next(b for b in keeper.get_behaviors()
+                           if b.behavior_id == "restock")
+            await restock.tick(keeper, 4.0)               # snapshot the stock
+            ware = shop.wares(keeper)[0]
+            name = ware.name
+            ware.location = None                          # someone bought it
+            assert name not in [w.name for w in shop.wares(keeper)]
+            for _ in range(40):                           # wait out the timer
+                await restock.tick(keeper, 4.0)
+                if name in [w.name for w in shop.wares(keeper)]:
+                    break
+            assert name in [w.name for w in shop.wares(keeper)]  # re-minted
         finally:
             _teardown(sim)
 

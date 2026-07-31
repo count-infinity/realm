@@ -230,13 +230,15 @@ class TestParse:
         assert cellar["attrs"]["spawner_m100_ids"] == [rat[0]["id"]]
         assert cellar["attrs"]["spawner_m100_seeded"] is True
 
-    def test_act_flags_map_to_wander(self):
-        # The rat is ACT_STAY_AREA (G), not SENTINEL: it wanders its zone.
+    def test_act_flags_map_to_shipped_behaviors(self):
+        # The rat is ACT_STAY_AREA (G), not SENTINEL: it gets the shipped
+        # `wandering` behavior, zone-bounded.
         area = rom_import.convert(REPOP_ARE)
         rat = area.mob_protos[100]
-        wander = [b for b in rat["behaviors"] if b["behavior_id"] == "wander"]
+        wander = [b for b in rat["behaviors"]
+                  if b["behavior_id"] == "wandering"]
         assert len(wander) == 1
-        assert wander[0]["params"]["stay_area"] is True
+        assert wander[0]["params"]["stay_in_zone"] is True
         rooms = [o for o in area.objects if "room" in o["tags"]]
         assert "zone:test" in rooms[0]["tags"]
 
@@ -244,7 +246,8 @@ class TestParse:
         # The wizard is ACT_SENTINEL (B) AND a shopkeeper: it stays put.
         area = _convert(ARE)
         wiz = area.mob_protos[3000]
-        assert not any(b["behavior_id"] == "wander" for b in wiz["behaviors"])
+        assert not any(b["behavior_id"] == "wandering"
+                       for b in wiz["behaviors"])
 
 
 @pytest.mark.asyncio

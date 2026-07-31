@@ -108,6 +108,10 @@
             "markup": 1.1,
             "buyback": 0.9
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -361,10 +365,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3109",
@@ -621,10 +629,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3111",
@@ -876,10 +888,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3111",
@@ -1134,9 +1150,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
         }
       ],
@@ -1304,9 +1320,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
         }
       ],
@@ -1367,10 +1383,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3117",
@@ -1588,10 +1608,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3120",
@@ -1800,9 +1824,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
         }
       ],
@@ -1863,10 +1887,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3125",
@@ -2076,10 +2104,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3128",
@@ -3062,7 +3094,16 @@
         "prototype_vnum": 3140
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
+        }
+      ],
       "location": "rom_3142",
       "owner": null,
       "parent": null
@@ -3227,7 +3268,16 @@
         "prototype_vnum": 3141
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
+        }
+      ],
       "location": "rom_3142",
       "owner": null,
       "parent": null
@@ -3324,7 +3374,16 @@
         "prototype_vnum": 3141
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
+        }
+      ],
       "location": "rom_3142",
       "owner": null,
       "parent": null
@@ -3421,7 +3480,16 @@
         "prototype_vnum": 3141
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
+        }
+      ],
       "location": "rom_3142",
       "owner": null,
       "parent": null
@@ -3518,7 +3586,16 @@
         "prototype_vnum": 3141
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
+        }
+      ],
       "location": "rom_3142",
       "owner": null,
       "parent": null
@@ -3689,6 +3766,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3150",
@@ -3874,6 +3955,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3150_83",
@@ -3923,6 +4008,10 @@
             "markup": 1.1,
             "buyback": 0.9
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3150_83",
@@ -5331,6 +5420,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3003",
@@ -5380,6 +5473,10 @@
             "markup": 1.5,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3043_122",
@@ -5429,6 +5526,10 @@
             "markup": 1.0,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3043_122",
@@ -5559,10 +5660,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3004",
@@ -5862,6 +5967,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3007",
@@ -5911,6 +6020,10 @@
             "markup": 1.05,
             "buyback": 0.15
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3040_134",
@@ -5960,6 +6073,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3040_134",
@@ -6049,9 +6166,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
         }
       ],
@@ -6166,6 +6283,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3064_138",
@@ -6409,6 +6530,10 @@
             "markup": 1.5,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3010",
@@ -6688,6 +6813,10 @@
             "markup": 1.2,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3011",
@@ -7162,9 +7291,20 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
+          }
+        },
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {
+            "eat_corpses": true,
+            "pick_up": false
           }
         }
       ],
@@ -7225,10 +7365,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3014",
@@ -7481,9 +7625,20 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
+          }
+        },
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {
+            "eat_corpses": true,
+            "pick_up": false
           }
         }
       ],
@@ -7623,10 +7778,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3017",
@@ -7910,6 +8069,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3018",
@@ -7959,6 +8122,10 @@
             "markup": 1.5,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3042_181",
@@ -8008,6 +8175,10 @@
             "markup": 1.2,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3042_181",
@@ -8150,6 +8321,10 @@
             "markup": 1.0,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3020",
@@ -8920,10 +9095,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3021",
@@ -9193,6 +9372,10 @@
             "markup": 1.5,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3022",
@@ -9242,6 +9425,10 @@
             "markup": 1.5,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3045_211",
@@ -9291,6 +9478,10 @@
             "markup": 1.2,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3045_211",
@@ -9340,6 +9531,10 @@
             "markup": 1.0,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3045_211",
@@ -9466,9 +9661,20 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
+          }
+        },
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {
+            "eat_corpses": true,
+            "pick_up": false
           }
         }
       ],
@@ -9525,9 +9731,20 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
+          }
+        },
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {
+            "eat_corpses": true,
+            "pick_up": false
           }
         }
       ],
@@ -9583,10 +9800,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3026",
@@ -9762,10 +9983,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "aggressive",
+          "params": {}
         }
       ],
       "location": "rom_3026",
@@ -9928,10 +10153,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3027",
@@ -10180,10 +10409,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3027",
@@ -10296,6 +10529,10 @@
             "markup": 1.7,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3028",
@@ -10345,6 +10582,10 @@
             "markup": 1.2,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3044_234",
@@ -10394,6 +10635,10 @@
             "markup": 1.0,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3044_234",
@@ -10529,6 +10774,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3031",
@@ -10871,6 +11120,10 @@
             "markup": 1.05,
             "buyback": 0.15
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3033",
@@ -10923,6 +11176,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3000_245",
@@ -11049,6 +11306,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3000_245",
@@ -11103,6 +11364,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3000_245",
@@ -11155,6 +11420,10 @@
             "markup": 1.7,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3000_245",
@@ -11222,6 +11491,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3034",
@@ -11512,6 +11785,10 @@
             "markup": 1.1,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3035",
@@ -11945,6 +12222,10 @@
             "markup": 10.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3010_259",
@@ -13227,6 +13508,10 @@
             "markup": 1.0,
             "buyback": 0.9
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3048",
@@ -13276,6 +13561,10 @@
             "markup": 1.2,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3046_300",
@@ -13325,6 +13614,10 @@
             "markup": 1.0,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_i_mob_3046_300",
@@ -13415,10 +13708,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": "rom_3048",
@@ -13538,6 +13835,10 @@
             "markup": 1.2,
             "buyback": 0.9
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3049",
@@ -13842,6 +14143,10 @@
             "markup": 10.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": "rom_3056",
@@ -14438,7 +14743,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -14597,7 +14907,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -14892,6 +15207,10 @@
             "count": 1,
             "respawn_ticks": 20
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -15109,10 +15428,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -15291,10 +15614,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -15498,9 +15825,9 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
                 }
               ]
@@ -15791,9 +16118,9 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
                 }
               ]
@@ -15980,10 +16307,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -16258,10 +16589,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -16313,9 +16648,9 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": false
+                    "stay_in_zone": false
                   }
                 }
               ]
@@ -16746,10 +17081,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -16963,10 +17302,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": false
+                    "stay_in_zone": false
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -17883,7 +18226,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -17984,7 +18332,16 @@
                 ],
                 "rom_vuln": []
               },
-              "behaviors": []
+              "behaviors": [
+                {
+                  "behavior_id": "aggressive",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
+                }
+              ]
             },
             "count": 1,
             "respawn_ticks": 20
@@ -18041,11 +18398,24 @@
                 ],
                 "rom_vuln": []
               },
-              "behaviors": []
+              "behaviors": [
+                {
+                  "behavior_id": "aggressive",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
+                }
+              ]
             },
             "count": 4,
             "respawn_ticks": 20
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -18204,7 +18574,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -20815,7 +21190,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -20906,7 +21286,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -21315,7 +21700,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -21427,10 +21817,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -21492,7 +21886,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -21717,9 +22116,9 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
                 }
               ]
@@ -21727,6 +22126,10 @@
             "count": 1,
             "respawn_ticks": 20
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -21765,7 +22168,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -21967,9 +22375,20 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
+                  }
+                },
+                {
+                  "behavior_id": "aggressive",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {
+                    "eat_corpses": true,
+                    "pick_up": false
                   }
                 }
               ]
@@ -22212,10 +22631,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -22453,9 +22876,20 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
+                  }
+                },
+                {
+                  "behavior_id": "aggressive",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {
+                    "eat_corpses": true,
+                    "pick_up": false
                   }
                 }
               ]
@@ -22694,10 +23128,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -22759,7 +23197,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -23029,10 +23472,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -23094,7 +23541,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -23255,9 +23707,20 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
+                  }
+                },
+                {
+                  "behavior_id": "aggressive",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {
+                    "eat_corpses": true,
+                    "pick_up": false
                   }
                 }
               ]
@@ -23408,9 +23871,20 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
+                  }
+                },
+                {
+                  "behavior_id": "aggressive",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {
+                    "eat_corpses": true,
+                    "pick_up": false
                   }
                 }
               ]
@@ -23564,10 +24038,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": false
+                    "stay_in_zone": false
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -23627,10 +24105,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "aggressive",
+                  "params": {}
                 }
               ]
             },
@@ -23857,10 +24339,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": true
+                    "stay_in_zone": true
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -23913,10 +24399,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": false
+                    "stay_in_zone": false
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -23978,7 +24468,12 @@
         "rom_room_flags": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "restock",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -25515,10 +26010,14 @@
               },
               "behaviors": [
                 {
-                  "behavior_id": "wander",
+                  "behavior_id": "wandering",
                   "params": {
-                    "stay_area": false
+                    "stay_in_zone": false
                   }
+                },
+                {
+                  "behavior_id": "scavenger",
+                  "params": {}
                 }
               ]
             },
@@ -26029,6 +26528,10 @@
             "count": 1,
             "respawn_ticks": 20
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26269,6 +26772,10 @@
             "markup": 1.05,
             "buyback": 0.15
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26337,6 +26844,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26405,6 +26916,10 @@
             "markup": 1.5,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26475,6 +26990,10 @@
             "markup": 1.2,
             "buyback": 0.4
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26546,6 +27065,10 @@
             "markup": 1.0,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26596,10 +27119,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": null,
@@ -26669,6 +27196,10 @@
             "markup": 1.2,
             "buyback": 0.9
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26789,6 +27320,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26856,6 +27391,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -26924,6 +27463,10 @@
             "markup": 1.1,
             "buyback": 0.5
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -27702,6 +28245,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -27843,6 +28390,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -27927,6 +28478,10 @@
             "markup": 1.1,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -27998,6 +28553,10 @@
             "markup": 1.7,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -28070,6 +28629,10 @@
             "markup": 1.5,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -28142,6 +28705,10 @@
             "markup": 1.0,
             "buyback": 0.9
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -28200,10 +28767,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": null,
@@ -28256,9 +28827,16 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
+          }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {
+            "eat_corpses": false,
+            "pick_up": true
           }
         }
       ],
@@ -28314,9 +28892,20 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
+          }
+        },
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {
+            "eat_corpses": true,
+            "pick_up": false
           }
         }
       ],
@@ -28371,10 +28960,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": null,
@@ -28424,9 +29017,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
         }
       ],
@@ -28534,10 +29127,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
+        },
+        {
+          "behavior_id": "aggressive",
+          "params": {}
         }
       ],
       "location": null,
@@ -28778,6 +29375,10 @@
             "markup": 10.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -29381,6 +29982,10 @@
             "markup": 1.1,
             "buyback": 0.9
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -29602,9 +30207,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
         }
       ],
@@ -29662,9 +30267,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": true
+            "stay_in_zone": true
           }
         }
       ],
@@ -29724,7 +30329,16 @@
         "rom_vuln": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -29779,7 +30393,16 @@
         "rom_vuln": []
       },
       "locks": {},
-      "behaviors": [],
+      "behaviors": [
+        {
+          "behavior_id": "aggressive",
+          "params": {}
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
+        }
+      ],
       "location": null,
       "owner": null,
       "parent": null
@@ -29924,9 +30547,9 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
         }
       ],
@@ -29995,6 +30618,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -30062,6 +30689,10 @@
             "markup": 1.0,
             "buyback": 1.0
           }
+        },
+        {
+          "behavior_id": "restock",
+          "params": {}
         }
       ],
       "location": null,
@@ -30225,10 +30856,14 @@
       "locks": {},
       "behaviors": [
         {
-          "behavior_id": "wander",
+          "behavior_id": "wandering",
           "params": {
-            "stay_area": false
+            "stay_in_zone": false
           }
+        },
+        {
+          "behavior_id": "scavenger",
+          "params": {}
         }
       ],
       "location": null,

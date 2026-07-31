@@ -64,7 +64,7 @@ shops, and specials follow the ROM 2.4 `db.c` field order.
 |---|---|
 | room (`#ROOMS`) | object tagged `room`; `sector:<name>` tag + `sector` attr; room-flag letters kept as `rom_room_flags` |
 | door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a lockable door adds `door`/`closed` tags, the key vnum as a `key` attr |
-| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `gold`, `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → behavior**: a non-SENTINEL mob gets a `wander` behavior (`stay_area` if ACT_STAY_AREA), so towns feel alive; shopkeepers keep still |
+| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `gold`, `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight), ACT_SCAVENGER → `scavenger` (eat corpses / pick up litter). Shopkeepers are stripped of `wandering` and kept at the counter |
 | room (`#ROOMS`), continued | also tagged `zone:<area>` — one zone per imported area, which bounds STAY_AREA wanderers and lets a `zone_reset` find its rooms |
 | object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `weight`, `value` (cost), `slot` for wearables, `wieldable` for weapons; the five ROM value fields kept raw in `rom_values` |
 | reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script |
@@ -110,16 +110,18 @@ in REALM yet, and a builder can wire it up in softcode.
   duplication) and respawns each on death (`respawn_ticks`, not
   presence-gated — the classic "keep killing them" loop, unlike the
   whole-zone `zone_reset` which only fires when a zone empties).
-  Shopkeepers are left as static fixtures (their stock is their inventory,
-  so respawning them empty would break the shop). Reset `R` (randomize
-  exits) and reset `D` door-state are noted in `--report`.
-- **`#SPECIALS` (spec_procs).** Compiled C behavior functions. The
-  **casting family is mapped**: `spec_cast_*` / `spec_breath_*` mobs get
-  the `caster` behavior with that proc's canonical spell list (import the
+  **Objects restock too**: a room's floor loot (O resets) and a keeper's
+  wares get a `restock` behavior that snapshots the canonical objects at
+  boot and re-mints any that get taken or sold, so shops never run dry.
+  Shopkeepers themselves stay static fixtures. Reset `R` (randomize exits)
+  and reset `D` door-state are noted in `--report`.
+- **`#SPECIALS` (spec_procs).** Compiled C behavior functions. Two families
+  are **mapped to shipped behaviors**: `spec_cast_*` / `spec_breath_*` →
+  the `caster` behavior (with that proc's canonical spell list; import the
   `merc-classic` pack for the spell_defs — see [Spells as
-  Data](../guides/spells.md)). The rest (`spec_thief`, `spec_guard`, …)
-  are tagged `rom_spec:<name>` for mapping to existing behaviors — see
-  the punch list below.
+  Data](../guides/spells.md)), and `spec_fido` / `spec_janitor` → the
+  `scavenger` behavior. The rest (`spec_thief`, `spec_guard`, …) are tagged
+  `rom_spec:<name>` for mapping later — see the punch list below.
 - **`#MOBPROGS` / `#OBJPROGS`.** ROM's trigger-scripting (a MOBprog is the
   Diku-family answer to REALM softcode). Skipped with a warning. These
   *could* be transpiled to `$`-commands / `ON_<EVENT>` hooks — a worthwhile

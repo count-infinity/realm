@@ -100,12 +100,21 @@ REALM must be usable as a library, not an application to fork.
   have it stripped in `#SHOPS`). Rooms now carry a `zone:<area>` tag (bounds
   STAY_AREA and enables a future zone_reset). The beastly fido roams
   Midgaard again (`tests/test_midgaard_playable.py::test_the_beastly_fido_wanders`).
-- [ ] **Still deferred:** repop of O/G/E object resets (only mobs respawn —
-  a killed mob returns, but consumed shop stock / floor loot does not
-  restock); a `zone_reset` master emission for whole-area SMAUG-style reset
-  (presence-gated, complementary to the per-mob spawner); ACT_SCAVENGER
-  (eat corpses / pick up litter) and ACT_AGGRESSIVE (attack on sight) ->
-  behaviors (only wander is mapped so far).
+- [x] **Alive mobs + object restock (2026-07-30):** the importer maps
+  ACT_AGGRESSIVE → the shipped `aggressive` behavior (attack-on-sight),
+  ACT_SCAVENGER and `spec_fido`/`spec_janitor` → a new `scavenger`
+  behavior (eat corpses / pick up litter), and non-SENTINEL → the shipped
+  `wandering` (I first duplicated `aggressive`/`wander` in npc.py before
+  finding the canonical ones in `realm/combat/behaviors.py`; removed the
+  dupes). Object resets restock: a new `restock` behavior (spawner.py)
+  snapshots a room's floor loot / a keeper's wares at boot and re-mints
+  taken/sold copies, wired onto O-reset rooms and shop keepers under
+  `--repop`. So the beastly fido wanders, attacks, and eats corpses, and
+  shops never run dry (`tests/test_midgaard_playable.py`).
+- [ ] **Still deferred:** a `zone_reset` master emission for whole-area
+  SMAUG-style reset (presence-gated, complementary to the per-mob spawner);
+  the remaining behavioral spec_procs (`spec_thief` → steal, `spec_guard`
+  → a guard/protect behavior).
 
 ## Priority 1 - Should Address Soon
 
