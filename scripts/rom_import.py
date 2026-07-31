@@ -120,6 +120,11 @@ SPEC_BEHAVIORS = {
                   "params": {"eat_corpses": True, "pick_up": False}},
     "spec_janitor": {"behavior_id": "scavenger",
                      "params": {"eat_corpses": False, "pick_up": True}},
+    "spec_thief": {"behavior_id": "steal", "params": {}},
+    # NOTE: spec_guard (a peacekeeper that attacks criminals / breaks up
+    # fights) has no clean map -- the shipped `guard` behavior blocks
+    # movement, a different concept, and would wall off thoroughfares. Left
+    # tagged rom_spec:spec_guard until a crime/aggro-flag system exists.
 }
 
 # ROM wear *locations* (the enum used by 'E' reset lines and equip slots) —
@@ -574,10 +579,15 @@ def _rooms(r: Reader, area: Area) -> None:
             {"rom_vnum": vnum, "sector": SECTORS.get(sector, str(sector)),
              "rom_room_flags": flag_letters(flags)})
         room["_exits"] = []          # staged; realized in _finalize
-        room["tags"].append(f"sector:{SECTORS.get(sector, sector)}")
+        sector_name = SECTORS.get(sector, str(sector))
+        room["tags"].append(f"sector:{sector_name}")
         # Zone membership: bounds STAY_AREA wanderers and lets a zone_reset
         # find its rooms. One zone per imported area, named for it.
         room["tags"].append(f"zone:{area_zone(area)}")
+        # A plain `outdoor` tag (anything not an interior) for orchestrators
+        # that populate, say, "all outdoor rooms".
+        if sector_name != "inside":
+            room["tags"].append("outdoor")
         # sub-records until 'S'
         while True:
             sub = r.word()

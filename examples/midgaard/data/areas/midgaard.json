@@ -2112,6 +2112,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "steal",
+          "params": {}
         }
       ],
       "location": "rom_3128",
@@ -10417,6 +10421,10 @@
         {
           "behavior_id": "scavenger",
           "params": {}
+        },
+        {
+          "behavior_id": "steal",
+          "params": {}
         }
       ],
       "location": "rom_3027",
@@ -14647,7 +14655,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3100,
@@ -14735,7 +14744,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3101,
@@ -14811,7 +14821,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3102,
@@ -14899,7 +14910,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3103,
@@ -14992,7 +15004,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3104,
@@ -15063,7 +15076,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3105,
@@ -15241,7 +15255,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3107,
@@ -15293,7 +15308,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3108,
@@ -15362,7 +15378,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3109,
@@ -15547,7 +15564,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3111,
@@ -15709,7 +15727,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3112,
@@ -15761,7 +15780,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3113,
@@ -15898,7 +15918,8 @@
       "tags": [
         "room",
         "sector:water_swim",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3114,
@@ -16054,7 +16075,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3115,
@@ -16189,7 +16211,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3116,
@@ -16241,7 +16264,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3117,
@@ -16398,7 +16422,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3118,
@@ -16450,7 +16475,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3119,
@@ -16519,7 +16545,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3120,
@@ -16752,7 +16779,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3121,
@@ -16804,7 +16832,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3122,
@@ -16872,7 +16901,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3123,
@@ -16924,7 +16954,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3124,
@@ -17015,7 +17046,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3125,
@@ -17140,7 +17172,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3126,
@@ -17192,7 +17225,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3127,
@@ -17244,7 +17278,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3128,
@@ -17309,6 +17344,10 @@
                 },
                 {
                   "behavior_id": "scavenger",
+                  "params": {}
+                },
+                {
+                  "behavior_id": "steal",
                   "params": {}
                 }
               ]
@@ -17379,7 +17418,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3129,
@@ -17448,7 +17488,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3130,
@@ -17500,7 +17541,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3131,
@@ -17552,7 +17594,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3132,
@@ -17620,7 +17663,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3133,
@@ -17672,7 +17716,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3134,
@@ -17724,7 +17769,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3135,
@@ -17776,7 +17822,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3136,
@@ -18097,7 +18144,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3139,
@@ -18149,7 +18197,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3140,
@@ -18218,7 +18267,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3141,
@@ -18512,7 +18562,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3144,
@@ -18874,7 +18925,8 @@
       "tags": [
         "room",
         "sector:water_noswim",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3200,
@@ -18942,7 +18994,8 @@
       "tags": [
         "room",
         "sector:water_noswim",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3201,
@@ -18994,7 +19047,8 @@
       "tags": [
         "room",
         "sector:water_noswim",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3202,
@@ -19046,7 +19100,8 @@
       "tags": [
         "room",
         "sector:water_noswim",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3203,
@@ -19131,7 +19186,8 @@
       "tags": [
         "room",
         "sector:water_noswim",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3204,
@@ -19183,7 +19239,8 @@
       "tags": [
         "room",
         "sector:water_noswim",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3205,
@@ -19236,7 +19293,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3250,
@@ -19290,7 +19348,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3251,
@@ -19361,7 +19420,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3252,
@@ -19415,7 +19475,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3253,
@@ -19469,7 +19530,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3254,
@@ -19523,7 +19585,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3255,
@@ -19657,7 +19720,8 @@
       "tags": [
         "room",
         "sector:forest",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3256,
@@ -19712,7 +19776,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3257,
@@ -19766,7 +19831,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3258,
@@ -19837,7 +19903,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3259,
@@ -19891,7 +19958,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3260,
@@ -19945,7 +20013,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3261,
@@ -19999,7 +20068,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3262,
@@ -20132,7 +20202,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3263,
@@ -20186,7 +20257,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3264,
@@ -20240,7 +20312,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3265,
@@ -20294,7 +20367,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3266,
@@ -20365,7 +20439,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3267,
@@ -20419,7 +20494,8 @@
       "tags": [
         "room",
         "sector:field",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3268,
@@ -20474,7 +20550,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3270,
@@ -20528,7 +20605,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3271,
@@ -20582,7 +20660,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3272,
@@ -20653,7 +20732,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3273,
@@ -20724,7 +20804,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3301,
@@ -20778,7 +20859,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3302,
@@ -20849,7 +20931,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3303,
@@ -20903,7 +20986,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3314,
@@ -20957,7 +21041,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3315,
@@ -21028,7 +21113,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3316,
@@ -21878,7 +21964,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3005,
@@ -22313,7 +22400,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3012,
@@ -22477,7 +22565,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3013,
@@ -22565,7 +22654,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3014,
@@ -22726,7 +22816,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3015,
@@ -22814,7 +22905,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3016,
@@ -23645,7 +23737,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3024,
@@ -23809,7 +23902,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3025,
@@ -23973,7 +24067,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3026,
@@ -24407,6 +24502,10 @@
                 {
                   "behavior_id": "scavenger",
                   "params": {}
+                },
+                {
+                  "behavior_id": "steal",
+                  "params": {}
                 }
               ]
             },
@@ -24586,7 +24685,8 @@
       "tags": [
         "room",
         "sector:field",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3030,
@@ -25110,7 +25210,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3040,
@@ -25263,7 +25364,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3041,
@@ -25416,7 +25518,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3042,
@@ -25470,7 +25573,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3043,
@@ -25541,7 +25645,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3044,
@@ -25685,7 +25790,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3045,
@@ -25773,7 +25879,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3046,
@@ -25861,7 +25968,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3047,
@@ -26105,7 +26213,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3049,
@@ -26276,7 +26385,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3051,
@@ -26330,7 +26440,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3052,
@@ -26386,7 +26497,8 @@
       "tags": [
         "room",
         "sector:city",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3053,
@@ -26648,7 +26760,8 @@
       "tags": [
         "room",
         "sector:air",
-        "zone:midgaard"
+        "zone:midgaard",
+        "outdoor"
       ],
       "attrs": {
         "rom_vnum": 3057,
@@ -27126,6 +27239,10 @@
         },
         {
           "behavior_id": "scavenger",
+          "params": {}
+        },
+        {
+          "behavior_id": "steal",
           "params": {}
         }
       ],

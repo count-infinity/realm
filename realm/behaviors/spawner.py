@@ -251,5 +251,129 @@ class RestockBehavior(Behavior):
                 await persistence.save(item)
 
 
-__all__ = ["SpawnerBehavior", "RestockBehavior", "spawn_from_prototype",
-           "spawn_tracked", "object_prototype"]
+@BehaviorRegistry.register
+class PopulationBehavior(Behavior):
+    """
+    A zone-level mob orchestrator: keep a population of a prototype spread
+    across MANY rooms, not just one.
+
+    Where ``spawner`` maintains ``count`` of a mob in a single room, this
+    keeps between ``min_alive`` and ``max_alive`` of a mob scattered at
+    random across every room matching ``room_tags`` (e.g. ``['outdoor']``,
+    ``['zone:midgaard']``, ``['sector:forest']``). When the live count drops
+    below ``min_alive`` it trickles ``spawn_batch`` in per top-up until it
+    reaches ``max_alive``. Attach it to a zone master (or any object); with
+    no ``room_tags`` it uses the master's own ``zone:`` rooms — so it pairs
+    naturally with the reset/zone machinery.
+
+    Params:
+        prototype (dict): the mob minted (name, tags, attrs, behaviors).
+        min_alive (int): replenish when the live count falls below this (1).
+        max_alive (int): population cap (default = min_alive).
+        room_tags (list[str]): eligible rooms carry ANY of these tags
+            (default: the master's own zone).
+        respawn_ticks (int): world beats between top-ups (default 20).
+        spawn_batch (int): most minted per top-up, so they trickle in (1).
+        key (str): marker for this population (default: the prototype name).
+        announce (str): room line when one appears.
+
+    State in master.db: ``pop_<key>_ids`` (tracked spawns), ``pop_<key>_wait``.
+    """
+
+    behavior_id = "population"
+    param_spec = {
+        'prototype': ({}, 'the mob minted: name, tags, attrs, behaviors'),
+        'min_alive': (1, 'replenish when the live count falls below this'),
+        'max_alive': (None, 'population cap (default = min_alive)'),
+        'room_tags': (None, 'eligible rooms carry ANY of these tags '
+                            '(default: the master zone)'),
+        'respawn_ticks': (20, 'world beats between top-ups'),
+        'spawn_batch': (1, 'most minted per top-up (they trickle in)'),
+        'key': (None, "marker for this population (default: prototype name)"),
+        'announce': (None, 'room line when one appears'),
+    }
+
+    @property
+    def should_tick(self) -> bool:
+        return True
+
+    def _key(self) -> str:
+        key = self.get_param('key')
+        if key:
+            return str(key)
+        name = str((self.get_param('prototype') or {}).get('name', 'mob'))
+        return name.lower().replace(' ', '_')
+
+    def _eligible_rooms(self, master: GameObject) -> list:
+        from realm.core.query import find_objects
+        from realm.core.zones import zone_rooms, zone_tags
+
+        tags = self.get_param('room_tags')
+        if tags:
+            return [r for r in find_objects(tag='room')
+                    if any(r.has_tag(t) for t in tags)]
+        rooms, seen = [], set()
+        for zone in zone_tags(master):
+            for room in zone_rooms(zone):
+                if room.id not in seen:
+                    seen.add(room.id)
+                    rooms.append(room)
+        return rooms
+
+    async def tick(self, master: GameObject, delta: float) -> None:
+        import random
+
+        prototype = self.get_param('prototype')
+        if not prototype:
+            return
+        interval = int(self.get_param('respawn_ticks', 20)) + 1
+        key = self._key()
+        if not self.countdown(master, f'pop_{key}_wait', interval):
+            return
+
+        rooms = self._eligible_rooms(master)
+        if not rooms:
+            return
+        from realm.persistence.manager import get_active_manager
+        persistence = get_active_manager()
+
+        ids_attr = f'pop_{key}_ids'
+        tracked = list(master.db.get(ids_attr) or [])
+        if persistence is not None:
+            alive = [i for i in tracked
+                     if persistence.get_cached(i) is not None]
+        else:
+            marker = f'spawned:{key}'
+            alive = [o.id for r in rooms for o in r.contents
+                     if o.has_tag(marker)]
+
+        min_a = int(self.get_param('min_alive', 1))
+        max_a = max(min_a, int(self.get_param('max_alive') or min_a))
+        # Hysteresis: dropping below min starts a refill up to max; the
+        # population then idles and decays back toward min before refilling
+        # again (so it does not thrash one-in-one-out at the threshold).
+        filling_attr = f'pop_{key}_filling'
+        filling = bool(master.db.get(filling_attr))
+        if len(alive) < min_a:
+            filling = True
+        if len(alive) >= max_a:
+            filling = False
+        master.db.set(filling_attr, filling)
+        if not filling:
+            master.db.set(ids_attr, alive)      # healthy: prune and rest
+            return
+
+        batch = min(int(self.get_param('spawn_batch', 1)), max_a - len(alive))
+        announce = self.get_param('announce')
+        for _ in range(max(0, batch)):
+            room = random.choice(rooms)
+            spawn = await spawn_tracked(prototype, room, f'spawned:{key}',
+                                        persistence, population=key)
+            alive.append(spawn.id)
+            if announce:
+                room.msg_contents(str(announce))
+        master.db.set(ids_attr, alive)
+
+
+__all__ = ["SpawnerBehavior", "RestockBehavior", "PopulationBehavior",
+           "spawn_from_prototype", "spawn_tracked", "object_prototype"]

@@ -65,7 +65,7 @@ shops, and specials follow the ROM 2.4 `db.c` field order.
 | room (`#ROOMS`) | object tagged `room`; `sector:<name>` tag + `sector` attr; room-flag letters kept as `rom_room_flags` |
 | door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a lockable door adds `door`/`closed` tags, the key vnum as a `key` attr |
 | mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `gold`, `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight), ACT_SCAVENGER → `scavenger` (eat corpses / pick up litter). Shopkeepers are stripped of `wandering` and kept at the counter |
-| room (`#ROOMS`), continued | also tagged `zone:<area>` — one zone per imported area, which bounds STAY_AREA wanderers and lets a `zone_reset` find its rooms |
+| room (`#ROOMS`), continued | also tagged `zone:<area>` (one zone per imported area — bounds STAY_AREA wanderers, and the room-set a `zone_reset` or `population` orchestrator draws on) and `outdoor` for any non-interior sector (so an orchestrator can populate "all outdoor rooms") |
 | object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `weight`, `value` (cost), `slot` for wearables, `wieldable` for weapons; the five ROM value fields kept raw in `rom_values` |
 | reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script |
 | shop (`#SHOPS`) | the keeper mob gains the `shopkeeper` behavior with `markup`/`buyback` derived from its profit margins; per-item-type buy filters kept as `rom_shop_buys` |
@@ -115,13 +115,15 @@ in REALM yet, and a builder can wire it up in softcode.
   boot and re-mints any that get taken or sold, so shops never run dry.
   Shopkeepers themselves stay static fixtures. Reset `R` (randomize exits)
   and reset `D` door-state are noted in `--report`.
-- **`#SPECIALS` (spec_procs).** Compiled C behavior functions. Two families
-  are **mapped to shipped behaviors**: `spec_cast_*` / `spec_breath_*` →
-  the `caster` behavior (with that proc's canonical spell list; import the
-  `merc-classic` pack for the spell_defs — see [Spells as
-  Data](../guides/spells.md)), and `spec_fido` / `spec_janitor` → the
-  `scavenger` behavior. The rest (`spec_thief`, `spec_guard`, …) are tagged
-  `rom_spec:<name>` for mapping later — see the punch list below.
+- **`#SPECIALS` (spec_procs).** Compiled C behavior functions, **mapped to
+  shipped behaviors** where one fits: `spec_cast_*` / `spec_breath_*` →
+  `caster` (with that proc's canonical spell list; import the `merc-classic`
+  pack — see [Spells as Data](../guides/spells.md)), `spec_fido` /
+  `spec_janitor` → `scavenger`, and `spec_thief` → `steal` (pickpocket).
+  `spec_guard` is deliberately left unmapped — ROM's is a peacekeeper that
+  attacks criminals, which needs a crime/aggro-flag system REALM lacks; the
+  shipped `guard` blocks movement (a different concept that would wall off
+  thoroughfares). Unmapped procs stay tagged `rom_spec:<name>`.
 - **`#MOBPROGS` / `#OBJPROGS`.** ROM's trigger-scripting (a MOBprog is the
   Diku-family answer to REALM softcode). Skipped with a warning. These
   *could* be transpiled to `$`-commands / `ON_<EVENT>` hooks — a worthwhile

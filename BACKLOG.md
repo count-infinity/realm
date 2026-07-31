@@ -111,10 +111,21 @@ REALM must be usable as a library, not an application to fork.
   taken/sold copies, wired onto O-reset rooms and shop keepers under
   `--repop`. So the beastly fido wanders, attacks, and eats corpses, and
   shops never run dry (`tests/test_midgaard_playable.py`).
-- [ ] **Still deferred:** a `zone_reset` master emission for whole-area
-  SMAUG-style reset (presence-gated, complementary to the per-mob spawner);
-  the remaining behavioral spec_procs (`spec_thief` → steal, `spec_guard`
-  → a guard/protect behavior).
+- [x] **spec_thief + mob orchestrator (2026-07-30):** `spec_thief` → a new
+  `StealBehavior` (pickpocket: stealth-vs-observation contest, lifts coin,
+  slips away; spares immortals). A new **`PopulationBehavior`** — a
+  zone-level mob orchestrator that keeps `min_alive`–`max_alive` of a
+  prototype spread at random across all rooms matching `room_tags`
+  (`['outdoor']`, `['zone:x']`, `['sector:forest']`), trickling in per
+  top-up with hysteresis (fills to max, idles, refills below min); defaults
+  to the master's zone. The importer now tags rooms `outdoor` (any
+  non-interior sector) to feed it. Docs: guides/world-management.md
+  "Population". Tests: tests/test_orchestrator.py (7).
+- [ ] **Still deferred:** a `zone_reset` master *emission* from the importer
+  (the behavior exists; the converter does not auto-attach one — you add it
+  by hand or use `population`); `spec_guard` (needs a crime/aggro-flag
+  system — the shipped `guard` blocks movement, the wrong semantic);
+  `spec_poison` (46 areas) → a poison-on-hit behavior.
 
 ## Priority 1 - Should Address Soon
 

@@ -17,11 +17,16 @@ from realm.behaviors.effects import (
 from realm.behaviors.npc import (
     PatrolBehavior,
     ScavengerBehavior,
+    StealBehavior,
     WatchfulBehavior,
 )
 from realm.behaviors.scripted import ScriptedBehavior
 from realm.behaviors.shop import ShopkeeperBehavior
-from realm.behaviors.spawner import RestockBehavior, SpawnerBehavior
+from realm.behaviors.spawner import (
+    PopulationBehavior,
+    RestockBehavior,
+    SpawnerBehavior,
+)
 from realm.behaviors.ticker import ScriptTickerBehavior
 from realm.behaviors.zone_reset import ZoneResetBehavior
 
@@ -31,11 +36,13 @@ __all__ = [
     "ScriptTickerBehavior",
     "SpawnerBehavior",
     "RestockBehavior",
+    "PopulationBehavior",
     "ZoneResetBehavior",
     "ShopkeeperBehavior",
     "WatchfulBehavior",
     "PatrolBehavior",
     "ScavengerBehavior",
+    "StealBehavior",
     "DecayBehavior",
     "TimedEffectBehavior",
     "ModifierEffectBehavior",

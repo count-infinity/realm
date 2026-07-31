@@ -118,6 +118,33 @@ canonical contents (not ephemeral). An occupied zone simply defers — it
 resets the instant it empties (by design: an area never returns to canonical
 while someone's watching).
 
+### Population — a zone-level mob orchestrator
+
+Three spawning tools, matched to intent:
+
+| behavior | scope | when it fills |
+|---|---|---|
+| `spawner` | one room, a fixed `count` | a tracked spawn dies |
+| `zone_reset` | the whole zone, at once | on a timer, only when empty of players |
+| `population` | many rooms, `min`–`max` alive | continuously, wherever players are |
+
+`population` is the "keep the wilds stocked" tool: it maintains a mob count
+spread at **random across every room matching `room_tags`** — a whole zone,
+every `outdoor` room, every `sector:forest` — trickling `spawn_batch` in per
+top-up and idling once it reaches `max_alive`, refilling only after the live
+count falls below `min_alive` (hysteresis, so it never thrashes at the
+threshold). Attach it to a zone master:
+
+```text
+@behavior Wildwood Brain = population, min_alive:8, max_alive:15, spawn_batch:2
+@set Wildwood Brain/room_tags = ["outdoor"]
+@set Wildwood Brain/prototype = {"name": "a grey wolf", "tags": ["npc"], "attrs": {"hp": 12, "max_hp": 12}, "behaviors": [{"behavior_id": "wandering", "params": {"stay_in_zone": true}}]}
+```
+
+With no `room_tags` it uses the master's own `zone:` rooms, so it drops
+straight onto the zone machinery above. Unlike `zone_reset` it is **not**
+presence-gated — wolves keep appearing in the forest while you hunt them.
+
 ## Paired exits (doors)
 
 A two-way `@dig` creates *two* exit objects, and anything that treats

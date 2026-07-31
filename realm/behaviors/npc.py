@@ -14,6 +14,7 @@ Design rules (REALM architecture):
 from __future__ import annotations
 
 import logging
+import random
 from typing import TYPE_CHECKING
 
 from realm.core.behaviors import Behavior, BehaviorRegistry
@@ -198,8 +199,6 @@ class ScavengerBehavior(Behavior):
         return True
 
     async def tick(self, obj: GameObject, delta: float) -> None:
-        import random
-
         if obj.location is None or obj.has_tag('in_combat'):
             return
         if random.random() > float(self.get_param('chance', 0.5)):
@@ -234,4 +233,76 @@ class ScavengerBehavior(Behavior):
                                   exclude=[obj])
 
 
-__all__ = ["WatchfulBehavior", "PatrolBehavior", "ScavengerBehavior"]
+@BehaviorRegistry.register
+class StealBehavior(Behavior):
+    """
+    Pickpockets a little coin from a mortal in the room (ROM spec_thief).
+
+    A quick stealth-vs-perception contest: win and a bit of gold vanishes
+    unnoticed (and the thief may slip away); lose and the room hears the
+    fumble. The importer maps it from ``spec_thief``.
+
+    Params:
+        skill (str): the thief's skill, contested against the mark's
+            observation (default 'stealth').
+        chance (float): probability per tick of trying (default 0.25).
+        max_take (int): most coin lifted in one grab (default 50).
+        flee (bool): slip out a random exit after a success (default True).
+    """
+
+    behavior_id = "steal"
+    param_spec = {
+        'skill': ('stealth', "the thief's skill vs the mark's observation"),
+        'chance': (0.25, 'probability per tick of attempting a lift'),
+        'max_take': (50, 'most currency lifted in one grab'),
+        'flee': (True, 'slip out a random exit after a success'),
+    }
+
+    @property
+    def should_tick(self) -> bool:
+        return True
+
+    async def tick(self, obj: GameObject, delta: float) -> None:
+        if obj.location is None or obj.has_tag('in_combat'):
+            return
+        if random.random() > float(self.get_param('chance', 0.25)):
+            return
+        from realm.core.checks import contest
+        from realm.core.economy import get_credits, transfer_credits
+        from realm.permissions.roles import Role, get_role
+
+        marks = [c for c in obj.location.contents
+                 if c.has_tag('player') and get_role(c) <= Role.PLAYER
+                 and get_credits(c) > 0]
+        if not marks:
+            return
+        mark = random.choice(marks)
+        skill = str(self.get_param('skill', 'stealth'))
+        if contest(obj, skill, mark, 'observation'):
+            take = min(int(self.get_param('max_take', 50)), get_credits(mark))
+            take = random.randint(1, max(1, take))
+            transfer_credits(mark, obj, take)
+            if self.get_param('flee', True):
+                await self._slip_away(obj)
+        else:
+            mark.msg(f"{obj.name} tries to pick your pocket!")
+            obj.location.msg_contents(
+                f"{obj.name} fumbles at {mark.name}'s purse!", exclude=[mark])
+
+    async def _slip_away(self, obj: GameObject) -> None:
+        from realm.core.movement import (
+            move_through_exit,
+            resolve_exit_destination,
+        )
+        exits = [c for c in obj.location.contents if c.has_tag('exit')
+                 and not c.has_tag('closed')]
+        random.shuffle(exits)
+        for exit_obj in exits:
+            destination = resolve_exit_destination(exit_obj)
+            if destination is not None:
+                await move_through_exit(obj, destination, exit_obj=exit_obj)
+                return
+
+
+__all__ = ["WatchfulBehavior", "PatrolBehavior", "ScavengerBehavior",
+           "StealBehavior"]
