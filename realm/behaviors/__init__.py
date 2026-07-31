@@ -14,7 +14,7 @@ from realm.behaviors.effects import (
     RegenerationBehavior,
     TimedEffectBehavior,
 )
-from realm.behaviors.npc import PatrolBehavior, WatchfulBehavior
+from realm.behaviors.npc import PatrolBehavior, WanderBehavior, WatchfulBehavior
 from realm.behaviors.scripted import ScriptedBehavior
 from realm.behaviors.shop import ShopkeeperBehavior
 from realm.behaviors.spawner import SpawnerBehavior
@@ -30,6 +30,7 @@ __all__ = [
     "ShopkeeperBehavior",
     "WatchfulBehavior",
     "PatrolBehavior",
+    "WanderBehavior",
     "DecayBehavior",
     "TimedEffectBehavior",
     "ModifierEffectBehavior",

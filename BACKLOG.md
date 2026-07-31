@@ -94,11 +94,18 @@ REALM must be usable as a library, not an application to fork.
     delivered via a new async `GameSystem.outfit_new_character(player,
     persistence)` seam (default no-op; Merc mints + wields the class
     weapon), called after `finish_chargen` in the connect flow.
-- [ ] **Deferred:** repop of O/G/E object resets (only mobs respawn today —
+- [x] **Mob wander (2026-07-30):** a `WanderBehavior` (random-exit roaming,
+  `stay_area` zone-bounded, combat-safe) + the importer maps ROM ACT flags
+  to it (non-SENTINEL mobs wander; ACT_STAY_AREA sets `stay_area`; keepers
+  have it stripped in `#SHOPS`). Rooms now carry a `zone:<area>` tag (bounds
+  STAY_AREA and enables a future zone_reset). The beastly fido roams
+  Midgaard again (`tests/test_midgaard_playable.py::test_the_beastly_fido_wanders`).
+- [ ] **Still deferred:** repop of O/G/E object resets (only mobs respawn —
   a killed mob returns, but consumed shop stock / floor loot does not
   restock); a `zone_reset` master emission for whole-area SMAUG-style reset
-  (the presence-gated tool, complementary to the per-mob spawner); ROM mob
-  wander/scavenger ACT flags (fidos stand still — no wander behavior mapped).
+  (presence-gated, complementary to the per-mob spawner); ACT_SCAVENGER
+  (eat corpses / pick up litter) and ACT_AGGRESSIVE (attack on sight) ->
+  behaviors (only wander is mapped so far).
 
 ## Priority 1 - Should Address Soon
 

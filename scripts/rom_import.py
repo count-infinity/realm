@@ -165,6 +165,12 @@ def resistance_map(imm: str, res: str, vuln: str) -> dict[str, float]:
     return out
 
 
+def area_zone(area: Area) -> str:
+    """A ``zone:`` tag slug for the area (one zone per imported area)."""
+    slug = re.sub(r"[^a-z0-9]+", "_", area.name.lower()).strip("_")
+    return slug or "area"
+
+
 def dice_avg(spec: str) -> int:
     """Average of an ``NdS+B`` dice string (ROM hit/mana/damage dice)."""
     m = re.match(r"\s*(\d+)d(\d+)([+-]\d+)?\s*$", spec)
@@ -427,8 +433,16 @@ def _mobiles(r: Reader, area: Area) -> None:
             attrs["rom_imm"] = flag_letters(imm)
             attrs["rom_res"] = flag_letters(res)
             attrs["rom_vuln"] = flag_letters(vuln)
-        area.mob_protos[vnum] = obj_record(
-            f"rom_mob_{vnum}", name, look, tags, attrs)
+        proto = obj_record(f"rom_mob_{vnum}", name, look, tags, attrs)
+        # ACT flags -> behavior: a non-SENTINEL mob wanders (ACT_STAY_AREA
+        # keeps it in its zone), so towns feel alive. Keepers get this
+        # stripped in _shops (a shopkeeper who walks off has no shop).
+        act_letters = flag_letters(act)
+        if "B" not in act_letters:                       # not ACT_SENTINEL
+            proto["behaviors"].append(
+                {"behavior_id": "wander",
+                 "params": {"stay_area": "G" in act_letters}})  # ACT_STAY_AREA
+        area.mob_protos[vnum] = proto
 
 
 def _objects(r: Reader, area: Area) -> None:
@@ -543,6 +557,9 @@ def _rooms(r: Reader, area: Area) -> None:
              "rom_room_flags": flag_letters(flags)})
         room["_exits"] = []          # staged; realized in _finalize
         room["tags"].append(f"sector:{SECTORS.get(sector, sector)}")
+        # Zone membership: bounds STAY_AREA wanderers and lets a zone_reset
+        # find its rooms. One zone per imported area, named for it.
+        room["tags"].append(f"zone:{area_zone(area)}")
         # sub-records until 'S'
         while True:
             sub = r.word()
@@ -717,6 +734,10 @@ def _shops(r: Reader, area: Area) -> None:
         # prototype — resets ran first, so patch the placed instances too.
         for target in [proto, *(o for o in area.objects
                                 if o["attrs"].get("prototype_vnum") == keeper)]:
+            # A shopkeeper stays at their counter: drop any wander the ACT
+            # flags gave them.
+            target["behaviors"] = [b for b in target["behaviors"]
+                                   if b["behavior_id"] != "wander"]
             target["behaviors"].append(dict(behavior))
             target["attrs"]["rom_shop_buys"] = buys
         area.gap("#SHOPS: mapped to the shopkeeper behavior (markup/buyback); "

@@ -118,7 +118,7 @@ A rat scurries here.
 It is a rat.
 ~
 rodent~
-AB D 0 0
+AG D 0 0
 2 0 1d1+7 1d1+7 1d4 bite
 5 5 5 5
 0 0 0 0
@@ -229,6 +229,22 @@ class TestParse:
         assert "spawned:m100" in rat[0]["tags"]            # adopted, not dup'd
         assert cellar["attrs"]["spawner_m100_ids"] == [rat[0]["id"]]
         assert cellar["attrs"]["spawner_m100_seeded"] is True
+
+    def test_act_flags_map_to_wander(self):
+        # The rat is ACT_STAY_AREA (G), not SENTINEL: it wanders its zone.
+        area = rom_import.convert(REPOP_ARE)
+        rat = area.mob_protos[100]
+        wander = [b for b in rat["behaviors"] if b["behavior_id"] == "wander"]
+        assert len(wander) == 1
+        assert wander[0]["params"]["stay_area"] is True
+        rooms = [o for o in area.objects if "room" in o["tags"]]
+        assert "zone:test" in rooms[0]["tags"]
+
+    def test_sentinel_and_keepers_do_not_wander(self):
+        # The wizard is ACT_SENTINEL (B) AND a shopkeeper: it stays put.
+        area = _convert(ARE)
+        wiz = area.mob_protos[3000]
+        assert not any(b["behavior_id"] == "wander" for b in wiz["behaviors"])
 
 
 @pytest.mark.asyncio

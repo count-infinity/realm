@@ -91,6 +91,31 @@ class TestMidgaardPlayable:
         finally:
             _teardown(sim)
 
+    async def test_the_beastly_fido_wanders(self, monkeypatch):
+        sim, system, mgr = await _world()
+        try:
+            square = sim.store.get_cached(COMMON_SQUARE)
+            fido = [o for o in square.contents
+                    if "npc" in o.tags and "fido" in o.name][0]
+            wander = next((b for b in fido.get_behaviors()
+                           if b.behavior_id == "wander"), None)
+            assert wander is not None, "the beastly fido should wander"
+            # Force a step every tick, first exit each time.
+            monkeypatch.setattr("random.random", lambda: 0.0)
+            monkeypatch.setattr("random.shuffle", lambda x: None)
+            start = fido.location.id
+            moved = False
+            for _ in range(6):
+                await wander.tick(fido, 4.0)
+                if fido.location is not None and fido.location.id != start:
+                    moved = True
+                    break
+            assert moved, "the fido should roam to an adjacent room"
+            # ACT_STAY_AREA: it stays inside Midgaard.
+            assert "zone:midgaard" in fido.location.tags
+        finally:
+            _teardown(sim)
+
     async def test_kill_a_fido_for_xp(self, monkeypatch):
         sim, system, mgr = await _world()
         try:

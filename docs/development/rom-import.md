@@ -64,7 +64,8 @@ shops, and specials follow the ROM 2.4 `db.c` field order.
 |---|---|
 | room (`#ROOMS`) | object tagged `room`; `sector:<name>` tag + `sector` attr; room-flag letters kept as `rom_room_flags` |
 | door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a lockable door adds `door`/`closed` tags, the key vnum as a `key` attr |
-| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `gold`, `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag |
+| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `gold`, `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → behavior**: a non-SENTINEL mob gets a `wander` behavior (`stay_area` if ACT_STAY_AREA), so towns feel alive; shopkeepers keep still |
+| room (`#ROOMS`), continued | also tagged `zone:<area>` — one zone per imported area, which bounds STAY_AREA wanderers and lets a `zone_reset` find its rooms |
 | object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `weight`, `value` (cost), `slot` for wearables, `wieldable` for weapons; the five ROM value fields kept raw in `rom_values` |
 | reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script |
 | shop (`#SHOPS`) | the keeper mob gains the `shopkeeper` behavior with `markup`/`buyback` derived from its profit margins; per-item-type buy filters kept as `rom_shop_buys` |

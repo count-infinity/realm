@@ -164,4 +164,69 @@ class PatrolBehavior(Behavior):
         # If blocked (closed door, lock), stay and retry after the pause.
 
 
-__all__ = ["WatchfulBehavior", "PatrolBehavior"]
+@BehaviorRegistry.register
+class WanderBehavior(Behavior):
+    """
+    Roam at random through the room's exits, a step now and then.
+
+    The Diku townsfolk/scavenger that makes an area feel alive. The ROM
+    importer maps it from a mob's ACT flags: any non-SENTINEL mob wanders,
+    and ACT_STAY_AREA keeps it inside its zone. Topology-safe: it takes real
+    exits through the movement gate, so closed doors, locks, and combat stop
+    it like anyone else.
+
+    Params:
+        chance (float): probability per tick of taking a step (default 0.25).
+        stay_area (bool): only step to rooms sharing a ``zone:`` tag with the
+            current room (ROM ACT_STAY_AREA); default False = roam anywhere.
+        pause (int): minimum world beats between steps (default 2).
+
+    State in owner.db: wander_wait (countdown).
+    """
+
+    behavior_id = "wander"
+    param_spec = {
+        'chance': (0.25, 'probability per tick of taking a step'),
+        'stay_area': (False, 'stay within the current zone (ROM STAY_AREA)'),
+        'pause': (2, 'minimum world beats between steps'),
+    }
+
+    @property
+    def should_tick(self) -> bool:
+        return True
+
+    async def tick(self, obj: GameObject, delta: float) -> None:
+        import random
+
+        if obj.location is None or obj.has_tag('in_combat'):
+            return                          # never wander off mid-fight
+        wait = int(obj.db.get('wander_wait') or 0)
+        if wait > 0:
+            obj.db.wander_wait = wait - 1
+            return
+        if random.random() > float(self.get_param('chance', 0.25)):
+            return
+
+        exits = [c for c in obj.location.contents if c.has_tag('exit')]
+        random.shuffle(exits)
+        from realm.core.movement import (
+            has_dest_resolver,
+            move_through_exit,
+            resolve_exit_destination,
+        )
+        from realm.core.zones import zone_tags
+        home = set(zone_tags(obj.location)) if self.get_param('stay_area') \
+            else set()
+        for exit_obj in exits:
+            destination = resolve_exit_destination(exit_obj)
+            if destination is None and not has_dest_resolver(exit_obj):
+                continue
+            if home and destination is not None and \
+                    not (home & set(zone_tags(destination))):
+                continue                    # would leave the area (STAY_AREA)
+            if await move_through_exit(obj, destination, exit_obj=exit_obj):
+                obj.db.wander_wait = int(self.get_param('pause', 2))
+                return
+
+
+__all__ = ["WatchfulBehavior", "PatrolBehavior", "WanderBehavior"]
