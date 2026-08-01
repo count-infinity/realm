@@ -190,6 +190,18 @@ THAC0 17 — trades blows with a warrior on the `merc` ruleset):
   `apply_type_resistance` helper. Because the value is a float, not one of
   three tiers, a builder can author *any* resistance (`0.85` = 15%); Diku's
   tiers are just three points on it. `DamageType.TRUE` bypasses the map.
+- **Broad immunities compose by a key ladder** (the SMAUG/CoffeeMud
+  synthesis). ROM's `IMM_WEAPON`/`IMM_MAGIC` become the *family* keys
+  `physical`/`magical`. At damage time the exact type key wins
+  (`slashing`); when it misses, the family key applies by **delivery**:
+  `magical` when the hit came from a spell or an enchanted weapon,
+  `physical` for mundane weapon-flavored hits. So a mob with only
+  `{"physical": 0.0}` shrugs off every mundane blow but takes full
+  damage from an enchanted blade — the classic "you need a magic
+  weapon" gate — while a mundane torch's fire is never gated by magic
+  immunity. ROM's `ITEM_MAGIC` extra flag (`G`) imports as the `magic`
+  tag that marks a weapon's hits as magical delivery. Otho the money
+  changer (imm weapon *and* magic) is unkillable, faithfully.
 - **Worn-armor AC for players** (was 101 areas of equip resets) → live.
   `wear`/`remove` fire `item:on_wear`/`item:on_remove`; the boot-registered
   `equipment_observer` forwards an applied gear change to the active

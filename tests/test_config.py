@@ -74,6 +74,30 @@ class TestKeysAreConsumed:
         )
 
 
+class TestCombatRulesetDefault:
+
+    def test_default_is_none_so_the_game_system_chooses(self, tmp_path):
+        """COMBAT_RULESET defaulted to 'gurps' in defaults.py, which made
+        settings.combat_ruleset never-None — so game.py's
+        ``combat_ruleset or game_system.ruleset_name`` fallback was dead
+        code and EVERY game ran GURPS combat regardless of its system.
+        Midgaard fought GURPS 3d6 over merc characters: AC/THAC0 ignored,
+        imm/res/vuln ignored (found live, 2026-08-01)."""
+        game = _write_config(tmp_path, 'GAME_NAME = "Bare"\n')
+        settings = load_config(game)
+        assert settings.combat_ruleset is None
+
+        # The boot wiring game.py uses must now reach the system's choice.
+        from realm.systems.merc import MercSystem
+        chosen = settings.combat_ruleset or MercSystem().ruleset_name
+        assert chosen == "merc"
+
+    def test_explicit_config_still_wins(self, tmp_path):
+        game = _write_config(tmp_path, 'COMBAT_RULESET = "gurps"\n')
+        settings = load_config(game)
+        assert settings.combat_ruleset == "gurps"
+
+
 class TestNearMissWarning:
 
     def test_typo_of_a_real_key_warns(self, tmp_path, caplog):

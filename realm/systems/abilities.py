@@ -110,21 +110,27 @@ def roll_dice(spec: str) -> int:
 
 
 async def apply_typed_damage(target: GameObject, amount: int, dtype_name: str,
-                             attacker: GameObject | None = None) -> int:
+                             attacker: GameObject | None = None, *,
+                             magical: bool = True) -> int:
     """Deal ``amount`` typed damage, fired through the shared
     ``combat:on_damage`` chokepoint (interceptable; routed through the
     ruleset's resistances/DR). Falls back to a direct resisted apply when no
-    combat manager is installed (tools/tests). Returns HP dealt."""
+    combat manager is installed (tools/tests). Returns HP dealt.
+
+    ``magical`` marks the delivery for the resistance family ladder —
+    True by default because ability damage is overwhelmingly spellwork;
+    a mundane trap/venom ability passes ``magical=False`` (effect-spec
+    key ``magical``)."""
     from realm.combat.damage import apply_resisted, deal_damage, typed_damage_result
     from realm.combat.manager import get_combat_manager
 
     manager = get_combat_manager()
     if manager is not None:
-        result = typed_damage_result(amount, dtype_name)
+        result = typed_damage_result(amount, dtype_name, magical=magical)
         dealt, _action = await deal_damage(
             attacker, target, result, manager.combat_system.ruleset)
         return dealt
-    return apply_resisted(target, amount, dtype_name)
+    return apply_resisted(target, amount, dtype_name, magical=magical)
 
 
 # --- ability model (normalization) ------------------------------------------
@@ -364,7 +370,7 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
             amount = 0 if save == "negates" else amount // 2
         dealt = await apply_typed_damage(
             target, amount, str(eff.get("damage_type") or "magical"),
-            attacker=actor)
+            attacker=actor, magical=bool(eff.get("magical", True)))
         action.add_data("dealt", dealt)
         await _death_check(target, killer=actor)
 

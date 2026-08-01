@@ -81,28 +81,34 @@ async def deal_damage(
     return dealt, action
 
 
-def typed_damage_result(amount: int, dtype_name: str) -> DamageResult:
+def typed_damage_result(amount: int, dtype_name: str, *,
+                        magical: bool = False) -> DamageResult:
     """A one-type :class:`DamageResult` for callers that have a raw number
-    and a type (spells, traps). Unknown type names fall back to MAGICAL."""
+    and a type (spells, traps). Unknown type names fall back to MAGICAL.
+    ``magical`` marks the DELIVERY (a spell, an enchanted source) — it
+    drives the broad-family resistance ladder, not the type itself."""
     try:
         dtype = DamageType(str(dtype_name))
     except ValueError:
         dtype = DamageType.MAGICAL
     amount = max(0, int(amount))
-    return DamageResult(total=amount, damage_by_type={dtype: amount})
+    return DamageResult(total=amount, damage_by_type={dtype: amount},
+                        magical=magical)
 
 
-def apply_resisted(target: GameObject, amount: int, dtype_name: str) -> int:
+def apply_resisted(target: GameObject, amount: int, dtype_name: str, *,
+                   magical: bool = False) -> int:
     """Apply typed damage to ``target`` synchronously, honoring its
     ``resistances`` map but WITHOUT firing the damage event. The deliberate
     bypass path: softcode ``damage()`` (a builder who calls it means it), and
     the no-combat-manager fallback in tools/tests. Returns HP dealt."""
     from realm.combat.ruleset import apply_type_resistance
 
-    result = typed_damage_result(amount, dtype_name)
+    result = typed_damage_result(amount, dtype_name, magical=magical)
     resist = target.db.get("resistances")
     scaled, _ = apply_type_resistance(
-        result.damage_by_type, resist if isinstance(resist, dict) else None)
+        result.damage_by_type, resist if isinstance(resist, dict) else None,
+        magical=magical)
     dealt = sum(scaled.values())
     hp = target.db.get("hp")
     if hp is None:

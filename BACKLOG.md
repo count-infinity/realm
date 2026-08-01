@@ -184,6 +184,91 @@ WarrantStore / Enforcer / LawConfig.
 
 ## Priority 1 - Should Address Soon
 
+### FIXED 2026-08-01: COMBAT_RULESET default silently overrode every system
+
+The Otho investigation bottomed out here: `config/defaults.py` shipped
+`COMBAT_RULESET = "gurps"`, so `settings.combat_ruleset` was never None
+and game.py's `combat_ruleset or game_system.ruleset_name` fallback was
+dead code — EVERY game ran GURPS 3d6 combat regardless of its declared
+system. Midgaard fought GURPS-over-merc: skill 40 vs 3d6 (always hit,
+AC/THAC0 never consulted), GURPS DR damage path (merc `resistances`
+never consulted). Same silent-default family as WELCOME_BANNER. Fixed:
+default None → the system chooses; explicit config still wins. Pinned by
+`tests/test_config.py::TestCombatRulesetDefault`. Verified live: Otho
+(level 25, 5d6+20) now one-sidedly destroys a level-1 attacker while
+taking 0 from mundane clubs. Diagnosis pattern worth remembering: unit
+tests all passed because they built the merc ruleset EXPLICITLY — only a
+live boot exercised the config path.
+
+### Roll visibility (SHOW_ROLLS) — combat done 2026-08-01, checks pending
+
+Player-requested: see every roll's arithmetic. Every ruleset already
+narrates rolls (`RollResult.description`); `append_roll_notes` in
+`combat/system.py` now surfaces attack/defense/damage rolls on the
+attacker's and defender's OWN lines (bystanders never). Config
+`SHOW_ROLLS` is the game default (Midgaard example: True); `showrolls
+on|off` is the per-player override (`db.show_rolls`). Remaining for
+"every roll" literally:
+- [ ] Non-combat skill checks (`core/checks.check`) and saving throws
+  have no messaging surface to hang a roll note on — needs a small
+  check-visibility seam (the venom save, flee checks, softcode
+  `check()` rolls).
+- [ ] Command naming note: this was `rolls` briefly, which the
+  dispatcher's unique-prefix matching resolved from `roll` — shadowing
+  the showcase's softcode `$roll` command (softcode only sees UNKNOWN
+  commands). Renamed `showrolls`. Open question worth a decision:
+  should builtin unique-PREFIX matches rank BELOW softcode $-commands
+  (exact builtin > softcode > builtin prefix), so content can't be
+  shadowed by an abbreviation? Filed, not changed.
+
+### Resistance delivery axis + family fallback (surveyed 2026-08-01)
+
+Playing Midgaard exposed it: ROM `IMM_WEAPON`/`IMM_MAGIC` import as
+`resistances: {physical: 0.0, magical: 0.0}`, but `apply_type_resistance`
+is exact-key — a club hit arrives as `bludgeoning`, matches nothing, and
+every imported imm/res/vuln silently no-ops (Otho the money changer,
+imm-weapon in ROM, died to a mortal's club). SMAUG + CoffeeMud surveys
+(2026-08-01, this session) converge on the design:
+
+- A hit carries ONE specific type; "magical vs mundane" is a property of
+  the DELIVERY (SMAUG `ITEM_MAGIC`, CoffeeMud `IS_BONUS` disposition),
+  consulted separately from the type — never a type×channel matrix.
+- Broad-vs-specific inside one map: most-specific-wins ladder
+  (CoffeeMud `Prop_WeaponImmunity`): exact type key, else family key.
+- Hybrid weapons (flaming sword) = MULTIPLE single-typed damage packets
+  (CoffeeMud trailer msgs) — REALM's `damage_by_type` dict already is
+  that shape.
+
+BUILT 2026-08-01 (user chose FAITHFUL import — 0.0 immunity as ROM
+intended; "we can modify the spec if we want something different"):
+(1) key ladder in `apply_type_resistance` — exact type key, else
+`magical` family when delivery is magical, else `physical` family for
+weapon-flavored types (PHYSICAL_FAMILY); (2) delivery flag —
+`DamageResult.magical`, stamped by `MercRuleset.roll_damage` from the
+weapon's `magic` tag (`Ruleset.weapon_is_magical`), by spells/abilities
+via `apply_typed_damage(magical=True)` (effect-spec key `magical`,
+default true), and threaded through `apply_resisted`/
+`typed_damage_result`; (3) importer maps ROM `ITEM_MAGIC` (extra G) to
+the `magic` tag; existing midgaard.json migrated in place (132 objects,
+incl. the 3 shop-buyable merc-standard weapons — so weapon-immune mobs
+are beatable in-town, faithfully). Otho (imm weapon+magic) is now
+truly unkillable, as ROM intended. Tests:
+`tests/test_resistance_delivery.py` (11). Not yet routed: d20/gurps
+`apply_damage` use their own resistance paths (`get_resistance`, DR) —
+family ladder is merc + shared-helper only; fold in if a non-merc world
+imports ROM data.
+
+### Tick-scheduler scale ceiling (measured 2026-08-01, not urgent)
+
+Midgaard: 233 ticking behaviors. Measured on the real world: sweep cost
+0.26ms per 0.1s pulse (interval checks over all owners), 53ms per 4s
+beat if every body fires (start-jitter spreads them). Fine to a few
+thousand tickers. The eventual bottleneck is the sweep-everything-every-
+pulse loop in `game.py::_tick_loop`, not the tick bodies — at ~20k+
+tickers, move to a due-time heap/timing wheel so a pulse only touches
+behaviors actually due. Not worth building until a real game approaches
+that scale.
+
 ### Sandbox security: authority façade + isolation (untrusted-player model, 2026-07-25)
 
 Threat model confirmed: untrusted players may attach softcode to their own

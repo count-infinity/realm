@@ -210,6 +210,24 @@ class MercSystem(GameSystem):
 
     # --- advancement (XP + level): add-on methods, NOT the ABC ---
 
+    def death_award(self, victim: GameObject,
+                    killer: GameObject | None = None) -> int:
+        """A kill's worth in EXPERIENCE, Diku-style.
+
+        The ABC default (``points // 10``) is character-point scaling — on
+        an XP system it starves the level curve (a level-1 fido would pay
+        10 XP against a 1000-XP level: a hundred dogs per level). Here the
+        victim's ``points`` (the importer mints ``level * 100``) is the
+        base, bent by the level difference the classic Diku way: prey
+        above your level pays a premium, grey-con prey pays a pittance.
+        """
+        base = int(victim.db.get("points") or 100)
+        if killer is not None:
+            diff = (int(victim.db.get("level") or 1)
+                    - int(killer.db.get("level") or 1))
+            base = round(base * max(0.05, min(2.0, 1.0 + 0.15 * diff)))
+        return max(1, base)
+
     def grant_award(self, player: GameObject, amount: int) -> None:
         """The shared deposit seam, overridden for XP. A kill's reward
         banks as experience and may immediately push one or more levels."""
@@ -220,6 +238,38 @@ class MercSystem(GameSystem):
     def xp_to_next(self, level: int) -> int:
         """Experience needed to reach the next level from ``level``."""
         return 1000 * level
+
+    def score_lines(self, player: GameObject) -> list[str]:
+        """The Diku score sheet: level and XP, combat numbers, equipment."""
+        level = int(player.db.get("level") or 1)
+        xp = int(player.db.get("xp") or 0)
+        cls = str(player.db.get("character_class") or "warrior")
+        lines = [
+            f"You are {player.name}, a level {level} {cls}.",
+            f"Experience: {xp} / {self.xp_to_next(level)} to level {level + 1}",
+            f"HP: {player.db.get('hp')}/{player.db.get('max_hp')}"
+            + (f"   Mana: {player.db.get('mana')}/{player.db.get('max_mana')}"
+               if player.db.get('max_mana') else ""),
+            f"THAC0: {player.db.get('thac0')}   "
+            f"AC: {player.db.get('armor_class')}",
+        ]
+        wielded = [o for o in player.contents if o.has_tag('wielded')]
+        worn = [o for o in player.contents if o.has_tag('worn')]
+        if wielded:
+            lines.append(f"Wielding: {wielded[0].name}")
+        if worn:
+            lines.append("Wearing:  " + ", ".join(o.name for o in worn))
+        practices = int(player.db.get("practices") or 0)
+        if practices:
+            lines.append(f"Practices: {practices}")
+        skills = sorted(
+            (key[6:], value) for key, value in player.db.all().items()
+            if key.startswith('skill_')
+        )
+        if skills:
+            lines.append("Skills:")
+            lines.extend(f"  {name:20} {value}" for name, value in skills)
+        return lines
 
     def advance_level(self, player: GameObject) -> None:
         cls = str(player.db.get("character_class") or "warrior")

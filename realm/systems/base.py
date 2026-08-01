@@ -119,10 +119,13 @@ class GameSystem(ABC):
         """Character points to raise ``skill`` by one level."""
         return 4
 
-    def death_award(self, victim: GameObject) -> int:
+    def death_award(self, victim: GameObject,
+                    killer: GameObject | None = None) -> int:
         """How much a kill is worth (split across the party). The unit is
         the system's advancement currency — character points by default,
-        experience for an XP system."""
+        experience for an XP system. ``killer`` lets a system shape the
+        award by level difference (MercSystem does); the default ignores
+        it."""
         return max(1, int(victim.db.get('points') or 10) // 10)
 
     def grant_award(self, player: GameObject, amount: int) -> None:
@@ -140,6 +143,27 @@ class GameSystem(ABC):
             int(player.db.get('character_points') or 0) + int(amount)
         player.msg(f"You gain {amount} character point"
                    f"{'s' if amount != 1 else ''}.")
+
+    def score_lines(self, player: GameObject) -> list[str]:
+        """The ``score`` sheet, in this system's own vocabulary.
+
+        The DEFAULT is the point-buy view (character points + trained
+        skills + how to spend). An XP/level system overrides this to show
+        level, experience, and its combat numbers instead — ``score``
+        should speak the system's language, not GURPS's.
+        """
+        cp = int(player.db.get('character_points') or 0)
+        lines = [f"Character points: {cp}"]
+        skills = sorted(
+            (key[6:], value) for key, value in player.db.all().items()
+            if key.startswith('skill_')
+        )
+        if skills:
+            lines.append("Skills:")
+            lines.extend(f"  {name:20} {level}" for name, level in skills)
+        cost = self.improve_cost('', 0)
+        lines.append(f"\nSpend with: improve <skill>  ({cost} points per level)")
+        return lines
 
     # --- Skill resolution ---
     #

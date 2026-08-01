@@ -37,8 +37,17 @@ FLUSH_INTERVAL: float = 30.0  # Seconds between auto-saves
 # World heartbeat: seconds between behavior ticks (0 disables)
 TICK_INTERVAL: float = 4.0
 
-# Combat: ruleset and beat (decision window) bounds in seconds
-COMBAT_RULESET: str = "gurps"
+# Combat: ruleset and beat (decision window) bounds in seconds.
+# COMBAT_RULESET deliberately defaults to None: unset, the ACTIVE GAME
+# SYSTEM chooses its paired ruleset (MercSystem -> merc, GurpsSystem ->
+# gurps). A concrete default here silently overrode every system's choice
+# (Midgaard ran GURPS 3d6 combat over merc characters, ignoring THAC0,
+# AC, and imm/res/vuln — found live 2026-08-01). Set it in config.py only
+# to deliberately mix systems (merc rules with GURPS combat).
+COMBAT_RULESET: str | None = None
+# Show dice-roll detail on combat messages (attack/defense/damage rolls).
+# The game-wide default; players override with the `showrolls on|off` command.
+SHOW_ROLLS: bool = False
 COMBAT_BEAT_MIN: float = 4.0
 COMBAT_BEAT_MAX: float = 120.0
 COMBAT_BEAT_DEFAULT: float = 15.0
@@ -66,6 +75,7 @@ def get_default_settings() -> dict[str, Any]:
         'FLUSH_INTERVAL': FLUSH_INTERVAL,
         'TICK_INTERVAL': TICK_INTERVAL,
         'COMBAT_RULESET': COMBAT_RULESET,
+        'SHOW_ROLLS': SHOW_ROLLS,
         'COMBAT_BEAT_MIN': COMBAT_BEAT_MIN,
         'COMBAT_BEAT_MAX': COMBAT_BEAT_MAX,
         'COMBAT_BEAT_DEFAULT': COMBAT_BEAT_DEFAULT,

@@ -28,6 +28,10 @@ ENABLE_WEBSOCKET = False
 # realm.systems.GurpsSystem or .D20System and the same world runs those rules.
 GAME_SYSTEM = "realm.systems.MercSystem"
 
+# Show the dice: every combat line carries its roll arithmetic
+# (players can turn theirs off with `showrolls off`).
+SHOW_ROLLS = True
+
 WELCOME_BANNER = """
 +==============================================================+
 |                        M I D G A A R D                       |

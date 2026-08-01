@@ -113,11 +113,26 @@ class DamageResult:
     roll: RollResult | None = None  # Damage roll details
     resisted: int = 0  # Amount resisted/absorbed
     effects: list[str] = field(default_factory=list)  # Effects from damage
+    # How the damage was DELIVERED: True for enchanted weapons and spells.
+    # Drives the broad-family key ladder in apply_type_resistance (an
+    # enchanted blade bypasses 'physical' immunity, the SMAUG/ROM way).
+    magical: bool = False
+
+
+#: Specific types the broad ``physical`` family key covers (weapon-flavored
+#: damage). ``physical`` itself is included for callers that type damage
+#: broadly to begin with.
+PHYSICAL_FAMILY = frozenset({
+    DamageType.SLASHING.value, DamageType.PIERCING.value,
+    DamageType.BLUDGEONING.value, DamageType.PHYSICAL.value,
+})
 
 
 def apply_type_resistance(
     damage_by_type: dict[DamageType, int],
     resistances: dict[str, float] | None,
+    *,
+    magical: bool = False,
 ) -> tuple[dict[DamageType, int], int]:
     """Scale typed damage by a creature's resistance multipliers.
 
@@ -127,6 +142,17 @@ def apply_type_resistance(
     15% resistance, ``1.0`` or absent = normal. It is a continuous knob, not
     three fixed tiers -- any non-negative float works, so 15% or 77%
     resistance is just ``0.85`` / ``0.23``.
+
+    **Key ladder (most specific wins, one key per component):** the exact
+    type key first; failing that, a broad *family* key by how the damage
+    was DELIVERED — ``magical`` when the hit came from an enchanted weapon
+    or a spell (``magical=True``), else ``physical`` for weapon-flavored
+    types (:data:`PHYSICAL_FAMILY`). This is the synthesis of the SMAUG and
+    CoffeeMud models (survey 2026-08-01): broad keys describe delivery, not
+    type, so an exact-key-only lookup silently ignores ROM's IMM_WEAPON /
+    IMM_MAGIC — and a mundane torch's fire is NOT gated by magic immunity.
+    The magic-weapon bypass falls out naturally: an enchanted blade's hit
+    is ``magical``, so a mob immune only to ``physical`` takes full damage.
 
     This is deliberately ruleset-agnostic: the *data* (what a creature
     resists) is a portable creature property, while each ruleset decides in
@@ -145,7 +171,14 @@ def apply_type_resistance(
             scaled[dtype] = amount
             continue
         key = dtype.value if isinstance(dtype, DamageType) else dtype
-        mult = resistances.get(key, 1.0)
+        if key in resistances:
+            mult = resistances[key]
+        elif magical:
+            mult = resistances.get('magical', 1.0)
+        elif key in PHYSICAL_FAMILY:
+            mult = resistances.get('physical', 1.0)
+        else:
+            mult = 1.0
         new_amount = max(0, round(amount * mult))
         resisted += amount - new_amount
         scaled[dtype] = new_amount
@@ -236,6 +269,18 @@ class Ruleset(ABC):
         if db is not None:
             return db.get(key, default)
         return getattr(weapon, key, default)
+
+    @staticmethod
+    def weapon_is_magical(weapon: Any | None) -> bool:
+        """Is this weapon enchanted? (the ``magic`` tag, or a truthy
+        ``magic`` property on stubs). Drives the delivery axis of
+        :func:`apply_type_resistance`."""
+        if weapon is None:
+            return False
+        has_tag = getattr(weapon, 'has_tag', None)
+        if callable(has_tag):
+            return bool(has_tag('magic'))
+        return bool(Ruleset.weapon_prop(weapon, 'magic', False))
 
     @staticmethod
     def parse_dice(spec: Any, *, default: tuple[int, int, int] = (1, 4, 0),

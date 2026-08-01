@@ -511,6 +511,12 @@ def _objects(r: Reader, area: Area) -> None:
                      None)
         if wslot:
             tags.append("wearable")
+        # ROM ITEM_MAGIC (extra flag G): the enchanted-delivery marker. A
+        # magic-tagged weapon's hits count as magical for the resistance
+        # family ladder — they bypass IMM_WEAPON ('physical'), the classic
+        # "you need an enchanted blade" gate.
+        if "G" in flag_letters(extra):
+            tags.append("magic")
         attrs: dict[str, Any] = {
             "rom_vnum": vnum, "short_desc": short,
             "item_type": type_name, "weight": weight, "value": cost,

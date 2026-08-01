@@ -430,26 +430,60 @@ def register_combat_commands(dispatcher: CommandDispatcher) -> None:
     register("improve", cmd_improve,
                         help_text="Spend points to raise a skill",
                         usage="improve <skill>")
+    register("showrolls", cmd_rolls,
+                        help_text="Show or hide dice-roll detail in combat",
+                        usage="showrolls [on|off]")
 
 
 async def cmd_points(ctx: CommandContext) -> None:
     """
-    Show your character points and trained skills.
+    Show your character sheet (score).
 
-    Usage: points
+    The sheet speaks the active game system's language: a point-buy
+    system (GURPS/D20) shows character points and skills; an XP system
+    (merc) shows level, experience, combat stats, and equipment.
+
+    Usage: score / points
     """
-    cp = int(ctx.player.db.get('character_points') or 0)
-    lines = [f"\nCharacter points: {cp}"]
-    skills = sorted(
-        (key[6:], value) for key, value in ctx.player.db.all().items()
-        if key.startswith('skill_')
-    )
-    if skills:
-        lines.append("Skills:")
-        lines.extend(f"  {name:20} {level}" for name, level in skills)
-    lines.append(f"\nSpend with: improve <skill>  ({IMPROVE_COST} points per level)")
-    lines.append("")
-    await ctx.session.send("\n".join(lines))
+    from realm.systems.base import get_game_system
+    system = get_game_system()
+    if system is not None:
+        lines = system.score_lines(ctx.player)
+    else:
+        cp = int(ctx.player.db.get('character_points') or 0)
+        lines = [f"Character points: {cp}"]
+    await ctx.session.send("\n" + "\n".join(lines) + "\n")
+
+
+async def cmd_rolls(ctx: CommandContext) -> None:
+    """
+    Show or hide dice-roll detail on your combat messages.
+
+    With rolls on, every swing shows its arithmetic — the attack roll
+    ("d20(13) vs need 16 (THAC0 20 - AC 6)"), the defense roll, and the
+    damage roll — on your own combat lines. Bystanders never see them.
+
+    Usage: showrolls          (show current setting)
+           showrolls on
+           showrolls off
+
+    The game-wide default is the SHOW_ROLLS config setting; this command
+    is your personal override.
+    """
+    from realm.combat.system import shows_rolls
+    arg = ctx.args.strip().lower()
+    if arg in ('on', 'yes', 'true'):
+        ctx.player.db.show_rolls = True
+        await ctx.session.send("Roll detail ON: combat shows the dice.")
+    elif arg in ('off', 'no', 'false'):
+        ctx.player.db.show_rolls = False
+        await ctx.session.send("Roll detail OFF.")
+    elif not arg:
+        state = "ON" if shows_rolls(ctx.player) else "OFF"
+        await ctx.session.send(
+            f"Roll detail is {state}. Use 'showrolls on' or 'showrolls off'.")
+    else:
+        await ctx.session.send("Usage: showrolls [on|off]")
 
 
 IMPROVE_COST = 4  # character points per +1 skill level (GURPS-ish)

@@ -83,6 +83,10 @@ class Settings:
     welcome_banner: str | None = None
     game_dir: Path = field(default_factory=Path.cwd)
 
+    # Show dice-roll detail on combat messages; players override with
+    # the `showrolls on|off` command.
+    show_rolls: bool = False
+
     # Persistence
     flush_interval: float = 30.0
 
@@ -141,6 +145,7 @@ KNOWN_CONFIG_KEYS = frozenset({
     'FLUSH_INTERVAL', 'TICK_INTERVAL', 'WORLD_BEAT', 'REAP_INTERVAL',
     'ENCODING', 'COMBAT_RULESET', 'GAME_SYSTEM',
     'COMBAT_BEAT_MIN', 'COMBAT_BEAT_MAX', 'COMBAT_BEAT_DEFAULT',
+    'SHOW_ROLLS',
 })
 
 
@@ -249,6 +254,7 @@ def load_config(game_dir: Path | None = None) -> Settings:
         combat_beat_min=config.get('COMBAT_BEAT_MIN', 4.0),
         combat_beat_max=config.get('COMBAT_BEAT_MAX', 120.0),
         combat_beat_default=config.get('COMBAT_BEAT_DEFAULT', 15.0),
+        show_rolls=bool(config.get('SHOW_ROLLS', False)),
         init_world=config.get('init_world'),
         on_start=config.get('on_start'),
         on_stop=config.get('on_stop'),

@@ -96,6 +96,7 @@ class GameServer:
         combat_beat_min: float = 4.0,
         combat_beat_max: float = 120.0,
         combat_beat_default: float = 15.0,
+        show_rolls: bool = False,
         game_name: str = "REALM",
         welcome_file: str | Path | None = None,
         welcome_banner: str | None = None,
@@ -134,6 +135,7 @@ class GameServer:
         self.combat_beat_min = combat_beat_min
         self.combat_beat_max = combat_beat_max
         self.combat_beat_default = combat_beat_default
+        self.show_rolls = show_rolls
         self.game_name = game_name
         self.welcome_file = Path(welcome_file) if welcome_file else None
         self.welcome_banner = welcome_banner
@@ -226,6 +228,7 @@ class GameServer:
             combat_beat_min=settings.combat_beat_min,
             combat_beat_max=settings.combat_beat_max,
             combat_beat_default=settings.combat_beat_default,
+            show_rolls=getattr(settings, 'show_rolls', False),
             game_name=settings.game_name,
             welcome_file=settings.welcome_file,
             welcome_banner=getattr(settings, 'welcome_banner', None),
@@ -398,6 +401,8 @@ class GameServer:
             session_manager=self.session_manager,
         )
         set_combat_manager(self.combat_manager)
+        from realm.combat.system import set_show_rolls_default
+        set_show_rolls_default(self.show_rolls)
         get_propagation_engine().add_observer(self.combat_manager.hostile_observer)
 
         # Crime: a player who assaults/murders another player is flagged

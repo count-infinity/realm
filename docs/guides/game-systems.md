@@ -68,6 +68,20 @@ advancement and sharing only the deposit. If your system needs leveling,
 override `grant_award` and add your own advancement methods; if it's
 point-buy, do nothing and use `improve`.
 
+Two sibling seams follow the same pattern:
+
+- **`death_award(victim, killer=None)`** prices a kill in the system's
+  own currency. The default is CP scaling (`points // 10`); MercSystem
+  overrides it to pay the victim's full `points` as XP, bent by the
+  killer/victim level difference (tough prey pays a premium, grey-con
+  prey a pittance). An XP system that inherits the CP default starves
+  its level curve — that exact bug shipped and is why the seam exists.
+- **`score_lines(player)`** renders the `score` sheet in the system's
+  vocabulary. The default is the point-buy view (character points +
+  skills + `improve` hint); MercSystem shows level, experience-to-next,
+  HP/mana, THAC0/AC, and what's wielded and worn. `score` should speak
+  your system's language — override this, don't teach the command.
+
 ## Equipment-derived stats: an event, not a command hook
 
 When a character wears or removes gear, the command fires
@@ -140,8 +154,21 @@ class SavageSystem(GameSystem):
 GAME_SYSTEM = "rules.SavageSystem"
 ```
 
-The `resolve_check`, `improve_cost`, `death_award`, and `chargen_steps`
-methods are the seams; everything else inherits sensible defaults. Ship a
+The `resolve_check`, `improve_cost`, `death_award`, `score_lines`, and
+`chargen_steps` methods are the seams; everything else inherits sensible
+defaults.
+
+Two combat-adjacent settings worth knowing:
+
+- **`COMBAT_RULESET`** (config) defaults to unset, which means *the game
+  system chooses* — each system declares its paired ruleset via
+  `ruleset_name` (MercSystem → `merc`, GurpsSystem → `gurps`). Set it
+  explicitly only to deliberately mix (merc rules over GURPS combat).
+- **`SHOW_ROLLS`** (config) puts every combat roll's arithmetic on the
+  participants' own lines — `[d20(13) vs need 16 (THAC0 20 - AC 6)]
+  [2d4(5)+1 = 6]` — because every ruleset narrates its rolls
+  (`RollResult.description`). Players override with `showrolls on|off`;
+  bystanders never see roll detail. Ship a
 custom combat ruleset by registering it with `RulesetRegistry` and
 pointing `ruleset_name` at it.
 

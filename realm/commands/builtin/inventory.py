@@ -45,7 +45,15 @@ async def cmd_inventory(ctx: CommandContext) -> None:
 
     await ctx.session.send("\nYou are carrying:")
     for item in items:
-        await ctx.session.send(f"  {item.name}")
+        # Equipped state at a glance — the classic (wielded)/(worn) marks.
+        if item.has_tag('wielded'):
+            mark = " (wielded)"
+        elif item.has_tag('worn'):
+            slot = item.db.get('slot')
+            mark = f" (worn on {slot})" if slot else " (worn)"
+        else:
+            mark = ""
+        await ctx.session.send(f"  {item.name}{mark}")
     await ctx.session.send(purse)
     await ctx.session.send("")
 

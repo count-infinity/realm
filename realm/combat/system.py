@@ -123,6 +123,48 @@ def find_wielded(obj) -> Any | None:
     return None
 
 
+# --- Roll visibility ---------------------------------------------------------
+# Every ruleset already narrates its rolls (RollResult.description:
+# "d20(13) vs need 35 (THAC0 20 - AC -15)"); this surfaces them on combat
+# messages. Game-wide default from config SHOW_ROLLS; per-player override
+# on db.show_rolls (the `showrolls on|off` command).
+
+_show_rolls_default = False
+
+
+def set_show_rolls_default(value: bool) -> None:
+    """Install the game-wide default (GameServer, from config SHOW_ROLLS)."""
+    global _show_rolls_default
+    _show_rolls_default = bool(value)
+
+
+def shows_rolls(obj: Any | None) -> bool:
+    """Does this participant want roll detail on their combat lines?"""
+    if obj is None:
+        return False
+    db = getattr(obj, 'db', None)
+    if db is None:
+        return False
+    pref = db.get('show_rolls')
+    return _show_rolls_default if pref is None else bool(pref)
+
+
+def append_roll_notes(messages: dict, attacker: Any | None,
+                      defender: Any | None, *rolls: Any) -> None:
+    """Append ``[roll description]`` notes to the attacker's and defender's
+    combat lines, each according to their own preference. Bystanders never
+    see roll detail."""
+    from realm.core.markup import wrap
+    note = "  ".join(wrap('c', f"[{r.description}]") for r in rolls
+                     if r is not None and getattr(r, 'description', ''))
+    if not note:
+        return
+    if messages.get('attacker_msg') and shows_rolls(attacker):
+        messages['attacker_msg'] += f"\n  {note}"
+    if messages.get('defender_msg') and shows_rolls(defender):
+        messages['defender_msg'] += f"\n  {note}"
+
+
 class CombatSystem:
     """
     Main combat system orchestrator.
@@ -198,6 +240,7 @@ class CombatSystem:
         # Handle miss
         if not attack_result.hit:
             messages = self.ruleset.format_attack_message(atk, dfn, attack_result)
+            append_roll_notes(messages, atk.obj, dfn.obj, attack_result.roll)
             return CombatResult(
                 success=False,
                 attack_result=attack_result,
@@ -215,6 +258,8 @@ class CombatSystem:
                     'defender_msg': f"You defend against {atk.name}'s attack!",
                     'others_msg': f"{dfn.name} defends against {atk.name}!",
                 }
+                append_roll_notes(messages, atk.obj, dfn.obj,
+                                  attack_result.roll, defense_result.roll)
                 return CombatResult(
                     success=False,
                     attack_result=attack_result,
@@ -272,6 +317,13 @@ class CombatSystem:
             messages['attacker_msg'] += f" {dfn.name} is defeated!"
             messages['defender_msg'] += " You have been defeated!"
             messages['others_msg'] += f" {dfn.name} falls!"
+
+        # Roll notes go LAST so suffixes ("X is defeated!") stay on the
+        # message line, not dangling after the dice.
+        append_roll_notes(messages, atk.obj, dfn.obj,
+                          attack_result.roll,
+                          defense_result.roll if defense_result else None,
+                          damage_result.roll)
 
         return CombatResult(
             success=True,

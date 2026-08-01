@@ -118,17 +118,21 @@ class MercRuleset(Ruleset):
             total=total, dice=dice, modifier=b + damroll,
             description=f"{n}d{s}({sum(dice)})+{b + damroll} = {total}")
         return DamageResult(total=total, damage_by_type={dtype: total},
-                            roll=roll)
+                            roll=roll,
+                            magical=self.weapon_is_magical(weapon))
 
     def apply_damage(self, target: Combatant, damage: DamageResult) -> int:
         # Diku armor does not mitigate damage (that was the to-hit roll), but
         # a creature's damage-type resistances do: scale each typed component
         # by the target's ``resistances`` multipliers, then HP simply drops.
+        # Broad family keys (physical/magical) apply by DELIVERY — an
+        # enchanted blade bypasses weapon immunity (ROM's magic weapons).
         # Softcode on_check wards already ran before this.
         resist = self._resistances(target)
         if resist and damage.damage_by_type:
             scaled, resisted = apply_type_resistance(damage.damage_by_type,
-                                                     resist)
+                                                     resist,
+                                                     magical=damage.magical)
             damage.damage_by_type = scaled
             damage.total = sum(scaled.values())
             damage.resisted = resisted

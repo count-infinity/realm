@@ -225,7 +225,7 @@ class CombatManager:
             from realm.core.party import party_members
             from realm.systems.base import get_game_system
             system = get_game_system()
-            award = (system.death_award(npc) if system
+            award = (system.death_award(npc, killer) if system
                      else max(1, int(npc.db.get('points') or 10) // 10))
             from realm.core.zones import zone_property
             multiplier = zone_property(room, 'xp_multiplier', 1.0)
