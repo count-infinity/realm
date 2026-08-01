@@ -184,6 +184,25 @@ WarrantStore / Enforcer / LawConfig.
 
 ## Priority 1 - Should Address Soon
 
+### Skill system: master list + specialization (designed 2026-08-02)
+
+Full reference survey (CoffeeMud, SMAUG, tbaMUD, SWR, FS3, AwakeMUD,
+GoMud, VME, SF GURPS data) synthesized in
+`docs/design/skills-inventory.md`: a 62-skill tagged top-level master
+list (combat/rogue/perception/social/craft/gather/animal/survival/lore),
+a fun-list of scheme skills, and the progression model — specializations
+as child `skill_def`s (`parent` + `unlocks_at` attrs; untrained specs
+default to parent at penalty; hidden until unlocked; tags are native
+object tags). Build order when green-lit:
+- [ ] `parent`/`unlocks_at` on skill_def + parent-fallback in checks +
+  unlock visibility (engine, small)
+- [ ] Seed the 62 top-level `skill_def`s as a content pack (data)
+- [ ] `skills` command grouped by tag
+- [ ] Optional learn-by-use (SMAUG hybrid: practice to a floor, use past
+  it) as a per-system knob
+- [ ] Generic timed gather/craft action core (SWR make* shape) — likely
+  behaviors + softcode, not engine
+
 ### FIXED 2026-08-01: COMBAT_RULESET default silently overrode every system
 
 The Otho investigation bottomed out here: `config/defaults.py` shipped
