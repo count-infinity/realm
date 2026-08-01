@@ -77,6 +77,10 @@ class Settings:
     # Paths (resolved to absolute)
     db_path: Path = field(default_factory=lambda: Path("data/game.db"))
     welcome_file: Path = field(default_factory=lambda: Path("data/welcome.txt"))
+    # Inline welcome banner (WELCOME_BANNER). When set it wins over
+    # welcome_file — the banner is declared in config.py itself, so it is
+    # the more deliberate of the two.
+    welcome_banner: str | None = None
     game_dir: Path = field(default_factory=Path.cwd)
 
     # Persistence
@@ -120,6 +124,47 @@ class Settings:
         return self._raw.get(key, default)
 
 
+# Every UPPERCASE key load_config consumes. A config.py may freely define
+# other constants for its own use (a START_ROOM_VNUM its init_world reads),
+# so an unknown key is legal — but an unknown key that is a NEAR MISS of a
+# real one (WELCOME_BANER) is almost certainly a typo that would otherwise
+# be silently ignored, so it warns at boot.
+# tests/test_config.py asserts this set matches what the code actually reads.
+KNOWN_CONFIG_KEYS = frozenset({
+    'GAME_NAME', 'DEBUG',
+    'TELNET_HOST', 'TELNET_PORT', 'WEBSOCKET_HOST', 'WEBSOCKET_PORT',
+    'ENABLE_TELNET', 'ENABLE_WEBSOCKET', 'ENABLE_SCRIPTING',
+    'INLINE_OPEN', 'INLINE_CLOSE',
+    'COMMAND_SIGIL', 'LISTEN_SIGIL', 'MARKUP_MARKER', 'EMOTE_SIGIL',
+    'KEYID_SIGIL', 'RECURSION_LIMIT', 'HEREDOC_OPEN', 'HEREDOC_CLOSE',
+    'DB_PATH', 'WELCOME_FILE', 'WELCOME_BANNER',
+    'FLUSH_INTERVAL', 'TICK_INTERVAL', 'WORLD_BEAT', 'REAP_INTERVAL',
+    'ENCODING', 'COMBAT_RULESET', 'GAME_SYSTEM',
+    'COMBAT_BEAT_MIN', 'COMBAT_BEAT_MAX', 'COMBAT_BEAT_DEFAULT',
+})
+
+
+def _warn_near_miss_keys(user_config: dict[str, Any]) -> None:
+    """Warn about probable typos of real config keys.
+
+    A misspelled key (``TELNET_PROT``) is otherwise ignored without a
+    trace and the default silently wins — the config-file cousin of a
+    typo'd action type. Only close matches warn; arbitrary user constants
+    stay legal and silent.
+    """
+    import difflib
+    for key in user_config:
+        if not key.isupper() or key in KNOWN_CONFIG_KEYS:
+            continue
+        close = difflib.get_close_matches(key, KNOWN_CONFIG_KEYS, n=1,
+                                          cutoff=0.8)
+        if close:
+            logger.warning(
+                f"config: unknown key {key!r} looks like a typo of "
+                f"{close[0]!r} — it is being IGNORED"
+            )
+
+
 def load_config(game_dir: Path | None = None) -> Settings:
     """
     Load configuration from a game directory.
@@ -155,6 +200,7 @@ def load_config(game_dir: Path | None = None) -> Settings:
         user_config = _load_config_file(config_file, game_dir)
         # Merge user config over defaults
         config.update(user_config)
+        _warn_near_miss_keys(user_config)
         logger.info(f"Loaded config from {config_file}")
     else:
         # Also check for legacy realm_config.py
@@ -162,6 +208,7 @@ def load_config(game_dir: Path | None = None) -> Settings:
         if legacy_config.exists():
             user_config = _load_config_file(legacy_config, game_dir)
             config.update(user_config)
+            _warn_near_miss_keys(user_config)
             logger.warning(
                 f"Using legacy {legacy_config.name}. "
                 "Consider renaming to config.py"
@@ -183,11 +230,14 @@ def load_config(game_dir: Path | None = None) -> Settings:
         command_sigil=config.get('COMMAND_SIGIL', '$'),
         listen_sigil=config.get('LISTEN_SIGIL', '^'),
         markup_marker=config.get('MARKUP_MARKER', '|'),
+        emote_sigil=config.get('EMOTE_SIGIL', '/'),
         keyid_sigil=config.get('KEYID_SIGIL', '$'),
+        recursion_limit=config.get('RECURSION_LIMIT', 1000),
         heredoc_open=config.get('HEREDOC_OPEN', "'''"),
         heredoc_close=config.get('HEREDOC_CLOSE', "'''"),
         db_path=_resolve_path(game_dir, config.get('DB_PATH', 'data/game.db')),
         welcome_file=_resolve_path(game_dir, config.get('WELCOME_FILE', 'data/welcome.txt')),
+        welcome_banner=config.get('WELCOME_BANNER'),
         game_dir=game_dir,
         flush_interval=config.get('FLUSH_INTERVAL', 30.0),
         tick_interval=config.get('TICK_INTERVAL', 0.1),

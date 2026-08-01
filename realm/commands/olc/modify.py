@@ -456,6 +456,11 @@ async def cmd_lock(ctx: CommandContext) -> None:
     Types: basic, enter, use, control, zone, speech, teleport, examine,
     give, drop, command, listen, page, mail.
 
+    The 'examine' lock hides the DETAIL sections of examine/look (detail
+    lines, visual attributes, tags) from viewers who fail it; the name
+    and base description always show. Open by default:
+        @lock/examine relic = caller.has_tag('scholar')
+
     Lock expressions are Python boolean expressions with access to:
     - caller: The object trying to pass the lock
     - target: The object with the lock (self)

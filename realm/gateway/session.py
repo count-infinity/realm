@@ -504,6 +504,38 @@ class Session:
         return f"<Session {self.id[:8]}... state={self.state.name} player={player_name}>"
 
 
+def format_peer_address(peername: Any) -> str:
+    """``host:port`` from a transport's peername tuple, or ``unknown``."""
+    return f"{peername[0]}:{peername[1]}" if peername else "unknown"
+
+
+async def connect_session(
+    session_manager: SessionManager,
+    *,
+    protocol: str,
+    address: str,
+    writer: Callable[[str], Awaitable[None]],
+    closer: Callable[[], Any],
+) -> Session:
+    """The one connect ritual every protocol adapter performs.
+
+    ``writer`` being a REQUIRED argument is the point: the writer must
+    exist before the session does, because ``create_session`` fires
+    connect callbacks that send the welcome screen and auto-flush — a
+    session created without its writer silently swallows those first
+    bytes. Routing adapters through here makes that ordering structural
+    instead of a comment each adapter has to repeat.
+    """
+    session = await session_manager.create_session(
+        protocol=protocol,
+        address=address,
+        writer=writer,
+    )
+    session.set_closer(closer)
+    logger.info(f"{protocol} connection from {address}")
+    return session
+
+
 class SessionManager:
     """
     Manages all active sessions.

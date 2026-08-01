@@ -66,6 +66,11 @@ DB_PATH = "data/game.db"
 # Welcome screen shown on connection
 WELCOME_FILE = "data/welcome.txt"
 
+# Or declare the banner inline — when set, WELCOME_BANNER wins over the file:
+# WELCOME_BANNER = """
+# Welcome to {game_name}!
+# """.format(game_name=GAME_NAME)
+
 
 # =============================================================================
 # SOFTCODE LIMITS

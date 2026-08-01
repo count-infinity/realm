@@ -45,9 +45,9 @@ from realm.scripting.triggers import (
 )
 
 if TYPE_CHECKING:
+    from realm.commands.dispatcher import CommandContext
     from realm.core.objects import GameObject
     from realm.gateway.session import Session
-    from realm.server.dispatcher import CommandContext
 
 
 logger = logging.getLogger(__name__)

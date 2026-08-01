@@ -99,7 +99,13 @@ async def cmd_examine(ctx: CommandContext) -> None:
             desc = eval_inline(desc, target, ctx.player).strip()
         if desc:
             await ctx.session.send(desc)
-    from realm.core.describe import detail_lines
+    # Everything past the description is DETAIL, gated by the examine
+    # lock (open by default; lock_examine hides it). The name and base
+    # description above stay the public surface.
+    from realm.core.describe import detail_lines, may_examine
+    if not may_examine(target, ctx.player):
+        await ctx.session.send("You can't make out any further detail.")
+        return
     for line in detail_lines(target, ctx.player):
         await ctx.session.send(line)
 
@@ -209,10 +215,13 @@ async def _show_object(ctx: CommandContext, target) -> None:
         if desc:
             await ctx.session.send(desc)
             described = True
-    from realm.core.describe import detail_lines
-    for line in detail_lines(target, ctx.player):
-        await ctx.session.send(line)
-        described = True
+    # Detail lines are gated by the examine lock (open by default); a
+    # locked object still shows its base description above.
+    from realm.core.describe import detail_lines, may_examine
+    if may_examine(target, ctx.player):
+        for line in detail_lines(target, ctx.player):
+            await ctx.session.send(line)
+            described = True
     if not described:
         await ctx.session.send("You see nothing special.")
 

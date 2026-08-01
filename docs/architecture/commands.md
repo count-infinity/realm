@@ -1,11 +1,16 @@
 # Command Dispatch
 
-The command dispatcher routes player input to command handlers.
+The command dispatcher routes player input to command handlers. Its home
+is `realm.commands` — the command system's own package (`Command`,
+`CommandContext`, `CommandDispatcher` live in
+`realm/commands/dispatcher.py`; the server *hosts* a dispatcher, it
+doesn't own the types). `realm.server.dispatcher` remains as a
+back-compat re-export for older imports.
 
 ## Registering Commands
 
 ```python
-from realm.server.dispatcher import CommandDispatcher, CommandContext
+from realm.commands import CommandDispatcher, CommandContext
 
 dispatcher = CommandDispatcher()
 

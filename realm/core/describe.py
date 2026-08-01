@@ -32,6 +32,20 @@ if TYPE_CHECKING:
 DETAILS_ATTR = "desc_extras"
 
 
+def may_examine(obj: GameObject, viewer: GameObject | None) -> bool:
+    """Does viewer pass obj's ``examine`` lock?
+
+    Gates the DETAIL sections of ``examine`` and ``look`` (detail lines,
+    visual attributes, tags) — never the name or base description, which
+    remain the public surface. Open by default; a builder sets
+    ``lock_examine`` to hide an object's detail from prying eyes.
+    """
+    if viewer is None:
+        return True
+    from realm.permissions.locks import LockType, check_lock
+    return check_lock(obj, LockType.EXAMINE, viewer)
+
+
 def detail_lines(obj: GameObject, viewer: GameObject | None) -> list[str]:
     """The extra description lines this viewer perceives on obj."""
     extras = obj.db.get(DETAILS_ATTR)

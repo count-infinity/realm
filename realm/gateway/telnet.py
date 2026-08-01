@@ -67,8 +67,8 @@ class TelnetProtocol(asyncio.Protocol):
     def connection_made(self, transport: asyncio.Transport) -> None:
         """Called when a connection is established."""
         self.transport = transport
-        peername = transport.get_extra_info('peername')
-        address = f"{peername[0]}:{peername[1]}" if peername else "unknown"
+        from realm.gateway.session import format_peer_address
+        address = format_peer_address(transport.get_extra_info('peername'))
 
         # Create session asynchronously
         asyncio.create_task(self._setup_session(address))
@@ -78,19 +78,16 @@ class TelnetProtocol(asyncio.Protocol):
         # Send initial telnet negotiation first
         self._send_negotiation()
 
-        # Create session with writer already configured.
-        # The writer must be set BEFORE create_session() because
-        # create_session() triggers connection callbacks that send
-        # the welcome screen and then auto-flush. Without the writer,
-        # flush does nothing.
-        self.session = await self.session_manager.create_session(
+        # The shared connect ritual: writer installed before the session
+        # exists (welcome-screen flush depends on it), closer wired.
+        from realm.gateway.session import connect_session
+        self.session = await connect_session(
+            self.session_manager,
             protocol="telnet",
             address=address,
             writer=self._write_to_client,
+            closer=self._close_transport,
         )
-        self.session.set_closer(self._close_transport)
-
-        logger.info(f"Telnet connection from {address}")
 
     def _close_transport(self) -> None:
         """Close the client connection (session closer hook)."""

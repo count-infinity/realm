@@ -222,21 +222,21 @@ class WebSocketServer:
         await ws.prepare(request)
 
         # Get client address
+        from realm.gateway.session import connect_session, format_peer_address
         peername = request.transport.get_extra_info('peername') if request.transport else None
-        address = f"{peername[0]}:{peername[1]}" if peername else "unknown"
+        address = format_peer_address(peername)
 
-        # The one writer, installed BEFORE create_session() so the
-        # welcome screen flushes immediately — with the same markup
-        # rendering every later message gets (no raw-pipe leak window).
-        session = await self.session_manager.create_session(
+        # The shared connect ritual: the one writer installed before the
+        # session exists (welcome-screen flush depends on it) — with the
+        # same markup rendering every later message gets.
+        # ws.close() returns an awaitable; close_connection awaits it.
+        session = await connect_session(
+            self.session_manager,
             protocol="websocket",
             address=address,
             writer=make_ws_writer(ws),
+            closer=ws.close,
         )
-        # ws.close() returns an awaitable; close_connection awaits it.
-        session.set_closer(ws.close)
-
-        logger.info(f"WebSocket connection from {address}")
 
         # Run the handler
         handler = WebSocketHandler(ws, session, self.session_manager, self.on_command)

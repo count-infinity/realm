@@ -23,13 +23,11 @@ Expected stats on weapons:
 from __future__ import annotations
 
 import random
-import re
 from typing import TYPE_CHECKING, Any
 
 from realm.combat.ruleset import (
     AttackResult,
     DamageResult,
-    DamageType,
     DefenseResult,
     RollResult,
     Ruleset,
@@ -254,12 +252,7 @@ class GURPSRuleset(Ruleset):
         modifiers = modifiers or {}
 
         # Determine skill type
-        skill_type = "melee"
-        if weapon:
-            if getattr(weapon, 'db', None):
-                skill_type = weapon.db.get('skill_type', 'melee')
-            else:
-                skill_type = getattr(weapon, 'skill_type', 'melee')
+        skill_type = self.weapon_prop(weapon, 'skill_type', 'melee')
 
         # Get base skill
         base_skill = self.get_skill(attacker, skill_type)
@@ -374,19 +367,13 @@ class GURPSRuleset(Ruleset):
         GURPS damage is typically noted as "1d+2" meaning 1d6+2.
         """
         # Default damage
-        damage_dice = "1d"
-        damage_type_str = "crushing"
+        damage_dice = self.weapon_prop(weapon, 'damage_dice', "1d")
+        damage_type_str = self.weapon_prop(weapon, 'damage_type', 'crushing')
 
-        if weapon:
-            if getattr(weapon, 'db', None):
-                damage_dice = weapon.db.get('damage_dice', "1d")
-                damage_type_str = weapon.db.get('damage_type', 'crushing')
-            else:
-                damage_dice = getattr(weapon, 'damage_dice', "1d")
-                damage_type_str = getattr(weapon, 'damage_type', 'crushing')
-
-        # Parse GURPS damage notation (e.g., "1d+2", "2d-1", "1d")
-        num_dice, modifier = self._parse_gurps_dice(damage_dice)
+        # Parse GURPS damage notation (e.g., "1d+2", "2d-1", "1d" — sides
+        # are implied d6, per GURPS)
+        num_dice, _sides, modifier = self.parse_dice(damage_dice,
+                                                     default=(1, 6, 0))
 
         # Add strength bonus
         str_bonus = self.get_strength_bonus(attacker)
@@ -398,10 +385,7 @@ class GURPSRuleset(Ruleset):
         raw_damage = max(0, dice_total + total_modifier)
 
         # Map damage type
-        try:
-            damage_type = DamageType(damage_type_str)
-        except ValueError:
-            damage_type = DamageType.PHYSICAL
+        damage_type = self.coerce_damage_type(damage_type_str)
 
         roll = RollResult(
             total=raw_damage,
@@ -484,19 +468,3 @@ class GURPSRuleset(Ruleset):
         )
 
 
-    def _parse_gurps_dice(self, dice_str: str) -> tuple[int, int]:
-        """
-        Parse GURPS damage notation.
-
-        Examples: "1d", "1d+2", "2d-1", "1d6+3"
-        """
-        dice_str = dice_str.lower().strip()
-
-        # Match patterns like "2d6+3" or "1d-1" or "1d"
-        match = re.match(r'(\d+)d(?:6)?([+-]\d+)?', dice_str)
-        if match:
-            num_dice = int(match.group(1))
-            modifier = int(match.group(2)) if match.group(2) else 0
-            return num_dice, modifier
-
-        return 1, 0  # Default to 1d6+0

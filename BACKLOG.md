@@ -415,9 +415,9 @@ same day (see Completed); these remain, roughly by impact:
   `move`/`trigger` — `get`/`drop`/`open` and full dispatcher access
   (`@force`) remain; listen triggers hear `extra["message"]` actions
   (say/shout/ooc/emit) but not poses.
-- [ ] **Spacegame content:** the doctor's `$help` softcode is shadowed by
-  the builtin `help` command (softcode only sees *unknown* commands) —
-  rename the trigger or document the precedence.
+- [x] ~~**Spacegame content:** the doctor's `$help` softcode is shadowed~~
+  VERIFIED STALE 2026-07-31: the trigger was renamed — station.json now
+  uses `$treatment`/`$heal`; no `$help` trigger exists anywhere.
 - [x] ~~**Rewrite or delete `examples/spacegame/commands.py`.**~~ DONE
   2026-07-05: deleted with the legacy set/get_combat_system globals (see
   Completed TIER 2/3 entry).
@@ -449,8 +449,14 @@ same day (see Completed); these remain, roughly by impact:
 - [ ] **Lock follow-ups** (core enforcement 2026-07-02; use/listen/
   command + controls() landed 2026-07-04, see Completed): `teleport`
   lock now checked by scripted `teleport_obj` but still not by
-  `@teleport` (admin-gated anyway), `examine` lock not consulted by
-  look/examine, `page`/`mail` have no systems yet. The gated-broadcast
+  `@teleport` (admin-gated anyway), ~~`examine` lock not consulted by
+  look/examine~~ (DONE 2026-07-31: `may_examine` in `core/describe.py`
+  gates the DETAIL sections of examine and look — detail lines, visual
+  attrs, tags/id; name + base description stay public. Default flipped
+  `"False"`→`"True"` since the lock was never enforced, so open-by-default
+  matches how the world always behaved. Tests:
+  `tests/test_examine_lock.py`, help updated in `@lock`),
+  `page`/`mail` have no systems yet. The gated-broadcast
   pattern drops trailing-action messages (pre-existing movement trade-off,
   now shared by `gate_action`).
 - [ ] **Softcode platform remaining** (engine_vision.md matrix; the
@@ -468,22 +474,39 @@ same day (see Completed); these remain, roughly by impact:
   and `get all`/`drop all` now gate every item through the same
   propagation as single-item get/drop (locks and behaviors apply per
   item). Fixed after the 2026-07-02 review without striking the finding.
-- [ ] **Combat ruleset duplication.** Weapon-prop access ×5, DamageType
-  coercion ×2, two dice parsers; base `Ruleset.roll_dice`/`get_modifier`
-  have zero callers. Shared helpers on the base class.
-- [ ] **Two examine implementations** (`look.py` vs `admin.py`) and a
-  ~~hand-maintained help category map~~ (DONE 2026-07-05: Command.category).
-- [ ] **Persistence follow-ups:** N+1 query in `load_all` (per-object
-  reference SELECT), no schema versioning (`PRAGMA user_version` +
-  migrations), `repository.py` interface incompatible with `manager.py`.
-  Consider SQLite WAL mode for crash-robustness. (FIXED 2026-07-03: the
-  flush loop now sweeps ALL dirty objects in one transaction — pure
-  gameplay mutations previously never persisted unless something
-  incidentally called save(); crash-loss is now genuinely bounded by
-  FLUSH_INTERVAL. Verified by unit tests + a live SIGKILL drive.)
-- [ ] **Gateway duplication:** telnet/websocket repeat the server-wrapper
-  shape; websocket defines its writer twice (handler swaps mid-connection).
-  Extract a small base or shared `connect_session` helper.
+- [x] ~~**Combat ruleset duplication.**~~ DONE 2026-07-31: three shared
+  static helpers on base `Ruleset` — `weapon_prop` (the db-or-attr
+  shuffle, None-safe), `parse_dice` (`NdS+B`, sides optional for GURPS
+  `2d+1`, anchored), `coerce_damage_type` (unknown → PHYSICAL). merc/d20/
+  gurps all delegate; the three local parsers and five weapon blobs are
+  deleted. Semantics note: d20's old parser silently DROPPED the flat
+  bonus in `"2d6+3"` — it now counts (the builder's plain intent; merc
+  always honored it). `roll_dice`/`get_modifier` "zero callers" was
+  stale — they had already been deleted.
+- [x] ~~**Two examine implementations**~~ RESOLVED BY DESIGN (audited
+  2026-07-31): player `examine` (look.py) is perception-aware and now
+  examine-lock-gated; `@examine` (olc/admin.py) deliberately shows the
+  truth — the split is documented intent (look.py's own comment), not
+  duplication. ~~hand-maintained help category map~~ (DONE 2026-07-05:
+  Command.category).
+- [ ] **Persistence follow-ups** (audited 2026-07-31 — mostly stale):
+  ~~N+1 query in `load_all`~~ (fixed: two-pass load, one query for the
+  whole world), ~~schema versioning~~ (`PRAGMA user_version` +
+  SCHEMA_VERSION shipped), ~~WAL mode~~ (shipped, `manager.py:124`).
+  Remaining: `repository.py` interface incompatible with `manager.py`
+  (still imported by `persistence/__init__` and one test — unify or
+  retire).
+- [x] ~~**Gateway duplication.**~~ DONE 2026-07-31: the connect ritual
+  (peername → address, create-session-with-writer, set_closer) is now
+  `connect_session` + `format_peer_address` in `gateway/session.py`;
+  both adapters delegate. The writer-before-session invariant (welcome
+  screen flushes through it) is structural now — `writer` is a required
+  argument — instead of a comment each adapter repeated. The
+  "websocket defines its writer twice / swaps mid-connection" half was
+  already fixed (`make_ws_writer` installed before `create_session`).
+  Deliberately NO shared server base class: the two server bodies are
+  genuinely different (asyncio.Server vs aiohttp AppRunner) — a base
+  would be shape without shared logic.
 - [x] ~~**Stub commands registered as real:**~~ RESOLVED 2026-07-17.
   - **`@force`** — the `admin.py` "not fully implemented" body was *dead code*:
     `register_softcode_commands` runs after `register_admin_commands` and
@@ -511,15 +534,34 @@ same day (see Completed); these remain, roughly by impact:
   wander really moves (`WanderingBehavior.tick` → `move_through_exit`).
   ruff F841 is clean. Fixed at some point after the 2026-07-02 review
   without striking the finding.
-- [ ] **Config drift:** spacegame `WELCOME_BANNER` key is ignored by the
-  loader (only `welcome_file` is supported); README says `realm start --init`
-  but the flag is `--reset-db`; `world.py` calls `room.contents.append(...)`
-  which is a no-op (contents returns a copy — API footgun worth a docstring
-  or a real mutator).
-- [ ] **Layering:** `realm.commands` re-exports from `realm.server.dispatcher`
-  (server → commands → server cycle, currently dodged with a deferred import
-  in `game.py`). Consider moving CommandContext/CommandDispatcher into
-  `realm.commands` proper.
+- [x] ~~**Config drift.**~~ DONE 2026-07-31, and it ran deeper than filed:
+  `WELCOME_BANNER` was declared by BOTH example configs and silently
+  ignored — and the loader itself also never read `EMOTE_SIGIL` or
+  `RECURSION_LIMIT` despite documenting them as game-tunable (the
+  dataclass defaults always won). All three now flow through; an inline
+  `WELCOME_BANNER` wins over `welcome_file` (it's the more deliberate).
+  Systemic guard added: `KNOWN_CONFIG_KEYS` + a near-miss warning
+  (`WELCOME_BANER` warns at boot; arbitrary user constants like
+  `START_ROOM_VNUM` stay legal and silent), and
+  `tests/test_config.py` AST-checks the key set against what the loader
+  actually reads, so neither can drift again. Welcome reads now
+  `encoding='utf-8'` (the Code Quality one-liner below). The other two
+  drift items were stale on audit: the README `--init` claim is gone and
+  spacegame `world.py` (with its `contents.append` no-op) was deleted.
+- [x] ~~**Layering:** server → commands → server cycle~~ DONE 2026-07-31:
+  `Command`/`CommandContext`/`CommandDispatcher` (+ `CommandHandler`,
+  `TOKEN_MAP`, `DIRECTION_ALIASES`) moved home to
+  `realm/commands/dispatcher.py` (`git mv`, history preserved). The move
+  was clean because dispatcher.py imported nothing from `realm.server` —
+  only core/gateway/persistence/permissions. `realm.server.dispatcher` is
+  now a thin back-compat re-export (the correct arrow: server → commands),
+  so existing imports and tests work unchanged. game.py's deferred-import
+  dodge is deleted — `register_all_commands` imports at module top where
+  static analysis can see it. Verified with a fresh-interpreter
+  import-order matrix (each entry point imported FIRST: server, commands,
+  game, both dispatcher paths, builtin, testing — all clean) plus a live
+  Midgaard boot + login. Docs: architecture/commands.md now teaches the
+  `realm.commands` import path.
 - [x] ~~**Action-type constants.**~~ DONE 2026-07-31:
   `realm/core/action_types.py` — `ActionType(StrEnum)`, the canonical
   vocabulary of the ~40 fixed `namespace:verb` action types. All 90 engine
@@ -538,7 +580,8 @@ same day (see Completed); these remain, roughly by impact:
   `[tool.ruff]` config + CI gate.
 
 ### Code Quality
-- [ ] Add explicit encoding to welcome file read: `read_text(encoding='utf-8')`
+- [x] ~~Add explicit encoding to welcome file read~~ DONE 2026-07-31
+  (both reads in `_get_welcome_screen`, with the WELCOME_BANNER work)
   - Location: `realm/server/game.py:242`
   - Reason: Cross-platform safety
 

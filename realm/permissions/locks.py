@@ -8,7 +8,7 @@ Locks control who can perform actions on objects:
 - control: Who can modify this object (delegation)
 - speech: Who can speak here
 - teleport: Who can teleport to this room
-- examine: Who can examine this VISUAL object
+- examine: Who sees detail — the detail sections of examine and look
 - give: Who can give this away
 - drop: Who can drop this
 - command: Who can trigger commands on this
@@ -66,7 +66,9 @@ DEFAULT_LOCKS = {
     LockType.CONTROL: "caller.id == owner.id",  # Only owner can control
     LockType.SPEECH: "True",  # Anyone can speak
     LockType.TELEPORT: "True",  # Anyone can teleport
-    LockType.EXAMINE: "False",  # Must be VISUAL or owner
+    # Open by default (matching how the world has always behaved); a builder
+    # sets lock_examine to hide an object's detail sections from prying eyes.
+    LockType.EXAMINE: "True",
     LockType.GIVE: "True",  # Anyone can give
     LockType.DROP: "True",  # Anyone can drop
     LockType.COMMAND: "True",  # Anyone can trigger

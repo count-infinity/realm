@@ -32,6 +32,8 @@ import realm.core.instances  # noqa: F401
 import realm.core.wilderness  # noqa: F401
 from realm.combat.manager import CombatManager, set_combat_manager
 from realm.combat.system import create_combat_system
+from realm.commands.builtin import register_all_commands
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.action_types import ActionType
 from realm.core.objects import GameObject
 from realm.core.perception import stealth_observer
@@ -49,7 +51,6 @@ from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager, set_active_manager
 from realm.scripting.engine import ScriptEngine, set_script_engine
 from realm.server.auth import AuthService
-from realm.server.dispatcher import CommandContext, CommandDispatcher
 from realm.systems import equipment_observer, resolve_game_system, set_game_system
 
 if TYPE_CHECKING:
@@ -97,6 +98,7 @@ class GameServer:
         combat_beat_default: float = 15.0,
         game_name: str = "REALM",
         welcome_file: str | Path | None = None,
+        welcome_banner: str | None = None,
         inline_open: str = "[[",
         inline_close: str = "]]",
         command_sigil: str = "$",
@@ -134,6 +136,7 @@ class GameServer:
         self.combat_beat_default = combat_beat_default
         self.game_name = game_name
         self.welcome_file = Path(welcome_file) if welcome_file else None
+        self.welcome_banner = welcome_banner
 
         # Softcode surface syntax — inline-block delimiters, trigger
         # sigils, and the color-markup marker are all game settings
@@ -225,6 +228,7 @@ class GameServer:
             combat_beat_default=settings.combat_beat_default,
             game_name=settings.game_name,
             welcome_file=settings.welcome_file,
+            welcome_banner=getattr(settings, 'welcome_banner', None),
             inline_open=getattr(settings, 'inline_open', '[['),
             inline_close=getattr(settings, 'inline_close', ']]'),
             command_sigil=getattr(settings, 'command_sigil', '$'),
@@ -414,9 +418,6 @@ class GameServer:
             self._tick_task = asyncio.create_task(self._tick_loop())
             self._reap_task = asyncio.create_task(self._reap_loop())
 
-        # Imported here, not at module top: realm.commands re-exports from
-        # realm.server.dispatcher, so a top-level import would be circular.
-        from realm.commands.builtin import register_all_commands
         register_all_commands(self.dispatcher)
 
         # Call register_commands callback if defined in settings
@@ -716,18 +717,23 @@ class GameServer:
         """
         Get the connection welcome screen.
 
-        Looks for welcome file in order:
-        1. Configured welcome_file (from settings)
-        2. data/welcome.txt (relative to working directory)
-        3. Falls back to default welcome message
+        Resolution order:
+        1. WELCOME_BANNER (inline in config.py — the most deliberate)
+        2. Configured welcome_file (from settings)
+        3. data/welcome.txt (relative to working directory)
+        4. Falls back to default welcome message
 
         Returns:
             The welcome screen text to display on connection.
         """
+        # An inline banner in config.py wins outright.
+        if self.welcome_banner:
+            return self.welcome_banner
+
         # Try configured welcome file
         if self.welcome_file and self.welcome_file.exists():
             try:
-                return self.welcome_file.read_text()
+                return self.welcome_file.read_text(encoding='utf-8')
             except Exception as e:
                 logger.warning(f"Failed to read welcome file: {e}")
 
@@ -735,7 +741,7 @@ class GameServer:
         legacy_welcome = Path("data/welcome.txt")
         if legacy_welcome.exists():
             try:
-                return legacy_welcome.read_text()
+                return legacy_welcome.read_text(encoding='utf-8')
             except Exception as e:
                 logger.warning(f"Failed to read legacy welcome file: {e}")
 

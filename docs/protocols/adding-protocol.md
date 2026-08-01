@@ -118,28 +118,32 @@ class GodotServer:
 
 ## Connection Handling
 
-When a client connects, create a session with a writer:
+When a client connects, run the shared connect ritual —
+`connect_session` — with a writer and a closer:
 
 ```python
+from realm.gateway.session import connect_session, format_peer_address
+
 async def _handle_connection(self, connection) -> None:
     """Handle a new connection."""
-    address = self._get_client_address(connection)
+    address = format_peer_address(connection.peername)
 
     # Create writer FIRST - this is critical!
-    # The writer must exist before create_session() so the
+    # The writer must exist before the session does, so the
     # welcome screen can be flushed immediately.
     async def write_to_client(message: str) -> None:
         if not connection.closed:
             await connection.send(message.encode('utf-8'))
 
-    # Create session with writer
-    session = await self.session_manager.create_session(
+    # The shared connect ritual: session created with the writer
+    # installed, closer wired, connection logged.
+    session = await connect_session(
+        self.session_manager,
         protocol="godot",
         address=address,
-        writer=write_to_client,  # <-- Must pass writer here!
+        writer=write_to_client,
+        closer=connection.close,
     )
-
-    logger.info(f"Godot connection from {address}")
 
     # Handle input loop
     try:
@@ -149,9 +153,12 @@ async def _handle_connection(self, connection) -> None:
 ```
 
 !!! warning "Writer Timing is Critical"
-    The writer MUST be passed to `create_session()` so it's available
-    before connection callbacks run. This ensures the welcome screen
-    is sent immediately when the client connects.
+    The writer must exist before the session is created, so it's
+    available when connection callbacks run — that's what sends the
+    welcome screen the moment the client connects. `connect_session`
+    makes this structural: the writer is a required argument. (The
+    telnet and websocket adapters both go through it; yours should
+    too.)
 
 ## Input Loop
 
@@ -232,8 +239,9 @@ class GodotServer:
         await ws.prepare(request)
 
         # Get client address
-        peername = request.transport.get_extra_info('peername')
-        address = f"{peername[0]}:{peername[1]}" if peername else "unknown"
+        from realm.gateway.session import connect_session, format_peer_address
+        address = format_peer_address(
+            request.transport.get_extra_info('peername'))
 
         # Create writer that sends JSON messages
         async def write_to_client(message: str) -> None:
@@ -246,14 +254,15 @@ class GodotServer:
                 except Exception as e:
                     logger.error(f"Error writing to Godot client: {e}")
 
-        # Create session with writer
-        session = await self.session_manager.create_session(
+        # The shared connect ritual (writer installed before the
+        # session exists, closer wired, connection logged).
+        session = await connect_session(
+            self.session_manager,
             protocol="godot",
             address=address,
             writer=write_to_client,
+            closer=ws.close,
         )
-
-        logger.info(f"Godot connection from {address}")
 
         # Handle messages
         try:

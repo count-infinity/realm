@@ -22,7 +22,6 @@ Expected stats on weapons:
 from __future__ import annotations
 
 import random
-import re
 from typing import TYPE_CHECKING, Any
 
 from realm.combat.ruleset import (
@@ -110,12 +109,7 @@ class D20Ruleset(Ruleset):
         is_fumble = d20 == 1
 
         # Determine ability to use
-        use_dex = False
-        if weapon:
-            if getattr(weapon, 'db', None):
-                use_dex = weapon.db.get('finesse', False)
-            else:
-                use_dex = getattr(weapon, 'finesse', False)
+        use_dex = bool(self.weapon_prop(weapon, 'finesse', False))
 
         ability = 'dexterity' if use_dex else 'strength'
         ability_mod = self.get_ability_modifier(attacker, ability)
@@ -185,19 +179,12 @@ class D20Ruleset(Ruleset):
         damage_type = DamageType.BLUDGEONING
 
         if weapon:
-            if getattr(weapon, 'db', None):
-                damage_dice = weapon.db.get('damage_dice', "1d4")
-                dtype = weapon.db.get('damage_type', 'bludgeoning')
-            else:
-                damage_dice = getattr(weapon, 'damage_dice', "1d4")
-                dtype = getattr(weapon, 'damage_type', 'bludgeoning')
-            try:
-                damage_type = DamageType(dtype)
-            except ValueError:
-                damage_type = DamageType.PHYSICAL
+            damage_dice = self.weapon_prop(weapon, 'damage_dice', "1d4")
+            damage_type = self.coerce_damage_type(
+                self.weapon_prop(weapon, 'damage_type', 'bludgeoning'))
 
-        # Parse damage dice (e.g., "2d6", "1d8")
-        num_dice, sides = self._parse_dice(damage_dice)
+        # Parse damage dice (e.g., "2d6", "1d8+2" — the flat bonus counts)
+        num_dice, sides, flat = self.parse_dice(damage_dice)
 
         # Double dice on crit
         if attack_result.critical_hit:
@@ -208,15 +195,10 @@ class D20Ruleset(Ruleset):
         dice_total = sum(dice_results)
 
         # Add ability modifier
-        use_dex = False
-        if weapon:
-            if getattr(weapon, 'db', None):
-                use_dex = weapon.db.get('finesse', False)
-            else:
-                use_dex = getattr(weapon, 'finesse', False)
+        use_dex = bool(self.weapon_prop(weapon, 'finesse', False))
 
         ability = 'dexterity' if use_dex else 'strength'
-        ability_mod = self.get_ability_modifier(attacker, ability)
+        ability_mod = self.get_ability_modifier(attacker, ability) + flat
 
         total_damage = max(1, dice_total + ability_mod)  # Minimum 1 damage
 
@@ -282,9 +264,3 @@ class D20Ruleset(Ruleset):
         )
 
 
-    def _parse_dice(self, dice_str: str) -> tuple[int, int]:
-        """Parse dice notation like '2d6' into (num, sides)."""
-        match = re.match(r'(\d+)d(\d+)', dice_str.lower())
-        if match:
-            return int(match.group(1)), int(match.group(2))
-        return 1, 4  # Default to 1d4

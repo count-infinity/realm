@@ -91,10 +91,10 @@ class Simulator:
     def __init__(self, *, game_system: Any = "realm.systems.GurpsSystem",
                  scripting: bool = True) -> None:
         from realm.commands.builtin import register_all_commands
+        from realm.commands.dispatcher import CommandDispatcher
         from realm.core.checks import set_check_resolver, set_skill_defaults
         from realm.persistence.manager import set_active_manager
         from realm.scripting.engine import ScriptEngine, set_script_engine
-        from realm.server.dispatcher import CommandDispatcher
         from realm.systems import resolve_game_system, set_game_system
 
         reset_engine()

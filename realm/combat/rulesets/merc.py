@@ -26,13 +26,11 @@ Expected combatant stats: ``thac0``, ``armor_class`` (lower is better),
 from __future__ import annotations
 
 import random
-import re
 from typing import TYPE_CHECKING, Any
 
 from realm.combat.ruleset import (
     AttackResult,
     DamageResult,
-    DamageType,
     RollResult,
     Ruleset,
     apply_type_resistance,
@@ -40,14 +38,6 @@ from realm.combat.ruleset import (
 
 if TYPE_CHECKING:
     from realm.combat.combatant import Combatant
-
-
-def _parse_dice(spec: str) -> tuple[int, int, int]:
-    """``NdS+B`` -> (N, S, B). Falls back to (1, 4, 0)."""
-    m = re.match(r"\s*(\d+)d(\d+)([+-]\d+)?\s*$", str(spec))
-    if not m:
-        return 1, 4, 0
-    return int(m.group(1)), int(m.group(2)), int(m.group(3) or 0)
 
 
 class MercRuleset(Ruleset):
@@ -59,20 +49,12 @@ class MercRuleset(Ruleset):
 
     required_stats = ["thac0", "armor_class", "strength", "hp"]
 
-    def _weapon_attr(self, weapon: Any | None, key: str, default: Any) -> Any:
-        if weapon is None:
-            return default
-        db = getattr(weapon, "db", None)
-        if db is not None:
-            return db.get(key, default)
-        return getattr(weapon, key, default)
-
     def _damroll(self, attacker: Combatant, weapon: Any | None) -> int:
         # Strength-based bonus to damage (Diku 'damroll'), plus any bonus the
         # weapon itself carries.
         strength = attacker.get_stat("strength", 13)
         str_bonus = max(0, (strength - 14) // 2)
-        return str_bonus + int(self._weapon_attr(weapon, "damroll", 0) or 0)
+        return str_bonus + int(self.weapon_prop(weapon, "damroll", 0) or 0)
 
     def roll_attack(
         self,
@@ -119,22 +101,19 @@ class MercRuleset(Ruleset):
     ) -> DamageResult:
         # A wielded weapon's dice, else the attacker's own natural-attack
         # dice (imported Diku mobs carry their own ``damage_dice``), else 1d4.
-        spec = self._weapon_attr(weapon, "damage_dice", None)
+        spec = self.weapon_prop(weapon, "damage_dice", None)
         if spec is None:
             spec = getattr(attacker, "_obj", None) and \
                 attacker._obj.db.get("damage_dice")
-        n, s, b = _parse_dice(spec or "1d4")
+        n, s, b = self.parse_dice(spec or "1d4")
         if attack_result.critical_hit:
             n *= 2                                   # Diku crit: double dice
         dice = [random.randint(1, s) for _ in range(n)]
         damroll = self._damroll(attacker, weapon)
         total = max(1, sum(dice) + b + damroll)
 
-        dtype_name = self._weapon_attr(weapon, "damage_type", "bludgeoning")
-        try:
-            dtype = DamageType(dtype_name)
-        except ValueError:
-            dtype = DamageType.PHYSICAL
+        dtype_name = self.weapon_prop(weapon, "damage_type", "bludgeoning")
+        dtype = self.coerce_damage_type(dtype_name)
         roll = RollResult(
             total=total, dice=dice, modifier=b + damroll,
             description=f"{n}d{s}({sum(dice)})+{b + damroll} = {total}")

@@ -13,6 +13,7 @@ or custom systems by swapping the ruleset.
 
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
@@ -20,6 +21,9 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.combat.combatant import Combatant
+
+#: ``NdS+B`` — sides optional (GURPS ``2d+1``), anchored both ends.
+_DICE_RE = re.compile(r"\s*(\d+)d(\d*)([+-]\d+)?\s*$")
 
 
 class DamageType(str, Enum):
@@ -213,6 +217,54 @@ class Ruleset(ABC):
         Returns True if handled.
         """
         return False
+
+    # --- Shared helpers ---
+    #
+    # The three little rituals every ruleset repeated (weapon-property
+    # shuffle, dice-spec parsing, damage-type coercion) live here once.
+
+    @staticmethod
+    def weapon_prop(weapon: Any | None, key: str, default: Any = None) -> Any:
+        """A weapon property, wherever it lives.
+
+        Live weapons carry properties in ``db``; test stubs and plain
+        dataclasses carry them as attributes. None-safe.
+        """
+        if weapon is None:
+            return default
+        db = getattr(weapon, 'db', None)
+        if db is not None:
+            return db.get(key, default)
+        return getattr(weapon, key, default)
+
+    @staticmethod
+    def parse_dice(spec: Any, *, default: tuple[int, int, int] = (1, 4, 0),
+                   default_sides: int = 6) -> tuple[int, int, int]:
+        """``NdS+B`` -> (N, S, B).
+
+        Sides may be omitted (GURPS ``2d+1`` -> ``default_sides``); a spec
+        that does not parse at all returns ``default``. Anchored: trailing
+        garbage is a parse failure, not silently ignored.
+        """
+        m = _DICE_RE.match(str(spec or ""))
+        if not m:
+            return default
+        n = int(m.group(1))
+        sides = int(m.group(2)) if m.group(2) else default_sides
+        bonus = int(m.group(3) or 0)
+        return n, sides, bonus
+
+    @staticmethod
+    def coerce_damage_type(
+        name: Any, fallback: DamageType = DamageType.PHYSICAL,
+    ) -> DamageType:
+        """A DamageType from a string, tolerating unknown names."""
+        if isinstance(name, DamageType):
+            return name
+        try:
+            return DamageType(str(name).lower())
+        except ValueError:
+            return fallback
 
     # --- Core Resolution Methods ---
 
