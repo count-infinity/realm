@@ -7,6 +7,7 @@ General-purpose commands like who, quit, help.
 from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
+from realm.core.action_types import ActionType
 
 
 async def cmd_who(ctx: CommandContext) -> None:
@@ -94,7 +95,7 @@ async def cmd_logout(ctx: CommandContext) -> None:
         action = Action(
             actor=player,
             target=location,
-            action_type="event:disconnect",
+            action_type=ActionType.DISCONNECT,
             chain=ROOM_TARGET_CHAIN,
         )
         action.add_message("room", "{actor} logs out.")

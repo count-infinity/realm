@@ -13,9 +13,9 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from realm.core.action_types import ActionType
 from realm.core.language import singular_name
 from realm.core.propagation import Action, deliver_messages, gate_action
-
 
 # --- Emote references -------------------------------------------------------
 # A rich emote references people/things with a sigil — `pose waves at /Bob` —
@@ -131,7 +131,7 @@ async def do_get(actor: GameObject, target: GameObject) -> bool:
         target.location = actor
 
     action = await gate_item_action(
-        actor, "item:on_get", target,
+        actor, ActionType.ON_GET, target,
         fail_msg=f"You can't pick up {target.name}.",
         apply=_apply,
     )
@@ -154,7 +154,7 @@ async def do_drop(actor: GameObject, target: GameObject) -> bool:
         target.location = actor.location
 
     action = await gate_item_action(
-        actor, "item:on_drop", target,
+        actor, ActionType.ON_DROP, target,
         fail_msg=f"You can't drop {target.name}.",
         apply=_apply,
     )
@@ -180,7 +180,7 @@ async def do_give(actor: GameObject, item: GameObject, target: GameObject) -> bo
         item.location = target
 
     action = await gate_item_action(
-        actor, "item:on_give", target,
+        actor, ActionType.ON_GIVE, target,
         tool=item,
         extra={"item": item},
         fail_msg=f"You can't give {item.name} to {target.name}.",
@@ -197,7 +197,7 @@ async def do_give(actor: GameObject, item: GameObject, target: GameObject) -> bo
     # ON_RECEIVE — the recipient's own hook (distinct from the giver-side
     # give): a shopkeeper reacting to an item pressed into its hands.
     from realm.core.events import fire_event
-    await fire_event(actor, target, "event:on_receive",
+    await fire_event(actor, target, ActionType.ON_RECEIVE,
                      extra={"item": item, "giver": actor})
     return True
 
@@ -215,7 +215,7 @@ async def do_open(actor: GameObject, target: GameObject) -> bool:
         return False
 
     action = await gate_item_action(
-        actor, "item:on_open", target,
+        actor, ActionType.ON_OPEN, target,
         fail_msg=f"You can't open {target.name}.",
         apply=lambda _a: target.remove_tag('closed'),
     )
@@ -239,7 +239,7 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
         return False
 
     action = await gate_item_action(
-        actor, "item:on_close", target,
+        actor, ActionType.ON_CLOSE, target,
         fail_msg=f"You can't close {target.name}.",
         apply=lambda _a: target.add_tag('closed'),
     )
@@ -259,7 +259,7 @@ def speech_action(speaker: GameObject, message: str) -> Action:
     action = Action(
         actor=speaker,
         target=speaker.location,
-        action_type="event:speech",
+        action_type=ActionType.SPEECH,
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
@@ -281,7 +281,7 @@ def pose_action(poser: GameObject, pose_text: str) -> Action:
     action = Action(
         actor=poser,
         target=poser.location,
-        action_type="event:emote",
+        action_type=ActionType.EMOTE,
         chain=ROOM_TARGET_CHAIN,
         extra={"pose": body},
     )
@@ -302,7 +302,7 @@ def emit_action(actor: GameObject, message: str) -> Action:
     action = Action(
         actor=actor,
         target=actor.location,
-        action_type="event:emit",
+        action_type=ActionType.EMIT,
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
@@ -319,7 +319,7 @@ def whisper_action(
     action = Action(
         actor=speaker,
         target=target,
-        action_type="event:whisper",
+        action_type=ActionType.WHISPER,
         extra={"message": message},
     )
     action.add_message(

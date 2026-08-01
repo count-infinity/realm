@@ -31,6 +31,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
 
 if TYPE_CHECKING:
@@ -80,7 +81,7 @@ async def spawn_tracked(prototype: dict[str, Any], room: GameObject,
         await persistence.save(spawn)
     # actor=None: the spawn reacts to its OWN creation, so it's the witnessed
     # target, not the excluded-from-witnessing actor.
-    await fire_event(None, spawn, "event:on_load",
+    await fire_event(None, spawn, ActionType.ON_LOAD,
                      extra={"marker": marker, **load_extra})
     return spawn
 

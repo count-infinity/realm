@@ -191,7 +191,7 @@ class EventTrigger:
         &ON_GET obj = @trigger me/PICKED_UP
 
     The ``event_type`` matches against the suffix of an Action's
-    ``action_type`` — i.e. ``"ENTER"`` matches ``Action(action_type="event:on_enter")``.
+    ``action_type`` — i.e. ``"ENTER"`` matches ``Action(action_type=ActionType.ON_ENTER)``.
     Comparison is case-insensitive and ignores the ``on_`` prefix.
     """
 

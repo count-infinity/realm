@@ -463,10 +463,11 @@ same day (see Completed); these remain, roughly by impact:
   on the GIL; session/persistence work is queued and drained on-loop.
   If a race ever bites, queue mutations wholesale or run scripts
   on-loop with an instruction budget.
-- [ ] **Inventory action boilerplate + bulk gap.** The ~18-line
-  propagate/block/move/deliver ritual repeats 4× in `inventory.py`, and
-  `get all`/`drop all` skip propagation entirely — behaviors fire for
-  `get sword` but not `get all`. Extract one item-transfer helper.
+- [x] ~~**Inventory action boilerplate + bulk gap.**~~ VERIFIED STALE
+  2026-07-31: the ritual is extracted (`gate_item_action`, used per item),
+  and `get all`/`drop all` now gate every item through the same
+  propagation as single-item get/drop (locks and behaviors apply per
+  item). Fixed after the 2026-07-02 review without striking the finding.
 - [ ] **Combat ruleset duplication.** Weapon-prop access ×5, DamageType
   coercion ×2, two dice parsers; base `Ruleset.roll_dice`/`get_modifier`
   have zero callers. Shared helpers on the base class.
@@ -503,8 +504,13 @@ same day (see Completed); these remain, roughly by impact:
   - **`time`** — already functional (prints server wall-clock); dropped the
     misleading "not implemented" TODO.
   Tests: `test_olc.py::TestStubCommandFixes` (11) + `test_format_duration`.
-- [ ] **Half-implemented combat behaviors** silently no-op (attack_delay,
-  taunt, flee movement, wander movement — ruff F841 flags the dead locals).
+- [x] ~~**Half-implemented combat behaviors** silently no-op~~ VERIFIED
+  STALE 2026-07-31: `attack_delay` no longer exists anywhere; `taunt` is
+  said on engage (AggressiveBehavior), flee is a real strategy rule
+  resolved by `Encounter._resolve_flee` (movement + failed-check messaging),
+  wander really moves (`WanderingBehavior.tick` → `move_through_exit`).
+  ruff F841 is clean. Fixed at some point after the 2026-07-02 review
+  without striking the finding.
 - [ ] **Config drift:** spacegame `WELCOME_BANNER` key is ignored by the
   loader (only `welcome_file` is supported); README says `realm start --init`
   but the flag is `--reset-db`; `world.py` calls `room.contents.append(...)`
@@ -514,8 +520,19 @@ same day (see Completed); these remain, roughly by impact:
   (server → commands → server cycle, currently dodged with a deferred import
   in `game.py`). Consider moving CommandContext/CommandDispatcher into
   `realm.commands` proper.
-- [ ] **Action-type constants.** `"event:on_enter"` etc. are magic strings
-  across behaviors/combat/movement — a typo silently disables a behavior.
+- [x] ~~**Action-type constants.**~~ DONE 2026-07-31:
+  `realm/core/action_types.py` — `ActionType(StrEnum)`, the canonical
+  vocabulary of the ~40 fixed `namespace:verb` action types. All 90 engine
+  literals across 27 files now route through it; a typo'd member is an
+  import-time `AttributeError` instead of a silently dead behavior (the
+  exact bug class the aggressive/venom registry collision exposed).
+  Deliberately open vocabularies stay strings: runtime ability domains
+  (`abilities.py`) and softcode-invented `act()` event types
+  (`'event:toll'`). `act()`'s softcode-facing default also stays a plain
+  string so the generated reference reads naturally.
+  `test_payload_docs_match_engine.py`'s AST extractor learned to resolve
+  `ActionType.X` members (assertions unchanged); documented in
+  `architecture/events.md` ("Action types" section).
 - [ ] Remaining ruff findings (~20): stub-related unused variables, long
   lines, `str`-enum modernization. `ruff check` is clean-ish; consider a
   `[tool.ruff]` config + CI gate.

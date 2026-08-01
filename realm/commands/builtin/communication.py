@@ -12,6 +12,7 @@ from __future__ import annotations
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_player
 from realm.core.action_tags import SOUND
+from realm.core.action_types import ActionType
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 
 
@@ -89,7 +90,7 @@ async def cmd_semipose(ctx: CommandContext) -> None:
     action = Action(
         actor=ctx.player,
         target=location,
-        action_type="event:semipose",
+        action_type=ActionType.SEMIPOSE,
         chain=ROOM_TARGET_CHAIN,
         extra={"pose": pose_text},
     )
@@ -180,7 +181,7 @@ async def cmd_ooc(ctx: CommandContext) -> None:
     action = Action(
         actor=ctx.player,
         target=location,
-        action_type="event:ooc",
+        action_type=ActionType.OOC,
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
@@ -217,7 +218,7 @@ async def cmd_shout(ctx: CommandContext) -> None:
     action = Action(
         actor=ctx.player,
         target=location,
-        action_type="event:shout",
+        action_type=ActionType.SHOUT,
         chain=ROOM_TARGET_CHAIN,
         # 'sound' tag lets behaviors react to any noisy action regardless
         # of whether it's speech, shouting, combat, etc.

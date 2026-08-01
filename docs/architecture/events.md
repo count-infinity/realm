@@ -25,12 +25,13 @@ The one rule every hook can rely on: **``on_check`` sees the world before,
 stops the middle.**
 
 ```python
+from realm.core.action_types import ActionType
 from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
 
 action = Action(
     actor=player,
     target=room,
-    action_type="event:speech",
+    action_type=ActionType.SPEECH,      # == "event:speech"
     chain=ROOM_TARGET_CHAIN,
     extra={"message": "hello"},
 )
@@ -38,6 +39,36 @@ action.add_message("actor", 'You say, "{speech}"', success_only=True)
 action.add_message("room", '{actor} says, "{speech}"', success_only=True)
 await propagate(action)
 ```
+
+### Action types
+
+``action_type`` is a ``namespace:verb`` string (``"event:on_enter"``,
+``"combat:on_damage"``, ``"item:on_get"``). The engine's own vocabulary
+lives in one place, ``realm.core.action_types.ActionType`` — a ``StrEnum``,
+so each member *is* its string: ``ActionType.ON_ENTER == "event:on_enter"``,
+it hashes into string sets, and it serialises as the plain string.
+
+Engine code always routes through the enum, and so should yours when you
+mean an engine event. The reason is a bug class, not style: a behavior
+decides whether to react by comparing ``action.action_type``, so a typo'd
+literal (``"event:on_entre"``) never matches and the behavior **silently
+stops firing** — no error, just a dead feature. ``ActionType.ON_ENTRE``
+instead raises ``AttributeError`` the moment the module imports.
+
+```python
+from realm.core.action_types import ActionType
+
+async def on_react(self, obj, action):
+    if action.action_type != ActionType.ON_ENTER:   # typo-proof
+        return
+```
+
+Two vocabularies are deliberately *open* and stay as strings: ability
+domains minted at runtime (``f"{domain}:{slug}"`` in
+``realm.systems.abilities``), and builder-invented event types fired from
+softcode ``act()`` (``'event:toll'`` needs no registration — any object
+with an ``on_toll`` hook reacts). The enum covers the engine's fixed
+vocabulary; it is not a gate on inventing new types.
 
 Messages address audiences (``actor`` / ``target`` / ``room``), render
 **per looker** (perception applies — an unseen speaker narrates as
@@ -74,7 +105,7 @@ than interpolating it, for both reasons.
 from realm.core.propagation import register_speech_renderer
 
 def garble(body, action, looker):
-    if action.action_type != "event:speech":
+    if action.action_type != ActionType.SPEECH:
         return body
     tongue = action.actor.db.get('speaking')
     if tongue and looker and tongue not in (looker.db.get('languages') or []):

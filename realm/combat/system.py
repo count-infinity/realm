@@ -28,6 +28,7 @@ from realm.combat.ruleset import (
     Ruleset,
 )
 from realm.core.action_tags import HOSTILE
+from realm.core.action_types import ActionType
 from realm.core.propagation import Action, propagate
 
 if TYPE_CHECKING:
@@ -260,7 +261,7 @@ class CombatSystem:
                 new_pct = dfn.hp_percent * 100
                 if old_pct > float(threshold) >= new_pct:
                     from realm.core.events import fire_event
-                    await fire_event(atk.obj, dfn.obj, "event:on_hitprcnt",
+                    await fire_event(atk.obj, dfn.obj, ActionType.ON_HITPRCNT,
                                      extra={"percent": round(new_pct),
                                             "threshold": int(threshold)})
 
@@ -405,7 +406,7 @@ class CombatSystem:
         action = Action(
             actor=attacker.obj,
             target=defender.obj,
-            action_type="combat:on_attack",
+            action_type=ActionType.ON_ATTACK,
             tool=weapon if hasattr(weapon, 'name') else None,
             tags={HOSTILE},
             extra={

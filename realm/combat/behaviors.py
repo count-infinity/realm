@@ -13,6 +13,7 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING
 
+from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
 
 if TYPE_CHECKING:
@@ -55,7 +56,7 @@ class AggressiveBehavior(Behavior):
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
         entering = action.actor
-        if action.action_type != "event:on_enter" or entering is None:
+        if action.action_type != ActionType.ON_ENTER or entering is None:
             return
         if entering is obj or obj.has_tag('in_combat'):
             return
@@ -158,7 +159,7 @@ class GuardBehavior(Behavior):
     }
 
     async def on_check(self, obj: GameObject, action: Action) -> None:
-        if action.action_type not in ("event:on_enter", "event:on_leave"):
+        if action.action_type not in (ActionType.ON_ENTER, ActionType.ON_LEAVE):
             return
 
         mover = action.actor
@@ -257,7 +258,7 @@ class CombatantBehavior(Behavior):
     }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
-        if action.action_type != "combat:on_death" or action.target is not obj:
+        if action.action_type != ActionType.ON_DEATH or action.target is not obj:
             return
         death_msg = self.get_param('death_message')
         if death_msg and obj.location is not None:
@@ -358,7 +359,7 @@ class VenomousBehavior(Behavior):
     }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
-        if action.action_type != "combat:on_damage" or action.actor is not obj:
+        if action.action_type != ActionType.ON_DAMAGE or action.actor is not obj:
             return
         if action.blocked:
             return

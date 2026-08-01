@@ -18,8 +18,24 @@ import glob
 import pathlib
 import re
 
+from realm.core.action_types import ActionType
+
 REPO = pathlib.Path(__file__).resolve().parents[1]
 DOC = REPO / "docs" / "reference" / "softcode.md"
+
+
+def _action_type_value(node: ast.expr) -> str | None:
+    """The action type at a construction site: a string literal, or an
+    ``ActionType.X`` member (the enum that replaced the literals). Members
+    resolve through the real enum, so a stale name here raises KeyError
+    rather than silently vanishing from the derived table."""
+    if isinstance(node, ast.Constant):
+        return node.value if isinstance(node.value, str) else None
+    if (isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "ActionType"):
+        return ActionType[node.attr].value
+    return None
 
 
 def engine_payloads() -> dict[str, set[str]]:
@@ -41,8 +57,8 @@ def engine_payloads() -> dict[str, set[str]]:
                 continue
             atype, keys = None, None
             for kw in node.keywords:
-                if kw.arg == "action_type" and isinstance(kw.value, ast.Constant):
-                    atype = kw.value.value
+                if kw.arg == "action_type":
+                    atype = _action_type_value(kw.value)
                 if kw.arg == "extra" and isinstance(kw.value, ast.Dict):
                     keys = [k.value for k in kw.value.keys
                             if isinstance(k, ast.Constant)]
@@ -50,8 +66,8 @@ def engine_payloads() -> dict[str, set[str]]:
                 # positional: fire_event(actor, target, TYPE)
                 #             gate_item_action(actor, TYPE, target)
                 idx = 2 if name == "fire_event" else 1
-                if len(node.args) > idx and isinstance(node.args[idx], ast.Constant):
-                    atype = node.args[idx].value
+                if len(node.args) > idx:
+                    atype = _action_type_value(node.args[idx])
             if isinstance(atype, str) and ":" in atype:
                 found.setdefault(atype, set()).update(keys or [])
     return found

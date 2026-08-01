@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object
+from realm.core.action_types import ActionType
 from realm.core.checks import check, contest
 from realm.core.objects import GameObject
 from realm.core.perception import room_is_lit
@@ -144,7 +145,7 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
     if key is None:
         await ctx.session.send("You don't have the key.")
         return
-    if await _gated(ctx, "item:on_lock", target, tool=key,
+    if await _gated(ctx, ActionType.ON_LOCK, target, tool=key,
                     fail_msg="The lock won't catch.",
                     apply=lambda _a: target.add_tag('locked')) is None:
         return
@@ -174,7 +175,7 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
     if key is None:
         await ctx.session.send("You don't have the key.")
         return
-    if await _gated(ctx, "item:on_unlock", target, tool=key,
+    if await _gated(ctx, ActionType.ON_UNLOCK, target, tool=key,
                     fail_msg="The lock holds fast.",
                     apply=lambda _a: target.remove_tag('locked')) is None:
         return
@@ -215,7 +216,7 @@ async def cmd_pick(ctx: CommandContext) -> None:
         # The same gated unlock event the `unlock` command fires — wards may
         # veto a picked lock too, and ON_UNLOCK mirrors/alarms hear it.
         # `picked` in the action data lets scripts tell a jimmy from a key.
-        if await _gated(ctx, "item:on_unlock", target, data={'picked': True},
+        if await _gated(ctx, ActionType.ON_UNLOCK, target, data={'picked': True},
                         fail_msg=f"The lock on {target.name} defies your "
                                  f"tools.",
                         apply=lambda _a: target.remove_tag('locked')) is None:
@@ -275,7 +276,7 @@ async def cmd_use(ctx: CommandContext) -> None:
     if item is not None and item.db.get('unlocks') and \
             item.db.get('unlocks') == target.db.get('key_id'):
         now_locked = not target.has_tag('locked')
-        atype = "item:on_lock" if now_locked else "item:on_unlock"
+        atype = ActionType.ON_LOCK if now_locked else ActionType.ON_UNLOCK
         fail = "The lock won't catch." if now_locked else "The lock holds fast."
 
         def _flip(_a):
@@ -292,7 +293,7 @@ async def cmd_use(ctx: CommandContext) -> None:
         return
 
     action = await _gated(
-        ctx, "item:on_use", target, tool=item,
+        ctx, ActionType.ON_USE, target, tool=item,
         fail_msg=f"You can't use {'that on ' if item else ''}{target.name}.",
     )
     if action is None:
@@ -350,7 +351,7 @@ async def cmd_wear(ctx: CommandContext) -> None:
                 granted.append(tag)
         item.db.granted_active = granted
 
-    action = await _gated(ctx, "item:on_wear", item,
+    action = await _gated(ctx, ActionType.ON_WEAR, item,
                           fail_msg=f"You can't wear {item.name}.",
                           apply=_don)
     if action is None:
@@ -387,7 +388,7 @@ async def cmd_unwear(ctx: CommandContext) -> None:
         item.db.granted_active = []
 
     removing = await _gated(
-        ctx, "item:on_remove", item,
+        ctx, ActionType.ON_REMOVE, item,
         fail_msg="You can't seem to take it off.",
         apply=_doff)
     if removing is None:

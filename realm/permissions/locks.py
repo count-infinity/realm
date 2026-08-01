@@ -26,6 +26,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from realm.core.action_types import ActionType
 from realm.core.safe_eval import SAFE_EXPR_BUILTINS, compile_expression, eval_bool
 from realm.permissions.entitlements import (
     CONTROL_ALL,
@@ -433,23 +434,23 @@ def list_locks(target: GameObject) -> dict[str, str]:
 
 # action_type → (lock checked ON THE TARGET, default failure message)
 TARGET_ACTION_LOCKS: dict[str, tuple[LockType, str]] = {
-    "item:on_get": (LockType.BASIC, "You can't pick up {name}."),
-    "item:on_drop": (LockType.DROP, "You can't drop {name}."),
-    "item:on_put": (LockType.ENTER, "You can't put things in {name}."),
+    ActionType.ON_GET: (LockType.BASIC, "You can't pick up {name}."),
+    ActionType.ON_DROP: (LockType.DROP, "You can't drop {name}."),
+    ActionType.ON_PUT: (LockType.ENTER, "You can't put things in {name}."),
     # All room-directed communication is gated by the room's speech lock.
-    "event:speech": (LockType.SPEECH, "You can't speak here."),
-    "event:shout": (LockType.SPEECH, "You can't speak here."),
-    "event:ooc": (LockType.SPEECH, "You can't speak here."),
-    "event:emote": (LockType.SPEECH, "You can't emote here."),
-    "event:semipose": (LockType.SPEECH, "You can't emote here."),
-    "event:emit": (LockType.SPEECH, "You can't emit here."),
+    ActionType.SPEECH: (LockType.SPEECH, "You can't speak here."),
+    ActionType.SHOUT: (LockType.SPEECH, "You can't speak here."),
+    ActionType.OOC: (LockType.SPEECH, "You can't speak here."),
+    ActionType.EMOTE: (LockType.SPEECH, "You can't emote here."),
+    ActionType.SEMIPOSE: (LockType.SPEECH, "You can't emote here."),
+    ActionType.EMIT: (LockType.SPEECH, "You can't emit here."),
 }
 
 # action_type → (lock checked ON THE TOOL by the actor, default message).
 # The tool isn't visited by the propagation chain, so the actor — who is
 # always visited — checks the lock of the thing it's wielding/giving.
 TOOL_ACTION_LOCKS: dict[str, tuple[LockType, str]] = {
-    "item:on_give": (LockType.GIVE, "You can't give {name} away."),
+    ActionType.ON_GIVE: (LockType.GIVE, "You can't give {name} away."),
 }
 
 

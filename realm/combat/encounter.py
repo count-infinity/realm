@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING
 
 from realm.combat.combatant import Combatant, CombatState, get_combatant
 from realm.combat.maneuver import QueuedAction
+from realm.core.action_types import ActionType
 from realm.core.propagation import Action, deliver_messages
 
 if TYPE_CHECKING:
@@ -82,7 +83,7 @@ def deliver_combat_messages(
     normal delivery path — per-looker perception applies, so an unseen
     attacker narrates as "Someone".
     """
-    action = Action(actor=attacker, target=defender, action_type="combat:narrate")
+    action = Action(actor=attacker, target=defender, action_type=ActionType.NARRATE)
     if messages.get('attacker_msg'):
         action.add_message("actor", messages['attacker_msg'])
     if messages.get('defender_msg'):

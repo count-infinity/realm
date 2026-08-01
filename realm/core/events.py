@@ -18,6 +18,7 @@ from __future__ import annotations
 import time as _time
 from typing import TYPE_CHECKING
 
+from realm.core.action_types import ActionType
 from realm.core.propagation import Action, propagate
 
 if TYPE_CHECKING:
@@ -76,7 +77,7 @@ async def reap_expired(persistence, *, now: float | None = None) -> int:
         # actor=None: this is the object reacting to ITSELF — as the target
         # it witnesses its own ON_EXPIRE (the actor is excluded from
         # witnessing, so it must not be the actor here).
-        await fire_event(None, obj, "event:on_expire")
+        await fire_event(None, obj, ActionType.ON_EXPIRE)
         # Re-check: the handler may have renewed the lease, or already moved
         # / destroyed the object.
         at = obj.db.get('expires_at')

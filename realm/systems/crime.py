@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.action_types import ActionType
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
     from realm.core.propagation import Action
@@ -75,7 +77,7 @@ async def crime_observer(action: Action) -> None:
         return
     actor, target = action.actor, action.target
 
-    if action.action_type == "combat:on_death":
+    if action.action_type == ActionType.ON_DEATH:
         # The victim's status at the moment of death decides both outcomes.
         victim_was_wanted = is_wanted(target)
         if (actor is not None and target is not None and actor is not target
@@ -86,7 +88,7 @@ async def crime_observer(action: Action) -> None:
             clear_wanted(target)                        # death pardons the outlaw
         return
 
-    if action.action_type == "combat:on_damage":
+    if action.action_type == ActionType.ON_DAMAGE:
         if actor is None or target is None or actor is target:
             return
         if not (actor.has_tag("player") and target.has_tag("player")):

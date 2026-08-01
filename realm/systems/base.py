@@ -32,6 +32,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from realm.core.action_types import ActionType
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -277,7 +279,7 @@ def get_game_system() -> GameSystem | None:
 
 
 #: Action types that mean a character's worn gear changed.
-EQUIPMENT_EVENTS = frozenset({"item:on_wear", "item:on_remove"})
+EQUIPMENT_EVENTS = frozenset({ActionType.ON_WEAR, ActionType.ON_REMOVE})
 
 
 async def equipment_observer(action: Any) -> None:

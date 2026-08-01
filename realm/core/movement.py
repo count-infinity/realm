@@ -18,6 +18,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from realm.core.action_tags import FAILURE, MOVEMENT
+from realm.core.action_types import ActionType
 from realm.core.propagation import (
     ROOM_TARGET_CHAIN,
     Action,
@@ -154,7 +155,7 @@ async def fire_exit_fail(
     fail = Action(
         actor=actor,
         target=exit_obj if exit_obj is not None else destination,
-        action_type="event:on_fail",
+        action_type=ActionType.ON_FAIL,
         chain=ROOM_TARGET_CHAIN,
         extra={"exit": exit_obj, "reason": reason,
                "direction": direction, "destination": destination},
@@ -218,7 +219,7 @@ async def move_to(
     # 1. Leave ward — skipped by force (the wizard bypass).
     if not force and origin is not None:
         leave = Action(
-            actor=actor, target=origin, action_type="event:on_leave",
+            actor=actor, target=origin, action_type=ActionType.ON_LEAVE,
             chain=ROOM_TARGET_CHAIN, tags=set(tags),
             extra={"destination": destination},
         )
@@ -290,7 +291,7 @@ async def _pre_enter_blocked(actor: GameObject, destination: GameObject,
     only) and report whether a ward blocked the arrival. Both walking and
     direct placement run this, so a sanctum's ward guards every way in."""
     pre = Action(
-        actor=actor, target=destination, action_type="event:pre_enter",
+        actor=actor, target=destination, action_type=ActionType.PRE_ENTER,
         chain=ROOM_TARGET_CHAIN, tags=set(tags), extra=extra,
     )
     await propagate(pre, deliver=False)
@@ -304,7 +305,7 @@ async def _fire_arrival(actor: GameObject, destination: GameObject,
                         tags: set[str], extra: dict) -> None:
     """The informational ``on_enter`` — the actor has already arrived."""
     enter = Action(
-        actor=actor, target=destination, action_type="event:on_enter",
+        actor=actor, target=destination, action_type=ActionType.ON_ENTER,
         chain=ROOM_TARGET_CHAIN, tags=set(tags), extra=extra,
     )
     enter.add_message("room", "{actor} arrives.")
@@ -432,7 +433,7 @@ async def move_through_exit(
         leave = Action(
             actor=actor,
             target=origin,
-            action_type="event:on_leave",
+            action_type=ActionType.ON_LEAVE,
             chain=ROOM_TARGET_CHAIN,
             extra={"exit": exit_obj, "destination": destination, "direction": direction},
             tags={MOVEMENT},

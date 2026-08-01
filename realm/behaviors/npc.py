@@ -17,6 +17,7 @@ import logging
 import random
 from typing import TYPE_CHECKING
 
+from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
 from realm.core.checks import contest
 from realm.core.perception import break_stealth, can_see
@@ -66,7 +67,7 @@ class WatchfulBehavior(Behavior):
     }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
-        if action.action_type != "event:on_enter":
+        if action.action_type != ActionType.ON_ENTER:
             return
         actor = action.actor
         if actor is None or actor is obj:

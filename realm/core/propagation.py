@@ -29,6 +29,8 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
+from realm.core.action_types import ActionType
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -37,8 +39,8 @@ logger = logging.getLogger(__name__)
 #: Action types whose `{actor}` is a *voice* — subject to `db.voice_as`
 #: (a voice-only disguise). Look/room-list name resolution is unaffected.
 _SPEECH_ACTIONS = frozenset({
-    "event:speech", "event:emote", "event:whisper", "event:shout",
-    "event:ooc", "event:semipose",
+    ActionType.SPEECH, ActionType.EMOTE, ActionType.WHISPER, ActionType.SHOUT,
+    ActionType.OOC, ActionType.SEMIPOSE,
 })
 
 

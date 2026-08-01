@@ -32,6 +32,7 @@ import realm.core.instances  # noqa: F401
 import realm.core.wilderness  # noqa: F401
 from realm.combat.manager import CombatManager, set_combat_manager
 from realm.combat.system import create_combat_system
+from realm.core.action_types import ActionType
 from realm.core.objects import GameObject
 from realm.core.perception import stealth_observer
 from realm.core.propagation import (
@@ -764,7 +765,7 @@ class GameServer:
                 action = Action(
                     actor=player,
                     target=location,
-                    action_type="event:disconnect",
+                    action_type=ActionType.DISCONNECT,
                     chain=ROOM_TARGET_CHAIN,
                 )
                 action.add_message("room", "{actor} has disconnected.")
@@ -966,7 +967,7 @@ class GameServer:
         action = Action(
             actor=player,
             target=location,
-            action_type="event:connect",
+            action_type=ActionType.CONNECT,
             chain=ROOM_TARGET_CHAIN,
             extra={"returning": returning},
         )

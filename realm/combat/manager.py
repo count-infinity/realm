@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 
 from realm.combat.encounter import CombatEncounter, deliver_combat_messages
 from realm.combat.maneuver import QueuedAction
+from realm.core.action_types import ActionType
 
 if TYPE_CHECKING:
     from realm.combat.system import CombatSystem
@@ -175,7 +176,7 @@ class CombatManager:
         action = Action(
             actor=killer,
             target=victim,
-            action_type="combat:on_death",
+            action_type=ActionType.ON_DEATH,
             extra={
                 'killer': killer.name if killer is not None else None,
                 'fatal': not victim.has_tag('player'),

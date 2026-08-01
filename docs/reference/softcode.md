@@ -1285,17 +1285,23 @@ landed = cast(victim, 'fear', tags=['mind']) and \
 ### `damage` {#fn-damage}
 
 ```text
-damage(obj: GameObject | str | None, amount: int) -> bool
+damage(obj: GameObject | str | None, amount: int, dtype: str | None = None) -> bool
 ```
 
 Deal damage to something in the executor's room. Lethal damage
 routes through the combat manager's death path (corpses, CP
 awards, unconsciousness) after the script finishes.
 
+With a damage type, the hit routes through the active ruleset's
+`apply_damage` — so a target's `resistances` (and any other
+ruleset mitigation) apply: a fire-immune mob shrugs off
+damage(enactor, 12, 'fire'). Untyped damage stays raw.
+
 **Example**
 
 ```text
 damage(enactor, 3)
+damage(enactor, 12, 'fire')
 ```
 
 ### `heal` {#fn-heal}
@@ -1543,7 +1549,7 @@ target; without force, the enactor may also move *themselves* (a
 ### `act` {#fn-act}
 
 ```text
-act(target: GameObject | str, message: str = '', targeting: str = 'remote', action_type: str = 'event:act') -> bool
+act(target: GameObject | str, message: str = '', targeting: str = 'remote', action_type: str = 'event:act', extra: dict | None = None, tags: list | set | tuple | None = None) -> bool
 ```
 
 Fire a PROPAGATED action that can reach BEYOND your own room —
@@ -1566,19 +1572,39 @@ Because `ON_<EVENT>` hooks match on the action type's suffix, an
 `action_type` you invent needs no registration: fire
 `'event:toll'` and any object with an `on_toll` attribute reacts.
 
+`extra` is the event's payload: each key becomes an
+`adata(key)` a reactor can read, and an `on_check` ward can
+rewrite it with `set_adata`. The `message` is always present as
+`adata('message')`; keys named `message` or `remote_rooms`
+are reserved and ignored. `tags` are action tags a ward can key
+on with `has_atag`.
+
+Note that one action object crosses every leg of a `'zone'` or
+`'remote'` send, so a ward that rewrites the payload in one room
+changes what the *later* rooms receive. That is the mechanism
+behind a containment bulkhead, and a surprise if you expected each
+room to be judged independently.
+
 **Example**
 
 ```text
 # scry — watch a distant room
 act(thing, 'A scrying eye blinks open.', targeting='remote')
 
-# a zone-wide alarm every room can react to with on_alert
+# a zone-wide alarm: the message reaches every room in the
+# zone, and each room's wards get the two-pass. The softcode
+# ON_<EVENT> hook fires in the actor's room only.
 act(intruder, 'Klaxons wail!', targeting='zone',
     action_type='event:alert')
 
 # a custom local event: objects with an on_toll hook answer
 act(me, 'A deep bell tolls.', targeting='room',
     action_type='event:toll')
+
+# a payload the reactors read and a ward can rewrite
+act(me, 'Coolant vents!', targeting='zone',
+    action_type='event:breach',
+    extra={'severity': 8}, tags=['hazard'])
 ```
 
 

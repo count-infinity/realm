@@ -29,6 +29,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from realm.core.action_tags import SCRIPTED
+from realm.core.action_types import ActionType
 from realm.core.propagation import Action
 from realm.scripting.functions import ScriptFunctions
 from realm.scripting.sandbox import (
@@ -73,10 +74,10 @@ def get_script_engine() -> ScriptEngine | None:
 # Whispers are deliberately excluded — bystanders only see the vague
 # "X whispers something to Y" line, so scripts shouldn't overhear either.
 LISTENABLE_ACTIONS = {
-    "event:speech",
-    "event:shout",
-    "event:ooc",
-    "event:emit",
+    ActionType.SPEECH,
+    ActionType.SHOUT,
+    ActionType.OOC,
+    ActionType.EMIT,
 }
 
 
@@ -602,7 +603,7 @@ class ScriptEngine:
             # relocating the enactor is consensual (the portal pattern).
             # Every other witness (a bystander's ON_ENTER, a room's ON_SAY)
             # gets no such grant.
-            consent = (action.action_type == "event:on_fail"
+            consent = (action.action_type == ActionType.ON_FAIL
                        and obj is action.extra.get("exit"))
             for trigger in self.trigger_manager.get_event_triggers(obj, event_type):
                 match = TriggerMatch(
@@ -1165,9 +1166,9 @@ class ScriptEngine:
                 if reach_ok:
                     # No kernel-forced category — 'magic' is genre (a hard-SF
                     # psi power isn't magic). The caster supplies the tags;
-                    # wards key on those or on atype == 'event:on_cast'.
+                    # wards key on those or on atype == ActionType.ON_CAST.
                     await fire_event(
-                        caster, obj, "event:on_cast",
+                        caster, obj, ActionType.ON_CAST,
                         tags=set(extra_tags),
                         extra={"ability": ability, "caster": caster},
                         gated=True)

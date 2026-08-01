@@ -23,6 +23,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.action_types import ActionType
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -36,10 +38,10 @@ HIDDEN_TAG = "hidden"
 # Actions loud enough to break stealth. Movement is deliberately absent —
 # sneaking room to room is the point of hiding; Watchful observers contest it.
 LOUD_ACTIONS = {
-    "event:speech", "event:shout", "event:ooc",
-    "event:emote", "event:semipose", "event:emit",
-    "item:on_get", "item:on_open", "item:on_close",
-    "combat:on_attack",
+    ActionType.SPEECH, ActionType.SHOUT, ActionType.OOC,
+    ActionType.EMOTE, ActionType.SEMIPOSE, ActionType.EMIT,
+    ActionType.ON_GET, ActionType.ON_OPEN, ActionType.ON_CLOSE,
+    ActionType.ON_ATTACK,
 }
 
 

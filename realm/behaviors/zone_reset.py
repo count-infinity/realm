@@ -26,6 +26,7 @@ from __future__ import annotations
 import time as _time
 from typing import TYPE_CHECKING
 
+from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
 from realm.core.query import find_objects
 from realm.core.zones import zone_rooms, zone_tags
@@ -86,7 +87,7 @@ class ZoneResetBehavior(Behavior):
 
         # Custom repop first — doors re-locked, litter cleared, randomness
         # reseeded — before the canonical mob wipe/reload.
-        await fire_event(None, master, "event:on_reset")
+        await fire_event(None, master, ActionType.ON_RESET)
 
         # Clear this master's prior spawns, then reload canonical. No
         # survivor counting: the zone is empty, so churn is invisible, and
