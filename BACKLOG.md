@@ -184,24 +184,54 @@ WarrantStore / Enforcer / LawConfig.
 
 ## Priority 1 - Should Address Soon
 
-### Skill system: master list + specialization (designed 2026-08-02)
+### Skill system: roles, specialization, progression (designed + refined 2026-08-02)
 
 Full reference survey (CoffeeMud, SMAUG, tbaMUD, SWR, FS3, AwakeMUD,
-GoMud, VME, SF GURPS data) synthesized in
-`docs/design/skills-inventory.md`: a 62-skill tagged top-level master
-list (combat/rogue/perception/social/craft/gather/animal/survival/lore),
-a fun-list of scheme skills, and the progression model — specializations
-as child `skill_def`s (`parent` + `unlocks_at` attrs; untrained specs
-default to parent at penalty; hidden until unlocked; tags are native
-object tags). Build order when green-lit:
-- [ ] `parent`/`unlocks_at` on skill_def + parent-fallback in checks +
-  unlock visibility (engine, small)
-- [ ] Seed the 62 top-level `skill_def`s as a content pack (data)
-- [ ] `skills` command grouped by tag
-- [ ] Optional learn-by-use (SMAUG hybrid: practice to a floor, use past
-  it) as a per-system knob
-- [ ] Generic timed gather/craft action core (SWR make* shape) — likely
-  behaviors + softcode, not engine
+GoMud, VME, SF GURPS data, plus EVE Online and Melvor Idle) synthesized in
+`docs/design/skills-inventory.md`, now split into three independent axes:
+
+- **Vocabulary (genre neutrality).** Engine code still rolls literal skill
+  names (`stealth`/`observation` in `manipulation.py`, `lockpicking` in
+  `pick`, `persuasion`/`will` in `social.py`), so a non-fantasy game must
+  adopt fantasy words or fork the commands. Fix: a six-entry **skill role**
+  table (`flee`, `sneak`, `perceive`, `bypass_lock`, `persuade`,
+  `resist_social`) bound per system, with per-object overrides first (the
+  `db.lock_skill` precedent). Below that, a ~35-slot genre-neutral **spine**
+  skinned per genre; the 62-skill master list is now explicitly *the
+  fantasy pack*, not the model.
+- **Structure (depth).** Specializations ride the **existing `@parent`
+  chain**, not a `parent` attr — `GameObject.parent` already is REALM's
+  attribute-inheritance field, so a spec inherits `stat`/`penalty` free and
+  can shadow either. `unlocks_at` is replaced by `requires =
+  skill:level[, …]` (EVE's prerequisite graph; strictly more general).
+  Untrained specs default up the chain at a penalty. Key insight: a spec
+  tree and a Melvor per-target mastery grid are the same data structure.
+- **Progression (four models, mixable).** point-buy (shipped) / trainer
+  practice (half-shipped) / learn-by-use / EVE-style idle queue. Made
+  mixable by putting `progression` on the **skill_def**, defaulting to a
+  system-level choice — so the reference game grinds crafts, idles
+  languages, and buys combat in one config. Invariant: every model writes
+  the plain `skill_<name>` level, so `skill_level()` stays a dumb read and
+  no ruleset changes.
+
+Build order when green-lit:
+- [ ] Skill roles: role table + `GameSystem.skill_roles()` + convert the
+  five hardcoded call sites (small, backward-compatible; unblocks
+  non-fantasy packs)
+- [ ] `@parent` + `requires` on skill_def + parent-chain fallback in
+  `skill_level` + hidden-until-unlocked visibility
+- [ ] `skills` command grouped by tag, showing spec trees and lock state
+- [ ] Progression seam: `on_skill_used` **sync** hook at the end of
+  `checks.check()` (check() is sync — this cannot be an `ON_<EVENT>`),
+  `progression` attr, `default_progression`, `skill_cap`, optional
+  `progress_rule` softcode; ship the SMAUG hybrid + the missing `practice`
+  command
+- [ ] Idle training: `training_queue`/`training_since` with **lazy accrual
+  on read** (offline-correct, no new timer), prereqs via `requires`
+- [ ] Seed the fantasy pack (62 defs) as data; re-skin the spine for
+  `gurps-scifi`
+- [ ] Generic timed gather/craft action core (SWR make* shape / Melvor
+  loop) — behaviors + softcode, not engine
 
 ### FIXED 2026-08-01: COMBAT_RULESET default silently overrode every system
 
