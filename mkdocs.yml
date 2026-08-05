@@ -110,6 +110,7 @@ nav:
     - Adventure Coverage: design/adventure_coverage.md
     - Combat: design/combat.md
     - Rules Kernel (data-driven): design/rules-kernel.md
+    - Bare Kernel & Feature Packs: design/bare-kernel-and-packs.md
     - Skills Inventory & Master List: design/skills-inventory.md
     - Ephemeral Rooms (instances & wilderness): design/ephemeral-rooms.md
     - Wilderness Requirements (Stage 2): design/wilderness-requirements.md

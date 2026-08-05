@@ -184,7 +184,36 @@ WarrantStore / Enforcer / LawConfig.
 
 ## Priority 1 - Should Address Soon
 
-### Skill system: roles, specialization, progression (designed + refined 2026-08-02)
+### Bare kernel & feature packs (planned 2026-08-04)
+
+Design: `docs/design/bare-kernel-and-packs.md`. **Out of the box REALM is
+a social MU\*** — no stats, skills, stealth, `dark` tag, or combat; all of
+it arrives as feature packs (`PACKS = [...]` config). Architectural claim:
+push-shaped features (verbs, reactions, traps) are already open via
+actions/propagation/observers; pull-shaped questions (who sees whom, what
+modifies a check, how checks resolve, what's this called) need resolver
+seams — three of four exist; **visibility is the missing one**
+(`can_see` is a closed if-chain over five hardcoded tags in
+`realm/core/perception.py`). A feature pack = data (worldio) + a native
+module activated at boot via `PACKS`, registering only through public
+seams (the dogfood test). Supersedes the skill-roles kernel table (roles
+become per-pack config; only `flee` stays engine-floor). Build order:
+- [ ] `register_visibility_resolver` + reimplement the five stock tags
+  (dark/light/nightvision/invisible/hidden) as pre-registered resolvers
+  through the public seam — pure refactor, dogfood proof
+- [ ] `PACKS` config + native pack side (manifest `modules:`, boot
+  activation, entry-point discovery); split `register_all_commands` into
+  kernel-set + per-pack
+- [ ] Extract stock packs: light, stealth, locksmith (pick), adventure
+  (persuade/fasttalk/consider), combat, crime — `realm init` default-
+  enables them (tests stay green); `realm init --social` = bare kernel
+- [ ] Softcode twins for pull seams: `sight_def`/`visibility_rule` data
+  objects + softcode-subscribed global observers (wraith-world with zero
+  Python)
+- [ ] Skills roadmap (below) continues on top; fantasy-62 as data-only
+  pack
+
+### Skill system: roles, specialization, progression (designed + refined 2026-08-02; roles superseded 2026-08-04 — see bare-kernel entry above)
 
 Full reference survey (CoffeeMud, SMAUG, tbaMUD, SWR, FS3, AwakeMUD,
 GoMud, VME, SF GURPS data, plus EVE Online and Melvor Idle) synthesized in
@@ -196,9 +225,22 @@ GoMud, VME, SF GURPS data, plus EVE Online and Melvor Idle) synthesized in
   adopt fantasy words or fork the commands. Fix: a six-entry **skill role**
   table (`flee`, `sneak`, `perceive`, `bypass_lock`, `persuade`,
   `resist_social`) bound per system, with per-object overrides first (the
-  `db.lock_skill` precedent). Below that, a ~35-slot genre-neutral **spine**
+  `db.lock_skill` precedent). The rule: *the target names the skill; a
+  role is only the fallback when the target doesn't; everything else is
+  pure content.* Below that, a ~35-slot genre-neutral **spine**
   skinned per genre; the 62-skill master list is now explicitly *the
   fantasy pack*, not the model.
+- **Attempts are actions (the pick principle, added 2026-08-04).** Stock
+  skill commands are sugar over softcode-reachable primitives (`pick` =
+  target-named skill + `check()` + gated `ON_UNLOCK`; a builder can write
+  `$pick *` today). But **failure is dead air**: the fail branch messages
+  the player and propagates nothing, so failed-pick traps, third-attempt
+  alarms, overheard fumbles, and tbaMUD's wrong-way tracking are
+  unbuildable against stock commands. Fix: the gated-event helper fires
+  the action on the "no" branch too — unapplied, carrying the
+  `CheckResult` (margin distinguishes a −1 miss from a −10 fumble) — so
+  `ON_<VERB>_FAIL` hooks hear it. PennMUSH `@fail`/`@ofail`/`@afail`;
+  REALM already did this for movement (`event:on_fail` + reason).
 - **Structure (depth).** Specializations ride the **existing `@parent`
   chain**, not a `parent` attr — `GameObject.parent` already is REALM's
   attribute-inheritance field, so a spec inherits `stat`/`penalty` free and
@@ -218,6 +260,10 @@ Build order when green-lit:
 - [ ] Skill roles: role table + `GameSystem.skill_roles()` + convert the
   five hardcoded call sites (small, backward-compatible; unblocks
   non-fantasy packs)
+- [ ] Failed attempts propagate: gated-event helper fires unapplied on
+  the "no" branch with the `CheckResult` attached; `ON_<VERB>_FAIL`
+  hooks. Convert `pick` first, then sneak/search/persuade (same
+  change-site as the roles conversion — do together)
 - [ ] `@parent` + `requires` on skill_def + parent-chain fallback in
   `skill_level` + hidden-until-unlocked visibility
 - [ ] `skills` command grouped by tag, showing spec trees and lock state

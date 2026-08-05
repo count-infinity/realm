@@ -57,6 +57,15 @@ the commands. Behaviors got this right already —
 [npc.py:62](realm/behaviors/npc.py#L62) exposes `perception` as a
 **parameter** defaulting to `observation`. Commands should too.
 
+> **Superseded in part (2026-08-04):** the plan in
+> [Bare Kernel & Feature Packs](bare-kernel-and-packs.md) moves the stock
+> skill commands *out of the kernel into feature packs*, which demotes
+> the roles table below from a kernel concept to **per-pack
+> configuration** (each pack's commands read their skill from the target
+> attr → pack config → pack default). Only `flee` stays engine-floor.
+> The resolution-order rule and the "attempts are actions" principle
+> below stand unchanged — they just live in the packs now.
+
 ## Skill roles: the engine's entire skill vocabulary
 
 A **role** is an engine-facing slot; a **skill** is a game-facing name.
@@ -88,6 +97,69 @@ rolling sensors.
 
 Everything *not* in that table is content. `smithing` is not an engine
 concern; the command that uses it lives in a pack.
+
+**The rule that keeps this from being a second thing to memorize** (a
+builder never asks "does this skill tie into the kernel?"):
+
+> **The target names the skill; a role is only the fallback when the
+> target doesn't; everything else is pure content.**
+
+`db.lock_skill` on the vault beats the role binding beats the default. A
+game that never touches roles still works; roles only matter on the day a
+game wants the *stock commands'* defaults to speak its genre's vocabulary.
+A game that skips the stock commands entirely (a social MU* registering
+its own verbs) never meets the roles at all.
+
+## Attempts are actions (the pick principle)
+
+The heart of REALM is that everything is an action event and things react
+to events — and the stock skill commands must obey that model rather than
+sit beside it. `pick` is the worked example, because it is already
+*half*-converted:
+
+What [`cmd_pick`](realm/commands/builtin/manipulation.py#L185) does today:
+
+1. Reads `lock_skill` / `lock_difficulty` **off the target** — the lock
+   names its own rule; the command carries none.
+2. Rolls `check()`.
+3. On success, fires a **gated `ON_UNLOCK` action** (`picked: True`) —
+   wards can veto a picked lock, `ON_UNLOCK` softcode hears it (alarms,
+   mirrors), scripts can tell a jimmy from a key.
+
+So the kernel content of `pick` is ~zero: the command is arg parsing, a
+tool check, and messages — sugar over primitives that are all
+softcode-reachable today (`$command` fallback + `check_roll()` + tags +
+gated events). A builder could write a bespoke `$pick *` on one strange
+lock with no engine change. The builtins exist as batteries, not as the
+mechanism.
+
+**The gap: failure is dead air.** On success the world hears the action;
+on failure the player gets a message and *nothing propagates* — so a trap
+on a failed pick, an alarm after three attempts, a guard hearing the
+scrape, a fumble that jams the lock are all unbuildable against the stock
+command. PennMUSH's `@fail`/`@ofail`/`@afail` verb attributes solved this
+in 1991; REALM already conceded the point for movement (`event:on_fail`
+carries a `reason`). The fix generalizes:
+
+> **The *attempt* is the action, and both outcomes propagate.** The
+> action carries the `CheckResult` (margin included, so a −1 miss and a
+> −10 fumble are distinguishable). Success applies and fires the success
+> event; failure propagates *unapplied* so `ON_<VERB>_FAIL` hooks hear
+> it. This is not a new kernel concept — it is the existing gated-event
+> helper learning to fire on the "no" branch too.
+
+Convert `pick` first, then the same treatment for sneak, search, and
+persuade. tbaMUD's wrong-way tracking and CoffeeMud's trapped locks (both
+on the fun list) are this exact mechanism.
+
+**Three shapes, one pattern.** REALM now has three levels of canning for
+"verb → gate → check → effects": builtin command sugar, `$command`
+softcode, and [`ability_def`](realm/systems/abilities.py) (`invoke → gate
+→ propagate → apply effect-specs`). They are the same shape at different
+levels of packaging — a future `pick` could literally be an ability_def.
+Don't unify them yet; do require every *new* skill verb to follow the
+shape (skill from the target, attempt as an action, both outcomes
+propagated) instead of inventing a fourth.
 
 ## The spine: capability slots every genre has
 
@@ -596,6 +668,11 @@ overrides (`db.lock_skill`, `db.check_skill`).
 1. **Skill roles** — the six-entry role table, `GameSystem.skill_roles()`,
    and converting the five hardcoded call sites to `check_role`. Small,
    fully backward-compatible, and it unblocks non-fantasy packs.
+   1b. **Failed attempts propagate** — the gated-event helper fires the
+   action on the "no" branch too, unapplied, carrying the `CheckResult`;
+   `ON_<VERB>_FAIL` hooks hear it. Convert `pick`, then sneak / search /
+   persuade. (Same change-site as step 1: these commands are being edited
+   anyway.)
 2. **Specialization** — `@parent` on `skill_def` + `requires` prereqs +
    parent-chain fallback in `skill_level` + hidden-until-unlocked
    visibility.
