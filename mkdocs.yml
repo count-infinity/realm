@@ -131,6 +131,7 @@ nav:
     - RhostMUSH Comparison: design/rhostmush-comparison.md
     - Simplicity Review: design/simplicity_review.md
     - Original Plan (historical): design/original_plan.md
+    - Import/Export Architecture (historical): design/import-export-architecture.md
   - Showcase:
     - Overview: showcase/index.md
     - Checklist (250 builds): showcase/checklist.md

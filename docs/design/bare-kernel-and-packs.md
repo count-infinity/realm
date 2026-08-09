@@ -132,7 +132,16 @@ to the adventure set so the ~47 existing test call sites run unchanged.
    and unblocks everything else.
 2. **`PACKS` config + native pack side** — manifest `modules:`, boot-time
    activation, entry-point discovery for pip packs. Split
-   `register_all_commands` into kernel-set + per-pack registration.
+   `register_all_commands` into kernel-set + per-pack registration, with
+   an **explicit collision policy** (the useful 1% of Evennia's CmdSet,
+   minus its four-mergetype algebra): commands carry one priority int —
+   kernel 0, packs default 10 (a pack may deliberately replace a kernel
+   verb), same-priority collisions warn loudly at boot, `$command`
+   softcode remains the fallback tier. Evennia's fuller lesson stands as
+   a caution, not a model: state-via-cmdset-swap (their DarkRoom pushes a
+   DarkCmdSet from a custom room class) is the opposite of REALM's
+   the-verb-always-parses-and-the-world-answers model — dark stays a tag
+   plus a resolver, never a verb-table edit.
 3. **Extract the stock packs** — light, stealth, locksmith, adventure,
    combat, crime — each moving its commands, observers, resolvers, tags,
    and help topics out of kernel modules. `realm init` default-enables

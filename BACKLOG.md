@@ -203,7 +203,10 @@ become per-pack config; only `flee` stays engine-floor). Build order:
   through the public seam — pure refactor, dogfood proof
 - [ ] `PACKS` config + native pack side (manifest `modules:`, boot
   activation, entry-point discovery); split `register_all_commands` into
-  kernel-set + per-pack
+  kernel-set + per-pack, with an explicit command collision policy
+  (single priority int: kernel 0, packs 10, same-priority collision
+  warns at boot; `$command` softcode stays the fallback tier — the
+  useful slice of Evennia's CmdSet without its merge algebra)
 - [ ] Extract stock packs: light, stealth, locksmith (pick), adventure
   (persuade/fasttalk/consider), combat, crime — `realm init` default-
   enables them (tests stay green); `realm init --social` = bare kernel

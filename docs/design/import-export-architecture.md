@@ -1,4 +1,11 @@
-# Architecture Decision: Import/Export System for REALM
+# Architecture Decision: Import/Export System (historical)
+
+> **Status: shipped.** This pre-implementation analysis produced what is
+> now `realm/persistence/worldio.py` (export/import with fresh ids and
+> ref remapping) and the content-pack system (`realm/packs/`). Kept for
+> the reference-codebase analysis; for current behavior see
+> [Content Packs](../guides/content-packs.md) and
+> [Bare Kernel & Feature Packs](bare-kernel-and-packs.md).
 
 ## Context
 
