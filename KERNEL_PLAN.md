@@ -234,12 +234,12 @@ fixed in step 3.
 `'gurps'` is missing, so a game that registers its own `gurps` first loses
 `d20` and `merc`. `register` silently replaces.
 
-- [ ] Replace the `'gurps' not in` test with a `_builtins_loaded` class flag.
+- [x] Replace the `'gurps' not in` test with a `_builtins_loaded` class flag.
       Keep `setdefault` per name so an earlier registration by a game wins.
-- [ ] `RulesetRegistry.register(name, cls, *, replace=False)` raises
+- [x] `RulesetRegistry.register(name, cls, *, replace=False)` raises
       `ValueError` when the name is taken by a different class and `replace`
       is false.
-- [ ] Tests for both.
+- [x] Tests for both.
 
 ### 1.7 Missing behaviors and unknown entitlements are reported
 

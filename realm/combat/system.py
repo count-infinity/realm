@@ -86,10 +86,23 @@ class RulesetRegistry:
     behavior and game-system registries."""
 
     _rulesets: dict[str, type] = {}
+    _builtins_loaded: bool = False
 
     @classmethod
-    def register(cls, name: str, ruleset_class: type) -> None:
-        cls._rulesets[name.lower()] = ruleset_class
+    def register(cls, name: str, ruleset_class: type, *,
+                 replace: bool = False) -> None:
+        """Register ``ruleset_class`` under ``name`` (case-insensitive).
+        Raises ValueError when the name is taken by a different class,
+        unless ``replace`` is true. Registering a built-in name (``gurps``)
+        before the built-ins load overrides that built-in only."""
+        key = name.lower()
+        current = cls._rulesets.get(key)
+        if current is not None and current is not ruleset_class and not replace:
+            raise ValueError(
+                f"Ruleset {key!r} is already registered to "
+                f"{current.__module__}.{current.__qualname__}. Pick another "
+                f"name, or pass replace=True to override it.")
+        cls._rulesets[key] = ruleset_class
 
     @classmethod
     def get(cls, name: str) -> type | None:
@@ -103,7 +116,9 @@ class RulesetRegistry:
 
     @classmethod
     def _ensure_builtins(cls) -> None:
-        if 'gurps' not in cls._rulesets:
+        """Load the shipped rulesets once. ``setdefault`` keeps a game's
+        earlier registration of the same name."""
+        if not cls._builtins_loaded:
             from realm.combat.rulesets.d20 import D20Ruleset
             from realm.combat.rulesets.gurps import GURPSRuleset
             from realm.combat.rulesets.merc import MercRuleset
@@ -113,6 +128,7 @@ class RulesetRegistry:
             cls._rulesets.setdefault('3d6', GURPSRuleset)
             cls._rulesets.setdefault('merc', MercRuleset)
             cls._rulesets.setdefault('diku', MercRuleset)
+            cls._builtins_loaded = True
 
 
 def find_wielded(obj) -> Any | None:

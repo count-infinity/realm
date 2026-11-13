@@ -269,6 +269,12 @@ That's the whole hookup for skills, chargen, advancement, and currency. The
 ruleset_name = "percentile"` tells the engine to use it. Keep the two names in
 sync and you're done.
 
+A ruleset name can be registered once. Registering a name that already
+belongs to a different class raises `ValueError`. To replace a shipped
+ruleset deliberately, pass `replace=True`
+(`RulesetRegistry.register("gurps", MyGurps, replace=True)`); the other
+shipped rulesets (`d20`, `merc`, …) stay available.
+
 **Skills as data (optional but recommended).** `resolve_check` reads the
 governing characteristic from `skill_defaults()`, but the per-character
 percentages are just `db.skill_<name>` attributes, and the *skill list itself*
