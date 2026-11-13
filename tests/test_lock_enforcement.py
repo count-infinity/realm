@@ -318,18 +318,29 @@ class TestLockCommand:
         assert "basic" not in self.thing.locks
         assert any("Invalid lock expression" in m for m in ctx.session.messages)
 
-    async def test_unknown_lock_type_rejected(self):
+    async def _lock(self, lock_type):
         from realm.commands.olc.modify import cmd_lock
-        ctx = self._builder_ctx(
-            args="box = True",
-            left_args="box",
-            right_args="True",
-        )
-        ctx.switches = ["frobnicate"]
+        ctx = self._builder_ctx(args="box = True", left_args="box", right_args="True")
+        ctx.switches = [lock_type]
         await cmd_lock(ctx)
+        return ctx.session.messages
 
+    async def test_a_games_own_lock_type_is_accepted_silently(self):
+        """Lock types are open (KERNEL_PLAN 6.3): ``frobnicate`` is a game's
+        own lock, set like any other."""
+        messages = await self._lock("frobnicate")
+        assert self.thing.locks == {"frobnicate": "True"}
+        assert not any("Did you mean" in m for m in messages)
+
+    async def test_a_near_miss_is_set_with_a_warning(self):
+        messages = await self._lock("baisc")
+        assert self.thing.locks == {"baisc": "True"}
+        assert any("Did you mean 'basic'" in m for m in messages)
+
+    async def test_a_malformed_name_is_refused(self):
+        messages = await self._lock("Bad-Type")
         assert self.thing.locks == {}
-        assert any("Unknown lock type" in m for m in ctx.session.messages)
+        assert any("not a lock type name" in m for m in messages)
 
     async def test_lock_set_then_enforced_end_to_end(self):
         """A lock set via @lock actually stops the action."""

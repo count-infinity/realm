@@ -9,7 +9,6 @@ Provides:
 """
 
 from realm.permissions.entitlements import (
-    ALL_ENTITLEMENTS,
     is_entitlement,
     reload_role_defs,
 )
@@ -43,7 +42,6 @@ __all__ = [
     "has_entitlement",
     "has_entitlement_delegated",
     "is_entitlement",
-    "ALL_ENTITLEMENTS",
     "reload_role_defs",
     # Locks
     "Lock",

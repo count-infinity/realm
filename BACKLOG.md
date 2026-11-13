@@ -642,13 +642,18 @@ Full-codebase review (3 subsystem passes). The structural tier was fixed the
 same day (see Completed); these remain, roughly by impact:
 
 - [ ] **Scripting follow-ups** (engine wired 2026-07-02; actuators +
-  builder loop 2026-07-04, see Completed): the global Master Room is still
-  unimplemented in `get_search_objects` (docs/design/original_plan.md
-  search order step 5; zone masters — step 4 — shipped, see Completed);
-  scripts can emit communication commands plus
-  `move`/`trigger` — `get`/`drop`/`open` and full dispatcher access
-  (`@force`) remain; listen triggers hear `extra["message"]` actions
-  (say/shout/ooc/emit) but not poses.
+  builder loop 2026-07-04, see Completed): ~~the global Master Room~~ DONE
+  2026-11-13 (`global_commands` tag, KERNEL_PLAN 6.7); ~~`get`/`drop`/`open`
+  from scripts~~ DONE (script verbs, KERNEL_PLAN 6.1). Remaining: listen
+  triggers hear `extra["message"]` actions (say/shout/ooc/emit) but not
+  poses.
+- [ ] **Script lines through the full command dispatcher** (engine design,
+  filed 2026-11-13, out of scope for KERNEL_PLAN 6.1): a script line can only
+  be a registered *script verb*, not any player command. Opening the
+  dispatcher to scripts needs a permission model for a scripted object
+  running builder/admin commands (whose tier? the owner's? never above it?)
+  and a decision about output capture. `@force` already runs real commands
+  as a controlled object, through its own permissions.
 - [x] ~~**Spacegame content:** the doctor's `$help` softcode is shadowed~~
   VERIFIED STALE 2026-07-31: the trigger was renamed — station.json now
   uses `$treatment`/`$heal`; no `$help` trigger exists anywhere.
@@ -2202,7 +2207,10 @@ named tutorials, so none of these block showcase progress.
 - [ ] **Simulator doesn't wire the `prompt()` seam** (`engine.session_manager` /
   `player._session`) — tests using `prompt()` re-wire it by hand; a Simulator
   convenience would help test authors. (`tests/showcase/test_heist.py`)
-- [ ] **Master Room** for global `$`-commands is a live TODO
+- [x] ~~**Master Room** for global `$`-commands is a live TODO~~ DONE
+  2026-11-13 (KERNEL_PLAN 6.7): objects tagged `global_commands` (an
+  admin-only protected tag) are searched last by `get_search_objects`, so
+  their `$`-commands work from every room and a room's own command wins.
   (`get_search_objects`) — ~10 showcase items use the `zone:world` master
   workaround meanwhile. (`docs/showcase/capability_audit.md`)
 - [x] ~~**`apply_effect` silently stacks same-kind effects — design

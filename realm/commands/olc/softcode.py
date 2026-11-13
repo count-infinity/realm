@@ -50,10 +50,10 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         @behavior/remove guard = wandering
     """
     if ctx.switches and ctx.switches[0].lower() == 'list':
-        from realm.behaviors.scripted import list_behavior_defs
         ids = sorted(BehaviorRegistry.list_all())
         lines = ["Registered behaviors: " + ", ".join(ids)]
-        defs = list_behavior_defs()
+        from realm.core.defs import all_defs
+        defs = sorted(o.name for o in all_defs("behavior").values())
         if defs:
             lines.append("World behavior defs: " + ", ".join(defs))
         await ctx.session.send("\n".join(lines))

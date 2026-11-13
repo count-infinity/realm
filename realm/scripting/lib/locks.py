@@ -22,9 +22,10 @@ def has_entitlement(frame, obj: GameObject | str | None,
 
     The capability layer under roles: instead of asking "is this an
     admin?", ask what you actually mean. Built-in roles grant the classic
-    sets; a game's own `role_def` ranks may grant them too.
+    sets; a game's own `role_def` ranks may grant them too, including names
+    the game invents for its own checks.
 
-    Example: has_entitlement(enactor, 'SEE_ALL')
+    Example: has_entitlement(enactor, 'SEE_ALL') or has_entitlement(enactor, 'SMUGGLE')
     """
     from realm.permissions.roles import has_entitlement
     target = frame.resolve(obj)

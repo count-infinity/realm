@@ -219,9 +219,25 @@ def may_change_role_tag(actor: GameObject | None, tag: str) -> bool:
     """
     conferred = ROLE_TAGS.get(tag.lower())
     if conferred is None:
-        return True
+        required = _PROTECTED_TAGS.get(tag.lower())
+        return required is None or get_role(actor) >= required
     actor_role = get_role(actor)
     return actor_role >= Role.GOD or actor_role > conferred
+
+
+#: Ordinary tags that still change what the world does, so only a given tier
+#: may add or remove them (``global_commands`` puts an object's $-commands in
+#: every room). See :func:`register_protected_tag`.
+_PROTECTED_TAGS: dict[str, Role] = {}
+
+
+def register_protected_tag(tag: str, required_tier: Role) -> None:
+    """Only actors at ``required_tier`` or above may add or remove ``tag``
+    (checked by the tag ops through :func:`may_change_role_tag`)."""
+    _PROTECTED_TAGS[tag.lower()] = required_tier
+
+
+register_protected_tag("global_commands", Role.ADMIN)
 
 
 def has_permission(actor: GameObject | None, permission: str) -> bool:

@@ -197,58 +197,13 @@ class EventTrigger:
     event_type: str  # ENTER, LEAVE, LOOK, GET, DROP, etc.
     action: str
 
+
 # Mapping of event types to attribute prefix
 EVENT_ATTR_PREFIX = 'ON_'
 
-# The lifecycle events the engine fires, keyed by the ``ON_<name>`` a witness
-# reacts with, with a one-line description. DOCUMENTARY — matching is by
-# suffix, so an ``ON_<anything>`` attribute works if some code (or ``act()``)
-# fires an ``…:<name>`` action. This is the single source of truth: the
-# softcode reference (`scripts/gen_softcode_docs.py`) renders it, so a new
-# hook self-documents. Kept grouped, in sync with the real fire sites.
-STANDARD_EVENTS = {
-    # Movement / location
-    'ENTER':      "something enters this location",
-    'LEAVE':      "something leaves this location",
-    'ARRIVE':     "this object arrives somewhere new",
-    'FAIL':       "a move was thwarted (dead-end/locked exit) — @afail",
-    # Perception / interaction
-    'LOOK':       "this object is looked at",
-    'USE':        "this object is used",
-    'PUSH':       "this object is pushed (button, lever)",
-    # Item lifecycle
-    'GET':        "this object is picked up",
-    'DROP':       "this object is dropped",
-    'GIVE':       "this object is given away",
-    'RECEIVE':    "this object is given something (recipient side)",
-    'PUT':        "this object is put in a container",
-    'WEAR':       "this object is worn",
-    'REMOVE':     "this object is taken off (gated: cursed gear can refuse)",
-    'WIELD':      "this weapon is readied (gated)",
-    'UNWIELD':    "this weapon is lowered (gated)",
-    'OPEN':       "this door/container is opened",
-    'CLOSE':      "this door/container is closed",
-    'LOCK':       "this is locked (gated)",
-    'UNLOCK':     "this is unlocked (gated: a sealed door can refuse)",
-    # Combat
-    'ATTACK':     "this object attacks or is attacked",
-    'DAMAGE':     "this object takes damage",
-    'HITPRCNT':   "HP fell through this object's db.hitprcnt threshold",
-    'DEATH':      ("this object goes down — any cause (a swing, poison, a "
-                   "trap, softcode damage). `adata('fatal')` is True for a "
-                   "real death (an NPC, now a corpse), False for a player "
-                   "knocked unconscious in place"),
-    'CAST':       "an ability is directed at this object (resist via on_check)",
-    # Existence
-    'LOAD':       "this object was just spawned",
-    'EXPIRE':     "this object's db.expires_at elapsed (then it's destroyed)",
-    'RESET':      "this zone master resets (empty + due) — repop, re-lock doors",
-    'TICK':       "periodic timer (on_tick behavior)",
-    # Session
-    'CONNECT':    "player connects",
-    'DISCONNECT': "player disconnects",
-    'PAYMENT':    "this object was paid",
-}
+#: Objects with this tag offer their $-commands in every room (searched
+#: last). Only admins may add it (permissions.roles.register_protected_tag).
+GLOBAL_COMMANDS_TAG = "global_commands"
 
 
 class TriggerManager:
@@ -447,12 +402,13 @@ def get_search_objects(player: GameObject) -> list[GameObject]:
     """
     Get the standard list of objects to search for triggers.
 
-    Search order (from plan.md):
+    Search order (nearest first, so a local command shadows a global one):
     1. Contents of current room
     2. The room itself
     3. Player's inventory
-    4. Zone objects (tagged with matching zone)
-    5. Global command room (Master Room) - TODO
+    4. Zone masters sharing a zone with the room
+    5. Objects tagged ``global_commands`` (admin-only tag): their
+       $-commands work from every room
 
     Args:
         player: The player who typed the command
@@ -488,7 +444,12 @@ def get_search_objects(player: GameObject) -> list[GameObject]:
         for master in zone_masters(player.location):
             add_if_new(master)
 
-    # 5. Global command room - TODO: implement Master Room
+    # 5. Global commands: the tag index makes this lookup cheap.
+    from realm.persistence.manager import get_active_manager
+    store = get_active_manager()
+    if store is not None:
+        for obj in store.find_cached(tag=GLOBAL_COMMANDS_TAG):
+            add_if_new(obj)
 
     return search_list
 
@@ -517,15 +478,37 @@ def script_code_of(attr_name: str, value: object) -> str | None:
     return None
 
 
+def unknown_verb(code: str) -> str | None:
+    """When ``code`` is one line that reads like a script command
+    (``get key``) but names no installed verb and is not valid Python, the
+    message saying so; else None."""
+    import re
+
+    from realm.core.safe_eval import validate_code
+    from realm.scripting.verbs import installed
+    line = code.strip()
+    if '\n' in line or not re.match(r"^[@A-Za-z_][\w@]*\s", line):
+        return None
+    verbs = installed()
+    if verbs.match(line) is not None or not validate_code(line):
+        return None
+    word = line.split(None, 1)[0]
+    return (f"'{word}' is not a script verb in this world "
+            f"(known: {', '.join(verbs.names())})")
+
+
 def validate_script(code: str) -> list[str]:
     """Problems that would stop ``code`` from running, or ``[]``.
 
-    A one-line game command (``say hi``, ``pose waves``, ``trigger me/x``)
-    runs as a command, not Python, so it is valid as written. Anything else
-    is checked as sandboxed Python.
+    A one-line script command (``say hi``, ``pose waves``, ``trigger me/x``)
+    whose verb is installed is valid as written. A line that reads like a
+    command but names no installed verb (``get key`` in a world without the
+    ``items`` feature) is reported by name. Anything else is checked as
+    sandboxed Python.
     """
     from realm.core.safe_eval import validate_code
-    from realm.scripting.sandbox import SimpleScriptRunner
-    if SimpleScriptRunner.is_simple_script(code):
+    from realm.scripting.verbs import installed
+    if installed().is_command_line(code):
         return []
-    return validate_code(code)
+    missing = unknown_verb(code)
+    return [missing] if missing else validate_code(code)

@@ -26,6 +26,7 @@ from realm.commands.builtin.combat import (
     cmd_rolls,
     cmd_wimpy,
 )
+from realm.core.action_types import ActionType
 from realm.features import Feature
 
 feature = Feature(
@@ -176,3 +177,24 @@ async def _start(engine, frame, obj, target) -> None:
 
 feature.queue_kind("death_check", _death_check)
 feature.queue_kind("combat", _start)
+
+
+# --- events -------------------------------------------------------------------
+
+
+feature.event(ActionType.ON_ATTACK, hook="ATTACK", doc="this object attacks or is attacked",
+              payload={"weapon": "the weapon used", "attacker_hp": "the attacker's HP",
+                       "defender_hp": "the defender's HP"})
+feature.event(ActionType.ON_DAMAGE, hook="DAMAGE", doc="this object takes damage",
+              payload={"damage": "the amount (a ward may lower it)",
+                       "damage_types": "amount per damage type"})
+feature.event(ActionType.ON_DEATH, hook="DEATH",
+              doc=("this object goes down — any cause (a swing, poison, a trap, softcode "
+                   "damage). `adata('fatal')` is True for a real death (an NPC, now a "
+                   "corpse), False for a player knocked unconscious in place"),
+              payload={"killer": "the killer's name (the killer object is actor)",
+                       "fatal": "True for a real death"})
+feature.event(ActionType.ON_HITPRCNT, hook="HITPRCNT",
+              doc="HP fell through this object's db.hitprcnt threshold",
+              payload={"percent": "HP percent now", "threshold": "the crossed threshold"})
+feature.event(ActionType.NARRATE, doc="combat narration")

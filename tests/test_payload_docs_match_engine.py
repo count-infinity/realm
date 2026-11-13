@@ -1,14 +1,15 @@
-"""The documented payload table must match what the engine actually sends.
+"""Declared event payloads must match what the engine actually sends.
 
 `docs/reference/softcode.md` tells builders which keys `adata()` will
-answer for each action type. It was hand-written and it was wrong twice:
-it claimed `item:on_get` carried `item` (it carries nothing — the item is
-`target`), that `item:on_give` carried `giver` (that only exists on
-`event:on_receive`), and it filed `on_hitprcnt` under the wrong domain.
-A builder following a wrong row gets `None` and no explanation.
+answer for each action type. It used to be hand-written and was wrong
+twice: it claimed `item:on_get` carried `item` (it carries nothing — the
+item is `target`), that `item:on_give` carried `giver` (that only exists
+on `event:on_receive`), and it filed `on_hitprcnt` under the wrong domain.
 
-So: derive the truth from source and assert the doc agrees. A claimed key
-that the engine never sends is a lie in the reference; this test finds it.
+Now the table is generated from each event's declaration
+(`EventDef.payload`, KERNEL_PLAN 6.2), so it cannot drift from the
+declarations; this test keeps the declarations honest by deriving the
+truth from source.
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ from __future__ import annotations
 import ast
 import glob
 import pathlib
-import re
 
 from realm.core.action_types import ActionType
 
@@ -73,47 +73,38 @@ def engine_payloads() -> dict[str, set[str]]:
     return found
 
 
-def documented_payloads() -> dict[str, set[str]]:
-    """Rows of the doc's payload table: `| `type` / `type` | `a`, `b` |`."""
-    body = DOC.read_text()
-    section = re.search(r"Payloads carried today.*?(?=\n#{2,3} |\n```)", body, re.S)
-    assert section, "payload table not found in the softcode reference"
-    out: dict[str, set[str]] = {}
-    for line in section.group(0).splitlines():
-        if not line.startswith("|") or line.startswith("|---"):
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) != 2 or cells[0].lower().startswith("action"):
-            continue
-        types = re.findall(r"`([a-z_]+:[a-z_]+)`", cells[0])
-        # Bare continuations like `/ `shout`` inherit the row's domain.
-        domain = types[0].split(":")[0] if types else None
-        for frag in re.findall(r"`([a-z_]+)`", cells[0]):
-            if ":" not in frag and domain and f"{domain}:{frag}" not in types:
-                types.append(f"{domain}:{frag}")
-        if "none" in cells[1].lower() or "*(" in cells[1]:
-            keys: set[str] = set()
-        else:
-            keys = set(re.findall(r"`([a-z_]+)`", cells[1]))
-        for t in types:
-            out.setdefault(t, set()).update(keys)
-    assert out, "parsed no rows from the payload table"
-    return out
+def declared_payloads() -> dict[str, set[str]]:
+    """Every installed EventDef's payload keys (the CLASSIC set)."""
+    from realm.core.eventdefs import installed
+    return {ev.action_type: set(ev.payload) for ev in installed().events()}
 
 
-def test_documented_keys_are_really_sent():
-    """No row may promise a key the engine never puts in `extra`."""
+IMPLICIT = {"tool", "target", "actor"}
+
+
+def test_declared_keys_are_really_sent():
+    """No declaration may promise a key the engine never puts in `extra`."""
     engine = engine_payloads()
     lies = []
-    for atype, claimed in documented_payloads().items():
-        if atype not in engine:
-            continue          # doc may group/alias; absence isn't a lie
-        invented = claimed - engine[atype] - {"tool", "target", "actor"}
+    for atype, claimed in declared_payloads().items():
+        invented = claimed - engine.get(atype, set()) - IMPLICIT
         if invented:
-            lies.append(f"{atype}: doc promises {sorted(invented)}, "
-                        f"engine sends {sorted(engine[atype]) or '(nothing)'}")
-    assert not lies, "reference doc promises payloads the engine never sends:\n" \
+            lies.append(f"{atype}: declares {sorted(invented)}, engine sends "
+                        f"{sorted(engine.get(atype, set())) or '(nothing)'}")
+    assert not lies, "events declare payloads the engine never sends:\n" \
                      + "\n".join("  " + line for line in lies)
+
+
+def test_every_sent_key_is_declared():
+    """A key the engine sends but no declaration lists is invisible in the
+    reference. Declare it (feature.event(..., payload=...))."""
+    declared = declared_payloads()
+    missing = []
+    for atype, keys in engine_payloads().items():
+        undeclared = keys - declared.get(atype, set())
+        if undeclared:
+            missing.append(f"{atype}: engine sends {sorted(undeclared)}")
+    assert not missing, "undeclared payload keys:\n" + "\n".join("  " + m for m in missing)
 
 
 def test_the_two_rows_that_were_wrong_stay_right():

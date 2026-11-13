@@ -378,7 +378,7 @@ async def cmd_lock(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @lock[/<type>] <object> = <expression>")
         return
 
-    lock_type = ctx.switches[0].lower() if ctx.switches else LockType.BASIC.value
+    lock_type = ctx.switches[0].lower() if ctx.switches else LockType.BASIC
     target_name = ctx.left_args.strip()
     lock_expr = ctx.right_args if ctx.right_args else ""
 

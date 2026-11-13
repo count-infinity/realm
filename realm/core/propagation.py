@@ -27,19 +27,17 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
-from realm.core.action_types import ActionType
-
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 logger = logging.getLogger(__name__)
 
-#: Action types whose `{actor}` is a *voice* — subject to `db.voice_as`
-#: (a voice-only disguise). Look/room-list name resolution is unaffected.
-_SPEECH_ACTIONS = frozenset({
-    ActionType.SPEECH, ActionType.EMOTE, ActionType.WHISPER, ActionType.SHOUT,
-    ActionType.OOC, ActionType.SEMIPOSE,
-})
+def _is_speech(action_type: str) -> bool:
+    """Is ``{actor}`` a voice for this action type (subject to
+    ``db.voice_as``)? Declared per event (``EventDef.speech``)."""
+    from realm.core.eventdefs import installed
+    event = installed().get(action_type)
+    return event is not None and event.speech
 
 
 #: Transforms applied to a spoken body on its way to ONE listener, in
@@ -96,8 +94,8 @@ class Action:
     """
     A single event flowing through the propagation chain.
 
-    ``action_type`` is a hierarchical string like ``event:on_enter``,
-    ``skill:lockpick``, ``combat:on_hit``, ``item:on_get``. The prefix is the
+    ``action_type`` is a hierarchical string like ``event:on_enter`` or a
+    feature's own ``heist:on_crack``. The prefix is the
     domain; the suffix names the specific action. Behaviors filter on either
     the full string or the domain.
 
@@ -211,7 +209,7 @@ class Action:
         # attribution; only other listeners get the alias.
         voice_as = None
         if (self.actor is not None and looker is not self.actor
-                and self.action_type in _SPEECH_ACTIONS):
+                and _is_speech(self.action_type)):
             voice_as = self.actor.db.get('voice_as')
 
         result = msg
@@ -666,71 +664,100 @@ def _delivery_room(action: Action) -> GameObject | None:
     return None
 
 
+# --- Audiences ------------------------------------------------------------------
+# An audience names who receives a queued message (``action.add_message``).
+# A resolver turns an action into its recipients. The four built-ins are
+# registered below; a feature adds more with ``feature.audience(name)``.
+
+AudienceResolver = Callable[[Action], Iterable["GameObject"]]
+
+
+def _actor_audience(action: Action) -> Iterable[GameObject]:
+    return [action.actor] if action.actor is not None else []
+
+
+def _target_audience(action: Action) -> Iterable[GameObject]:
+    target = action.target
+    return [target] if target is not None and target is not action.actor else []
+
+
+def _room_audience(action: Action) -> Iterable[GameObject]:
+    """Everyone in the delivery room except the actor and the target."""
+    room = _delivery_room(action)
+    if room is None:
+        return []
+    return [o for o in room.contents if o is not action.actor and o is not action.target]
+
+
+def _remote_audience(action: Action) -> Iterable[GameObject]:
+    """The occupants of the far room(s) of a multiroom action, from
+    ``extra['remote_rooms']`` (a list) or ``extra['remote_room']`` (one)."""
+    rooms = action.extra.get("remote_rooms")
+    if rooms is None:
+        one = action.extra.get("remote_room")
+        rooms = [one] if one is not None else []
+    out: list[GameObject] = []
+    for room in rooms:
+        out.extend(o for o in list(getattr(room, "contents", ())) if o is not action.actor)
+    return out
+
+
+def _builtin_audiences() -> dict[str, AudienceResolver]:
+    return {"actor": _actor_audience, "target": _target_audience,
+            "room": _room_audience, "remote": _remote_audience}
+
+
+_AUDIENCES: dict[str, AudienceResolver] = _builtin_audiences()
+_warned_audiences: set[tuple[str, str]] = set()
+
+
+def register_audience(name: str, resolver: AudienceResolver) -> None:
+    """Register an audience: ``resolver(action)`` returns its recipients."""
+    _AUDIENCES[str(name)] = resolver
+
+
+def install_audiences(declared: dict[str, AudienceResolver]) -> None:
+    """The built-ins plus ``declared`` (``FeatureSet.install_registries``)."""
+    _AUDIENCES.clear()
+    _AUDIENCES.update(_builtin_audiences())
+    _AUDIENCES.update(declared)
+
+
 def deliver_messages(action: Action) -> None:
     """
     Deliver an action's accumulated messages to their audiences.
 
-    - 'actor' messages go to ``action.actor.msg(...)``
-    - 'target' messages go to ``action.target.msg(...)`` (skipped if target is actor)
-    - 'room' messages go to everyone else in the delivery room
+    Each audience with queued messages asks its registered resolver for the
+    recipients (built-ins: 'actor', 'target' when it is not the actor,
+    'room' for everyone else in the delivery room, 'remote' for the far
+    rooms of a multiroom action). Every message is formatted **per
+    recipient** via ``action.format_message(msg, looker=recipient)``, so
+    perception and identity apply.
 
-    Every message is formatted **per recipient** via
-    ``action.format_message(msg, looker=recipient)``, so perception rules
-    apply: a bystander who can't see the actor reads "Someone picks up an
-    apple." while an admin in the same room reads "Alice picks up an
-    apple." Recipients without a message handler (unlinked NPCs, items)
-    are skipped before formatting.
-
-    Audiences other than 'actor' / 'target' / 'room' are ignored here — they
-    can still be inspected on ``action.messages`` by any caller that wants
-    custom delivery (NPC AI, channel routing, GMCP packages, etc.).
+    A message queued for an audience nobody registered logs one WARNING per
+    (audience, action type) and is not delivered.
     """
-    actor = action.actor
-    target = action.target
-
-    def audience_messages(audience: str) -> list[str]:
+    names = list(dict.fromkeys([*action.success_messages, *action.messages]))
+    for name in names:
         msgs: list[str] = []
         if not action.blocked:
-            msgs.extend(action.success_messages.get(audience, ()))
-        msgs.extend(action.messages.get(audience, ()))
-        return msgs
-
-    if actor is not None:
-        for msg in audience_messages("actor"):
-            actor.msg(action.format_message(msg, looker=actor))
-
-    if target is not None and target is not actor:
-        for msg in audience_messages("target"):
-            target.msg(action.format_message(msg, looker=target))
-
-    room = _delivery_room(action)
-    if room is not None:
-        room_msgs = audience_messages("room")
-        if room_msgs:
-            # Every non-participant gets the message (matching the old
-            # msg_contents semantics — subclasses may override .msg() for
-            # listen-style reactions even without a session handler).
-            for recipient in room.contents:
-                if recipient is actor or recipient is target:
-                    continue
-                for msg in room_msgs:
-                    recipient.msg(action.format_message(msg, looker=recipient))
-
-    # 'remote' messages go to the occupants of a far room (multiroom
-    # actions — scry, zone alarm). The room(s) come from extra['remote_rooms']
-    # (a list) or extra['remote_room'] (one).
-    remote_rooms = action.extra.get("remote_rooms")
-    if remote_rooms is None:
-        one = action.extra.get("remote_room")
-        remote_rooms = [one] if one is not None else []
-    if remote_rooms:
-        remote_msgs = audience_messages("remote")
-        for remote_room in remote_rooms:
-            for recipient in list(getattr(remote_room, "contents", ())):
-                if recipient is actor:
-                    continue
-                for msg in remote_msgs:
-                    recipient.msg(action.format_message(msg, looker=recipient))
+            msgs.extend(action.success_messages.get(name, ()))
+        msgs.extend(action.messages.get(name, ()))
+        if not msgs:
+            continue
+        resolver = _AUDIENCES.get(name)
+        if resolver is None:
+            key = (name, action.action_type)
+            if key not in _warned_audiences:
+                _warned_audiences.add(key)
+                logger.warning(
+                    f"{action.action_type}: messages queued for audience {name!r}, which "
+                    f"no feature registers; not delivered. Declare it with "
+                    f"feature.audience({name!r}) or use actor/target/room/remote.")
+            continue
+        for recipient in resolver(action):
+            for msg in msgs:
+                recipient.msg(action.format_message(msg, looker=recipient))
 
 
 __all__ = [
@@ -749,4 +776,6 @@ __all__ = [
     "propagate",
     "gate_action",
     "deliver_messages",
+    "register_audience",
+    "install_audiences",
 ]

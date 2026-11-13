@@ -86,7 +86,8 @@ class TestDefaultEqualsToday:
     def test_classic_matches_the_frozen_state(self):
         sim = Simulator()
         try:
-            assert sorted(sim.dispatcher._commands) == COMMANDS
+            # Step 6 added @events after the freeze.
+            assert sorted(set(sim.dispatcher._commands) - {"@events"}) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze.
             assert sorted(names - {"clone_obj", "set_name", "set_desc"}) == SOFTCODE_NAMES
@@ -137,6 +138,19 @@ class TestSubtract:
     def test_left_out_behaviors_are_unregistered(self, social):
         assert BehaviorRegistry.get("aggressive") is None
         assert BehaviorRegistry.get("script_ticker") is not None   # kernel
+
+    def test_left_out_items_take_their_hooks_and_verbs(self):
+        """KERNEL_PLAN 6: without items, ON_GET is not a known hook and
+        `get` is not a script verb."""
+        from realm.core.eventdefs import installed as installed_events
+        from realm.scripting.verbs import installed as installed_verbs
+        sim = Simulator(features=["basics", "talk", "movement", "look", "building"])
+        try:
+            assert "GET" not in installed_events().hooks()
+            assert installed_verbs().match("get key") is None
+            assert installed_verbs().match("say hi") is not None
+        finally:
+            sim.close()
 
     def test_closing_restores_every_builtin(self, social):
         social.close()

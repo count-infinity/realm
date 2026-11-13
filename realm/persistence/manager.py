@@ -18,6 +18,10 @@ from typing import TYPE_CHECKING, Any
 
 import aiosqlite
 
+from realm.core.defs import touched
+from realm.core.objects import add_tag_listener
+from realm.persistence.tagindex import TagIndex
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -105,6 +109,8 @@ class PersistenceManager:
         # never touch it, so the hot creation path is unchanged.
         from realm.persistence.keyid import KeyidIndex
         self._keyids = KeyidIndex(self.get_cached)
+        self._tags = TagIndex()
+        add_tag_listener(self)
         self._running = False
         # obj_id -> the location_id its row named but the cache couldn't
         # resolve at load (an ephemeral room that was never persisted, or
@@ -216,13 +222,29 @@ class PersistenceManager:
 
     def register(self, obj: GameObject) -> None:
         """Register an object in the cache for deferred saving."""
-        self._object_cache[obj.id] = obj
-        self._keyids.index(obj)
+        self._enter(obj)
 
     def unregister(self, obj: GameObject) -> None:
         """Remove an object from the cache."""
         self._keyids.release(obj)
-        self._object_cache.pop(obj.id, None)
+        if self._object_cache.pop(obj.id, None) is not None:
+            self._tags.remove(obj)
+            touched(obj)
+
+    def _enter(self, obj: GameObject) -> None:
+        """Put ``obj`` in the live cache and its indexes."""
+        old = self._object_cache.get(obj.id)
+        if old is not None:
+            self._tags.remove(old)
+        self._object_cache[obj.id] = obj
+        self._keyids.index(obj)
+        self._tags.add(obj)
+        touched(obj)
+
+    def on_tag(self, obj: GameObject, tag: str, added: bool) -> None:
+        """An object changed a tag in memory; keep the index current."""
+        if obj.id in self._object_cache:
+            self._tags.retag(obj, tag, added)
 
     # --- Friendly keyid handles (see realm/persistence/keyid.py) ---
 
@@ -254,14 +276,14 @@ class PersistenceManager:
         room" style queries, replacing direct iteration of the cache.
         """
         name_lower = name.lower() if name is not None else None
-        results = []
-        for obj in self._object_cache.values():
-            if tag is not None and not obj.has_tag(tag):
-                continue
-            if name_lower is not None and obj.name.lower() != name_lower:
-                continue
-            results.append(obj)
-        return results
+        if tag is not None:
+            cache = self._object_cache
+            candidates = [cache[i] for i in self._tags.ids(tag) if i in cache]
+        else:
+            candidates = list(self._object_cache.values())
+        return [obj for obj in candidates
+                if (tag is None or obj.has_tag(tag))
+                and (name_lower is None or obj.name.lower() == name_lower)]
 
     async def save(self, obj: GameObject) -> None:
         """Save an object immediately."""
@@ -293,8 +315,7 @@ class PersistenceManager:
                 data = dict(row)
                 obj = self._row_to_object(data)
                 if obj:
-                    self._object_cache[obj.id] = obj
-                    self._keyids.index(obj)
+                    self._enter(obj)
                     objects.append(obj)
                     refs[obj.id] = (data.get('location_id'),
                                     data.get('parent_id'),
@@ -397,8 +418,7 @@ class PersistenceManager:
 
             obj = self._row_to_object(dict(row))
             if obj:
-                self._object_cache[obj.id] = obj
-                self._keyids.index(obj)
+                self._enter(obj)
                 await self._resolve_references(obj)
             return obj
 

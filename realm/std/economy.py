@@ -14,6 +14,7 @@ from realm.commands.builtin.economy import (
     cmd_pay,
     cmd_sell,
 )
+from realm.core.action_types import ActionType
 from realm.features import Feature
 
 feature = Feature(
@@ -63,3 +64,8 @@ feature.command(
 )
 
 feature.behavior(ShopkeeperBehavior)
+
+
+
+feature.event(ActionType.PAYMENT, hook="PAYMENT", doc="this object was paid",
+              payload={"amount": "the sum paid"})

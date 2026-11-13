@@ -20,7 +20,6 @@ from realm.systems.spells import (
     cast_spell,
     find_spell_def,
     knows_spell,
-    list_spell_defs,
 )
 
 
@@ -87,7 +86,8 @@ async def cmd_spells(ctx: CommandContext) -> None:
     """
     if not ctx.player:
         return
-    known = [s for s in list_spell_defs() if knows_spell(ctx.player, s)]
+    from realm.core.defs import all_defs
+    known = [s for s in all_defs("spell").values() if knows_spell(ctx.player, s)]
     if not known:
         await ctx.session.send("You know no spells.")
         return

@@ -136,7 +136,7 @@ class TestCast:
         w = world
         # Bob is in a sealed vault (REACH-locked); Alice casts from the hall.
         vault = w.sim.room("Vault")
-        vault.locks[LockType.REACH.value] = "False"
+        vault.locks[LockType.REACH] = "False"
         w.bob.location = vault
         w.bob.db.set("on_cast", "pemit(enactor, 'recoils')")
 

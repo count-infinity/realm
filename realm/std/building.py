@@ -31,6 +31,7 @@ from realm.commands.olc.create import (
 )
 from realm.commands.olc.debug import (
     cmd_eval,
+    cmd_events,
     cmd_foreach,
     cmd_quell,
     cmd_reload,
@@ -421,4 +422,12 @@ feature.command(
     category='utility',
     help_text='Restore full powers after quell',
     usage='unquell',
+)
+feature.command(
+    '@events',
+    cmd_events,
+    permission='builder',
+    category='building',
+    help_text='List the event hooks this world fires',
+    usage='@events',
 )

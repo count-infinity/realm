@@ -89,7 +89,7 @@ def del_attr(frame, obj: GameObject | str | None, attr_name: str) -> bool:
 
 
 @softfn(group='Objects & attributes', readonly=True)
-def V(frame, attr_name: str, default: Any = None) -> Any:
+def V(frame, attr_name: str, default: Any = None) -> Any:  # noqa: N802 (Penn's v())
     """Read an attribute off ``me`` (the executor) — the common case.
 
     Shorthand for ``get_attr(me, attr_name, default)`` (PennMUSH ``v()``

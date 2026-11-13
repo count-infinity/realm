@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from realm.behaviors.caster import CasterBehavior
 from realm.commands.builtin.magic import cmd_cast, cmd_spells
+from realm.core.action_types import ActionType
 from realm.features import Feature
 
 feature = Feature(
@@ -67,3 +68,13 @@ async def _cast(engine, frame, obj, payload) -> None:
 
 feature.queue_kind("ability", _use_ability)
 feature.queue_kind("cast", _cast)
+
+
+
+feature.event(ActionType.ON_CAST, hook="CAST",
+              doc="an ability is directed at this object (resist via on_check)",
+              payload={"ability": "the ability's name", "caster": "who directed it"})
+
+# Abilities and spells are data: ability_def / spell_def objects.
+feature.def_kind("ability", "ability_def")
+feature.def_kind("spell", "spell_def")

@@ -14,7 +14,7 @@ its own and leaves the suite green.
 | 3 | One softcode function registry, one namespace builder | M | [x] |
 | 4 | Features: built-ins use the front door | M–L | [x] |
 | 5 | One service function per world operation | M | [x] |
-| 6 | One softcode dialect, open vocabularies | M | [ ] |
+| 6 | One softcode dialect, open vocabularies | M | [x] |
 | 7 | Move the files, replace the global setters, add boundary tests | L | [ ] |
 | 8 | Pools: entity-agnostic health and resources | M–L | [ ] |
 | 9 | A public face: imports, add-ons, packaging, scaffold | S–M | [ ] |
@@ -1240,30 +1240,30 @@ a `do_semipose(actor, text, *, scripted=False)` core next to `do_pose` in
 
 Tasks:
 
-- [ ] Write `tests/test_script_verbs.py` first:
-  - [ ] Each row of the table still runs from a one-line attribute and from
+- [x] Write `tests/test_script_verbs.py` first:
+  - [x] Each row of the table still runs from a one-line attribute and from
         `cmd("...")`, with the results the current tests expect.
-  - [ ] A feature registers `script_verb("ping")`. A one-line attribute
+  - [x] A feature registers `script_verb("ping")`. A one-line attribute
         `ping hello` runs it. `validate_script("ping hello")` returns no
         warnings.
-  - [ ] With `features=["basics", "talk", "movement", "look", "building"]`,
+  - [x] With `features=["basics", "talk", "movement", "look", "building"]`,
         `validate_script("get key")` returns a warning naming the missing
         verb, and running it logs one WARNING.
-  - [ ] `;waves.` as a one-line attribute produces a semipose.
-  - [ ] Two features registering the same verb or token raise.
-- [ ] Add `realm/scripting/verbs.py` and `Feature.script_verb`.
-- [ ] Move each handler body to its owner per the table. The handlers call
+  - [x] `;waves.` as a one-line attribute produces a semipose.
+  - [x] Two features registering the same verb or token raise.
+- [x] Add `realm/scripting/verbs.py` and `Feature.script_verb`.
+- [x] Move each handler body to its owner per the table. The handlers call
       the cores in `core/verbs.py` exactly as today.
-- [ ] Reduce `_run_script_command` to: strip, `match`, call the handler, or
+- [x] Reduce `_run_script_command` to: strip, `match`, call the handler, or
       log the unsupported line at WARNING with the list of known verbs.
-- [ ] Delete `SIMPLE_COMMAND_PREFIXES`, `SIMPLE_COMMAND_TOKENS` and
+- [x] Delete `SIMPLE_COMMAND_PREFIXES`, `SIMPLE_COMMAND_TOKENS` and
       `is_simple_script`. `SimpleScriptRunner` keeps `expand_simple` only;
       rename it to a module function `expand_substitutions`.
-- [ ] Sandbox sugar: build `say`, `pose`, `move`, `trigger` from the verbs
+- [x] Sandbox sugar: build `say`, `pose`, `move`, `trigger` from the verbs
       flagged `sugar=True` instead of the four hardcoded lambdas. Keep `cmd`
       and `output`. `cmd(line)` raises `ScriptError` when `match(line)` is
       `None`, so a typo fails at the call instead of in the log.
-- [ ] `validate_script` (task 1.4) asks `is_command_line`.
+- [x] `validate_script` (task 1.4) asks `is_command_line`.
 
 **Out of scope.** Sending script lines through the full command dispatcher,
 so that any player command works from a script. That needs a permission
@@ -1326,80 +1326,80 @@ Owners:
 
 Tasks:
 
-- [ ] Write `tests/test_event_registry.py` first:
-  - [ ] The set of hook names from the registry under `CLASSIC` equals the
+- [x] Write `tests/test_event_registry.py` first:
+  - [x] The set of hook names from the registry under `CLASSIC` equals the
         keys of today's `STANDARD_EVENTS`, frozen in the test.
-  - [ ] The lock rows from the registry equal today's two tables, frozen in
+  - [x] The lock rows from the registry equal today's two tables, frozen in
         the test.
-  - [ ] A feature declares `event("heist:on_crack", hook="CRACK",
+  - [x] A feature declares `event("heist:on_crack", hook="CRACK",
         payload={"tool": "the drill"}, target_lock=("crack", "{name} holds."))`.
         An `ON_CRACK` attribute fires, the lock blocks with the message, and
         `@events` lists it.
-- [ ] Add the registry and `Feature.event`. Move every row to its owner.
-- [ ] Delete `STANDARD_EVENTS`. `scripts/gen_softcode_docs.py` reads the
+- [x] Add the registry and `Feature.event`. Move every row to its owner.
+- [x] Delete `STANDARD_EVENTS`. `scripts/gen_softcode_docs.py` reads the
       registry of a `CLASSIC` world and generates both the hook table and
       the payload table.
-- [ ] Rewrite `tests/test_payload_docs_match_engine.py`: keep its AST scan of
+- [x] Rewrite `tests/test_payload_docs_match_engine.py`: keep its AST scan of
       what the engine really sends, and compare it with `EventDef.payload`
       instead of the hand-written doc table. The doc is generated, so it
       cannot drift from the declarations, and the test keeps the
       declarations honest.
-- [ ] Add an `@events` command to `building` that lists hooks with owner and
+- [x] Add an `@events` command to `building` that lists hooks with owner and
       doc.
 
 ### 6.3 Lock types are open
 
-- [ ] Replace `class LockType(str, Enum)` with string constants in the same
+- [x] Replace `class LockType(str, Enum)` with string constants in the same
       module (`BASIC = "basic"` and so on) and a registry:
       `register_lock_type(name, *, default="True", doc="")`. The twelve
       current types register with their `DEFAULT_LOCKS` expression. Add
       `Feature.lock_type(...)`.
-- [ ] `check_lock`, `get_lock`, `set_lock` and `parse_lock` take a `str`.
+- [x] `check_lock`, `get_lock`, `set_lock` and `parse_lock` take a `str`.
       Remove every `.value` access on a lock type (`lock_failure_message`
       builds `lock_fail_<type>` from it).
-- [ ] `set_lock` on an unregistered type: accept it when it matches
+- [x] `set_lock` on an unregistered type: accept it when it matches
       `^[a-z][a-z0-9_]*$`, and return a warning through `OpResult.warnings`
       when `difflib.get_close_matches` finds a registered name within 0.8.
       `@lock door/baisc = ...` prints "Set. Did you mean `basic`?". An
       unregistered type with no near match is a game's own lock and is
       silent.
-- [ ] `check_lock` on a type with no lock set and no registered default
+- [x] `check_lock` on a type with no lock set and no registered default
       passes. Today an unknown type falls to `"False"`
       (`locks.py:204`). **Decision (default: pass).** A game-defined lock
       that nobody set should not block.
-- [ ] Tests: softcode `test_lock(obj, "crack", who)` on a game-defined type
+- [x] Tests: softcode `test_lock(obj, "crack", who)` on a game-defined type
       works with and without a registered default.
 
 ### 6.4 Entitlements are open
 
-- [ ] `ALL_ENTITLEMENTS` becomes a registry:
+- [x] `ALL_ENTITLEMENTS` becomes a registry:
       `register_entitlement(name, doc="")`. The seven current names plus
       `BUILD` and `MODERATE` from step 5 register in the kernel. Add
       `Feature.entitlement(name, doc="")`.
-- [ ] `read_role_defs` keeps unregistered names instead of dropping them.
+- [x] `read_role_defs` keeps unregistered names instead of dropping them.
       A name within 0.8 of a registered one is reported as a problem by
       `reload_role_defs` (task 1.7), so `@reload` shows
       "role_def 'smuggler': unknown entitlement 'LOCK_BYPAS', did you mean
       'LOCK_BYPASS'?" and that one name is not granted.
-- [ ] `has_entitlement(obj, name)` works for any string. Softcode
+- [x] `has_entitlement(obj, name)` works for any string. Softcode
       `has_entitlement` is the way a game checks its own.
-- [ ] Tests: a `role_def` granting `SMUGGLE` (unregistered, no near match)
+- [x] Tests: a `role_def` granting `SMUGGLE` (unregistered, no near match)
       makes `has_entitlement(player, "SMUGGLE")` true; the near-miss case
       above is reported and not granted.
 
 ### 6.5 Audiences are open
 
-- [ ] In `core/propagation.py` add
+- [x] In `core/propagation.py` add
       `register_audience(name, resolver)` where
       `resolver(action) -> Iterable[GameObject]`. Register the four current
       audiences through it: `actor`, `target`, `room` (everyone in the
       delivery room except actor and target) and `remote` (the rooms in
       `extra['remote_rooms']`).
-- [ ] `deliver_messages` loops over the audiences that have queued messages
+- [x] `deliver_messages` loops over the audiences that have queued messages
       and asks the resolver for recipients. A message queued for an
       unregistered audience logs one WARNING per action type with the fix.
-- [ ] Add `Feature.audience(name)` as a decorator.
-- [ ] Tests: a feature registers `zone` (every player in rooms sharing the
+- [x] Add `Feature.audience(name)` as a decorator.
+- [x] Tests: a feature registers `zone` (every player in rooms sharing the
       actor's zone). An action with `add_message("zone", ...)` reaches a
       player two rooms away and formats `{actor}` per recipient.
 
@@ -1445,16 +1445,16 @@ Rules:
 
 Tasks:
 
-- [ ] Tests first: `tests/test_defs.py` covers caching, invalidation on
+- [x] Tests first: `tests/test_defs.py` covers caching, invalidation on
       `@set` and `@tag`, prefix matching, a failing parser, and a
       game-defined kind (`recipe_def`).
-- [ ] Add the tag index to `PersistenceManager` and `MemoryStore`.
-- [ ] Add `realm/core/defs.py`.
-- [ ] Convert the six loaders to `DefKind` registrations owned by `rules`
+- [x] Add the tag index to `PersistenceManager` and `MemoryStore`.
+- [x] Add `realm/core/defs.py`.
+- [x] Convert the six loaders to `DefKind` registrations owned by `rules`
       (skill, class), kernel (role, behavior) and `abilities` (ability,
       spell). Keep each public function as a one-line call into `defs` only
       where more than five call sites use it; otherwise change the callers.
-- [ ] `@reload` calls `defs.invalidate()` and reports per-kind counts.
+- [x] `@reload` calls `defs.invalidate()` and reports per-kind counts.
 
 ### 6.7 Global softcode commands
 
@@ -1462,42 +1462,42 @@ Tasks:
 the inventory and zone masters. Step 5 of its docstring, the Master Room, is
 a TODO, so a game cannot add a softcode command that works everywhere.
 
-- [ ] Objects tagged `global_commands` are searched last. Read them through
+- [x] Objects tagged `global_commands` are searched last. Read them through
       `store.find_cached(tag="global_commands")`, which the tag index of 6.6
       makes cheap.
-- [ ] Protect the tag. Generalize `may_change_role_tag`
+- [x] Protect the tag. Generalize `may_change_role_tag`
       (`permissions/roles.py:194`) into
       `register_protected_tag(tag, required_tier)` and register
       `global_commands` at admin. The `tag` op of step 5 already calls the
       gate.
-- [ ] Tests: a `$+finger *` attribute on a `global_commands` object fires
+- [x] Tests: a `$+finger *` attribute on a `global_commands` object fires
       from any room; a room-local `$+finger *` wins over it; a builder
       cannot add the tag.
-- [ ] Remove the TODO lines at `triggers.py:469` and `:505`.
+- [x] Remove the TODO lines at `triggers.py:469` and `:505`.
 
 ### Acceptance
 
-- [ ] `git grep -n "SIMPLE_COMMAND_PREFIXES\|STANDARD_EVENTS\|TARGET_ACTION_LOCKS\|TOOL_ACTION_LOCKS\|_SPEECH_ACTIONS\|class LockType" realm/`
+- [x] `git grep -n "SIMPLE_COMMAND_PREFIXES\|STANDARD_EVENTS\|TARGET_ACTION_LOCKS\|TOOL_ACTION_LOCKS\|_SPEECH_ACTIONS\|class LockType" realm/`
       returns nothing.
-- [ ] `permissions/locks.py`, `scripting/triggers.py`,
+- [x] `permissions/locks.py`, `scripting/triggers.py`,
       `scripting/sandbox.py` and `core/propagation.py` name no speech, item,
       combat, economy or magic action type.
-- [ ] The feature tests of step 4 still pass, and the "subtract" test gains:
+- [x] The feature tests of step 4 still pass, and the "subtract" test gains:
       without `items`, `ON_GET` is not a known hook and `get` is not a
       script verb.
-- [ ] The suite is green.
+- [x] The suite is green.
 
 ### Docs
 
-- [ ] `docs/reference/softcode.md` is regenerated; the hook and payload
+- [x] `docs/reference/softcode.md` is regenerated; the hook and payload
       tables are now generated sections.
-- [ ] `docs/guides/features.md` (written in step 4): one short section per
+- [x] `docs/guides/features.md` (written in step 4): one short section per
       vocabulary with a five-line example.
-- [ ] `docs/architecture/events.md`: an action type is declared once, with
+- [x] `docs/architecture/events.md`: an action type is declared once, with
       its hook, payload and lock.
-- [ ] `docs/design/engine_vision.md`, authority section: open lock types and
+- [x] `docs/design/engine_vision.md`, authority section: open lock types and
       entitlements, the near-miss guard.
-- [ ] `docs/tutorial/04-softcode.md`: the list of script verbs comes from
+- [x] `docs/tutorial/04-softcode.md`: the list of script verbs comes from
       the registry; show `@events`.
 
 ### Closes
@@ -2648,3 +2648,11 @@ entry closed.
 | 2026-11-13 | 5.2 | The softcode engine's queued `move_to` still calls `core.movement.move_to` directly; the authority check (`ops.check_relocate`) runs when the script queues it, where the enactor's consent is known. | Consent is not carried in the queue payload. |
 | 2026-11-13 | 5.3 | `inflate()` replaced the loops in persistence's row loader, `worldio.import_objects` and `_apply_entry` (inflate a fresh copy, then move its data onto the live object), the spawner, wilderness cells and exits, `Simulator._make`, `ops.create` and `ops.clone`. Loads stay lenient (placeholder + `report_unresolved`); spawns, clones and creates are strict (drop + one WARNING). | The spawner's old warning could never fire: `from_dict` always returns a placeholder. |
 | 2026-11-13 | 5.4 | **Decision (default): skipped.** BACKLOG records it as the open part of "Command authorization belongs at the service layer". | Plan default. |
+| 2026-11-13 | 6.1 | The verb table (`realm/scripting/verbs.py`) is a module-level registry installed by `FeatureSet.install_registries`, like behaviors and softcode functions, not an attribute of the script engine. A verb handler is `async (engine, executor, rest)`, not `(world, ...)`. | The validator (`@set`), the sandbox sugar and bare test engines have no World; `wait`/`trigger` need engine internals. |
+| 2026-11-13 | 6.1 | `triggers.unknown_verb(code)` names a missing verb for both the validator and the engine, so `get key` in a world without `items` logs "'get' is not a script verb in this world" instead of a Python syntax error. `cmd()` raises `ScriptError` on an unknown verb. | The plan's test asks for the verb to be named. |
+| 2026-11-13 | 6.2 | An `EventDef` with no `hook` (speech, `ACT`, `NARRATE`, `PRE_ENTER`) still fires its derived `ON_<SUFFIX>`; `hooks()` (and `@events`) list only declared hooks. `event:on_load` declares `marker` (the scan found it undeclared). `test_payload_docs_match_engine.py` is now strict both ways: no declared key the engine does not send, no sent key undeclared. | Behaviour-preserving; the doc table is generated. |
+| 2026-11-13 | 6.3 | **Decision (default): an unset lock of an unregistered type passes.** `LockType` is now a `SimpleNamespace` of the twelve built-in names (so `LockType.BASIC` call sites keep working) beside module constants; the registry class is `LockDef`. `ops.set_lock` accepts any `^[a-z][a-z0-9_]*$` name and warns on a near miss. | The plan's string constants without rewriting ~100 call sites. |
+| 2026-11-13 | 6.4 | `near_entitlement` compares case-insensitively (cutoff 0.8), so the 1.7 example `teleport_anywhere` is still reported (near `TELEPORT_ANY`) and not granted; `SMUGGLE` is granted. `ALL_ENTITLEMENTS` is gone (`registered_entitlements()`). | A lowercase typo of an uppercase name is still a typo. |
+| 2026-11-13 | 6.6 | Definition caches are dropped by a hook in `GameObject._mark_dirty`, `add_tag` and `remove_tag` (plus store add/delete), not only by the ops and `Store.save`, so a direct `db.set` on a def object is live. Stores keep an insertion-ordered tag index and register as weak tag listeners, so an in-memory `add_tag` is indexed before any save. `skill` and `class` kinds are kernel, not `rules`: the game systems read them during kernel rules resolution. `find_behavior_def` (6 callers) and `find_spell_def` (10) stay as one-line wrappers; `find_ability_def`/`list_ability_defs` stay as small helpers because they search two kinds together. | Correctness of the cache without relying on every writer; a game without `rules` must still boot. |
+| 2026-11-13 | 6.7 | `register_protected_tag(tag, tier)` requires the actor's role to be at least `tier` (role tags keep their stricter outrank rule). `@reload` keeps its first line and adds a `Definitions: ...` count line. | A showcase test pins the first line. |
+| 2026-11-13 | 6 Closes | BACKLOG "Master Room" closed; "Scripting follow-ups" updated; "Script lines through the full command dispatcher" filed as the 6.1 out-of-scope item. | Rule 6. |

@@ -29,6 +29,7 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any
 
+from realm.core.defs import all_defs
 from realm.systems.base import ChoiceStep, GameSystem
 
 if TYPE_CHECKING:
@@ -115,9 +116,8 @@ class MercSystem(GameSystem):
         }
 
     def skill_defaults(self) -> dict[str, tuple[str, int]]:
-        from realm.systems.definitions import read_skill_defs
         defaults = dict(BUILTIN_SKILL_DEFAULTS)
-        defaults.update(read_skill_defs())
+        defaults.update(all_defs("skill"))
         return defaults
 
     def resolve_check(self, obj: GameObject, skill: str, modifier: int):

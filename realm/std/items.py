@@ -23,6 +23,7 @@ from realm.commands.builtin.manipulation import (
     cmd_use,
     cmd_wear,
 )
+from realm.core.action_types import ActionType
 from realm.features import Feature
 
 feature = Feature(
@@ -134,3 +135,94 @@ feature.command(
     help_text='Lower your readied weapon',
     usage='unwield',
 )
+
+
+# --- script verbs: the same manipulation cores the commands use -------------
+
+def _find(candidates, spec):
+    from realm.core.search import AmbiguousMatchError, match_one
+    try:
+        return match_one(spec, candidates)
+    except AmbiguousMatchError:
+        return None
+
+
+def _around(executor):
+    room = list(executor.location.contents) if executor.location else []
+    return [o for o in room if o is not executor]
+
+
+@feature.script_verb("get", aliases=["take"], doc="get <item>: pick up from the room")
+async def _get(engine, executor, rest):
+    from realm.core.verbs import do_get
+    target = _find(_around(executor), rest.strip())
+    if target is not None:
+        await do_get(executor, target)
+
+
+@feature.script_verb("drop", doc="drop <item>: put down something carried")
+async def _drop(engine, executor, rest):
+    from realm.core.verbs import do_drop
+    target = _find(list(executor.contents), rest.strip())
+    if target is not None:
+        await do_drop(executor, target)
+
+
+@feature.script_verb("give", doc="give <item> = <who> (or: give <item> to <who>)")
+async def _give(engine, executor, rest):
+    from realm.core.verbs import do_give
+    if '=' in rest:
+        item_spec, target_spec = rest.split('=', 1)
+    elif ' to ' in rest.lower():
+        idx = rest.lower().index(' to ')
+        item_spec, target_spec = rest[:idx], rest[idx + 4:]
+    else:
+        return
+    item = _find(list(executor.contents), item_spec.strip())
+    target = _find(_around(executor), target_spec.strip())
+    if item is not None and target is not None:
+        await do_give(executor, item, target)
+
+
+@feature.script_verb("open", doc="open <door or container>")
+async def _open(engine, executor, rest):
+    from realm.core.verbs import do_open
+    target = _find(_around(executor), rest.strip())
+    if target is not None:
+        await do_open(executor, target)
+
+
+@feature.script_verb("close", doc="close <door or container>")
+async def _close(engine, executor, rest):
+    from realm.core.verbs import do_close
+    target = _find(_around(executor), rest.strip())
+    if target is not None:
+        await do_close(executor, target)
+
+
+# --- events -------------------------------------------------------------------
+
+
+feature.event(ActionType.ON_GET, hook="GET", doc="this object is picked up",
+              target_lock=("basic", "You can't pick up {name}."))
+feature.event(ActionType.ON_DROP, hook="DROP", doc="this object is dropped",
+              target_lock=("drop", "You can't drop {name}."))
+feature.event(ActionType.ON_GIVE, hook="GIVE", doc="this object is given away",
+              payload={"item": "what was given (also the action's tool); target is "
+                               "the recipient"},
+              tool_lock=("give", "You can't give {name} away."))
+feature.event(ActionType.ON_PUT, hook="PUT", doc="this object is put in a container",
+              payload={"item": "what was put in; target is the container"},
+              target_lock=("enter", "You can't put things in {name}."))
+feature.event(ActionType.ON_WEAR, hook="WEAR", doc="this object is worn")
+feature.event(ActionType.ON_REMOVE, hook="REMOVE",
+              doc="this object is taken off (gated: cursed gear can refuse)")
+feature.event(ActionType.ON_WIELD, hook="WIELD", doc="this weapon is readied (gated)")
+feature.event(ActionType.ON_UNWIELD, hook="UNWIELD", doc="this weapon is lowered (gated)")
+feature.event(ActionType.ON_USE, hook="USE", doc="this object is used")
+feature.event(ActionType.ON_OPEN, hook="OPEN", doc="this door/container is opened")
+feature.event(ActionType.ON_CLOSE, hook="CLOSE", doc="this door/container is closed")
+feature.event(ActionType.ON_LOCK, hook="LOCK", doc="this is locked (gated)")
+feature.event(ActionType.ON_UNLOCK, hook="UNLOCK",
+              doc="this is unlocked (gated: a sealed door can refuse)")
+feature.event(None, hook="PUSH", doc="this object is pushed (button, lever)")

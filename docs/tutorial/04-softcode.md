@@ -16,6 +16,15 @@ player commands:
 Any player here can now type `story`. Wildcards capture: a pattern
 like `$ask about *` gives you `%0` for what they asked.
 
+The part after the colon here is one **script command line**. The lines a
+script may use are the world's *script verbs*: `say`, `pose` (or `:`),
+`semipose` (`;`), `emit` (`\`), `whisper who = text`, `move <exit>`,
+`get`, `drop`, `give`, `open`, `close`, `trigger [obj/]attr` and
+`wait <seconds> <command>`. They come from the features the game loads (a
+game without `items` has no `get`), and `@set` warns at once if a line names
+a verb this world does not have. Anything longer is Python, where
+`cmd("drop key")` emits any of those lines.
+
 ## A reaction
 
 `^`-patterns overhear speech:
@@ -72,6 +81,18 @@ Each character rolls observation *once*, ever — the outcome caches in
 an ordinary attribute. That's the whole trick: `get_attr`/`set_attr`
 plus builtins (`rand`, `now`, `check`...) compose into anything. `check`
 rolls as the viewer; `check_roll(obj, skill)` returns the graded result.
+
+## Which events can I hook?
+
+`ON_<EVENT>` attributes react to things happening. `@events` lists every
+hook this world fires, which feature it comes from, and when it fires:
+
+```text
+@events
+  ON_ENTER       [kernel] something enters this location
+  ON_GET         [items] this object is picked up
+  ...
+```
 
 ## A heartbeat
 

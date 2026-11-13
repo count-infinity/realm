@@ -6,7 +6,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.defs import touched
+from realm.core.objects import add_tag_listener
 from realm.persistence.keyid import KeyidIndex
+from realm.persistence.tagindex import TagIndex
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -22,22 +25,42 @@ class MemoryStore:
     def __init__(self) -> None:
         self._cache: dict[str, GameObject] = {}
         self._keyids = KeyidIndex(self.get_cached)
+        self._tags = TagIndex()
+        add_tag_listener(self)
+
+    def on_tag(self, obj: GameObject, tag: str, added: bool) -> None:
+        """An object changed a tag in memory; keep the index current."""
+        if obj.id in self._cache:
+            self._tags.retag(obj, tag, added)
+
+    def _enter(self, obj: GameObject) -> None:
+        old = self._cache.get(obj.id)
+        if old is not None:
+            self._tags.remove(old)
+        self._cache[obj.id] = obj
+        self._tags.add(obj)
+        touched(obj)
+
+    def _leave(self, obj: GameObject) -> None:
+        if self._cache.pop(obj.id, None) is not None:
+            self._tags.remove(obj)
+            touched(obj)
 
     async def save(self, obj: GameObject) -> None:
-        self._cache[obj.id] = obj
+        self._enter(obj)
         self._keyids.index(obj)
 
     async def delete(self, obj: GameObject) -> None:
         self._keyids.release(obj)
-        self._cache.pop(obj.id, None)
+        self._leave(obj)
 
     def add(self, obj: GameObject) -> None:
-        self._cache[obj.id] = obj
+        self._enter(obj)
         self._keyids.index(obj)
 
     def unregister(self, obj: GameObject) -> None:
         self._keyids.release(obj)
-        self._cache.pop(obj.id, None)
+        self._leave(obj)
 
     def keyid_holder(self, keyid: str) -> GameObject | None:
         return self._keyids.holder(keyid)
@@ -57,14 +80,13 @@ class MemoryStore:
     def find_cached(self, *, tag: str | None = None,
                     name: str | None = None) -> list[GameObject]:
         needle = name.lower() if name is not None else None
-        out = []
-        for obj in self._cache.values():
-            if tag is not None and not obj.has_tag(tag):
-                continue
-            if needle is not None and obj.name.lower() != needle:
-                continue
-            out.append(obj)
-        return out
+        if tag is not None:
+            candidates = [self._cache[i] for i in self._tags.ids(tag) if i in self._cache]
+        else:
+            candidates = list(self._cache.values())
+        return [obj for obj in candidates
+                if (tag is None or obj.has_tag(tag))
+                and (needle is None or obj.name.lower() == needle)]
 
 
 __all__ = ["MemoryStore"]

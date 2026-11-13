@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.defs import all_defs
 from realm.systems.base import ChoiceStep, GameSystem
 
 if TYPE_CHECKING:
@@ -48,9 +49,8 @@ class D20System(GameSystem):
     currency_name = "gold"
 
     def skill_defaults(self) -> dict[str, tuple[str, int]]:
-        from realm.systems.definitions import read_skill_defs
         defaults = dict(BUILTIN_SKILL_DEFAULTS)
-        defaults.update(read_skill_defs())
+        defaults.update(all_defs("skill"))
         return defaults
 
     def resolve_check(self, obj, skill: str, modifier: int):
@@ -75,9 +75,8 @@ class D20System(GameSystem):
     def _class_options(self) -> dict[str, tuple[str, dict, dict]]:
         # Built-ins, extended/overridden by class_def objects (data wins by
         # name) — same merge rule as skills.
-        from realm.systems.definitions import read_class_defs
         classes = dict(CLASSES)
-        classes.update(read_class_defs())
+        classes.update(all_defs("class"))
         return classes
 
     def chargen_steps(self):

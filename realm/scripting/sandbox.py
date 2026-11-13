@@ -479,13 +479,23 @@ class ScriptSandbox:
             self._output.append(text)
 
         safe_globals['output'] = script_output
-        safe_globals['say'] = lambda msg: script_output(f"say {msg}")
-        safe_globals['pose'] = lambda msg: script_output(f"pose {msg}")
-        safe_globals['move'] = lambda direction: script_output(f"move {direction}")
-        safe_globals['trigger'] = lambda spec: script_output(f"trigger {spec}")
-        # Generic escape hatch: emit any script command line (get/drop/
-        # give/open/close/wait/...) — same actuator set as simple scripts.
-        safe_globals['cmd'] = lambda line: script_output(str(line))
+        # Sugar: each script verb registered with sugar=True is a function
+        # (say(text), pose(text), move(exit), trigger(spec)).
+        from realm.scripting.verbs import installed as installed_verbs
+        verbs = installed_verbs()
+        for verb in verbs.sugar():
+            safe_globals[verb.name] = (
+                lambda text, _name=verb.name: script_output(f"{_name} {text}"))
+
+        # Any script command line (get/drop/give/open/close/wait/...). An
+        # unknown verb fails here, at the call, instead of later in the log.
+        def cmd(line: Any) -> None:
+            if verbs.match(str(line)) is None:
+                raise ScriptError(
+                    f"cmd({str(line)!r}): not a script verb in this world. "
+                    f"Known: {', '.join(verbs.names())}")
+            script_output(str(line))
+        safe_globals['cmd'] = cmd
 
         # Cross the handle boundary: wrap every object-valued name in the
         # namespace (me/enactor/here/target/actor/... and any object bound via
@@ -577,60 +587,18 @@ class ScriptSandbox:
         )
 
 
-class SimpleScriptRunner:
-    """
-    Simple script runner for basic action scripts.
-
-    Handles the common case of scripts that are just commands to execute,
-    like "say Hello, %n!" - no Python execution needed.
-    """
-
-    # A simple script is a single game command; anything else is Python.
-    SIMPLE_COMMAND_PREFIXES = (
-        'say ', 'pose ', 'whisper ', 'emit ', '@emit ',
-        'move ', 'go ', 'trigger ', '@tr ',
-        'get ', 'take ', 'drop ', 'give ', 'open ', 'close ', 'wait ',
-    )
-    SIMPLE_COMMAND_TOKENS = (':', ';', '\\')
-
-    @classmethod
-    def is_simple_script(cls, code: str) -> bool:
-        """
-        Check if this is a simple command script (no Python).
-
-        Simple scripts are single lines starting with a script command
-        (say/pose/whisper/emit or a token shortcut). Everything else runs
-        through the sandbox — where say()/pose() exist as functions, so
-        Python one-liners like ``say(f"...")`` still work.
-        """
-        lines = code.strip().split('\n')
-        if len(lines) != 1:
-            return False
-
-        line = lines[0].strip()
-        return (
-            line.lower().startswith(cls.SIMPLE_COMMAND_PREFIXES)
-            or line.startswith(cls.SIMPLE_COMMAND_TOKENS)
-        )
-
-    @staticmethod
-    def expand_simple(code: str, ctx: ScriptContext) -> str:
-        """Expand substitutions in a simple script."""
-        result = code
-
-        # Basic substitutions
-        if ctx.enactor:
-            result = result.replace('%#', ctx.enactor.id)
-            result = result.replace('%n', ctx.enactor.name)
-
-        if ctx.executor:
-            result = result.replace('%!', ctx.executor.id)
-
-        if ctx.location:
-            result = result.replace('%l', ctx.location.id)
-
-        # Captures
-        for i, capture in enumerate(ctx.captures):
-            result = result.replace(f'%{i}', capture)
-
-        return result
+def expand_substitutions(code: str, ctx: ScriptContext) -> str:
+    """Expand %-codes in a one-line script command: ``%#`` enactor id,
+    ``%n`` enactor name, ``%!`` executor id, ``%l`` location id,
+    ``%0``.. captures."""
+    result = code
+    if ctx.enactor:
+        result = result.replace('%#', ctx.enactor.id)
+        result = result.replace('%n', ctx.enactor.name)
+    if ctx.executor:
+        result = result.replace('%!', ctx.executor.id)
+    if ctx.location:
+        result = result.replace('%l', ctx.location.id)
+    for i, capture in enumerate(ctx.captures):
+        result = result.replace(f'%{i}', capture)
+    return result

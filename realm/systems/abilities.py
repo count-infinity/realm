@@ -39,8 +39,6 @@ import random
 import re
 from typing import TYPE_CHECKING, Any
 
-from realm.core.query import find_objects
-
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
     from realm.core.propagation import Action
@@ -55,15 +53,18 @@ _ABILITY_TAGS = (ABILITY_DEF_TAG, SPELL_DEF_TAG)
 def list_ability_defs(tag: str | None = None) -> list[GameObject]:
     """Every ability_def / spell_def in the world, stably ordered. Pass a
     tag to restrict to one flavor (e.g. only ``spell_def``)."""
+    from realm.core.defs import all_defs
+    kinds = {ABILITY_DEF_TAG: "ability", SPELL_DEF_TAG: "spell"}
     seen: dict[str, GameObject] = {}
     for t in ((tag,) if tag else _ABILITY_TAGS):
-        for obj in find_objects(tag=t):
+        for obj in all_defs(kinds[t]).values():
             seen[obj.id] = obj
     return sorted(seen.values(), key=lambda o: o.id)
 
 
 def find_ability_def(name: str, tag: str | None = None) -> GameObject | None:
-    """An ability by name: exact (case-insensitive), else a unique prefix."""
+    """An ability by name across both flavors: exact (case-insensitive),
+    else a unique prefix."""
     want = name.strip().lower()
     if not want:
         return None

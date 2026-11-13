@@ -156,9 +156,10 @@ register events — you just react to a name, and anyone (including
 
 ### The standard lifecycle events
 
-These are the events the engine fires itself (the single source of truth
-is `STANDARD_EVENTS` in `realm/scripting/triggers.py`, which the
-[softcode reference](../reference/softcode.md) renders):
+These are the events the engine and the built-in features fire. Each is
+declared once, by the feature that owns it (`feature.event(...)`); the
+[softcode reference](../reference/softcode.md) renders them, and `@events`
+lists the ones your world has:
 
 | Group | Hooks |
 |---|---|

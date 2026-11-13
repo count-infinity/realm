@@ -92,6 +92,12 @@ class Feature:
         self.check_modifiers: list[Callable] = []
         self.protocols: list[tuple[str, type, dict[str, Any]]] = []
         self.settings: dict[str, tuple[Any, str]] = {}
+        self.script_verbs: list[Any] = []
+        self.events: list[Any] = []
+        self.lock_types: list[Any] = []
+        self.entitlements: dict[str, str] = {}
+        self.audiences: dict[str, Callable] = {}
+        self.def_kinds: list[Any] = []
         self.install_hooks: list[Callable] = []
         self.boot_hooks: list[Callable] = []
         self.close_hooks: list[Callable] = []
@@ -142,6 +148,63 @@ class Feature:
                 takes_frame=True, subject=subject, replace=replace))
             return f
         return declare if fn is None else declare(fn)
+
+    def script_verb(self, name: str, *, aliases: Sequence[str] = (),
+                    token: str | None = None, sugar: bool = False, doc: str = "",
+                    replace: bool = False):
+        """Declare a script command line (``say ...``) handled by an
+        ``async (engine, executor, rest_of_line)`` function. ``sugar`` also
+        exposes ``name(text)`` inside Python scripts. A decorator."""
+        def declare(fn: Callable) -> Callable:
+            from realm.scripting.verbs import ScriptVerb
+            self.script_verbs.append((ScriptVerb(
+                name.lower(), fn, tuple(a.lower() for a in aliases), token, sugar,
+                owner=self.name, doc=doc), replace))
+            return fn
+        return declare
+
+    def event(self, action_type: str | None, *, hook: str | None = None, doc: str = "",
+              payload: dict[str, str] | None = None,
+              target_lock: tuple[str, str] | None = None,
+              tool_lock: tuple[str, str] | None = None, speech: bool = False,
+              replace: bool = False) -> None:
+        """Declare an action type (or, with ``action_type=None``, a hook fired
+        outside propagation): its ``ON_<hook>`` attribute, reference line,
+        ``adata()`` payload keys, the lock checked on its target or tool
+        (``(lock type, failure template)``), and whether ``{actor}`` is a voice."""
+        from realm.core.eventdefs import EventDef
+        self.events.append((EventDef(
+            action_type, hook.upper() if hook else None, doc, dict(payload or {}),
+            target_lock, tool_lock, speech, owner=self.name), replace))
+
+    def lock_type(self, name: str, *, default: str = "True", doc: str = "") -> None:
+        """Declare a lock type and the expression it uses when no lock of the
+        type is set (``"True"``: open)."""
+        from realm.permissions.locks import LOCK_TYPE_RE, LockDef
+        if not LOCK_TYPE_RE.match(name):
+            raise FeatureError(f"feature {self.name!r}: lock type {name!r} must match "
+                               f"{LOCK_TYPE_RE.pattern}")
+        self.lock_types.append(LockDef(name, default, doc, owner=self.name))
+
+    def entitlement(self, name: str, doc: str = "") -> None:
+        """Declare an entitlement name a role_def may grant and this
+        feature's code checks (``has_entitlement(obj, name)``)."""
+        self.entitlements[str(name)] = doc
+
+    def audience(self, name: str):
+        """Declare a message audience: the decorated ``(action) -> recipients``
+        resolves who gets ``action.add_message(name, ...)``. A decorator."""
+        def declare(fn: Callable) -> Callable:
+            self.audiences[str(name)] = fn
+            return fn
+        return declare
+
+    def def_kind(self, name: str, tag: str, parse: Callable | None = None) -> None:
+        """Declare an in-world definition kind: objects tagged ``tag``, read
+        with ``parse(obj)`` (None: the object itself), looked up with
+        ``realm.core.defs.all_defs(name)`` / ``find_def(name, ...)``."""
+        from realm.core.defs import DefKind
+        self.def_kinds.append(DefKind(name, tag, parse, owner=self.name))
 
     def observer(self, fn: Callable) -> Callable:
         """Declare an ``async (action) -> None`` propagation observer."""
@@ -299,6 +362,29 @@ class FeatureSet:
         functions, rulesets = _Claims("softcode function"), _Claims("ruleset")
         resolvers, kinds = _Claims("destination resolver"), _Claims("queue kind")
         settings = _Claims("config key")
+        verbs, tokens = _Claims("script verb"), _Claims("script verb token")
+        event_types, hooks = _Claims("event"), _Claims("event hook")
+        lock_names = _Claims("lock type")
+        audience_names = _Claims("audience")
+        kind_names = _Claims("definition kind")
+        from realm.core.defs import kernel_kinds
+        for dk in kernel_kinds():
+            kind_names.claim(dk.name, dk.tag, "kernel", False)
+        for builtin in ("actor", "target", "room", "remote"):
+            audience_names.claim(builtin, builtin, "kernel", False)
+        from realm.permissions.locks import _builtin_lock_types
+        for lt in _builtin_lock_types():
+            lock_names.claim(lt.name, lt.name, "kernel", False)
+        from realm.core.eventdefs import kernel_events
+        for ev in kernel_events():
+            if ev.action_type:
+                event_types.claim(ev.action_type, ev, "kernel", False)
+            if ev.hook:
+                hooks.claim(ev.hook, ev, "kernel", False)
+        from realm.scripting.verbs import kernel_verbs
+        for verb in kernel_verbs():
+            for word in (verb.name, *verb.aliases):
+                verbs.claim(word, verb.handler, "kernel", False)
         for key in KNOWN_CONFIG_KEYS:
             settings.claim(key, key, "kernel", False)
         for name, entry in static_functions().items():
@@ -318,6 +404,22 @@ class FeatureSet:
                 resolvers.claim(name, fn, f.name, replace)
             for kind, handler in f.queue_kinds.items():
                 kinds.claim(kind, handler, f.name, False)
+            for dk in f.def_kinds:
+                kind_names.claim(dk.name, dk, f.name, False)
+            for aname, resolver in f.audiences.items():
+                audience_names.claim(aname, resolver, f.name, False)
+            for lt in f.lock_types:
+                lock_names.claim(lt.name, lt, f.name, False)
+            for ev, replace in f.events:
+                if ev.action_type:
+                    event_types.claim(ev.action_type, ev, f.name, replace)
+                if ev.hook:
+                    hooks.claim(ev.hook, ev, f.name, replace)
+            for verb, replace in f.script_verbs:
+                for word in (verb.name, *verb.aliases):
+                    verbs.claim(word, verb.handler, f.name, replace)
+                if verb.token is not None:
+                    tokens.claim(verb.token, verb.handler, f.name, replace)
             for key, (default, doc) in f.settings.items():
                 settings.claim(key, default, f.name, False)
                 self.settings[key] = (default, doc, f.name)
@@ -353,6 +455,18 @@ class FeatureSet:
         movement._DEST_RESOLVERS.clear()
         movement._DEST_RESOLVERS.update(resolvers)
         registry.activate({"kernel", *self.names}, functions)
+        from realm.scripting import verbs as verb_registry
+        verb_registry.install([pair for f in self.features for pair in f.script_verbs])
+        from realm.core import eventdefs
+        eventdefs.install([pair for f in self.features for pair in f.events])
+        from realm.permissions.locks import install_lock_types
+        install_lock_types([lt for f in self.features for lt in f.lock_types])
+        from realm.core.defs import install_def_kinds
+        install_def_kinds([dk for f in self.features for dk in f.def_kinds])
+        from realm.core.propagation import install_audiences
+        install_audiences({k: v for f in self.features for k, v in f.audiences.items()})
+        from realm.permissions.entitlements import install_entitlements
+        install_entitlements({k: v for f in self.features for k, v in f.entitlements.items()})
         _installed = self
 
     def install_commands(self, dispatcher) -> None:

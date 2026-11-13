@@ -8,6 +8,7 @@ No rigid type hierarchy - use tags for categorization.
 from __future__ import annotations
 
 import uuid
+import weakref
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -16,6 +17,34 @@ from realm.core.tags import TagSet
 if TYPE_CHECKING:
     from realm.core.behaviors import Behavior
     from realm.core.propagation import Action
+
+
+# --- Change hooks -------------------------------------------------------------
+# Stores keep a tag index (realm.persistence.tagindex) and register here so an
+# in-memory add_tag/remove_tag reaches it before any save. The definition
+# cache (realm.core.defs) installs _defs_hook to drop a cached def when its
+# object changes.
+
+_tag_listeners: weakref.WeakSet = weakref.WeakSet()
+_defs_hook: Callable[[GameObject, str | None], None] | None = None
+
+
+def add_tag_listener(listener) -> None:
+    """Register an object with ``on_tag(obj, tag, added)`` (a store)."""
+    _tag_listeners.add(listener)
+
+
+def set_defs_hook(hook: Callable[[GameObject, str | None], None] | None) -> None:
+    """Install the definition cache's change hook (realm.core.defs)."""
+    global _defs_hook
+    _defs_hook = hook
+
+
+def _tag_changed(obj: GameObject, tag: str, added: bool) -> None:
+    for listener in list(_tag_listeners):
+        listener.on_tag(obj, tag, added)
+    if _defs_hook is not None:
+        _defs_hook(obj, tag)
 
 
 class AttributeProxy:
@@ -263,6 +292,8 @@ class GameObject:
     def _mark_dirty(self) -> None:
         """Mark this object as needing persistence."""
         self._dirty = True
+        if _defs_hook is not None:
+            _defs_hook(self, None)
 
     def is_dirty(self) -> bool:
         """Check if this object needs to be saved."""
@@ -308,11 +339,13 @@ class GameObject:
         """Add a tag to this object."""
         self.tags.add(tag)
         self._mark_dirty()
+        _tag_changed(self, tag, True)
 
     def remove_tag(self, tag: str) -> None:
         """Remove a tag from this object."""
         self.tags.remove(tag)
         self._mark_dirty()
+        _tag_changed(self, tag, False)
 
     # --- Type tag shortcuts ---
 

@@ -125,6 +125,17 @@ read-only `has_entitlement(obj, ent)` and to the lock DSL as
 (rules 1–2, 5–7) is unchanged — entitlements are the cross-cutting layer,
 not a replacement for ownership.
 
+**Open vocabularies with a near-miss guard (2026-11-13).** Lock types and
+entitlements are open: a game's own lock type (`crack`) works as soon as a
+builder sets it (unset, it passes), and a `role_def` may grant a game's own
+entitlement (`SMUGGLE`) that its softcode checks with `has_entitlement`.
+Features may declare either with a default and a doc. The typo guard is a
+near-miss check against the registered names: `@lock/baisc` is set with a
+"did you mean `basic`?" warning, and a `role_def` listing `LOCK_BYPAS` is
+reported by `@reload` and *not granted*, so a typo never widens authority.
+Protected tags generalize role tags: `register_protected_tag` (e.g.
+`global_commands`, admin only) gates who may add or remove a tag.
+
 Two boundaries kept deliberately separate (tracked in BACKLOG): **command
 access** is still a coarse role-tier check in the dispatcher
 (`has_permission`) in front of the op, so a `role_def` granting an

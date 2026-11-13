@@ -23,10 +23,11 @@ Available variables:
 
 from __future__ import annotations
 
-from enum import Enum
+import re
+from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any
 
-from realm.core.action_types import ActionType
 from realm.core.safe_eval import SAFE_EXPR_BUILTINS, compile_expression, eval_bool
 from realm.permissions.entitlements import (
     CONTROL_ALL,
@@ -41,40 +42,105 @@ if TYPE_CHECKING:
     from realm.core.propagation import Action
 
 
-class LockType(str, Enum):
-    """Standard lock types."""
+# --- Lock types ----------------------------------------------------------------
+# A lock type is a plain string. The built-in ones are named below (and as
+# ``LockType.BASIC`` etc.); a feature declares more with
+# ``feature.lock_type(...)``, and any other lowercase name is a game's own
+# lock: it works the moment a builder sets it.
 
-    BASIC = "basic"  # Default lock (pick up, traverse)
-    ENTER = "enter"  # Enter this container
-    USE = "use"  # Trigger $-commands
-    CONTROL = "control"  # Modify this object
-    SPEECH = "speech"  # Speak here
-    TELEPORT = "teleport"  # Teleport to this
-    EXAMINE = "examine"  # Examine this object
-    GIVE = "give"  # Give this away
-    DROP = "drop"  # Drop this
-    COMMAND = "command"  # Trigger commands
-    LISTEN = "listen"  # Trigger listen patterns
-    REACH = "reach"  # Reach into this room from afar (scry, remote act)
+BASIC = "basic"        # pick up, traverse
+ENTER = "enter"        # enter this container
+USE = "use"            # trigger $-commands
+CONTROL = "control"    # modify this object
+SPEECH = "speech"      # speak here
+TELEPORT = "teleport"  # teleport to this
+EXAMINE = "examine"    # see this object's detail sections
+GIVE = "give"          # give this away
+DROP = "drop"          # drop this
+COMMAND = "command"    # trigger its named scripts
+LISTEN = "listen"      # trigger its listen patterns
+REACH = "reach"        # reach into this room from afar (scry, remote act)
+
+#: The built-in lock type names, for ``LockType.BASIC``-style call sites.
+LockType = SimpleNamespace(
+    BASIC=BASIC, ENTER=ENTER, USE=USE, CONTROL=CONTROL, SPEECH=SPEECH,
+    TELEPORT=TELEPORT, EXAMINE=EXAMINE, GIVE=GIVE, DROP=DROP, COMMAND=COMMAND,
+    LISTEN=LISTEN, REACH=REACH,
+)
+
+LOCK_TYPE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 
-# Default lock expressions (when no lock is set)
-DEFAULT_LOCKS = {
-    LockType.BASIC: "True",  # Anyone can pick up by default
-    LockType.ENTER: "True",  # Anyone can enter by default
-    LockType.USE: "True",  # Anyone can use by default
-    LockType.CONTROL: "caller.id == owner.id",  # Only owner can control
-    LockType.SPEECH: "True",  # Anyone can speak
-    LockType.TELEPORT: "True",  # Anyone can teleport
-    # Open by default (matching how the world has always behaved); a builder
-    # sets lock_examine to hide an object's detail sections from prying eyes.
-    LockType.EXAMINE: "True",
-    LockType.GIVE: "True",  # Anyone can give
-    LockType.DROP: "True",  # Anyone can drop
-    LockType.COMMAND: "True",  # Anyone can trigger
-    LockType.LISTEN: "True",  # Anyone can trigger listen
-    LockType.REACH: "True",  # Open by default; a room can lock out remote reach
-}
+@dataclass(frozen=True)
+class LockDef:
+    """A registered lock type: its default expression (used when no lock of
+    this type is set) and a line for builders."""
+
+    name: str
+    default: str = "True"
+    doc: str = ""
+    owner: str = "kernel"
+
+
+def _builtin_lock_types() -> list[LockDef]:
+    return [
+        LockDef(BASIC, "True", "pick up / traverse"),
+        LockDef(ENTER, "True", "enter or put into this"),
+        LockDef(USE, "True", "use this object's $-commands"),
+        LockDef(CONTROL, "caller.id == owner.id", "modify this object"),
+        LockDef(SPEECH, "True", "speak in this room"),
+        LockDef(TELEPORT, "True", "teleport into this"),
+        # Open by default; a builder sets it to hide detail sections.
+        LockDef(EXAMINE, "True", "see this object's detail sections"),
+        LockDef(GIVE, "True", "give this away"),
+        LockDef(DROP, "True", "drop this"),
+        LockDef(COMMAND, "True", "trigger this object's named scripts"),
+        LockDef(LISTEN, "True", "be overheard by its ^listen patterns"),
+        LockDef(REACH, "True", "reach into this room from afar"),
+    ]
+
+
+_LOCK_TYPES: dict[str, LockDef] = {d.name: d for d in _builtin_lock_types()}
+
+
+def register_lock_type(name: str, *, default: str = "True", doc: str = "",
+                       owner: str = "kernel", replace: bool = False) -> None:
+    """Register a lock type with its default expression."""
+    if not LOCK_TYPE_RE.match(name):
+        raise ValueError(f"lock type {name!r} must match {LOCK_TYPE_RE.pattern}")
+    held = _LOCK_TYPES.get(name)
+    if held is not None and held.owner != owner and not replace:
+        raise ValueError(f"lock type {name!r} is already registered by {held.owner!r}")
+    _LOCK_TYPES[name] = LockDef(name, default, doc, owner)
+
+
+def install_lock_types(defs: list[LockDef]) -> None:
+    """The built-ins plus ``defs`` (``FeatureSet.install_registries``)."""
+    _LOCK_TYPES.clear()
+    _LOCK_TYPES.update({d.name: d for d in _builtin_lock_types()})
+    _LOCK_TYPES.update({d.name: d for d in defs})
+
+
+def lock_types() -> dict[str, LockDef]:
+    """Every registered lock type, by name."""
+    return dict(sorted(_LOCK_TYPES.items()))
+
+
+def default_lock(lock_type: str) -> str:
+    """The expression a lock type uses when no lock of that type is set: its
+    registered default, else ``True`` (a game's own lock that nobody set
+    does not block)."""
+    entry = _LOCK_TYPES.get(lock_type)
+    return entry.default if entry is not None else "True"
+
+
+def near_lock_type(lock_type: str) -> str | None:
+    """A registered lock type ``lock_type`` is probably a typo of, or None."""
+    import difflib
+    if lock_type in _LOCK_TYPES:
+        return None
+    close = difflib.get_close_matches(lock_type, list(_LOCK_TYPES), n=1, cutoff=0.8)
+    return close[0] if close else None
 
 
 class Lock:
@@ -84,8 +150,8 @@ class Lock:
     Locks are Python expressions evaluated in a safe namespace.
     """
 
-    def __init__(self, lock_type: LockType | str, expression: str):
-        self.lock_type = LockType(lock_type) if isinstance(lock_type, str) else lock_type
+    def __init__(self, lock_type: str, expression: str):
+        self.lock_type = str(lock_type)
         self.expression = expression.strip()
         self._compiled: Any = None
         self._valid: bool | None = None
@@ -113,7 +179,7 @@ class Lock:
         return True, None
 
     def __repr__(self) -> str:
-        return f"Lock({self.lock_type.value}, {self.expression!r})"
+        return f"Lock({self.lock_type}, {self.expression!r})"
 
 
 # Safe namespace for lock evaluation — the shared expression builtins.
@@ -159,7 +225,7 @@ class LockEvaluator:
     def check(
         self,
         target: GameObject,
-        lock_type: LockType | str,
+        lock_type: str,
         caller: GameObject,
     ) -> bool:
         """
@@ -176,8 +242,7 @@ class LockEvaluator:
         Returns:
             True if lock passes
         """
-        if isinstance(lock_type, str):
-            lock_type = LockType(lock_type)
+        lock_type = str(lock_type)
 
         # Bypass every lock (superuser).
         if has_entitlement(caller, LOCK_BYPASS_ALL):
@@ -192,11 +257,11 @@ class LockEvaluator:
             return True
 
         # Get the lock expression
-        lock_expr = target.locks.get(lock_type.value)
+        lock_expr = target.locks.get(lock_type)
 
         if lock_expr is None:
-            # Use default lock
-            lock_expr = DEFAULT_LOCKS.get(lock_type, "False")
+            # The type's registered default; a game's own unset lock passes.
+            lock_expr = default_lock(lock_type)
 
         # eval_bool validates, compiles (lru-cached), and fails closed.
         return eval_bool(lock_expr, _lock_namespace(caller, target))
@@ -224,7 +289,7 @@ _evaluator = LockEvaluator()
 
 def check_lock(
     target: GameObject,
-    lock_type: LockType | str,
+    lock_type: str,
     caller: GameObject,
 ) -> bool:
     """
@@ -332,12 +397,12 @@ def may_trigger(actor: GameObject | None, obj: GameObject | None) -> bool:
         return False
     if controls(actor, obj):
         return True
-    if obj.locks.get(LockType.COMMAND.value) is not None:
+    if obj.locks.get(COMMAND) is not None:
         return check_lock(obj, LockType.COMMAND, actor)
     return False
 
 
-def parse_lock(expression: str, lock_type: LockType | str = LockType.BASIC) -> Lock:
+def parse_lock(expression: str, lock_type: str = LockType.BASIC) -> Lock:
     """
     Parse a lock expression.
 
@@ -351,7 +416,7 @@ def parse_lock(expression: str, lock_type: LockType | str = LockType.BASIC) -> L
     return Lock(lock_type, expression)
 
 
-def set_lock(target: GameObject, lock_type: LockType | str, expression: str) -> bool:
+def set_lock(target: GameObject, lock_type: str, expression: str) -> bool:
     """
     Set a lock on an object.
 
@@ -363,8 +428,7 @@ def set_lock(target: GameObject, lock_type: LockType | str, expression: str) -> 
     Returns:
         True if lock was set successfully (valid expression)
     """
-    if isinstance(lock_type, LockType):
-        lock_type = lock_type.value
+    lock_type = str(lock_type)
 
     lock = Lock(lock_type, expression)
     valid, error = lock.validate()
@@ -376,7 +440,7 @@ def set_lock(target: GameObject, lock_type: LockType | str, expression: str) -> 
     return False
 
 
-def clear_lock(target: GameObject, lock_type: LockType | str) -> bool:
+def clear_lock(target: GameObject, lock_type: str) -> bool:
     """
     Clear a lock from an object.
 
@@ -387,8 +451,7 @@ def clear_lock(target: GameObject, lock_type: LockType | str) -> bool:
     Returns:
         True if lock was cleared
     """
-    if isinstance(lock_type, LockType):
-        lock_type = lock_type.value
+    lock_type = str(lock_type)
 
     if lock_type in target.locks:
         del target.locks[lock_type]
@@ -410,31 +473,9 @@ def clear_lock(target: GameObject, lock_type: LockType | str) -> bool:
 # because the exit and destination aren't the target of the gating
 # on_leave action.
 
-# action_type → (lock checked ON THE TARGET, default failure message)
-TARGET_ACTION_LOCKS: dict[str, tuple[LockType, str]] = {
-    ActionType.ON_GET: (LockType.BASIC, "You can't pick up {name}."),
-    ActionType.ON_DROP: (LockType.DROP, "You can't drop {name}."),
-    ActionType.ON_PUT: (LockType.ENTER, "You can't put things in {name}."),
-    # All room-directed communication is gated by the room's speech lock.
-    ActionType.SPEECH: (LockType.SPEECH, "You can't speak here."),
-    ActionType.SHOUT: (LockType.SPEECH, "You can't speak here."),
-    ActionType.OOC: (LockType.SPEECH, "You can't speak here."),
-    ActionType.EMOTE: (LockType.SPEECH, "You can't emote here."),
-    ActionType.SEMIPOSE: (LockType.SPEECH, "You can't emote here."),
-    ActionType.EMIT: (LockType.SPEECH, "You can't emit here."),
-}
-
-# action_type → (lock checked ON THE TOOL by the actor, default message).
-# The tool isn't visited by the propagation chain, so the actor — who is
-# always visited — checks the lock of the thing it's wielding/giving.
-TOOL_ACTION_LOCKS: dict[str, tuple[LockType, str]] = {
-    ActionType.ON_GIVE: (LockType.GIVE, "You can't give {name} away."),
-}
-
-
 def lock_failure_message(
     obj: GameObject,
-    lock_type: LockType,
+    lock_type: str,
     default_template: str,
 ) -> str:
     """
@@ -445,7 +486,8 @@ def lock_failure_message(
     The door glows red and refuses to budge.``); otherwise the default
     template is used with ``{name}`` substituted.
     """
-    custom = obj.db.get(f"lock_fail_{lock_type.value}")
+    name = str(lock_type)
+    custom = obj.db.get(f"lock_fail_{name}")
     if custom:
         return str(custom)
     return default_template.format(name=obj.name)
@@ -463,19 +505,18 @@ def enforce_lock_on_action(obj: GameObject, action: Action) -> None:
     if actor is None or action.blocked:
         return
 
-    if obj is action.target and obj is not actor:
-        entry = TARGET_ACTION_LOCKS.get(action.action_type)
-        if entry:
-            lock_type, template = entry
-            if not check_lock(obj, lock_type, actor):
-                action.block(lock_failure_message(obj, lock_type, template))
-                return
+    from realm.core.eventdefs import installed
+    event = installed().get(action.action_type)
+    if event is None:
+        return
 
-    if obj is actor and action.tool is not None:
-        entry = TOOL_ACTION_LOCKS.get(action.action_type)
-        if entry:
-            lock_type, template = entry
-            if not check_lock(action.tool, lock_type, actor):
-                action.block(
-                    lock_failure_message(action.tool, lock_type, template)
-                )
+    if obj is action.target and obj is not actor and event.target_lock:
+        lock_type, template = event.target_lock
+        if not check_lock(obj, lock_type, actor):
+            action.block(lock_failure_message(obj, lock_type, template))
+            return
+
+    if obj is actor and action.tool is not None and event.tool_lock:
+        lock_type, template = event.tool_lock
+        if not check_lock(action.tool, lock_type, actor):
+            action.block(lock_failure_message(action.tool, lock_type, template))

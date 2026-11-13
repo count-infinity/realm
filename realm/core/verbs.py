@@ -352,6 +352,32 @@ async def do_pose(
     return await _speak(pose_action(actor, pose_text), scripted)
 
 
+def semipose_action(poser: GameObject, pose_text: str) -> Action:
+    """The canonical semipose shape: the pose abuts the name with no space
+    ("Alice's dog barks."). ``{actor}`` renders the bare name per viewer
+    (disguise, sdesc, voice_as); the text stays a ``{speech}`` token."""
+    from realm.core.propagation import ROOM_TARGET_CHAIN
+    action = Action(
+        actor=poser,
+        target=poser.location,
+        action_type=ActionType.SEMIPOSE,
+        chain=ROOM_TARGET_CHAIN,
+        extra={"pose": pose_text},
+    )
+    action.add_message("actor", "{actor}{speech}", success_only=True)
+    action.add_message("room", "{actor}{speech}", success_only=True)
+    return action
+
+
+async def do_semipose(
+    actor: GameObject, pose_text: str, *, scripted: bool = False
+) -> Action | None:
+    """Semipose — the one semipose pathway. Returns the action or None."""
+    if actor.location is None:
+        return None
+    return await _speak(semipose_action(actor, pose_text), scripted)
+
+
 async def do_emit(
     actor: GameObject, message: str, *, scripted: bool = False
 ) -> Action | None:
@@ -386,10 +412,12 @@ async def _speak(action: Action, scripted: bool) -> Action:
 __all__ = [
     "speech_action",
     "pose_action",
+    "semipose_action",
     "emit_action",
     "whisper_action",
     "do_say",
     "do_pose",
+    "do_semipose",
     "do_emit",
     "do_whisper",
     "gate_item_action",

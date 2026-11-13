@@ -50,12 +50,15 @@ async def cmd_reload(ctx: CommandContext) -> None:
 
     Usage: @reload
     """
+    from realm.core.defs import all_defs, def_kinds, invalidate
     from realm.permissions.entitlements import reload_role_defs
     from realm.systems import reload_rules
-
+    invalidate()                    # every in-world definition is re-read
     reload_rules()
     problems = reload_role_defs()   # custom role_def ranks take effect immediately
+    counts = ", ".join(f"{len(all_defs(kind))} {kind}" for kind in sorted(def_kinds()))
     await ctx.session.send("Rules reloaded from the world.")
+    await ctx.session.send(f"Definitions: {counts}.")
     for problem in problems:
         await ctx.session.send(f"Warning: {problem}")
 
@@ -190,3 +193,21 @@ async def cmd_quell(ctx: CommandContext) -> None:
             "'unquell' to restore.")
 
 
+
+
+async def cmd_events(ctx: CommandContext) -> None:
+    """
+    List the event hooks this world fires: each ON_<HOOK> attribute an
+    object can carry, the feature that declares it, and when it fires.
+
+    Usage: @events
+
+    Example:
+        @events
+    """
+    from realm.core.eventdefs import installed
+    hooks = installed().hooks()
+    lines = [f"Event hooks ({len(hooks)}): set ON_<HOOK> on an object to react."]
+    for name, event in hooks.items():
+        lines.append(f"  ON_{name:<11} [{event.owner}] {event.doc}")
+    await ctx.session.send("\n".join(lines))

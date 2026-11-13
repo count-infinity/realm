@@ -11,7 +11,6 @@ import textwrap
 
 from realm.scripting.functions import ScriptFrame
 from realm.scripting.registry import registered
-from realm.scripting.triggers import STANDARD_EVENTS
 
 #: Section order in the reference. Each function's section is its
 #: ``group`` in the registry (realm/scripting/registry.py); main() raises if
@@ -31,6 +30,18 @@ GROUPS: list[str] = [
     "Text",
     "Math & logic",
 ]
+
+
+def payload_table(events) -> str:
+    """The adata() keys each declared action type carries."""
+    rows = ["| Action | Keys | Feature |", "|---|---|---|"]
+    for event in events.events():
+        if not event.payload:
+            continue
+        keys = "; ".join(f"`{k}`: {v}" for k, v in event.payload.items())
+        rows.append(f"| `{event.action_type}` | {keys.replace('|', chr(92) + '|')} "
+                    f"| `{event.owner}` |")
+    return "\n".join(rows)
 
 
 def profiles_table() -> str:
@@ -205,26 +216,11 @@ dispenses free fuel. Anything that reacts to `ON_PAYMENT`, `ON_RECEIVE`,
 `ON_GET`, `ON_DAMAGE` — any event with a target — wants this check unless
 it genuinely means to react to the whole room's traffic.
 
-Payloads carried today (read with `adata`):
+Payloads carried today (read with `adata`), declared with each event
+(`feature.event(..., payload=...)`). An action type not listed carries no
+payload: its subject is `target`.
 
-| Action | Keys |
-|---|---|
-| `event:payment` | `amount` |
-| `item:on_get` / `on_drop` / `on_wield` / `on_unwield` | *(none — the item IS `target`)* |
-| `item:on_give` | `item` (`target` is the recipient; the item also arrives as `tool`) |
-| `item:on_put` | `item` (`target` is the container) |
-| `event:on_receive` | `item`, `giver` |
-| `event:on_leave` | `exit`, `direction`, `destination` |
-| `event:on_fail` | `reason` (`'skill'`, `'closed'`, `'locked'`, …), `exit`, `direction`, `destination` |
-| `event:on_enter` / `pre_enter` / `on_look` / `on_expire` / `on_reset` | *(none — the subject is `target`)* |
-| `event:on_hitprcnt` | `percent`, `threshold` |
-| `event:on_cast` | `ability`, `caster` |
-| `event:connect` | `returning` |
-| `combat:on_damage` | `damage`, `damage_types` |
-| `combat:on_attack` | `weapon`, `attacker_hp`, `defender_hp` |
-| `combat:on_death` | `killer` (a name; the killer *object* is `actor`), `fatal` |
-| `event:speech` / `shout` / `ooc` / `emit` / `whisper` | `message` |
-| `event:emote` / `semipose` | `pose` |
+{PAYLOADS}
 
 ```
 @set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.
@@ -291,8 +287,8 @@ An `ON_<NAME>` attribute fires when that event reaches the object (zone
 masters also hear their member rooms). Gated hooks let an `on_check` ward
 veto (a cursed item refusing removal).
 
-| Hook attr | Fires when |
-|---|---|"""
+| Hook attr | Fires when | Feature |
+|---|---|---|"""
 
 FOOTER = """
 Authority in one line: **reads are open** (except `password` and
@@ -313,9 +309,12 @@ def main() -> None:
             "Add each to GROUPS in the order it should appear in the reference.")
     sections = {g: [n for n, e in registered().items() if e.group == g] for g in GROUPS}
 
-    lines = [HEADER.replace("{PROFILES}", profiles_table())]
-    for name, desc in STANDARD_EVENTS.items():
-        lines.append(f"| `ON_{name}` | {desc} |")
+    from realm.core.eventdefs import installed as installed_events
+    events = installed_events()
+    lines = [HEADER.replace("{PROFILES}", profiles_table())
+             .replace("{PAYLOADS}", payload_table(events))]
+    for name, event in events.hooks().items():
+        lines.append(f"| `ON_{name}` | {event.doc} | `{event.owner}` |")
 
     def esc(t: str) -> str:
         return t.replace("|", chr(92) + "|")

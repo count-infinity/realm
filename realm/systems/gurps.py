@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.defs import all_defs
 from realm.systems.base import ChoiceStep, GameSystem
 
 if TYPE_CHECKING:
@@ -98,9 +99,8 @@ class GurpsSystem(GameSystem):
     def skill_defaults(self) -> dict[str, tuple[str, int]]:
         # Built-ins, extended/overridden by any skill_def objects (data
         # wins by name). None present -> just the built-ins.
-        from realm.systems.definitions import read_skill_defs
         defaults = dict(BUILTIN_SKILL_DEFAULTS)
-        defaults.update(read_skill_defs())
+        defaults.update(all_defs("skill"))
         return defaults
 
     def resolve_check(self, obj: GameObject, skill: str, modifier: int):
@@ -128,9 +128,8 @@ class GurpsSystem(GameSystem):
         overridden by any ``class_def`` objects (data wins by name) — the
         same merge rule skills use, so adding one class *adds* it rather
         than replacing the roster."""
-        from realm.systems.definitions import read_class_defs
         classes = dict(TEMPLATES)
-        classes.update(read_class_defs())
+        classes.update(all_defs("class"))
         return classes
 
     def chargen_steps(self):

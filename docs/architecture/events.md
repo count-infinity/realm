@@ -63,17 +63,32 @@ async def on_react(self, obj, action):
         return
 ```
 
-Two vocabularies are deliberately *open* and stay as strings: ability
-domains minted at runtime (``f"{domain}:{slug}"`` in
-``realm.systems.abilities``), and builder-invented event types fired from
-softcode ``act()`` (``'event:toll'`` needs no registration — any object
-with an ``on_toll`` hook reacts). The enum covers the engine's fixed
-vocabulary; it is not a gate on inventing new types.
+**An action type is declared once**, by the feature that owns it, with
+everything that hangs off it (``realm/core/eventdefs.py``):
 
-Messages address audiences (``actor`` / ``target`` / ``room``), render
-**per looker** (perception applies — an unseen speaker narrates as
-"Someone"), and ``success_only`` messages are suppressed when the
-action is blocked.
+```python
+feature.event(ActionType.ON_GET, hook="GET", doc="this object is picked up",
+              target_lock=("basic", "You can't pick up {name}."))
+feature.event(ActionType.SPEECH, doc="say", payload={"message": "what was said"},
+              speech=True, target_lock=("speech", "You can't speak here."))
+```
+
+The declaration gives the ``ON_<HOOK>`` softcode attribute, the line in the
+reference and ``@events``, the ``adata()`` keys (the generated payload table;
+``tests/test_payload_docs_match_engine.py`` checks them against what the
+engine really sends), the lock enforced on the target or tool, and whether
+``{actor}`` is a voice (``voice_as``). A world without the owning feature
+has none of it: without ``items``, ``ON_GET`` is not a hook.
+
+Undeclared types stay legal: ability domains minted at runtime
+(``f"{domain}:{slug}"``) and builder-invented types fired from softcode
+``act()`` (``'event:toll'`` fires ``ON_TOLL``) use the suffix as the hook.
+
+Messages address audiences — ``actor``, ``target``, ``room``, ``remote``, or
+one a feature registers (``@feature.audience("zone")``) — render **per
+looker** (perception applies — an unseen speaker narrates as "Someone"), and
+``success_only`` messages are suppressed when the action is blocked. A
+message for an audience nobody registered logs a WARNING.
 
 ### Message tokens
 
@@ -162,10 +177,11 @@ gives you away. The speaker always hears their own true attribution.
 
 ## Action types
 
-Namespaced strings, not an enum: ``event:speech``, ``event:on_enter``,
-``item:on_get``, ``combat:on_death``, ``event:payment``... The suffix
-maps to softcode triggers — an object with an ``ON_ENTER`` attribute
-runs it when something enters its room.
+Namespaced strings: ``event:speech``, ``event:on_enter``, ``item:on_get``,
+``combat:on_death``, ``event:payment``... Each declared type names its
+``ON_<HOOK>`` softcode attribute (an object with ``ON_ENTER`` runs it when
+something enters its room); ``@events`` lists every hook in the world with
+the feature that declares it.
 
 ## Common patterns
 

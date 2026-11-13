@@ -110,12 +110,19 @@ def untag(actor: GameObject | None, obj: GameObject, tag: str) -> OpResult:
 # --- locks -------------------------------------------------------------------
 
 def _lock_type(lock_type: str) -> str:
-    from realm.permissions.locks import LockType
+    """Any lowercase name is a lock type: the registered ones, or a game's
+    own (``crack``) that works as soon as a builder sets it."""
+    from realm.permissions.locks import LOCK_TYPE_RE
     name = str(lock_type).lower()
-    valid = {lt.value for lt in LockType}
-    if name not in valid:
-        raise Invalid(f"Unknown lock type '{name}'. Valid types: {', '.join(sorted(valid))}")
+    if not LOCK_TYPE_RE.match(name):
+        raise Invalid(f"'{name}' is not a lock type name (lowercase letters, digits, _).")
     return name
+
+
+def _lock_type_warning(name: str) -> list[str]:
+    from realm.permissions.locks import near_lock_type
+    near = near_lock_type(name)
+    return [f"'{name}' is not a known lock type. Did you mean '{near}'?"] if near else []
 
 
 def check_set_lock(actor: GameObject | None, obj: GameObject, lock_type: str,
@@ -130,10 +137,12 @@ def check_set_lock(actor: GameObject | None, obj: GameObject, lock_type: str,
 
 def set_lock(actor: GameObject | None, obj: GameObject, lock_type: str,
              expression: str) -> OpResult:
-    """Set a lock, validated at write time."""
+    """Set a lock, validated at write time. A type that is a near miss of a
+    registered one (``baisc``) is set, with a "did you mean" warning."""
     check_set_lock(actor, obj, lock_type, expression)
-    obj.locks[_lock_type(lock_type)] = str(expression)
-    return OpResult(value=str(expression), touched=[obj])
+    name = _lock_type(lock_type)
+    obj.locks[name] = str(expression)
+    return OpResult(value=str(expression), touched=[obj], warnings=_lock_type_warning(name))
 
 
 def check_clear_lock(actor: GameObject | None, obj: GameObject,

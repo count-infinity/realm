@@ -36,13 +36,15 @@ from realm.scripting.sandbox import (
     ScriptContext,
     ScriptError,
     ScriptSandbox,
-    SimpleScriptRunner,
+    expand_substitutions,
 )
 from realm.scripting.triggers import (
     TriggerManager,
     TriggerMatch,
     get_search_objects,
+    unknown_verb,
 )
+from realm.scripting.verbs import installed as installed_verbs
 
 if TYPE_CHECKING:
     from realm.commands.dispatcher import CommandContext
@@ -525,7 +527,8 @@ class ScriptEngine:
         room: GameObject | None,
     ) -> None:
         """Fire ON_<EVENT> triggers on objects that witnessed the action."""
-        event_type = self._event_suffix(action.action_type)
+        from realm.core.eventdefs import installed as installed_events
+        event_type = installed_events().hook_for(action.action_type)
         if not event_type:
             return
 
@@ -592,14 +595,6 @@ class ScriptEngine:
                                                 action=action)
 
     @staticmethod
-    def _event_suffix(action_type: str) -> str:
-        """``event:on_enter`` → ``ENTER``; ``item:get`` → ``GET``."""
-        suffix = action_type.rsplit(":", 1)[-1].upper()
-        if suffix.startswith("ON_"):
-            suffix = suffix[3:]
-        return suffix
-
-    @staticmethod
     def _action_room(action: Action) -> GameObject | None:
         """The room where an action is audible/visible."""
         if action.actor is not None and action.actor.location is not None:
@@ -663,9 +658,12 @@ class ScriptEngine:
         try:
             action_code = match.action
 
-            if SimpleScriptRunner.is_simple_script(action_code):
-                # Simple expansion — substitute and run as a script command
-                expanded = SimpleScriptRunner.expand_simple(action_code, script_ctx)
+            missing = unknown_verb(action_code)
+            if missing is not None:
+                logger.warning(f"Script on {match.obj.name}: {missing}")
+            elif installed_verbs().is_command_line(action_code):
+                # One command line: substitute %-codes and run it as a verb.
+                expanded = expand_substitutions(action_code, script_ctx)
                 await self._run_script_command(match.obj, expanded)
             else:
                 # Full Python script execution with game functions injected.
@@ -703,153 +701,24 @@ class ScriptEngine:
     # --- Script command emission (via propagation) ---
 
     async def _run_script_command(self, executor: GameObject, command: str) -> None:
-        """
-        Run a command produced by a script, acting as the scripted object.
+        """Run one script command line as the scripted object.
 
-        Communication commands are emitted through the propagation engine as
-        real actions — players hear them, behaviors react, other scripts'
-        listen triggers can fire (depth-guarded). ``move`` routes through
-        move_through_exit, so locks, guards, and closed doors apply to
-        scripted movement exactly as they do to players. ``trigger`` runs
-        a named script attribute (self or a room neighbor). Anything else
-        is logged and dropped until scripted objects can drive the full
-        dispatcher.
+        The installed script verbs (``realm.scripting.verbs``) decide what a
+        line means; each verb's handler goes through the same core the
+        player command uses, so locks, closed doors and wards apply. A line
+        that names no installed verb is logged and dropped.
         """
-        command = command.strip()
-        if not command:
+        from realm.scripting.verbs import installed
+        verbs = installed()
+        found = verbs.match(command)
+        if found is None:
+            if command.strip():
+                logger.warning(
+                    f"Script on {executor.name} produced {command.strip()!r}, which is "
+                    f"not a script verb in this world. Known: {', '.join(verbs.names())}")
             return
-        lower = command.lower()
-
-        if lower.startswith('say '):
-            await self._emit_speech(executor, command[4:])
-
-        elif lower.startswith('move ') or lower.startswith('go '):
-            direction = command.split(None, 1)[1] if len(command.split(None, 1)) > 1 else ""
-            await self._scripted_move(executor, direction.strip())
-
-        elif lower.startswith('trigger ') or lower.startswith('@tr '):
-            spec = command.split(None, 1)[1] if len(command.split(None, 1)) > 1 else ""
-            await self._scripted_trigger(executor, spec.strip())
-
-        elif lower.startswith(('get ', 'take ', 'drop ', 'open ', 'close ', 'give ')):
-            verb, args = command.split(None, 1)
-            await self._scripted_verb(executor, verb.lower(), args.strip())
-
-        elif lower.startswith('wait '):
-            # wait <seconds> <command> — one-shot, fired from the heartbeat.
-            parts = command.split(None, 2)
-            if len(parts) == 3:
-                try:
-                    seconds = float(parts[1])
-                except ValueError:
-                    return
-                self.schedule_wait(executor, seconds, parts[2])
-
-        elif lower.startswith('pose ') or command.startswith(':'):
-            pose = command[5:] if lower.startswith('pose ') else command[1:]
-            await self._emit_pose(executor, pose)
-
-        elif lower.startswith('@emit ') or lower.startswith('emit ') or command.startswith('\\'):
-            if command.startswith('\\'):
-                message = command[1:]
-            elif lower.startswith('@emit '):
-                message = command[6:]
-            else:
-                message = command[5:]
-            await self._emit_raw(executor, message)
-
-        elif lower.startswith('whisper '):
-            parts = command[8:].split('=', 1)
-            if len(parts) == 2:
-                await self._emit_whisper(executor, parts[0].strip(), parts[1].strip())
-
-        else:
-            logger.warning(
-                f"Script on {executor.name} produced unsupported command: {command!r}"
-            )
-
-    async def _scripted_move(self, executor: GameObject, direction: str) -> None:
-        """
-        Scripted movement through a named exit in the executor's room.
-
-        Full movement pathway — exit locks, closed doors, guard behaviors,
-        and on_leave/on_enter propagation all apply. A blocked move is a
-        silent no-op for the script (the world already delivered the
-        block to whoever should see it).
-        """
-        if not direction or executor.location is None:
-            return
-
-        from realm.core.movement import (
-            has_dest_resolver,
-            move_through_exit,
-            resolve_exit_destination,
-        )
-        from realm.core.search import AmbiguousMatchError, match_one
-
-        exits = [obj for obj in executor.location.contents if obj.is_exit]
-        try:
-            exit_obj = match_one(direction, exits)
-        except AmbiguousMatchError:
-            exit_obj = None
-        if exit_obj is None:
-            logger.warning(
-                f"Script on {executor.name} tried to move through "
-                f"unknown exit {direction!r}"
-            )
-            return
-
-        destination = resolve_exit_destination(exit_obj)
-        if destination is None and not has_dest_resolver(exit_obj):
-            return
-        await move_through_exit(executor, destination, exit_obj=exit_obj)
-
-    async def _scripted_verb(self, executor: GameObject, verb: str, args: str) -> None:
-        """
-        Manipulation verbs for scripted objects — the same cores player
-        commands use (realm.core.verbs), so locks and behavior gates
-        apply identically.
-        """
-        from realm.core.search import AmbiguousMatchError, match_one
-        from realm.core.verbs import do_close, do_drop, do_get, do_give, do_open
-
-        def find_in(candidates: list[GameObject], spec: str) -> GameObject | None:
-            try:
-                return match_one(spec, candidates)
-            except AmbiguousMatchError:
-                return None
-
-        room_contents = list(executor.location.contents) if executor.location else []
-
-        if verb in ('get', 'take'):
-            target = find_in([o for o in room_contents if o is not executor], args)
-            if target is not None:
-                await do_get(executor, target)
-        elif verb == 'drop':
-            target = find_in(list(executor.contents), args)
-            if target is not None:
-                await do_drop(executor, target)
-        elif verb == 'give':
-            # give <item> = <target>  or  give <item> to <target>
-            if '=' in args:
-                item_spec, target_spec = args.split('=', 1)
-            elif ' to ' in args.lower():
-                idx = args.lower().index(' to ')
-                item_spec, target_spec = args[:idx], args[idx + 4:]
-            else:
-                return
-            item = find_in(list(executor.contents), item_spec.strip())
-            target = find_in([o for o in room_contents if o is not executor],
-                             target_spec.strip())
-            if item is not None and target is not None:
-                await do_give(executor, item, target)
-        elif verb in ('open', 'close'):
-            target = find_in([o for o in room_contents if o is not executor], args)
-            if target is not None:
-                if verb == 'open':
-                    await do_open(executor, target)
-                else:
-                    await do_close(executor, target)
+        verb, rest = found
+        await verb.handler(self, executor, rest)
 
     # --- One-shot waits (fired from the server heartbeat) ---
 
@@ -987,47 +856,6 @@ class ScriptEngine:
                 return
 
         await self.run_object_script(target, attr_name, enactor=executor)
-
-    async def _emit_speech(self, speaker: GameObject, message: str) -> None:
-        """Scripted say — same pathway as cmd_say."""
-        from realm.core.verbs import do_say
-        await do_say(speaker, message, scripted=True)
-
-    async def _emit_pose(self, poser: GameObject, pose_text: str) -> None:
-        """Scripted pose — same pathway as cmd_pose."""
-        from realm.core.verbs import do_pose
-        await do_pose(poser, pose_text, scripted=True)
-
-    async def _emit_raw(self, executor: GameObject, message: str) -> None:
-        """Scripted @emit — same pathway as cmd_emit."""
-        from realm.core.verbs import do_emit
-        await do_emit(executor, message, scripted=True)
-
-    async def _emit_whisper(
-        self,
-        speaker: GameObject,
-        target_spec: str,
-        message: str,
-    ) -> None:
-        """Scripted whisper — same pathway as cmd_whisper. Target is
-        resolved perception-aware against the speaker's room, like every
-        other name lookup in the engine (no more exact-match divergence)."""
-        if speaker.location is None:
-            return
-        from realm.core.perception import can_see
-        from realm.core.search import AmbiguousMatchError, match_one
-        try:
-            target = match_one(
-                target_spec,
-                [o for o in speaker.location.contents
-                 if o is not speaker and can_see(speaker, o)],
-            )
-        except AmbiguousMatchError:
-            return  # a script whisper to an ambiguous name is a no-op
-        if target is None:
-            return
-        from realm.core.verbs import do_whisper
-        await do_whisper(speaker, target, message, scripted=True)
 
     @staticmethod
     def _installed_queue_kind(kind: str):

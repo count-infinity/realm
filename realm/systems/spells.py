@@ -22,9 +22,7 @@ from realm.systems.abilities import (
     SPELL_DEF_TAG,
     apply_typed_damage,
     can_invoke,
-    find_ability_def,
     invoke_ability,
-    list_ability_defs,
 )
 
 if TYPE_CHECKING:
@@ -32,14 +30,10 @@ if TYPE_CHECKING:
     from realm.core.propagation import Action
 
 
-def list_spell_defs() -> list[GameObject]:
-    """Every spell_def in the world, stably ordered."""
-    return list_ability_defs(tag=SPELL_DEF_TAG)
-
-
 def find_spell_def(name: str) -> GameObject | None:
     """A spell_def by name (exact, else unique prefix)."""
-    return find_ability_def(name, tag=SPELL_DEF_TAG)
+    from realm.core.defs import find_def
+    return find_def("spell", name)
 
 
 def knows_spell(caster: GameObject, spell: GameObject) -> bool:
@@ -65,5 +59,4 @@ __all__ = [
     "cast_spell",
     "find_spell_def",
     "knows_spell",
-    "list_spell_defs",
 ]

@@ -104,26 +104,32 @@ dispenses free fuel. Anything that reacts to `ON_PAYMENT`, `ON_RECEIVE`,
 `ON_GET`, `ON_DAMAGE` — any event with a target — wants this check unless
 it genuinely means to react to the whole room's traffic.
 
-Payloads carried today (read with `adata`):
+Payloads carried today (read with `adata`), declared with each event
+(`feature.event(..., payload=...)`). An action type not listed carries no
+payload: its subject is `target`.
 
-| Action | Keys |
-|---|---|
-| `event:payment` | `amount` |
-| `item:on_get` / `on_drop` / `on_wield` / `on_unwield` | *(none — the item IS `target`)* |
-| `item:on_give` | `item` (`target` is the recipient; the item also arrives as `tool`) |
-| `item:on_put` | `item` (`target` is the container) |
-| `event:on_receive` | `item`, `giver` |
-| `event:on_leave` | `exit`, `direction`, `destination` |
-| `event:on_fail` | `reason` (`'skill'`, `'closed'`, `'locked'`, …), `exit`, `direction`, `destination` |
-| `event:on_enter` / `pre_enter` / `on_look` / `on_expire` / `on_reset` | *(none — the subject is `target`)* |
-| `event:on_hitprcnt` | `percent`, `threshold` |
-| `event:on_cast` | `ability`, `caster` |
-| `event:connect` | `returning` |
-| `combat:on_damage` | `damage`, `damage_types` |
-| `combat:on_attack` | `weapon`, `attacker_hp`, `defender_hp` |
-| `combat:on_death` | `killer` (a name; the killer *object* is `actor`), `fatal` |
-| `event:speech` / `shout` / `ooc` / `emit` / `whisper` | `message` |
-| `event:emote` / `semipose` | `pose` |
+| Action | Keys | Feature |
+|---|---|---|
+| `combat:on_attack` | `weapon`: the weapon used; `attacker_hp`: the attacker's HP; `defender_hp`: the defender's HP | `combat` |
+| `combat:on_damage` | `damage`: the amount (a ward may lower it); `damage_types`: amount per damage type | `combat` |
+| `combat:on_death` | `killer`: the killer's name (the killer object is actor); `fatal`: True for a real death | `combat` |
+| `event:connect` | `returning`: True when the character already existed | `kernel` |
+| `event:emit` | `message`: the emitted text | `talk` |
+| `event:emote` | `pose`: the pose text | `talk` |
+| `event:on_cast` | `ability`: the ability's name; `caster`: who directed it | `abilities` |
+| `event:on_fail` | `reason`: 'skill', 'closed', 'locked', ...; `exit`: the exit object; `direction`: the exit's name; `destination`: the room beyond | `kernel` |
+| `event:on_hitprcnt` | `percent`: HP percent now; `threshold`: the crossed threshold | `combat` |
+| `event:on_leave` | `exit`: the exit object; `direction`: the exit's name; `destination`: the room beyond | `kernel` |
+| `event:on_load` | `marker`: the spawner's tracking tag | `kernel` |
+| `event:on_receive` | `item`: what was given; `giver`: who gave it | `kernel` |
+| `event:ooc` | `message`: what was said | `talk` |
+| `event:payment` | `amount`: the sum paid | `economy` |
+| `event:semipose` | `pose`: the pose text | `talk` |
+| `event:shout` | `message`: what was said | `talk` |
+| `event:speech` | `message`: what was said | `talk` |
+| `event:whisper` | `message`: what was said | `talk` |
+| `item:on_give` | `item`: what was given (also the action's tool); target is the recipient | `items` |
+| `item:on_put` | `item`: what was put in; target is the container | `items` |
 
 ```
 @set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.
@@ -190,40 +196,40 @@ An `ON_<NAME>` attribute fires when that event reaches the object (zone
 masters also hear their member rooms). Gated hooks let an `on_check` ward
 veto (a cursed item refusing removal).
 
-| Hook attr | Fires when |
-|---|---|
-| `ON_ENTER` | something enters this location |
-| `ON_LEAVE` | something leaves this location |
-| `ON_ARRIVE` | this object arrives somewhere new |
-| `ON_FAIL` | a move was thwarted (dead-end/locked exit) — @afail |
-| `ON_LOOK` | this object is looked at |
-| `ON_USE` | this object is used |
-| `ON_PUSH` | this object is pushed (button, lever) |
-| `ON_GET` | this object is picked up |
-| `ON_DROP` | this object is dropped |
-| `ON_GIVE` | this object is given away |
-| `ON_RECEIVE` | this object is given something (recipient side) |
-| `ON_PUT` | this object is put in a container |
-| `ON_WEAR` | this object is worn |
-| `ON_REMOVE` | this object is taken off (gated: cursed gear can refuse) |
-| `ON_WIELD` | this weapon is readied (gated) |
-| `ON_UNWIELD` | this weapon is lowered (gated) |
-| `ON_OPEN` | this door/container is opened |
-| `ON_CLOSE` | this door/container is closed |
-| `ON_LOCK` | this is locked (gated) |
-| `ON_UNLOCK` | this is unlocked (gated: a sealed door can refuse) |
-| `ON_ATTACK` | this object attacks or is attacked |
-| `ON_DAMAGE` | this object takes damage |
-| `ON_HITPRCNT` | HP fell through this object's db.hitprcnt threshold |
-| `ON_DEATH` | this object goes down — any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True for a real death (an NPC, now a corpse), False for a player knocked unconscious in place |
-| `ON_CAST` | an ability is directed at this object (resist via on_check) |
-| `ON_LOAD` | this object was just spawned |
-| `ON_EXPIRE` | this object's db.expires_at elapsed (then it's destroyed) |
-| `ON_RESET` | this zone master resets (empty + due) — repop, re-lock doors |
-| `ON_TICK` | periodic timer (on_tick behavior) |
-| `ON_CONNECT` | player connects |
-| `ON_DISCONNECT` | player disconnects |
-| `ON_PAYMENT` | this object was paid |
+| Hook attr | Fires when | Feature |
+|---|---|---|
+| `ON_ARRIVE` | this object arrives somewhere new | `kernel` |
+| `ON_ATTACK` | this object attacks or is attacked | `combat` |
+| `ON_CAST` | an ability is directed at this object (resist via on_check) | `abilities` |
+| `ON_CLOSE` | this door/container is closed | `items` |
+| `ON_CONNECT` | player connects | `kernel` |
+| `ON_DAMAGE` | this object takes damage | `combat` |
+| `ON_DEATH` | this object goes down — any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True for a real death (an NPC, now a corpse), False for a player knocked unconscious in place | `combat` |
+| `ON_DISCONNECT` | player disconnects | `kernel` |
+| `ON_DROP` | this object is dropped | `items` |
+| `ON_ENTER` | something enters this location | `kernel` |
+| `ON_EXPIRE` | this object's db.expires_at elapsed (then it's destroyed) | `kernel` |
+| `ON_FAIL` | a move was thwarted (dead-end/locked exit) — @afail | `kernel` |
+| `ON_GET` | this object is picked up | `items` |
+| `ON_GIVE` | this object is given away | `items` |
+| `ON_HITPRCNT` | HP fell through this object's db.hitprcnt threshold | `combat` |
+| `ON_LEAVE` | something leaves this location | `kernel` |
+| `ON_LOAD` | this object was just spawned | `kernel` |
+| `ON_LOCK` | this is locked (gated) | `items` |
+| `ON_LOOK` | this object is looked at | `kernel` |
+| `ON_OPEN` | this door/container is opened | `items` |
+| `ON_PAYMENT` | this object was paid | `economy` |
+| `ON_PUSH` | this object is pushed (button, lever) | `items` |
+| `ON_PUT` | this object is put in a container | `items` |
+| `ON_RECEIVE` | this object is given something (recipient side) | `kernel` |
+| `ON_REMOVE` | this object is taken off (gated: cursed gear can refuse) | `items` |
+| `ON_RESET` | this zone master resets (empty + due) — repop, re-lock doors | `kernel` |
+| `ON_TICK` | periodic timer (on_tick behavior) | `kernel` |
+| `ON_UNLOCK` | this is unlocked (gated: a sealed door can refuse) | `items` |
+| `ON_UNWIELD` | this weapon is lowered (gated) | `items` |
+| `ON_USE` | this object is used | `items` |
+| `ON_WEAR` | this object is worn | `items` |
+| `ON_WIELD` | this weapon is readied (gated) | `items` |
 
 ## Functions
 
@@ -907,12 +913,13 @@ Whether an object holds a permission entitlement (read-only).
 
 The capability layer under roles: instead of asking "is this an
 admin?", ask what you actually mean. Built-in roles grant the classic
-sets; a game's own `role_def` ranks may grant them too.
+sets; a game's own `role_def` ranks may grant them too, including names
+the game invents for its own checks.
 
 **Example**
 
 ```text
-has_entitlement(enactor, 'SEE_ALL')
+has_entitlement(enactor, 'SEE_ALL') or has_entitlement(enactor, 'SMUGGLE')
 ```
 
 ### `set_lock` {#fn-set_lock}

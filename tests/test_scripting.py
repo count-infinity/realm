@@ -7,14 +7,12 @@ from realm.scripting.functions import ScriptFrame
 from realm.scripting.sandbox import (
     ScriptContext,
     ScriptError,
-    ScriptLimits,
     ScriptSandbox,
     ScriptSecurityError,
-    SimpleScriptRunner,
+    expand_substitutions,
 )
 from realm.scripting.triggers import (
     CommandTrigger,
-    EventTrigger,
     ListenTrigger,
     TriggerManager,
     get_search_objects,
@@ -123,7 +121,6 @@ class TestScriptSandbox:
         assert result == 3
         # ...but the frame's __builtins__ is emptied. Reaching it by name is
         # already an AST violation, so assert the mechanism directly.
-        from realm.scripting.sandbox import SAFE_BUILTINS
         sg = sandbox._make_safe_globals(ctx)
         sg['__builtins__'] = {}  # mirrors execute()
         assert sg['__builtins__'] == {}
@@ -194,31 +191,23 @@ recurse(0)
         assert sys.getrecursionlimit() == before
 
 
-class TestSimpleScriptRunner:
-    """Test the simple script runner."""
+class TestCommandLines:
+    """One-line scripts are classified by the installed script verbs."""
 
-    def test_is_simple_say(self):
-        """'say hello' is simple."""
-        assert SimpleScriptRunner.is_simple_script("say hello")
+    def test_verbs_are_command_lines(self):
+        from realm.scripting.verbs import installed
+        assert installed().is_command_line("say hello")
+        assert installed().is_command_line("pose waves")
 
-    def test_is_simple_pose(self):
-        """'pose waves' is simple."""
-        assert SimpleScriptRunner.is_simple_script("pose waves")
+    def test_python_and_multiline_are_not(self):
+        from realm.scripting.verbs import installed
+        assert not installed().is_command_line("def foo(): pass")
+        assert not installed().is_command_line("say hi\nsay there")
 
-    def test_not_simple_with_def(self):
-        """Script with 'def' is not simple."""
-        assert not SimpleScriptRunner.is_simple_script("def foo(): pass")
-
-    def test_not_simple_multiline(self):
-        """Multiline script is not simple."""
-        assert not SimpleScriptRunner.is_simple_script("line1\nline2")
-
-    def test_expand_simple(self):
-        """Simple expansion works."""
+    def test_expand_substitutions(self):
         player = GameObject("Bob")
         ctx = ScriptContext(enactor=player, captures=['world'])
-
-        result = SimpleScriptRunner.expand_simple("say Hello, %0! I'm %n.", ctx)
+        result = expand_substitutions("say Hello, %0! I'm %n.", ctx)
         assert result == "say Hello, world! I'm Bob."
 
 

@@ -207,7 +207,7 @@ class TestScriptedEntry:
     async def test_locked_region_refuses_entry(self, world):
         from realm.permissions.locks import LockType
         w = world
-        w.master.locks[LockType.ENTER.value] = "False"
+        w.master.locks[LockType.ENTER] = "False"
         res, err = await w.sim.eval(
             w.alice, "result = enter_wilderness(enactor, 'wilds', 1, 1)",
             enactor=w.alice)

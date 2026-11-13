@@ -224,7 +224,7 @@ class TestLocks:
 
         success = set_lock(door, LockType.ENTER, "caller.db.has_key")
         assert success is True
-        assert door.locks[LockType.ENTER.value] == "caller.db.has_key"
+        assert door.locks[LockType.ENTER] == "caller.db.has_key"
 
     def test_set_lock_invalid_rejected(self):
         """Invalid lock expressions are rejected."""
@@ -255,15 +255,15 @@ class TestLockTypes:
 
     def test_basic_lock_type(self):
         """BASIC lock type exists."""
-        assert LockType.BASIC.value == "basic"
+        assert LockType.BASIC == "basic"
 
     def test_enter_lock_type(self):
         """ENTER lock type exists."""
-        assert LockType.ENTER.value == "enter"
+        assert LockType.ENTER == "enter"
 
     def test_control_lock_type(self):
         """CONTROL lock type exists."""
-        assert LockType.CONTROL.value == "control"
+        assert LockType.CONTROL == "control"
 
 
 class TestRoleTagAuthority:
@@ -461,11 +461,23 @@ class TestEntitlementDecoupling:
         assert has_entitlement(both, E.TELEPORT_ANY)      # from warden
         assert not has_entitlement(both, E.CONTROL_ALL)   # neither grants it
 
-    def test_unknown_entitlement_in_role_def_is_dropped(self, role_world):
-        role_world(define_role('bogus', ['NOT_A_REAL_ENTITLEMENT', E.SEE_ALL]))
-        who = _player('X', 'bogus')
-        assert has_entitlement(who, E.SEE_ALL)                    # valid one kept
-        assert 'NOT_A_REAL_ENTITLEMENT' not in entitlements_of(who)  # typo dropped
+    def test_a_games_own_entitlement_is_granted(self, role_world):
+        """Entitlements are open (KERNEL_PLAN 6.4): a name nobody registered
+        and no near miss of one is a game's own, granted and checkable."""
+        role_world(define_role('smuggler', ['SMUGGLE', E.SEE_ALL]))
+        who = _player('X', 'smuggler')
+        assert has_entitlement(who, E.SEE_ALL)
+        assert has_entitlement(who, 'SMUGGLE')
+
+    def test_a_near_miss_is_reported_and_not_granted(self, role_world):
+        role_world(define_role('smuggler', ['LOCK_BYPAS', E.SEE_ALL]))
+        problems = reload_role_defs()
+        assert problems == ["role_def 'smuggler': unknown entitlement 'LOCK_BYPAS', "
+                            "did you mean 'LOCK_BYPASS'? Not granted."]
+        who = _player('X', 'smuggler')
+        assert has_entitlement(who, E.SEE_ALL)
+        assert not has_entitlement(who, 'LOCK_BYPAS')
+        assert not has_entitlement(who, E.LOCK_BYPASS)
 
     def test_quell_suppresses_custom_roles_too(self, role_world):
         role_world(define_role('warden', [E.TELEPORT_ANY]))

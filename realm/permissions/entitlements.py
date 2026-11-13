@@ -13,11 +13,13 @@ cut-over is behaviour-preserving; the payoff is that a game can now mint a
 custom rank — a "warden" who can ``TELEPORT_ANY`` but not ``CONTROL_ALL`` —
 that the rung model could never express.
 
-Names are flat ``SCREAMING_SNAKE`` constants drawn from a closed registry
-(``ALL_ENTITLEMENTS``), typo-guarded like behaviour ids: a ``role_def`` that
-lists an unknown entitlement is logged and skipped, and call sites use the
-module constants (no string literals) so a typo is an ImportError, not a
-silent ``False``.
+Names are flat ``SCREAMING_SNAKE`` strings. The registry is open: the
+kernel's are below, a feature declares more (``feature.entitlement``), and
+a ``role_def`` may grant a game's own name that its softcode checks with
+``has_entitlement``. The typo guard is a near-miss check: a ``role_def``
+name within 0.8 of a registered one (``LOCK_BYPAS``) is reported by
+``@reload`` and not granted. Engine call sites use the module constants (no
+string literals), so a typo there is an ImportError.
 """
 
 from __future__ import annotations
@@ -67,17 +69,54 @@ MODERATE = "MODERATE"
 # design question (see BACKLOG: "Command authorization belongs at the service
 # layer"). Until then, the registry is authority capabilities only.
 
-#: The closed registry — every valid entitlement name. A ``role_def`` may only
-#: grant names in here; call sites use the constants above.
-ALL_ENTITLEMENTS = frozenset({
-    LOCK_BYPASS_ALL, LOCK_BYPASS, CONTROL_ALL, CONTROL_UNOWNED,
-    TELEPORT_ANY, SEE_ALL, HARM, BUILD, MODERATE,
-})
+_BUILTIN = {
+    LOCK_BYPASS_ALL: "bypass every lock, including control of a god-owned object",
+    LOCK_BYPASS: "bypass locks, except control of a god-owned object",
+    CONTROL_ALL: "controls() everything",
+    CONTROL_UNOWNED: "controls() unowned, world-built, non-player objects",
+    TELEPORT_ANY: "placement tunnels a destination's enter/teleport locks",
+    SEE_ALL: "see in darkness and through invisibility",
+    HARM: "author softcode that harms others or mints currency",
+    BUILD: "attach, detach and configure behaviors",
+    MODERATE: "disconnect players (@boot)",
+}
+
+#: Registered entitlements, name -> doc. Open: a feature declares more with
+#: ``feature.entitlement(...)``, and a role_def may grant a game's own name
+#: that nobody registered (the engine checks only the names it knows).
+_ENTITLEMENTS: dict[str, str] = dict(_BUILTIN)
+
+
+def register_entitlement(name: str, doc: str = "") -> None:
+    """Register an entitlement name (the kernel's and features' own)."""
+    _ENTITLEMENTS[str(name)] = doc
+
+
+def install_entitlements(declared: dict[str, str]) -> None:
+    """The kernel's entitlements plus ``declared`` (``install_registries``)."""
+    _ENTITLEMENTS.clear()
+    _ENTITLEMENTS.update(_BUILTIN)
+    _ENTITLEMENTS.update(declared)
+
+
+def registered_entitlements() -> dict[str, str]:
+    """Every registered entitlement, by name."""
+    return dict(sorted(_ENTITLEMENTS.items()))
+
+
+def near_entitlement(name: str) -> str | None:
+    """A registered entitlement that ``name`` is probably a typo of, or None."""
+    import difflib
+    if name in _ENTITLEMENTS:
+        return None
+    by_lower = {n.lower(): n for n in _ENTITLEMENTS}
+    close = difflib.get_close_matches(name.lower(), list(by_lower), n=1, cutoff=0.8)
+    return by_lower[close[0]] if close else None
 
 
 def is_entitlement(name: str) -> bool:
     """Whether ``name`` is a registered entitlement."""
-    return name in ALL_ENTITLEMENTS
+    return name in _ENTITLEMENTS
 
 
 # --- Roles as data: role_def objects -----------------------------------------
@@ -106,11 +145,12 @@ def read_role_defs() -> dict[str, frozenset[str]]:
 
 def _read_role_defs() -> tuple[dict[str, frozenset[str]], list[str]]:
     """``read_role_defs`` plus the problems found, each already logged."""
-    from realm.core.query import find_objects
+    from realm.core.defs import all_defs, invalidate
 
+    invalidate("role")
     out: dict[str, frozenset[str]] = {}
     problems: list[str] = []
-    for obj in sorted(find_objects(tag=ROLE_DEF_TAG), key=lambda o: o.id):
+    for obj in all_defs("role").values():
         raw = obj.db.get("entitlements") or []
         if not isinstance(raw, (list, tuple, set)):
             problems.append(
@@ -120,12 +160,17 @@ def _read_role_defs() -> tuple[dict[str, frozenset[str]], list[str]]:
         granted = set()
         for name in raw:
             name = str(name)
-            if name in ALL_ENTITLEMENTS:
-                granted.add(name)
-            else:
+            near = near_entitlement(name)
+            if near is not None:
+                # A near miss of a real entitlement is almost certainly a typo:
+                # granting it would widen nothing, so say so and skip it.
                 problems.append(
-                    f"role_def {obj.name!r} lists unknown entitlement {name!r}; "
-                    f"ignored. Known: {', '.join(sorted(ALL_ENTITLEMENTS))}")
+                    f"role_def {obj.name!r}: unknown entitlement {name!r}, did you "
+                    f"mean {near!r}? Not granted.")
+                continue
+            # A registered name, or a game's own (checked by its own softcode
+            # with has_entitlement()).
+            granted.add(name)
         out[obj.name.strip().lower()] = frozenset(granted)
     for message in problems:
         logger.warning(message)
@@ -167,8 +212,9 @@ def define_role(name: str, entitlements: list[str]) -> object:
 
 __all__ = [
     "LOCK_BYPASS_ALL", "LOCK_BYPASS", "CONTROL_ALL", "CONTROL_UNOWNED",
-    "TELEPORT_ANY", "SEE_ALL",
-    "ALL_ENTITLEMENTS", "is_entitlement",
+    "TELEPORT_ANY", "SEE_ALL", "HARM", "BUILD", "MODERATE",
+    "is_entitlement", "register_entitlement", "registered_entitlements",
+    "near_entitlement",
     "ROLE_DEF_TAG", "read_role_defs", "reload_role_defs", "role_def_table",
     "define_role",
 ]

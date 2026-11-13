@@ -59,26 +59,9 @@ HOOK_ATTRS = ("on_check", "on_react", "on_tick")
 
 
 def find_behavior_def(name: str) -> GameObject | None:
-    """The live ``behavior_def`` object of this name, or None."""
-    from realm.persistence.manager import get_active_manager
-
-    manager = get_active_manager()
-    if manager is None or not name:
-        return None
-    for obj in manager.find_cached(name=name):
-        if obj.has_tag(DEF_TAG):
-            return obj
-    return None
-
-
-def list_behavior_defs() -> list[str]:
-    """Names of every behavior_def object in the world, sorted."""
-    from realm.persistence.manager import get_active_manager
-
-    manager = get_active_manager()
-    if manager is None:
-        return []
-    return sorted({o.name for o in manager.find_cached(tag=DEF_TAG)})
+    """The live ``behavior_def`` object of this exact name, or None."""
+    from realm.core.defs import all_defs
+    return all_defs("behavior").get(str(name).strip().lower()) if name else None
 
 
 def describe_behavior_def(definition: GameObject) -> dict[str, Any]:
@@ -236,5 +219,5 @@ def report_unresolved(objects) -> list[str]:
         logger.warning(message)
     return problems
 
-__all__ = ["ScriptedBehavior", "find_behavior_def", "list_behavior_defs",
+__all__ = ["ScriptedBehavior", "find_behavior_def",
            "describe_behavior_def", "report_unresolved", "DEF_TAG", "HOOK_ATTRS"]

@@ -271,7 +271,7 @@ class TestPortalExit:
         from realm.permissions.locks import LockType
         w = world
         _portal(w.sim, w.hub)
-        w.entry.locks[LockType.ENTER.value] = "False"
+        w.entry.locks[LockType.ENTER] = "False"
         await w.sim.do(w.alice, "portal")
 
         assert w.alice.location is w.hub
@@ -352,7 +352,7 @@ class TestPortalExit:
         from realm.permissions.locks import LockType
         w = world
         _portal(w.sim, w.hub)
-        w.entry.locks[LockType.ENTER.value] = "not target.has_tag('ephemeral')"
+        w.entry.locks[LockType.ENTER] = "not target.has_tag('ephemeral')"
         await w.sim.do(w.alice, "portal")
 
         assert w.alice.location is w.hub
@@ -390,7 +390,7 @@ class TestSoftcodeSurface:
         w = world
         # The author locks the portal room — enter_instance is gated on the
         # entry room's ENTER lock, exactly like teleport_obj's destination.
-        w.entry.locks[LockType.ENTER.value] = "False"
+        w.entry.locks[LockType.ENTER] = "False"
         res, err = await w.sim.eval(
             w.alice, "result = enter_instance(enactor, 'crypt')",
             enactor=w.alice)

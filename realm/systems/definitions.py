@@ -30,8 +30,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.core.query import find_objects
-
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -41,35 +39,23 @@ CLASS_DEF_TAG = "class_def"
 
 # --- Reading definitions from the world --------------------------------------
 
-def read_skill_defs() -> dict[str, tuple[str, int]]:
-    """All ``skill_def`` objects as ``{name: (stat, penalty)}``. Sorted by
-    id so a duplicate name resolves deterministically (last wins), not by
-    iteration order."""
-    out: dict[str, tuple[str, int]] = {}
-    for obj in sorted(find_objects(tag=SKILL_DEF_TAG), key=lambda o: o.id):
-        stat = obj.db.get("stat")
-        penalty = obj.db.get("penalty")
-        if stat is None or penalty is None:
-            continue
-        try:
-            out[obj.name.strip().lower()] = (str(stat), int(penalty))
-        except (TypeError, ValueError):
-            continue
-    return out
+def parse_skill_def(obj: GameObject) -> tuple[str, int] | None:
+    """A ``skill_def`` as ``(stat, penalty)``; None (skipped) when incomplete."""
+    stat = obj.db.get("stat")
+    penalty = obj.db.get("penalty")
+    if stat is None or penalty is None:
+        return None
+    return (str(stat), int(penalty))
 
 
-def read_class_defs() -> dict[str, tuple[str, dict, dict]]:
-    """All ``class_def`` objects as ``{name: (blurb, stats, skills)}``,
-    sorted by id so a duplicate name resolves deterministically."""
-    out: dict[str, tuple[str, dict, dict]] = {}
-    for obj in sorted(find_objects(tag=CLASS_DEF_TAG), key=lambda o: o.id):
-        blurb = obj.db.get("blurb") or obj.description or ""
-        stats = obj.db.get("stats") or {}
-        skills = obj.db.get("skills") or {}
-        if not isinstance(stats, dict) or not isinstance(skills, dict):
-            continue
-        out[obj.name.strip().lower()] = (str(blurb), dict(stats), dict(skills))
-    return out
+def parse_class_def(obj: GameObject) -> tuple[str, dict, dict] | None:
+    """A ``class_def`` as ``(blurb, stats, skills)``; None when malformed."""
+    blurb = obj.db.get("blurb") or obj.description or ""
+    stats = obj.db.get("stats") or {}
+    skills = obj.db.get("skills") or {}
+    if not isinstance(stats, dict) or not isinstance(skills, dict):
+        return None
+    return (str(blurb), dict(stats), dict(skills))
 
 
 # --- Creating definitions (for seeding, OLC, and tests) ----------------------
@@ -119,8 +105,8 @@ def apply_class(player: GameObject, blurb_stats_skills: tuple[str, dict, dict],
 __all__ = [
     "SKILL_DEF_TAG",
     "CLASS_DEF_TAG",
-    "read_skill_defs",
-    "read_class_defs",
+    "parse_skill_def",
+    "parse_class_def",
     "define_skill",
     "define_class",
     "apply_class",

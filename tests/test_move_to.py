@@ -69,7 +69,7 @@ class TestMoveToPython:
 
     async def test_enter_lock_honored(self, world):
         w = world
-        w.sanctum.locks[LockType.ENTER.value] = "False"
+        w.sanctum.locks[LockType.ENTER] = "False"
         moved = await move_to(w.alice, w.sanctum)
         assert moved is False
         assert w.alice.location is w.hall
@@ -78,7 +78,7 @@ class TestMoveToPython:
         w = world
         # A "walkable but no teleporting in" sanctum: the game teleport path
         # now honors the teleport lock (it didn't before the unification).
-        w.sanctum.locks[LockType.TELEPORT.value] = "False"
+        w.sanctum.locks[LockType.TELEPORT] = "False"
         moved = await move_to(w.alice, w.sanctum)
         assert moved is False
         assert w.alice.location is w.hall
@@ -86,7 +86,7 @@ class TestMoveToPython:
     async def test_force_skips_wards_but_not_the_teleport_lock(self, world):
         w = world
         w.hall.db.set("on_check", BOUND)                    # a WARD on origin
-        w.sanctum.locks[LockType.TELEPORT.value] = "False"  # a LOCK on dest
+        w.sanctum.locks[LockType.TELEPORT] = "False"  # a LOCK on dest
         # force tunnels past the Bound ward — but the teleport lock is not a
         # ward, so it still holds. (This is the whole point of the split.)
         moved = await move_to(w.alice, w.sanctum, force=True)

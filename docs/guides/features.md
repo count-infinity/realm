@@ -98,6 +98,12 @@ Everything a feature can declare:
 | `feature.check_modifier(fn)` | a `(obj, skill) -> int` modifier folded into every check |
 | `feature.protocol(name, cls, **kwargs)` | a protocol server (see [Adding a Protocol](../protocols/adding-protocol.md)) |
 | `feature.setting(key, default, doc)` | a `config.py` key; read it with `world.setting(key)` |
+| `feature.script_verb(name, aliases=, token=, sugar=, doc=)` | a script command line (decorator) |
+| `feature.event(action_type, hook=, doc=, payload=, target_lock=, tool_lock=, speech=)` | an action type and its `ON_<HOOK>` |
+| `feature.lock_type(name, default=, doc=)` | a lock type with a default expression |
+| `feature.entitlement(name, doc)` | an entitlement name |
+| `feature.audience(name)` | a message audience (decorator on its resolver) |
+| `feature.def_kind(name, tag, parse=)` | an in-world definition kind |
 | `feature.on_install(fn)` | `(world)`, run while the world is wired |
 | `feature.on_boot(fn)` | `async (world)`, after the world is loaded and wired |
 | `feature.on_close(fn)` | `(world)`, when the world closes |
@@ -110,11 +116,71 @@ Read the built-in features in `realm/std/` for worked examples: `combat.py`
 creates its manager in `on_install`, scrubs stale fight state in `on_boot`
 and declares two queue kinds.
 
+## Open vocabularies
+
+Six lists the engine used to hard-code are declarations too, so a game
+extends them the same way.
+
+**Script verbs** — the lines a one-line script or `cmd()` may emit:
+
+```python
+@feature.script_verb("ping", sugar=True, doc="ping <text>")
+async def ping(engine, executor, rest):
+    executor.db.set("pinged", rest)
+# @set bell/cmd_ring = $ring:ping hello      (and ping("x") inside Python)
+```
+
+**Events** — an action type, its `ON_<HOOK>`, its `adata()` payload and lock:
+
+```python
+feature.event("heist:on_crack", hook="CRACK", doc="a safe is cracked",
+              payload={"tool": "the drill"},
+              target_lock=("crack", "{name} holds."))
+# @set safe/ON_CRACK = say Somebody's drilling me!     (@events lists it)
+```
+
+**Lock types** — any lowercase name works once a builder sets it; declare one
+to give it a default (`"True"` is open) and a doc. A near miss of a known type
+(`@lock/baisc`) is set with a "did you mean `basic`?" warning:
+
+```python
+feature.lock_type("crack", default="False", doc="who may drill this safe")
+```
+
+**Entitlements** — a `role_def` may grant a game's own name and softcode
+checks it; declare it to document it. A near miss of a registered name
+(`LOCK_BYPAS`) is reported by `@reload` and not granted:
+
+```python
+feature.entitlement("SMUGGLE", doc="carry contraband past customs")
+# softcode: if has_entitlement(enactor, 'SMUGGLE'): ...
+```
+
+**Audiences** — who receives `action.add_message(name, ...)`:
+
+```python
+@feature.audience("zone")
+def zone_players(action):
+    return [p for p in action.actor.location.contents if p.is_player]
+```
+
+**Definition kinds** — objects tagged `tag` become data, cached and live:
+
+```python
+feature.def_kind("recipe", "recipe_def", parse=lambda obj: obj.db.get("needs"))
+# from realm.core.defs import all_defs, find_def; find_def("recipe", "stew")
+```
+
+**Global softcode commands** need no feature: an admin tags an object
+`global_commands` and its `$`-commands work from every room (a room's own
+command of the same pattern wins).
+
 ## Collisions
 
 A name can belong to one feature. Two features declaring the same command
 (or alias), behavior id, softcode function, ruleset, destination resolver,
-queue kind or config key raise `FeatureError` at load, naming both:
+queue kind, config key, script verb (or token), event (or hook), lock type,
+audience or definition kind raise `FeatureError` at load, naming both:
 
 ```text
 FeatureError: command 'wave' is declared by both 'mygame' and 'emotes'.

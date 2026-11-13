@@ -43,7 +43,7 @@ class TestFailEvent:
         w = world
         vault = w.sim.room("Vault")
         w.north.db.set("destination", vault.id)          # has a destination…
-        w.north.locks[LockType.BASIC.value] = "False"    # …but is locked
+        w.north.locks[LockType.BASIC] = "False"    # …but is locked
         w.north.db.set("on_fail", "pemit(enactor, 'It rattles, locked.')")
         await w.sim.do(w.alice, "north")
         assert any("It rattles, locked." in m for m in w.sim.seen(w.alice))
