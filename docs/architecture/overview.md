@@ -65,7 +65,13 @@ The **SessionManager** is protocol-agnostic and manages all sessions uniformly.
 
 The server layer contains the game logic:
 
-- **GameServer** - The composition root: startup/shutdown, tick loop, auth, chargen
+- **build_world / World** (`realm/server/world.py`) - The composition root. Given an
+  open store and `Settings`, it installs the syntax settings, the dispatcher,
+  the script engine, the propagation observers, the game system and the combat
+  manager, and returns a `World` whose `close()` undoes all of it. The server
+  and the test Simulator both call it.
+- **GameServer** - Opens and loads the store, calls `build_world`, then runs the
+  login flow, tick and reap loops, and protocol servers
 - **CommandDispatcher** - Routes commands to handlers (permissions, categories)
 - **ScriptEngine** - Softcode: `$`-commands, `^listen`, `ON_<EVENT>` triggers, tickers
 - **GameSystem** - The swappable rules package (GURPS/D20: chargen, skills, combat ruleset)
@@ -83,6 +89,8 @@ The core layer defines the game world:
 
 The persistence layer handles saving and loading:
 
+- `Store` (`realm/persistence/store.py`) - the methods engine code may call on a
+  store; `PersistenceManager` (SQLite) and `MemoryStore` (in memory) provide them
 - Dirty tracking for efficient saves
 - Periodic flush to database
 - SQLite (WAL mode) today; the backend is a seam — Postgres is a

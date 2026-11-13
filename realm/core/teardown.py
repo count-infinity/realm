@@ -54,7 +54,7 @@ def subtree_has_player(root: GameObject) -> bool:
         if obj.id in seen:
             continue
         seen.add(obj.id)
-        if obj.has_tag("player"):
+        if obj.is_player:
             return True
         stack.extend(obj.contents)
     return False
@@ -101,7 +101,7 @@ async def _release(container: GameObject, persistence, *,
         if occupant.id in seen:     # containment cycle guard
             continue
         seen.add(occupant.id)
-        if occupant.has_tag("player"):
+        if occupant.is_player:
             occupant.location = evacuation_room(
                 persistence, occupant, return_room)
             continue
@@ -112,7 +112,7 @@ async def _release(container: GameObject, persistence, *,
                            doomed_ids=doomed_ids, seen=seen)
             continue
         owner = occupant.owner
-        if owner is not None and owner.has_tag("player"):
+        if owner is not None and owner.is_player:
             refuge = owner_refuge(persistence, owner)
             if refuge is not None:
                 occupant.location = refuge

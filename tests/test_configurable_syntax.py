@@ -75,10 +75,10 @@ class TestTriggerSigils:
 class TestTriggerSigilsEndToEnd:
 
     async def test_remapped_command_sigil_via_dispatcher(self):
+        from realm.config.loader import Settings
         from realm.testing import Simulator
-        set_trigger_sigils(command='!')
         try:
-            sim = Simulator()
+            sim = Simulator(settings=Settings(command_sigil='!'))
             try:
                 room = sim.room("Hall")
                 alice = sim.player("Alice", location=room)

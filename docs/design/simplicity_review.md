@@ -1,5 +1,11 @@
 # Simplicity Review (2026-07-05)
 
+> **Note (2026-11-13):** the thresholds this review set — `core` past 25
+> modules, 10 singletons, "core imports only core" — have since been
+> crossed. The follow-up work is the staged plan in
+> `KERNEL_PLAN.md` at the repository root; read it
+> before acting on the recommendations below.
+
 Three independent review passes (over-abstraction in core/systems/
 permissions; duplication in scripting/commands/behaviors; architecture
 coherence) against the north star: *the simplest framework that meets

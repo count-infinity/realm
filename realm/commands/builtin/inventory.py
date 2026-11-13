@@ -33,7 +33,7 @@ async def cmd_inventory(ctx: CommandContext) -> None:
            i
            inv
     """
-    items = [obj for obj in ctx.player.contents if not obj.has_tag('exit')]
+    items = [obj for obj in ctx.player.contents if not obj.is_exit]
     # Money is a balance, not an object — the active GameSystem names it
     # (credits / gold / shillings), so shops and inventory always agree.
     purse = f"You have {get_credits(ctx.player)} {currency_name()}."
@@ -136,7 +136,7 @@ async def _get_all(ctx: CommandContext, from_container=None) -> None:
 
     items = [
         obj for obj in source.contents
-        if not obj.has_tag('player') and not obj.has_tag('exit') and obj != ctx.player
+        if not obj.is_player and not obj.is_exit and obj != ctx.player
     ]
 
     if not items:
@@ -204,7 +204,7 @@ async def cmd_drop(ctx: CommandContext) -> None:
 
 async def _drop_all(ctx: CommandContext) -> None:
     """Drop all items in inventory."""
-    items = [obj for obj in ctx.player.contents if not obj.has_tag('exit')]
+    items = [obj for obj in ctx.player.contents if not obj.is_exit]
 
     if not items:
         await ctx.session.send("You aren't carrying anything.")
@@ -274,7 +274,7 @@ async def cmd_give(ctx: CommandContext) -> None:
         from realm.core.perception import can_see
         from realm.core.search import match_one
         npcs = [obj for obj in ctx.player.location.contents
-                if obj.has_tag('npc') and can_see(ctx.player, obj)]
+                if obj.is_npc and can_see(ctx.player, obj)]
         target = match_one(target_name, npcs)
     if not target:
         await ctx.session.send(f"You don't see '{target_name}' here.")

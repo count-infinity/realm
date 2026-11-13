@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 def is_combat_capable(obj: GameObject) -> bool:
     """Things with hit points can fight: players and statted NPCs."""
-    if not (obj.has_tag('player') or obj.has_tag('npc')):
+    if not (obj.is_player or obj.is_npc):
         return False
     if obj.has_tag('unconscious'):
         return False
@@ -179,7 +179,7 @@ class CombatManager:
             action_type=ActionType.ON_DEATH,
             extra={
                 'killer': killer.name if killer is not None else None,
-                'fatal': not victim.has_tag('player'),
+                'fatal': not victim.is_player,
             },
         )
         await propagate(action, deliver=False)
@@ -200,7 +200,7 @@ class CombatManager:
         this is where the world gets told.
         """
         await self._propagate_death(obj, killer)
-        if obj.has_tag('player'):
+        if obj.is_player:
             if not obj.has_tag('unconscious'):
                 obj.add_tag('unconscious')
             obj.msg("Everything goes black...")
@@ -221,7 +221,7 @@ class CombatManager:
         # Character-point award: the victim's worth (db.points, GURPS-ish)
         # scaled down, split across the killer's party members present
         # (solo killers keep the whole award).
-        if killer is not None and killer.has_tag('player'):
+        if killer is not None and killer.is_player:
             from realm.core.party import party_members
             from realm.systems.base import get_game_system
             system = get_game_system()
@@ -231,7 +231,7 @@ class CombatManager:
             multiplier = zone_property(room, 'xp_multiplier', 1.0)
             award = max(1, round(award * float(multiplier)))
             sharers = [m for m in party_members(killer)
-                       if m.has_tag('player') and not m.has_tag('unconscious')]
+                       if m.is_player and not m.has_tag('unconscious')]
             if not sharers:
                 sharers = [killer]
             share = max(1, award // len(sharers))

@@ -12,7 +12,6 @@ import logging
 import time
 import uuid
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
 
@@ -59,10 +58,6 @@ def set_heredoc_sigils(open_sigil: str = DEFAULT_HEREDOC_OPEN,
     _heredoc_close = str(close_sigil)
 
 
-def get_heredoc_sigils() -> tuple[str, str]:
-    return _heredoc_open, _heredoc_close
-
-
 class SessionState(Enum):
     """States a session can be in."""
 
@@ -70,15 +65,6 @@ class SessionState(Enum):
     AUTHENTICATING = auto() # In login/character select flow
     PLAYING = auto()        # In-game, has a player object
     DISCONNECTING = auto()  # Being cleaned up
-
-
-@dataclass
-class SessionMessage:
-    """A message in the session queue."""
-
-    session_id: str
-    content: str
-    timestamp: float = field(default_factory=time.monotonic)
 
 
 class Session:
@@ -175,11 +161,6 @@ class Session:
         """Seconds since connection."""
         return time.monotonic() - self._created_at
 
-    @property
-    def account_name(self) -> str | None:
-        """The account name if authenticated."""
-        return self._account_name
-
     def set_oob_writer(self, writer: Callable[[str, dict], None] | None) -> None:
         """Install the protocol's structured-data sender (GMCP etc.)."""
         self._oob_writer = writer
@@ -247,11 +228,6 @@ class Session:
             return self._input_queue.get_nowait()
         except asyncio.QueueEmpty:
             return None
-
-    async def push_input(self, command: str) -> None:
-        """Push a command into the input queue (called by protocol handlers)."""
-        self.touch()
-        await self._input_queue.put(command)
 
     def push_input_nowait(self, command: str) -> None:
         """Push a command without waiting."""
@@ -766,7 +742,7 @@ class SessionManager:
     ) -> None:
         """Send a message to all players in a room."""
         for obj in room.contents:
-            if obj != exclude and obj.has_tag('player'):
+            if obj != exclude and obj.is_player:
                 session = self.get_session_by_player(obj)
                 if session:
                     await session.send(message)

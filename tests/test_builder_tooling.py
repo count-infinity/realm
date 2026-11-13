@@ -183,7 +183,7 @@ class TestDetailRemove:
 class TestExitPrefix:
 
     def test_prefix_matches_exit(self):
-        from realm.server.dispatcher import CommandDispatcher
+        from realm.commands.dispatcher import CommandDispatcher
 
         room = GameObject("Steps", tags=["room"])
         GameObject("trapdoor", tags=["exit"], location=room)

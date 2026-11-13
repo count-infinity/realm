@@ -332,6 +332,10 @@ class GameObject:
     def is_thing(self) -> bool:
         return self.has_tag('thing')
 
+    @property
+    def is_npc(self) -> bool:
+        return self.has_tag('npc')
+
     # --- Behavior management ---
 
     def add_behavior(self, behavior: Behavior) -> None:
@@ -357,23 +361,17 @@ class GameObject:
         """Get all attached behaviors."""
         return list(self._behaviors)
 
-    def get_behavior(self, behavior_type: type) -> Behavior | None:
-        """Get the first behavior of a specific type."""
-        for b in self._behaviors:
-            if isinstance(b, behavior_type):
-                return b
-        return None
-
     # --- Action propagation visitors ---
     #
-    # The propagation engine calls these on each object in the chain.
-    # The default implementations walk this object's behaviors. Subclasses
-    # override to also walk child objects (a Character walks equipment,
-    # a Pet walks its rider, etc.) — call super() first to run own behaviors.
+    # The propagation engine calls these on each object in the chain. Each
+    # walks this object's behaviors; visit_check also enforces locks and runs
+    # the object's on_check softcode. Persistence always loads a plain
+    # GameObject, so per-object logic belongs in behaviors and softcode,
+    # not in subclasses.
 
     async def visit_check(self, action: Action) -> None:
         """
-        Permission pass: enforce locks, own hook, behaviors, then the
+        Permission pass: enforce locks, behaviors, then the
         object's ``on_check`` softcode (data-driven interception — wards,
         resistance, armor).
 
@@ -383,7 +381,6 @@ class GameObject:
         """
         from realm.permissions.locks import enforce_lock_on_action
         enforce_lock_on_action(self, action)
-        self.at_action_check(action)
         for behavior in self._behaviors:
             await behavior.on_check(self, action)
         # Softcode interception: a participant (the target, the room) can
@@ -393,43 +390,19 @@ class GameObject:
             await _check_hook(self, action)
 
     async def visit_react(self, action: Action) -> None:
-        """Reaction pass: run own hook then own behaviors' on_react."""
-        self.at_action_react(action)
+        """Reaction pass: run own behaviors' on_react."""
         for behavior in self._behaviors:
             await behavior.on_react(self, action)
 
     async def visit_observe_check(self, action: Action) -> None:
         """Permission pass when this object is a bystander in the room."""
-        self.at_observe_check(action)
         for behavior in self._behaviors:
             await behavior.on_check(self, action)
 
     async def visit_observe_react(self, action: Action) -> None:
         """Reaction pass when this object is a bystander in the room."""
-        self.at_observe_react(action)
         for behavior in self._behaviors:
             await behavior.on_react(self, action)
-
-    # --- Action hooks ---
-    #
-    # Sync, lightweight hooks for typeclass-style overrides. Heavy work
-    # belongs in a Behavior. Override on subclasses; do not call super().
-
-    def at_action_check(self, action: Action) -> None:
-        """Called during permission pass before behaviors, when this is actor or target."""
-        pass
-
-    def at_action_react(self, action: Action) -> None:
-        """Called during reaction pass before behaviors, when this is actor or target."""
-        pass
-
-    def at_observe_check(self, action: Action) -> None:
-        """Called during permission pass before behaviors, when this is a bystander."""
-        pass
-
-    def at_observe_react(self, action: Action) -> None:
-        """Called during reaction pass before behaviors, when this is a bystander."""
-        pass
 
     # --- Attribute inheritance ---
 

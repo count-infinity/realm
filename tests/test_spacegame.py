@@ -10,7 +10,7 @@ import pytest
 import realm.behaviors  # noqa: F401  (register the behavior kit for from_dict)
 import realm.combat.behaviors  # noqa: F401
 from realm.core.objects import GameObject
-from realm.persistence.repository import GameObjectRepository
+from realm.persistence.memory import MemoryStore
 from realm.persistence.worldio import import_objects
 from realm.testing import Simulator
 
@@ -85,7 +85,7 @@ class TestSpaceships:
         """Ships should be created from templates."""
         from examples.spacegame.ships import ShipClass, Spaceship
 
-        repo = GameObjectRepository()
+        repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.FIGHTER, "Red Five")
 
         assert ship.obj.name == "Red Five"
@@ -99,7 +99,7 @@ class TestSpaceships:
         """Ships should handle damage correctly."""
         from examples.spacegame.ships import ShipClass, Spaceship
 
-        repo = GameObjectRepository()
+        repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.CORVETTE, "Test Ship")
 
         initial_shields = ship.shields
@@ -126,7 +126,7 @@ class TestSpaceships:
         """Ships should be repairable."""
         from examples.spacegame.ships import ShipClass, Spaceship
 
-        repo = GameObjectRepository()
+        repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.FREIGHTER, "Cargo One")
 
         ship.obj.db.hull = 30  # Damaged
@@ -144,7 +144,7 @@ class TestSpaceships:
         """Ship status should reflect current state."""
         from examples.spacegame.ships import ShipClass, Spaceship
 
-        repo = GameObjectRepository()
+        repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.CRUISER, "Battlestar")
 
         status = ship.get_status_string()

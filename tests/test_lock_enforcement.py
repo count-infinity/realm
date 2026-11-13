@@ -18,7 +18,7 @@ from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
 from realm.core.propagation import reset_engine
 from realm.gateway.session import Session
-from realm.server.dispatcher import CommandContext
+from realm.commands.dispatcher import CommandContext
 
 
 @pytest.fixture(autouse=True)

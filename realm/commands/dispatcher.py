@@ -42,11 +42,6 @@ class CommandContext:
     dispatcher: CommandDispatcher | None = None
 
     @property
-    def has_player(self) -> bool:
-        """Check if a player is linked to this command."""
-        return self.player is not None
-
-    @property
     def persistence(self) -> PersistenceManager | None:
         """The server's persistence manager, if wired."""
         return self.dispatcher.persistence if self.dispatcher else None
@@ -72,7 +67,6 @@ class Command:
         aliases: Alternative names
         help_text: Short description
         usage: Usage syntax
-        min_args: Minimum required arguments
         permission: Required permission level
         parse_equals: Whether to split args at '='
     """
@@ -132,7 +126,6 @@ class CommandDispatcher:
     def __init__(self):
         self._commands: dict[str, Command] = {}
         self._aliases: dict[str, str] = {}  # alias -> command name
-        self._player_aliases: dict[str, dict[str, str]] = {}  # player_id -> {alias: expansion}
 
         # Shared services, wired by GameServer.start(). Commands reach them
         # via ctx.persistence / ctx.session_manager.
@@ -159,7 +152,6 @@ class CommandDispatcher:
         aliases: list[str] | None = None,
         help_text: str = "",
         usage: str = "",
-        min_args: int = 0,
         permission: str = "player",
         parse_equals: bool = False,
         category: str = "general",
@@ -196,17 +188,6 @@ class CommandDispatcher:
     def set_login_handler(self, handler: CommandHandler) -> None:
         """Set handler for commands when not logged in."""
         self._login_handler = handler
-
-    def set_player_alias(self, player_id: str, alias: str, expansion: str) -> None:
-        """Set a player-specific alias."""
-        if player_id not in self._player_aliases:
-            self._player_aliases[player_id] = {}
-        self._player_aliases[player_id][alias.lower()] = expansion
-
-    def remove_player_alias(self, player_id: str, alias: str) -> None:
-        """Remove a player-specific alias."""
-        if player_id in self._player_aliases:
-            self._player_aliases[player_id].pop(alias.lower(), None)
 
     async def dispatch(self, session: Session, raw_input: str) -> None:
         """
@@ -272,17 +253,7 @@ class CommandDispatcher:
         raw_command = parts[0] if parts else ""
         args = parts[1] if len(parts) > 1 else ""
 
-        # Step 3: Check for player aliases
-        if player:
-            player_aliases = self._player_aliases.get(player.id, {})
-            if raw_command.lower() in player_aliases:
-                # Expand alias and re-parse
-                expansion = player_aliases[raw_command.lower()]
-                if args:
-                    expansion = f"{expansion} {args}"
-                return self._parse_command(session, player, expansion)
-
-        # Step 4: Parse switches from command (e.g., @command/switch1/switch2)
+        # Step 3: Parse switches from command (e.g., @command/switch1/switch2)
         if '/' in raw_command:
             switch_parts = raw_command.split('/')
             raw_command = switch_parts[0]
@@ -290,11 +261,11 @@ class CommandDispatcher:
 
         command_name = raw_command.lower()
 
-        # Step 5: Check for direction aliases
+        # Step 4: Check for direction aliases
         if command_name in DIRECTION_ALIASES:
             command_name = DIRECTION_ALIASES[command_name]
 
-        # Step 6: Parse left/right arguments if '=' present
+        # Step 5: Parse left/right arguments if '=' present
         left_args = args
         right_args = ""
         if '=' in args:
@@ -374,7 +345,7 @@ class CommandDispatcher:
     def _find_exit(self, room: GameObject, name: str) -> GameObject | None:
         """Find an exit by exact name, alias, or unambiguous prefix."""
         name_lower = name.lower()
-        exits = [o for o in room.contents if o.has_tag('exit')]
+        exits = [o for o in room.contents if o.is_exit]
         # Exact name or explicit alias first.
         for obj in exits:
             if obj.name.lower() == name_lower:
@@ -419,8 +390,6 @@ class CommandDispatcher:
                     or "That exit leads nowhere you can reach.")
             return
 
-        # TODO: Check locks on exit
-
         # Move through the exit via the shared movement path so on_leave/on_enter
         # events fire (and behaviors like GuardBehavior get a chance to block).
         moved = await move_through_exit(
@@ -438,8 +407,6 @@ class CommandDispatcher:
         if not self._check_permission(ctx.player, cmd.permission):
             await ctx.session.send("Permission denied.")
             return
-
-        # TODO: Argument validation
 
         from realm.core.search import AmbiguousMatchError, format_ambiguous
         try:

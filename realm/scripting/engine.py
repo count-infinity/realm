@@ -652,7 +652,7 @@ class ScriptEngine:
         if target.location is not None:
             return target.location
         # Target may BE the room (broadcast actions).
-        if target.contents or target.has_tag('room'):
+        if target.contents or target.is_room:
             return target
         return None
 
@@ -835,7 +835,7 @@ class ScriptEngine:
         )
         from realm.core.search import AmbiguousMatchError, match_one
 
-        exits = [obj for obj in executor.location.contents if obj.has_tag('exit')]
+        exits = [obj for obj in executor.location.contents if obj.is_exit]
         try:
             exit_obj = match_one(direction, exits)
         except AmbiguousMatchError:

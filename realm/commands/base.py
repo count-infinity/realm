@@ -23,7 +23,7 @@ def exit_named(room: GameObject, name: str) -> GameObject | None:
     """An existing exit in a room by exact (case-insensitive) name."""
     lower = name.strip().lower()
     for obj in room.contents:
-        if obj.has_tag('exit') and obj.name.lower() == lower:
+        if obj.is_exit and obj.name.lower() == lower:
             return obj
     return None
 
@@ -117,7 +117,7 @@ def local_candidates(
         for obj in ctx.player.location.contents:
             if obj == ctx.player:
                 continue
-            if obj.has_tag('exit'):
+            if obj.is_exit:
                 if search_exits:
                     candidates.append(obj)
                 continue
@@ -184,7 +184,7 @@ def find_player(ctx: CommandContext, name: str) -> GameObject | None:
 
     players = [
         obj for obj in ctx.player.location.contents
-        if obj.has_tag('player') and can_see(ctx.player, obj)
+        if obj.is_player and can_see(ctx.player, obj)
     ]
     return match_one(name, players)
 
@@ -199,7 +199,7 @@ def find_exit(ctx: CommandContext, direction: str) -> GameObject | None:
         return None
 
     exits = [
-        obj for obj in ctx.player.location.contents if obj.has_tag('exit')
+        obj for obj in ctx.player.location.contents if obj.is_exit
     ]
     return match_one(direction, exits, allow_substring=False)
 

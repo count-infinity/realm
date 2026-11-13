@@ -133,9 +133,9 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
             continue
         if viewer is not None and not can_see(viewer, obj):
             continue  # invisible to this viewer (secret exits included)
-        if obj.has_tag('exit'):
+        if obj.is_exit:
             exits.append(obj)
-        elif obj.has_tag('player'):
+        elif obj.is_player:
             players.append(obj)
         else:
             things.append(obj)

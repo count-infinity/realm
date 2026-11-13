@@ -111,7 +111,7 @@ async def bring_followers(
             obj, None if deferred else destination, exit_obj=exit_obj)
         if moved:
             obj.msg(f"You follow {leader.name}.")
-            if obj.has_tag('player'):
+            if obj.is_player:
                 obj.msg(render_room(obj.location, obj))
 
 

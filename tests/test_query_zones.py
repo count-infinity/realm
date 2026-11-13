@@ -89,7 +89,7 @@ class TestZoneSeams:
 
     async def test_zone_wide_dollar_command(self):
         from realm.scripting.engine import ScriptEngine
-        from realm.server.dispatcher import CommandContext
+        from realm.commands.dispatcher import CommandContext
 
         pers = MockPersistence()
         keep, _y, _w, master, _s = make_world(pers)

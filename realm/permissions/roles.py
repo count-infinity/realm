@@ -107,7 +107,7 @@ def get_role(obj: GameObject | None) -> Role:
 
     # Players and NPCs are full citizens of the command layer — a
     # forced/possessed NPC may run player-level commands (never builder+).
-    if obj.has_tag('player') or obj.has_tag('npc'):
+    if obj.is_player or obj.is_npc:
         return Role.PLAYER
 
     # Other objects default to GUEST level

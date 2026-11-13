@@ -15,7 +15,6 @@ from realm.permissions.locks import (
     check_lock,
     clear_lock,
     controls,
-    get_lock,
     parse_lock,
     set_lock,
 )
@@ -219,15 +218,13 @@ class TestLocks:
         result = check_lock(door, LockType.BASIC, player)
         assert result is True
 
-    def test_set_and_get_lock(self):
-        """Can set and get locks."""
+    def test_set_lock_stores_expression(self):
+        """A valid lock is stored under its type."""
         door = GameObject("Door")
 
         success = set_lock(door, LockType.ENTER, "caller.db.has_key")
         assert success is True
-
-        expr = get_lock(door, LockType.ENTER)
-        assert expr == "caller.db.has_key"
+        assert door.locks[LockType.ENTER.value] == "caller.db.has_key"
 
     def test_set_lock_invalid_rejected(self):
         """Invalid lock expressions are rejected."""

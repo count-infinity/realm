@@ -395,7 +395,7 @@ def _travels_as_player(actor: GameObject) -> bool:
     """Is this walker a player, or a container carrying one (a crewed
     boat, a ridden mount)? Such walkers materialize terrain and refresh
     cell TTLs; everything else is a mob."""
-    return actor.has_tag("player") or subtree_has_player(actor)
+    return actor.is_player or subtree_has_player(actor)
 
 
 def _target_coords(exit_obj: GameObject) -> tuple[str, int, int] | None:

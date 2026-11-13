@@ -103,12 +103,6 @@ class TestTagSet:
         result = tags.to_list()
         assert result == ['a', 'b', 'c']
 
-    def test_from_list(self):
-        """from_list() creates TagSet from list."""
-        tags = TagSet.from_list(['room', 'indoor'])
-        assert 'room' in tags
-        assert 'indoor' in tags
-
     def test_repr(self):
         """__repr__ returns readable string."""
         tags = TagSet(['room'])

@@ -97,6 +97,7 @@ nav:
     - Protocols: protocols/overview.md
   - Reference:
     - Softcode: reference/softcode.md
+    - Configuration: reference/config.md
     - "API: Core Objects": api/objects.md
     - "API: Sessions": api/sessions.md
     - "API: Propagation": api/events.md

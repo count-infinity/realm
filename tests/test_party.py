@@ -91,7 +91,7 @@ class TestFollowing:
         """The B2 rescue: a prisoner agrees to follow via $-command."""
         from realm.gateway.session import Session
         from realm.scripting.engine import ScriptEngine
-        from realm.server.dispatcher import CommandContext
+        from realm.commands.dispatcher import CommandContext
 
         west, east, door = two_rooms()
         alice = GameObject("Alice", tags=["player"], location=west)

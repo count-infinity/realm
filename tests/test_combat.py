@@ -410,23 +410,6 @@ class TestCombatSystem:
         initiatives = [init for init, _ in round_obj.initiative_order]
         assert initiatives == sorted(initiatives, reverse=True)
 
-    def test_start_and_end_combat(self):
-        """start_combat and end_combat manage state."""
-        c1 = GameObject("Fighter")
-        c2 = GameObject("Goblin")
-
-        combat_id = self.d20_combat.start_combat([c1, c2])
-
-        combatants = self.d20_combat.get_combatants(combat_id)
-        assert len(combatants) == 2
-        assert all(c.state == CombatState.COMBAT for c in combatants)
-
-        self.d20_combat.end_combat(combat_id)
-
-        combatants = self.d20_combat.get_combatants(combat_id)
-        assert len(combatants) == 0
-
-
 class TestCreateCombatSystem:
     """Test the factory function."""
 

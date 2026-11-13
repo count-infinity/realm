@@ -76,7 +76,3 @@ class TagSet:
         """Return tags as a sorted list (for serialization)."""
         return sorted(self._tags)
 
-    @classmethod
-    def from_list(cls, tags: list[str]) -> TagSet:
-        """Create a TagSet from a list (for deserialization)."""
-        return cls(tags)

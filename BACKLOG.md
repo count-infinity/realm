@@ -282,6 +282,35 @@ Build order when green-lit:
 - [ ] Generic timed gather/craft action core (SWR make* shape / Melvor
   loop) — behaviors + softcode, not engine
 
+### FIXED 2026-11-13: KERNEL_PLAN step 1 defects
+
+Reproduced in the 2026-11-11 architecture review; fixed by step 1 of
+`KERNEL_PLAN.md` (see its Decision log for departures).
+
+- **1.1** `@destroy` of a room deleted the players inside. Every destroy
+  (`@destroy`, `@nuke`, softcode `destroy_obj()`, expiry, the orphan sweep)
+  now goes through `core/lifecycle.destroy_object`: players evacuated,
+  player-owned items to their owner's refuge, `safe` refused, exit pairing
+  dissolved. `tests/test_lifecycle.py`.
+- **1.2** The dispatcher rewrote `+x y` to a nonexistent `channel` command, so
+  a Python `+finger` never ran. Rewrite removed.
+- **1.3** `config/defaults.py` set `TICK_INTERVAL = 4.0`, overriding the 0.1 s
+  heartbeat everywhere else. Now 0.1.
+- **1.4** `@set` warned "will not run" on command-line scripts (`say hi`).
+  `triggers.validate_script` accepts them.
+- **1.5** Native bindings were invisible inside `resolve_rule`; the guide's
+  `exploding_pool` example raised NameError. Now in scope.
+- **1.6** A game registering its own `gurps` ruleset lost `d20` and `merc`, and
+  `RulesetRegistry.register` replaced silently. Fixed; replacing needs
+  `replace=True`.
+- **1.7** Unresolved saved behaviors loaded inert with no log line and gained a
+  `def_name` param; unknown `role_def` entitlements reached only the server
+  log. Now a WARNING per behavior id after load/import, and `@reload` prints
+  role_def problems.
+- **1.8** GURPS ignored `resistances` and D20 read an unshipped list form, so a
+  fire-immune target took full fireball damage. `Ruleset.scale_resistances`
+  now runs first in every ruleset.
+
 ### FIXED 2026-08-01: COMBAT_RULESET default silently overrode every system
 
 The Otho investigation bottomed out here: `config/defaults.py` shipped
@@ -672,13 +701,13 @@ same day (see Completed); these remain, roughly by impact:
   truth — the split is documented intent (look.py's own comment), not
   duplication. ~~hand-maintained help category map~~ (DONE 2026-07-05:
   Command.category).
-- [ ] **Persistence follow-ups** (audited 2026-07-31 — mostly stale):
+- [x] **Persistence follow-ups** (audited 2026-07-31; all closed 2026-11-13):
   ~~N+1 query in `load_all`~~ (fixed: two-pass load, one query for the
   whole world), ~~schema versioning~~ (`PRAGMA user_version` +
   SCHEMA_VERSION shipped), ~~WAL mode~~ (shipped, `manager.py:124`).
-  Remaining: `repository.py` interface incompatible with `manager.py`
-  (still imported by `persistence/__init__` and one test — unify or
-  retire).
+  ~~Remaining: `repository.py` interface incompatible with `manager.py`~~
+  (DONE 2026-11-13, KERNEL_PLAN 2.3: `repository.py` deleted; a `Store`
+  protocol names what engine code calls, and `MemoryStore` replaces it).
 - [x] ~~**Gateway duplication.**~~ DONE 2026-07-31: the connect ritual
   (peername → address, create-session-with-writer, set_closer) is now
   `connect_session` + `format_peer_address` in `gateway/session.py`;
@@ -731,6 +760,10 @@ same day (see Completed); these remain, roughly by impact:
   `encoding='utf-8'` (the Code Quality one-liner below). The other two
   drift items were stale on audit: the README `--init` claim is gone and
   spacegame `world.py` (with its `contents.append` no-op) was deleted.
+  Follow-up DONE 2026-11-13 (KERNEL_PLAN 2.1): `Settings` is now the only
+  source of defaults. Each field declares its key and doc, `load_config`
+  loops over the fields, `config/defaults.py` and `GameServer.from_settings`
+  are gone, and `docs/reference/config.md` is generated from the fields.
 - [x] ~~**Layering:** server → commands → server cycle~~ DONE 2026-07-31:
   `Command`/`CommandContext`/`CommandDispatcher` (+ `CommandHandler`,
   `TOKEN_MAP`, `DIRECTION_ALIASES`) moved home to

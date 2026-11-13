@@ -88,7 +88,7 @@ async def cmd_teleport(ctx: CommandContext) -> None:
         await ctx.session.send(f"You teleport to {destination.name}.")
 
         # Show the new location
-        if destination.has_tag('room'):
+        if destination.is_room:
             await ctx.session.send(render_room(destination, ctx.player))
     else:
         await ctx.session.send(f"Teleported {target.name} to {destination.name}.")
@@ -202,7 +202,7 @@ async def cmd_nuke(ctx: CommandContext) -> None:
         await ctx.session.send(f"Player '{ctx.args}' not found.")
         return
 
-    if not target.has_tag('player'):
+    if not target.is_player:
         await ctx.session.send(f"{target.name} is not a player. Use @destroy instead.")
         return
 
@@ -376,7 +376,7 @@ async def cmd_boot(ctx: CommandContext) -> None:
         return
 
     target = find_object_global(ctx, ctx.args.strip())
-    if not target or not target.has_tag('player'):
+    if not target or not target.is_player:
         await ctx.session.send(f"Player '{ctx.args.strip()}' not found.")
         return
     if target == ctx.player:

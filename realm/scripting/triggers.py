@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
-    from realm.core.propagation import Action
 
 
 # Trigger sigils are game settings (COMMAND_SIGIL / LISTEN_SIGIL in
@@ -198,15 +197,6 @@ class EventTrigger:
     event_type: str  # ENTER, LEAVE, LOOK, GET, DROP, etc.
     action: str
 
-    def matches_event(self, action: Action) -> bool:
-        """Check if this trigger should fire for a propagated action."""
-        # Take the suffix of "domain:on_event" or "domain:event" and compare.
-        suffix = action.action_type.rsplit(":", 1)[-1].upper()
-        if suffix.startswith("ON_"):
-            suffix = suffix[3:]
-        return suffix == self.event_type.upper()
-
-
 # Mapping of event types to attribute prefix
 EVENT_ATTR_PREFIX = 'ON_'
 
@@ -279,10 +269,6 @@ class TriggerManager:
     def __init__(self):
         # Cache of parsed triggers per object
         self._trigger_cache: dict[str, dict[str, list[Trigger]]] = {}
-
-    def invalidate_cache(self, obj_id: str) -> None:
-        """Clear cached triggers for an object."""
-        self._trigger_cache.pop(obj_id, None)
 
     def get_command_triggers(self, obj: GameObject) -> list[CommandTrigger]:
         """Get all command triggers from an object (its own and any

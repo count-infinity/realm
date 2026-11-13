@@ -228,7 +228,7 @@ class RestockBehavior(Behavior):
         if owner.db.get('restock_stock') is None:
             stock = []
             for o in list(owner.contents):
-                if not o.has_tag(ftag) or o.has_tag('exit'):
+                if not o.has_tag(ftag) or o.is_exit:
                     continue
                 stock.append({'key': o.id, 'prototype': object_prototype(o)})
                 o.add_tag(f"stocked:{o.id}")

@@ -25,105 +25,43 @@ exactly the text that player would have received on a live server.
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from typing import Any
 
+from realm.config.loader import Settings
 from realm.core.objects import GameObject
-from realm.core.propagation import get_engine, reset_engine
+from realm.core.propagation import reset_engine
 from realm.gateway.session import Session
-
-
-class _Store:
-    """Minimal in-memory persistence implementing the lookup API the
-    engine, commands, and world queries use."""
-
-    def __init__(self) -> None:
-        from realm.persistence.keyid import KeyidIndex
-        self._cache: dict[str, GameObject] = {}
-        self._keyids = KeyidIndex(self.get_cached)
-
-    async def save(self, obj: GameObject) -> None:
-        self._cache[obj.id] = obj
-        self._keyids.index(obj)
-
-    async def delete(self, obj: GameObject) -> None:
-        self._keyids.release(obj)
-        self._cache.pop(obj.id, None)
-
-    def add(self, obj: GameObject) -> None:
-        self._cache[obj.id] = obj
-        self._keyids.index(obj)
-
-    def unregister(self, obj: GameObject) -> None:
-        self._keyids.release(obj)
-        self._cache.pop(obj.id, None)
-
-    def keyid_holder(self, keyid: str) -> GameObject | None:
-        return self._keyids.holder(keyid)
-
-    def claim_keyid(self, obj: GameObject, keyid: str) -> tuple[bool, str]:
-        return self._keyids.claim(obj, keyid)
-
-    def release_keyid(self, obj: GameObject) -> None:
-        self._keyids.release(obj)
-
-    def get_cached(self, obj_id: str) -> GameObject | None:
-        return self._cache.get(obj_id)
-
-    def all_cached(self) -> list[GameObject]:
-        return list(self._cache.values())
-
-    def find_cached(self, *, tag: str | None = None,
-                    name: str | None = None) -> list[GameObject]:
-        needle = name.lower() if name is not None else None
-        out = []
-        for obj in self._cache.values():
-            if tag is not None and not obj.has_tag(tag):
-                continue
-            if needle is not None and obj.name.lower() != needle:
-                continue
-            out.append(obj)
-        return out
+from realm.persistence.memory import MemoryStore
 
 
 class Simulator:
     """A live, in-process REALM world for tests and content checks."""
 
-    def __init__(self, *, game_system: Any = "realm.systems.GurpsSystem",
-                 scripting: bool = True) -> None:
-        from realm.commands.builtin import register_all_commands
-        from realm.commands.dispatcher import CommandDispatcher
-        from realm.core.checks import set_check_resolver, set_skill_defaults
-        from realm.persistence.manager import set_active_manager
-        from realm.scripting.engine import ScriptEngine, set_script_engine
-        from realm.systems import resolve_game_system, set_game_system
+    def __init__(self, *, game_system: Any = None, scripting: bool | None = None,
+                 settings: Settings | None = None) -> None:
+        """Build a world with the server's own ``build_world``.
 
+        ``settings`` configures it like a game's config.py does
+        (``Settings(command_sigil='!')``); ``game_system`` and ``scripting``
+        are shortcuts for its ``game_system`` and ``enable_scripting``.
+        """
+        from realm.server.world import build_world
+
+        overrides: dict[str, Any] = {}
+        if game_system is not None:
+            overrides["game_system"] = game_system
+        if scripting is not None:
+            overrides["enable_scripting"] = scripting
         reset_engine()
-        self.store = _Store()
-        set_active_manager(self.store)
-
-        # Game system (dotted path / class / instance), installed like the
-        # server does: skill defaults + non-combat check resolver.
-        self.game_system = resolve_game_system(game_system)
-        set_game_system(self.game_system)
-        set_skill_defaults(self.game_system.skill_defaults())
-        set_check_resolver(self.game_system.resolve_check)
-
-        self.dispatcher = CommandDispatcher()
-        register_all_commands(self.dispatcher)
-        self.dispatcher.persistence = self.store
-
-        self.engine: ScriptEngine | None = None
-        if scripting:
-            from realm.core.objects import set_check_hook
-            self.engine = ScriptEngine(persistence=self.store)
-            # Virtual clock: waits fire when the test pumps tick_waits(), not on
-            # wall-clock timers — deterministic like the rest of the Simulator.
-            self.engine.defer_waits = True
-            get_engine().add_observer(self.engine.handle_action)
-            set_script_engine(self.engine)
-            set_check_hook(self.engine.run_check_hook)   # on_check interception
-            self.engine.dispatcher = self.dispatcher
-            self.dispatcher.set_unknown_handler(self.engine.handle_unknown_command)
+        self.store = MemoryStore()
+        # Virtual clock: waits fire when the test pumps tick_waits(), not on
+        # wall-clock timers — deterministic like the rest of the Simulator.
+        self.world = build_world(self.store, replace(settings or Settings(), **overrides),
+                                 defer_timers=True)
+        self.dispatcher = self.world.dispatcher
+        self.engine = self.world.scripts
+        self.game_system = self.world.rules
 
         self._sessions: dict[str, Session] = {}
 
@@ -208,17 +146,8 @@ class Simulator:
         return self._sessions.get(player.id)
 
     def close(self) -> None:
-        """Tear down ambient singletons this Simulator installed."""
-        from realm.core.objects import set_check_hook
-        from realm.persistence.manager import set_active_manager
-        from realm.scripting.engine import set_script_engine
-        from realm.systems import set_game_system
-        if self.engine is not None:
-            self.engine.shutdown_waits()   # cancel any pending wait timers
-        set_active_manager(None)
-        set_script_engine(None)
-        set_check_hook(None)
-        set_game_system(None)
+        """Tear down every ambient registration this Simulator made."""
+        self.world.close()
         reset_engine()
 
     def __enter__(self) -> Simulator:

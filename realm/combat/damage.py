@@ -1,10 +1,13 @@
 """
-The single interceptable damage chokepoint.
+The interceptable damage chokepoint.
 
-Every source of damage — a combat swing, a spell, a trap, a scripted
-ability — funnels through :func:`deal_damage`, so one ``combat:on_damage``
-event is where wards, shields, a room's "sanctuary" rule, and armor all
-hook, uniformly, regardless of what dealt the blow. The event's check pass
+Combat swings, spells, traps and scripted abilities funnel through
+:func:`deal_damage`, so one ``combat:on_damage`` event is where wards,
+shields, a room's "sanctuary" rule, and armor all hook, uniformly,
+regardless of what dealt the blow. Not yet every source: softcode
+``damage()`` (via :func:`apply_resisted`, a deliberate bypass) and the
+timed effects (``behaviors/effects.py``) write ``hp`` directly. KERNEL_PLAN
+step 8 (pools) routes them through one write path. The event's check pass
 may ``block`` the damage outright or reduce it (``mod`` / ``set_adata(
 'damage', ...)``) BEFORE the ruleset's own DR/resistances run in
 ``apply_damage`` — the two compose.

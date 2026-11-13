@@ -75,7 +75,7 @@ class WatchfulBehavior(Behavior):
         # Only care about characters arriving where we stand.
         if obj.location is None or action.target is not obj.location:
             return
-        if not (actor.has_tag('player') or actor.has_tag('npc')):
+        if not (actor.is_player or actor.is_npc):
             return
 
         if actor.has_tag('hidden'):
@@ -140,7 +140,7 @@ class PatrolBehavior(Behavior):
 
         exit_obj = None
         for candidate in obj.location.contents:
-            if candidate.has_tag('exit') and candidate.name.lower() == direction.lower():
+            if candidate.is_exit and candidate.name.lower() == direction.lower():
                 exit_obj = candidate
                 break
         if exit_obj is None:
@@ -225,7 +225,7 @@ class ScavengerBehavior(Behavior):
 
         if self.get_param('pick_up', True):
             loot = next((c for c in room.contents
-                         if c.has_tag('thing') and not c.has_tag('exit')
+                         if c.has_tag('thing') and not c.is_exit
                          and not c.has_tag('fixed') and c is not obj
                          and 'corpse' not in c.name.lower()), None)
             if loot is not None:
@@ -273,7 +273,7 @@ class StealBehavior(Behavior):
         from realm.permissions.roles import Role, get_role
 
         marks = [c for c in obj.location.contents
-                 if c.has_tag('player') and get_role(c) <= Role.PLAYER
+                 if c.is_player and get_role(c) <= Role.PLAYER
                  and get_credits(c) > 0]
         if not marks:
             return
@@ -295,7 +295,7 @@ class StealBehavior(Behavior):
             move_through_exit,
             resolve_exit_destination,
         )
-        exits = [c for c in obj.location.contents if c.has_tag('exit')
+        exits = [c for c in obj.location.contents if c.is_exit
                  and not c.has_tag('closed')]
         random.shuffle(exits)
         for exit_obj in exits:

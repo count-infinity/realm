@@ -254,7 +254,7 @@ def describe_match(obj: GameObject, looker: GameObject | None = None) -> str:
     Short context shown next to a name in a multimatch listing —
     why this candidate is different from its twins.
     """
-    if obj.has_tag('exit'):
+    if obj.is_exit:
         return "(exit)"
     if looker is not None:
         if obj.location is looker:

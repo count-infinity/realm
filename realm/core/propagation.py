@@ -11,10 +11,8 @@ reactions). Only the resolution of the action itself (if any) is skipped by
 a block; that resolution lives outside the engine, in whichever behavior
 cares about the specific action_type.
 
-Each object controls its own propagation depth via the visitor pattern.
-A GameObject walks its own behaviors. A Character can override visit_check
-to also walk its equipment. A Pet could walk its rider. Future types add
-layers by overriding the visitor, not by changing the engine.
+Each step calls the object's ``visit_*`` methods, which walk that object's
+behaviors (and, in the permission pass, its locks and ``on_check`` softcode).
 
 Trailing actions queued during propagation (via action.queue_trailing) are
 processed after the parent action completes, depth-limited to MAX_TRAILING_DEPTH

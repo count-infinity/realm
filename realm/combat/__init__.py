@@ -3,7 +3,8 @@ Combat system for REALM.
 
 Provides an abstract combat framework with swappable rulesets:
 - Ruleset base class defines the interface for combat resolution
-- Built-in rulesets: D20 (D&D style), GURPS (3d6 roll-under)
+- Built-in rulesets: D20 (D&D style), GURPS (3d6 roll-under), Merc (Diku THAC0/AC)
+- RulesetRegistry: rulesets by name (COMBAT_RULESET / GameSystem.ruleset_name)
 - Combatant wrapper provides consistent combat state
 - Combat behaviors for NPCs (aggressive, defensive, etc.)
 
@@ -24,7 +25,8 @@ from realm.combat.ruleset import (
 )
 from realm.combat.rulesets.d20 import D20Ruleset
 from realm.combat.rulesets.gurps import GURPSRuleset
-from realm.combat.system import CombatSystem
+from realm.combat.rulesets.merc import MercRuleset
+from realm.combat.system import CombatSystem, RulesetRegistry
 
 __all__ = [
     # Core
@@ -36,7 +38,9 @@ __all__ = [
     "Combatant",
     "CombatState",
     "CombatSystem",
+    "RulesetRegistry",
     # Rulesets
     "D20Ruleset",
     "GURPSRuleset",
+    "MercRuleset",
 ]

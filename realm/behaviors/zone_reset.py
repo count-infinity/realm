@@ -72,7 +72,7 @@ class ZoneResetBehavior(Behavior):
         # last_reset old) so it fires the moment the zone empties.
         for zone in zone_tags(master):
             for room in zone_rooms(zone):
-                if any(c.has_tag("player") for c in room.contents):
+                if any(c.is_player for c in room.contents):
                     return
         await self._reset(master)
         master.db.set("last_reset", now)

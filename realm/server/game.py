@@ -18,8 +18,8 @@ import asyncio
 import logging
 import signal
 from collections.abc import Awaitable, Callable
-from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from dataclasses import replace
+from typing import Any
 
 # Importing the behavior kit registers its behaviors with the
 # BehaviorRegistry so persisted worlds can rehydrate them.
@@ -30,31 +30,24 @@ import realm.combat.behaviors  # noqa: F401
 # the movement kernel before any player can walk such an exit.
 import realm.core.instances  # noqa: F401
 import realm.core.wilderness  # noqa: F401
-from realm.combat.manager import CombatManager, set_combat_manager
-from realm.combat.system import create_combat_system
-from realm.commands.builtin import register_all_commands
+from realm.combat.manager import CombatManager
 from realm.commands.dispatcher import CommandContext, CommandDispatcher
+from realm.config.loader import Settings
 from realm.core.action_types import ActionType
 from realm.core.objects import GameObject
-from realm.core.perception import stealth_observer
 from realm.core.propagation import (
     ROOM_TARGET_CHAIN,
     Action,
     propagate,
 )
-from realm.core.propagation import (
-    get_engine as get_propagation_engine,
-)
 from realm.core.render import render_room
 from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager, set_active_manager
-from realm.scripting.engine import ScriptEngine, set_script_engine
+from realm.scripting.engine import ScriptEngine
 from realm.server.auth import AuthService
-from realm.systems import equipment_observer, resolve_game_system, set_game_system
-
-if TYPE_CHECKING:
-    from realm.config.loader import Settings
+from realm.server.world import World, build_world
+from realm.systems.base import GameSystem
 
 logger = logging.getLogger(__name__)
 
@@ -71,95 +64,22 @@ class GameServer:
 
     Usage via Settings (recommended):
         from realm.config.loader import load_config
-        settings = load_config()
-        server = GameServer.from_settings(settings)
+        server = GameServer(load_config())
         await server.run_forever()
     """
 
-    def __init__(
-        self,
-        db_path: str | Path = "game.db",
-        telnet_port: int = 4000,
-        websocket_port: int = 4001,
-        telnet_host: str = "0.0.0.0",
-        websocket_host: str = "0.0.0.0",
-        enable_telnet: bool = True,
-        enable_websocket: bool = False,  # Requires aiohttp
-        enable_scripting: bool = True,
-        flush_interval: float = 30.0,
-        tick_interval: float = 0.1,
-        world_beat: float = 4.0,
-        reap_interval: float = 5.0,
-        encoding: str = "utf-8",
-        combat_ruleset: str | None = None,
-        game_system: str = "realm.systems.GurpsSystem",
-        combat_beat_min: float = 4.0,
-        combat_beat_max: float = 120.0,
-        combat_beat_default: float = 15.0,
-        show_rolls: bool = False,
-        game_name: str = "REALM",
-        welcome_file: str | Path | None = None,
-        welcome_banner: str | None = None,
-        inline_open: str = "[[",
-        inline_close: str = "]]",
-        command_sigil: str = "$",
-        listen_sigil: str = "^",
-        markup_marker: str = "|",
-        emote_sigil: str = "/",
-        keyid_sigil: str = "$",
-        heredoc_open: str = "'''",
-        heredoc_close: str = "'''",
-        recursion_limit: int = 1000,
-    ):
-        self.db_path = Path(db_path)
-        self.telnet_port = telnet_port
-        self.websocket_port = websocket_port
-        self.telnet_host = telnet_host
-        self.websocket_host = websocket_host
-        self.enable_telnet = enable_telnet
-        self.enable_websocket = enable_websocket
-        self.enable_scripting = enable_scripting
-        self.flush_interval = flush_interval
-        self.tick_interval = tick_interval
-        # The ambient (out-of-combat) beat length and the coarse reap cadence,
-        # both in seconds — distinct from the fast real-time heartbeat above.
-        self.world_beat = world_beat
-        self.reap_interval = reap_interval
-        self.encoding = encoding
-        self.combat_ruleset = combat_ruleset
-        # A dotted import path to a GameSystem subclass (e.g.
-        # "rules.GameRules") — or an already-resolved class/instance;
-        # resolved at boot by resolve_game_system.
-        self.game_system_spec = game_system
-        self.game_system = None
-        self.combat_beat_min = combat_beat_min
-        self.combat_beat_max = combat_beat_max
-        self.combat_beat_default = combat_beat_default
-        self.show_rolls = show_rolls
-        self.game_name = game_name
-        self.welcome_file = Path(welcome_file) if welcome_file else None
-        self.welcome_banner = welcome_banner
+    def __init__(self, settings: Settings | None = None, **overrides: Any):
+        """Build a server from ``settings`` (default: ``Settings()``).
 
-        # Softcode surface syntax — inline-block delimiters, trigger
-        # sigils, and the color-markup marker are all game settings
-        # (ambient module state, like the other singletons). A bad
-        # value raises here, at boot, not mid-render.
-        from realm.core.markup import set_markup_marker
-        from realm.core.verbs import set_emote_sigil
-        from realm.gateway.session import set_heredoc_sigils
-        from realm.scripting.functions import set_keyid_sigil
-        from realm.scripting.inline import set_inline_delimiters
-        from realm.scripting.sandbox import set_interpreter_recursion_limit
-        from realm.scripting.triggers import set_trigger_sigils
-        set_inline_delimiters(inline_open, inline_close)
-        set_trigger_sigils(command=command_sigil, listen=listen_sigil)
-        set_markup_marker(markup_marker)
-        set_emote_sigil(emote_sigil)
-        set_keyid_sigil(keyid_sigil)
-        set_heredoc_sigils(heredoc_open, heredoc_close)
-        # Process-wide, every thread — including this one. Set once, here,
-        # never per script (see set_interpreter_recursion_limit's docstring).
-        set_interpreter_recursion_limit(recursion_limit)
+        Keyword ``overrides`` replace individual fields, so
+        ``GameServer(db_path=":memory:", enable_telnet=False)`` works. An
+        unknown name raises TypeError.
+        """
+        self.settings = replace(settings or Settings(), **overrides)
+        cfg = self.settings
+        # Built by start() (build_world); dispatcher, script_engine,
+        # combat_manager and game_system read it.
+        self.world: World | None = None
 
         # Core components
         self.session_manager = SessionManager()
@@ -167,11 +87,8 @@ class GameServer:
         # drains through _on_command via a per-session pump — prompts,
         # chargen, and dispatch see identical input from any protocol.
         self.session_manager.set_input_sink(self._on_command)
-        self.dispatcher = CommandDispatcher()
         self.persistence: PersistenceManager | None = None
         self.auth: AuthService | None = None
-        self.script_engine: ScriptEngine | None = None
-        self.combat_manager: CombatManager | None = None
 
         # Protocol servers - built-in
         self._telnet_server: TelnetServer | None = None
@@ -189,74 +106,24 @@ class GameServer:
         self._tick_task: asyncio.Task[None] | None = None
         self._reap_task: asyncio.Task[None] | None = None
         self._startup_room: GameObject | None = None
-        self._settings: Settings | None = None
 
         # Callbacks
         self._on_start: list[Callable[[], Awaitable[None]]] = []
         self._on_stop: list[Callable[[], Awaitable[None]]] = []
 
-    @classmethod
-    def from_settings(cls, settings: Settings) -> GameServer:
-        """
-        Create a GameServer from a Settings object.
+        # config.py's on_start / on_stop callbacks.
+        if cfg.on_start:
+            config_on_start = cfg.on_start
 
-        This is the recommended way to create a server when using
-        realm as a library with config.py configuration.
+            async def run_config_on_start():
+                await config_on_start(self)
+            self.on_start(run_config_on_start)
+        if cfg.on_stop:
+            config_on_stop = cfg.on_stop
 
-        Args:
-            settings: Settings loaded from load_config()
-
-        Returns:
-            Configured GameServer instance.
-        """
-        server = cls(
-            db_path=settings.db_path,
-            telnet_port=settings.telnet_port,
-            telnet_host=settings.telnet_host,
-            websocket_port=settings.websocket_port,
-            websocket_host=settings.websocket_host,
-            enable_telnet=settings.enable_telnet,
-            enable_websocket=settings.enable_websocket,
-            enable_scripting=settings.enable_scripting,
-            flush_interval=settings.flush_interval,
-            tick_interval=settings.tick_interval,
-            world_beat=getattr(settings, 'world_beat', 4.0),
-            reap_interval=getattr(settings, 'reap_interval', 5.0),
-            encoding=getattr(settings, 'encoding', 'utf-8'),
-            combat_ruleset=settings.combat_ruleset,
-            game_system=getattr(settings, 'game_system', 'realm.systems.GurpsSystem'),
-            combat_beat_min=settings.combat_beat_min,
-            combat_beat_max=settings.combat_beat_max,
-            combat_beat_default=settings.combat_beat_default,
-            show_rolls=getattr(settings, 'show_rolls', False),
-            game_name=settings.game_name,
-            welcome_file=settings.welcome_file,
-            welcome_banner=getattr(settings, 'welcome_banner', None),
-            inline_open=getattr(settings, 'inline_open', '[['),
-            inline_close=getattr(settings, 'inline_close', ']]'),
-            command_sigil=getattr(settings, 'command_sigil', '$'),
-            listen_sigil=getattr(settings, 'listen_sigil', '^'),
-            markup_marker=getattr(settings, 'markup_marker', '|'),
-            emote_sigil=getattr(settings, 'emote_sigil', '/'),
-            keyid_sigil=getattr(settings, 'keyid_sigil', '$'),
-            heredoc_open=getattr(settings, 'heredoc_open', "'''"),
-            heredoc_close=getattr(settings, 'heredoc_close', "'''"),
-            recursion_limit=getattr(settings, 'recursion_limit', 1000),
-        )
-        server._settings = settings
-
-        # Register any startup callbacks from config
-        if settings.on_start:
-            async def config_on_start():
-                await settings.on_start(server)
-            server.on_start(config_on_start)
-
-        if settings.on_stop:
-            async def config_on_stop():
-                await settings.on_stop(server)
-            server.on_stop(config_on_stop)
-
-        return server
+            async def run_config_on_stop():
+                await config_on_stop(self)
+            self.on_stop(run_config_on_stop)
 
     def register_protocol(
         self,
@@ -302,14 +169,32 @@ class GameServer:
         """Register a callback to run before server stops."""
         self._on_stop.append(callback)
 
+    @property
+    def dispatcher(self) -> CommandDispatcher:
+        if self.world is None:
+            raise RuntimeError("GameServer.dispatcher exists once start() has run")
+        return self.world.dispatcher
+
+    @property
+    def script_engine(self) -> ScriptEngine | None:
+        return self.world.scripts if self.world is not None else None
+
+    @property
+    def combat_manager(self) -> CombatManager | None:
+        return self.world.services.get("combat") if self.world is not None else None
+
+    @property
+    def game_system(self) -> GameSystem | None:
+        return self.world.rules if self.world is not None else None
+
     async def start(self) -> None:
         """Start the game server."""
-        logger.info(f"Starting {self.game_name} game server...")
+        logger.info(f"Starting {self.settings.game_name} game server...")
 
         # Initialize persistence
         self.persistence = PersistenceManager(
-            self.db_path,
-            flush_interval=self.flush_interval,
+            self.settings.db_path,
+            flush_interval=self.settings.flush_interval,
         )
         await self.persistence.initialize()
         await self.persistence.start_flush_loop()
@@ -322,9 +207,9 @@ class GameServer:
         # Call init_world only on first boot (empty database) — its documented
         # contract. Running it on every start would recreate world objects
         # over the loaded ones, leaving players in stale duplicate rooms.
-        if loaded_count == 0 and self._settings and self._settings.init_world:
+        if loaded_count == 0 and self.settings.init_world:
             try:
-                await self._settings.init_world(self)
+                await self.settings.init_world(self)
             except Exception as e:
                 logger.error(f"Error in init_world callback: {e}")
                 raise
@@ -352,114 +237,60 @@ class GameServer:
         self.session_manager.on_connect(self._on_session_connect)
         self.session_manager.on_disconnect(self._on_session_disconnect)
 
-        # Set up dispatcher handlers and services
+        # Wire the engine: the same build_world the Simulator uses.
+        self.world = build_world(self.persistence, self.settings,
+                                 sessions=self.session_manager)
+
+        # Server-only wiring around the shared world.
         self.dispatcher.set_login_handler(self._handle_login)
-        self.dispatcher.server = self  # @stats reads tick_interval etc.
+        self.dispatcher.server = self  # @stats reads settings
         self.dispatcher.set_unknown_handler(self._handle_unknown)
-        self.dispatcher.persistence = self.persistence
-        self.dispatcher.session_manager = self.session_manager
         # `logout` redisplays this without dropping the connection.
         self.dispatcher.welcome_screen = self._get_welcome_screen
-
-        # Softcode scripting: $-command fallback via _handle_unknown, and an
-        # action observer so ^listen and ON_<EVENT> triggers fire on the
-        # same propagated actions behaviors see.
-        if self.enable_scripting:
-            self.script_engine = ScriptEngine(persistence=self.persistence)
-            get_propagation_engine().add_observer(self.script_engine.handle_action)
-            set_script_engine(self.script_engine)
-            # Data-driven interception: on_check softcode runs in the check pass.
-            from realm.core.objects import set_check_hook
-            set_check_hook(self.script_engine.run_check_hook)
-            self.script_engine.dispatcher = self.dispatcher
-            self.script_engine.session_manager = self.session_manager
-
-        # Loud actions break stealth, whoever performs them.
-        get_propagation_engine().add_observer(stealth_observer)
-
-        # Combat: beat-driven encounters; hostile-tagged actions between
-        # combat-capable parties auto-initiate (the fireball WAS your turn).
-        # The game system is the swappable rules package (GURPS/D20/...):
-        # it supplies skill defaults, chargen, advancement, and the combat
-        # ruleset (explicit COMBAT_RULESET config overrides it).
-        self.game_system = resolve_game_system(self.game_system_spec)
-        set_game_system(self.game_system)
-        # Gear changes reach the rules package via the event bus, not the
-        # wear command: on_wear/on_remove -> on_equipment_change (Merc AC).
-        get_propagation_engine().add_observer(equipment_observer)
-        from realm.core.checks import set_check_resolver, set_skill_defaults
-        set_skill_defaults(self.game_system.skill_defaults())
-        set_check_resolver(self.game_system.resolve_check)
-
-        combat_system = create_combat_system(
-            self.combat_ruleset or self.game_system.ruleset_name)
-        self.combat_manager = CombatManager(
-            combat_system,
-            beat_min=self.combat_beat_min,
-            beat_max=self.combat_beat_max,
-            beat_default=self.combat_beat_default,
-            session_manager=self.session_manager,
-        )
-        set_combat_manager(self.combat_manager)
-        from realm.combat.system import set_show_rolls_default
-        set_show_rolls_default(self.show_rolls)
-        get_propagation_engine().add_observer(self.combat_manager.hostile_observer)
-
-        # Crime: a player who assaults/murders another player is flagged
-        # wanted (a timed tag); peacekeeper guards attack the wanted.
-        from realm.systems.crime import crime_observer
-        get_propagation_engine().add_observer(crime_observer)
-
-        # Pin the world tempo (ambient beat length + default behavior cadence)
-        # before the loops start reading it. WORLD_TICK is a process global.
-        from realm.core.beats import set_world_tick
-        set_world_tick(self.world_beat)
 
         # The world's heartbeat: drives tickable behaviors (patrols, AI)
         # and flushes sessions so NPC-initiated output reaches players
         # without waiting for them to type something. Reaping runs on its own
         # coarse task so a slow sweep never stalls the heartbeat.
-        if self.tick_interval > 0:
+        if self.settings.tick_interval > 0:
             self._tick_task = asyncio.create_task(self._tick_loop())
             self._reap_task = asyncio.create_task(self._reap_loop())
 
-        register_all_commands(self.dispatcher)
-
         # Call register_commands callback if defined in settings
-        if self._settings and self._settings.register_commands:
+        if self.settings.register_commands:
             try:
-                self._settings.register_commands(self)
+                self.settings.register_commands(self)
             except Exception as e:
                 logger.error(f"Error in register_commands callback: {e}")
                 raise
 
         # Call register_protocols callback if defined in settings
-        if self._settings and self._settings.register_protocols:
+        if self.settings.register_protocols:
             try:
-                self._settings.register_protocols(self)
+                self.settings.register_protocols(self)
             except Exception as e:
                 logger.error(f"Error in register_protocols callback: {e}")
                 raise
 
         # Start built-in protocol servers
-        if self.enable_telnet:
+        if self.settings.enable_telnet:
             self._telnet_server = TelnetServer(
                 self.session_manager,
                 self._on_command,
-                host=self.telnet_host,
-                port=self.telnet_port,
-                encoding=self.encoding,
+                host=self.settings.telnet_host,
+                port=self.settings.telnet_port,
+                encoding=self.settings.encoding,
             )
             await self._telnet_server.start()
 
-        if self.enable_websocket:
+        if self.settings.enable_websocket:
             try:
                 from realm.gateway.websocket import WebSocketServer
                 self._websocket_server = WebSocketServer(
                     self.session_manager,
                     self._on_command,
-                    host=self.websocket_host,
-                    port=self.websocket_port,
+                    host=self.settings.websocket_host,
+                    port=self.settings.websocket_port,
                 )
                 await self._websocket_server.start()
             except Exception as e:
@@ -492,11 +323,11 @@ class GameServer:
             except Exception as e:
                 logger.error(f"Error in startup callback: {e}")
 
-        logger.info(f"{self.game_name} game server started")
+        logger.info(f"{self.settings.game_name} game server started")
 
     async def stop(self) -> None:
         """Stop the game server."""
-        logger.info(f"Stopping {self.game_name} game server...")
+        logger.info(f"Stopping {self.settings.game_name} game server...")
 
         self._running = False
 
@@ -518,29 +349,10 @@ class GameServer:
                     pass
                 setattr(self, attr, None)
 
-        # Detach observers from the (module-singleton) propagation engine
-        # so a later server instance doesn't double-fire.
-        if self.script_engine is not None:
-            get_propagation_engine().remove_observer(self.script_engine.handle_action)
-            self.script_engine.shutdown_waits()   # cancel in-memory wait timers
-            self.script_engine = None
-            set_script_engine(None)
-            from realm.core.objects import set_check_hook
-            set_check_hook(None)
-        get_propagation_engine().remove_observer(stealth_observer)
-        get_propagation_engine().remove_observer(equipment_observer)
-        from realm.systems.crime import crime_observer
-        get_propagation_engine().remove_observer(crime_observer)
-        if self.combat_manager is not None:
-            get_propagation_engine().remove_observer(self.combat_manager.hostile_observer)
-            self.combat_manager.stop_all()
-            self.combat_manager = None
-            set_combat_manager(None)
-        set_active_manager(None)
-        from realm.core.checks import set_check_resolver
-        set_check_resolver(None)
-        set_game_system(None)
-        self.game_system = None
+        # Undo every ambient registration build_world made (observers,
+        # setters, the active store) so a later server starts clean.
+        if self.world is not None:
+            self.world.close()
 
         # Disconnect all sessions BEFORE stopping protocol servers:
         # Server.wait_closed() (Python 3.12.1+) waits for client connections,
@@ -570,7 +382,7 @@ class GameServer:
         if self.persistence:
             await self.persistence.close()
 
-        logger.info(f"{self.game_name} game server stopped")
+        logger.info(f"{self.settings.game_name} game server stopped")
 
     async def run_forever(self) -> None:
         """Run the server until interrupted."""
@@ -659,11 +471,11 @@ class GameServer:
         for obj_id, loc_id in list(dangling.items()):
             dangling.pop(obj_id, None)
             obj = self.persistence.get_cached(obj_id)
-            if obj is None or obj.location is not None or obj.has_tag('player'):
+            if obj is None or obj.location is not None or obj.is_player:
                 continue
             owner = obj.owner
             refuge = None
-            if owner is not None and owner.has_tag('player'):
+            if owner is not None and owner.is_player:
                 refuge = (owner_refuge(self.persistence, owner)
                           or self._startup_room)
             if refuge is not None:
@@ -735,31 +547,23 @@ class GameServer:
 
         Resolution order:
         1. WELCOME_BANNER (inline in config.py — the most deliberate)
-        2. Configured welcome_file (from settings)
-        3. data/welcome.txt (relative to working directory)
-        4. Falls back to default welcome message
+        2. Configured welcome_file (WELCOME_FILE, resolved from the game
+           directory; default data/welcome.txt)
+        3. Falls back to default welcome message
 
         Returns:
             The welcome screen text to display on connection.
         """
         # An inline banner in config.py wins outright.
-        if self.welcome_banner:
-            return self.welcome_banner
+        if self.settings.welcome_banner:
+            return self.settings.welcome_banner
 
         # Try configured welcome file
-        if self.welcome_file and self.welcome_file.exists():
+        if self.settings.welcome_file and self.settings.welcome_file.exists():
             try:
-                return self.welcome_file.read_text(encoding='utf-8')
+                return self.settings.welcome_file.read_text(encoding='utf-8')
             except Exception as e:
                 logger.warning(f"Failed to read welcome file: {e}")
-
-        # Fallback to legacy location
-        legacy_welcome = Path("data/welcome.txt")
-        if legacy_welcome.exists():
-            try:
-                return legacy_welcome.read_text(encoding='utf-8')
-            except Exception as e:
-                logger.warning(f"Failed to read legacy welcome file: {e}")
 
         return self._default_welcome_screen()
 
@@ -768,7 +572,7 @@ class GameServer:
         lines = [
             "",
             "=" * 60,
-            f"  Welcome to {self.game_name}",
+            f"  Welcome to {self.settings.game_name}",
             "  Powered by REALM",
             "=" * 60,
             "",
@@ -1036,7 +840,7 @@ class GameServer:
         while True:
             # Drift-correcting sleep: aim for a fixed grid, and if a heavy
             # pulse made us late, resync to now instead of spiralling.
-            next_pulse += self.tick_interval
+            next_pulse += self.settings.tick_interval
             delay = next_pulse - _time.monotonic()
             if delay > 0:
                 await asyncio.sleep(delay)
@@ -1093,7 +897,7 @@ class GameServer:
         loop)."""
         import asyncio as _asyncio
         while True:
-            await _asyncio.sleep(self.reap_interval)
+            await _asyncio.sleep(self.settings.reap_interval)
             if self.persistence is not None:
                 await self._reap()
 
@@ -1117,11 +921,6 @@ class GameServer:
             if await self.script_engine.handle_unknown_command(ctx):
                 return
         await ctx.session.send("Huh? (Type 'help' for commands)")
-
-    @property
-    def is_running(self) -> bool:
-        """Check if the server is running."""
-        return self._running
 
     @property
     def startup_room(self) -> GameObject | None:

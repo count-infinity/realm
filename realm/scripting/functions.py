@@ -446,7 +446,7 @@ class ScriptFunctions:
         room_obj = self._resolve(room) if room is not None else self.location
         if room_obj is None:
             return []
-        return [o for o in room_obj.contents if o.has_tag('exit')]
+        return [o for o in room_obj.contents if o.is_exit]
 
     def create_obj(
         self,
@@ -1369,7 +1369,7 @@ class ScriptFunctions:
         Example: prompt(enactor, 'What is your name?', 'on_name')
         """
         who = self._resolve(target)
-        if who is None or not who.has_tag('player'):
+        if who is None or not who.is_player:
             return False
         self.command_queue.append(
             ('prompt', who, (str(text), str(callback),
@@ -2056,7 +2056,7 @@ class ScriptFunctions:
         while node is not None and depth < 5:
             if has_entitlement(node, HARM):
                 return True
-            if node.has_tag('player') or node.has_tag('guest'):
+            if node.is_player or node.has_tag('guest'):
                 return False
             node = node.owner
             depth += 1

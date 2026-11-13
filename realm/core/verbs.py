@@ -123,7 +123,7 @@ async def gate_item_action(
 
 async def do_get(actor: GameObject, target: GameObject) -> bool:
     """Pick up ``target`` into ``actor``'s inventory."""
-    if target.has_tag('player'):
+    if target.is_player:
         actor.msg("You can't pick up players!")
         return False
 
@@ -233,7 +233,7 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
     if target.has_tag('closed'):
         actor.msg(f"{singular_name(target).capitalize()} is already closed.")
         return False
-    is_door_or_container = target.has_tag('exit') or target.has_tag('container')
+    is_door_or_container = target.is_exit or target.has_tag('container')
     if not is_door_or_container and not target.has_tag('closable'):
         actor.msg(f"You can't close {target.name}.")
         return False

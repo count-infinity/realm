@@ -60,7 +60,7 @@ class TestSession:
         session = Session()
 
         # Push input (simulating protocol handler)
-        await session.push_input("test command")
+        session.push_input_nowait("test command")
 
         # Receive input
         received = await session.receive()

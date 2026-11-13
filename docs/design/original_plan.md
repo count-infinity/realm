@@ -362,7 +362,7 @@ exits:
 - `realm/gateway/session.py` - Session management
 - `realm/gateway/telnet.py` - Telnet protocol
 - `realm/gateway/websocket.py` - WebSocket protocol
-- `realm/server/dispatcher.py` - Command routing
+- `realm/commands/dispatcher.py` - Command routing
 
 ### Step 3: Command System
 - `realm/commands/parser.py` - Tokenizer, prefix matching, aliases

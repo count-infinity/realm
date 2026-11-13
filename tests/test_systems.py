@@ -129,26 +129,22 @@ class TestAuth:
     def test_roundtrip(self):
         stored = hash_password("hunter2")
         assert stored.startswith("scrypt$")
-        ok, rehash = verify_password("hunter2", stored)
-        assert ok is True and rehash is False
+        assert verify_password("hunter2", stored) is True
 
     def test_wrong_password(self):
         stored = hash_password("hunter2")
-        ok, _ = verify_password("hunter3", stored)
-        assert ok is False
+        assert verify_password("hunter3", stored) is False
 
     def test_unique_salts(self):
         assert hash_password("x") != hash_password("x")
 
-    def test_legacy_plaintext_flags_rehash(self):
-        ok, rehash = verify_password("s1", "s1")
-        assert ok is True and rehash is True
-        ok, _ = verify_password("nope", "s1")
-        assert ok is False
+    def test_plaintext_stored_value_is_rejected(self):
+        """Plaintext storage predates 2026-07-04; such a database must be
+        recreated, never matched against."""
+        assert verify_password("s1", "s1") is False
 
     def test_garbage_stored_fails_closed(self):
-        ok, rehash = verify_password("x", "scrypt$nothex$zzz")
-        assert ok is False and rehash is False
+        assert verify_password("x", "scrypt$nothex$zzz") is False
 
 
 @pytest.mark.asyncio
@@ -190,15 +186,15 @@ class TestAuthService:
         player, err = await svc.authenticate("Bob", "s2")
         assert player is not None
 
-    async def test_legacy_plaintext_upgraded(self):
+    async def test_plaintext_account_cannot_log_in(self):
         from realm.core.objects import GameObject
         svc, pers = self._service()
         old = GameObject("Old", tags=["player"])
         old.db.password = "plain"
         pers.add(old)
         player, err = await svc.authenticate("Old", "plain")
-        assert player is old
-        assert str(old.db.get("password")).startswith("scrypt$")
+        assert player is None and err == "Invalid password."
+        assert old.db.get("password") == "plain"
 
     async def test_create_account_rejects_duplicates(self):
         svc, pers = self._service()

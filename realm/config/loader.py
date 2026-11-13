@@ -1,7 +1,11 @@
 """
-Configuration loader for REALM.
+Configuration for REALM: the ``Settings`` dataclass and ``load_config``.
 
-Finds and loads user's config.py, merging with defaults.
+``Settings`` is the only place a config key and its default are declared.
+Each field made with :func:`setting` is also an UPPERCASE ``config.py`` key;
+``load_config`` reads exactly those keys, ``KNOWN_CONFIG_KEYS`` is derived
+from them, and ``scripts/gen_config_docs.py`` writes the reference page from
+their docs. Adding a config key is one line here.
 """
 
 from __future__ import annotations
@@ -10,11 +14,9 @@ import importlib.util
 import logging
 import sys
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-from realm.config.defaults import get_default_settings
 
 if TYPE_CHECKING:
     from realm.server.game import GameServer
@@ -22,131 +24,155 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def setting(default: Any, key: str, doc: str, *, path: bool = False) -> Any:
+    """A ``Settings`` field that is also a ``config.py`` key.
+
+    ``path=True`` marks a filesystem path: ``load_config`` resolves a relative
+    value against the game directory.
+    """
+    return field(default=default, metadata={"key": key, "doc": doc, "path": path})
+
+
+def callback(doc: str) -> Any:
+    """A ``Settings`` field filled from a same-named function in ``config.py``."""
+    return field(default=None, metadata={"callback": True, "doc": doc})
+
+
 @dataclass
 class Settings:
-    """
-    Loaded configuration settings.
+    """Every setting a game can make in its ``config.py``, with its default."""
 
-    Contains all settings plus any callbacks defined in user's config.
-    """
+    # --- Game ---
+    game_name: str = setting(
+        "REALM", "GAME_NAME", "Name shown on the welcome screen and in logs.")
+    debug: bool = setting(
+        False, "DEBUG", "Log at DEBUG level (same as `realm start --debug`).")
+    game_system: Any = setting(
+        "realm.systems.GurpsSystem", "GAME_SYSTEM",
+        "Dotted import path to the GameSystem subclass that holds the rules "
+        "(chargen, checks, advancement, combat pairing, currency). Choose it "
+        "once, before the first character is created.")
+    encoding: str = setting(
+        "utf-8", "ENCODING",
+        "Text encoding for telnet input and output (`latin-1` or `cp437` "
+        "only for legacy clients).")
 
-    # Server settings
-    game_name: str = "REALM"
-    debug: bool = False
+    # --- Network ---
+    telnet_host: str = setting("0.0.0.0", "TELNET_HOST", "Telnet listen address.")
+    telnet_port: int = setting(4000, "TELNET_PORT", "Telnet listen port.")
+    websocket_host: str = setting("0.0.0.0", "WEBSOCKET_HOST", "WebSocket listen address.")
+    websocket_port: int = setting(4001, "WEBSOCKET_PORT", "WebSocket listen port.")
+    enable_telnet: bool = setting(True, "ENABLE_TELNET", "Run the telnet server.")
+    enable_websocket: bool = setting(
+        False, "ENABLE_WEBSOCKET", "Run the WebSocket server (needs aiohttp).")
 
-    # Network settings
-    telnet_host: str = "0.0.0.0"
-    telnet_port: int = 4000
-    websocket_host: str = "0.0.0.0"
-    websocket_port: int = 4001
+    # --- Softcode ---
+    enable_scripting: bool = setting(
+        True, "ENABLE_SCRIPTING",
+        "Run softcode: `$`-commands, `^`-listens, `ON_<EVENT>` hooks, inline blocks.")
+    inline_open: str = setting(
+        "[[", "INLINE_OPEN",
+        "Opening delimiter of an inline softcode block in text.")
+    inline_close: str = setting(
+        "]]", "INLINE_CLOSE",
+        "Closing delimiter of an inline softcode block in text.")
+    command_sigil: str = setting(
+        "$", "COMMAND_SIGIL",
+        "Prefix of a softcode command attribute (`$greet *:...`).")
+    listen_sigil: str = setting(
+        "^", "LISTEN_SIGIL",
+        "Prefix of a softcode listen attribute (`^*hello*:...`).")
+    markup_marker: str = setting(
+        "|", "MARKUP_MARKER",
+        "Color-markup marker (`|r` red, `|n` reset).")
+    emote_sigil: str = setting(
+        "/", "EMOTE_SIGIL",
+        "Reference sigil in rich emotes (`pose waves at /Bob`).")
+    keyid_sigil: str = setting(
+        "$", "KEYID_SIGIL",
+        "Prefix of a friendly keyid reference (`get('$banknet_core')`). May not start with `#`.")
+    heredoc_open: str = setting(
+        "'''", "HEREDOC_OPEN",
+        "A line ending in this starts a multi-line block.")
+    heredoc_close: str = setting(
+        "'''", "HEREDOC_CLOSE",
+        "A line equal to this ends a multi-line block.")
+    recursion_limit: int = setting(
+        1000, "RECURSION_LIMIT",
+        "Process-wide Python recursion limit (every thread, not per script). "
+        "Rejected below 100 or above 100000.")
 
-    # Protocol toggles
-    enable_telnet: bool = True
-    enable_websocket: bool = False
+    # --- Files ---
+    db_path: Path = setting(
+        Path("data/game.db"), "DB_PATH", "SQLite database file.", path=True)
+    welcome_file: Path = setting(
+        Path("data/welcome.txt"), "WELCOME_FILE", "Text shown on connection.", path=True)
+    welcome_banner: str | None = setting(
+        None, "WELCOME_BANNER", "Inline welcome text. When set, it wins over WELCOME_FILE.")
 
-    # Softcode scripting ($commands, ^listens, ON_EVENT triggers)
-    enable_scripting: bool = True
+    # --- Time ---
+    tick_interval: float = setting(
+        0.1, "TICK_INTERVAL",
+        "Seconds between server pulses (0 disables). Waits, one-shots and "
+        "reapers land on it; behaviors keep their own cadence.")
+    world_beat: float = setting(
+        4.0, "WORLD_BEAT",
+        "Seconds in one out-of-combat round (poison, regen) and the default "
+        "cadence of pulse-counting behaviors.")
+    reap_interval: float = setting(
+        5.0, "REAP_INTERVAL",
+        "Seconds between housekeeping sweeps (idle instances, wilderness cells, expired objects).")
+    flush_interval: float = setting(
+        30.0, "FLUSH_INTERVAL", "Seconds between saves of changed objects to the database.")
 
-    # Inline-block delimiters in descriptions ("[[ ... ]]" by default;
-    # a game may prefer "${ ... }" etc.)
-    inline_open: str = "[["
-    inline_close: str = "]]"
+    # --- Combat ---
+    combat_ruleset: str | None = setting(
+        None, "COMBAT_RULESET",
+        "Combat ruleset name. Unset, the game system picks its own; set it "
+        "only to mix systems on purpose.")
+    show_rolls: bool = setting(
+        False, "SHOW_ROLLS",
+        "Show dice detail on combat messages. Players override with `showrolls on|off`.")
+    combat_beat_min: float = setting(4.0, "COMBAT_BEAT_MIN", "Shortest combat round, in seconds.")
+    combat_beat_max: float = setting(120.0, "COMBAT_BEAT_MAX", "Longest combat round, in seconds.")
+    combat_beat_default: float = setting(
+        15.0, "COMBAT_BEAT_DEFAULT",
+        "Default combat round, in seconds.")
 
-    # Softcode sigils and the color-markup marker — all game-tunable
-    # for worlds where the defaults collide with prose conventions.
-    command_sigil: str = "$"
-    listen_sigil: str = "^"
-    markup_marker: str = "|"
-    # Reference sigil for rich emotes: `pose waves at /Bob`.
-    emote_sigil: str = "/"
-    # Friendly-keyid lookup sigil for get()/references: `get('$banknet_core')`.
-    # Any length; may not start with '#' (reserved for raw ids).
-    keyid_sigil: str = "$"
-    # Multi-line (heredoc) input delimiters: a command line ending in
-    # heredoc_open starts collecting until a line of heredoc_close. Same by
-    # default ("'''"); a world may prefer distinct "<<<" / ">>>".
-    heredoc_open: str = "'''"
-    heredoc_close: str = "'''"
+    # --- Callbacks: functions of the same name in config.py ---
+    init_world: Callable[[GameServer], Awaitable[None]] | None = callback(
+        "`async def init_world(server)`: runs once, when the database is empty.")
+    on_start: Callable[[GameServer], Awaitable[None]] | None = callback(
+        "`async def on_start(server)`: runs after the server has started.")
+    on_stop: Callable[[GameServer], Awaitable[None]] | None = callback(
+        "`async def on_stop(server)`: runs when the server stops.")
+    register_commands: Callable[[GameServer], None] | None = callback(
+        "`def register_commands(server)`: add the game's own commands.")
+    register_protocols: Callable[[GameServer], None] | None = callback(
+        "`def register_protocols(server)`: add custom network protocols.")
 
-    # PROCESS-WIDE Python recursion limit (not per-script!). Applies to every
-    # thread including the engine's own main loop, so it must stay well above
-    # the engine's call depth — see set_interpreter_recursion_limit. Raising it
-    # lets softcode nest deeper; lowering it below the floor is rejected at boot.
-    recursion_limit: int = 1000
-
-    # Paths (resolved to absolute)
-    db_path: Path = field(default_factory=lambda: Path("data/game.db"))
-    welcome_file: Path = field(default_factory=lambda: Path("data/welcome.txt"))
-    # Inline welcome banner (WELCOME_BANNER). When set it wins over
-    # welcome_file — the banner is declared in config.py itself, so it is
-    # the more deliberate of the two.
-    welcome_banner: str | None = None
+    # --- Set by load_config, not config keys ---
     game_dir: Path = field(default_factory=Path.cwd)
-
-    # Show dice-roll detail on combat messages; players override with
-    # the `showrolls on|off` command.
-    show_rolls: bool = False
-
-    # Persistence
-    flush_interval: float = 30.0
-
-    # Real-time heartbeat: seconds between server pulses (0 disables). Fine by
-    # design (~0.1s) so waits, one-shots and reapers land promptly; behaviors
-    # and effects keep their own cadence (world_beat / beats) regardless. See
-    # docs/design/time-and-beats.md.
-    tick_interval: float = 0.1
-    # The ambient (out-of-combat) beat length — how long one "round" of poison,
-    # bleed, regen etc. lasts when a creature isn't fighting. Also the default
-    # cadence for pulse-counting world behaviors (WORLD_TICK).
-    world_beat: float = 4.0
-    # Coarse housekeeping cadence (idle instances, wilderness cells, expired
-    # objects), on its own task off the fast pulse.
-    reap_interval: float = 5.0
-
-    # Combat
-    encoding: str = "utf-8"
-    combat_ruleset: str | None = None
-    # Dotted import path to a GameSystem subclass ("rules.GameRules",
-    # "realm.systems.GurpsSystem"); resolved by resolve_game_system.
-    game_system: Any = "realm.systems.GurpsSystem"
-    combat_beat_min: float = 4.0
-    combat_beat_max: float = 120.0
-    combat_beat_default: float = 15.0
-
-    # Callbacks (optional, from user config)
-    init_world: Callable[[GameServer], Awaitable[None]] | None = None
-    on_start: Callable[[GameServer], Awaitable[None]] | None = None
-    on_stop: Callable[[GameServer], Awaitable[None]] | None = None
-    register_commands: Callable[[GameServer], None] | None = None
-    register_protocols: Callable[[GameServer], None] | None = None
-
-    # Raw config dict for advanced access
     _raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
+    def __post_init__(self) -> None:
+        # A path given as a string (GameServer(db_path=":memory:")) is a Path.
+        for f in fields(self):
+            if f.metadata.get("path"):
+                value = getattr(self, f.name)
+                if value is not None and not isinstance(value, Path):
+                    setattr(self, f.name, Path(value))
+
     def get(self, key: str, default: Any = None) -> Any:
-        """Get a raw config value by key."""
+        """A raw ``config.py`` value by name, including the game's own constants."""
         return self._raw.get(key, default)
 
 
-# Every UPPERCASE key load_config consumes. A config.py may freely define
-# other constants for its own use (a START_ROOM_VNUM its init_world reads),
-# so an unknown key is legal — but an unknown key that is a NEAR MISS of a
-# real one (WELCOME_BANER) is almost certainly a typo that would otherwise
-# be silently ignored, so it warns at boot.
-# tests/test_config.py asserts this set matches what the code actually reads.
-KNOWN_CONFIG_KEYS = frozenset({
-    'GAME_NAME', 'DEBUG',
-    'TELNET_HOST', 'TELNET_PORT', 'WEBSOCKET_HOST', 'WEBSOCKET_PORT',
-    'ENABLE_TELNET', 'ENABLE_WEBSOCKET', 'ENABLE_SCRIPTING',
-    'INLINE_OPEN', 'INLINE_CLOSE',
-    'COMMAND_SIGIL', 'LISTEN_SIGIL', 'MARKUP_MARKER', 'EMOTE_SIGIL',
-    'KEYID_SIGIL', 'RECURSION_LIMIT', 'HEREDOC_OPEN', 'HEREDOC_CLOSE',
-    'DB_PATH', 'WELCOME_FILE', 'WELCOME_BANNER',
-    'FLUSH_INTERVAL', 'TICK_INTERVAL', 'WORLD_BEAT', 'REAP_INTERVAL',
-    'ENCODING', 'COMBAT_RULESET', 'GAME_SYSTEM',
-    'COMBAT_BEAT_MIN', 'COMBAT_BEAT_MAX', 'COMBAT_BEAT_DEFAULT',
-    'SHOW_ROLLS',
-})
+#: Every UPPERCASE key ``load_config`` consumes. A config.py may define other
+#: constants for its own use; an unknown key that is a near miss of one of
+#: these (WELCOME_BANER) warns at boot.
+KNOWN_CONFIG_KEYS = frozenset(
+    f.metadata["key"] for f in fields(Settings) if "key" in f.metadata)
 
 
 def _warn_near_miss_keys(user_config: dict[str, Any]) -> None:
@@ -194,76 +220,25 @@ def load_config(game_dir: Path | None = None) -> Settings:
     if not game_dir.exists():
         raise FileNotFoundError(f"Game directory not found: {game_dir}")
 
-    # Start with defaults
-    config = get_default_settings()
-
-    # Try to load config.py
     config_file = game_dir / "config.py"
     user_config: dict[str, Any] = {}
-
     if config_file.exists():
         user_config = _load_config_file(config_file, game_dir)
-        # Merge user config over defaults
-        config.update(user_config)
         _warn_near_miss_keys(user_config)
         logger.info(f"Loaded config from {config_file}")
     else:
-        # Also check for legacy realm_config.py
-        legacy_config = game_dir / "realm_config.py"
-        if legacy_config.exists():
-            user_config = _load_config_file(legacy_config, game_dir)
-            config.update(user_config)
-            _warn_near_miss_keys(user_config)
-            logger.warning(
-                f"Using legacy {legacy_config.name}. "
-                "Consider renaming to config.py"
-            )
+        logger.warning(f"No config.py in {game_dir}; running on built-in defaults")
 
-    # Build Settings object
-    settings = Settings(
-        game_name=config.get('GAME_NAME', 'REALM'),
-        debug=config.get('DEBUG', False),
-        telnet_host=config.get('TELNET_HOST', '0.0.0.0'),
-        telnet_port=config.get('TELNET_PORT', 4000),
-        websocket_host=config.get('WEBSOCKET_HOST', '0.0.0.0'),
-        websocket_port=config.get('WEBSOCKET_PORT', 4001),
-        enable_telnet=config.get('ENABLE_TELNET', True),
-        enable_websocket=config.get('ENABLE_WEBSOCKET', False),
-        enable_scripting=config.get('ENABLE_SCRIPTING', True),
-        inline_open=config.get('INLINE_OPEN', '[['),
-        inline_close=config.get('INLINE_CLOSE', ']]'),
-        command_sigil=config.get('COMMAND_SIGIL', '$'),
-        listen_sigil=config.get('LISTEN_SIGIL', '^'),
-        markup_marker=config.get('MARKUP_MARKER', '|'),
-        emote_sigil=config.get('EMOTE_SIGIL', '/'),
-        keyid_sigil=config.get('KEYID_SIGIL', '$'),
-        recursion_limit=config.get('RECURSION_LIMIT', 1000),
-        heredoc_open=config.get('HEREDOC_OPEN', "'''"),
-        heredoc_close=config.get('HEREDOC_CLOSE', "'''"),
-        db_path=_resolve_path(game_dir, config.get('DB_PATH', 'data/game.db')),
-        welcome_file=_resolve_path(game_dir, config.get('WELCOME_FILE', 'data/welcome.txt')),
-        welcome_banner=config.get('WELCOME_BANNER'),
-        game_dir=game_dir,
-        flush_interval=config.get('FLUSH_INTERVAL', 30.0),
-        tick_interval=config.get('TICK_INTERVAL', 0.1),
-        world_beat=config.get('WORLD_BEAT', 4.0),
-        reap_interval=config.get('REAP_INTERVAL', 5.0),
-        encoding=config.get('ENCODING', 'utf-8'),
-        combat_ruleset=config.get('COMBAT_RULESET'),
-        game_system=config.get('GAME_SYSTEM', 'realm.systems.GurpsSystem'),
-        combat_beat_min=config.get('COMBAT_BEAT_MIN', 4.0),
-        combat_beat_max=config.get('COMBAT_BEAT_MAX', 120.0),
-        combat_beat_default=config.get('COMBAT_BEAT_DEFAULT', 15.0),
-        show_rolls=bool(config.get('SHOW_ROLLS', False)),
-        init_world=config.get('init_world'),
-        on_start=config.get('on_start'),
-        on_stop=config.get('on_stop'),
-        register_commands=config.get('register_commands'),
-        register_protocols=config.get('register_protocols'),
-        _raw=config,
-    )
-
-    return settings
+    values: dict[str, Any] = {}
+    for f in fields(Settings):
+        if "key" in f.metadata:
+            value = user_config.get(f.metadata["key"], f.default)
+            if f.metadata["path"] and value is not None:
+                value = _resolve_path(game_dir, value)
+            values[f.name] = value
+        elif f.metadata.get("callback") and f.name in user_config:
+            values[f.name] = user_config[f.name]
+    return Settings(**values, game_dir=game_dir, _raw=user_config)
 
 
 def _load_config_file(config_file: Path, game_dir: Path) -> dict[str, Any]:
@@ -303,7 +278,7 @@ def _load_config_file(config_file: Path, game_dir: Path) -> dict[str, Any]:
     return config
 
 
-def _resolve_path(game_dir: Path, path_str: str) -> Path:
+def _resolve_path(game_dir: Path, path_str: str | Path) -> Path:
     """
     Resolve a path relative to the game directory.
 

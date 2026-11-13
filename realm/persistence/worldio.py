@@ -74,7 +74,7 @@ def export_zone(zone: str) -> dict:
     for room in rooms:
         seen[room.id] = room
         for obj in room.contents:
-            if not obj.has_tag('player'):
+            if not obj.is_player:
                 seen[obj.id] = obj
         for master in zone_masters(room):
             seen[master.id] = master
@@ -286,7 +286,7 @@ def _area_members(zone: str, persistence) -> dict[str, GameObject]:
     for room in zone_rooms(zone):
         members[room.id] = room
         for obj in room.contents:
-            if not obj.has_tag('player'):
+            if not obj.is_player:
                 members[obj.id] = obj
         for master in zone_masters(room):
             members[master.id] = master

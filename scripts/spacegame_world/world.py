@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
-    from realm.persistence.repository import GameObjectRepository
+    from realm.persistence.store import Store
 
 
-async def create_world(repo: GameObjectRepository) -> dict[str, GameObject]:
+async def create_world(repo: Store) -> dict[str, GameObject]:
     """
     Create the space game world.
 
@@ -218,7 +218,7 @@ A tactical holotable displays the local sector in three dimensions.
 
 
 async def create_bartender_npc(
-    repo: GameObjectRepository,
+    repo: Store,
     location: GameObject,
 ) -> GameObject:
     """Create the cantina bartender NPC."""
@@ -262,7 +262,7 @@ establishment.
 
 
 async def create_doctor_npc(
-    repo: GameObjectRepository,
+    repo: Store,
     location: GameObject,
 ) -> GameObject:
     """Create the medical bay doctor NPC."""
@@ -305,7 +305,7 @@ coat with the station's insignia.
 
 
 async def create_guard_npc(
-    repo: GameObjectRepository,
+    repo: Store,
     location: GameObject,
 ) -> GameObject:
     """Create the command center security guard NPC."""

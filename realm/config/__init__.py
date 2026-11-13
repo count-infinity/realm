@@ -1,10 +1,10 @@
 """
 REALM configuration system.
 
-Provides defaults and loading of user configuration from config.py.
+``Settings`` declares every config key and its default; ``load_config`` reads
+a game's config.py into one.
 """
 
-from realm.config.defaults import DEFAULT_SETTINGS
 from realm.config.loader import Settings, load_config
 
-__all__ = ['DEFAULT_SETTINGS', 'load_config', 'Settings']
+__all__ = ['load_config', 'Settings']

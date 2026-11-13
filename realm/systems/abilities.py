@@ -19,15 +19,15 @@ An ``ability_def`` (or ``spell_def``) object carries:
     target   : 'self' | 'ally' | 'victim' | 'room'      (default: victim if
                it has a damage effect, else self)
     cost     : {'pool': 'mana', 'n': 15} | {'per_day': 2, 'attr': 'used_x'}
-               | (legacy) mana=15
+               | (shorthand) mana=15
     effects  : [ {'type':'damage','dice':'6d6','damage_type':'fire',
                   'save':'half'},
                  {'type':'heal','dice':'2d8+2'},
                  {'type':'behavior','behavior_id':'modifier_effect',
                   'params':{...},'save':'negates'},
                  {'type':'softcode','code':'...'} ]
-               (legacy flat fields damage_dice/heal_dice/effect/save are
-                read too, so existing spell_defs need no change)
+               (the flat shorthand fields damage_dice/heal_dice/effect/save
+                are read too; shipped spells and the ROM importer use them)
     classes / level / skill_req : eligibility (a player must qualify; NPCs
                always pass — their list is whatever behavior granted it)
     on_invoke / on_cast : bespoke softcode, run AS the def
@@ -79,7 +79,7 @@ def can_invoke(actor: GameObject, adef: GameObject) -> bool:
     """Eligibility: may ``actor`` invoke ``adef``? NPCs always pass (their
     repertoire is whatever behavior granted it). Players must meet the
     class / level / skill requirement the def declares."""
-    if actor.has_tag("npc"):
+    if actor.is_npc:
         return True
     classes = adef.db.get("classes")
     if classes and actor.db.get("character_class") not in classes:
@@ -137,7 +137,8 @@ async def apply_typed_damage(target: GameObject, amount: int, dtype_name: str,
 
 def _effects_of(adef: GameObject) -> list[dict]:
     """The ability's effect-spec list — the ``effects`` attr if present, else
-    derived from the legacy flat spell fields so old ``spell_def``s work."""
+    derived from the flat shorthand spell fields (``damage_dice``, ``heal_dice``,
+    ``effect``, ``save``)."""
     effects = adef.db.get("effects")
     if isinstance(effects, list) and effects:
         return [e for e in effects if isinstance(e, dict)]
@@ -157,7 +158,7 @@ def _effects_of(adef: GameObject) -> list[dict]:
 
 
 def _cost_of(adef: GameObject) -> dict | None:
-    """Normalize the ability's cost to a spec, or None (free). Legacy
+    """Normalize the ability's cost to a spec, or None (free). The shorthand
     ``mana=N`` is sugar for a mana-pool spec."""
     cost = adef.db.get("cost")
     if isinstance(cost, dict) and cost:
@@ -183,7 +184,7 @@ def _resolve_targets(actor: GameObject, want: str,
     if want == "room":
         room = actor.location
         occ = [o for o in (room.contents if room else [])
-               if o.has_tag("player") or o.has_tag("npc")]
+               if o.is_player or o.is_npc]
         if actor not in occ:
             occ.append(actor)
         return occ, room or actor
@@ -317,7 +318,7 @@ def _pay_cost(actor: GameObject, cost: dict | None, action: Action) -> bool:
             f"{pool}_cost", action.extra.get("cost", cost.get("n") or 0))))
         have = actor.db.get(pool)
         if have is None:
-            if not actor.has_tag("npc") and n > 0:
+            if not actor.is_npc and n > 0:
                 action.block(f"You have no {pool} to spend.")
                 return False
         elif int(have) < n:
@@ -329,7 +330,7 @@ def _pay_cost(actor: GameObject, cost: dict | None, action: Action) -> bool:
     if cost.get("per_day"):
         # A counter toward a daily cap; reset is rest-driven (see BACKLOG —
         # a real day/night reset is a separate feature). NPCs are uncapped.
-        if actor.has_tag("npc"):
+        if actor.is_npc:
             return True
         attr = str(cost.get("attr")
                    or "used_" + action.action_type.replace(":", "_"))

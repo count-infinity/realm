@@ -55,7 +55,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
-    from realm.persistence.repository import GameObjectRepository
+    from realm.persistence.store import Store
 
 
 class ShipClass(Enum):
@@ -215,7 +215,7 @@ class Spaceship:
     @classmethod
     async def create(
         cls,
-        repo: GameObjectRepository,
+        repo: Store,
         ship_class: ShipClass,
         name: str,
         owner: GameObject | None = None,
@@ -402,7 +402,7 @@ class Spaceship:
         )
 
 
-async def create_ship_prototypes(repo: GameObjectRepository) -> dict[str, GameObject]:
+async def create_ship_prototypes(repo: Store) -> dict[str, GameObject]:
     """
     Create prototype ships for the game.
 

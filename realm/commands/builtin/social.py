@@ -29,7 +29,7 @@ BAND_DESCRIPTIONS = {
 
 def _find_npc(ctx: CommandContext, spec: str):
     target = find_object(ctx, spec, search_room=True, search_inventory=False)
-    if target is None or not (target.has_tag('npc') or target.has_tag('player')):
+    if target is None or not (target.is_npc or target.is_player):
         return None
     return target
 

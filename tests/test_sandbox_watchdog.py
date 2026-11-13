@@ -96,7 +96,7 @@ class TestTraceHygiene:
             # would have restored *sentinel*; if it left the trace alone,
             # sentinel is still here either way — so assert it never even
             # swapped by checking the classifier said "no loop".
-            assert ScriptSandbox._has_loop("result = 1 + 1") is False
+            assert ScriptSandbox._needs_watchdog("result = 1 + 1") is False
             assert sys.gettrace() is sentinel
         finally:
             sys.settrace(None)
@@ -108,7 +108,7 @@ class TestTraceHygiene:
             _run("import sys\nsys.settrace(None)\nwhile True:\n    x = 1")
 
 
-class TestHasLoopClassifier:
+class TestNeedsWatchdogClassifier:
     @pytest.mark.parametrize("code", [
         "while True: pass",
         "for i in range(3): pass",
@@ -118,7 +118,12 @@ class TestHasLoopClassifier:
         "x = sum(i for i in range(3))",
     ])
     def test_loops_are_detected(self, code):
-        assert ScriptSandbox._has_loop(code) is True
+        assert ScriptSandbox._needs_watchdog(code) is True
+
+    def test_try_is_watched(self):
+        """A script can catch its own RecursionError and re-recurse with no
+        loop node, so any ``try`` installs the watchdog too."""
+        assert ScriptSandbox._needs_watchdog("try:\n    x = 1\nexcept Exception:\n    pass") is True
 
     @pytest.mark.parametrize("code", [
         "result = 2 + 2",
@@ -127,7 +132,7 @@ class TestHasLoopClassifier:
         "x = 1 if cond else 2",
     ])
     def test_loop_free_is_detected(self, code):
-        assert ScriptSandbox._has_loop(code) is False
+        assert ScriptSandbox._needs_watchdog(code) is False
 
 
 class TestKillIsUncatchable:

@@ -21,7 +21,7 @@ from realm.core.search import (
     match_one,
 )
 from realm.gateway.session import Session
-from realm.server.dispatcher import CommandContext, CommandDispatcher
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
 
 @pytest.fixture(autouse=True)

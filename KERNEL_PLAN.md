@@ -9,8 +9,8 @@ its own and leaves the suite green.
 
 | # | Step | Size | Status |
 |---|------|------|--------|
-| 1 | Fix the defects, delete the dead code | S | [ ] |
-| 2 | One composition root, one source of defaults | S–M | [ ] |
+| 1 | Fix the defects, delete the dead code | S | [x] |
+| 2 | One composition root, one source of defaults | S–M | [x] |
 | 3 | One softcode function registry, one namespace builder | M | [ ] |
 | 4 | Features: built-ins use the front door | M–L | [ ] |
 | 5 | One service function per world operation | M | [ ] |
@@ -293,58 +293,58 @@ Confirm each item with `git grep -n "<name>"` before deleting.
 
 **A. Compatibility code with no users**
 
-- [ ] `realm/server/dispatcher.py` (re-export shim). Rewrite the 16 test files
+- [x] `realm/server/dispatcher.py` (re-export shim). Rewrite the 16 test files
       that import `realm.server.dispatcher` to `realm.commands.dispatcher`.
       Remove `CommandDispatcher` from `realm/server/__init__.py`.
-- [ ] The `realm_config.py` fallback in `config/loader.py` (about lines
+- [x] The `realm_config.py` fallback in `config/loader.py` (about lines
       209-221).
-- [ ] The legacy `data/welcome.txt` fallback in
+- [x] The legacy `data/welcome.txt` fallback in
       `GameServer._get_welcome_screen` (`server/game.py`, about line 745).
-- [ ] **Decision (default: delete).** The plaintext-password branch in
+- [x] **Decision (default: delete).** The plaintext-password branch in
       `server/auth.py` (`verify_password`, `needs_rehash`) and its tests at
       `tests/test_systems.py:143` and `:193`. Any local database older than
       2026-07-04 must be recreated.
 
 **B. Hooks nothing can reach**
 
-- [ ] `GameObject.at_action_check`, `at_action_react`, `at_observe_check`,
+- [x] `GameObject.at_action_check`, `at_action_react`, `at_observe_check`,
       `at_observe_react` and their four call lines in `visit_*`
       (`core/objects.py`). Nothing overrides them, and
       `PersistenceManager._row_to_object` always builds a plain `GameObject`,
       so a subclass can never be loaded. Keep the `visit_*` methods.
-- [ ] Remove the docstrings that describe subclass overrides
+- [x] Remove the docstrings that describe subclass overrides
       (`core/propagation.py` lines 11-14, the comment block above `visit_check`).
 
 **C. Accepted and ignored**
 
-- [ ] `min_args` in `CommandDispatcher.register`, the matching line in the
+- [x] `min_args` in `CommandDispatcher.register`, the matching line in the
       `Command` docstring, and `# TODO: Argument validation`.
-- [ ] The stale `# TODO: Check locks on exit` at `commands/dispatcher.py:442`
+- [x] The stale `# TODO: Check locks on exit` at `commands/dispatcher.py:442`
       (`move_through_exit` already checks them).
-- [ ] **Decision (default: delete).** The player-alias step in
+- [x] **Decision (default: delete).** The player-alias step in
       `_parse_command`, `set_player_alias`, `remove_player_alias`,
       `_player_aliases` and their three tests. No command sets an alias.
-- [ ] Make `DEBUG` work instead of deleting it: in `cli.py::cmd_start`, load
+- [x] Make `DEBUG` work instead of deleting it: in `cli.py::cmd_start`, load
       the config before `logging.basicConfig` and use DEBUG level when
       `args.debug or settings.debug`.
 
 **D. Unreferenced anywhere (engine, tests, docs)**
 
-- [ ] `gateway/session.py`: `SessionMessage`, `Session.account_name`,
+- [x] `gateway/session.py`: `SessionMessage`, `Session.account_name`,
       `get_heredoc_sigils`.
-- [ ] `combat/combatant.py`: `modify_stat`, `get_weapon`, `get_armor`,
+- [x] `combat/combatant.py`: `modify_stat`, `get_weapon`, `get_armor`,
       `is_in_combat`. `combat/system.py`: `CombatRound.next_turn`.
-- [ ] `permissions/locks.py::list_locks`,
+- [x] `permissions/locks.py::list_locks`,
       `scripting/triggers.py::TriggerManager.invalidate_cache`,
       `server/game.py::GameServer.is_running`.
 
 **E. Used only by tests and documented nowhere: delete with their tests**
 
-- [ ] `CombatSystem.end_combat`, `CombatSystem.get_combatants`,
+- [x] `CombatSystem.end_combat`, `CombatSystem.get_combatants`,
       `locks.get_lock`, `EventTrigger.matches_event`, `TagSet.from_list`,
       `CommandContext.has_player`, `ScriptSandbox._has_loop`,
       `GameObject.get_behavior`, `Session.push_input`.
-- [ ] **Decision (default: keep).** `roles.role_conferred_by_tag` has six test
+- [x] **Decision (default: keep).** `roles.role_conferred_by_tag` has six test
       uses and no engine caller.
 
 **F. Keep. Recorded so nobody flags them again**
@@ -365,16 +365,16 @@ Confirm each item with `git grep -n "<name>"` before deleting.
 
 **G. Lists and comments that have drifted**
 
-- [ ] `realm.combat.__all__` and `realm.combat.rulesets.__all__`: add
+- [x] `realm.combat.__all__` and `realm.combat.rulesets.__all__`: add
       `MercRuleset` and `RulesetRegistry`. `realm.commands.builtin.__all__`:
       add `register_magic_commands`.
-- [ ] `core/checks.py` module docstring calls the default resolver
+- [x] `core/checks.py` module docstring calls the default resolver
       GURPS-shaped; the function's docstring calls it neutral. Make the module
       docstring say neutral.
-- [ ] `combat/damage.py` module docstring says every source of damage goes
+- [x] `combat/damage.py` module docstring says every source of damage goes
       through `deal_damage`. State the truth: softcode `damage()` and the
       timed effects write directly until step 8.
-- [ ] Add a dated note at the top of `docs/design/simplicity_review.md`
+- [x] Add a dated note at the top of `docs/design/simplicity_review.md`
       pointing here. Its thresholds (core past 25 modules, 10 singletons,
       "core imports only core") have been crossed.
 
@@ -382,26 +382,26 @@ Confirm each item with `git grep -n "<name>"` before deleting.
 
 `has_tag('player')` appears 47 times in engine Python and `.is_player` twice.
 
-- [ ] Add `is_npc` beside `is_room`, `is_player`, `is_exit`, `is_thing` on
+- [x] Add `is_npc` beside `is_room`, `is_player`, `is_exit`, `is_thing` on
       `GameObject`.
-- [ ] Replace `x.has_tag('player' | 'room' | 'exit' | 'npc')` with the
+- [x] Replace `x.has_tag('player' | 'room' | 'exit' | 'npc')` with the
       predicate across `realm/` (engine Python only; softcode keeps
       `has_tag(obj, 'player')`).
 
 ### Acceptance
 
-- [ ] Every new test above passes. The suite is green.
-- [ ] `git grep -n "_destroy_recursive\|realm.server.dispatcher\|realm_config\|at_action_check\|min_args"`
+- [x] Every new test above passes. The suite is green.
+- [x] `git grep -n "_destroy_recursive\|realm.server.dispatcher\|realm_config\|at_action_check\|min_args"`
       returns nothing under `realm/` and `tests/`.
-- [ ] `ruff check realm/` reports no more findings than before.
+- [x] `ruff check realm/` reports no more findings than before.
 
 ### Docs
 
-- [ ] `docs/guides/world-management.md`: what `@destroy` does with players,
+- [x] `docs/guides/world-management.md`: what `@destroy` does with players,
       owned property and other contents; `@nuke`.
-- [ ] `docs/reference/softcode.md` regenerated (`destroy_obj` docstring).
-- [ ] `docs/architecture/commands.md`: drop `min_args`.
-- [ ] `BACKLOG.md`: add a dated FIXED entry listing 1.1 to 1.8.
+- [x] `docs/reference/softcode.md` regenerated (`destroy_obj` docstring).
+- [x] `docs/architecture/commands.md`: drop `min_args`.
+- [x] `BACKLOG.md`: add a dated FIXED entry listing 1.1 to 1.8.
 
 ---
 
@@ -450,23 +450,23 @@ KNOWN_CONFIG_KEYS = frozenset(f.metadata["key"] for f in fields(Settings) if "ke
 
 Tasks:
 
-- [ ] Convert every `Settings` field to `setting(...)` with its key and a
+- [x] Convert every `Settings` field to `setting(...)` with its key and a
       one-line doc. Keep the current dataclass defaults; they are the intended
       ones.
-- [ ] Rewrite `load_config` as the loop described. Derive
+- [x] Rewrite `load_config` as the loop described. Derive
       `KNOWN_CONFIG_KEYS`.
-- [ ] Delete `realm/config/defaults.py` and the `DEFAULT_SETTINGS` export.
-- [ ] Change `GameServer.__init__` as described. Delete
+- [x] Delete `realm/config/defaults.py` and the `DEFAULT_SETTINGS` export.
+- [x] Change `GameServer.__init__` as described. Delete
       `GameServer.from_settings`; `cli.py::cmd_start` calls
       `GameServer(settings)`. Keep the wiring of the `on_start` and `on_stop`
       config callbacks, now in `__init__`.
-- [ ] Extend `tests/test_config.py`:
-  - [ ] every key assigned in `realm/templates/config.py.template`, active or
+- [x] Extend `tests/test_config.py`:
+  - [x] every key assigned in `realm/templates/config.py.template`, active or
         commented out, is in `KNOWN_CONFIG_KEYS`;
-  - [ ] every active value in the template equals the `Settings` default,
+  - [x] every active value in the template equals the `Settings` default,
         except `GAME_NAME` and `GAME_SYSTEM`;
-  - [ ] `git grep -n "getattr(settings"` finds nothing in `realm/`.
-- [ ] Add `scripts/gen_config_docs.py`, modelled on
+  - [x] `git grep -n "getattr(settings"` finds nothing in `realm/`.
+- [x] Add `scripts/gen_config_docs.py`, modelled on
       `scripts/gen_softcode_docs.py`. It writes `docs/reference/config.md`
       from the field metadata. Add the page to `mkdocs.yml` under Reference.
 
@@ -520,30 +520,30 @@ its undo onto `_closers`.
 
 Tasks:
 
-- [ ] Write `tests/test_world_parity.py` first. Build a
+- [x] Write `tests/test_world_parity.py` first. Build a
       `GameServer(db_path=":memory:", enable_telnet=False)`, start it, and
       build a `Simulator()`. Assert both have: the same command names, the
       same propagation observers by qualified name, a combat manager with the
       same ruleset class, and the same softcode namespace keys. It fails
       today.
-- [ ] Add `realm/server/world.py` as specified.
-- [ ] `GameServer.start`: keep the order it has today. Open the store, call
+- [x] Add `realm/server/world.py` as specified.
+- [x] `GameServer.start`: keep the order it has today. Open the store, call
       `set_active_manager`, create `AuthService`, load the world, run
       `init_world`, reload role defs, ensure the startup room, reconcile
       orphans, scrub combat state. Then `self.world = build_world(
       self.persistence, self.settings, sessions=self.session_manager)`. Then
       the login handler, the "Huh?" wrapper, the tick and reap loops, the
       config callbacks, the protocols.
-- [ ] `GameServer.dispatcher`, `.script_engine`, `.combat_manager` and
+- [x] `GameServer.dispatcher`, `.script_engine`, `.combat_manager` and
       `.game_system` become properties that read `self.world`.
-- [ ] `GameServer.stop`: replace the manual teardown of observers and
+- [x] `GameServer.stop`: replace the manual teardown of observers and
       setters with `self.world.close()`.
-- [ ] `Simulator.__init__`: `self.world = build_world(self.store,
+- [x] `Simulator.__init__`: `self.world = build_world(self.store,
       Settings(game_system=game_system, enable_scripting=scripting),
       defer_timers=True)`. Keep the attributes tests use (`dispatcher`,
       `engine`, `game_system`, `store`). `Simulator.close` calls
       `self.world.close()` and `reset_engine()`.
-- [ ] The parity test passes. Expected fallout, verified in the lab: no other
+- [x] The parity test passes. Expected fallout, verified in the lab: no other
       test changes once task 1.8 is in.
 
 ### 2.3 A store protocol, one memory store
@@ -552,35 +552,35 @@ Three stores exist with different method sets: `PersistenceManager`,
 `persistence/repository.py::GameObjectRepository` and
 `testing/simulator.py::_Store`.
 
-- [ ] Add `realm/persistence/store.py` with `class Store(Protocol)`. Its
+- [x] Add `realm/persistence/store.py` with `class Store(Protocol)`. Its
       members are the methods engine code calls on a store today:
       `get_cached(id)`, `all_cached()`, `find_cached(*, tag=None, name=None)`,
       `async save(obj)`, `async delete(obj)`, `keyid_holder(keyid)`,
       `claim_keyid(obj, keyid)`, `release_keyid(obj)`. Check the single
       callers of `save_deferred` and `load`; either add them or change the
       caller to `save` / `get_cached`.
-- [ ] Move `_Store` to `realm/persistence/memory.py` as public `MemoryStore`.
+- [x] Move `_Store` to `realm/persistence/memory.py` as public `MemoryStore`.
       The Simulator imports it.
-- [ ] Delete `persistence/repository.py`. Port `tests/test_spacegame.py` (four
+- [x] Delete `persistence/repository.py`. Port `tests/test_spacegame.py` (four
       uses) to `MemoryStore`. Change the type hints in
       `examples/spacegame/ships.py` and `scripts/spacegame_world/world.py` to
       `Store`.
-- [ ] Test: `PersistenceManager` and `MemoryStore` both provide every member
+- [x] Test: `PersistenceManager` and `MemoryStore` both provide every member
       of `Store`.
 
 ### Acceptance
 
-- [ ] `tests/test_world_parity.py` passes.
-- [ ] `realm/config/defaults.py` and `persistence/repository.py` are gone.
-- [ ] A config key is added by editing one line in `Settings`. The template
+- [x] `tests/test_world_parity.py` passes.
+- [x] `realm/config/defaults.py` and `persistence/repository.py` are gone.
+- [x] A config key is added by editing one line in `Settings`. The template
       test and the generated reference pick it up.
 
 ### Docs
 
-- [ ] `docs/reference/config.md` (new, generated) and `mkdocs.yml`.
-- [ ] `docs/development/testing.md`: the Simulator is wired like the server.
-- [ ] `docs/architecture/overview.md`: `build_world` and `World`.
-- [ ] `CLAUDE.md` Key Files table: `realm/server/world.py`,
+- [x] `docs/reference/config.md` (new, generated) and `mkdocs.yml`.
+- [x] `docs/development/testing.md`: the Simulator is wired like the server.
+- [x] `docs/architecture/overview.md`: `build_world` and `World`.
+- [x] `CLAUDE.md` Key Files table: `realm/server/world.py`,
       `realm/persistence/store.py`.
 
 ### Closes
@@ -2597,3 +2597,20 @@ entry closed.
 | 2026-11-13 | 1.7 | `ScriptedBehavior.__init__(self, def_name, /, **params)`: the name is positional-only. | A database saved before this change has `def_name` inside `params`; a keyword parameter would make those rows raise `TypeError` at load. Positional-only lets the stale key load as an ordinary (ignored) param with no compatibility code. |
 | 2026-11-13 | 1.7 | `read_role_defs` also reports a `role_def` whose `entitlements` is not a list (it used to be skipped silently). | Same failure mode as an unknown name: the role grants nothing and the builder was not told. |
 | 2026-11-13 | 1.8 | Also converted `tests/test_combat.py::TestD20Ruleset::test_apply_damage_with_resistance` to the dict form. `scale_resistances` logs a WARNING for a non-dict `resistances` value and ignores it. | The plan named only lines 108-118. A stale list would otherwise stop working without a word. |
+| 2026-11-13 | 1.9 A | **Decision: delete** the plaintext-password branch (plan default; no answer given). `verify_password` now returns `bool` and fails closed on anything not `scrypt$`. A database older than 2026-07-04 must be recreated. | Plan default. |
+| 2026-11-13 | 1.9 A | `load_config` logs a WARNING when a game directory has no `config.py` (the `realm_config.py` branch used to be the only message on that path). | Fail loudly (rule 5). |
+| 2026-11-13 | 1.9 C | **Decision: delete** player aliases (plan default). The plan counted three alias tests; there were two. | Plan default. |
+| 2026-11-13 | 1.9 C | `DEBUG`: the level choice moved into `cli._log_level(args, settings)` so it can be tested; `cmd_start` loads config before `basicConfig`. | pytest's log capture owns the root logger, so `basicConfig` is a no-op under test. |
+| 2026-11-13 | 1.9 E | **Decision: keep** `roles.role_conferred_by_tag` (plan default). | Plan default. |
+| 2026-11-13 | 1.9 E | `ScriptSandbox._has_loop` was dead because the sandbox calls `_needs_watchdog` (loops **or** `try`). Its tests were retargeted to `_needs_watchdog`, plus one `try` case, instead of being deleted. `test_set_and_get_lock` became `test_set_lock_stores_expression`; `test_send_and_receive` now uses `push_input_nowait`. The emptied `TestEventTrigger` class was removed. | Keeps coverage of live code while deleting the dead names. |
+| 2026-11-13 | 1.9 G | The `simplicity_review.md` note names `KERNEL_PLAN.md` in plain text, not a link. | The file is outside `docs/`, so a link would break the mkdocs build. |
+| 2026-11-13 | Acceptance | `tests/test_olc.py::test_destroy_recursive` renamed `test_destroy_takes_unowned_contents`. | Its name matched the acceptance grep for `_destroy_recursive`. |
+| 2026-11-13 | 2.1 | `Settings` and `load_config` stay in `realm/config/loader.py` (the plan allowed either). Callbacks are marked with a `callback(doc)` field helper so the reference page can list them. `Settings.__post_init__` turns a string path field into a `Path`, so `GameServer(db_path=":memory:")` keeps working. `Settings.get()` now returns only what `config.py` set (it used to include merged defaults); nothing in the engine called it. | Keeps the one-line-per-key rule and the old call sites. |
+| 2026-11-13 | 2.1 | `GameServer()` with no settings now uses the `Settings` defaults: `db_path` is `data/game.db` (was `game.db`) and `welcome_file` is `data/welcome.txt` (was none). | The plan keeps the dataclass defaults as the intended ones. Every test passes `db_path`. |
+| 2026-11-13 | 2.1 | Added `test_config_reference_is_current`: `docs/reference/config.md` must equal the generator's output. | Stops the generated page drifting from `Settings`. |
+| 2026-11-13 | 2.2 | `set_world_tick` lives in `realm.core.behaviors` (the plan said `core.beats`, which re-exports it). | Plan text was off; no design change. |
+| 2026-11-13 | 2.2 | `Simulator(settings=...)` added beside `game_system` and `scripting`. `test_configurable_syntax::test_remapped_command_sigil_via_dispatcher` now passes `Settings(command_sigil='!')` instead of calling `set_trigger_sigils` before building the Simulator. | `build_world` sets every syntax setting from `Settings`, so a sigil set beforehand is overwritten. The plan expected no test changes. |
+| 2026-11-13 | 2.2 | `GameServer.dispatcher` raises before `start()`. `test_builtin_commands::test_bystander_writer_called_after_actor_command` now starts and stops a `:memory:` server instead of using an unstarted one. | The dispatcher is part of the world and the world is built in `start()`. |
+| 2026-11-13 | 2.2 | `World.close` also restores the previous `WORLD_TICK`, resets the show-rolls default and stops combat timers. Syntax setters are undone by calling them with no arguments (their defaults). | Each registration pushes its own undo, as the plan asks. |
+| 2026-11-13 | 2.3 | `save_deferred` and `load` are not in `Store`: their only callers were examples in `PersistenceManager`'s own docstring. | The plan said to check them; nothing in the engine calls them. |
+| 2026-11-13 | 2 Closes | BACKLOG "Persistence follow-ups" ticked; "Config drift" (already ticked) gained a dated follow-up line. | Rule 6. |

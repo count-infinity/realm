@@ -81,7 +81,7 @@ async def crime_observer(action: Action) -> None:
         # The victim's status at the moment of death decides both outcomes.
         victim_was_wanted = is_wanted(target)
         if (actor is not None and target is not None and actor is not target
-                and actor.has_tag("player") and target.has_tag("player")
+                and actor.is_player and target.is_player
                 and not victim_was_wanted):
             flag_wanted(actor, "murder", MURDER_HEAT)   # killing the innocent
         if victim_was_wanted and target is not None:
@@ -91,7 +91,7 @@ async def crime_observer(action: Action) -> None:
     if action.action_type == ActionType.ON_DAMAGE:
         if actor is None or target is None or actor is target:
             return
-        if not (actor.has_tag("player") and target.has_tag("player")):
+        if not (actor.is_player and target.is_player):
             return                                      # only PvP is a crime
         if is_wanted(target):
             return                                      # hitting an outlaw is free

@@ -121,7 +121,7 @@ async def materialize(
     created = await import_objects(data, persistence)
     entry = next((o for o in created if o.has_tag(ENTRY_TAG)), None)
     if entry is None:
-        entry = next((o for o in created if o.has_tag("room")), None)
+        entry = next((o for o in created if o.is_room), None)
 
     master = GameObjectCls(
         name=f"instance:{template}:{owner.name}",
@@ -250,7 +250,7 @@ async def resolve_instance_exit(
             return None
         # Copies are per-PLAYER: a mob may be routed into an existing
         # shared copy above, but never materializes its own.
-        if not actor.has_tag("player"):
+        if not actor.is_player:
             return None
 
     return_room = None
@@ -289,7 +289,7 @@ def _occupied(inst_tag: str) -> bool:
     # Subtree scan: a player inside a vehicle inside a copied room still
     # holds the copy open.
     for obj in find_objects(tag=inst_tag):
-        if obj.has_tag("room") and subtree_has_player(obj):
+        if obj.is_room and subtree_has_player(obj):
             return True
     return False
 
@@ -309,7 +309,7 @@ async def destroy_instance(master: GameObject, persistence) -> None:
     # cloned with the copy (inst-tagged) are deleted below alongside it.
     doomed = {obj.id for obj in objects} | {master.id}
     for room in objects:
-        if not room.has_tag("room"):
+        if not room.is_room:
             continue
         await release_contents(room, persistence,
                                return_room=return_room, doomed_ids=doomed)

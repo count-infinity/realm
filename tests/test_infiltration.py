@@ -31,7 +31,7 @@ from realm.core.perception import can_see, can_see_room
 from realm.core.propagation import get_engine as get_propagation_engine
 from realm.core.propagation import reset_engine
 from realm.gateway.session import Session
-from realm.server.dispatcher import CommandContext, CommandDispatcher
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
 
 def level_resolver(obj, skill, modifier):

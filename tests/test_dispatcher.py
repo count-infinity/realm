@@ -4,7 +4,7 @@ import pytest
 
 from realm.core.objects import GameObject
 from realm.gateway.session import Session
-from realm.server.dispatcher import (
+from realm.commands.dispatcher import (
     DIRECTION_ALIASES,
     TOKEN_MAP,
     CommandContext,
@@ -33,7 +33,6 @@ class TestCommandContext:
         assert ctx.raw_input == "look here"
         assert ctx.command_name == "look"
         assert ctx.args == "here"
-        assert ctx.has_player is True
 
     def test_context_without_player(self):
         """CommandContext works without a player."""
@@ -47,7 +46,7 @@ class TestCommandContext:
             args="name pass",
         )
 
-        assert ctx.has_player is False
+        assert ctx.player is None
 
     def test_context_with_switches(self):
         """CommandContext stores switches."""
@@ -307,85 +306,6 @@ class TestCommandDispatcher:
         await dispatcher.dispatch(session, "xyzzy")
 
         assert "xyzzy" in unknown_calls
-
-    @pytest.mark.asyncio
-    async def test_player_alias(self):
-        """Player aliases expand correctly."""
-        dispatcher = CommandDispatcher()
-        called = []
-
-        async def handler(ctx):
-            called.append(ctx.args)
-
-        dispatcher.register("say", handler)
-
-        session = Session()
-        player = GameObject("Player", tags=['player'])
-        session.link_player(player)
-
-        # Set player alias
-        dispatcher.set_player_alias(player.id, "hi", "say Hello everyone!")
-
-        await dispatcher.dispatch(session, "hi")
-
-        assert called == ["Hello everyone!"]
-
-    @pytest.mark.asyncio
-    async def test_remove_player_alias(self):
-        """Player aliases can be removed."""
-        dispatcher = CommandDispatcher()
-
-        session = Session()
-        player = GameObject("Player", tags=['player'])
-        session.link_player(player)
-
-        dispatcher.set_player_alias(player.id, "hi", "say Hello!")
-        dispatcher.remove_player_alias(player.id, "hi")
-
-        # Now "hi" should be unknown
-        unknown_calls = []
-
-        async def unknown_handler(ctx):
-            unknown_calls.append(ctx.command_name)
-
-        dispatcher.set_unknown_handler(unknown_handler)
-
-        await dispatcher.dispatch(session, "hi")
-
-        assert "hi" in unknown_calls
-
-    def test_list_commands(self):
-        """list_commands returns appropriate commands."""
-        from realm.core.objects import GameObject
-
-        dispatcher = CommandDispatcher()
-
-        async def handler(ctx):
-            pass
-
-        dispatcher.register("look", handler, permission="player")
-        dispatcher.register("dig", handler, permission="builder")
-        dispatcher.register("shutdown", handler, permission="admin")
-
-        # Create test players with different roles
-        player = GameObject("Player", tags=['player'])
-        builder = GameObject("Builder", tags=['builder', 'player'])
-        admin = GameObject("Admin", tags=['admin', 'player'])
-
-        player_cmds = dispatcher.list_commands(player)
-        builder_cmds = dispatcher.list_commands(builder)
-        admin_cmds = dispatcher.list_commands(admin)
-
-        assert "look" in player_cmds
-        assert "dig" not in player_cmds
-
-        assert "look" in builder_cmds
-        assert "dig" in builder_cmds
-        assert "shutdown" not in builder_cmds
-
-        assert "look" in admin_cmds
-        assert "dig" in admin_cmds
-        assert "shutdown" in admin_cmds
 
     @pytest.mark.asyncio
     async def test_unregister_command(self):

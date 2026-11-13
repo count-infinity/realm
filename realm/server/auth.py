@@ -2,9 +2,8 @@
 Password hashing for REALM accounts.
 
 scrypt (stdlib hashlib) with per-password salt, stored as
-``scrypt$<salt_hex>$<hash_hex>``. verify_password accepts legacy
-plaintext (pre-hashing accounts) and reports it so the caller can
-rehash in place on successful login.
+``scrypt$<salt_hex>$<hash_hex>``. Any other stored value never matches:
+a database from before hashing (2026-07-04) must be recreated.
 """
 
 from __future__ import annotations
@@ -22,24 +21,18 @@ def hash_password(password: str) -> str:
     return f"scrypt${salt.hex()}${digest.hex()}"
 
 
-def verify_password(password: str, stored: str) -> tuple[bool, bool]:
-    """
-    Check a password. Returns (ok, needs_rehash).
-
-    needs_rehash is True when the stored value is legacy plaintext —
-    the caller should overwrite it with hash_password(password).
-    """
-    if stored.startswith("scrypt$"):
-        try:
-            _scheme, salt_hex, hash_hex = stored.split("$", 2)
-            digest = hashlib.scrypt(
-                password.encode(), salt=bytes.fromhex(salt_hex), **_SCRYPT)
-            return hmac.compare_digest(digest.hex(), hash_hex), False
-        except (ValueError, TypeError):
-            return False, False
-    # Legacy plaintext account.
-    return hmac.compare_digest(password, stored), True
-
+def verify_password(password: str, stored: str) -> bool:
+    """Check a password against a stored ``scrypt$`` value. Anything else
+    (including plaintext) fails closed."""
+    if not stored.startswith("scrypt$"):
+        return False
+    try:
+        _scheme, salt_hex, hash_hex = stored.split("$", 2)
+        digest = hashlib.scrypt(
+            password.encode(), salt=bytes.fromhex(salt_hex), **_SCRYPT)
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(digest.hex(), hash_hex)
 
 
 class AuthService:
@@ -97,14 +90,9 @@ class AuthService:
                           "Use 'create' to make one.")
 
         stored = str(player.db.get('password') or '')
-        ok, needs_rehash = verify_password(password, stored)
-        if not ok:
+        if not verify_password(password, stored):
             self.record_failure(name)
             return None, "Invalid password."
-
-        if needs_rehash:
-            player.db.password = hash_password(password)
-            await self._persistence.save(player)
         return player, ""
 
     async def create_account(self, name: str, password: str, *, system=None):

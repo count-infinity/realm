@@ -228,8 +228,8 @@ async def _show_object(ctx: CommandContext, target) -> None:
     # If it's a container with visible contents
     if target.has_tag('closed'):
         await ctx.session.send("It is closed.")
-    elif target.contents and not target.has_tag('player'):
-        visible = [obj for obj in target.contents if not obj.has_tag('exit')]
+    elif target.contents and not target.is_player:
+        visible = [obj for obj in target.contents if not obj.is_exit]
         if visible:
             await ctx.session.send("\nContains:")
             for obj in visible:

@@ -475,7 +475,7 @@ async def move_through_exit(
     actor.msg_oob("Room.Info", {
         "id": destination.id,
         "name": destination.name,
-        "exits": [o.name for o in destination.contents if o.has_tag('exit')],
+        "exits": [o.name for o in destination.contents if o.is_exit],
     })
 
     # Followers walk after their leader (room-local scan of the origin,

@@ -53,49 +53,76 @@ class TestKeysAreConsumed:
         assert settings.emote_sigil == "!"
         assert settings.recursion_limit == 2000
 
-    def test_known_keys_match_what_the_source_reads(self):
-        """KNOWN_CONFIG_KEYS must equal the config.get('UPPER') calls in the
-        loader — if someone adds a key without registering it (or registers
-        one that is never read), this fails and names it."""
-        tree = ast.parse(LOADER_SRC.read_text(encoding="utf-8"))
-        read = set()
-        for node in ast.walk(tree):
-            if (isinstance(node, ast.Call)
-                    and isinstance(node.func, ast.Attribute)
-                    and node.func.attr == "get"
-                    and node.args
-                    and isinstance(node.args[0], ast.Constant)
-                    and isinstance(node.args[0].value, str)
-                    and node.args[0].value.isupper()):
-                read.add(node.args[0].value)
-        assert read == set(KNOWN_CONFIG_KEYS), (
-            f"unregistered-but-read: {sorted(read - KNOWN_CONFIG_KEYS)}; "
-            f"registered-but-never-read: {sorted(KNOWN_CONFIG_KEYS - read)}"
-        )
 
+class TestOneSourceOfDefaults:
+    """Settings declares every key once; the scaffold template and the code
+    must agree with it (KERNEL_PLAN 2.1)."""
 
-class TestCombatRulesetDefault:
+    def _template(self):
+        from realm.templates import render_template
+        return render_template("config.py.template", game_name="Testia")
 
-    def test_default_is_none_so_the_game_system_chooses(self, tmp_path):
-        """COMBAT_RULESET defaulted to 'gurps' in defaults.py, which made
-        settings.combat_ruleset never-None — so game.py's
-        ``combat_ruleset or game_system.ruleset_name`` fallback was dead
-        code and EVERY game ran GURPS combat regardless of its system.
-        Midgaard fought GURPS 3d6 over merc characters: AC/THAC0 ignored,
-        imm/res/vuln ignored (found live, 2026-08-01)."""
-        game = _write_config(tmp_path, 'GAME_NAME = "Bare"\n')
-        settings = load_config(game)
-        assert settings.combat_ruleset is None
+    def _active_assignments(self) -> dict[str, object]:
+        out = {}
+        for node in ast.parse(self._template()).body:
+            if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)
+                    and node.targets[0].id.isupper()):
+                out[node.targets[0].id] = ast.literal_eval(node.value)
+        return out
 
-        # The boot wiring game.py uses must now reach the system's choice.
-        from realm.systems.merc import MercSystem
-        chosen = settings.combat_ruleset or MercSystem().ruleset_name
-        assert chosen == "merc"
+    def test_every_template_key_is_known(self):
+        import re
+        active = set(self._active_assignments())
+        commented = set(re.findall(r"^#\s*([A-Z][A-Z0-9_]+)\s*=", self._template(),
+                                   flags=re.MULTILINE))
+        unknown = (active | commented) - KNOWN_CONFIG_KEYS
+        assert not unknown, f"template keys Settings does not declare: {sorted(unknown)}"
 
-    def test_explicit_config_still_wins(self, tmp_path):
-        game = _write_config(tmp_path, 'COMBAT_RULESET = "gurps"\n')
-        settings = load_config(game)
-        assert settings.combat_ruleset == "gurps"
+    def test_active_template_values_equal_the_defaults(self):
+        from dataclasses import fields
+
+        from realm.config.loader import Settings
+        defaults = {f.metadata["key"]: f.default
+                    for f in fields(Settings) if "key" in f.metadata}
+        differ = {}
+        for key, value in self._active_assignments().items():
+            if key in ("GAME_NAME", "GAME_SYSTEM"):
+                continue
+            default = defaults[key]
+            if isinstance(default, pathlib.Path):
+                value = pathlib.Path(value)
+            if value != default:
+                differ[key] = (value, default)
+        assert not differ, f"template value vs Settings default: {differ}"
+
+    def test_no_getattr_settings_fallbacks_in_the_engine(self):
+        realm_dir = LOADER_SRC.parent.parent
+        offenders = [str(p.relative_to(realm_dir.parent))
+                     for p in realm_dir.rglob("*.py")
+                     if "getattr(settings" in p.read_text(encoding="utf-8")]
+        assert offenders == []
+
+    def test_config_reference_is_current(self):
+        """docs/reference/config.md is generated from Settings; rerun
+        scripts/gen_config_docs.py after changing a field."""
+        import importlib.util
+        root = LOADER_SRC.parent.parent.parent
+        spec = importlib.util.spec_from_file_location(
+            "gen_config_docs", root / "scripts" / "gen_config_docs.py")
+        gen = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(gen)
+        on_disk = (root / "docs" / "reference" / "config.md").read_text(encoding="utf-8")
+        assert on_disk == gen.render(), "run: python scripts/gen_config_docs.py"
+
+    def test_every_key_has_a_doc(self):
+        from dataclasses import fields
+
+        from realm.config.loader import Settings
+        undocumented = [f.name for f in fields(Settings)
+                        if ("key" in f.metadata or f.metadata.get("callback"))
+                        and not f.metadata["doc"].strip()]
+        assert undocumented == []
 
 
 class TestNearMissWarning:
@@ -121,13 +148,10 @@ class TestWelcomeScreenPriority:
     def _server(self, **attrs):
         # _get_welcome_screen touches only these attributes; a full
         # GameServer() boot mutates ambient module state (sigils etc.).
+        from realm.config.loader import Settings
         from realm.server.game import GameServer
         server = GameServer.__new__(GameServer)
-        server.game_name = "Testia"
-        server.welcome_banner = None
-        server.welcome_file = None
-        for key, value in attrs.items():
-            setattr(server, key, value)
+        server.settings = Settings(**{"game_name": "Testia", "welcome_file": None, **attrs})
         return server
 
     def test_banner_wins_over_file(self, tmp_path):
@@ -157,3 +181,24 @@ class TestTickIntervalDefault:
         game = _write_config(tmp_path, 'GAME_NAME = "Bare"\n')
         settings = load_config(game)
         assert settings.tick_interval == Settings().tick_interval == 0.1
+
+
+class TestDebugSetting:
+    """DEBUG in config.py used to be read into Settings and then ignored;
+    only --debug changed the log level (KERNEL_PLAN 1.9 C)."""
+
+    def _level(self, tmp_path, body, debug_flag):
+        import argparse
+
+        from realm.cli import _log_level
+        settings = load_config(_write_config(tmp_path, body))
+        return _log_level(argparse.Namespace(debug=debug_flag), settings)
+
+    def test_config_debug_turns_on_debug_logging(self, tmp_path):
+        assert self._level(tmp_path, "DEBUG = True\n", False) == logging.DEBUG
+
+    def test_flag_still_works(self, tmp_path):
+        assert self._level(tmp_path, 'GAME_NAME = "X"\n', True) == logging.DEBUG
+
+    def test_default_is_info(self, tmp_path):
+        assert self._level(tmp_path, 'GAME_NAME = "X"\n', False) == logging.INFO

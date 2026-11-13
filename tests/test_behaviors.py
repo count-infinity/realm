@@ -264,21 +264,6 @@ class TestGameObjectBehaviors:
         assert b not in obj.get_behaviors()
         assert b.owner is None
 
-    def test_get_behavior_by_type(self):
-        obj = GameObject("test")
-        simple = SimpleBehavior()
-        counting = CountingBehavior()
-        obj.add_behavior(simple)
-        obj.add_behavior(counting)
-        found = obj.get_behavior(CountingBehavior)
-        assert found == counting
-
-    def test_get_behavior_not_found(self):
-        obj = GameObject("test")
-        obj.add_behavior(SimpleBehavior())
-        found = obj.get_behavior(CountingBehavior)
-        assert found is None
-
     def test_no_duplicate_behaviors(self):
         obj = GameObject("test")
         b = SimpleBehavior()

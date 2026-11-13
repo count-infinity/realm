@@ -16,7 +16,7 @@ from realm.commands.builtin.manipulation import cmd_unwear, cmd_wear
 from realm.core.objects import GameObject
 from realm.core.propagation import Action, get_engine, reset_engine
 from realm.gateway.session import Session
-from realm.server.dispatcher import CommandContext, CommandDispatcher
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.systems import (
     GurpsSystem,
     MercSystem,

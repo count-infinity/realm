@@ -58,14 +58,6 @@ class CombatRound:
             return self.initiative_order[self.current_index][1]
         return None
 
-    def next_turn(self) -> Combatant | None:
-        """Advance to next combatant. Returns None if round is over."""
-        self.current_index += 1
-        if self.current_index >= len(self.initiative_order):
-            return None
-        return self.current_combatant
-
-
 @dataclass
 class CombatResult:
     """Complete result of a combat action."""
@@ -435,22 +427,6 @@ class CombatSystem:
 
         logger.info(f"Combat started: {combat_id} with {len(wrapped)} combatants")
         return combat_id
-
-    def end_combat(self, combat_id: str) -> None:
-        """End a combat encounter."""
-        if combat_id in self._active_combats:
-            combatants = self._active_combats.pop(combat_id)
-            for c in combatants:
-                if c.state == CombatState.COMBAT:
-                    c.state = CombatState.IDLE
-                c.target = None
-                c.clear_modifiers()
-
-            logger.info(f"Combat ended: {combat_id}")
-
-    def get_combatants(self, combat_id: str) -> list[Combatant]:
-        """Get combatants in an active combat."""
-        return self._active_combats.get(combat_id, [])
 
     def _ensure_combatant(self, obj: GameObject | Combatant) -> Combatant:
         """Wrap a GameObject as a Combatant if needed."""

@@ -369,7 +369,7 @@ class TestDefeat:
 
     async def test_firstaid_revives_unconscious(self, manager):
         from realm.commands.builtin.combat import cmd_firstaid
-        from realm.server.dispatcher import CommandContext, CommandDispatcher
+        from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
         room = GameObject("Arena", tags=["room"])
         alice, _ = make_fighter("Alice", room)
@@ -727,7 +727,7 @@ class TestProgression:
 
     async def test_improve_spends_points(self, manager):
         from realm.commands.builtin.combat import cmd_improve
-        from realm.server.dispatcher import CommandContext, CommandDispatcher
+        from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
         room = GameObject("Arena", tags=["room"])
         alice, sess = make_fighter("Alice", room)
@@ -752,7 +752,7 @@ class TestProgression:
     async def test_improve_from_untrained_default(self, manager):
         from realm.commands.builtin.combat import cmd_improve
         from realm.core.checks import set_skill_defaults
-        from realm.server.dispatcher import CommandContext, CommandDispatcher
+        from realm.commands.dispatcher import CommandContext, CommandDispatcher
         from realm.systems import GurpsSystem
 
         set_skill_defaults(GurpsSystem().skill_defaults())

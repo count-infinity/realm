@@ -180,7 +180,7 @@ async def cmd_export(args: argparse.Namespace) -> int:
             data = export_zone(args.zone)
         else:
             objects = [o for o in persistence.all_cached()
-                       if args.include_players or not o.has_tag('player')]
+                       if args.include_players or not o.is_player]
             data = export_objects(objects)
         with open(args.file, 'w') as f:
             _json.dump(data, f, indent=2)
@@ -255,17 +255,17 @@ async def cmd_pack(args: argparse.Namespace) -> int:
         await persistence.close()
 
 
+def _log_level(args: argparse.Namespace, settings) -> int:
+    """DEBUG when ``--debug`` is passed or the game's config sets DEBUG."""
+    return logging.DEBUG if args.debug or settings.debug else logging.INFO
+
+
 async def cmd_start(args: argparse.Namespace) -> int:
     """Start the game server from the current directory."""
-    # Set up logging first
-    log_level = logging.DEBUG if args.debug else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    )
     logger = logging.getLogger('realm.cli')
 
-    # Load configuration from current directory
+    # Load configuration first: its DEBUG setting decides the log level.
+    # (Until basicConfig runs, warnings and errors still reach stderr.)
     try:
         settings = load_config()
     except FileNotFoundError as e:
@@ -274,6 +274,11 @@ async def cmd_start(args: argparse.Namespace) -> int:
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")
         return 1
+
+    logging.basicConfig(
+        level=_log_level(args, settings),
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
 
     logger.info(f"Starting {settings.game_name}...")
 
@@ -284,7 +289,7 @@ async def cmd_start(args: argparse.Namespace) -> int:
             settings.db_path.unlink()
 
     # Create server from settings
-    server = GameServer.from_settings(settings)
+    server = GameServer(settings)
 
     # Run server
     try:

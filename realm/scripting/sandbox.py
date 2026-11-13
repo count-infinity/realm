@@ -313,23 +313,6 @@ class ScriptSandbox:
                    ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 
     @classmethod
-    def _has_loop(cls, code: str) -> bool:
-        """Could this script iterate without calling anything?
-
-        The call/time budget is checked inside :meth:`_wrap_function`, so a
-        script that spins in a call-free loop (``while True: pass``) is
-        never checked and pins its thread. We install a line-level watchdog
-        to catch that — but only for scripts that can actually loop, so the
-        common case (a guard chain, an inline ``[[...]]`` read) pays
-        nothing.
-        """
-        try:
-            tree = ast.parse(code)
-        except SyntaxError:
-            return True  # let compile() report it; assume the worst meanwhile
-        return any(isinstance(n, cls._LOOP_NODES) for n in ast.walk(tree))
-
-    @classmethod
     def _needs_watchdog(cls, code: str) -> bool:
         """Install the watchdog for anything that can run unboundedly.
 

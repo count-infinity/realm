@@ -1,10 +1,12 @@
 """
 Persistence layer for REALM.
 
-Handles saving and loading game objects to/from SQLite (or PostgreSQL).
+``Store`` is what engine code may call on a world store. ``PersistenceManager``
+keeps the world in SQLite; ``MemoryStore`` keeps it in memory only.
 """
 
 from realm.persistence.manager import PersistenceManager
-from realm.persistence.repository import GameObjectRepository
+from realm.persistence.memory import MemoryStore
+from realm.persistence.store import Store
 
-__all__ = ["PersistenceManager", "GameObjectRepository"]
+__all__ = ["PersistenceManager", "MemoryStore", "Store"]

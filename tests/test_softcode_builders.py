@@ -585,7 +585,7 @@ class TestTriggerLocks:
 
     async def test_use_lock_gates_dollar_commands(self):
         from realm.core.propagation import get_engine
-        from realm.server.dispatcher import CommandContext
+        from realm.commands.dispatcher import CommandContext
 
         room = GameObject("Cantina", tags=["room"])
         npc = GameObject("Zeke", location=room)
@@ -1303,7 +1303,7 @@ class TestForce:
 
     def _dispatcher(self):
         from realm.commands.builtin import register_all_commands
-        from realm.server.dispatcher import CommandDispatcher
+        from realm.commands.dispatcher import CommandDispatcher
         d = CommandDispatcher()
         register_all_commands(d)
         d.persistence = self.persistence

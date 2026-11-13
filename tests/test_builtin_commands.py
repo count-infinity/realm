@@ -29,7 +29,7 @@ from realm.commands.builtin.utility import cmd_logout
 from realm.core.behaviors import Behavior
 from realm.core.objects import GameObject
 from realm.gateway.session import Session, SessionState
-from realm.server.dispatcher import CommandContext
+from realm.commands.dispatcher import CommandContext
 
 # --- Helpers --------------------------------------------------------------
 
@@ -261,7 +261,7 @@ class TestMovementCommand:
 
     async def test_dispatcher_exit_name_fires_movement_events(self):
         """Typing a bare exit name (default-game path) fires on_enter to bystanders."""
-        from realm.server.dispatcher import CommandDispatcher
+        from realm.commands.dispatcher import CommandDispatcher
 
         room_a, room_b, _ = await self._setup_two_rooms()
         alice, sess_a = make_player("Alice", location=room_a)
@@ -275,7 +275,7 @@ class TestMovementCommand:
 
     async def test_dispatcher_exit_name_honors_block(self):
         """A behavior blocking on_leave stops movement via the dispatcher path too."""
-        from realm.server.dispatcher import CommandDispatcher
+        from realm.commands.dispatcher import CommandDispatcher
 
         room_a, room_b, _ = await self._setup_two_rooms()
         alice, sess = make_player("Alice", location=room_a)
@@ -460,11 +460,16 @@ class TestOnCommandFlushesAllSessions:
     """
 
     async def test_bystander_writer_called_after_actor_command(self):
-        from realm.commands.builtin import register_all_commands
         from realm.server.game import GameServer
 
         server = GameServer(db_path=":memory:", enable_telnet=False)
-        register_all_commands(server.dispatcher)
+        await server.start()
+        try:
+            await self._say_reaches_bystander(server)
+        finally:
+            await server.stop()
+
+    async def _say_reaches_bystander(self, server):
 
         room = GameObject("Tavern", tags=["room"])
         alice = GameObject("Alice", location=room)
@@ -512,7 +517,7 @@ class TestLogout:
         """Wire a ctx the way GameServer does — a real SessionManager holding
         the session, plus the welcome-screen provider."""
         from realm.gateway.session import SessionManager
-        from realm.server.dispatcher import CommandDispatcher
+        from realm.commands.dispatcher import CommandDispatcher
 
         manager = SessionManager()
         manager._sessions[sess.id] = sess

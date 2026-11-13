@@ -232,7 +232,7 @@ async def cmd_clone(ctx: CommandContext) -> None:
     if not original:
         await ctx.session.send(f"Object '{spec}' not found.")
         return
-    if original.has_tag('player') or original.has_tag('room'):
+    if original.is_player or original.is_room:
         await ctx.session.send("You can't clone players or rooms.")
         return
     if not await require_control(ctx, original):

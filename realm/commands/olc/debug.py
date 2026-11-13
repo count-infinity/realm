@@ -117,8 +117,8 @@ async def cmd_stats(ctx: CommandContext) -> None:
 
     lines = ["Engine stats:"]
     server = getattr(ctx.dispatcher, 'server', None)
-    tick = getattr(server, 'tick_interval', None)
-    beat = getattr(server, 'world_beat', None)
+    tick = server.settings.tick_interval if server is not None else None
+    beat = server.settings.world_beat if server is not None else None
     lines.append(f"  tick interval: {tick if tick is not None else '?'}s "
                  f"(scheduler resolution)")
     lines.append(f"  world beat: {beat if beat is not None else '?'}s "

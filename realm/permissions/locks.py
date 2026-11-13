@@ -265,10 +265,10 @@ def controls(actor: GameObject | None, obj: GameObject | None,
     if has_entitlement(actor, CONTROL_ALL):
         return True
     if (has_entitlement(actor, CONTROL_UNOWNED)
-            and obj.owner is None and not obj.has_tag('player')):
+            and obj.owner is None and not obj.is_player):
         return True
     if (actor.owner is None and obj.owner is None
-            and not actor.has_tag('player') and not obj.has_tag('player')):
+            and not actor.is_player and not obj.is_player):
         return True
     # Penn delegation: walk the owner chain (cycle/depth guarded) — the
     # object wields its owner's authority.
@@ -389,36 +389,6 @@ def clear_lock(target: GameObject, lock_type: LockType | str) -> bool:
         return True
 
     return False
-
-
-def get_lock(target: GameObject, lock_type: LockType | str) -> str | None:
-    """
-    Get the lock expression on an object.
-
-    Args:
-        target: The object to check
-        lock_type: The type of lock
-
-    Returns:
-        The lock expression or None if not set
-    """
-    if isinstance(lock_type, LockType):
-        lock_type = lock_type.value
-
-    return target.locks.get(lock_type)
-
-
-def list_locks(target: GameObject) -> dict[str, str]:
-    """
-    List all locks on an object.
-
-    Args:
-        target: The object to check
-
-    Returns:
-        Dictionary of lock_type -> expression
-    """
-    return dict(target.locks)
 
 
 # --- Enforcement in the propagation check pass ------------------------------

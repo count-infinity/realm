@@ -443,7 +443,7 @@ async def cmd_search(ctx: CommandContext) -> None:
         if obj is ctx.player:
             continue
         if obj.has_tag('hidden'):
-            is_character = obj.has_tag('player') or obj.has_tag('npc')
+            is_character = obj.is_player or obj.is_npc
             if is_character:
                 # A hidden PERSON opposes with their Stealth.
                 won = contest(ctx.player, 'observation', obj, 'stealth')

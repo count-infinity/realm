@@ -229,7 +229,7 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
                 # Name the poisoner: the death event is worthless to a
                 # bounty board or an arena bell if the killer is None.
                 await manager.handle_death(obj, killer=self._source())
-            elif obj.has_tag('player'):
+            elif obj.is_player:
                 obj.add_tag('unconscious')
                 obj.msg("Everything goes black...")
 

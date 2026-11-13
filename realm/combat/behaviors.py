@@ -310,7 +310,7 @@ class WanderingBehavior(Behavior):
 
         candidates = []
         for exit_obj in obj.location.contents:
-            if not exit_obj.has_tag('exit') or exit_obj.has_tag('closed'):
+            if not exit_obj.is_exit or exit_obj.has_tag('closed'):
                 continue
             destination = resolve_exit_destination(exit_obj)
             if destination is None:
@@ -427,7 +427,7 @@ class PeacekeeperBehavior(Behavior):
         if manager is None:
             return
         criminals = [c for c in obj.location.contents
-                     if c.has_tag('player') and is_wanted(c)
+                     if c.is_player and is_wanted(c)
                      and is_combat_capable(c)]
         if not criminals:
             return

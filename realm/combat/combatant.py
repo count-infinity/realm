@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -81,11 +81,6 @@ class Combatant:
         self._target = value
 
     @property
-    def is_in_combat(self) -> bool:
-        """Check if actively in combat."""
-        return self._state in (CombatState.COMBAT, CombatState.FLEEING)
-
-    @property
     def is_alive(self) -> bool:
         """Check if combatant is still alive."""
         return self._state not in (CombatState.DEFEATED, CombatState.DEAD)
@@ -129,22 +124,6 @@ class Combatant:
             value: New value
         """
         self._obj.db.set(name, value)
-
-    def modify_stat(self, name: str, delta: int) -> int:
-        """
-        Modify a stat by a delta.
-
-        Args:
-            name: Stat name
-            delta: Amount to add (negative to subtract)
-
-        Returns:
-            New stat value
-        """
-        current = self.get_stat(name, 0)
-        new_value = current + delta
-        self.set_stat(name, new_value)
-        return new_value
 
     def add_modifier(self, stat: str, amount: int, source: str = "") -> None:
         """
@@ -235,25 +214,6 @@ class Combatant:
         return actual_healing
 
     # --- Equipment ---
-
-    def get_weapon(self) -> Any | None:
-        """Get the equipped weapon."""
-        weapon_id = self._obj.db.get('equipped_weapon')
-        if weapon_id:
-            # Look for weapon in inventory
-            for item in self._obj.contents:
-                if item.id == weapon_id:
-                    return item
-        return None
-
-    def get_armor(self) -> Any | None:
-        """Get the equipped armor."""
-        armor_id = self._obj.db.get('equipped_armor')
-        if armor_id:
-            for item in self._obj.contents:
-                if item.id == armor_id:
-                    return item
-        return None
 
     # --- Utility ---
 

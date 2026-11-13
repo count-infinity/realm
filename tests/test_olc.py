@@ -699,7 +699,7 @@ class TestAdminCommands:
         assert "protected" in ctx.session.messages[0]
 
     @pytest.mark.asyncio
-    async def test_destroy_recursive(self):
+    async def test_destroy_takes_unowned_contents(self):
         """@destroy deletes contained objects."""
         chest = GameObject("chest", tags=['thing', 'container'], location=self.room)
         gold = GameObject("gold", tags=['thing'], location=chest)

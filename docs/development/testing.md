@@ -77,9 +77,11 @@ session.send = AsyncMock()
 ## Integration testing with the Simulator
 
 For "run this and see what a player would see," `realm.testing.Simulator`
-wires the *real* engine in-process — propagation, softcode, the command
-dispatcher, and a game system — so you drive a mini-world exactly as a
-live server would, with no sockets or database file.
+wires the *real* engine in-process, with no sockets or database file. It
+calls the same `build_world()` the live server calls, so it has the same
+commands, propagation observers (softcode, stealth, equipment, combat,
+crime), combat manager and game system. `tests/test_world_parity.py`
+checks that the two stay alike.
 
 ```python
 import pytest
@@ -118,6 +120,12 @@ async def test_npc_greets(sim):
   dispatcher.
 - `sim.seen(player)` drains and returns that player's messages.
 - Choose the ruleset with `Simulator(game_system="realm.systems.D20System")`.
+- Configure it the way a game's `config.py` would with
+  `Simulator(settings=Settings(command_sigil="!"))`
+  (`from realm.config.loader import Settings`).
+- Softcode `wait()` runs on a virtual clock: it fires when the test calls
+  `sim.engine.tick_waits()`.
+- The world lives in a `MemoryStore` (`sim.store`).
 
 Because both paths go through the real engine, the transcript is exactly
 what happens live — which makes it the natural way to test data-driven

@@ -177,7 +177,7 @@ async def cmd_open(ctx: CommandContext) -> None:
         await ctx.session.send(f"Destination '{dest_spec}' not found.")
         return
 
-    if not destination.has_tag('room'):
+    if not destination.is_room:
         await ctx.session.send(f"'{destination.name}' is not a room.")
         return
 
@@ -217,7 +217,7 @@ async def cmd_link(ctx: CommandContext) -> None:
     dest_spec = ctx.right_args.strip()
 
     # Find the exit in current room
-    exits = [obj for obj in ctx.player.location.contents if obj.has_tag('exit')]
+    exits = [obj for obj in ctx.player.location.contents if obj.is_exit]
     exit_obj = match_one(exit_name, exits, allow_substring=False)
 
     if not exit_obj:
@@ -274,7 +274,7 @@ async def cmd_unlink(ctx: CommandContext) -> None:
     exit_name = ctx.args.strip()
 
     # Find the exit
-    exits = [obj for obj in ctx.player.location.contents if obj.has_tag('exit')]
+    exits = [obj for obj in ctx.player.location.contents if obj.is_exit]
     exit_obj = match_one(exit_name, exits, allow_substring=False)
 
     if not exit_obj:
@@ -326,7 +326,7 @@ async def cmd_pair(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: @pair <exit> [= <far exit>]")
         return
 
-    exits = [o for o in ctx.player.location.contents if o.has_tag('exit')]
+    exits = [o for o in ctx.player.location.contents if o.is_exit]
     exit_obj = match_one(spec, exits, allow_substring=False)
     if not exit_obj:
         await ctx.session.send(f"Exit '{spec}' not found here.")
@@ -375,12 +375,12 @@ async def cmd_pair(ctx: CommandContext) -> None:
                 f"'{exit_obj.name}' has no destination — link it first, or "
                 f"name the far side by #id.")
             return
-        far_exits = [o for o in dest.contents if o.has_tag('exit')]
+        far_exits = [o for o in dest.contents if o.is_exit]
         far = match_one(far_spec, far_exits, allow_substring=False)
     if far is None:
         await ctx.session.send(f"Far exit '{far_spec}' not found.")
         return
-    if not far.has_tag('exit'):
+    if not far.is_exit:
         await ctx.session.send(f"'{far.name}' is not an exit.")
         return
     if far.id == exit_obj.id:

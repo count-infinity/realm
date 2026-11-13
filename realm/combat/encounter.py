@@ -70,7 +70,7 @@ class Participant:
         return get_combatant(self.obj)
 
     def is_player(self) -> bool:
-        return self.obj.has_tag('player')
+        return self.obj.is_player
 
 
 def deliver_combat_messages(
@@ -493,7 +493,7 @@ class CombatEncounter:
         # Instance portals resolve to PRIVATE per-walker space — fleeing
         # through one isn't an escape, it's an unpursuable teleport into
         # a freshly imported dungeon. Excluded from flee entirely.
-        exits = [o for o in self.room.contents if o.has_tag('exit')
+        exits = [o for o in self.room.contents if o.is_exit
                  and not o.has_tag('closed')
                  and not has_private_dest_resolver(o)]
         exit_obj = None

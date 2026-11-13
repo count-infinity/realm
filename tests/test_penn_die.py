@@ -14,7 +14,7 @@ from realm.core.propagation import get_engine, reset_engine
 from realm.gateway.session import Session
 from realm.scripting.engine import ScriptEngine
 from realm.scripting.functions import ScriptFunctions
-from realm.server.dispatcher import CommandContext
+from realm.commands.dispatcher import CommandContext
 
 
 @pytest.fixture(autouse=True)

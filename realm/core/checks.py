@@ -1,10 +1,11 @@
 """
 Skill checks and opposed contests.
 
-The default resolver is GURPS-shaped — roll 3d6, succeed on <= effective
-skill — because that's REALM's reference ruleset, but games swap the
-whole resolution function with :func:`set_check_resolver` (same
-extension pattern as the render group formatter).
+The default resolver is a neutral zero-config fallback (3d6 roll-under
+effective skill, no criticals or other game policy) so ``check()`` works
+before a game system is installed. Every real game swaps the whole
+resolution function with :func:`set_check_resolver` (same extension
+pattern as the render group formatter).
 
 Skill levels are lean data, no classes: ``db.skill_<name>`` on the
 actor. An unskilled actor falls back to an attribute default from

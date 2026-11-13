@@ -40,6 +40,7 @@ __all__ = [
     "register_inventory_commands",
     "register_manipulation_commands",
     "register_combat_commands",
+    "register_magic_commands",
     "register_social_commands",
     "register_economy_commands",
     "register_utility_commands",

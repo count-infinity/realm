@@ -19,7 +19,7 @@ from realm.core.perception import can_see, can_see_room, perceived_name, room_is
 from realm.core.propagation import reset_engine
 from realm.core.render import render_room
 from realm.gateway.session import Session
-from realm.server.dispatcher import CommandContext, CommandDispatcher
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
 
 @pytest.fixture(autouse=True)

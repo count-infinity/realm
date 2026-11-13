@@ -47,8 +47,10 @@ not the feature.
 | File | Purpose |
 |---|---|
 | `realm/cli.py` | `realm init` / `realm start` |
-| `realm/server/game.py` | GameServer — boots and wires everything |
-| `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, action hooks |
+| `realm/server/game.py` | GameServer — opens the store, loads the world, runs loops and protocols |
+| `realm/server/world.py` | `build_world()` — wires the engine; the server and the Simulator both call it |
+| `realm/config/loader.py` | `Settings` (every config key, its default and doc) and `load_config` |
+| `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, kind predicates |
 | `realm/core/propagation.py` | Two-pass check/react action pipeline |
 | `realm/core/checks.py` | Skill checks, contests, modifier providers, pluggable resolver |
 | `realm/core/perception.py` | Visibility & naming choke points |
@@ -56,6 +58,7 @@ not the feature.
 | `realm/scripting/` | Sandboxed softcode: `$commands`, `^listens`, `ON_<EVENT>` |
 | `realm/packs/` | Content packs (worldio JSON bundles) |
 | `realm/persistence/worldio.py` | Export/import with ref remapping |
+| `realm/persistence/store.py` | `Store` protocol: what engine code may call on a store (`PersistenceManager`, `MemoryStore`) |
 
 ## Development environment
 

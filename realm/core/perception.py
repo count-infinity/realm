@@ -194,7 +194,7 @@ def perceived_name(obj: GameObject, looker: GameObject | None = None) -> str:
                 logger.error("name resolver %r failed: %s",
                              getattr(fn, "__name__", fn), exc)
         return name
-    if obj.has_tag('player') or obj.has_tag('npc'):
+    if obj.is_player or obj.is_npc:
         return "Someone"
     return "something"
 
