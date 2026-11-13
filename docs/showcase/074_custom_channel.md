@@ -28,15 +28,15 @@ share one body.
 
 ### Why the `+pub` syntax is free to claim
 
-REALM has no built-in channel system, but the dispatcher reserves the
-syntax. Any input starting with `+` is parsed as a channel line, so
-`+pub hi` becomes an attempted `channel` command. No builtin named
-`channel` ships, so the dispatcher falls through to the softcode
+REALM has no built-in channel system, and no built-in command name starts
+with `+`. The dispatcher treats `+pub hi` like any other line: it looks
+for a command named `+pub`, finds none, and falls through to the softcode
 `$`-trigger search, which matches against the whole original input line.
-That makes `$+pub *` a legal, collision-proof pattern, because the engine
-has pre-cleared the `+` namespace for exactly this. Contrast `say` or
-`who`: builtins dispatch before `$`-triggers, so those can never be
-softcoded over.
+That makes `$+pub *` a safe pattern: by convention the `+` namespace
+belongs to softcode and game-added commands (MUSH style `+finger`,
+`+who`). Contrast `say` or `who`: builtins dispatch before `$`-triggers,
+so those can never be softcoded over. A Python command registered as
+`+pub` would win over this softcode the same way.
 
 ### How one object reaches every station room
 

@@ -182,10 +182,10 @@ Semantics of `destroy_object`:
 that does not exist, so a Python command registered as `+finger` never runs.
 Softcode `$+pub` works only because softcode matches the raw input.
 
-- [ ] Delete the block "Step 2: Check for channel prefix (+)" in
+- [x] Delete the block "Step 2: Check for channel prefix (+)" in
       `commands/dispatcher.py`.
-- [ ] Delete `tests/test_dispatcher.py::TestCommandDispatcher::test_channel_prefix`.
-- [ ] Add tests: a Python command registered as `+finger` receives its
+- [x] Delete `tests/test_dispatcher.py::TestCommandDispatcher::test_channel_prefix`.
+- [x] Add tests: a Python command registered as `+finger` receives its
       arguments. Showcase 074 (`$+pub`, `$+p`) still passes.
 
 ### 1.3 Heartbeat default

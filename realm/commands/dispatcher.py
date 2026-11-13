@@ -267,32 +267,12 @@ class CommandDispatcher:
                 dispatcher=self,
             )
 
-        # Step 2: Check for channel prefix (+)
-        if raw_input.startswith('+'):
-            # +channel message -> channel channel=message
-            parts = raw_input[1:].split(None, 1)
-            if parts:
-                command_name = "channel"
-                channel = parts[0]
-                message = parts[1] if len(parts) > 1 else ""
-                args = f"{channel}={message}"
-                return CommandContext(
-                    session=session,
-                    player=player,
-                    raw_input=original,
-                    command_name=command_name,
-                    args=args,
-                    left_args=channel,
-                    right_args=message,
-                    dispatcher=self,
-                )
-
-        # Step 3: Split into command and arguments
+        # Step 2: Split into command and arguments
         parts = raw_input.split(None, 1)
         raw_command = parts[0] if parts else ""
         args = parts[1] if len(parts) > 1 else ""
 
-        # Step 4: Check for player aliases
+        # Step 3: Check for player aliases
         if player:
             player_aliases = self._player_aliases.get(player.id, {})
             if raw_command.lower() in player_aliases:
@@ -302,7 +282,7 @@ class CommandDispatcher:
                     expansion = f"{expansion} {args}"
                 return self._parse_command(session, player, expansion)
 
-        # Step 5: Parse switches from command (e.g., @command/switch1/switch2)
+        # Step 4: Parse switches from command (e.g., @command/switch1/switch2)
         if '/' in raw_command:
             switch_parts = raw_command.split('/')
             raw_command = switch_parts[0]
@@ -310,11 +290,11 @@ class CommandDispatcher:
 
         command_name = raw_command.lower()
 
-        # Step 6: Check for direction aliases
+        # Step 5: Check for direction aliases
         if command_name in DIRECTION_ALIASES:
             command_name = DIRECTION_ALIASES[command_name]
 
-        # Step 7: Parse left/right arguments if '=' present
+        # Step 6: Parse left/right arguments if '=' present
         left_args = args
         right_args = ""
         if '=' in args:

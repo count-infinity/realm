@@ -402,24 +402,23 @@ class TestCommandDispatcher:
         assert dispatcher.get_command("t") is None
 
     @pytest.mark.asyncio
-    async def test_channel_prefix(self):
-        """+ prefix expands to channel command."""
+    async def test_plus_command_receives_its_arguments(self):
+        """A Python command named with a leading + is an ordinary command."""
         dispatcher = CommandDispatcher()
         called = []
 
         async def handler(ctx):
-            called.append((ctx.left_args, ctx.right_args))
+            called.append((ctx.command_name, ctx.args))
 
-        dispatcher.register("channel", handler)
+        dispatcher.register("+finger", handler)
 
         session = Session()
         player = GameObject("Player", tags=['player'])
         session.link_player(player)
 
-        await dispatcher.dispatch(session, "+ooc Hello everyone!")
+        await dispatcher.dispatch(session, "+finger Alice")
 
-        assert called == [("ooc", "Hello everyone!")]
-
+        assert called == [("+finger", "Alice")]
 
 
 class TestTokenMap:
