@@ -13,8 +13,10 @@ from realm.commands.base import (
     find_object_global,
     require_control,
     resolve_target,
+    run_op,
     save_object,
 )
+from realm.core import ops
 
 
 async def cmd_desc(ctx: CommandContext) -> None:
@@ -43,14 +45,8 @@ async def cmd_desc(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
-    if not await require_control(ctx, target):
+    if await run_op(ctx, ops.describe, target, description) is None:
         return
-
-    # Set description
-    target.description = description
-
-    await save_object(ctx, target)
-
     if description:
         await ctx.session.send(f"Description set for {target.name}.")
     else:
@@ -79,31 +75,10 @@ async def cmd_name(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
-    if not await require_control(ctx, target):
+    result = await run_op(ctx, ops.rename, target, new_name)
+    if result is None:
         return
-
-    old_name = target.name
-    target.name = new_name
-
-    await save_object(ctx, target)
-
-    await ctx.session.send(f"Renamed '{old_name}' to '{new_name}'.")
-
-
-_KEYID_CHARS = set(
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:-")
-
-
-def _valid_keyid(kid: str) -> tuple[bool, str]:
-    """A keyid is a slug: letters, digits, and _ . : - only."""
-    if not kid or len(kid) > 64:
-        return False, "A keyid must be 1-64 characters."
-    if kid.startswith('#'):
-        return False, "A keyid may not start with '#' (the raw-id prefix)."
-    if any(c not in _KEYID_CHARS for c in kid):
-        return False, ("A keyid may use only letters, digits, and _ . : - "
-                       "(no spaces or sigils).")
-    return True, ""
+    await ctx.session.send(f"Renamed '{result.value}' to '{target.name}'.")
 
 
 async def cmd_keyid(ctx: CommandContext) -> None:
@@ -155,34 +130,15 @@ async def cmd_keyid(ctx: CommandContext) -> None:
 
     # '=' with an empty value → clear.
     if not new:
-        current = target.db.get(KEYID_ATTR)
-        if not current:
-            await ctx.session.send(f"{target.name} has no keyid to clear.")
-            return
-        if persistence is not None:
-            persistence.release_keyid(target)
-        target.db.delete(KEYID_ATTR)
-        await save_object(ctx, target)
-        await ctx.session.send(f"Cleared {target.name}'s keyid ('{current}').")
+        result = await run_op(ctx, ops.clear_keyid, target, persistence)
+        if result is not None:
+            await ctx.session.send(f"Cleared {target.name}'s keyid ('{result.value}').")
         return
 
     # Set — validate the handle, then claim it (conflict, never merge).
-    ok, reason = _valid_keyid(new)
-    if not ok:
-        await ctx.session.send(reason)
+    if await run_op(ctx, ops.set_keyid, target, new, persistence) is None:
         return
-    if persistence is None:
-        await ctx.session.send("No persistence available — cannot register a keyid.")
-        return
-    claimed, why = persistence.claim_keyid(target, new)
-    if not claimed:
-        await ctx.session.send(
-            f"Refused: {why}. Clear it there first, or choose another handle.")
-        return
-    target.db.set(KEYID_ATTR, new)
-    await save_object(ctx, target)
-    await ctx.session.send(
-        f"{target.name} is now reachable as {sigil}{new}.")
+    await ctx.session.send(f"{target.name} is now reachable as {sigil}{new}.")
 
 
 async def cmd_set(ctx: CommandContext) -> None:
@@ -223,45 +179,15 @@ async def cmd_set(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
-    if not await require_control(ctx, target):
-        return
-
-    from realm.persistence.keyid import KEYID_ATTR
-    if attr_name == KEYID_ATTR:
-        await ctx.session.send(
-            "'keyid' is a unique identity handle — set it with @keyid, not "
-            "@set, so its uniqueness is enforced.")
-        return
-
-    from realm.core.attrflags import writable_attr
-    ok, reason = writable_attr(target, attr_name, ctx.player)
-    if not ok:
-        await ctx.session.send(reason)
-        return
-
-    # Set or clear the attribute
     if ctx.right_args:
         value = _parse_value(ctx.right_args)
-        target.db.set(attr_name, value)
+        if await run_op(ctx, ops.set_attr, target, attr_name, value) is None:
+            return
         await ctx.session.send(f"Set {target.name}/{attr_name} = {value!r}")
-        # A script attribute that doesn't parse is dead on arrival, and used
-        # to say nothing at all — you'd learn months later, or never. Warn
-        # rather than refuse: placeholders and @import are legitimate, and
-        # the runtime now fails safe on its own (a broken ward blocks).
-        from realm.scripting.triggers import script_code_of, validate_script
-        code = script_code_of(attr_name, value)
-        if code is not None:
-            errors = validate_script(code)
-            if errors:
-                await ctx.session.send(
-                    f"Warning: {target.name}/{attr_name} will not run — "
-                    f"{errors[0]}"
-                )
     else:
-        target.db.delete(attr_name)
+        if await run_op(ctx, ops.del_attr, target, attr_name) is None:
+            return
         await ctx.session.send(f"Cleared {target.name}/{attr_name}")
-
-    await save_object(ctx, target)
 
 
 async def cmd_wipe(ctx: CommandContext) -> None:
@@ -285,20 +211,18 @@ async def cmd_wipe(ctx: CommandContext) -> None:
     if not await require_control(ctx, target):
         return
 
-    # Clear all attributes, but honor the same write gate as @set: safe
-    # attrs always survive, and system attrs survive unless the wiper is
-    # admin+ (so a builder's @wipe can't strip a character's stats).
-    from realm.core.attrflags import writable_attr
-    attrs = target.db.all()
-    keys = [k for k in attrs
-            if writable_attr(target, k, ctx.player)[0]]
-    count = len(keys)
-
-    for key in keys:
-        target.db.delete(key)
+    # Delete every attribute the del_attr op allows: safe attrs always
+    # survive, system attrs survive unless the wiper is admin+ (so a
+    # builder's @wipe can't strip a character's stats), protected ones stay.
+    count = 0
+    for key in list(target.db.all()):
+        try:
+            result = ops.del_attr(ctx.player, target, key)
+        except ops.OpError:
+            continue
+        count += bool(result.value)
 
     await save_object(ctx, target)
-
     await ctx.session.send(f"Wiped {count} attribute(s) from {target.name}.")
 
 
@@ -382,23 +306,12 @@ async def cmd_tag(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
-    if not await require_control(ctx, target):
+    result = await run_op(ctx, ops.tag, target, tag)
+    if result is None:
         return
-
-    from realm.permissions.roles import may_change_role_tag
-    if not may_change_role_tag(ctx.player, tag):
-        await ctx.session.send(
-            f"You can't grant the '{tag}' privilege — it outranks you.")
-        return
-
-    if target.has_tag(tag):
+    if not result.value:
         await ctx.session.send(f"{target.name} already has tag '{tag}'.")
         return
-
-    target.add_tag(tag)
-
-    await save_object(ctx, target)
-
     await ctx.session.send(f"Added tag '{tag}' to {target.name}.")
 
 
@@ -424,23 +337,12 @@ async def cmd_untag(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
-    if not await require_control(ctx, target):
+    result = await run_op(ctx, ops.untag, target, tag)
+    if result is None:
         return
-
-    from realm.permissions.roles import may_change_role_tag
-    if not may_change_role_tag(ctx.player, tag):
-        await ctx.session.send(
-            f"You can't revoke the '{tag}' privilege — it outranks you.")
-        return
-
-    if not target.has_tag(tag):
+    if not result.value:
         await ctx.session.send(f"{target.name} doesn't have tag '{tag}'.")
         return
-
-    target.remove_tag(tag)
-
-    await save_object(ctx, target)
-
     await ctx.session.send(f"Removed tag '{tag}' from {target.name}.")
 
 
@@ -470,54 +372,35 @@ async def cmd_lock(ctx: CommandContext) -> None:
         @lock/enter room = caller.db.level >= 10
         @lock chest = caller == target.owner
     """
-    from realm.permissions.locks import LockType, parse_lock, set_lock
+    from realm.permissions.locks import LockType
 
     if not ctx.left_args:
         await ctx.session.send("Usage: @lock[/<type>] <object> = <expression>")
         return
 
-    # Determine lock type from switches
-    lock_type = LockType.BASIC.value
-    if ctx.switches:
-        lock_type = ctx.switches[0].lower()
-
-    valid_types = {lt.value for lt in LockType}
-    if lock_type not in valid_types:
-        await ctx.session.send(
-            f"Unknown lock type '{lock_type}'. "
-            f"Valid types: {', '.join(sorted(valid_types))}"
-        )
-        return
-
+    lock_type = ctx.switches[0].lower() if ctx.switches else LockType.BASIC.value
     target_name = ctx.left_args.strip()
     lock_expr = ctx.right_args if ctx.right_args else ""
 
-    # Find target
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
         return
 
-    if not await require_control(ctx, target):
-        return
-
     if lock_expr:
-        # Set the lock — validated at write time so builders learn about a
-        # bad expression now, not from a lock that silently never passes.
-        if not set_lock(target, lock_type, lock_expr):
-            _, error = parse_lock(lock_expr, lock_type).validate()
-            await ctx.session.send(f"Invalid lock expression: {error}")
+        # Validated at write time, so a builder learns about a bad expression
+        # now, not from a lock that silently never passes.
+        if await run_op(ctx, ops.set_lock, target, lock_type, lock_expr) is None:
             return
         await ctx.session.send(f"Lock/{lock_type} set on {target.name}.")
+        return
+    result = await run_op(ctx, ops.clear_lock, target, lock_type)
+    if result is None:
+        return
+    if result.value:
+        await ctx.session.send(f"Lock/{lock_type} cleared from {target.name}.")
     else:
-        # Clear the lock
-        if lock_type in target.locks:
-            del target.locks[lock_type]
-            await ctx.session.send(f"Lock/{lock_type} cleared from {target.name}.")
-        else:
-            await ctx.session.send(f"{target.name} has no {lock_type} lock.")
-
-    await save_object(ctx, target)
+        await ctx.session.send(f"{target.name} has no {lock_type} lock.")
 
 
 async def cmd_unlock(ctx: CommandContext) -> None:
@@ -538,15 +421,10 @@ async def cmd_unlock(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
         return
 
-    if not await require_control(ctx, target):
+    result = await run_op(ctx, ops.clear_lock, target)
+    if result is None:
         return
-
-    count = len(target.locks)
-    target.locks.clear()
-
-    await save_object(ctx, target)
-
-    await ctx.session.send(f"Removed {count} lock(s) from {target.name}.")
+    await ctx.session.send(f"Removed {result.value} lock(s) from {target.name}.")
 
 
 def _parse_value(value_str: str):
@@ -644,8 +522,10 @@ async def cmd_detail(ctx: CommandContext) -> None:
                 f"'@detail {target.name}' lists them.")
             return
         removed = extras.pop(idx - 1)
-        target.db.set(DETAILS_ATTR, extras) if extras else target.db.delete(DETAILS_ATTR)
-        await save_object(ctx, target)
+        op = (ops.set_attr, target, DETAILS_ATTR, extras) if extras else (
+            ops.del_attr, target, DETAILS_ATTR)
+        if await run_op(ctx, *op) is None:
+            return
         await ctx.session.send(f"Removed detail #{idx}: {removed[1]}")
         return
 
@@ -674,8 +554,8 @@ async def cmd_detail(ctx: CommandContext) -> None:
 
     extras = list(target.db.get(DETAILS_ATTR) or [])
     extras.append([condition, text])
-    target.db.set(DETAILS_ATTR, extras)
-    await save_object(ctx, target)
+    if await run_op(ctx, ops.set_attr, target, DETAILS_ATTR, extras) is None:
+        return
     await ctx.session.send(
         f"Detail added to {target.name}"
         f"{f' (when {condition})' if condition else ''}.")

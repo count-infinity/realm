@@ -55,7 +55,7 @@ HARM = {'adjust_credits', 'apply_effect', 'damage', 'remove_effect'}
 # Added after the copy: the subject helpers (KERNEL_PLAN 3.3) and
 # use_ability (3.5, harm-gated).
 ADDED = {'skill', 'check'}
-TO_DICT |= ADDED | {'use_ability'}
+TO_DICT |= ADDED | {'use_ability', 'clone_obj', 'set_name', 'set_desc'}  # 3.5, 5.2
 READONLY |= ADDED
 HARM |= {'use_ability'}
 

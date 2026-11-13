@@ -425,31 +425,19 @@ class PersistenceManager:
 
     def _row_to_object(self, row: dict[str, Any]) -> GameObject | None:
         """Convert a database row to a GameObject."""
-        from realm.core.behaviors import BehaviorRegistry
-        from realm.core.objects import GameObject
+        from realm.core.inflate import inflate
 
         try:
-            obj = GameObject(
-                name=row['name'],
-                id=row['id'],
-                description=row['description'] or "",
-                tags=json.loads(row['tags'] or '[]'),
-            )
-
-            # Load attributes
-            attrs = json.loads(row['attributes'] or '{}')
-            for key, value in attrs.items():
-                obj.db.set(key, value)
-
-            # Load behaviors
-            behaviors_data = json.loads(row['behaviors'] or '[]')
-            for b_data in behaviors_data:
-                behavior = BehaviorRegistry.from_dict(b_data)
-                if behavior:
-                    obj.add_behavior(behavior)
-
-            # Load locks
-            obj.locks = json.loads(row['locks'] or '{}')
+            # Lenient behaviors: a behavior_def may load later in this same
+            # restore; report_unresolved names any still missing afterwards.
+            obj = inflate({
+                'name': row['name'],
+                'description': row['description'] or "",
+                'tags': json.loads(row['tags'] or '[]'),
+                'attrs': json.loads(row['attributes'] or '{}'),
+                'locks': json.loads(row['locks'] or '{}'),
+                'behaviors': json.loads(row['behaviors'] or '[]'),
+            }, obj_id=row['id'])
 
             # Clear dirty flag since we just loaded
             obj.clear_dirty()

@@ -40,6 +40,32 @@ unknown and absent from `help`.
 feature's name by default) and `help_text` and your command documents
 itself.
 
+## Commands are thin wrappers over ops
+
+A command that changes the world parses its arguments, resolves names, and
+calls the op for that operation in `realm/core/ops/` (`ops.set_attr`,
+`ops.tag`, `ops.dig`, ...). The op checks authority and raises an
+`OpError` whose `.reason` is shown to the player; softcode calls the same
+op, so `@tag` and `add_tag()` cannot disagree. `realm.commands.base.run_op`
+is the wrapper:
+
+```python
+from realm.commands.base import resolve_target, run_op
+from realm.core import ops
+
+async def cmd_tag(ctx):
+    target = resolve_target(ctx, ctx.left_args.strip())
+    result = await run_op(ctx, ops.tag, target, ctx.right_args)  # refusal already sent
+    if result is not None and result.value:
+        await ctx.session.send(f"Added tag to {target.name}.")
+```
+
+`run_op` sends the refusal, saves every object the op touched, and prints
+its warnings. A game's own command uses the same ops.
+
+The command's `permission` tier is still checked first by the dispatcher;
+the op's authority check runs underneath it.
+
 ## Command Context
 
 Handlers receive a `CommandContext` with:

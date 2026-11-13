@@ -26,11 +26,13 @@ from enum import IntEnum
 from typing import TYPE_CHECKING
 
 from realm.permissions.entitlements import (
+    BUILD,
     CONTROL_ALL,
     CONTROL_UNOWNED,
     HARM,
     LOCK_BYPASS,
     LOCK_BYPASS_ALL,
+    MODERATE,
     SEE_ALL,
     TELEPORT_ANY,
     role_def_table,
@@ -125,8 +127,8 @@ _BUILTIN_ROLE_ENTITLEMENTS: dict[Role, frozenset[str]] = {}
 def _build_role_entitlements() -> None:
     guest = frozenset()
     player = frozenset()
-    builder = player | {CONTROL_UNOWNED, HARM}
-    admin = builder | {LOCK_BYPASS, CONTROL_ALL, TELEPORT_ANY, SEE_ALL}
+    builder = player | {CONTROL_UNOWNED, HARM, BUILD}
+    admin = builder | {LOCK_BYPASS, CONTROL_ALL, TELEPORT_ANY, SEE_ALL, MODERATE}
     god = admin | {LOCK_BYPASS_ALL}
     _BUILTIN_ROLE_ENTITLEMENTS.update({
         Role.GUEST: guest,

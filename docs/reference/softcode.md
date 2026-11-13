@@ -253,6 +253,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`check_roll`](#fn-check_roll) | Roll a skill check and return the GRADED, condition-modified result. | [Dice & skill checks](#dice-skill-checks) |
 | [`clamp`](#fn-clamp) | Clamp value between low and high. | [Math & logic](#math-logic) |
 | [`clear_lock`](#fn-clear_lock) | Clear a lock from an object the executor controls. | [Locks & permissions](#locks-permissions) |
+| [`clone_obj`](#fn-clone_obj) | Copy an object the executor controls: attributes, tags, behaviors, locks and parent (not its unique keyid). | [Objects & attributes](#objects-attributes) |
 | [`contents`](#fn-contents) | Get an object's contents. | [Objects & attributes](#objects-attributes) |
 | [`contest`](#fn-contest) | Opposed quick contest; True if the actor wins. | [Dice & skill checks](#dice-skill-checks) |
 | [`controls`](#fn-controls) | Does the executor control this object? | [Objects & attributes](#objects-attributes) |
@@ -262,7 +263,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`decr`](#fn-decr) | Decrement a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
 | [`del_attr`](#fn-del_attr) | Delete an attribute from an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`destroy_obj`](#fn-destroy_obj) | Destroy an object the executor controls. | [Objects & attributes](#objects-attributes) |
-| [`detach_behavior`](#fn-detach_behavior) | Detach a behavior (by id) from an object the executor controls. | [NPCs & behaviors](#npcs-behaviors) |
+| [`detach_behavior`](#fn-detach_behavior) | Detach a behavior (by id) from an object the executor controls (needs BUILD behind the executor, like `attach_behavior`). | [NPCs & behaviors](#npcs-behaviors) |
 | [`dice`](#fn-dice) | Roll dice: NdS+M Args: num: Number of dice sides: Sides per die modifier: Added to total | [Dice & skill checks](#dice-skill-checks) |
 | [`disposition`](#fn-disposition) | How npc feels about other (default: the enactor). | [NPCs & behaviors](#npcs-behaviors) |
 | [`enter_instance`](#fn-enter_instance) | Send a player into a private, transient copy of a template area, materializing one on demand — and reusing their own copy (or their leader's, if it's `shared`) if one already exists. | [Movement & travel](#movement-travel) |
@@ -313,7 +314,9 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`roll`](#fn-roll) | Roll a dice expression to a total. | [Dice & skill checks](#dice-skill-checks) |
 | [`search_world`](#fn-search_world) | Query the world: search_world(tag='zone:castle'), search_world(attr='xp_multiplier'), combinable. | [Objects & attributes](#objects-attributes) |
 | [`set_attr`](#fn-set_attr) | Set an attribute on an object the executor controls. | [Objects & attributes](#objects-attributes) |
+| [`set_desc`](#fn-set_desc) | Set the description `look` shows on an object the executor controls (like `@desc`; an empty string clears it). | [Objects & attributes](#objects-attributes) |
 | [`set_lock`](#fn-set_lock) | Set a lock on an object the executor controls (validated). | [Locks & permissions](#locks-permissions) |
+| [`set_name`](#fn-set_name) | Rename an object the executor controls (like `@name`). | [Objects & attributes](#objects-attributes) |
 | [`setdiff`](#fn-setdiff) | Difference of two lists (in list1 but not list2). | [Text](#text) |
 | [`setinter`](#fn-setinter) | Intersection of two lists. | [Text](#text) |
 | [`setunion`](#fn-setunion) | Union of two space-separated lists. | [Text](#text) |
@@ -363,6 +366,23 @@ reach the caller's scene with `pemit(enactor, ...)` or
 
 ```text
 call(get('#' + V('bank_core_id')), 'net_deposit', trim(arg0))
+```
+
+### `clone_obj` {#fn-clone_obj}
+
+```text
+clone_obj(obj: GameObject | str | None, name: str | None = None, location: GameObject | str | None = None) -> GameObject | None
+```
+
+Copy an object the executor controls: attributes, tags, behaviors,
+locks and parent (not its unique keyid). The copy lands in the
+executor's room unless `location` names one it controls. Players and
+rooms can't be cloned.
+
+**Example**
+
+```text
+twin = clone_obj('brass key', 'spare key')
 ```
 
 ### `contents` {#fn-contents}
@@ -671,6 +691,35 @@ authority — see docs/design/engine_vision.md).
 
 ```text
 set_attr(me, 'visits', get_attr(me, 'visits', 0) + 1)
+```
+
+### `set_desc` {#fn-set_desc}
+
+```text
+set_desc(obj: GameObject | str | None, text: str) -> bool
+```
+
+Set the description `look` shows on an object the executor controls
+(like `@desc`; an empty string clears it).
+
+**Example**
+
+```text
+set_desc(me, 'The lantern glows a steady amber.')
+```
+
+### `set_name` {#fn-set_name}
+
+```text
+set_name(obj: GameObject | str | None, name: str) -> bool
+```
+
+Rename an object the executor controls (like `@name`).
+
+**Example**
+
+```text
+set_name(me, 'humming lantern')
 ```
 
 ### `teleport_obj` {#fn-teleport_obj}
@@ -1449,6 +1498,9 @@ attach_behavior(obj: GameObject | str | None, behavior_id: str, **params: Any) -
 ```
 
 Attach a registered behavior to an object the executor controls.
+Like `@behavior`, it also needs builder authority (BUILD) behind the
+executor: a mortal player's gadget cannot attach behaviors; unowned
+world objects and NPCs can.
 
 **Example**
 
@@ -1476,7 +1528,8 @@ Behavior ids attached to an object.
 detach_behavior(obj: GameObject | str | None, behavior_id: str) -> bool
 ```
 
-Detach a behavior (by id) from an object the executor controls.
+Detach a behavior (by id) from an object the executor controls (needs
+BUILD behind the executor, like `attach_behavior`).
 
 **Example**
 

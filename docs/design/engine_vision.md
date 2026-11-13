@@ -84,14 +84,20 @@ One predicate decides every mutation: `controls(actor, obj)`:
    never runs with the new owner's authority.
 7. Otherwise the object's `control` lock decides.
 
-Applied at three layers:
+Applied at two layers:
 
-- **Builder commands** (@set/@desc/@tag/@lock/@behavior/@tr/...):
-  caller must control the target.
-- **ScriptFrame mutations** (set_attr, add_tag, create/destroy/
-  teleport, attach_behavior...): executor must control the target.
-  Self-modification always works — an NPC managing its own counters
-  is the normal case.
+- **Ops** (`realm/core/ops/`, 2026-11-13): every world operation —
+  create, clone, destroy, rename, describe, chown, set/del attribute,
+  tag, lock, keyid, attach/detach behavior, relocate, dig, open, link,
+  pair, boot — has ONE service function, and the op is the one gate.
+  The builder command (@set/@desc/@tag/@lock/@behavior/...) and the
+  softcode function (set_attr, add_tag, create_obj, attach_behavior, ...)
+  both call it, as the player or as the executor, so they cannot drift.
+  Self-modification always works — an NPC managing its own counters is
+  the normal case. Two ops need more than control: behaviors need
+  **`BUILD`** behind the actor (builders hold it; a mortal player's
+  gadget does not; unowned world content is trusted), and `@boot` needs
+  **`MODERATE`** (admin and above). `@chown` needs `CONTROL_ALL`.
 - **Trigger locks**: `use` lock gates who can fire an object's
   `$`-commands; `listen` gates whose speech its `^listen` patterns
   overhear; `command` gates who may `trigger`/@tr its named scripts.
@@ -105,7 +111,8 @@ The role rungs above are no longer bare comparisons. Each cross-cutting
 power a rung used to imply is now a named **entitlement** — `CONTROL_ALL`
 (rule 3, ADMIN+ controls everything), `CONTROL_UNOWNED` (rule 4, builder
 reach), plus `LOCK_BYPASS` / `LOCK_BYPASS_ALL`, `TELEPORT_ANY`, and
-`SEE_ALL` (see-through-dark/invisible). Every former `get_role() >= Role.X`
+`SEE_ALL` (see-through-dark/invisible), `BUILD` (attach behaviors) and
+`MODERATE` (disconnect players). Every former `get_role() >= Role.X`
 check now asks for the one entitlement it actually meant
 (`has_entitlement(actor, 'SEE_ALL')`). A **role** is a named set of these;
 the built-in roles reproduce the old ladder exactly, so this is
@@ -120,8 +127,9 @@ not a replacement for ownership.
 
 Two boundaries kept deliberately separate (tracked in BACKLOG): **command
 access** is still a coarse role-tier check in the dispatcher
-(`has_permission`), not an entitlement — unifying it by pushing a command's
-authorization into the shared service it calls is an open question. And
+(`has_permission`) in front of the op, so a `role_def` granting an
+entitlement does not yet open the matching builder command (KERNEL_PLAN
+task 5.4, deferred). And
 granting a *role tag* (god/admin/builder/…) is rank-gated
 (`may_change_role_tag`), so control of an object never implies control of
 its rank.

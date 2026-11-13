@@ -1275,10 +1275,11 @@ class TestTier1AuthorityFixes:
 
         plain = funcs.create_obj("rock")               # old 1-arg form
         assert plain.description == "" and plain.has_tag("thing")
-        # birth-time attrs skip protected names, like set_attr does.
-        guarded = funcs.create_obj("safe", attrs={"password": "x", "hp": 5})
-        assert guarded.db.get("password") is None
-        assert guarded.db.get("hp") == 5
+        # Birth-time attrs pass the set_attr gate: a protected name refuses
+        # the whole creation (KERNEL_PLAN 5.2) rather than vanishing silently.
+        assert funcs.create_obj("safe", attrs={"password": "x", "hp": 5}) is None
+        stocked = funcs.create_obj("crate", attrs={"hp": 5})
+        assert stocked.db.get("hp") == 5
 
     async def test_engine_floor_survives_system_swap(self):
         from realm.core.checks import (

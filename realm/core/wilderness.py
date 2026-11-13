@@ -34,6 +34,7 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
+from realm.core.inflate import inflate
 from realm.core.query import find_objects
 from realm.core.teardown import (
     EPHEMERAL_TAG,
@@ -230,7 +231,7 @@ async def materialize_cell(
 async def _build_cell(
     region_name: str, x: int, y: int, persistence,
 ) -> GameObject | None:
-    from realm.core.objects import GameObject as GameObjectCls
+    from realm.core.inflate import inflate
 
     region_obj = get_region(region_name)
     if region_obj is None:
@@ -264,19 +265,15 @@ async def _build_cell(
         exits = DEFAULT_EXITS
 
     zone = _region_zone(region_name)
-    cell = GameObjectCls(
-        name=str(name) if name else f"{region_obj.name} ({x}, {y})",
-        description=(str(desc) if desc
-                     else "Untracked wilderness stretches away."),
-        tags=["room", EPHEMERAL_TAG, zone, _cell_tag(region_name, x, y)],
-    )
-    cell.db.set("wild_region", region_name)
-    cell.db.set("wild_x", x)
-    cell.db.set("wild_y", y)
-    cell.db.set("last_active", _clock())
-    if terrain:
-        for tag in ([terrain] if isinstance(terrain, str) else terrain):
-            cell.add_tag(str(tag))
+    terrain_tags = ([terrain] if isinstance(terrain, str) else list(terrain or []))
+    cell = inflate({
+        'name': str(name) if name else f"{region_obj.name} ({x}, {y})",
+        'description': str(desc) if desc else "Untracked wilderness stretches away.",
+        'tags': ["room", EPHEMERAL_TAG, zone, _cell_tag(region_name, x, y),
+                 *(str(t) for t in terrain_tags)],
+        'attrs': {"wild_region": region_name, "wild_x": x, "wild_y": y,
+                  "last_active": _clock()},
+    })
     await persistence.save(cell)      # registered in cache, skipped from DB
     # Index immediately: if an exit entry below is malformed and skipped,
     # or anything raises, the cell is still findable and reapable —
@@ -356,39 +353,31 @@ def _build_cell_exit(entry, zone: str, edge_msg) -> GameObject | None:
     direction (deferred destination) or a ``{"name", "destination"}``
     dict (authored exit back to the persistent world, R5). ``None`` for
     an unknown direction; raises on a malformed entry."""
-    from realm.core.objects import GameObject as GameObjectCls
-
     if isinstance(entry, dict):
-        exit_obj = GameObjectCls(
-            name=str(entry.get("name", "gate")),
-            tags=["exit", EPHEMERAL_TAG, zone],
-        )
+        attrs: dict = {}
         if entry.get("destination"):
-            exit_obj.db.set("destination", str(entry["destination"]))
+            attrs["destination"] = str(entry["destination"])
         if entry.get("aliases"):
-            exit_obj.db.set("aliases", [str(a) for a in entry["aliases"]])
+            attrs["aliases"] = [str(a) for a in entry["aliases"]]
         # Arbitrary exit attrs — the landmark composition (a coordinate
         # whose exit is an instance portal: attrs carry dest_resolver +
         # instance_template), authored messages, locks-by-attr, etc.
-        for key, value in (entry.get("attrs") or {}).items():
-            exit_obj.db.set(str(key), value)
-        return exit_obj
+        attrs.update({str(k): v for k, v in (entry.get("attrs") or {}).items()})
+        return inflate({'name': str(entry.get("name", "gate")),
+                        'tags': ["exit", EPHEMERAL_TAG, zone], 'attrs': attrs})
 
     direction = str(entry).lower()
     step = DIRECTIONS.get(direction)
     if step is None:
         return None
-    exit_obj = GameObjectCls(
-        name=direction, tags=["exit", EPHEMERAL_TAG, zone])
-    exit_obj.db.set("dest_resolver", RESOLVER_NAME)
-    exit_obj.db.set("wild_dx", step[0])
-    exit_obj.db.set("wild_dy", step[1])
+    attrs = {"dest_resolver": RESOLVER_NAME, "wild_dx": step[0], "wild_dy": step[1]}
     aliases = _ALIASES.get(direction)
     if aliases:
-        exit_obj.db.set("aliases", list(aliases))
+        attrs["aliases"] = list(aliases)
     if edge_msg:
-        exit_obj.db.set("fail_msg", str(edge_msg))
-    return exit_obj
+        attrs["fail_msg"] = str(edge_msg)
+    return inflate({'name': direction, 'tags': ["exit", EPHEMERAL_TAG, zone],
+                    'attrs': attrs})
 
 
 def _travels_as_player(actor: GameObject) -> bool:

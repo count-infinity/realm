@@ -121,6 +121,29 @@ class ScriptFrame:
         """Queue a persistence save for a mutated object."""
         self.command_queue.append(('save', obj, ''))
 
+    def apply(self, op, *args, **kwargs):
+        """Run a synchronous op from ``realm.core.ops`` as the executor.
+        Queues a save for every object it touched and returns its
+        ``OpResult``, or None when the op refused (softcode then returns
+        False)."""
+        from realm.core.ops import OpError
+        try:
+            result = op(self.executor, *args, **kwargs)
+        except OpError:
+            return None
+        for obj in result.touched:
+            self.touch(obj)
+        return result
+
+    def allowed(self, check, *args, **kwargs) -> bool:
+        """Run an op's ``check_<op>`` as the executor: True when it passes."""
+        from realm.core.ops import OpError
+        try:
+            check(self.executor, *args, **kwargs)
+        except OpError:
+            return False
+        return True
+
     def in_reach(self, target: GameObject | None) -> bool:
         """
         Proximity authority for combat channels: a trap can hurt whoever

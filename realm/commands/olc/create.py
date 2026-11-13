@@ -7,8 +7,8 @@ Commands for creating new objects, rooms, and exits.
 from __future__ import annotations
 
 from realm.commands import CommandContext
-from realm.commands.base import find_object_global, require_control, save_object
-from realm.core.objects import GameObject
+from realm.commands.base import find_object_global, run_op
+from realm.core import ops
 from realm.core.search import match_one
 
 
@@ -40,19 +40,11 @@ async def cmd_create(ctx: CommandContext) -> None:
             await ctx.session.send(f"Parent object '{parent_name}' not found.")
             return
 
-    # Create the object
-    obj = GameObject(
-        name=name.strip(),
-        location=ctx.player,  # Created in inventory
-        owner=ctx.player,
-        parent=parent,
-        tags=['thing'],
-    )
-
-    await save_object(ctx, obj)
-
+    result = await run_op(ctx, ops.create, name, location=ctx.player, parent=parent)
+    if result is None:
+        return
+    obj = result.value
     await ctx.session.send(f"Created: {obj.name} (#{obj.id[:8]})")
-
     if parent:
         await ctx.session.send(f"  Parent: {parent.name}")
 
@@ -84,71 +76,23 @@ async def cmd_dig(ctx: CommandContext) -> None:
     room_name = ctx.left_args if ctx.left_args else ctx.args
     exit_spec = ctx.right_args if ctx.right_args else ""
 
-    # Create the room
-    new_room = GameObject(
-        name=room_name.strip(),
-        owner=ctx.player,
-        tags=['room'],
-    )
-
-    await save_object(ctx, new_room)
-
+    # "@dig room = there" or "@dig room = there, back": the FIRST name leads
+    # to the new room, the SECOND (or the compass opposite) leads back.
+    names = [e.strip().lower() for e in exit_spec.split(',') if e.strip()]
+    out_name = names[0] if names else None
+    back_name = names[1] if len(names) > 1 else None
+    result = await run_op(ctx, ops.dig, room_name, from_room=ctx.player.location,
+                          out_name=out_name, back_name=back_name)
+    if result is None:
+        return
+    new_room, exit_out, exit_back = result.value
     await ctx.session.send(f"Room created: {new_room.name} (#{new_room.id[:8]})")
-
-    # Exits: "@dig room = there" or "@dig room = there, back" —
-    # the FIRST name leads to the new room, the SECOND (or the compass
-    # opposite of a known direction) leads back.
-    if exit_spec:
-        names = [e.strip().lower() for e in exit_spec.split(',') if e.strip()]
-
-        exit_pairs = {
-            'north': 'south', 'south': 'north',
-            'east': 'west', 'west': 'east',
-            'up': 'down', 'down': 'up',
-            'in': 'out', 'out': 'in',
-            'northeast': 'southwest', 'southwest': 'northeast',
-            'northwest': 'southeast', 'southeast': 'northwest',
-        }
-
-        from realm.commands.base import exit_named
-        current_room = ctx.player.location
-        out_name = names[0]
-        back_name = names[1] if len(names) > 1 else exit_pairs.get(out_name)
-
-        if exit_named(current_room, out_name):
-            await ctx.session.send(
-                f"An exit '{out_name}' already exists here — pick another "
-                f"name (room '{new_room.name}' was created, use @open to link).")
-            await save_object(ctx, new_room)
-            return
-
-        exit_out = GameObject(
-            name=out_name,
-            location=current_room,
-            owner=ctx.player,
-            tags=['exit'],
-        )
-        exit_out.db.destination = new_room.id
-        await save_object(ctx, exit_out)
-        await ctx.session.send(f"  Exit '{out_name}' created -> {new_room.name}")
-
-        if back_name and not exit_named(new_room, back_name):
-            exit_back = GameObject(
-                name=back_name,
-                location=new_room,
-                owner=ctx.player,
-                tags=['exit'],
-            )
-            exit_back.db.destination = current_room.id
-            # The two faces of one passage are born together — pair them
-            # now, while it is unambiguous (see realm/core/pairing.py).
-            from realm.core.pairing import pair_exits
-            pair_exits(exit_out, exit_back)
-            await save_object(ctx, exit_out)
-            await save_object(ctx, exit_back)
-            await ctx.session.send(
-                f"  Exit '{back_name}' created -> {current_room.name} "
-                f"(paired with '{out_name}')")
+    if exit_out is not None:
+        await ctx.session.send(f"  Exit '{exit_out.name}' created -> {new_room.name}")
+    if exit_back is not None:
+        await ctx.session.send(
+            f"  Exit '{exit_back.name}' created -> {ctx.player.location.name} "
+            f"(paired with '{exit_out.name}')")
 
 
 async def cmd_open(ctx: CommandContext) -> None:
@@ -177,21 +121,10 @@ async def cmd_open(ctx: CommandContext) -> None:
         await ctx.session.send(f"Destination '{dest_spec}' not found.")
         return
 
-    if not destination.is_room:
-        await ctx.session.send(f"'{destination.name}' is not a room.")
+    result = await run_op(ctx, ops.open_exit, exit_name, location=ctx.player.location,
+                          destination=destination)
+    if result is None:
         return
-
-    # Create the exit
-    exit_obj = GameObject(
-        name=exit_name,
-        location=ctx.player.location,
-        owner=ctx.player,
-        tags=['exit'],
-    )
-    exit_obj.db.destination = destination.id
-
-    await save_object(ctx, exit_obj)
-
     await ctx.session.send(f"Exit '{exit_name}' created -> {destination.name}")
 
 
@@ -224,9 +157,6 @@ async def cmd_link(ctx: CommandContext) -> None:
         await ctx.session.send(f"Exit '{exit_name}' not found here.")
         return
 
-    if not await require_control(ctx, exit_obj):
-        return
-
     # Find destination
     if dest_spec.lower() == 'here':
         destination = ctx.player.location
@@ -237,21 +167,14 @@ async def cmd_link(ctx: CommandContext) -> None:
         await ctx.session.send(f"Destination '{dest_spec}' not found.")
         return
 
-    # Retargeting an exit must not silently drag a paired mirror along to
-    # an unrelated door — dissolve the pairing, loudly, on both sides.
-    from realm.core.pairing import dissolve_pairing
-    former = dissolve_pairing(exit_obj)
-    if former is not None:
-        await save_object(ctx, former)
+    # Retargeting dissolves any pairing on both sides, loudly.
+    result = await run_op(ctx, ops.link, exit_obj, destination)
+    if result is None:
+        return
+    if result.value is not None:
         await ctx.session.send(
-            f"Pairing with '{former.name}' dissolved — re-pair with @pair "
+            f"Pairing with '{result.value.name}' dissolved — re-pair with @pair "
             f"if you mean it.")
-
-    # Update the exit
-    exit_obj.db.destination = destination.id
-
-    await save_object(ctx, exit_obj)
-
     await ctx.session.send(f"Exit '{exit_name}' now leads to {destination.name}")
 
 
@@ -281,22 +204,11 @@ async def cmd_unlink(ctx: CommandContext) -> None:
         await ctx.session.send(f"Exit '{exit_name}' not found here.")
         return
 
-    if not await require_control(ctx, exit_obj):
+    result = await run_op(ctx, ops.unlink, exit_obj)
+    if result is None:
         return
-
-    # An unlinked exit is no longer anyone's far side.
-    from realm.core.pairing import dissolve_pairing
-    former = dissolve_pairing(exit_obj)
-    if former is not None:
-        await save_object(ctx, former)
-        await ctx.session.send(f"Pairing with '{former.name}' dissolved.")
-
-    # Remove destination
-    exit_obj.db.delete('destination')
-    exit_obj.db.delete('destination_obj')
-
-    await save_object(ctx, exit_obj)
-
+    if result.value is not None:
+        await ctx.session.send(f"Pairing with '{result.value.name}' dissolved.")
     await ctx.session.send(f"Exit '{exit_name}' unlinked.")
 
 
@@ -316,8 +228,7 @@ async def cmd_pair(ctx: CommandContext) -> None:
     Example:
         @pair vault door = vault door
     """
-    from realm.commands.base import match_one
-    from realm.core.pairing import dissolve_pairing, pair_exits, partner_of
+    from realm.core.pairing import partner_of
 
     if not ctx.player or not ctx.player.location:
         return
@@ -331,7 +242,10 @@ async def cmd_pair(ctx: CommandContext) -> None:
     if not exit_obj:
         await ctx.session.send(f"Exit '{spec}' not found here.")
         return
-    if not await require_control(ctx, exit_obj):
+    try:
+        ops.check_unpair(ctx.player, exit_obj)
+    except ops.OpError as err:
+        await ctx.session.send(err.reason)
         return
 
     # No '=' → show.
@@ -350,12 +264,12 @@ async def cmd_pair(ctx: CommandContext) -> None:
 
     # '=' with nothing → divorce.
     if not far_spec:
-        former = dissolve_pairing(exit_obj)
-        if former is not None:
-            await save_object(ctx, former)
-            await save_object(ctx, exit_obj)
+        result = await run_op(ctx, ops.unpair, exit_obj)
+        if result is None:
+            return
+        if result.value is not None:
             await ctx.session.send(
-                f"Pairing between '{exit_obj.name}' and '{former.name}' "
+                f"Pairing between '{exit_obj.name}' and '{result.value.name}' "
                 f"dissolved.")
         else:
             await ctx.session.send(f"'{exit_obj.name}' was not paired.")
@@ -380,23 +294,10 @@ async def cmd_pair(ctx: CommandContext) -> None:
     if far is None:
         await ctx.session.send(f"Far exit '{far_spec}' not found.")
         return
-    if not far.is_exit:
-        await ctx.session.send(f"'{far.name}' is not an exit.")
-        return
-    if far.id == exit_obj.id:
-        await ctx.session.send("An exit cannot be its own partner.")
-        return
-    if not await require_control(ctx, far):
-        return
 
     # A marriage replaces any prior ones, cleanly, on all involved sides.
-    for prior in (dissolve_pairing(exit_obj), dissolve_pairing(far)):
-        if prior is not None:
-            await save_object(ctx, prior)
-    pair_exits(exit_obj, far)
-    await save_object(ctx, exit_obj)
-    await save_object(ctx, far)
-    await ctx.session.send(
-        f"Paired: '{exit_obj.name}' <-> '{far.name}'.")
+    if await run_op(ctx, ops.pair, exit_obj, far) is None:
+        return
+    await ctx.session.send(f"Paired: '{exit_obj.name}' <-> '{far.name}'.")
 
 

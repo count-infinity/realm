@@ -7,8 +7,12 @@ Commands for teleportation, ownership, destruction, and other admin tasks.
 from __future__ import annotations
 
 from realm.commands import CommandContext
-from realm.commands.base import find_object_global, require_control, resolve_target, save_object
-from realm.core.lifecycle import DestroyRefused, destroy_object
+from realm.commands.base import (
+    find_object_global,
+    resolve_target,
+    run_op,
+)
+from realm.core import ops
 from realm.core.render import render_room
 
 
@@ -54,40 +58,22 @@ async def cmd_teleport(ctx: CommandContext) -> None:
         await ctx.session.send(f"Destination '{dest_name}' not found.")
         return
 
-    if target == destination:
-        await ctx.session.send("Can't teleport something to itself.")
+    # Moving something other than yourself needs relocation authority (you
+    # control it, or own the room it stands in). The move is forced: it
+    # skips on_check wards but honors the destination's ENTER/TELEPORT locks
+    # (admins bypass locks as always) and fires the informational on_enter.
+    result = await run_op(ctx, ops.relocate, target, destination, force=True)
+    if result is None:
         return
-
-    # Moving something other than yourself needs relocation authority — you
-    # control the object, OR you own the room it's standing in (Penn's
-    # room-owner @teleport), unless it's 'anchored'.
-    if target is not ctx.player:
-        from realm.permissions.locks import may_relocate
-        if not may_relocate(ctx.player, target):
-            await ctx.session.send("Permission denied.")
-            return
-
-    # Move through the one relocation core, forced: the builder override
-    # skips on_check wards but still honors the destination's ENTER/TELEPORT
-    # locks (evaluated against the object being moved, Penn-style — admins
-    # bypass locks as always) and fires the informational on_enter.
-    from realm.core.movement import move_to
-
-    moved = await move_to(target, destination, force=True, mover=ctx.player)
-    if not moved:
+    if not result.value:
         await ctx.session.send(
             f"Teleport failed — {destination.name} won't admit "
             f"{'you' if target is ctx.player else target.name}."
         )
         return
 
-    await save_object(ctx, target)
-
-    # Notify
     if target == ctx.player:
         await ctx.session.send(f"You teleport to {destination.name}.")
-
-        # Show the new location
         if destination.is_room:
             await ctx.session.send(render_room(destination, ctx.player))
     else:
@@ -123,21 +109,10 @@ async def cmd_chown(ctx: CommandContext) -> None:
         await ctx.session.send(f"Owner '{owner_name}' not found.")
         return
 
-    old_owner = target.owner
-    target.owner = new_owner
-    # Penn-faithful safety: the old owner's scripts must not run with
-    # the NEW owner's authority. Halt until the new owner reviews them.
-    if any(k.upper().startswith(('CMD_', 'LISTEN_', 'ON_'))
-           for k in target.db.all()):
-        target.add_tag('halt')
-
-    await save_object(ctx, target)
-
-    old_name = old_owner.name if old_owner else "nobody"
-    if target.has_tag('halt'):
-        await ctx.session.send(
-            f"{target.name} carries scripts — halted for review "
-            f"(@untag {target.name} = halt to reactivate).")
+    result = await run_op(ctx, ops.chown, target, new_owner)
+    if result is None:
+        return
+    old_name = result.value.name if result.value else "nobody"
     await ctx.session.send(
         f"Ownership of {target.name} transferred from {old_name} to {new_owner.name}."
     )
@@ -165,17 +140,9 @@ async def cmd_destroy(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
         return
 
-    if not await require_control(ctx, target):
-        return
-
-    # Safety checks
-    if target == ctx.player:
-        await ctx.session.send("You can't destroy yourself!")
-        return
-
     try:
-        destroyed_count = await destroy_object(target, ctx.persistence)
-    except DestroyRefused as refused:
+        destroyed_count = await ops.destroy(ctx.player, target, ctx.persistence)
+    except ops.OpError as refused:
         await ctx.session.send(refused.reason)
         return
 
@@ -210,6 +177,12 @@ async def cmd_nuke(ctx: CommandContext) -> None:
         await ctx.session.send("You can't nuke yourself!")
         return
 
+    try:
+        ops.check_destroy(ctx.player, target, allow_player=True)
+    except ops.OpError as refused:
+        await ctx.session.send(refused.reason)
+        return
+
     # Hang up the player's live session first, if connected, so their client
     # isn't left driving a destroyed character.
     sm = ctx.session_manager
@@ -218,8 +191,8 @@ async def cmd_nuke(ctx: CommandContext) -> None:
         await session.send("Your character has been removed from the world.")
         await sm.destroy_session(session)
 
-    await destroy_object(target, ctx.persistence, allow_player=True,
-                         contents="destroy")
+    await ops.destroy(ctx.player, target, ctx.persistence, allow_player=True,
+                      contents="destroy")
     await ctx.session.send(f"Player {target.name} has been nuked.")
 
 
@@ -379,18 +352,8 @@ async def cmd_boot(ctx: CommandContext) -> None:
     if not target or not target.is_player:
         await ctx.session.send(f"Player '{ctx.args.strip()}' not found.")
         return
-    if target == ctx.player:
-        await ctx.session.send("You can't boot yourself — use quit.")
+    if await run_op(ctx, ops.boot, target, ctx.session_manager) is None:
         return
-
-    sm = ctx.session_manager
-    session = sm.get_session_by_player(target) if sm else None
-    if session is None:
-        await ctx.session.send(f"{target.name} is not connected.")
-        return
-
-    await session.send("You have been disconnected by an administrator.")
-    await sm.destroy_session(session)
     await ctx.session.send(f"Booted {target.name}.")
 
 

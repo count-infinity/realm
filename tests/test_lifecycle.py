@@ -1,8 +1,8 @@
 """
-One destroy path (realm/core/lifecycle.py).
+One destroy path (realm.core.ops.destroy, from KERNEL_PLAN 1.1).
 
 ``@destroy``, ``@nuke``, softcode ``destroy_obj()``, expiry reaping and the
-load-time orphan sweep all funnel through ``destroy_object`` so the policy
+load-time orphan sweep all funnel through ``ops.destroy`` so the policy
 for players, owned property, ``safe`` objects and paired exits cannot drift
 between them (KERNEL_PLAN step 1.1).
 """
@@ -13,7 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.lifecycle import DestroyRefused, check_destroy, destroy_object
+from realm.core.ops import Refused, check_destroy, destroy
 from realm.core.objects import GameObject
 from realm.testing import Simulator
 
@@ -154,11 +154,11 @@ class TestDestroyObject:
     def test_check_destroy_refuses_player_and_safe(self):
         player = GameObject("Alice", tags=["player"])
         statue = GameObject("statue", tags=["safe"])
-        with pytest.raises(DestroyRefused):
-            check_destroy(player)
-        with pytest.raises(DestroyRefused):
-            check_destroy(statue)
-        check_destroy(player, allow_player=True)
+        with pytest.raises(Refused):
+            check_destroy(None, player)
+        with pytest.raises(Refused):
+            check_destroy(None, statue)
+        check_destroy(None, player, allow_player=True)
 
     async def test_returns_count_of_destroyed_contents(self, sim):
         here = sim.room("Workshop")
@@ -166,7 +166,7 @@ class TestDestroyObject:
         sim.obj("coin", location=chest)
         sim.obj("gem", location=chest)
 
-        assert await destroy_object(chest, sim.store) == 2
+        assert await destroy(None, chest, sim.store) == 2
 
 
 async def test_destroyed_room_keeps_player_row_on_sqlite(tmp_path):
@@ -182,7 +182,7 @@ async def test_destroyed_room_keeps_player_row_on_sqlite(tmp_path):
         for obj in (start, doomed, alice):
             await pm.save(obj)
 
-        await destroy_object(doomed, pm)
+        await destroy(None, doomed, pm)
         await pm._flush_queue()
 
         assert await pm.exists(alice.id)

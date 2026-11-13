@@ -13,7 +13,7 @@ its own and leaves the suite green.
 | 2 | One composition root, one source of defaults | S–M | [x] |
 | 3 | One softcode function registry, one namespace builder | M | [x] |
 | 4 | Features: built-ins use the front door | M–L | [x] |
-| 5 | One service function per world operation | M | [ ] |
+| 5 | One service function per world operation | M | [x] |
 | 6 | One softcode dialect, open vocabularies | M | [ ] |
 | 7 | Move the files, replace the global setters, add boundary tests | L | [ ] |
 | 8 | Pools: entity-agnostic health and resources | M–L | [ ] |
@@ -1080,21 +1080,21 @@ the real check underneath. Opening builder commands to custom roles is task
 
 Tasks, one op family per commit:
 
-- [ ] `tests/test_ops.py` first. For each op, a parametrized matrix of actor
+- [x] `tests/test_ops.py` first. For each op, a parametrized matrix of actor
       (player, owner, builder, admin) by target (own, someone else's,
       unowned, protected) asserts that the command and the softcode function
       produce the same outcome and the same refusals.
-- [ ] Add `realm/core/ops.py` with the errors and `OpResult`. Move
+- [x] Add `realm/core/ops.py` with the errors and `OpResult`. Move
       `destroy_object` in.
-- [ ] `create`, `clone` and an `inflate(spec)` helper (see 5.3).
-- [ ] `set_attr`, `del_attr`. `cmd_wipe` loops over the op.
-- [ ] `tag`, `untag`.
-- [ ] `set_lock`, `clear_lock`.
-- [ ] `attach_behavior`, `detach_behavior`. `cmd_behavior` keeps its listing
+- [x] `create`, `clone` and an `inflate(spec)` helper (see 5.3).
+- [x] `set_attr`, `del_attr`. `cmd_wipe` loops over the op.
+- [x] `tag`, `untag`.
+- [x] `set_lock`, `clear_lock`.
+- [x] `attach_behavior`, `detach_behavior`. `cmd_behavior` keeps its listing
       and `/info` output and calls the op to mutate.
-- [ ] `rename`, `describe`, with the two new softcode functions.
-- [ ] `relocate`, `chown`, `boot`.
-- [ ] `dig`, `open_exit`, `link`, `unlink`, `pair`.
+- [x] `rename`, `describe`, with the two new softcode functions.
+- [x] `relocate`, `chown`, `boot`.
+- [x] `dig`, `open_exit`, `link`, `unlink`, `pair`.
 
 ### 5.3 One way to build an object from data
 
@@ -1105,15 +1105,15 @@ wilderness cell materialization, `create_obj`, `Simulator._make`,
 `cmd_create`. They disagree about unknown behaviors: the spawner warns, the
 rest drop them without a message.
 
-- [ ] Add `realm/core/inflate.py::inflate(spec: dict, *, obj_id=None,
+- [x] Add `realm/core/inflate.py::inflate(spec: dict, *, obj_id=None,
       strict_behaviors=False) -> GameObject`. The spec keys are `name`,
       `description`, `tags`, `attrs`, `locks`, `behaviors`. Unknown behavior
       ids are collected and reported once.
-- [ ] Replace the eight loops.
+- [x] Replace the eight loops.
 
 ### 5.4 Optional: let custom roles run gated commands
 
-- [ ] **Decision (default: skip for now).** Add `Command.requires: str | None`,
+- [ ] **Decision (default: skip for now) — SKIPPED 2026-11-13.** Add `Command.requires: str | None`,
       an entitlement name. The dispatcher admits the caller when the tier
       check passes or when the caller holds that entitlement. Set
       `requires="TELEPORT_ANY"` on `@teleport` and `requires="MODERATE"` on
@@ -1121,18 +1121,18 @@ rest drop them without a message.
 
 ### Acceptance
 
-- [ ] `tests/test_ops.py` passes. The suite is green.
-- [ ] Command modules no longer mutate targets directly. This grep returns
+- [x] `tests/test_ops.py` passes. The suite is green.
+- [x] Command modules no longer mutate targets directly. This grep returns
       only lines inside `realm/core/ops.py`, `realm/core/inflate.py` and
       listing code:
       `git grep -n "\.add_tag(\|\.remove_tag(\|\.db\.set(\|persistence\.delete(" realm/commands/olc`
 
 ### Docs
 
-- [ ] `docs/architecture/commands.md`: commands are thin wrappers over ops.
-- [ ] `docs/design/engine_vision.md`: the authority section names ops as the
+- [x] `docs/architecture/commands.md`: commands are thin wrappers over ops.
+- [x] `docs/design/engine_vision.md`: the authority section names ops as the
       one gate; add `BUILD` and `MODERATE`.
-- [ ] Regenerate the softcode reference (`clone_obj`, `set_name`, `set_desc`).
+- [x] Regenerate the softcode reference (`clone_obj`, `set_name`, `set_desc`).
 
 ### Closes
 
@@ -2639,3 +2639,12 @@ entry closed.
 | 2026-11-13 | 4.3 | Name resolvers and speech renderers (`register_name_resolver`, `register_speech_renderer`) are not feature declarations; only tests use them, and they stay as module setters until step 7. `GameServer.register_protocol` stays for code that builds its own server. | Not in the Feature API of 4.1. |
 | 2026-11-13 | 4 Docs | `docs/protocols/adding-protocol.md` also lost its entry-point section: like `config/settings.yaml`, that mechanism never existed. The BACKLOG YAML and entry-point protocol items are marked superseded. | Docs describe only what exists. |
 | 2026-11-13 | 4 Tests | `tests/test_ruleset_registry.py` (from 1.6) was rewritten for declarations: a second feature declaring `gurps` collides; `replace=True` overrides and keeps `d20`/`merc`; `RulesetRegistry.register` remains the low-level call. The stale-combat test calls the combat feature's `on_boot` hook. | The 1.6 mechanism (`_builtins_loaded`) is gone. |
+| 2026-11-13 | 5 | **Repository fix:** `.gitignore`'s bare `lib/` (meant for virtualenvs) matched `realm/scripting/lib/`, so step 3's function library was never committed, and ruff skipped it. Patterns are now `/lib/`, `/lib64/`; the lib modules lost their unused template imports. | The committed step 3 and step 4 trees cannot import `realm.scripting`. |
+| 2026-11-13 | 5.1 | `realm/core/ops/` is a package (`objects`, `attrs`, `behaviors`, `exits`, `sessions`). `actor=None` is the system (expiry, load sweeps) and skips authority checks only. `realm/core/lifecycle.py` is deleted; `ops.destroy`/`ops.check_destroy` replace it and `ops.Refused` replaces `DestroyRefused`. `realm.commands.base.run_op` is the command wrapper; `ScriptFrame.apply`/`allowed` are the softcode wrappers. | The op shape of 5.1. |
+| 2026-11-13 | 5.2 | **Decision (default): behaviors need BUILD.** BUILD is checked through the owner chain like HARM (`ops.may_build`): a mortal player as principal is refused; unowned world objects and NPCs are trusted. Added `configure_behavior` for `@behavior/set`. | Unowned spawners and zone scripts attach behaviors; a flat BUILD-or-control rule would break them. |
+| 2026-11-13 | 5.2 | Behaviour changes, all deliberate: a protected attribute in `create_obj(attrs=...)` refuses the creation (it was silently dropped); softcode lock types are validated; `@set` now refuses `password` as well as `keyid`; `@dig` with a taken exit name refuses before creating the room (it created the room and stopped); an object may still `destroy_obj(me)` (only a player is refused for itself). | The plan's unified rules; fail loudly. |
+| 2026-11-13 | 5.2 | Ops beyond the table so the acceptance grep is clean: `set_keyid`/`clear_keyid` (`@keyid`), `unpair`; `@detail`, `@zone`, `quell`/`unquell` call `set_attr`/`del_attr`/`tag`/`untag`. `exit_named` moved from `commands/base.py` to `core/ops/exits.py`. | Commands no longer mutate targets directly. |
+| 2026-11-13 | 5.2 | The 1.1 gap is closed: `teardown._release` dissolves the pairing of every exit it deletes and saves the surviving partner. | Recorded as a candidate for step 5 in 1.1. |
+| 2026-11-13 | 5.2 | The softcode engine's queued `move_to` still calls `core.movement.move_to` directly; the authority check (`ops.check_relocate`) runs when the script queues it, where the enactor's consent is known. | Consent is not carried in the queue payload. |
+| 2026-11-13 | 5.3 | `inflate()` replaced the loops in persistence's row loader, `worldio.import_objects` and `_apply_entry` (inflate a fresh copy, then move its data onto the live object), the spawner, wilderness cells and exits, `Simulator._make`, `ops.create` and `ops.clone`. Loads stay lenient (placeholder + `report_unresolved`); spawns, clones and creates are strict (drop + one WARNING). | The spawner's old warning could never fire: `from_dict` always returns a placeholder. |
+| 2026-11-13 | 5.4 | **Decision (default): skipped.** BACKLOG records it as the open part of "Command authorization belongs at the service layer". | Plan default. |

@@ -19,15 +19,6 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
-def exit_named(room: GameObject, name: str) -> GameObject | None:
-    """An existing exit in a room by exact (case-insensitive) name."""
-    lower = name.strip().lower()
-    for obj in room.contents:
-        if obj.is_exit and obj.name.lower() == lower:
-            return obj
-    return None
-
-
 async def require_control(ctx: CommandContext, target: GameObject) -> bool:
     """
     Gate for mutating builder commands: caller must control the target
@@ -40,6 +31,30 @@ async def require_control(ctx: CommandContext, target: GameObject) -> bool:
         return True
     await ctx.session.send(f"You don't control {target.name}.")
     return False
+
+
+async def run_op(ctx: CommandContext, op, *args, **kwargs):
+    """Run a ``realm.core.ops`` op as the player: the command wrapper.
+
+    On refusal, sends the op's reason and returns None. Otherwise saves every
+    object the op touched, sends its warnings, and returns its result.
+    """
+    import inspect
+
+    from realm.core.ops import OpError, OpResult
+    try:
+        result = op(ctx.player, *args, **kwargs)
+        if inspect.isawaitable(result):
+            result = await result
+    except OpError as err:
+        await ctx.session.send(err.reason)
+        return None
+    if isinstance(result, OpResult):
+        for obj in result.touched:
+            await save_object(ctx, obj)
+        for warning in result.warnings:
+            await ctx.session.send(f"Warning: {warning}")
+    return result
 
 
 async def save_object(ctx: CommandContext, obj: GameObject) -> None:

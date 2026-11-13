@@ -32,7 +32,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from realm.core.action_types import ActionType
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.behaviors import Behavior
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -42,28 +42,13 @@ logger = logging.getLogger(__name__)
 
 def spawn_from_prototype(prototype: dict[str, Any],
                          location: GameObject) -> GameObject:
-    """Instantiate a prototype dict as a live GameObject."""
-    from realm.core.objects import GameObject as GameObjectCls
-
-    obj = GameObjectCls(
-        name=str(prototype.get('name', 'creature')),
-        description=str(prototype.get('description', '')),
-        tags=list(prototype.get('tags', ['npc'])),
-    )
-    for key, value in (prototype.get('attrs') or {}).items():
-        obj.db.set(key, value)
-    for spec in prototype.get('behaviors') or []:
-        behavior = BehaviorRegistry.from_dict({
-            'behavior_id': spec.get('behavior_id'),
-            'params': spec.get('params', {}),
-        })
-        if behavior is not None:
-            obj.add_behavior(behavior)
-        else:
-            logger.warning(
-                f"Spawner prototype references unknown behavior "
-                f"{spec.get('behavior_id')!r}"
-            )
+    """Instantiate a prototype dict as a live GameObject (default tags
+    ``['npc']``). An unknown behavior id is dropped and reported."""
+    from realm.core.inflate import inflate
+    obj = inflate({**prototype,
+                   'name': prototype.get('name', 'creature'),
+                   'tags': prototype.get('tags', ['npc'])},
+                  strict_behaviors=True)
     obj.location = location
     return obj
 

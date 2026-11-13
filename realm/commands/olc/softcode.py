@@ -16,9 +16,9 @@ from __future__ import annotations
 import json
 
 from realm.commands import CommandContext
-from realm.commands.base import require_control, resolve_target, save_object
+from realm.commands.base import require_control, resolve_target, run_op
 from realm.commands.olc.modify import _parse_value
-from realm.core.attrflags import cloneable_attrs
+from realm.core import ops
 from realm.core.behaviors import BehaviorRegistry
 
 
@@ -60,8 +60,7 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         return
 
     if ctx.switches and ctx.switches[0].lower() == 'info':
-        from realm.behaviors.scripted import (describe_behavior_def,
-                                              find_behavior_def)
+        from realm.behaviors.scripted import describe_behavior_def, find_behavior_def
         ident = (ctx.left_args or '').strip()
         if not ident:
             await ctx.session.send(
@@ -112,8 +111,6 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{ctx.left_args.strip()}' not found.")
         return
 
-    if ctx.right_args and not await require_control(ctx, target):
-        return
 
     switch = ctx.switches[0].lower() if ctx.switches else ""
     removing = switch in ('remove', 'del')
@@ -150,25 +147,9 @@ async def cmd_behavior(ctx: CommandContext) -> None:
     parts = [behavior_id, *param_segs]
 
     if removing:
-        for behavior in target.get_behaviors():
-            if behavior.behavior_id == behavior_id:
-                target.remove_behavior(behavior)
-                await save_object(ctx, target)
-                await ctx.session.send(
-                    f"Removed behavior '{behavior_id}' from {target.name}."
-                )
-                return
-        await ctx.session.send(f"{target.name} has no '{behavior_id}' behavior.")
-        return
-
-    from realm.behaviors.scripted import find_behavior_def
-    if (BehaviorRegistry.get(behavior_id) is None
-            and find_behavior_def(behavior_id) is None):
-        known = ", ".join(sorted(BehaviorRegistry.list_all()))
-        await ctx.session.send(
-            f"Unknown behavior '{behavior_id}' (no registered behavior or "
-            f"behavior_def object by that name). Registered: {known}"
-        )
+        if await run_op(ctx, ops.detach_behavior, target, behavior_id) is None:
+            return
+        await ctx.session.send(f"Removed behavior '{behavior_id}' from {target.name}.")
         return
 
     params = {}
@@ -180,24 +161,17 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         params[key.strip()] = _parse_value(value.strip())
 
     if setting:
-        # Update an already-attached behavior's params (e.g. a new
-        # ticker interval) without detach/reattach losing its db state.
-        for behavior in target.get_behaviors():
-            if behavior.behavior_id == behavior_id:
-                behavior.params.update(params)
-                await save_object(ctx, target)
-                await ctx.session.send(
-                    f"Updated '{behavior_id}' on {target.name}: "
-                    f"{json.dumps(behavior.params)}.")
-                return
+        # Update an already-attached behavior's params (e.g. a new ticker
+        # interval) without detach/reattach losing its db state.
+        result = await run_op(ctx, ops.configure_behavior, target, behavior_id, params)
+        if result is None:
+            return
         await ctx.session.send(
-            f"{target.name} has no '{behavior_id}' to set — attach it first.")
+            f"Updated '{behavior_id}' on {target.name}: {json.dumps(result.value)}.")
         return
 
-    behavior = BehaviorRegistry.create(behavior_id, **params)
-    target.add_behavior(behavior)
-    await save_object(ctx, target)
-
+    if await run_op(ctx, ops.attach_behavior, target, behavior_id, params) is None:
+        return
     suffix = f" with {json.dumps(params)}" if params else ""
     await ctx.session.send(f"Attached '{behavior_id}' to {target.name}{suffix}.")
 
@@ -218,7 +192,6 @@ async def cmd_clone(ctx: CommandContext) -> None:
         @clone harbor rat
         @clone parrot = polly
     """
-    from realm.behaviors.spawner import spawn_from_prototype
 
     if not ctx.player or ctx.player.location is None:
         return
@@ -232,35 +205,13 @@ async def cmd_clone(ctx: CommandContext) -> None:
     if not original:
         await ctx.session.send(f"Object '{spec}' not found.")
         return
-    if original.is_player or original.is_room:
-        await ctx.session.send("You can't clone players or rooms.")
+    new_name = ctx.right_args.strip() if ctx.right_args else None
+    result = await run_op(ctx, ops.clone, original, name=new_name,
+                          location=ctx.player.location)
+    if result is None:
         return
-    if not await require_control(ctx, original):
-        return
-
-    new_name = ctx.right_args.strip() if ctx.right_args else original.name
-
-    # Deep-copy db attrs via JSON (they're JSON-serializable by design);
-    # strip spawner bookkeeping tags so the copy isn't mistaken for a
-    # tracked spawn.
-    tags = [t for t in original.tags.to_list() if not t.startswith('spawned:')]
-    prototype = {
-        'name': new_name,
-        'description': original.description,
-        'tags': tags,
-        'attrs': json.loads(json.dumps(cloneable_attrs(
-            original.db.all(), original.db.get('attr_flags')))),
-        'behaviors': [b.to_dict() for b in original.get_behaviors()],
-    }
-    clone = spawn_from_prototype(prototype, ctx.player.location)
-    clone.locks.update(original.locks)
-    clone.owner = ctx.player
-    # A clone of a templated object stays templated — the parent link is
-    # identity-safe to share (it is a reference, not a unique handle).
-    clone.parent = original.parent
-
-    await save_object(ctx, clone)
-    await ctx.session.send(f"Cloned {original.name} → {clone.name} (#{clone.id[:8]}).")
+    copy = result.value
+    await ctx.session.send(f"Cloned {original.name} → {copy.name} (#{copy.id[:8]}).")
 
 
 async def cmd_trigger(ctx: CommandContext) -> None:
@@ -404,15 +355,15 @@ async def cmd_zone(ctx: CommandContext) -> None:
     tag = ZONE_PREFIX + zone
 
     if switch in ('remove', 'del'):
-        target.remove_tag(tag)
-        await save_object(ctx, target)
+        if await run_op(ctx, ops.untag, target, tag) is None:
+            return
         await ctx.session.send(f"{target.name} removed from zone '{zone}'.")
         return
 
-    target.add_tag(tag)
-    if switch == 'master':
-        target.add_tag(MASTER_TAG)
-    await save_object(ctx, target)
+    if await run_op(ctx, ops.tag, target, tag) is None:
+        return
+    if switch == 'master' and await run_op(ctx, ops.tag, target, MASTER_TAG) is None:
+        return
     role = "MASTER of" if switch == 'master' else "added to"
     await ctx.session.send(f"{target.name} {role} zone '{zone}'.")
 

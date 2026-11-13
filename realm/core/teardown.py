@@ -124,10 +124,17 @@ async def _release(container: GameObject, persistence, *,
                 continue
             # No home, no start room — a bare test world; fall through to
             # deletion rather than leave a dangling location.
-        # To be destroyed: empty it first, then delete the shell.
+        # To be destroyed: empty it first, then delete the shell. A deleted
+        # exit is no longer anyone's far side: a neighbouring room's partner
+        # must not keep pointing at it.
         destroyed += await _release(occupant, persistence,
                                     return_room=return_room,
                                     doomed_ids=doomed_ids, seen=seen)
+        if occupant.is_exit:
+            from realm.core.pairing import dissolve_pairing
+            former = dissolve_pairing(occupant)
+            if former is not None and persistence is not None and former.id not in doomed_ids:
+                await persistence.save(former)
         occupant.location = None
         if persistence is not None:
             await persistence.delete(occupant)

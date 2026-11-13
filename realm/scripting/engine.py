@@ -1075,10 +1075,10 @@ class ScriptEngine:
             elif kind == 'destroy':
                 # destroy_obj() already ran check_destroy; the object may
                 # have changed since (tagged safe later in the same script).
-                from realm.core.lifecycle import DestroyRefused, destroy_object
+                from realm.core import ops
                 try:
-                    await destroy_object(obj, self._persistence)
-                except DestroyRefused as refused:
+                    await ops.destroy(functions.executor, obj, self._persistence)
+                except ops.OpError as refused:
                     logger.info(f"Softcode destroy of {obj.name} ({obj.id}) refused: "
                                 f"{refused.reason}")
             elif kind == 'wait':

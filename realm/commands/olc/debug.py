@@ -179,11 +179,12 @@ async def cmd_quell(ctx: CommandContext) -> None:
     Example:
         quell
     """
+    from realm.commands.base import run_op
+    from realm.core import ops
     if ctx.command_name == 'unquell' or ctx.player.has_tag('quelled'):
-        ctx.player.remove_tag('quelled')
-        await ctx.session.send("You resume your full powers.")
-    else:
-        ctx.player.add_tag('quelled')
+        if await run_op(ctx, ops.untag, ctx.player, 'quelled') is not None:
+            await ctx.session.send("You resume your full powers.")
+    elif await run_op(ctx, ops.tag, ctx.player, 'quelled') is not None:
         await ctx.session.send(
             "You quell your powers — you now see and act as a mortal. "
             "'unquell' to restore.")

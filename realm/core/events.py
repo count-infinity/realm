@@ -67,7 +67,7 @@ async def reap_expired(persistence, *, now: float | None = None) -> int:
     reaction but does NOT stay the destruction — death is decided by the
     field, not the hook.)
     """
-    from realm.core.lifecycle import DestroyRefused, destroy_object
+    from realm.core import ops
     from realm.core.query import find_objects
 
     now = _time.time() if now is None else now
@@ -86,8 +86,8 @@ async def reap_expired(persistence, *, now: float | None = None) -> int:
         if at is None or float(at) > now:
             continue
         try:
-            await destroy_object(obj, persistence)  # R9 disposition of contents
-        except DestroyRefused as refused:
+            await ops.destroy(None, obj, persistence)  # R9 disposition of contents
+        except ops.OpError as refused:
             # A player or safe object never expires. Drop the lease so the
             # warning is not repeated every tick.
             obj.db.delete('expires_at')

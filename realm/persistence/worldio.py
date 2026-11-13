@@ -113,8 +113,7 @@ async def import_objects(data: dict, persistence, *,
     remapped. The caller must ensure the ids don't collide with the live
     world (i.e. an empty or non-overlapping database).
     """
-    from realm.core.behaviors import BehaviorRegistry
-    from realm.core.objects import GameObject as GameObjectCls
+    from realm.core.inflate import inflate
 
     if int(data.get('realm_format', 0)) > FORMAT_VERSION:
         raise ValueError("Area file is from a newer REALM — upgrade first.")
@@ -128,21 +127,14 @@ async def import_objects(data: dict, persistence, *,
     # Pass 1: create everything (fresh ids, remapped attrs).
     created: dict[str, GameObject] = {}
     for entry in entries:
-        obj = GameObjectCls(
-            id=id_map[entry['id']],
-            name=str(entry.get('name', 'thing')),
-            description=str(entry.get('description', '')),
-            tags=list(entry.get('tags') or []),
-        )
-        for key, value in (entry.get('attrs') or {}).items():
-            if key in STRIPPED_ATTRS:
-                continue
-            obj.db.set(key, _remap_value(value, id_map))
-        obj.locks.update(entry.get('locks') or {})
-        for spec in entry.get('behaviors') or []:
-            behavior = BehaviorRegistry.from_dict(spec)
-            if behavior is not None:
-                obj.add_behavior(behavior)
+        # Lenient behaviors: a behavior_def may be later in the same file;
+        # report_unresolved names any still missing after the import.
+        obj = inflate({
+            **entry,
+            'attrs': {k: _remap_value(v, id_map)
+                      for k, v in (entry.get('attrs') or {}).items()
+                      if k not in STRIPPED_ATTRS},
+        }, obj_id=id_map[entry['id']])
         created[obj.id] = obj
 
     def resolve(old_id):
@@ -347,36 +339,37 @@ def diff_plan(data: dict, zone: str, persistence, *, actor=None) -> SyncPlan:
 
 def _apply_entry(entry: dict, persistence) -> GameObject:
     """Create or update ONE object in place, preserving its id."""
-    from realm.core.behaviors import BehaviorRegistry
-    from realm.core.objects import GameObject as GameObjectCls
+    from realm.core.inflate import inflate
 
     oid = entry['id']
+    fresh = inflate({
+        **entry,
+        'attrs': {k: v for k, v in (entry.get('attrs') or {}).items()
+                  if k not in STRIPPED_ATTRS},
+    }, obj_id=oid)
     obj = persistence.get_cached(oid) if persistence else None
     if obj is None:
-        obj = GameObjectCls(id=oid, name=str(entry.get('name', 'thing')))
-    obj.name = str(entry.get('name', obj.name))
-    obj.description = str(entry.get('description', ''))
-
-    for tag in obj.tags.to_list():
-        obj.remove_tag(tag)
-    for tag in entry.get('tags') or []:
-        obj.add_tag(tag)
-
-    for key in list(obj.db.all()):
-        if key not in STRIPPED_ATTRS:
-            obj.db.delete(key)
-    for key, value in (entry.get('attrs') or {}).items():
-        if key not in STRIPPED_ATTRS:
+        obj = fresh
+    else:
+        # Update in place (ids preserved): replace everything the entry
+        # describes with the freshly inflated copy's data.
+        obj.name = fresh.name
+        obj.description = fresh.description
+        for tag in obj.tags.to_list():
+            obj.remove_tag(tag)
+        for tag in fresh.tags.to_list():
+            obj.add_tag(tag)
+        for key in list(obj.db.all()):
+            if key not in STRIPPED_ATTRS:
+                obj.db.delete(key)
+        for key, value in fresh.db.all().items():
             obj.db.set(key, value)
-
-    obj.locks.clear()
-    obj.locks.update(entry.get('locks') or {})
-
-    for behavior in obj.get_behaviors():
-        obj.remove_behavior(behavior)
-    for spec in entry.get('behaviors') or []:
-        behavior = BehaviorRegistry.from_dict(spec)
-        if behavior is not None:
+        obj.locks.clear()
+        obj.locks.update(fresh.locks)
+        for behavior in obj.get_behaviors():
+            obj.remove_behavior(behavior)
+        for behavior in fresh.get_behaviors():
+            fresh.remove_behavior(behavior)
             obj.add_behavior(behavior)
     return obj
 

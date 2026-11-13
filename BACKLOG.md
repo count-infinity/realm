@@ -578,6 +578,19 @@ Open questions (product pass before building):
 
 ### Command authorization belongs at the service layer (open question, 2026-07-18)
 
+**RESOLVED 2026-11-13 (KERNEL_PLAN step 5), with one part left open.** Every
+world operation has one service function in `realm/core/ops/` (create, clone,
+destroy, rename, describe, chown, set/del attr, tag/untag, locks, keyid,
+attach/detach/configure behavior, relocate, dig, open, link, unlink,
+pair/unpair, boot); commands and softcode both call it and **the op checks
+authority**. Creation-type actions got their entitlements: `BUILD` (behaviors)
+and `MODERATE` (`@boot`). **Still open (task 5.4, skipped by default):**
+`Command.permission` tiers remain as a first gate in the dispatcher, so a
+`role_def` granting `TELEPORT_ANY` still cannot run `@teleport`. The planned
+fix is `Command.requires: str | None` (an entitlement the dispatcher accepts as
+an alternative to the tier). The `audience` display field and a
+`would_authorize()` probe are not built.
+
 Today authorization lives in **two places with two vocabularies**: the command
 dispatcher gates *invocation* by a coarse role tier (`Command.permission`
 → `has_permission` → `get_role >= tier`), while *authority* (what the action
@@ -2319,7 +2332,9 @@ findings below are facets of one fix — bind the action's target + payload into
   `ON_CONNECT`/`ON_DISCONNECT` roster master. Suggest a `connected()` primitive
   or engine-maintained online tag. (083_message_in_bottle; also the [small]
   presence-surface gap group 180/188/197)
-- [ ] **Softcode cannot set the `description` slot** *(this is the ROOT of "Things have no softcode-visible description fallback" above — one fix closes both)* — `.description` is written
+- [x] ~~**Softcode cannot set the `description` slot**~~ DONE 2026-11-13
+  (KERNEL_PLAN 5.2): softcode `set_desc(obj, text)` and `set_name(obj, name)`
+  call the same ops as `@desc` / `@name`. *(this is the ROOT of "Things have no softcode-visible description fallback" above — one fix closes both)* — `.description` is written
   only by `@desc`; `set_attr(obj,'description',…)` writes an unrelated attr and
   doesn't render. Softcode's only description surface is `desc_extras`. A
   `set_desc()` (or routing that attr to the slot) would remove the sharp edge

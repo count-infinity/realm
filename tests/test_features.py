@@ -87,7 +87,9 @@ class TestDefaultEqualsToday:
         sim = Simulator()
         try:
             assert sorted(sim.dispatcher._commands) == COMMANDS
-            assert sorted(ScriptFrame(persistence=sim.store).to_dict()) == SOFTCODE_NAMES
+            names = set(ScriptFrame(persistence=sim.store).to_dict())
+            # Step 5 added clone_obj, set_name and set_desc after the freeze.
+            assert sorted(names - {"clone_obj", "set_name", "set_desc"}) == SOFTCODE_NAMES
             assert sorted(_qualname(o) for o in get_engine()._observers) == OBSERVERS
             assert sorted(BehaviorRegistry.list_all()) == BEHAVIOR_IDS
         finally:

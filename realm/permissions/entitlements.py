@@ -51,6 +51,13 @@ SEE_ALL = "SEE_ALL"
 #: not author harm; unowned world content and NPCs are trusted by
 #: construction; builder+ hold this by default.
 HARM = "HARM"
+#: Build: attach, detach and configure behaviors on objects you control.
+#: Checked through the owner chain like HARM: a mortal player as the
+#: responsible principal lacks it; builders hold it; unowned world content
+#: is trusted by construction (see core.ops.may_build).
+BUILD = "BUILD"
+#: Moderate players: disconnect a session (@boot).
+MODERATE = "MODERATE"
 
 # NOTE: entitlements deliberately do NOT gate *command access*. Command
 # invocation is still a coarse role-tier check in the dispatcher
@@ -64,7 +71,7 @@ HARM = "HARM"
 #: grant names in here; call sites use the constants above.
 ALL_ENTITLEMENTS = frozenset({
     LOCK_BYPASS_ALL, LOCK_BYPASS, CONTROL_ALL, CONTROL_UNOWNED,
-    TELEPORT_ANY, SEE_ALL, HARM,
+    TELEPORT_ANY, SEE_ALL, HARM, BUILD, MODERATE,
 })
 
 

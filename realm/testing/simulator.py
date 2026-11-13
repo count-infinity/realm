@@ -100,9 +100,9 @@ class Simulator:
         return p
 
     def _make(self, name, *, tags, location=None, attrs=None) -> GameObject:
-        obj = GameObject(name=name, tags=list(tags), location=location)
-        for key, value in (attrs or {}).items():
-            obj.db.set(key, value)
+        from realm.core.inflate import inflate
+        obj = inflate({'name': name, 'tags': list(tags), 'attrs': attrs or {}})
+        obj.location = location
         self.store.add(obj)
         return obj
 
