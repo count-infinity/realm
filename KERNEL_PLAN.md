@@ -223,10 +223,10 @@ because `core/checks.py::resolve_with_rule` builds its namespace without the
 registered bindings. Wards, locks and `@detail` have the same gap and are
 fixed in step 3.
 
-- [ ] In `resolve_with_rule`, start the namespace from
+- [x] In `resolve_with_rule`, start the namespace from
       `registered_bindings()` and then apply the built-in names so built-ins
       win a collision.
-- [ ] Test: the guide's `exploding_pool` example, as written.
+- [x] Test: the guide's `exploding_pool` example, as written.
 
 ### 1.6 Ruleset registration
 

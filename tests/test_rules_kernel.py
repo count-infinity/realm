@@ -176,6 +176,33 @@ class TestBindings:
             sim.close()
             clear_bindings()
 
+    async def test_binding_is_callable_from_a_resolve_rule(self):
+        """docs/guides/resolution-and-bindings.md, as written."""
+        @softcode_function
+        def exploding_pool(pool, tn):
+            return dice.net_successes(pool, tn)
+
+        try:
+            hacker = GameObject("Hacker")
+            hacker.db.pool = 6
+            result = resolve_with_rule(
+                hacker, "intrusion", 0, "exploding_pool(attr('pool'), 4)")
+            assert result.skill == "intrusion"
+        finally:
+            clear_bindings()
+
+    async def test_builtin_rule_names_win_over_bindings(self):
+        @softcode_function("mod")
+        def shadow():
+            return 999
+
+        try:
+            npc = GameObject("NPC")
+            result = resolve_with_rule(npc, "x", 3, "mod")
+            assert result.margin == 3
+        finally:
+            clear_bindings()
+
     async def test_softcode_cannot_register_bindings(self):
         # Registration is a deploy-time native act; the register function is
         # NOT in the sandbox namespace (composition, not registration).

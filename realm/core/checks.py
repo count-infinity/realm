@@ -102,13 +102,17 @@ def resolve_with_rule(
     Names in scope: the reducers (``margin_under``/``margin_over``/
     ``net_successes``/``highest``/``band``) and ``roll``; ``skill(name=…)``
     (this skill's level, or a named one), ``attr(name)`` (a raw attribute),
-    and ``mod`` (the folded modifier). The rule must return a CheckResult
-    (a reducer) — or a bare number, read as a success margin.
+    and ``mod`` (the folded modifier), plus every native binding registered
+    with ``@softcode_function`` (a built-in name wins a collision). The rule
+    must return a CheckResult (a reducer) — or a bare number, read as a
+    success margin.
     """
     from realm.core import dice
     from realm.core.safe_eval import eval_expression
+    from realm.scripting.bindings import registered_bindings
 
-    namespace = {
+    namespace = registered_bindings()
+    namespace.update({
         "roll": dice.roll,
         "margin_under": dice.margin_under,
         "margin_over": dice.margin_over,
@@ -119,7 +123,7 @@ def resolve_with_rule(
         "attr": lambda name: obj.db.get(name) or 0,
         "mod": modifier,
         "skill_name": skill,
-    }
+    })
     result = eval_expression(rule, namespace)
     if isinstance(result, CheckResult):
         if not result.skill:

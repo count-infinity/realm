@@ -65,6 +65,10 @@ def exploding_pool(pool, tn):
     resolve_rule = "exploding_pool(attr('pool'), 4)"
 ```
 
+Inside a `resolve_rule`, the rule's own names (`roll`, the reducers,
+`skill`, `attr`, `mod`, `skill_name`) win over a binding with the same
+name, so pick binding names that do not collide with them.
+
 **The trust boundary (important):** a binding is unsandboxed native code,
 so registering one is a **deploy-time act by the operator** — the game's
 `config.py` imports the module. It is *never* something a builder types at
