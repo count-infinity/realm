@@ -146,3 +146,14 @@ class TestWelcomeScreenPriority:
     def test_default_when_neither(self):
         server = self._server()
         assert "Testia" in server._get_welcome_screen()
+
+
+class TestTickIntervalDefault:
+
+    def test_bare_config_gets_the_settings_heartbeat(self, tmp_path):
+        """defaults.py said 4.0 while Settings, GameServer and the time
+        design doc said 0.1; a fresh scaffold silently ran a 4 s heartbeat."""
+        from realm.config.loader import Settings
+        game = _write_config(tmp_path, 'GAME_NAME = "Bare"\n')
+        settings = load_config(game)
+        assert settings.tick_interval == Settings().tick_interval == 0.1

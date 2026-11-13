@@ -26,7 +26,7 @@ the session-output flush. Three consequences:
 
 ## What exists today
 
-- **Heartbeat:** `_tick_loop`, `tick_interval` (config, default 4s). Iterates
+- **Heartbeat:** `_tick_loop`, `tick_interval` (config `TICK_INTERVAL`, default 0.1s). Iterates
   `behavior_owners()` (a `WeakSet` — only objects with behaviors), calling
   `tick(obj, delta)` when a behavior's `tick_interval` (seconds) has elapsed.
   `delta` is real seconds since that behavior last ticked.

@@ -35,7 +35,7 @@ WELCOME_FILE: str = "data/welcome.txt"
 FLUSH_INTERVAL: float = 30.0  # Seconds between auto-saves
 
 # World heartbeat: seconds between behavior ticks (0 disables)
-TICK_INTERVAL: float = 4.0
+TICK_INTERVAL: float = 0.1
 
 # Combat: ruleset and beat (decision window) bounds in seconds.
 # COMBAT_RULESET deliberately defaults to None: unset, the ACTIVE GAME

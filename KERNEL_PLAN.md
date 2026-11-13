@@ -194,9 +194,9 @@ A fresh scaffold runs `tick_interval = 4.0` because `config/defaults.py:38`
 wins, while `Settings`, `GameServer` and `docs/design/time-and-beats.md` say
 0.1.
 
-- [ ] Set `TICK_INTERVAL = 0.1` in `config/defaults.py` (step 2 deletes the
+- [x] Set `TICK_INTERVAL = 0.1` in `config/defaults.py` (step 2 deletes the
       file).
-- [ ] Test in `tests/test_config.py`: a `config.py` that sets only `GAME_NAME`
+- [x] Test in `tests/test_config.py`: a `config.py` that sets only `GAME_NAME`
       loads with `tick_interval == Settings().tick_interval == 0.1`.
 
 ### 1.4 The false "will not run" warning
