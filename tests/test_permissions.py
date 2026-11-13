@@ -497,3 +497,37 @@ class TestEntitlementSoftcodeSurface:
         expr = "caller.has_entitlement('SEE_ALL')"
         assert ev.evaluate(expr, admin, door) is True
         assert ev.evaluate(expr, player, door) is False
+
+
+class TestRoleDefProblemsAreShown:
+    """An unknown entitlement in a role_def is dropped; the builder who ran
+    @reload must see that, not only the server log (KERNEL_PLAN 1.7)."""
+
+    def test_reload_returns_the_problems(self, role_world):
+        role_world(define_role('warden', [E.SEE_ALL, 'teleport_anywhere']))
+        problems = reload_role_defs()
+        assert len(problems) == 1
+        assert "'warden'" in problems[0] and "'teleport_anywhere'" in problems[0]
+
+    def test_clean_defs_report_nothing(self, role_world):
+        role_world(define_role('warden', [E.SEE_ALL]))
+        assert reload_role_defs() == []
+
+    async def test_at_reload_prints_them(self):
+        from realm.permissions.entitlements import reload_role_defs as reload_defs
+        from realm.testing import Simulator
+
+        sim = Simulator()
+        try:
+            room = sim.room("Office")
+            boss = sim.player("Boss", location=room)
+            boss.add_tag("admin")
+            sim.add(define_role('warden', ['teleport_anywhere']))
+
+            await sim.do(boss, "@reload")
+
+            out = "\n".join(sim.seen(boss))
+            assert "teleport_anywhere" in out
+        finally:
+            sim.close()
+            reload_defs()

@@ -265,7 +265,72 @@ class TestRegistryAndCommand:
         on its def object having loaded first."""
         sim, bay, bob = world
         restored = BehaviorRegistry.from_dict(
-            {"behavior_id": "ghost_def", "params": {"def_name": "ghost_def"}})
+            {"behavior_id": "ghost_def", "params": {}})
         assert isinstance(restored, ScriptedBehavior)
         assert restored.behavior_id == "ghost_def"
         assert not restored.should_tick   # inert until the def exists
+
+
+class TestUnresolvedBehaviors:
+    """A saved behavior with no Python class and no behavior_def loads inert;
+    that must be said out loud, once per behavior id (KERNEL_PLAN 1.7)."""
+
+    def test_reports_each_missing_id_once_with_its_count(self, world, caplog):
+        from realm.behaviors.scripted import report_unresolved
+        sim, bay, _bob = world
+        a = sim.obj("vent a", location=bay)
+        b = sim.obj("vent b", location=bay)
+        for obj in (a, b):
+            obj.add_behavior(BehaviorRegistry.from_dict(
+                {"behavior_id": "ghost_def", "params": {}}))
+
+        with caplog.at_level("WARNING", logger="realm.behaviors.scripted"):
+            problems = report_unresolved([a, b, bay])
+
+        assert len(problems) == 1
+        assert "'ghost_def'" in problems[0] and "2 object(s)" in problems[0]
+        assert "import its module before the world loads" in problems[0]
+        assert [r.getMessage() for r in caplog.records] == problems
+
+    async def test_resolved_defs_are_not_reported(self, world):
+        from realm.behaviors.scripted import report_unresolved
+        sim, bay, bob = world
+        await build_filter_def(sim, bob)
+        filt = sim.obj("carbon filter", location=bay)
+        filt.owner = bob
+        await sim.submit_line(bob, "@behavior carbon filter = hazard_filter")
+
+        assert report_unresolved([filt]) == []
+
+    def test_unknown_id_round_trips_without_gaining_params(self, world):
+        saved = {"behavior_id": "ghost_def", "params": {"cut_to": 3}}
+        restored = BehaviorRegistry.from_dict(saved)
+        assert restored.to_dict() == saved
+        assert restored.params == {"cut_to": 3}
+
+
+async def test_load_world_reports_unresolved_behaviors(caplog):
+    from realm.core.objects import GameObject
+    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.server.game import GameServer
+
+    pm = PersistenceManager(":memory:")
+    await pm.initialize()
+    set_active_manager(pm)
+    try:
+        vent = GameObject("vent")
+        vent.add_behavior(BehaviorRegistry.from_dict(
+            {"behavior_id": "ghost_def", "params": {}}))
+        await pm.save(vent)
+        pm._object_cache.clear()
+
+        server = GameServer.__new__(GameServer)
+        server.persistence = pm
+        server._startup_room = None
+        with caplog.at_level("WARNING", logger="realm.behaviors.scripted"):
+            await server._load_world()
+
+        assert any("ghost_def" in r.getMessage() for r in caplog.records)
+    finally:
+        set_active_manager(None)
+        await pm.close()

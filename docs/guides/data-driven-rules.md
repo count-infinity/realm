@@ -114,6 +114,11 @@ The hooks run **as the carrying object** (`me` and `V()` are the filter,
 not the def), and the def is resolved by name at fire time, so unlike the
 skill table there is **no `@reload`**: edit the def and every attachment
 changes on the next action. A missing def leaves its attachments inert.
+When the world loads, or an `@import`/area sync finishes, the server logs a
+WARNING for every behavior id that has neither a Python class nor a
+`behavior_def` ("behavior 'x' on N object(s) … will do nothing"). For a
+Python behavior that usually means its module was not imported before the
+world loaded.
 `@behavior/list` shows world defs alongside the registered Python
 behaviors, and `@export`/packs ship them like any other object. The
 worked example is [252](../showcase/252_custom_action.md).

@@ -248,18 +248,18 @@ A saved behavior whose class is not registered loads as an inert
 parameters. An unknown entitlement in a `role_def` is dropped with a server
 log warning only; the builder sees nothing.
 
-- [ ] `behaviors/scripted.py`: add `report_unresolved(objects) -> list[str]`.
+- [x] `behaviors/scripted.py`: add `report_unresolved(objects) -> list[str]`.
       For each `ScriptedBehavior` whose definition is missing, log one WARNING
       per behavior id: "behavior 'x' on N object(s) has no registered class
       and no behavior_def; it will do nothing. If it is a Python behavior,
       import its module before the world loads."
-- [ ] Call it at the end of `GameServer._load_world`, and at the end of
+- [x] Call it at the end of `GameServer._load_world`, and at the end of
       `worldio.import_objects` and `worldio.apply_plan`.
-- [ ] Keep `def_name` out of saved parameters: store the definition name in
+- [x] Keep `def_name` out of saved parameters: store the definition name in
       its own slot on `ScriptedBehavior`, and override `to_dict` to emit
       `{'behavior_id': <def name>, 'params': <the original params>}`.
       Test: loading and re-saving an unknown id leaves `params` unchanged.
-- [ ] `permissions/entitlements.py::reload_role_defs` returns the list of
+- [x] `permissions/entitlements.py::reload_role_defs` returns the list of
       problems it found. `cmd_reload` (`commands/olc/debug.py`) prints them.
       Test.
 
@@ -2593,3 +2593,6 @@ entry closed.
 | 2026-11-12 | 1.1 | `_reconcile_orphaned_players`: a dangling non-player object that is `safe` is moved to the start room with a WARNING instead of being deleted. | Same gap. Leaving it at `location=None` would be the silent limbo the sweep exists to prevent. |
 | 2026-11-12 | 1.1 | `DestroyRefused` carries `# noqa: N818`. | The plan names the class; ruff wants an `Error` suffix. Keeps the finding count at 19. |
 | 2026-11-12 | 1.1 | Not fixed: exits *inside* a destroyed room are deleted by `release_contents` without dissolving their pairing, so a neighbouring room's exit can keep a `partner` pointing at a deleted exit. | Outside the 1.1 spec (it dissolves only the destroyed object itself). Candidate for step 5's destroy op. |
+| 2026-11-13 | 1.7 | `ScriptedBehavior` does not override `to_dict`. The def name moved to a `_def_name` slot and `behavior_id` reads it, so the inherited `to_dict` already emits `{'behavior_id': <def name>, 'params': <original params>}`. | Same result as the plan with less code. |
+| 2026-11-13 | 1.7 | `ScriptedBehavior.__init__(self, def_name, /, **params)`: the name is positional-only. | A database saved before this change has `def_name` inside `params`; a keyword parameter would make those rows raise `TypeError` at load. Positional-only lets the stale key load as an ordinary (ignored) param with no compatibility code. |
+| 2026-11-13 | 1.7 | `read_role_defs` also reports a `role_def` whose `entitlements` is not a list (it used to be skipped silently). | Same failure mode as an unknown name: the role grants nothing and the builder was not told. |

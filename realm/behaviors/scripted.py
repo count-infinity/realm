@@ -41,6 +41,7 @@ own parameters, so one def serves many differently-tuned carriers.
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Any
 
 from realm.core.behaviors import Behavior, BehaviorRegistry
@@ -48,6 +49,8 @@ from realm.core.behaviors import Behavior, BehaviorRegistry
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
     from realm.core.propagation import Action
+
+logger = logging.getLogger(__name__)
 
 DEF_TAG = "behavior_def"
 
@@ -120,7 +123,11 @@ class ScriptedBehavior(Behavior):
     and serialization all speak the builder's name for it.
     """
 
-    __slots__ = ()
+    __slots__ = ('_def_name',)
+
+    def __init__(self, def_name: str, /, **params: Any):
+        super().__init__(**params)
+        self._def_name = def_name
 
     param_spec = {
         'interval': (4, 'world beats between on_tick runs (defs with '
@@ -129,7 +136,9 @@ class ScriptedBehavior(Behavior):
 
     @property
     def behavior_id(self) -> str:  # type: ignore[override]
-        return str(self._params.get('def_name', 'scripted'))
+        """The behavior_def's name. Kept in its own slot, not in params, so
+        ``to_dict`` saves exactly the params the builder gave."""
+        return self._def_name
 
     def _definition(self) -> GameObject | None:
         return find_behavior_def(self.behavior_id)
@@ -197,12 +206,35 @@ def _scripted_factory(behavior_id: str, params: dict[str, Any],
     """
     if strict and find_behavior_def(behavior_id) is None:
         return None
-    merged = dict(params)
-    merged.setdefault('def_name', behavior_id)
-    return ScriptedBehavior(**merged)
+    return ScriptedBehavior(behavior_id, **params)
 
 
 BehaviorRegistry.set_scripted_factory(_scripted_factory)
 
+
+def report_unresolved(objects) -> list[str]:
+    """Warn about saved behaviors that will do nothing.
+
+    A behavior id with no registered Python class loads as a
+    ``ScriptedBehavior``; when no ``behavior_def`` of that name exists
+    either, it is inert. Logs one WARNING per behavior id and returns the
+    messages. Call it after a load or import has finished, so a def that
+    arrives later in the same batch is not reported.
+    """
+    holders: dict[str, int] = {}
+    for obj in objects:
+        for behavior in obj.get_behaviors():
+            if isinstance(behavior, ScriptedBehavior) and behavior._definition() is None:
+                holders[behavior.behavior_id] = holders.get(behavior.behavior_id, 0) + 1
+    problems = [
+        f"behavior '{behavior_id}' on {count} object(s) has no registered class "
+        f"and no behavior_def; it will do nothing. If it is a Python behavior, "
+        f"import its module before the world loads."
+        for behavior_id, count in sorted(holders.items())
+    ]
+    for message in problems:
+        logger.warning(message)
+    return problems
+
 __all__ = ["ScriptedBehavior", "find_behavior_def", "list_behavior_defs",
-           "describe_behavior_def", "DEF_TAG", "HOOK_ATTRS"]
+           "describe_behavior_def", "report_unresolved", "DEF_TAG", "HOOK_ATTRS"]

@@ -189,7 +189,8 @@ script may write exactly what its owner may, and not one attribute more.
   [`has_entitlement`](../reference/softcode.md#fn-has_entitlement)`(enactor,
   'TELEPORT_ANY')`, and a lock can gate on
   `caller.has_entitlement('SEE_ALL')`. Unknown entitlement names are dropped at
-  load, and `quell` drops custom ranks too.
+  load, and `@reload` prints a warning naming each one, so a typo grants
+  nothing and says so. `quell` drops custom ranks too.
 - **The capstone.** [Restricted player scripting](250_player_scripting.md) hands
   this exact model to *players* and attacks it: same roles, same `controls()`,
   same locks, every wall holding.

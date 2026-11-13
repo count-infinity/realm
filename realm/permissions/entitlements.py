@@ -94,12 +94,21 @@ def read_role_defs() -> dict[str, frozenset[str]]:
     Unknown entitlement strings are logged and dropped — a typo grants nothing
     rather than silently widening authority.
     """
+    return _read_role_defs()[0]
+
+
+def _read_role_defs() -> tuple[dict[str, frozenset[str]], list[str]]:
+    """``read_role_defs`` plus the problems found, each already logged."""
     from realm.core.query import find_objects
 
     out: dict[str, frozenset[str]] = {}
+    problems: list[str] = []
     for obj in sorted(find_objects(tag=ROLE_DEF_TAG), key=lambda o: o.id):
         raw = obj.db.get("entitlements") or []
         if not isinstance(raw, (list, tuple, set)):
+            problems.append(
+                f"role_def {obj.name!r}: entitlements must be a list, not "
+                f"{type(raw).__name__}; the role grants nothing")
             continue
         granted = set()
         for name in raw:
@@ -107,21 +116,28 @@ def read_role_defs() -> dict[str, frozenset[str]]:
             if name in ALL_ENTITLEMENTS:
                 granted.add(name)
             else:
-                logger.warning(
-                    "role_def %r lists unknown entitlement %r — ignored",
-                    obj.name, name)
+                problems.append(
+                    f"role_def {obj.name!r} lists unknown entitlement {name!r}; "
+                    f"ignored. Known: {', '.join(sorted(ALL_ENTITLEMENTS))}")
         out[obj.name.strip().lower()] = frozenset(granted)
-    return out
+    for message in problems:
+        logger.warning(message)
+    return out, problems
 
 
-def reload_role_defs() -> None:
-    """Rebuild the custom-role cache from the world (call at @reload/import)."""
+def reload_role_defs() -> list[str]:
+    """Rebuild the custom-role cache from the world (call at @reload/import).
+    Returns the problems found (unknown entitlements, malformed defs) so the
+    caller can show them to the builder; each is also logged."""
     global _role_def_table
     try:
-        _role_def_table = read_role_defs()
+        _role_def_table, problems = _read_role_defs()
     except Exception as exc:  # never let a bad def break authority resolution
-        logger.warning("reload_role_defs failed, keeping built-ins only: %s", exc)
+        message = f"reload_role_defs failed, keeping built-ins only: {exc}"
+        logger.warning(message)
         _role_def_table = {}
+        return [message]
+    return problems
 
 
 def role_def_table() -> dict[str, frozenset[str]]:

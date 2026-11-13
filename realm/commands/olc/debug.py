@@ -54,8 +54,10 @@ async def cmd_reload(ctx: CommandContext) -> None:
     from realm.systems import reload_rules
 
     reload_rules()
-    reload_role_defs()   # custom role_def ranks take effect immediately
+    problems = reload_role_defs()   # custom role_def ranks take effect immediately
     await ctx.session.send("Rules reloaded from the world.")
+    for problem in problems:
+        await ctx.session.send(f"Warning: {problem}")
 
 
 async def cmd_foreach(ctx: CommandContext) -> None:

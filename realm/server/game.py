@@ -617,6 +617,8 @@ class GameServer:
                 self._startup_room = obj
                 break
 
+        from realm.behaviors.scripted import report_unresolved
+        report_unresolved(objects)
         return len(objects)
 
     async def _reconcile_orphaned_players(self) -> None:
