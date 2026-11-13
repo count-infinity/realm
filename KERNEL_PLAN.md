@@ -146,32 +146,32 @@ Semantics of `destroy_object`:
 6. Return the count of destroyed contents. Make `teardown._release` return
    that count instead of `None`.
 
-- [ ] Write `tests/test_lifecycle.py` first (use `Simulator`, plus one case on
+- [x] Write `tests/test_lifecycle.py` first (use `Simulator`, plus one case on
       a real `PersistenceManager` with a temp SQLite file):
-  - [ ] `@destroy` of a room with a player inside: the player still exists and
+  - [x] `@destroy` of a room with a player inside: the player still exists and
         stands in the start room. On SQLite the player's row still exists.
-  - [ ] A player-owned item in the destroyed room is at its owner's refuge. An
+  - [x] A player-owned item in the destroyed room is at its owner's refuge. An
         unowned NPC in the room is gone.
-  - [ ] `@destroy` and softcode `destroy_obj()` both refuse a `safe`-tagged
+  - [x] `@destroy` and softcode `destroy_obj()` both refuse a `safe`-tagged
         object. `destroy_obj()` returns `False` and the object still exists.
-  - [ ] Softcode `destroy_obj(container)` leaves no object whose `location` is
+  - [x] Softcode `destroy_obj(container)` leaves no object whose `location` is
         a deleted object.
-  - [ ] Softcode destroy of a paired exit clears the partner's pairing.
-  - [ ] `@nuke` removes the player and their inventory.
-- [ ] Add `realm/core/lifecycle.py` as specified.
-- [ ] `cmd_destroy` (`commands/olc/admin.py`): keep parsing, target
+  - [x] Softcode destroy of a paired exit clears the partner's pairing.
+  - [x] `@nuke` removes the player and their inventory.
+- [x] Add `realm/core/lifecycle.py` as specified.
+- [x] `cmd_destroy` (`commands/olc/admin.py`): keep parsing, target
       resolution, `require_control` and "You can't destroy yourself!". Replace
       the player check, the `safe` check, the pairing block and the recursive
       call with `destroy_object(target, ctx.persistence)`. On `DestroyRefused`
       send `refused.reason`.
-- [ ] `cmd_nuke`: `destroy_object(target, ctx.persistence, allow_player=True,
+- [x] `cmd_nuke`: `destroy_object(target, ctx.persistence, allow_player=True,
       contents="destroy")`. Delete `_destroy_recursive`.
-- [ ] `ScriptEngine._deliver_queued`, `'destroy'` branch: replace the body
+- [x] `ScriptEngine._deliver_queued`, `'destroy'` branch: replace the body
       with `destroy_object(obj, self._persistence)` and swallow
       `DestroyRefused`.
-- [ ] `ScriptFunctions.destroy_obj` (`scripting/functions.py:503`): call
+- [x] `ScriptFunctions.destroy_obj` (`scripting/functions.py:503`): call
       `check_destroy(target)` and return `False` on refusal.
-- [ ] `core/events.py::reap_expired` and the final `else` branch of
+- [x] `core/events.py::reap_expired` and the final `else` branch of
       `GameServer._reconcile_orphaned_players`: call `destroy_object`. Leave
       `instances.destroy_instance` and the wilderness cell teardown alone;
       they are batch teardowns with their own doomed sets.
@@ -2589,4 +2589,7 @@ entry closed.
 
 | Date | Step | Decision or deviation | Why |
 |---|---|---|---|
-| | | | |
+| 2026-11-12 | 1.1 | `reap_expired`: a player or `safe` object with a past `expires_at` is not destroyed. `destroy_object` refuses it; the reaper logs a WARNING and clears `expires_at`. | The plan routes the reaper through `destroy_object` but does not say what to do on refusal. Clearing the lease stops the warning repeating every tick. |
+| 2026-11-12 | 1.1 | `_reconcile_orphaned_players`: a dangling non-player object that is `safe` is moved to the start room with a WARNING instead of being deleted. | Same gap. Leaving it at `location=None` would be the silent limbo the sweep exists to prevent. |
+| 2026-11-12 | 1.1 | `DestroyRefused` carries `# noqa: N818`. | The plan names the class; ruff wants an `Error` suffix. Keeps the finding count at 19. |
+| 2026-11-12 | 1.1 | Not fixed: exits *inside* a destroyed room are deleted by `release_contents` without dissolving their pairing, so a neighbouring room's exit can keep a `partner` pointing at a deleted exit. | Outside the 1.1 spec (it dissolves only the destroyed object itself). Candidate for step 5's destroy op. |

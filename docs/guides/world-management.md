@@ -185,6 +185,30 @@ on a paired exit **dissolve** the pairing on both sides (loudly, so a
 retargeted exit never drags a mirror along to an unrelated door), and
 `@destroy` of one side clears the survivor.
 
+## Destroying objects (`@destroy`, `@nuke`)
+
+`@destroy <object>` removes an object you control, permanently. It never
+loses a player or a player's property. What happens to the things inside:
+
+| Inside the destroyed object | Goes to |
+|---|---|
+| A player (at any depth, even inside a vehicle) | Their `home`, else the start room (tag `start_room`) |
+| An item owned by a player | Its owner's `home`, else the start room |
+| Anything else (unowned items, NPCs, exits) | Destroyed with it, contents first |
+
+`@destroy` refuses players (use `@nuke`) and anything tagged `safe`. A
+destroyed exit dissolves its pairing, so the far side is not left pointing
+at a deleted door.
+
+`@nuke <player>` (admin) disconnects the player and destroys the character
+together with everything they carry. Other players inside are still sent
+home.
+
+Softcode `destroy_obj(obj)` follows the same rules: it returns `False` for a
+player or a `safe` object. Objects whose `expires_at` has passed are
+destroyed the same way; a player or `safe` object never expires (its
+`expires_at` is cleared with a server warning).
+
 ## Templates (`@parent`)
 
 Write a capability once, as attributes on a **template** object, and any

@@ -84,17 +84,19 @@ async def release_contents(
     room: GameObject, persistence, *,
     return_room: GameObject | None = None,
     doomed_ids: frozenset[str] | set[str] = frozenset(),
-) -> None:
+) -> int:
     """Apply the R9 disposition to every occupant of ``room``, recursing
     through containment (see module docstring). ``doomed_ids`` are the ids
     being deleted *with* the room — their contents are released here, but
-    the shells are destroyed by the caller."""
-    await _release(room, persistence, return_room=return_room,
+    the shells are destroyed by the caller. Returns how many occupants this
+    call destroyed (doomed shells are the caller's and are not counted)."""
+    return await _release(room, persistence, return_room=return_room,
                    doomed_ids=doomed_ids, seen={room.id})
 
 
 async def _release(container: GameObject, persistence, *,
-                   return_room, doomed_ids, seen: set[str]) -> None:
+                   return_room, doomed_ids, seen: set[str]) -> int:
+    destroyed = 0
     for occupant in list(container.contents):
         if occupant.id in seen:     # containment cycle guard
             continue
@@ -106,7 +108,7 @@ async def _release(container: GameObject, persistence, *,
         if occupant.id in doomed_ids:
             # The shell dies with the room — but whatever sits INSIDE it
             # (a player's sword in a doomed chest) still gets disposed.
-            await _release(occupant, persistence, return_room=return_room,
+            destroyed += await _release(occupant, persistence, return_room=return_room,
                            doomed_ids=doomed_ids, seen=seen)
             continue
         owner = occupant.owner
@@ -123,8 +125,9 @@ async def _release(container: GameObject, persistence, *,
             # No home, no start room — a bare test world; fall through to
             # deletion rather than leave a dangling location.
         # To be destroyed: empty it first, then delete the shell.
-        await _release(occupant, persistence, return_room=return_room,
-                       doomed_ids=doomed_ids, seen=seen)
+        destroyed += await _release(occupant, persistence,
+                                    return_room=return_room,
+                                    doomed_ids=doomed_ids, seen=seen)
         occupant.location = None
         if persistence is not None:
             await persistence.delete(occupant)
@@ -132,6 +135,8 @@ async def _release(container: GameObject, persistence, *,
             f"Teardown of {container.name}: destroyed "
             f"{'unowned' if owner is None else 'non-player-owned'} "
             f"occupant {occupant.name} ({occupant.id})")
+        destroyed += 1
+    return destroyed
 
 
 __all__ = [

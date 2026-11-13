@@ -248,7 +248,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`damage`](#fn-damage) | Deal damage to something in the executor's room. | [Combat & effects](#combat-effects) |
 | [`decr`](#fn-decr) | Decrement a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
 | [`del_attr`](#fn-del_attr) | Delete an attribute from an object the executor controls. | [Objects & attributes](#objects-attributes) |
-| [`destroy_obj`](#fn-destroy_obj) | Destroy an object the executor controls (players never). | [Objects & attributes](#objects-attributes) |
+| [`destroy_obj`](#fn-destroy_obj) | Destroy an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`detach_behavior`](#fn-detach_behavior) | Detach a behavior (by id) from an object the executor controls. | [NPCs & behaviors](#npcs-behaviors) |
 | [`dice`](#fn-dice) | Roll dice: NdS+M Args: num: Number of dice sides: Sides per die modifier: Added to total | [Dice & skill checks](#dice-skill-checks) |
 | [`disposition`](#fn-disposition) | How npc feels about other (default: the enactor). | [NPCs & behaviors](#npcs-behaviors) |
@@ -439,7 +439,10 @@ del_attr(me, 'charged')
 destroy_obj(obj: GameObject | str | None) -> bool
 ```
 
-Destroy an object the executor controls (players never).
+Destroy an object the executor controls. Players and `safe`-tagged
+objects are refused (returns False). Like `@destroy`: players inside
+are sent home, player-owned items go to their owner's home, and
+everything else inside is destroyed with it.
 
 **Example**
 

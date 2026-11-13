@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object_global, require_control, resolve_target, save_object
+from realm.core.lifecycle import DestroyRefused, destroy_object
 from realm.core.render import render_room
 
 
@@ -148,7 +149,9 @@ async def cmd_destroy(ctx: CommandContext) -> None:
 
     Usage: @destroy <object>
 
-    This cannot be undone! The object and its contents are deleted.
+    This cannot be undone! Players inside are sent home (else to the start
+    room), player-owned items go to their owner's home, and everything else
+    inside is destroyed with it. Players and `safe` objects are refused.
 
     Example:
         @destroy rusty key
@@ -170,23 +173,11 @@ async def cmd_destroy(ctx: CommandContext) -> None:
         await ctx.session.send("You can't destroy yourself!")
         return
 
-    if target.has_tag('player'):
-        await ctx.session.send("Use @nuke to destroy player objects.")
+    try:
+        destroyed_count = await destroy_object(target, ctx.persistence)
+    except DestroyRefused as refused:
+        await ctx.session.send(refused.reason)
         return
-
-    if target.has_tag('safe'):
-        await ctx.session.send(f"{target.name} is protected from destruction.")
-        return
-
-    # A destroyed exit is no longer anyone's far side.
-    if target.has_tag('exit'):
-        from realm.core.pairing import dissolve_pairing
-        former = dissolve_pairing(target)
-        if former is not None:
-            await save_object(ctx, former)
-
-    # Recursively destroy contents
-    destroyed_count = await _destroy_recursive(ctx, target)
 
     await ctx.session.send(f"Destroyed {target.name} and {destroyed_count} contained object(s).")
 
@@ -227,8 +218,8 @@ async def cmd_nuke(ctx: CommandContext) -> None:
         await session.send("Your character has been removed from the world.")
         await sm.destroy_session(session)
 
-    # Destroy
-    await _destroy_recursive(ctx, target)
+    await destroy_object(target, ctx.persistence, allow_player=True,
+                         contents="destroy")
     await ctx.session.send(f"Player {target.name} has been nuked.")
 
 
@@ -401,26 +392,6 @@ async def cmd_boot(ctx: CommandContext) -> None:
     await session.send("You have been disconnected by an administrator.")
     await sm.destroy_session(session)
     await ctx.session.send(f"Booted {target.name}.")
-
-
-async def _destroy_recursive(ctx: CommandContext, obj) -> int:
-    """Destroy an object and all its contents. Returns count of destroyed objects."""
-    count = 0
-
-    # First destroy contents
-    for child in list(obj.contents):
-        count += await _destroy_recursive(ctx, child)
-        count += 1
-
-    # Remove from location
-    if obj.location:
-        obj.location = None
-
-    # Delete from persistence
-    if ctx.persistence:
-        await ctx.persistence.delete(obj)
-
-    return count
 
 
 def register_admin_commands(dispatcher: CommandDispatcher) -> None:

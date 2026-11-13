@@ -651,7 +651,8 @@ class GameServer:
                 f"(no resolvable location) -> {dest.name}"
             )
 
-        from realm.core.teardown import owner_refuge, release_contents
+        from realm.core.lifecycle import DestroyRefused, destroy_object
+        from realm.core.teardown import owner_refuge
         dangling = getattr(self.persistence, '_dangling_locations', {})
         for obj_id, loc_id in list(dangling.items()):
             dangling.pop(obj_id, None)
@@ -671,11 +672,19 @@ class GameServer:
                     f"{loc_id} vanished -> {owner.name}'s refuge {refuge.name}"
                 )
             else:
-                # Empty it first — a player or player-owned property that
-                # reloaded INSIDE this dangling container must not be
-                # deleted out from under (R9 recursion).
-                await release_contents(obj, self.persistence)
-                await self.persistence.delete(obj)
+                # destroy_object empties it first — a player or player-owned
+                # property that reloaded INSIDE this dangling container must
+                # not be deleted out from under (R9 recursion).
+                try:
+                    await destroy_object(obj, self.persistence)
+                except DestroyRefused as refused:
+                    obj.location = self._startup_room
+                    await self.persistence.save(obj)
+                    logger.warning(
+                        f"Reconciled {obj.name} ({obj.id}): stored location "
+                        f"{loc_id} vanished and it may not be destroyed "
+                        f"({refused.reason}) -> start room")
+                    continue
                 logger.warning(
                     f"Reaped {obj.name} ({obj.id}): stored location "
                     f"{loc_id} vanished and it has no player owner"

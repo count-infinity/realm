@@ -501,12 +501,20 @@ class ScriptFunctions:
         return obj
 
     def destroy_obj(self, obj: GameObject | str | None) -> bool:
-        """Destroy an object the executor controls (players never).
+        """Destroy an object the executor controls. Players and ``safe``-tagged
+        objects are refused (returns False). Like ``@destroy``: players inside
+        are sent home, player-owned items go to their owner's home, and
+        everything else inside is destroyed with it.
 
         Example: destroy_obj('slag')
         """
+        from realm.core.lifecycle import DestroyRefused, check_destroy
         target = self._resolve(obj)
-        if target is None or target.has_tag('player'):
+        if target is None:
+            return False
+        try:
+            check_destroy(target)
+        except DestroyRefused:
             return False
         if not self._may_mutate(target):
             return False

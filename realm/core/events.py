@@ -15,6 +15,7 @@ events just fire the triggers.
 
 from __future__ import annotations
 
+import logging
 import time as _time
 from typing import TYPE_CHECKING
 
@@ -24,6 +25,7 @@ from realm.core.propagation import Action, propagate
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
+logger = logging.getLogger(__name__)
 
 async def fire_event(
     actor: GameObject | None,
@@ -65,8 +67,8 @@ async def reap_expired(persistence, *, now: float | None = None) -> int:
     reaction but does NOT stay the destruction — death is decided by the
     field, not the hook.)
     """
+    from realm.core.lifecycle import DestroyRefused, destroy_object
     from realm.core.query import find_objects
-    from realm.core.teardown import release_contents
 
     now = _time.time() if now is None else now
     reaped = 0
@@ -83,10 +85,15 @@ async def reap_expired(persistence, *, now: float | None = None) -> int:
         at = obj.db.get('expires_at')
         if at is None or float(at) > now:
             continue
-        await release_contents(obj, persistence)   # R9 disposition of contents
-        obj.location = None
-        if persistence is not None:
-            await persistence.delete(obj)
+        try:
+            await destroy_object(obj, persistence)  # R9 disposition of contents
+        except DestroyRefused as refused:
+            # A player or safe object never expires. Drop the lease so the
+            # warning is not repeated every tick.
+            obj.db.delete('expires_at')
+            logger.warning(f"Expiry of {obj.name} ({obj.id}) refused: {refused.reason} "
+                           f"Cleared its expires_at.")
+            continue
         reaped += 1
     return reaped
 

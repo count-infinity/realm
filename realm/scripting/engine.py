@@ -1102,20 +1102,14 @@ class ScriptEngine:
                     saved.add(obj.id)
                     await self._persistence.save(obj)
             elif kind == 'destroy':
-                # Evacuation guard: never orphan a player by destroying the
-                # room they stand in — relocate them along the
-                # home → start_room ladder first. (Instance reaping does its
-                # own return_room-aware evacuation in destroy_instance; this
-                # is the general safety net.)
-                if any(c.has_tag('player') for c in obj.contents):
-                    from realm.core.instances import evacuation_room
-                    for occupant in list(obj.contents):
-                        if occupant.has_tag('player'):
-                            occupant.location = evacuation_room(
-                                self._persistence, occupant)
-                obj.location = None
-                if self._persistence is not None:
-                    await self._persistence.delete(obj)
+                # destroy_obj() already ran check_destroy; the object may
+                # have changed since (tagged safe later in the same script).
+                from realm.core.lifecycle import DestroyRefused, destroy_object
+                try:
+                    await destroy_object(obj, self._persistence)
+                except DestroyRefused as refused:
+                    logger.info(f"Softcode destroy of {obj.name} ({obj.id}) refused: "
+                                f"{refused.reason}")
             elif kind == 'death_check':
                 # message slot carries the killer (the scripted object).
                 if int(obj.db.get('hp') or 0) <= 0:
