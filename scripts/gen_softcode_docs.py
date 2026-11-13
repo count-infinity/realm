@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # ruff: noqa: E501  (markdown table rows in the template)
-"""Regenerate docs/reference/softcode.md from the live ScriptFunctions API.
+"""Regenerate docs/reference/softcode.md from the live ScriptFrame API.
 
 Run after adding/changing softcode functions:  python scripts/gen_softcode_docs.py
 """
@@ -9,53 +9,54 @@ import pathlib
 import re
 import textwrap
 
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
+from realm.scripting.registry import registered
 from realm.scripting.triggers import STANDARD_EVENTS
 
-#: Function -> section. Every softcode function must appear exactly once;
-#: main() raises if this map and the live API drift apart, so adding a
-#: function without filing it here fails the build rather than silently
-#: dropping it into an "Other" bucket nobody reads.
-CATEGORIES: dict[str, list[str]] = {
-    "Objects & attributes": [
-        "get", "get_attr", "set_attr", "has_attr", "del_attr", "V",
-        "incr", "decr", "name", "loc", "owner", "contents", "exits",
-        "create_obj", "destroy_obj", "teleport_obj", "controls",
-        "eval_attr", "call", "search_world",
-    ],
-    "Tags & zones": [
-        "add_tag", "remove_tag", "has_tag", "tags", "tag_value",
-        "tag_values", "zones_of", "zone_rooms",
-    ],
-    "Locks & permissions": [
-        "set_lock", "clear_lock", "test_lock", "has_entitlement",
-    ],
-    "Money": ["credits", "adjust_credits", "transfer_credits"],
-    "Messaging & prompts": [
-        "pemit", "oemit", "remit", "oob", "ansi", "escape", "prompt",
-    ],
-    "Dice & skill checks": [
-        "rand", "dice", "roll", "skill_check", "check_roll", "contest",
-        "band", "highest", "margin_over", "margin_under", "net_successes",
-    ],
-    "Combat & effects": [
-        "damage", "heal", "apply_effect", "remove_effect", "start_combat",
-        "cast",
-    ],
-    "NPCs & behaviors": [
-        "disposition", "adjust_disposition", "reaction_roll", "force",
-        "behaviors", "attach_behavior", "detach_behavior",
-    ],
-    "Movement & travel": ["move_to", "enter_instance", "enter_wilderness"],
-    "Firing your own events": ["act"],
-    "Time & scheduling": ["now", "wait", "cancel_wait", "expire"],
-    "Text": [
-        "capstr", "lcfirst", "ucfirst", "left", "right", "mid", "strlen",
-        "repeat", "replace", "trim", "words", "extract", "first", "last",
-        "rest", "member", "setdiff", "setinter", "setunion",
-    ],
-    "Math & logic": ["ceil", "floor", "clamp", "if_else", "switch"],
-}
+#: Section order in the reference. Each function's section is its
+#: ``group`` in the registry (realm/scripting/registry.py); main() raises if
+#: a registered group is missing here, so a new group cannot be dropped.
+GROUPS: list[str] = [
+    "Objects & attributes",
+    "Tags & zones",
+    "Locks & permissions",
+    "Money",
+    "Messaging & prompts",
+    "Dice & skill checks",
+    "Combat & effects",
+    "NPCs & behaviors",
+    "Movement & travel",
+    "Firing your own events",
+    "Time & scheduling",
+    "Text",
+    "Math & logic",
+]
+
+
+def profiles_table() -> str:
+    """The profile table, from the namespace builder's own metadata."""
+    from realm.scripting.namespace import (
+        PROFILE_EXTRAS,
+        PROFILE_SUBJECT,
+        PROFILES,
+        READONLY_PROFILES,
+    )
+    where = {
+        "script": "`$`-commands, `^`-listens, `ON_<EVENT>`, `on_tick`, `@tr`, `@eval`",
+        "check": "`on_check` wards, a behavior_def's `on_check`, wilderness map providers",
+        "inline": "`[[...]]` blocks in descriptions",
+        "lock": "lock expressions (`@lock`, `set_lock`)",
+        "detail": "`@detail` conditions",
+        "rule": "a game system's `resolve_rule`",
+    }
+    rows = ["| Profile | Runs | Functions | Extra names | Subject |",
+            "|---|---|---|---|---|"]
+    for name in PROFILES:
+        fns = ("read-only only" if name in READONLY_PROFILES
+               else "all (harm-flagged ones only with the HARM entitlement)")
+        rows.append(f"| `{name}` | {where[name]} | {fns} | {PROFILE_EXTRAS[name]} "
+                    f"| {PROFILE_SUBJECT[name]} |")
+    return "\n".join(rows)
 
 
 def anchor(name: str) -> str:
@@ -124,16 +125,21 @@ mini-language reaches attributes a string hides from the validator). Use
 f-strings, which are checked normally. Builtins are an allowlist: the common
 functions, types, and exception classes are present; anything else is not.
 
-## Context names
+## Where softcode runs (profiles)
 
-| Name | Meaning |
-|---|---|
-| `me` / `executor` | the scripted object (scripts run AS it, with its owner's authority) |
-| `enactor` | who triggered the script (`%#` in simple scripts) |
-| `here` / `location` | where it happened |
-| `viewer` | the looker (inline `[[...]]` blocks and @detail conditions) |
-| `arg0..argN` / `%0..%9` | wildcard captures |
-| `result` | what an inline `[[...]]` block substitutes |
+Every place softcode is evaluated builds its namespace with one function,
+`build_namespace` (`realm/scripting/namespace.py`). A *profile* decides
+which functions are visible and which context names are bound. Functions
+flagged read-only (they only read, roll or format) are visible everywhere;
+the rest only where the world may change.
+
+{PROFILES}
+
+`skill(name)` and `check(name, mod)` act for the profile's *subject*.
+`me` is the scripted object (scripts run AS it, with its owner's
+authority), `enactor` who triggered the script (`%#` in simple scripts),
+`here` where it happened. `arg0..argN` (`%0..%9`) are wildcard captures,
+and an inline block's `result` is what it substitutes.
 
 ## Substitutions (`%` tokens)
 
@@ -298,20 +304,16 @@ script.
 
 
 def main() -> None:
-    d = ScriptFunctions().to_dict()
-    live = {n for n, fn in d.items() if callable(fn)}
-    filed = {n for names in CATEGORIES.values() for n in names}
-    if live != filed:
-        missing = ", ".join(sorted(live - filed)) or "none"
-        stale = ", ".join(sorted(filed - live)) or "none"
+    d = ScriptFrame().to_dict()
+    live = set(registered())
+    unknown = {e.group for e in registered().values()} - set(GROUPS)
+    if unknown:
         raise SystemExit(
-            "CATEGORIES is out of sync with the live API.\n"
-            f"  unfiled functions: {missing}\n"
-            f"  filed but gone:    {stale}\n"
-            "Add each new function to a section in CATEGORIES."
-        )
+            f"Registered softcode groups missing from GROUPS: {sorted(unknown)}.\n"
+            "Add each to GROUPS in the order it should appear in the reference.")
+    sections = {g: [n for n, e in registered().items() if e.group == g] for g in GROUPS}
 
-    lines = [HEADER]
+    lines = [HEADER.replace("{PROFILES}", profiles_table())]
     for name, desc in STANDARD_EVENTS.items():
         lines.append(f"| `ON_{name}` | {desc} |")
 
@@ -329,7 +331,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 """)
     lines.append("| Function | What it does | Section |")
     lines.append("|---|---|---|")
-    section_of = {n: sec for sec, names in CATEGORIES.items() for n in names}
+    section_of = {n: e.group for n, e in registered().items()}
     for name in sorted(live, key=str.lower):
         prose, _ = split_doc(inspect.getdoc(d[name]) or "")
         sec = section_of[name]
@@ -337,7 +339,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
                      f"| {esc(summarize(prose))} "
                      f"| [{sec}](#{sec.lower().replace(' & ', '-').replace(' ', '-')}) |")
 
-    for section, names in CATEGORIES.items():
+    for section, names in sections.items():
         lines.append(f"\n## {section}\n")
         for name in sorted(names, key=str.lower):
             fn = d[name]

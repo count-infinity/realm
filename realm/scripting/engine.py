@@ -4,7 +4,7 @@ Script execution engine for REALM.
 Ties together:
 - TriggerManager: finding matching triggers
 - ScriptSandbox: safe execution
-- ScriptFunctions: built-in functions injected into scripts
+- ScriptFrame: built-in functions injected into scripts
 - The propagation engine: how scripts observe the world and act back on it
 
 The engine is owned by GameServer (``server.script_engine``) and wired in
@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any
 from realm.core.action_tags import SCRIPTED
 from realm.core.action_types import ActionType
 from realm.core.propagation import Action
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 from realm.scripting.sandbox import (
     ScriptContext,
     ScriptError,
@@ -270,7 +270,7 @@ class ScriptEngine:
         and counterspells become data (see docs).
 
         It is **decision-only by construction**: the script runs against a
-        restricted READ-ONLY namespace (``ScriptFunctions.readonly_dict`` —
+        restricted READ-ONLY namespace (``ScriptFrame.readonly_dict`` —
         reads, dice, formatting) plus the check verbs, so it cannot mutate
         or queue world state. Reacting to an action belongs in ``on_react``
         / ``ON_<EVENT>`` triggers, which run after.
@@ -300,19 +300,14 @@ class ScriptEngine:
         """
         if obj.is_halted:
             return
+        from realm.scripting.namespace import build_namespace
         from realm.scripting.sandbox import ScriptContext
 
         ctx = ScriptContext(enactor=action.actor, executor=obj,
                             location=obj.location)
-        functions = ScriptFunctions(
-            enactor=action.actor, executor=obj, location=obj.location,
-            persistence=self._persistence)
-        namespace = functions.readonly_dict()
-        namespace.update(self._check_namespace(action))
-        if params is not None:
-            bound = dict(params)
-            namespace['param'] = (
-                lambda key, default=None: bound.get(str(key), default))
+        namespace, _frame = build_namespace(
+            'check', executor=obj, enactor=action.actor, location=obj.location,
+            store=self._persistence, action=action, params=params)
         try:
             await self.sandbox.execute_async(code, ctx, functions=namespace)
         except ScriptError as exc:
@@ -350,6 +345,22 @@ class ScriptEngine:
         await self._execute_trigger(match, enactor or obj,
                                     location=obj.location, action=action,
                                     extra_namespace=extra)
+
+    @staticmethod
+    def _not_readonly_hint(exc: Exception) -> str:
+        """When a ward died calling a real function it may not use there,
+        say why: ``on_check`` sees only read-only functions."""
+        import re
+
+        from realm.scripting.registry import registered
+        match = re.search(r"name '(\w+)' is not defined", str(exc))
+        if match is None:
+            return ""
+        entry = registered().get(match.group(1))
+        if entry is None or entry.readonly:
+            return ""
+        return (f" ({entry.name}() exists but changes the world, so on_check "
+                f"cannot call it; do that in an ON_<EVENT> reaction instead)")
 
     @staticmethod
     def _ward_can_deny(code: str, known: set[str]) -> bool:
@@ -399,71 +410,16 @@ class ScriptEngine:
         items, landmines, clearance gates, escrow, the jail door — quietly
         stopped protecting, indistinguishably from having allowed it.
         """
-        logger.error("on_check FAILED on %s (%s): %s", obj.name, obj.id, exc)
+        hint = self._not_readonly_hint(exc)
+        logger.error("on_check FAILED on %s (%s): %s%s", obj.name, obj.id, exc, hint)
         # Loud: the builder who owns the broken ward hears about it.
         owner = obj.owner if obj.owner is not None else None
         if owner is not None:
-            owner.msg(f"Ward error on {obj.name}: {exc}")
+            owner.msg(f"Ward error on {obj.name}: {exc}{hint}")
         from realm.scripting.sandbox import SAFE_BUILTINS
         known = namespace_names | set(SAFE_BUILTINS)
         if self._ward_can_deny(code, known):
             action.block(f"{obj.name} is warded, but the ward is malfunctioning.")
-
-    @staticmethod
-    def _event_namespace(action: Action | None,
-                         enactor: GameObject | None = None) -> dict:
-        """The action's own data, for scripts that OBSERVE it —
-        ``ON_<EVENT>`` triggers and ``^listen``.
-
-        With no action behind the script (``@tr``, a ``$``-command) the
-        names are still bound, just empty: ``adata()`` answers with its
-        default and ``target`` is None. They must not simply vanish —
-        ``@tr obj/ON_GET`` is how a builder tests a hook, and a hook that
-        reads ``adata('amount')`` would otherwise die of NameError with
-        the error going to the log and "Triggered obj/ON_GET." going to
-        the builder. "No data" is the honest answer; an exception is not.
-
-        Read-only by design: the apply pass runs after the decision, so it
-        gets no ``block``/``mod`` (nothing left to veto) and no
-        ``set_adata`` (a bystander must not rewrite an in-flight action).
-        The check pass layers those verbs on top — see _check_namespace.
-
-        Without this, a witness could see only *who* acted, never *what
-        happened*: no target, no amount, no damage. Every payload the
-        engine already puts in ``action.extra`` (``amount`` on payments,
-        ``damage`` on hits, ``item`` on gets, ``pose`` on emotes) reaches
-        softcode through ``adata``.
-        """
-        if action is None:
-            return {
-                'atype': '',
-                'actor': enactor,     # keep actor == enactor, as when real
-                'target': None,
-                'has_atag': lambda tag: False,
-                'adata': lambda key, default=None: default,
-            }
-        return {
-            'atype': action.action_type,       # the action's type string
-            'actor': action.actor,             # who is acting
-            'target': action.target,           # what it targets
-            'has_atag': lambda tag: action.has_tag(str(tag)),
-            'adata': lambda key, default=None: action.extra.get(key, default),
-        }
-
-    @staticmethod
-    def _check_namespace(action: Action) -> dict:
-        """The extra softcode names available to an ``on_check`` script —
-        the in-flight action (as ON_<EVENT> sees it) plus the veto/modify
-        verbs that only the decision pass may use."""
-        namespace = ScriptEngine._event_namespace(action)
-        namespace.update({
-            'set_adata': lambda key, value: action.extra.__setitem__(
-                str(key), value),
-            'block': lambda reason='': action.block(str(reason)),
-            'mod': lambda value: action.add_modifier(int(value), 'on_check'),
-            'is_blocked': lambda: action.blocked,
-        })
-        return namespace
 
     def _install_softcode_prompt(self, player, text, callback,
                                  executor_id, persistent):
@@ -539,17 +495,16 @@ class ScriptEngine:
             executor=executor,
             location=executor.location,
         )
-        functions = ScriptFunctions(
-            enactor=enactor or executor,
-            executor=executor,
-            location=executor.location,
-            persistence=self._persistence,
-        )
+        from realm.scripting.namespace import build_namespace
+
+        namespace, functions = build_namespace(
+            'script', executor=executor, enactor=enactor or executor,
+            location=executor.location, store=self._persistence)
         self._depth += 1
         try:
             try:
                 result, output = await self.sandbox.execute_async(
-                    code, script_ctx, functions=functions.to_dict())
+                    code, script_ctx, functions=namespace)
             except ScriptError as e:
                 return None, str(e)
             for line in output:
@@ -710,21 +665,15 @@ class ScriptEngine:
                 expanded = SimpleScriptRunner.expand_simple(action_code, script_ctx)
                 await self._run_script_command(match.obj, expanded)
             else:
-                # Full Python script execution with game functions injected
-                functions = ScriptFunctions(
-                    enactor=enactor,
-                    executor=match.obj,
-                    location=location,
-                    persistence=self._persistence,
-                    enactor_consent=enactor_consent,
-                )
-                namespace = functions.to_dict()
-                # Always bound — empty when there is no action (@tr, a
-                # $-command). See _event_namespace: a hook reading adata()
-                # must not die of NameError when a builder @tr's it.
-                namespace.update(self._event_namespace(action, enactor))
-                if extra_namespace:
-                    namespace.update(extra_namespace)
+                # Full Python script execution with game functions injected.
+                # Event names are always bound — empty when there is no
+                # action (@tr, a $-command), so a hook reading adata() does
+                # not die of NameError when a builder @tr's it.
+                from realm.scripting.namespace import build_namespace
+                namespace, functions = build_namespace(
+                    'script', executor=match.obj, enactor=enactor,
+                    location=location, store=self._persistence, action=action,
+                    enactor_consent=enactor_consent, extra=extra_namespace)
                 try:
                     _result, output = await self.sandbox.execute_async(
                         action_code,
@@ -1077,7 +1026,7 @@ class ScriptEngine:
         from realm.core.verbs import do_whisper
         await do_whisper(speaker, target, message, scripted=True)
 
-    async def _deliver_queued(self, functions: ScriptFunctions) -> None:
+    async def _deliver_queued(self, functions: ScriptFrame) -> None:
         """
         Drain the queue scripts fill during (worker-thread) execution:
         messages (pemit/remit/oemit) and world ops that need the event
@@ -1142,6 +1091,13 @@ class ScriptEngine:
                 await self._propagate_act(
                     functions.executor, obj, msg, targeting, action_type,
                     payload, act_tags)
+            elif kind == 'ability':
+                from realm.systems.abilities import SPELL_DEF_TAG, invoke_ability
+                adef, target = message
+                if adef.has_tag(SPELL_DEF_TAG):
+                    await invoke_ability(obj, adef, target, verb="cast", domain="spell")
+                else:
+                    await invoke_ability(obj, adef, target)
             elif kind == 'cast':
                 from realm.core.events import fire_event
                 from realm.core.propagation import _room_of

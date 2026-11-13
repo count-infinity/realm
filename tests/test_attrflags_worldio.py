@@ -29,7 +29,7 @@ def fresh():
 class TestAttrFlags:
 
     def test_secret_hides_from_strangers(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         gm_room = GameObject("Vault", tags=["room"])
         gm_room.db.gm_notes = "the butler did it"
@@ -37,11 +37,11 @@ class TestAttrFlags:
 
         # Players (and player-owned objects) are the threat model: denied.
         alice = GameObject("Alice", tags=["player"])
-        funcs = ScriptFunctions(executor=alice)
+        funcs = ScriptFrame(executor=alice)
         assert funcs.get_attr(gm_room, "gm_notes") is None
         assert funcs.has_attr(gm_room, "gm_notes") is False
         gadget = GameObject("gadget", owner=alice)
-        funcs2 = ScriptFunctions(executor=gadget)
+        funcs2 = ScriptFrame(executor=gadget)
         assert funcs2.get_attr(gm_room, "gm_notes") is None
 
         # World-trusts-world: an unowned world NPC's staff-authored script
@@ -52,7 +52,7 @@ class TestAttrFlags:
 
     def test_search_world_respects_secret(self):
         from realm.persistence.manager import set_active_manager
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         pers = MockPersistence()
         vault = GameObject("Vault", tags=["room"])
@@ -62,7 +62,7 @@ class TestAttrFlags:
         set_active_manager(pers)
         try:
             alice = GameObject("Alice", tags=["player"])
-            funcs = ScriptFunctions(executor=alice, persistence=pers)
+            funcs = ScriptFrame(executor=alice, persistence=pers)
             assert funcs.search_world(attr="code") == []
         finally:
             set_active_manager(None)
@@ -75,8 +75,8 @@ class TestAttrFlags:
         ok, reason = writable_attr(obj, "on_pray")
         assert ok is False and "safe" in reason
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=obj)  # self-control, still safe
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=obj)  # self-control, still safe
         assert funcs.set_attr(obj, "on_pray", "hacked") is False
         assert obj.db.get("on_pray") == "say Blessings."
 

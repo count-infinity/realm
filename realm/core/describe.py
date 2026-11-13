@@ -52,20 +52,15 @@ def detail_lines(obj: GameObject, viewer: GameObject | None) -> list[str]:
     if not isinstance(extras, list) or viewer is None:
         return []
 
-    from realm.core.checks import check as _check
-    from realm.core.checks import skill_level as _skill_level
-
-    from realm.scripting.handle import guard_namespace
-    # Per-viewer conditions are builder-authored and NOT run through the
-    # script sandbox, so wrap the raw `viewer` in a read-only handle: a
-    # hostile row like ["viewer.db.set('marked',1) or False", ...] must not
-    # mutate whoever looks (docs/design/sandbox-security.md, Wall 2).
-    namespace = guard_namespace({
-        'viewer': viewer,
-        'skill': lambda name: _skill_level(viewer, str(name)),
-        'check': lambda name, mod=0: bool(_check(viewer, str(name), int(mod))),
-        'has_tag': lambda tag: viewer.has_tag(str(tag)),
-    }, principal=viewer)
+    from realm.scripting.namespace import build_namespace
+    # The `detail` profile: read-only functions and `viewer`, with the viewer
+    # as the subject of skill()/check(). Conditions are not run through the
+    # script sandbox, so `viewer` is a read-only handle: a hostile row like
+    # ["viewer.db.set('marked',1) or False", ...] must not mutate whoever
+    # looks (docs/design/sandbox-security.md, Wall 2).
+    namespace, _frame = build_namespace(
+        'detail', executor=obj, enactor=viewer, location=obj.location,
+        subject=viewer)
 
     lines: list[str] = []
     for entry in extras:

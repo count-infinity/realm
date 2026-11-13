@@ -16,8 +16,8 @@ Security model:
 
 from __future__ import annotations
 
-import asyncio
 import ast
+import asyncio
 import sys
 import time
 from collections.abc import Callable
@@ -410,7 +410,7 @@ class ScriptSandbox:
             ctx: Script context with enactor, executor, etc.
             validate: Whether to validate the AST first
             functions: Extra names injected into the script namespace
-                (typically ``ScriptFunctions.to_dict()``). Callables are
+                (typically ``ScriptFrame.to_dict()``). Callables are
                 wrapped so they count against the call/time limits.
 
         Returns:
@@ -567,7 +567,7 @@ class ScriptSandbox:
 
         Runs the script in a thread pool to avoid blocking the event loop.
         Injected functions therefore run off-loop: they must only read game
-        state or queue work (see ScriptFunctions.command_queue), never touch
+        state or queue work (see ScriptFrame.command_queue), never touch
         sessions or the loop directly.
         """
         loop = asyncio.get_running_loop()

@@ -17,16 +17,28 @@ mini-language reaches attributes a string hides from the validator). Use
 f-strings, which are checked normally. Builtins are an allowlist: the common
 functions, types, and exception classes are present; anything else is not.
 
-## Context names
+## Where softcode runs (profiles)
 
-| Name | Meaning |
-|---|---|
-| `me` / `executor` | the scripted object (scripts run AS it, with its owner's authority) |
-| `enactor` | who triggered the script (`%#` in simple scripts) |
-| `here` / `location` | where it happened |
-| `viewer` | the looker (inline `[[...]]` blocks and @detail conditions) |
-| `arg0..argN` / `%0..%9` | wildcard captures |
-| `result` | what an inline `[[...]]` block substitutes |
+Every place softcode is evaluated builds its namespace with one function,
+`build_namespace` (`realm/scripting/namespace.py`). A *profile* decides
+which functions are visible and which context names are bound. Functions
+flagged read-only (they only read, roll or format) are visible everywhere;
+the rest only where the world may change.
+
+| Profile | Runs | Functions | Extra names | Subject |
+|---|---|---|---|---|
+| `script` | `$`-commands, `^`-listens, `ON_<EVENT>`, `on_tick`, `@tr`, `@eval` | all (harm-flagged ones only with the HARM entitlement) | `me`, `here`, `enactor`; `atype`, `actor`, `target`, `has_atag`, `adata` (empty when no action); `param` for a behavior_def | enactor |
+| `check` | `on_check` wards, a behavior_def's `on_check`, wilderness map providers | read-only only | everything `script` binds, plus `block`, `mod`, `set_adata`, `is_blocked` | enactor |
+| `inline` | `[[...]]` blocks in descriptions | all (harm-flagged ones only with the HARM entitlement) | `me`, `here`, `enactor`, `viewer` | viewer |
+| `lock` | lock expressions (`@lock`, `set_lock`) | read-only only | `caller`, `target`, `owner` (the locked object's owner) | caller |
+| `detail` | `@detail` conditions | read-only only | `viewer` | viewer |
+| `rule` | a game system's `resolve_rule` | read-only only | `skill(name=<this skill>)`, `attr(name)`, `mod`, `skill_name` | the roller |
+
+`skill(name)` and `check(name, mod)` act for the profile's *subject*.
+`me` is the scripted object (scripts run AS it, with its owner's
+authority), `enactor` who triggered the script (`%#` in simple scripts),
+`here` where it happened. `arg0..argN` (`%0..%9`) are wildcard captures,
+and an inline block's `result` is what it substitutes.
 
 ## Substitutions (`%` tokens)
 
@@ -237,6 +249,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`capstr`](#fn-capstr) | Capitalize each word. | [Text](#text) |
 | [`cast`](#fn-cast) | Direct an ability at a target — the ability analog of `act`. | [Combat & effects](#combat-effects) |
 | [`ceil`](#fn-ceil) | Round up to integer. | [Math & logic](#math-logic) |
+| [`check`](#fn-check) | Roll a skill check AS the subject; True on success. | [Dice & skill checks](#dice-skill-checks) |
 | [`check_roll`](#fn-check_roll) | Roll a skill check and return the GRADED, condition-modified result. | [Dice & skill checks](#dice-skill-checks) |
 | [`clamp`](#fn-clamp) | Clamp value between low and high. | [Math & logic](#math-logic) |
 | [`clear_lock`](#fn-clear_lock) | Clear a lock from an object the executor controls. | [Locks & permissions](#locks-permissions) |
@@ -304,6 +317,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`setdiff`](#fn-setdiff) | Difference of two lists (in list1 but not list2). | [Text](#text) |
 | [`setinter`](#fn-setinter) | Intersection of two lists. | [Text](#text) |
 | [`setunion`](#fn-setunion) | Union of two space-separated lists. | [Text](#text) |
+| [`skill`](#fn-skill) | The subject's effective level in a skill (trained, else its default). | [Dice & skill checks](#dice-skill-checks) |
 | [`skill_check`](#fn-skill_check) | Roll a skill check for an object (name/#id or object). | [Dice & skill checks](#dice-skill-checks) |
 | [`start_combat`](#fn-start_combat) | Throw an attacker the executor controls into combat with a target in the same room (queued; the encounter starts after the script finishes). | [Combat & effects](#combat-effects) |
 | [`strlen`](#fn-strlen) | Get string length. | [Text](#text) |
@@ -316,6 +330,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`transfer_credits`](#fn-transfer_credits) | Move money FROM something the executor controls. | [Money](#money) |
 | [`trim`](#fn-trim) | Remove leading/trailing whitespace. | [Text](#text) |
 | [`ucfirst`](#fn-ucfirst) | Capitalize first character. | [Text](#text) |
+| [`use_ability`](#fn-use_ability) | Use an ability or spell definition (`ability_def` / `spell_def`) as the executor: pay its cost, roll its save, apply its effects — what the `cast` command does for a player. | [Combat & effects](#combat-effects) |
 | [`V`](#fn-v) | Read an attribute off `me` (the executor) — the common case. | [Objects & attributes](#objects-attributes) |
 | [`wait`](#fn-wait) | Run a script command as the executor exactly `seconds` from now (one-shot, its own timer — a 0.15s fuse fires at 0.15s, not quantized to the heartbeat; pending waits don't survive a reboot). | [Time & scheduling](#time-scheduling) |
 | [`words`](#fn-words) | Count words/elements in text. | [Text](#text) |
@@ -1056,6 +1071,24 @@ result = switch(r.margin, 2, 'You pull it off.',
                 'It goes wrong.')
 ```
 
+### `check` {#fn-check}
+
+```text
+check(name: str, mod: int = 0) -> bool
+```
+
+Roll a skill check AS the subject; True on success.
+
+The subject is the enactor in a script, the viewer in an inline block
+or `@detail` condition, the caller in a lock, the roller in a rule.
+For the graded result use `check_roll(obj, skill, mod)`.
+
+**Example**
+
+```text
+[[result = ' A loose flagstone.' if check('observation') else '']]
+```
+
 ### `check_roll` {#fn-check_roll}
 
 ```text
@@ -1218,6 +1251,23 @@ roll('4dF')          # Fudge/FATE: each die -1, 0 or +1
 damage(enactor, roll('2d6'))
 ```
 
+### `skill` {#fn-skill}
+
+```text
+skill(name: str) -> int
+```
+
+The subject's effective level in a skill (trained, else its default).
+
+The subject is the enactor in a script, the viewer in an inline block
+or `@detail` condition, the caller in a lock, the roller in a rule.
+
+**Example**
+
+```text
+[[result = 'You read the runes.' if skill('runes') >= 12 else '']]
+```
+
 ### `skill_check` {#fn-skill_check}
 
 ```text
@@ -1270,9 +1320,10 @@ genre category), so the target's `ON_CAST` reacts AND its
 `block() if has_atag('magic')` refuses any incoming magic power,
 not just damage — the resistance seam a spell can't otherwise reach.
 
-This fires the ward/reaction pass; it does not itself gate your
-script (side effects run after it). Use `contest()` for the resist
-*roll*, and `cast()` for the ward + `ON_CAST` layer.
+It fires the ward and reaction event only: no cost is paid and no
+effect is applied. To run an ability definition (its cost, save,
+damage and effects, as the `cast` command does) use `use_ability`.
+Use `contest()` for a resist *roll*.
 
 **Example**
 
@@ -1349,6 +1400,27 @@ script finishes).
 
 ```text
 start_combat('beast', enactor)
+```
+
+### `use_ability` {#fn-use_ability}
+
+```text
+use_ability(name: str, target: GameObject | str | None = None) -> bool
+```
+
+Use an ability or spell definition (`ability_def` / `spell_def`)
+as the executor: pay its cost, roll its save, apply its effects — what
+the `cast` command does for a player. Without `target` the ability
+picks its own (yourself, or your combat opponent for an attack).
+
+Returns False when no definition matches `name` or the executor does
+not qualify (class, level, skill). It runs after the script, so a False
+from a failed cost or a ward's veto is not visible here.
+
+**Example**
+
+```text
+use_ability('fireball', enactor)
 ```
 
 

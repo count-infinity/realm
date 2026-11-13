@@ -6,7 +6,7 @@ game setting — ``INLINE_OPEN``/``INLINE_CLOSE`` in config.py — for
 worlds that prefer ``${ ... }`` or similar; everything below uses the
 default). At render time each
 block runs through the script sandbox PER VIEWER, with the full
-ScriptFunctions namespace (get_attr/set_attr/check/skill_check/rand/
+ScriptFrame namespace (get_attr/set_attr/check/skill_check/rand/
 now/...), ``me`` = the described object (the block runs with ITS
 authority), and ``viewer``/``enactor`` = the looker. Whatever the block
 assigns to ``result`` replaces the block; no result = empty string.
@@ -15,7 +15,7 @@ Errors and forbidden code fail closed to '' (logged).
 The memoized passive-detection idiom, verbatim builder softcode:
 
     @desc here = A dusty cellar. [[k = 'det_' + viewer.id;
-      r = get_attr(me, k) or ('PASS' if check_roll('detection', -2)
+      r = get_attr(me, k) or ('PASS' if check('detection', -2)
                               else 'FAIL');
       set_attr(me, k, r);
       result = 'You see a small hole in the wall.' if r == 'PASS' else '']]
@@ -133,25 +133,15 @@ def eval_inline(text: str, me: GameObject, viewer: GameObject | None) -> str:
         return text
 
     from realm.persistence.manager import get_active_manager
-    from realm.scripting.functions import ScriptFunctions
+    from realm.scripting.namespace import build_namespace
     from realm.scripting.sandbox import ScriptContext, ScriptError, ScriptSandbox
 
     sandbox = ScriptSandbox()
-    functions = ScriptFunctions(
-        enactor=viewer,
-        executor=me,
+    # The viewer is the subject: check() and skill() are theirs.
+    namespace, functions = build_namespace(
+        'inline', executor=me, enactor=viewer,
         location=me.location if me.location is not None else me,
-        persistence=get_active_manager(),
-    )
-    namespace = functions.to_dict()
-    namespace['viewer'] = viewer
-    # check() in conditions rolls AS THE VIEWER (their skills, their fear).
-    if viewer is not None:
-        from realm.core.checks import check as _check
-        from realm.core.checks import skill_level as _skill_level
-        namespace['check_roll'] = (
-            lambda skill, mod=0: bool(_check(viewer, str(skill), int(mod))))
-        namespace['skill'] = lambda name: _skill_level(viewer, str(name))
+        store=get_active_manager(), subject=viewer)
 
     def run_block(code: str) -> str:
         ctx = ScriptContext(enactor=viewer, executor=me, location=me.location)

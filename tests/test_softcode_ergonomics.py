@@ -6,7 +6,7 @@ Tests for the softcode-ergonomics batch (BACKLOG 2026-07-17):
 - per-room db.dark_msg    — override the default darkness line
 - confirms %#-substitution and f-strings already work in the sandbox
 
-Direct ScriptFunctions tests exercise the methods; sandbox tests prove the
+Direct ScriptFrame tests exercise the methods; sandbox tests prove the
 names are injected into the script namespace; the readonly test proves `V`
 (read-only) is usable in check-pass wards while `incr`/`decr` (mutators)
 are not.
@@ -17,14 +17,14 @@ from __future__ import annotations
 import pytest
 
 from realm.core.objects import GameObject
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 from realm.scripting.sandbox import ScriptContext, ScriptSandbox
 
 from tests.test_olc import MockPersistence
 
 
-def _funcs(executor: GameObject, persistence: MockPersistence) -> ScriptFunctions:
-    return ScriptFunctions(
+def _funcs(executor: GameObject, persistence: MockPersistence) -> ScriptFrame:
+    return ScriptFrame(
         enactor=executor,
         executor=executor,
         location=executor.location,

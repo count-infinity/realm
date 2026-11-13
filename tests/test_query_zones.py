@@ -162,13 +162,13 @@ class TestSoftcodeSurfaces:
 
     async def test_search_world_and_zone_sugar(self):
         from realm.persistence.manager import set_active_manager
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         pers = MockPersistence()
         keep, _y, _w, master, sword = make_world(pers)
         set_active_manager(pers)
         try:
-            funcs = ScriptFunctions(executor=master, persistence=pers)
+            funcs = ScriptFrame(executor=master, persistence=pers)
             assert sword in funcs.search_world(tag="thing")
             assert funcs.search_world(attr="value", value=50) == [sword]
             assert {r.name for r in funcs.zone_rooms("castle")} == {"Keep", "Yard"}
@@ -177,14 +177,14 @@ class TestSoftcodeSurfaces:
             set_active_manager(None)
 
     async def test_protected_attrs_hidden(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         pers = MockPersistence()
         alice = GameObject("Alice", tags=["player"])
         alice.db.password = "scrypt$deadbeef$cafe"
         pers.add(alice)
         imp = GameObject("imp")
-        funcs = ScriptFunctions(executor=imp, persistence=pers)
+        funcs = ScriptFrame(executor=imp, persistence=pers)
 
         assert funcs.get_attr(alice, "password") is None
         assert funcs.has_attr(alice, "password") is False
@@ -230,11 +230,11 @@ class TestZoneCommand:
 class TestTagValues:
 
     def test_namespaced_tag_reads(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         room = GameObject("Keep", tags=["room", "zone:castle",
                                         "zone:haunted", "climate:coastal"])
-        funcs = ScriptFunctions(executor=room)
+        funcs = ScriptFrame(executor=room)
         assert funcs.tag_value(room, "zone") == "castle"
         assert funcs.tag_values(room, "zone") == ["castle", "haunted"]
         assert funcs.tag_value(room, "climate:") == "coastal"  # colon ok

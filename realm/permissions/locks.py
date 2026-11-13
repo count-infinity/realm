@@ -154,12 +154,7 @@ class LockEvaluator:
 
         # Validation, compilation, and fail-closed evaluation all live in
         # the shared safe_eval engine.
-        from realm.scripting.handle import guard_namespace
-        return eval_bool(lock.expression, guard_namespace({
-            'caller': caller,
-            'target': target,
-            'owner': target.owner if target.owner else target,
-        }, principal=caller))
+        return eval_bool(lock.expression, _lock_namespace(caller, target))
 
     def check(
         self,
@@ -204,12 +199,23 @@ class LockEvaluator:
             lock_expr = DEFAULT_LOCKS.get(lock_type, "False")
 
         # eval_bool validates, compiles (lru-cached), and fails closed.
-        from realm.scripting.handle import guard_namespace
-        return eval_bool(lock_expr, guard_namespace({
-            'caller': caller,
-            'target': target,
-            'owner': target.owner if target.owner else target,
-        }, principal=caller))
+        return eval_bool(lock_expr, _lock_namespace(caller, target))
+
+
+_build_namespace = None
+
+
+def _lock_namespace(caller: GameObject, target: GameObject):
+    """The ``lock`` profile: ``caller``, ``target``, ``owner`` and the
+    read-only softcode functions, with the caller as the subject."""
+    global _build_namespace
+    if _build_namespace is None:     # import once; locks load before scripting
+        from realm.scripting.namespace import build_namespace
+        _build_namespace = build_namespace
+    namespace, _frame = _build_namespace(
+        'lock', executor=target, enactor=caller, location=target.location,
+        subject=caller)
+    return namespace
 
 
 # Global evaluator instance

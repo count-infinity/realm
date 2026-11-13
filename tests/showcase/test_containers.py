@@ -100,7 +100,7 @@ def pinned_rand(monkeypatch):
         return max(low, min(holder["value"], high))
 
     monkeypatch.setattr(
-        "realm.scripting.functions.random.randint", fake_randint)
+        "realm.scripting.lib.mathx.random.randint", fake_randint)
     return holder
 
 

@@ -12,7 +12,8 @@ import pytest
 from realm.core import dice
 from realm.core.checks import resolve_with_rule, set_skill_defaults, skill_level
 from realm.core.objects import GameObject
-from realm.scripting import clear_bindings, softcode_function
+from realm.scripting import softcode_function
+from realm.scripting.registry import unregister
 from realm.systems import GurpsSystem
 from realm.systems.base import GameSystem
 from realm.systems.gurps import BUILTIN_SKILL_DEFAULTS
@@ -174,11 +175,11 @@ class TestBindings:
             assert res == 300                            # 3*100 + 0 hits
         finally:
             sim.close()
-            clear_bindings()
+            unregister("cinematic")
 
     async def test_binding_is_callable_from_a_resolve_rule(self):
         """docs/guides/resolution-and-bindings.md, as written."""
-        @softcode_function
+        @softcode_function(readonly=True)
         def exploding_pool(pool, tn):
             return dice.net_successes(pool, tn)
 
@@ -189,7 +190,7 @@ class TestBindings:
                 hacker, "intrusion", 0, "exploding_pool(attr('pool'), 4)")
             assert result.skill == "intrusion"
         finally:
-            clear_bindings()
+            unregister("exploding_pool")
 
     async def test_builtin_rule_names_win_over_bindings(self):
         @softcode_function("mod")
@@ -201,7 +202,7 @@ class TestBindings:
             result = resolve_with_rule(npc, "x", 3, "mod")
             assert result.margin == 3
         finally:
-            clear_bindings()
+            unregister("mod")
 
     async def test_softcode_cannot_register_bindings(self):
         # Registration is a deploy-time native act; the register function is

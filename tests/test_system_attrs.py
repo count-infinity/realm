@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from realm.core.attrflags import has_attr_flag, mark_system, writable_attr
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 from realm.testing import Simulator
 
 
@@ -32,7 +32,7 @@ def world():
 
 
 def funcs(executor, sim, bay):
-    return ScriptFunctions(enactor=executor, executor=executor,
+    return ScriptFrame(enactor=executor, executor=executor,
                            location=bay, persistence=sim.store)
 
 

@@ -33,6 +33,12 @@ if TYPE_CHECKING:
 FLAGS_ATTR = "attr_flags"
 VALID_FLAGS = ("secret", "visual", "safe", "system", "no_clone", "public")
 
+# Attributes softcode may never read or write (secrets live in ordinary
+# attrs). 'keyid' is a unique identity handle: writing it must go through
+# the @keyid command so the uniqueness index stays consistent (see
+# realm/persistence/keyid.py), never a bare @set/set_attr.
+PROTECTED_ATTRS = frozenset({'password', 'keyid'})
+
 
 def attr_flags(obj: GameObject, name: str) -> set[str]:
     table = obj.db.get(FLAGS_ATTR)
@@ -128,7 +134,7 @@ def cloneable_attrs(attrs: dict, flag_table: dict | None) -> dict:
     return {k: v for k, v in attrs.items() if k not in skip}
 
 
-__all__ = ["FLAGS_ATTR", "VALID_FLAGS", "attr_flags", "has_attr_flag",
+__all__ = ["FLAGS_ATTR", "VALID_FLAGS", "PROTECTED_ATTRS", "attr_flags", "has_attr_flag",
            "set_attr_flags", "add_attr_flag", "mark_system",
            "readable_attr", "writable_attr",
            "visual_attrs", "cloneable_attrs"]

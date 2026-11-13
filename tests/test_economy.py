@@ -200,14 +200,14 @@ class TestPayAndBribes:
 class TestMoneySoftcode:
 
     async def test_credits_and_authority(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         room = GameObject("Vault", tags=["room"])
         npc = GameObject("banker", location=room)
         alice = GameObject("Alice", tags=["player"], location=room)
         adjust_credits(alice, 40)
 
-        funcs = ScriptFunctions(executor=npc)
+        funcs = ScriptFrame(executor=npc)
         assert funcs.credits(alice) == 40
         # The banker can't script money OUT of a player...
         assert funcs.transfer_credits(alice, npc, 10) is False

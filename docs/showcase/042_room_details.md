@@ -31,7 +31,9 @@ condition (the row stored as `['', text]`) means everyone sees the line;
 a non-empty condition (`['check(...)', text]`) is a gate. Conditions are
 safe expressions over the **viewer**: `check('observation', -2)` is a fresh
 roll made as the viewer with a -2 modifier, `skill('occultism') >= 12`
-reads their stable level with no dice, and `has_tag('ghost')` tests a tag.
+reads their stable level with no dice, and `has_tag(viewer, 'ghost')` tests a
+tag. Every read-only softcode function works in a condition, so
+`has_tag(viewer, 'x')` is the same two-argument call you write anywhere else.
 The `viewer` name is bound to the looker while the condition evaluates.
 Broken or forbidden conditions fail *closed*, so a bad expression simply
 drops its line rather than erroring. `@detail here` lists the rows

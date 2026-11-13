@@ -11,7 +11,7 @@ its own and leaves the suite green.
 |---|------|------|--------|
 | 1 | Fix the defects, delete the dead code | S | [x] |
 | 2 | One composition root, one source of defaults | S–M | [x] |
-| 3 | One softcode function registry, one namespace builder | M | [ ] |
+| 3 | One softcode function registry, one namespace builder | M | [x] |
 | 4 | Features: built-ins use the front door | M–L | [ ] |
 | 5 | One service function per world operation | M | [ ] |
 | 6 | One softcode dialect, open vocabularies | M | [ ] |
@@ -644,26 +644,26 @@ Registering a name that is already bound to a different callable raises
 `ValueError` unless `replace=True`. A game that really wants to replace
 `controls` has to say so.
 
-- [ ] Add the registry. `scripting/bindings.py` becomes a thin re-export of
+- [x] Add the registry. `scripting/bindings.py` becomes a thin re-export of
       `softcode_function`, then is deleted once imports are fixed
       (`realm.scripting.softcode_function` stays the public path).
 
 ### 3.2 Derive the lists (no file moves yet)
 
-- [ ] Write `tests/test_softcode_registry.py` first. It hardcodes today's
+- [x] Write `tests/test_softcode_registry.py` first. It hardcodes today's
       three sets, copied from the current code: the keys of `to_dict()`, the
       `_READONLY` names, the `_HARM_GATED` names. It asserts the registry
       produces the same three sets.
-- [ ] Decorate each public method of `ScriptFunctions` with
+- [x] Decorate each public method of `ScriptFunctions` with
       `@softfn(group=..., readonly=..., harm=...)`. Take `group` from
       `CATEGORIES`, `readonly` from `_READONLY`, `harm` from `_HARM_GATED`.
       Appendix A lists every function with its values.
-- [ ] Register the dice primitives from `core/dice.py` (`roll`,
+- [x] Register the dice primitives from `core/dice.py` (`roll`,
       `margin_under`, `margin_over`, `net_successes`, `highest`, `band`) with
       `softcode_function(group="Dice & skill checks", readonly=True)`.
-- [ ] `to_dict()` and `readonly_dict()` are generated from the registry.
+- [x] `to_dict()` and `readonly_dict()` are generated from the registry.
       Delete the hand-written dict, `_READONLY` and `_HARM_GATED`.
-- [ ] `scripts/gen_softcode_docs.py` reads groups from the registry. Delete
+- [x] `scripts/gen_softcode_docs.py` reads groups from the registry. Delete
       `CATEGORIES`; keep only an ordered list of group names. Regenerate.
       `git diff docs/reference/softcode.md` must be empty.
 
@@ -711,68 +711,68 @@ registry functions on first lookup. Measure `check_lock` with
 `python -m timeit` before and after; a slowdown above 20% goes in the
 Decision log and is fixed before the step closes.
 
-- [ ] Write the context test first, `tests/test_namespace_profiles.py`: a
+- [x] Write the context test first, `tests/test_namespace_profiles.py`: a
       native function registered with `readonly=True` is callable in a
       script, an `on_check` ward, a lock, a `@detail` condition, an inline
       block and a resolution rule. A native function without the flag is
       callable only in `script` and `inline`.
-- [ ] Add `build_namespace` and `ExprNamespace`.
-- [ ] Rewire every site in the table above to call it. Delete
+- [x] Add `build_namespace` and `ExprNamespace`.
+- [x] Rewire every site in the table above to call it. Delete
       `ScriptEngine._check_namespace` and `_event_namespace` once nothing else
       uses them.
-- [ ] Move `PROTECTED_ATTRS` from `scripting/functions.py:31` to
+- [x] Move `PROTECTED_ATTRS` from `scripting/functions.py:31` to
       `core/attrflags.py`. `scripting/handle.py` then no longer imports
       `functions`.
-- [ ] `ScriptEngine._ward_failed`: when the cause is a NameError for a
+- [x] `ScriptEngine._ward_failed`: when the cause is a NameError for a
       registered function that lacks `readonly`, say so in the log line.
-- [ ] Change the one tutorial line. Run the tutorial and showcase tests.
+- [x] Change the one tutorial line. Run the tutorial and showcase tests.
 
 ### 3.4 Split the class by owner
 
 Mechanical, and only after 3.2 and 3.3 are green.
 
-- [ ] Rename `ScriptFunctions` to `ScriptFrame`. It keeps the per-run state
+- [x] Rename `ScriptFunctions` to `ScriptFrame`. It keeps the per-run state
       (`executor`, `enactor`, `location`, the store, `command_queue`,
       `enactor_consent`) and the helpers (`_resolve`, `_controlled`,
       `_may_mutate`, `_may_relocate`, `_touch`, `_in_reach`, `_may_harm`),
       made public by dropping the underscore.
-- [ ] Move each function out of the class into a module under
+- [x] Move each function out of the class into a module under
       `realm/scripting/lib/` as `def name(frame, ...)`, using the owner column
       of Appendix A: `objects.py`, `attrs.py`, `tags.py`, `locks.py`,
       `messaging.py`, `scheduling.py`, `text.py`, `mathx.py`, `lists.py`,
       `behaviors.py`, `checks.py`, `economy.py`, `social.py`, `combat.py`,
       `effects.py`, `abilities.py`, `travel.py`. Step 7 moves the
       feature-owned modules next to their features.
-- [ ] `scripting/functions.py` ends below 400 lines.
+- [x] `scripting/functions.py` ends below 400 lines.
 
 ### 3.5 The missing softcode half of abilities
 
 The `cast` command runs a spell definition with its costs. Softcode `cast()`
 only fires `event:on_cast`. Softcode cannot run an ability definition.
 
-- [ ] Add `use_ability(name, target=None)` (group "Combat & effects",
+- [x] Add `use_ability(name, target=None)` (group "Combat & effects",
       `harm=True`). It checks `abilities.can_invoke`, queues an `'ability'`
       delivery, and the engine calls `abilities.invoke_ability(executor, adef,
       target)` on the loop.
-- [ ] Reword the `cast` docstring: it fires the ward and reaction event only.
-- [ ] Tests, and regenerate the reference.
+- [x] Reword the `cast` docstring: it fires the ward and reaction event only.
+- [x] Tests, and regenerate the reference.
 
 ### Acceptance
 
-- [ ] `git grep -n "_READONLY\|_HARM_GATED\|CATEGORIES" realm scripts` is
+- [x] `git grep -n "_READONLY\|_HARM_GATED\|CATEGORIES" realm scripts` is
       empty.
-- [ ] Both new test files pass. The suite is green.
-- [ ] The regenerated reference lists the same functions as before plus
+- [x] Both new test files pass. The suite is green.
+- [x] The regenerated reference lists the same functions as before plus
       `use_ability`.
 
 ### Docs
 
-- [ ] `docs/reference/softcode.md`: regenerate. Replace the "Context names"
+- [x] `docs/reference/softcode.md`: regenerate. Replace the "Context names"
       section with one table of profiles (generated from the builder).
-- [ ] `docs/guides/resolution-and-bindings.md`: the `readonly` and `harm`
+- [x] `docs/guides/resolution-and-bindings.md`: the `readonly` and `harm`
       flags and where a binding is visible.
-- [ ] `docs/guides/interception.md`: what is callable inside `on_check`.
-- [ ] `docs/tutorial/04-softcode.md:68`.
+- [x] `docs/guides/interception.md`: what is callable inside `on_check`.
+- [x] `docs/tutorial/04-softcode.md:68`.
 
 ---
 
@@ -2614,3 +2614,18 @@ entry closed.
 | 2026-11-13 | 2.2 | `World.close` also restores the previous `WORLD_TICK`, resets the show-rolls default and stops combat timers. Syntax setters are undone by calling them with no arguments (their defaults). | Each registration pushes its own undo, as the plan asks. |
 | 2026-11-13 | 2.3 | `save_deferred` and `load` are not in `Store`: their only callers were examples in `PersistenceManager`'s own docstring. | The plan said to check them; nothing in the engine calls them. |
 | 2026-11-13 | 2 Closes | BACKLOG "Persistence follow-ups" ticked; "Config drift" (already ticked) gained a dated follow-up line. | Rule 6. |
+| 2026-11-13 | 3.1 | `bindings.py` was deleted outright rather than kept as a re-export first; `registered_bindings()` and `clear_bindings()` are gone (tests use `registry.unregister(name)`). `softfn` takes `takes_frame=False` for the 29 `@staticmethod` helpers. | No outside users (rule 4). Static helpers take no frame. |
+| 2026-11-13 | 3.1 | Behaviour change: a native function can no longer silently override a built-in. It raises `ValueError` unless `replace=True` (the old `to_dict` let bindings win). | The plan's registry rule. |
+| 2026-11-13 | 3.3 | The combat strategy namespace (`combat/strategy.py`) is not built by `build_namespace`. | As the plan directs. |
+| 2026-11-13 | 3.3 | `build_namespace` takes `extra=` (names added last, which win). The rule profile passes its `skill`, `attr`, `mod`, `skill_name` that way. | The plan's signature had no slot for the rule's per-call names. |
+| 2026-11-13 | 3.3 | `ExprNamespace` subclasses `core.safe_eval.LazyNamespace(dict)` with `__missing__`, not a bare `Mapping`. `eval_expression` passes a `LazyNamespace` straight to `eval`. The frame and the store lookup are built only when an expression calls a frame function. | A dict subclass keeps direct names and builtins on CPython's fast lookup path; core does not import scripting. |
+| 2026-11-13 | 3.3 | `check_lock` timing (`python -m timeit`, the plan's two-tag lock): 13.7 µs before, 14.7–15.1 µs after (about +7%). A first cut measured +25% and was slimmed before closing. | Plan threshold is 20%. |
+| 2026-11-13 | 3.3 | The wilderness map provider uses the `check` profile with no action (read-only functions and empty event names; the veto verbs are bound only when there is an action). | A provider is read-only but not a ward. |
+| 2026-11-13 | 3.3 | `eval_attr()` and `call()` still build their nested namespace with `frame.to_dict()` (the script profile's function set) instead of calling `build_namespace`. | They re-enter the sandbox with the caller's existing frame and command queue; a fresh frame would split the queue. |
+| 2026-11-13 | 3.3 | Content the plan's grep missed used the one-argument `@detail has_tag(tag)`: `docs/showcase/225_player_notes.md` (row written with `set_attr`), `docs/showcase/042_room_details.md` (prose) and `tests/test_help_and_details.py`. All now use `has_tag(viewer, 'x')`. The inline one-argument `check_roll` also appeared in `tests/test_help_and_details.py` and the `inline.py` docstring; both now use `check(...)`. | The plan expected only `docs/tutorial/04-softcode.md:68`. |
+| 2026-11-13 | 3.3 | A native function used in a resolution rule must now be registered `readonly=True` (the guide's example and test updated). | The rule profile exposes read-only functions only, as specified. |
+| 2026-11-13 | 3.4 | Module assignment (the plan named the modules, Appendix A gives owners, not modules): `objects` (get … call), `attrs`, `tags` (incl. zones), `locks` (incl. `has_entitlement`), `economy`, `messaging` (incl. `prompt`, `act`, `ansi`, `escape`), `checks` (skill_check, check_roll, contest, skill, check and the dice primitives), `mathx` (rand, dice, ceil, floor, clamp, if_else, switch), `combat`, `effects`, `abilities`, `social`, `behaviors` (force and behaviors), `travel`, `scheduling` (now, wait, cancel_wait, expire), `text`, `lists`. | Grouped by what each function touches. |
+| 2026-11-13 | 3.4 | `ScriptFrame.__getattr__` returns the registered function of that name bound to the frame, so `frame.get_attr(...)` inside library code and `ScriptFrame(...).has_entitlement(...)` in tests keep working. The frame's store is the public `frame.store` (was `_persistence`). The 29 frame-free helpers stay frame-free (`takes_frame=False`). | Avoids rewriting every internal call; a missing name still raises AttributeError. |
+| 2026-11-13 | 3.4 | Tests that monkeypatched `realm.scripting.functions.random.randint` now patch `realm.scripting.lib.mathx.random.randint` (same `random` module). `tests/test_scripting.py` calls the frame-free helpers on an instance (`ScriptFrame().ucfirst(...)`). | The functions moved; the patched object did not. |
+| 2026-11-13 | 3.5 | `use_ability` is registered `harm=True`, as task 3.5 says; Appendix A's row leaves the column blank. It looks the definition up with `find_ability_def` (ability or spell), checks `can_invoke`, and the engine runs a `spell_def` with the `cast`/`spell:` flavor and an `ability_def` with the default `use`/`ability:` one. | An ability can damage a target the executor need not control, like `damage()`. |
+| 2026-11-13 | 3 Docs | The reference's "Context names" section became "Where softcode runs (profiles)", a table generated from `namespace.PROFILES`, `PROFILE_EXTRAS` and `PROFILE_SUBJECT`. The reference now lists 101 functions: the 98 before, `skill` and `check` (3.3) and `use_ability` (3.5). | The acceptance line named only `use_ability`; Appendix A lists the subject helpers as additions of 3.3. |

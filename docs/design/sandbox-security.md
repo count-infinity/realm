@@ -206,7 +206,7 @@ BACKLOG "builder-restricted harmful softcode"): harm is authored as
 position of dealing harm; and the few softcode primitives that *can* harm
 directly are bound only for authorized frames.
 
-**The rule** (`ScriptFunctions._may_harm`, `functions.py`): walk the
+**The rule** (`ScriptFrame._may_harm`, `functions.py`): walk the
 executor's owner-delegation chain — a `HARM` entitlement anywhere allows
 (builders hold it by default; a `role_def` can grant it to a custom rank);
 a `player`/`guest` mortal as the responsible principal denies; an unowned /

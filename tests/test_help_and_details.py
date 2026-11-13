@@ -53,7 +53,7 @@ class TestDetailLines:
         room = GameObject("Crypt", tags=["room"])
         room.db.desc_extras = [
             ["skill('occultism') >= 12", "The sigils are Zohar-derived."],
-            ["has_tag('ghost')", "The walls remember you."],
+            ["has_tag(viewer, 'ghost')", "The walls remember you."],
         ]
         scholar = GameObject("scholar", tags=["player"])
         scholar.db.skill_occultism = 14
@@ -197,7 +197,7 @@ class TestInlineSoftcode:
         room.description = (
             "A dusty cellar."
             "[[k = 'det_' + viewer.id; "
-            "r = get_attr(me, k) or ('PASS' if check_roll('detection', -2) else 'FAIL'); "
+            "r = get_attr(me, k) or ('PASS' if check('detection', -2) else 'FAIL'); "
             "set_attr(me, k, r); "
             "result = ' You see a small hole in the wall.' if r == 'PASS' else '']]"
         )
@@ -353,14 +353,14 @@ class TestOwnerDelegation:
 
     def test_siblings_trust_each_other(self):
         from realm.permissions.locks import controls
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         bob = GameObject("Bob", tags=["player"])
         gadget = GameObject("gadget", owner=bob)
         stash = GameObject("stash", owner=bob)
         assert controls(gadget, stash) is True
 
-        funcs = ScriptFunctions(executor=gadget)
+        funcs = ScriptFrame(executor=gadget)
         assert funcs.set_attr(stash, "combo", 1234) is True
         assert stash.db.get("combo") == 1234
 

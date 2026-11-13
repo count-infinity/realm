@@ -65,12 +65,13 @@ and the `'''` delimiter is configurable — see
 with state. The cellar remembers who has noticed the loose stone:
 
 ```text
-@desc here = Barrels rot in the brine-smell dark. [[k = 'spot_' + viewer.id; r = get_attr(me, k) or ('yes' if check_roll('observation') else 'no'); set_attr(me, k, r); result = ' One flagstone sits proud of the rest.' if r == 'yes' else '']]
+@desc here = Barrels rot in the brine-smell dark. [[k = 'spot_' + viewer.id; r = get_attr(me, k) or ('yes' if check('observation') else 'no'); set_attr(me, k, r); result = ' One flagstone sits proud of the rest.' if r == 'yes' else '']]
 ```
 
 Each character rolls observation *once*, ever — the outcome caches in
 an ordinary attribute. That's the whole trick: `get_attr`/`set_attr`
-plus builtins (`rand`, `now`, `check_roll`...) compose into anything.
+plus builtins (`rand`, `now`, `check`...) compose into anything. `check`
+rolls as the viewer; `check_roll(obj, skill)` returns the graded result.
 
 ## A heartbeat
 

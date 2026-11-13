@@ -37,8 +37,13 @@ The script runs with the in-flight action bound in:
 | `mod(value)` | add a modifier (e.g. `mod(-3)` — armor soaking damage) |
 | `set_adata(key, value)` | rewrite the payload (e.g. halve `damage`) |
 
-Plus the usual read functions (`get_attr`, `has_tag`, `name`, the dice
-primitives…) for conditions.
+Plus every **read-only** softcode function for conditions: reads
+(`get_attr`, `V`, `has_tag`, `name`, `controls`…), dice and checks (`roll`,
+`check_roll`, `skill`, `check`…), text and list helpers. These are the
+functions marked read-only in the registry; the
+[softcode reference](../reference/softcode.md#where-softcode-runs-profiles)
+lists which contexts see which. A game's own native function is callable
+here only if it was registered with `readonly=True`.
 
 ## Examples
 
@@ -70,6 +75,12 @@ there** — calling one is an error, not a silent side effect. So a ward on
 the veto path can allow/deny/adjust the action itself, but it can't spam,
 mutate, or persist world state mid-decision. Reacting to an action belongs
 in `on_react` or an `ON_<EVENT>` trigger, which run *after* it resolves.
+
+When a ward calls a real function it may not use here, the error the
+owner sees says so: `pemit() exists but changes the world, so on_check
+cannot call it; do that in an ON_<EVENT> reaction instead`. The ward then
+fails closed, like any ward that errors (see
+[When a ward breaks](../reference/softcode.md#when-a-ward-breaks)).
 
 The `mod` / `set_adata` reduction is applied to the raw damage *before* a
 combat ruleset's own damage-resistance and type multipliers, so it

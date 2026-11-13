@@ -148,7 +148,7 @@ add = []
 if bl:
     add.append(['', bl])                    # empty condition: shown to everyone
 if nl:
-    add.append(["has_tag('admin')", nl])    # re-evaluated for each viewer on look
+    add.append(["has_tag(viewer, 'admin')", nl])   # re-evaluated for each viewer on look
 set_attr(pl, 'desc_extras', keep + add)
 set_attr(me, 'bioline_' + str(arg0), bl)
 set_attr(me, 'noteline_' + str(arg0), nl)

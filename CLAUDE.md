@@ -56,6 +56,9 @@ not the feature.
 | `realm/core/perception.py` | Visibility & naming choke points |
 | `realm/systems/` | Swappable GameSystem rules packages (GURPS/D20/Merc) |
 | `realm/scripting/` | Sandboxed softcode: `$commands`, `^listens`, `ON_<EVENT>` |
+| `realm/scripting/registry.py` | The softcode function registry: `softfn` / `softcode_function` with `group`, `readonly`, `harm` flags |
+| `realm/scripting/namespace.py` | `build_namespace(profile, ...)`: the one builder for script, check, inline, lock, detail and rule contexts |
+| `realm/scripting/lib/` | The built-in softcode functions, one module per owner; `functions.py` holds the per-run `ScriptFrame` |
 | `realm/packs/` | Content packs (worldio JSON bundles) |
 | `realm/persistence/worldio.py` | Export/import with ref remapping |
 | `realm/persistence/store.py` | `Store` protocol: what engine code may call on a store (`PersistenceManager`, `MemoryStore`) |

@@ -23,7 +23,7 @@ from __future__ import annotations
 import pytest
 
 from realm.core.objects import GameObject
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 from realm.testing import Simulator
 
 HARM_KEYS = frozenset({'damage', 'apply_effect', 'remove_effect',
@@ -32,7 +32,7 @@ ALWAYS_SAFE = frozenset({'heal', 'transfer_credits', 'pemit', 'get', 'rand'})
 
 
 def _bound(executor):
-    return set(ScriptFunctions(executor=executor).to_dict())
+    return set(ScriptFrame(executor=executor).to_dict())
 
 
 # --- the palette filter (unit) ----------------------------------------------

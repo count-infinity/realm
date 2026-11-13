@@ -166,18 +166,44 @@ def compile_expression(expression: str):
     return _compile_expression(expression.strip())
 
 
+class LazyNamespace(dict):
+    """An expression namespace that resolves some names on first lookup.
+
+    It starts with ``SAFE_EXPR_BUILTINS`` and the given direct names; a name
+    not present goes to :meth:`resolve`, whose result is cached. Raise
+    ``KeyError`` from ``resolve`` for an unknown name (the expression then
+    fails with NameError). ``eval_expression`` passes it to ``eval`` as the
+    locals mapping as-is, so only the names an expression uses are built.
+    """
+
+    def __init__(self, direct: dict[str, Any] | None = None) -> None:
+        super().__init__(SAFE_EXPR_BUILTINS)
+        if direct:
+            self.update(direct)
+
+    def __missing__(self, name: str) -> Any:
+        value = self.resolve(name)
+        self[name] = value
+        return value
+
+    def resolve(self, name: str) -> Any:
+        raise KeyError(name)
+
+
 def eval_expression(expression: str, namespace: dict[str, Any]) -> Any:
     """
     Validate, compile, and evaluate an expression.
 
-    The namespace is layered over SAFE_EXPR_BUILTINS; real builtins are
-    stripped entirely.
+    The namespace is layered over SAFE_EXPR_BUILTINS (a ``LazyNamespace``
+    already holds them); real builtins are stripped entirely.
 
     Raises:
         ValueError: if the expression fails validation.
         Exception: whatever the expression itself raises.
     """
     compiled = compile_expression(expression)
+    if isinstance(namespace, LazyNamespace):
+        return eval(compiled, {"__builtins__": {}}, namespace)
     full_namespace = dict(SAFE_EXPR_BUILTINS)
     full_namespace.update(namespace)
     return eval(compiled, {"__builtins__": {}}, full_namespace)
@@ -196,6 +222,7 @@ def eval_bool(expression: str, namespace: dict[str, Any]) -> bool:
 
 
 __all__ = [
+    "LazyNamespace",
     "FORBIDDEN_NODES",
     "FORBIDDEN_NAMES",
     "FORBIDDEN_ATTRS",

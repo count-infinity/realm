@@ -88,7 +88,7 @@ Applied at three layers:
 
 - **Builder commands** (@set/@desc/@tag/@lock/@behavior/@tr/...):
   caller must control the target.
-- **ScriptFunctions mutations** (set_attr, add_tag, create/destroy/
+- **ScriptFrame mutations** (set_attr, add_tag, create/destroy/
   teleport, attach_behavior...): executor must control the target.
   Self-modification always works — an NPC managing its own counters
   is the normal case.

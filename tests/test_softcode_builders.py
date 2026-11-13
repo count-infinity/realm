@@ -784,8 +784,8 @@ class TestCombatChannels:
         rat = GameObject("rat", location=elsewhere)
         rat.db.hp = 5
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=trap)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=trap)
         assert funcs.damage(rat, 3) is False
         assert rat.db.get("hp") == 5
 
@@ -796,8 +796,8 @@ class TestCombatChannels:
         rat.db.hp = 4
         rat.db.max_hp = 5
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=cleric)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=cleric)
         assert funcs.heal(rat, 10) is True
         assert rat.db.get("hp") == 5
 
@@ -834,8 +834,8 @@ class TestScriptLocks:
         warden = GameObject("warden", location=room)
         door = GameObject("door", location=room, tags=["exit"])
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=warden)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=warden)
         assert funcs.set_lock(door, "basic", "caller.has_tag('warden_pass')") is True
         assert funcs.test_lock(door, "basic") is False  # warden has no pass
 
@@ -848,8 +848,8 @@ class TestScriptLocks:
         warden = GameObject("warden", location=room)
         door = GameObject("door", location=room)
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=warden)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=warden)
         assert funcs.set_lock(door, "basic", "getattr(caller, 'id')") is False
         assert "basic" not in door.locks
 
@@ -858,8 +858,8 @@ class TestScriptLocks:
         imp = GameObject("imp", location=room)
         alice, _sess = make_player("Alice", room)
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=imp)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=imp)
         assert funcs.set_lock(alice, "basic", "False") is False
 
 
@@ -1104,8 +1104,8 @@ class TestConditionModifiers:
         banshee = GameObject("banshee", location=crypt)
         alice, _sess = make_player("Alice", away)
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=banshee)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=banshee)
         assert funcs.apply_effect(alice, "modifier_effect", kind="fear") is False
         assert not alice.has_tag("fear")
 
@@ -1119,8 +1119,8 @@ class TestConditionModifiers:
         bob.add_behavior(ModifierEffectBehavior(kind="fear", duration=0,
                                                 check_mods={"all": -2}))
 
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(executor=cleric)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(executor=cleric)
         assert funcs.remove_effect(bob, "fear") is True
         assert not bob.has_tag("fear")
         assert condition_modifier(bob, "anything") == 0
@@ -1147,11 +1147,11 @@ class TestConditionModifiers:
         effect state is keyed by kind, so a second copy would corrupt both."""
         from realm.behaviors.effects import TimedEffectBehavior
         from realm.core.checks import condition_modifier
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         room = GameObject("Bar", tags=["room"])
         bex = GameObject("Bex", tags=["player"], location=room)
-        funcs = ScriptFunctions(executor=bex, enactor=bex)
+        funcs = ScriptFrame(executor=bex, enactor=bex)
 
         assert funcs.apply_effect(bex, "modifier_effect", kind="drunk",
                                   duration=12, check_mods={"all": -2}) is True
@@ -1168,11 +1168,11 @@ class TestConditionModifiers:
         """A refresh restarts the countdown from full duration rather than
         inheriting the replaced effect's remaining beats."""
         from realm.behaviors.effects import _state_key
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         room = GameObject("Bar", tags=["room"])
         bex = GameObject("Bex", tags=["player"], location=room)
-        funcs = ScriptFunctions(executor=bex, enactor=bex)
+        funcs = ScriptFrame(executor=bex, enactor=bex)
 
         funcs.apply_effect(bex, "modifier_effect", kind="drunk", duration=12)
         bex.db.set(_state_key("drunk", "left"), 3)         # several beats elapsed
@@ -1184,11 +1184,11 @@ class TestConditionModifiers:
     async def test_apply_effect_different_kinds_coexist(self):
         """Refresh only collapses same-kind — distinct kinds stay independent."""
         from realm.behaviors.effects import TimedEffectBehavior
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         room = GameObject("Field", tags=["room"])
         vic = GameObject("Vic", tags=["player"], location=room)
-        funcs = ScriptFunctions(executor=vic, enactor=vic)
+        funcs = ScriptFrame(executor=vic, enactor=vic)
 
         funcs.apply_effect(vic, "modifier_effect", kind="drunk",
                            check_mods={"all": -2})
@@ -1238,24 +1238,24 @@ class TestTier1AuthorityFixes:
         assert any("don't control" in m for m in ctx.session.messages)
 
     async def test_create_obj_cannot_seed_strangers_rooms(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         here = GameObject("Here", tags=["room"])
         theirs = GameObject("Theirs", tags=["room"],
                             owner=GameObject("Owner", tags=["player"]))
         imp = GameObject("imp", location=here)
 
-        funcs = ScriptFunctions(executor=imp, persistence=self.persistence)
+        funcs = ScriptFrame(executor=imp, persistence=self.persistence)
         self.persistence.add(theirs)
         assert funcs.create_obj("bomb", location=theirs) is None
         assert funcs.create_obj("rock") is not None  # own room fine
 
     async def test_create_obj_sets_description_and_attrs(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         here = GameObject("Here", tags=["room"])
         imp = GameObject("imp", location=here)
-        funcs = ScriptFunctions(executor=imp, persistence=self.persistence)
+        funcs = ScriptFrame(executor=imp, persistence=self.persistence)
 
         obj = funcs.create_obj(
             "bulb of cold coffee",
@@ -1267,11 +1267,11 @@ class TestTier1AuthorityFixes:
         assert obj.db.get("weight") == 1 and obj.db.get("price") == 25
 
     async def test_create_obj_backward_compatible_and_guards_password(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         here = GameObject("Here", tags=["room"])
         imp = GameObject("imp", location=here)
-        funcs = ScriptFunctions(executor=imp, persistence=self.persistence)
+        funcs = ScriptFrame(executor=imp, persistence=self.persistence)
 
         plain = funcs.create_obj("rock")               # old 1-arg form
         assert plain.description == "" and plain.has_tag("thing")

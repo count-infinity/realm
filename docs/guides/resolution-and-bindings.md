@@ -48,13 +48,13 @@ assumptions.
 ## When softcode isn't enough: a native binding
 
 For speed or complexity beyond softcode, register a native function and
-call it by name from any rule or script:
+call it by name from softcode:
 
 ```python
 # mygame/bindings.py
 from realm.scripting import softcode_function
 
-@softcode_function
+@softcode_function(group="Dice & skill checks", readonly=True)
 def exploding_pool(pool, tn):
     ...            # arbitrary native Python — fast, complex, whatever
 
@@ -65,9 +65,25 @@ def exploding_pool(pool, tn):
     resolve_rule = "exploding_pool(attr('pool'), 4)"
 ```
 
-Inside a `resolve_rule`, the rule's own names (`roll`, the reducers,
-`skill`, `attr`, `mod`, `skill_name`) win over a binding with the same
-name, so pick binding names that do not collide with them.
+A native function joins the same registry as the built-in functions, so
+its flags decide where it is visible:
+
+| Flag | Meaning | Visible in |
+|---|---|---|
+| *(none)* | may change the world | scripts (`$`-commands, `^`-listens, `ON_<EVENT>`, `on_tick`, `@eval`) and inline `[[...]]` blocks |
+| `readonly=True` | only reads, rolls or formats | everywhere: scripts, inline blocks, `on_check` wards, locks, `@detail` conditions and resolution rules |
+| `harm=True` | can hurt a target the executor need not control, or mint money | scripts and inline blocks, and only when the script's owner chain holds the HARM entitlement (builders do; mortal players do not) |
+
+Mark a function `readonly` only when it truly changes nothing: a lock or a
+ward runs on the decision path, where a side effect would fire even when
+the action is refused. `group` is its section in the
+[softcode reference](../reference/softcode.md) (default `"Game"`).
+
+A name can be registered once. Registering a name that is already taken
+(including a built-in such as `controls`) raises `ValueError`; pass
+`replace=True` to override it on purpose. Inside a `resolve_rule`, the
+rule's own names (`skill`, `attr`, `mod`, `skill_name`) win over a
+function with the same name.
 
 **The trust boundary (important):** a binding is unsandboxed native code,
 so registering one is a **deploy-time act by the operator** — the game's

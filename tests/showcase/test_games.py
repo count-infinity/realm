@@ -12,7 +12,7 @@ Every command line in each tutorial's "Build it" section is read
 straight out of its markdown and driven through the real dispatcher, so
 the tests execute what the docs actually say: a doc edit that breaks a
 build breaks this suite, and there is nothing left to drift.
-Determinism: rand() is pinned via realm.scripting.functions.random,
+Determinism: rand() is pinned via realm.scripting.lib.mathx.random,
 the dice kernel (roll/margin_under/skill_check/contest) via
 realm.core.dice.random; wait() chains run on the Simulator's virtual
 clock (engine.tick_waits()); prompt() wizards answer through the
@@ -80,7 +80,7 @@ def pinned_rand(monkeypatch):
         return max(low, min(holder["value"], high))
 
     monkeypatch.setattr(
-        "realm.scripting.functions.random.randint", fake_randint)
+        "realm.scripting.lib.mathx.random.randint", fake_randint)
     return holder
 
 

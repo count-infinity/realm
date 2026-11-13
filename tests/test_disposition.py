@@ -228,12 +228,12 @@ class TestDispositionSoftcode:
             "else: pemit(enactor, 'No vacancy.')"
         )
         # Direct function check (the trigger path is covered elsewhere).
-        from realm.scripting.functions import ScriptFunctions
-        funcs = ScriptFunctions(enactor=bob, executor=npc)
+        from realm.scripting.functions import ScriptFrame
+        funcs = ScriptFrame(enactor=bob, executor=npc)
         assert funcs.disposition(npc) == 2
 
     async def test_adjust_needs_authority(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         room = GameObject("Gate", tags=["room"])
         imp = GameObject("imp", location=room)
@@ -241,7 +241,7 @@ class TestDispositionSoftcode:
                            owner=GameObject("Owner", tags=["player"]))
         bob = GameObject("Bob", tags=["player"], location=room)
 
-        funcs = ScriptFunctions(executor=imp)
+        funcs = ScriptFrame(executor=imp)
         # imp doesn't control someone else's guard...
         assert funcs.adjust_disposition(guard, bob, 5) is False
         # ...but owns its own opinions.
@@ -249,13 +249,13 @@ class TestDispositionSoftcode:
         assert get_disposition(imp, bob) == -2
 
     async def test_reaction_roll_from_script(self):
-        from realm.scripting.functions import ScriptFunctions
+        from realm.scripting.functions import ScriptFrame
 
         room = GameObject("Gate", tags=["room"])
         npc = GameObject("merchant", location=room)
         bob = GameObject("Bob", tags=["player"], location=room)
 
-        funcs = ScriptFunctions(enactor=bob, executor=npc)
+        funcs = ScriptFrame(enactor=bob, executor=npc)
         value = funcs.reaction_roll(npc)
         assert -2 <= value <= 2
         assert has_met(npc, bob)

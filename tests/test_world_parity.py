@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from realm.combat.manager import get_combat_manager
 from realm.core.propagation import get_engine
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 from realm.server.game import GameServer
 from realm.testing import Simulator
 
@@ -36,7 +36,7 @@ def _snapshot(dispatcher, store) -> Wiring:
         commands=set(dispatcher._commands),
         observers={_qualname(o) for o in get_engine()._observers},
         ruleset=type(manager.combat_system.ruleset) if manager else None,
-        softcode_names=set(ScriptFunctions(persistence=store).to_dict()),
+        softcode_names=set(ScriptFrame(persistence=store).to_dict()),
     )
 
 

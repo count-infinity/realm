@@ -3,7 +3,7 @@
 import pytest
 
 from realm.core.objects import GameObject
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 from realm.scripting.sandbox import (
     ScriptContext,
     ScriptError,
@@ -419,68 +419,68 @@ class TestGetSearchObjects:
 
 
 class TestScriptFunctions:
-    """Test suite for ScriptFunctions."""
+    """Test suite for ScriptFrame."""
 
     def test_string_ucfirst(self):
         """ucfirst capitalizes first char."""
-        assert ScriptFunctions.ucfirst("hello") == "Hello"
-        assert ScriptFunctions.ucfirst("") == ""
+        assert ScriptFrame().ucfirst("hello") == "Hello"
+        assert ScriptFrame().ucfirst("") == ""
 
     def test_string_capstr(self):
         """capstr title-cases."""
-        assert ScriptFunctions.capstr("hello world") == "Hello World"
+        assert ScriptFrame().capstr("hello world") == "Hello World"
 
     def test_math_rand(self):
         """rand returns value in range."""
         for _ in range(10):
-            val = ScriptFunctions.rand(1, 10)
+            val = ScriptFrame().rand(1, 10)
             assert 1 <= val <= 10
 
     def test_math_dice(self):
         """dice rolls correctly."""
         # Roll 2d6 should be 2-12
         for _ in range(10):
-            val = ScriptFunctions.dice(2, 6)
+            val = ScriptFrame().dice(2, 6)
             assert 2 <= val <= 12
 
     def test_math_clamp(self):
         """clamp limits value."""
-        assert ScriptFunctions.clamp(5, 0, 10) == 5
-        assert ScriptFunctions.clamp(-5, 0, 10) == 0
-        assert ScriptFunctions.clamp(15, 0, 10) == 10
+        assert ScriptFrame().clamp(5, 0, 10) == 5
+        assert ScriptFrame().clamp(-5, 0, 10) == 0
+        assert ScriptFrame().clamp(15, 0, 10) == 10
 
     def test_list_first(self):
         """first gets first element."""
-        assert ScriptFunctions.first("a b c") == "a"
-        assert ScriptFunctions.first([1, 2, 3]) == "1"
+        assert ScriptFrame().first("a b c") == "a"
+        assert ScriptFrame().first([1, 2, 3]) == "1"
 
     def test_list_rest(self):
         """rest gets remaining elements."""
-        assert ScriptFunctions.rest("a b c") == "b c"
-        assert ScriptFunctions.rest([1, 2, 3]) == [2, 3]
+        assert ScriptFrame().rest("a b c") == "b c"
+        assert ScriptFrame().rest([1, 2, 3]) == [2, 3]
 
     def test_list_member(self):
         """member finds position (1-indexed)."""
-        assert ScriptFunctions.member("b", "a b c") == 2
-        assert ScriptFunctions.member("x", "a b c") == 0
+        assert ScriptFrame().member("b", "a b c") == 2
+        assert ScriptFrame().member("x", "a b c") == 0
 
     def test_list_extract(self):
         """extract gets element at position."""
-        assert ScriptFunctions.extract("a b c", 2) == "b"
-        assert ScriptFunctions.extract("a b c", 5) == ""
+        assert ScriptFrame().extract("a b c", 2) == "b"
+        assert ScriptFrame().extract("a b c", 5) == ""
 
     def test_conditional_if_else(self):
         """if_else returns correct value."""
-        assert ScriptFunctions.if_else(True, "yes", "no") == "yes"
-        assert ScriptFunctions.if_else(False, "yes", "no") == "no"
+        assert ScriptFrame().if_else(True, "yes", "no") == "yes"
+        assert ScriptFrame().if_else(False, "yes", "no") == "no"
 
     def test_conditional_switch(self):
         """switch finds matching case."""
-        result = ScriptFunctions.switch("b", "a", 1, "b", 2, "c", 3, 0)
+        result = ScriptFrame().switch("b", "a", 1, "b", 2, "c", 3, 0)
         assert result == 2
 
         # Default case
-        result = ScriptFunctions.switch("x", "a", 1, "b", 2, 0)
+        result = ScriptFrame().switch("x", "a", 1, "b", 2, 0)
         assert result == 0
 
     def test_object_access(self):
@@ -489,7 +489,7 @@ class TestScriptFunctions:
         room = GameObject("Kitchen", tags=['room'])
         player.location = room
 
-        funcs = ScriptFunctions(enactor=player, location=room)
+        funcs = ScriptFrame(enactor=player, location=room)
 
         assert funcs.name(player) == "Alice"
         assert funcs.loc(player) == room
@@ -502,7 +502,7 @@ class TestScriptFunctions:
         obj.db.gold = 100
 
         # Mutations run with the executor's authority; the chest edits itself.
-        funcs = ScriptFunctions(executor=obj)
+        funcs = ScriptFrame(executor=obj)
 
         assert funcs.get_attr(obj, "gold") == 100
         assert funcs.get_attr(obj, "silver", 0) == 0
@@ -513,7 +513,7 @@ class TestScriptFunctions:
 
     def test_to_dict_exports_all(self):
         """to_dict exports all functions."""
-        funcs = ScriptFunctions()
+        funcs = ScriptFrame()
         exported = funcs.to_dict()
 
         # Check some expected functions are present

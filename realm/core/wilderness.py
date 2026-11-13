@@ -165,7 +165,7 @@ async def _eval_provider(region_obj: GameObject, attr: str,
     can't stall the server. Raises :class:`ProviderError` on any script
     failure."""
     code = region_obj.db.get(attr)
-    from realm.scripting.functions import ScriptFunctions
+    from realm.scripting.namespace import build_namespace
     from realm.scripting.sandbox import (
         ScriptContext,
         ScriptError,
@@ -177,12 +177,13 @@ async def _eval_provider(region_obj: GameObject, attr: str,
         location=region_obj.location,
         extra={"x": int(x), "y": int(y)},
     )
-    functions = ScriptFunctions(
-        enactor=region_obj, executor=region_obj,
-        location=region_obj.location, persistence=persistence)
+    # Read-only: a provider is a pure function of the coordinate.
+    namespace, _frame = build_namespace(
+        'check', executor=region_obj, enactor=region_obj,
+        location=region_obj.location, store=persistence)
     try:
         result, _output = await ScriptSandbox().execute_async(
-            code, ctx, functions=functions.readonly_dict())
+            code, ctx, functions=namespace)
     except ScriptError as exc:
         raise ProviderError(
             f"map-provider {region_obj.name}.{attr} failed at "

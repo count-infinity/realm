@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from realm.core.attrflags import readable_attr
+from realm.core.attrflags import PROTECTED_ATTRS, readable_attr
 from realm.core.objects import GameObject
 
 # Read-only object fields exposed as attributes. Object-valued ones (below)
@@ -50,7 +50,6 @@ def guarded_read(obj: GameObject, name: str, default: Any = None,
     """Read a db attribute honoring PROTECTED_ATTRS and the secret flag
     (controller-only, judged from ``principal``). The shared reader behind
     both ``get_attr`` and the handle."""
-    from realm.scripting.functions import PROTECTED_ATTRS
     if str(name) in PROTECTED_ATTRS:
         return default
     if not readable_attr(obj, str(name), principal):
@@ -152,7 +151,7 @@ class SandboxRuntime:
 
     def __init__(self, raw_get_attr: Any = None,
                  executor: GameObject | None = None) -> None:
-        self._get_attr = raw_get_attr          # bound ScriptFunctions.get_attr
+        self._get_attr = raw_get_attr          # bound ScriptFrame.get_attr
         self._executor = executor
         self._cache: dict[str, Handle] = {}    # obj.id -> Handle (interned)
 
@@ -220,7 +219,6 @@ class SandboxRuntime:
 
     def read_all(self, obj: GameObject) -> dict[str, Any]:
         """Guarded ``db.all()``: readable, non-protected attributes only."""
-        from realm.scripting.functions import PROTECTED_ATTRS
         out: dict[str, Any] = {}
         for key, value in obj.db.all().items():
             if key in PROTECTED_ATTRS:

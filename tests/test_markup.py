@@ -120,8 +120,8 @@ class TestProtocolEdges:
         assert b"hot stuff" in proto.transport.data
 
     async def test_softcode_ansi_function(self):
-        from realm.scripting.functions import ScriptFunctions
-        f = ScriptFunctions()
+        from realm.scripting.functions import ScriptFrame
+        f = ScriptFrame()
         assert f.ansi('rh', 'My thing') == "|RMy thing|n"
         assert f.ansi('gU'.replace('U','R'), 'x') == "|g|[rx|n"  # bg mapping
         assert strip(f.escape("a|b")) == "a|b"

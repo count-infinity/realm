@@ -518,3 +518,50 @@ class TestMercClassicPack:
         rube = sim.player("Rube", location=room)
         rube.db.level = 3
         assert not knows_spell(rube, breath)            # level 20 spell
+
+
+# --- softcode use_ability (KERNEL_PLAN 3.5) ----------------------------------
+
+class TestUseAbilityFromSoftcode:
+    """Softcode can run an ability definition with its costs and effects,
+    the way the `cast` command does; `cast()` only fires the event."""
+
+    async def test_npc_runs_a_spell_definition(self, world, monkeypatch):
+        sim, room = world
+        _spell(sim, "fireball", mana=15, damage_dice="6d6", damage_type="fire")
+        dragon = sim.obj("dragon", location=room, tags=["npc"])
+        target = _dummy(sim, room)
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
+                            lambda a, b: 4)
+
+        result, err = await sim.eval(
+            dragon, f"result = use_ability('fireball', '#{target.id}')")
+
+        assert err is None and result is True
+        assert target.db.get("hp") == 76                 # 100 - 6*4
+
+    async def test_unknown_ability_returns_false(self, world):
+        sim, room = world
+        dragon = sim.obj("dragon", location=room, tags=["npc"])
+        result, err = await sim.eval(dragon, "result = use_ability('nope')")
+        assert err is None and result is False
+
+    async def test_ineligible_executor_returns_false(self, world):
+        sim, room = world
+        _spell(sim, "fireball", mana=15, damage_dice="6d6",
+               damage_type="fire", classes=["mage"])
+        wand = sim.obj("wand", location=room)            # no class, not an NPC
+        target = _dummy(sim, room)
+        result, err = await sim.eval(
+            wand, f"result = use_ability('fireball', '#{target.id}')")
+        assert err is None and result is False
+        assert target.db.get("hp") == 100
+
+    async def test_harm_gated_for_a_mortal_players_gadget(self, world):
+        sim, room = world
+        _spell(sim, "fireball", damage_dice="6d6", damage_type="fire")
+        rube = sim.player("Rube", location=room)
+        gadget = sim.obj("gadget", location=room)
+        gadget.owner = rube
+        _result, err = await sim.eval(gadget, "result = use_ability('fireball')")
+        assert err is not None and "use_ability" in err

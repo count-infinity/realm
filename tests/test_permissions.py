@@ -27,7 +27,7 @@ from realm.permissions.roles import (
     may_change_role_tag,
     role_conferred_by_tag,
 )
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 
 
 class TestRoles:
@@ -319,7 +319,7 @@ class TestRoleTagAuthority:
         """A non-privileged script executor can't grant itself a role tag,
         even though it plainly controls itself (rule 1)."""
         obj = GameObject("gadget", tags=['thing'])       # role GUEST
-        funcs = ScriptFunctions(executor=obj, enactor=obj)
+        funcs = ScriptFrame(executor=obj, enactor=obj)
 
         assert funcs.add_tag(obj, 'admin') is False
         assert not obj.has_tag('admin')
@@ -331,7 +331,7 @@ class TestRoleTagAuthority:
     def test_softcode_add_tag_honors_a_blessed_executor(self):
         """A god-blessed admin object CAN confer a lower rank via softcode."""
         booth = GameObject("promotion booth", tags=['thing', 'admin'])
-        funcs = ScriptFunctions(executor=booth, enactor=booth)
+        funcs = ScriptFrame(executor=booth, enactor=booth)
 
         assert funcs.add_tag(booth, 'builder') is True   # admin > builder
         assert funcs.add_tag(booth, 'admin') is False    # admin !> admin
@@ -481,10 +481,11 @@ class TestEntitlementSoftcodeSurface:
     def test_softcode_has_entitlement(self):
         admin = GameObject('A', tags=['player', 'admin'])
         gadget = GameObject('g', tags=['thing'])
-        funcs = ScriptFunctions(executor=gadget, enactor=admin)
+        funcs = ScriptFrame(executor=gadget, enactor=admin)
         assert funcs.has_entitlement(admin, 'SEE_ALL') is True
         assert funcs.has_entitlement(admin, 'LOCK_BYPASS_ALL') is False
-        assert 'has_entitlement' in ScriptFunctions._READONLY  # check-pass safe
+        from realm.scripting.registry import registered
+        assert registered()['has_entitlement'].readonly  # check-pass safe
 
     def test_lock_dsl_caller_has_entitlement(self):
         ev = LockEvaluator()

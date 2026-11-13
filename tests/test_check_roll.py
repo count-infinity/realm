@@ -93,6 +93,6 @@ class TestCheckRoll:
 
     async def test_usable_in_an_on_check_ward(self, world):
         """check_roll is read-only, so it belongs in the ward namespace."""
-        from realm.scripting.functions import ScriptFunctions
-        assert 'check_roll' in ScriptFunctions(
+        from realm.scripting.functions import ScriptFrame
+        assert 'check_roll' in ScriptFrame(
             executor=world.cook).readonly_dict()

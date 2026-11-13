@@ -13,7 +13,7 @@ from realm.core.objects import GameObject
 from realm.core.propagation import get_engine, reset_engine
 from realm.gateway.session import Session
 from realm.scripting.engine import ScriptEngine
-from realm.scripting.functions import ScriptFunctions
+from realm.scripting.functions import ScriptFrame
 from realm.commands.dispatcher import CommandContext
 
 
@@ -36,7 +36,7 @@ class TestMarkupAdditions:
         assert to_ansi("a|/b") == "a\nb"
 
     def test_ansi_penn_i_is_inverse(self):
-        funcs = ScriptFunctions()
+        funcs = ScriptFrame()
         marked = funcs.ansi('whi', ' ')
         assert '|v' in marked and '|i' not in marked
 
@@ -47,7 +47,7 @@ class TestEvalAttr:
     async def test_attr_as_function_with_args(self):
         obj = GameObject("die")
         obj.db.render_side = "result = 'face-' + arg0"
-        funcs = ScriptFunctions(executor=obj)
+        funcs = ScriptFrame(executor=obj)
         assert funcs.eval_attr(obj, 'render_side', 3) == "face-3"
 
     async def test_runs_with_caller_authority(self):
@@ -57,7 +57,7 @@ class TestEvalAttr:
         library = GameObject("library", owner=eve)
         library.db.helper = "result = set_attr(get('#' + '%!'), 'used', True)"
         caller = GameObject("gadget")
-        funcs = ScriptFunctions(executor=caller)
+        funcs = ScriptFrame(executor=caller)
         funcs.eval_attr(library, 'helper')
         assert library.db.get('used') is None  # eve's stuff untouched
 
@@ -68,13 +68,13 @@ class TestEvalAttr:
         from realm.core.attrflags import set_attr_flags
         set_attr_flags(vault, 'recipe', ['secret'])
         stranger = GameObject("Mallory", tags=["player"])
-        funcs = ScriptFunctions(executor=stranger)
+        funcs = ScriptFrame(executor=stranger)
         assert funcs.eval_attr(vault, 'recipe') is None
 
     async def test_recursion_capped(self):
         obj = GameObject("mirror")
         obj.db.loop = "result = eval_attr(me, 'loop')"
-        funcs = ScriptFunctions(executor=obj)
+        funcs = ScriptFrame(executor=obj)
         assert funcs.eval_attr(obj, 'loop') is None  # terminates
 
 
