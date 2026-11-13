@@ -137,17 +137,30 @@ class TestCasting:
         mob.add_tag("npc")                              # spec mobs cast free
         assert (await cast_spell(mob, spell, target)) is not None
 
-    async def test_fire_immune_target_takes_nothing(self, world, monkeypatch):
+    @pytest.mark.parametrize("ruleset_name", [None, "gurps", "d20", "merc"])
+    async def test_fire_immune_target_takes_nothing(self, world, monkeypatch,
+                                                    ruleset_name):
+        """``resistances`` is honored by every ruleset, not only by the
+        no-combat-manager fallback (KERNEL_PLAN 1.8)."""
+        from realm.combat.manager import CombatManager, set_combat_manager
+        from realm.combat.system import CombatSystem, RulesetRegistry
+
         sim, room = world
-        spell = _spell(sim, "fireball", mana=15, damage_dice="6d6",
-                       damage_type="fire")
-        mage = _mage(sim, room)
-        target = _dummy(sim, room, resistances={"fire": 0.0})
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
-                            lambda a, b: 4)
-        action = await cast_spell(mage, spell, target)
-        assert action.extra["dealt"] == 0
-        assert target.db.get("hp") == 100
+        if ruleset_name is not None:
+            ruleset = RulesetRegistry.get(ruleset_name)()
+            set_combat_manager(CombatManager(CombatSystem(ruleset=ruleset)))
+        try:
+            spell = _spell(sim, "fireball", mana=15, damage_dice="6d6",
+                           damage_type="fire")
+            mage = _mage(sim, room)
+            target = _dummy(sim, room, resistances={"fire": 0.0})
+            monkeypatch.setattr("realm.systems.abilities.random.randint",
+                                lambda a, b: 4)
+            action = await cast_spell(mage, spell, target)
+            assert action.extra["dealt"] == 0
+            assert target.db.get("hp") == 100
+        finally:
+            set_combat_manager(None)
 
     async def test_save_halves_damage(self, world, monkeypatch):
         sim, room = world

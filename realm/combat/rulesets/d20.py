@@ -221,21 +221,11 @@ class D20Ruleset(Ruleset):
         damage: DamageResult,
     ) -> int:
         """
-        Apply damage considering resistances/vulnerabilities.
+        Apply damage after the target's ``resistances`` (immunity,
+        resistance, vulnerability); D20 has no further mitigation here.
         """
-        total_applied = 0
-        resisted = 0
-
-        for dtype, amount in damage.damage_by_type.items():
-            multiplier = target.get_resistance(dtype.value)
-            final_amount = int(amount * multiplier)
-            resisted += amount - final_amount
-            total_applied += final_amount
-
-        # Apply damage to HP
-        actual = target.take_damage(total_applied)
-
-        return actual
+        self.scale_resistances(target, damage)
+        return target.take_damage(sum(damage.damage_by_type.values()))
 
     def is_defeated(self, combatant: Combatant) -> bool:
         """Check if combatant is at 0 HP."""

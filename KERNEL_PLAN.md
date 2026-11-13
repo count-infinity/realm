@@ -274,17 +274,17 @@ passes only because the Simulator has no combat manager and falls back to
 `apply_resisted`. All shipped data (134 objects in `midgaard.json`) uses the
 dict form.
 
-- [ ] Add `Ruleset.scale_resistances(self, target: Combatant, damage:
+- [x] Add `Ruleset.scale_resistances(self, target: Combatant, damage:
       DamageResult) -> None` to `combat/ruleset.py`. It applies
       `apply_type_resistance(damage.damage_by_type, <resistances dict>,
       magical=damage.magical)` and records `damage.resisted`.
-- [ ] Call it first in `apply_damage` of `rulesets/gurps.py`,
+- [x] Call it first in `apply_damage` of `rulesets/gurps.py`,
       `rulesets/d20.py` and `rulesets/merc.py` (Merc's inline copy is replaced
       by the call).
-- [ ] Delete `Combatant.get_resistance` and the list-form `immunities` and
+- [x] Delete `Combatant.get_resistance` and the list-form `immunities` and
       `vulnerabilities`. Rewrite `tests/test_combat.py:108-118` to the dict
       form.
-- [ ] Parametrize `test_fire_immune_target_takes_nothing` over the three
+- [x] Parametrize `test_fire_immune_target_takes_nothing` over the three
       rulesets with a `CombatManager` installed.
 
 ### 1.9 Delete what nothing uses
@@ -2596,3 +2596,4 @@ entry closed.
 | 2026-11-13 | 1.7 | `ScriptedBehavior` does not override `to_dict`. The def name moved to a `_def_name` slot and `behavior_id` reads it, so the inherited `to_dict` already emits `{'behavior_id': <def name>, 'params': <original params>}`. | Same result as the plan with less code. |
 | 2026-11-13 | 1.7 | `ScriptedBehavior.__init__(self, def_name, /, **params)`: the name is positional-only. | A database saved before this change has `def_name` inside `params`; a keyword parameter would make those rows raise `TypeError` at load. Positional-only lets the stale key load as an ordinary (ignored) param with no compatibility code. |
 | 2026-11-13 | 1.7 | `read_role_defs` also reports a `role_def` whose `entitlements` is not a list (it used to be skipped silently). | Same failure mode as an unknown name: the role grants nothing and the builder was not told. |
+| 2026-11-13 | 1.8 | Also converted `tests/test_combat.py::TestD20Ruleset::test_apply_damage_with_resistance` to the dict form. `scale_resistances` logs a WARNING for a non-dict `resistances` value and ignores it. | The plan named only lines 108-118. A stale list would otherwise stop working without a word. |

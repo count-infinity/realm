@@ -184,10 +184,11 @@ class PercentileRuleset(Ruleset):
 
     # 3) Armor absorbs a landed hit: DR × condition.
     def apply_damage(self, target, damage):
+        self.scale_resistances(target, damage)   # the target's `resistances` map first
         dr = self._armor_dr(target)
         dealt = max(0, damage.total - dr)
         target.set_stat("hp", target.get_stat("hp") - dealt)
-        damage.resisted = damage.total - dealt
+        damage.resisted += damage.total - dealt
         return dealt
 
     # 4) When is someone out of the fight?
@@ -229,8 +230,12 @@ RulesetRegistry.register("percentile", PercentileRuleset)
   `attack > dodge`. A creature can pin its dodge to an explicit band with
   `dodge_min`/`dodge_max` if you don't want it Speed-derived.
 - `roll_damage` is `Power + random(weapon band)`, returning *raw* damage.
-- `apply_damage` is the **second** defensive layer: it subtracts armor's
-  **`DR × condition`** and records the absorbed part in `damage.resisted` (for
+- `apply_damage` is the **second** defensive layer. It first calls
+  `self.scale_resistances(target, damage)`, which applies the target's
+  `resistances` map (`{"fire": 0.0}` = immune, `0.5` = half, `1.5` = extra) to
+  each damage type. Every ruleset should start this way, so the creature data
+  means the same thing in every game. Then it subtracts armor's
+  **`DR × condition`** and adds the absorbed part to `damage.resisted` (for
   the "…but the mail turns most of it" message). So dodge avoids the hit; armor
   softens the ones that land.
 - The combatant wrapper gives you `get_stat(name, default)` / `set_stat(...)` —

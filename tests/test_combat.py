@@ -104,18 +104,32 @@ class TestCombatant:
 
 
     def test_resistance(self):
-        """Resistance affects damage multiplier."""
+        """``resistances`` is a dict of damage-taken multipliers, applied by
+        Ruleset.scale_resistances before the ruleset's own mitigation."""
         obj = GameObject("Fighter")
-        obj.db.resistances = ['fire']
-        obj.db.vulnerabilities = ['cold']
-        obj.db.immunities = ['poison']
-
+        obj.db.resistances = {'fire': 0.5, 'cold': 2.0, 'poison': 0.0}
         combatant = Combatant(obj)
+        damage = DamageResult(total=40, damage_by_type={
+            DamageType.FIRE: 10, DamageType.COLD: 10,
+            DamageType.POISON: 10, DamageType.SLASHING: 10,
+        })
 
-        assert combatant.get_resistance('fire') == 0.5  # Resistant
-        assert combatant.get_resistance('cold') == 2.0  # Vulnerable
-        assert combatant.get_resistance('poison') == 0.0  # Immune
-        assert combatant.get_resistance('slashing') == 1.0  # Normal
+        D20Ruleset().scale_resistances(combatant, damage)
+
+        assert damage.damage_by_type == {
+            DamageType.FIRE: 5,         # resistant
+            DamageType.COLD: 20,        # vulnerable
+            DamageType.POISON: 0,       # immune
+            DamageType.SLASHING: 10,    # normal
+        }
+        assert damage.total == 35
+        assert damage.resisted == 5     # net: 5 + 10 - 10 + 0
+
+    def test_no_resistances_leaves_damage_alone(self):
+        combatant = Combatant(GameObject("Fighter"))
+        damage = DamageResult(total=7, damage_by_type={DamageType.FIRE: 7})
+        D20Ruleset().scale_resistances(combatant, damage)
+        assert damage.total == 7 and damage.resisted == 0
 
     def test_temporary_modifiers(self):
         """Temporary modifiers affect stats."""
@@ -203,7 +217,7 @@ class TestD20Ruleset:
         """Damage is reduced by resistance."""
         defender_obj = GameObject("Demon")
         defender_obj.db.hp = 50
-        defender_obj.db.resistances = ['fire']
+        defender_obj.db.resistances = {'fire': 0.5}
 
         defender = Combatant(defender_obj)
 

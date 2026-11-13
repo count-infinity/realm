@@ -13,6 +13,7 @@ or custom systems by swapping the ruleset.
 
 from __future__ import annotations
 
+import logging
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
@@ -21,6 +22,8 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.combat.combatant import Combatant
+
+logger = logging.getLogger(__name__)
 
 #: ``NdS+B`` — sides optional (GURPS ``2d+1``), anchored both ends.
 _DICE_RE = re.compile(r"\s*(\d+)d(\d*)([+-]\d+)?\s*$")
@@ -366,7 +369,8 @@ class Ruleset(ABC):
         """
         Apply damage to a combatant.
 
-        Handles resistances, vulnerabilities, and HP reduction.
+        Call ``self.scale_resistances(target, damage)`` first, then apply
+        the ruleset's own mitigation and reduce HP.
 
         Args:
             target: The combatant taking damage
@@ -389,6 +393,32 @@ class Ruleset(ABC):
             True if combatant can no longer fight
         """
         pass
+
+    # --- Shared steps ---
+
+    def scale_resistances(self, target: Combatant, damage: DamageResult) -> None:
+        """Scale ``damage`` in place by the target's ``resistances`` map.
+
+        ``resistances`` is a dict of damage-type name to damage-taken
+        multiplier (see :func:`apply_type_resistance`). Every ruleset calls
+        this first in ``apply_damage``, then applies its own mitigation
+        (DR, type multipliers). Updates ``damage_by_type``, ``total`` and
+        ``resisted``. Untyped damage (empty ``damage_by_type``) is left alone.
+        """
+        resistances = target.obj.db.get('resistances')
+        if resistances is None or not damage.damage_by_type:
+            return
+        if not isinstance(resistances, dict):
+            logger.warning(
+                f"{target.obj.name} ({target.obj.id}) has resistances="
+                f"{resistances!r}; it must be a dict of type -> multiplier "
+                f"(e.g. {{'fire': 0.0}}). Ignored.")
+            return
+        scaled, resisted = apply_type_resistance(
+            damage.damage_by_type, resistances, magical=damage.magical)
+        damage.damage_by_type = scaled
+        damage.total = sum(scaled.values())
+        damage.resisted = resisted
 
     # --- Optional Methods (override as needed) ---
 

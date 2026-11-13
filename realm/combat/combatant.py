@@ -234,32 +234,6 @@ class Combatant:
         actual_healing = new_hp - old_hp
         return actual_healing
 
-    # --- Resistances/Vulnerabilities ---
-
-    def get_resistance(self, damage_type: str) -> float:
-        """
-        Get resistance multiplier for a damage type.
-
-        Returns:
-            Multiplier (0.5 = half damage, 2.0 = double damage, 0 = immune)
-        """
-        # Check for immunity
-        immunities = self._obj.db.get('immunities', [])
-        if damage_type in immunities:
-            return 0.0
-
-        # Check for resistance
-        resistances = self._obj.db.get('resistances', [])
-        if damage_type in resistances:
-            return 0.5
-
-        # Check for vulnerability
-        vulnerabilities = self._obj.db.get('vulnerabilities', [])
-        if damage_type in vulnerabilities:
-            return 2.0
-
-        return 1.0
-
     # --- Equipment ---
 
     def get_weapon(self) -> Any | None:

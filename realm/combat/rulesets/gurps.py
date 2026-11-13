@@ -409,10 +409,13 @@ class GURPSRuleset(Ruleset):
         Apply damage with DR and damage type multipliers.
 
         GURPS damage calculation:
-        1. Subtract DR from damage
-        2. Apply damage type multiplier (cutting x1.5, impaling x2)
-        3. Reduce HP
+        1. Scale by the target's ``resistances`` (immunity, resistance,
+           vulnerability)
+        2. Subtract DR from damage
+        3. Apply damage type multiplier (cutting x1.5, impaling x2)
+        4. Reduce HP
         """
+        self.scale_resistances(target, damage)
         dr = target.get_stat('damage_resistance', 0)
         total_applied = 0
 

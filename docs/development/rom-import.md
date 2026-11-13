@@ -186,8 +186,9 @@ THAC0 17 — trades blows with a warrior on the `merc` ruleset):
 - **Damage-type resistance** (was 115 areas) → a portable `resistances`
   multiplier map. The converter decodes ROM's imm/res/vuln bits to a
   per-type damage-taken multiplier (immune 0.0, resist 0.5, vuln 1.5), and
-  `MercRuleset.apply_damage` scales each typed hit through the neutral
-  `apply_type_resistance` helper. Because the value is a float, not one of
+  every shipped ruleset's `apply_damage` (Merc, GURPS, D20) starts with
+  `Ruleset.scale_resistances`, which scales each typed hit through the
+  neutral `apply_type_resistance` helper. Because the value is a float, not one of
   three tiers, a builder can author *any* resistance (`0.85` = 15%); Diku's
   tiers are just three points on it. `DamageType.TRUE` bypasses the map.
 - **Broad immunities compose by a key ladder** (the SMAUG/CoffeeMud

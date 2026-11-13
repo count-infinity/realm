@@ -33,7 +33,6 @@ from realm.combat.ruleset import (
     DamageResult,
     RollResult,
     Ruleset,
-    apply_type_resistance,
 )
 
 if TYPE_CHECKING:
@@ -128,28 +127,11 @@ class MercRuleset(Ruleset):
         # Broad family keys (physical/magical) apply by DELIVERY — an
         # enchanted blade bypasses weapon immunity (ROM's magic weapons).
         # Softcode on_check wards already ran before this.
-        resist = self._resistances(target)
-        if resist and damage.damage_by_type:
-            scaled, resisted = apply_type_resistance(damage.damage_by_type,
-                                                     resist,
-                                                     magical=damage.magical)
-            damage.damage_by_type = scaled
-            damage.total = sum(scaled.values())
-            damage.resisted = resisted
+        self.scale_resistances(target, damage)
         hp = target.get_stat("hp", 0)
         dealt = max(0, damage.total)
         target.set_stat("hp", hp - dealt)
         return dealt
-
-    def _resistances(self, combatant: Combatant) -> dict[str, float] | None:
-        """The target's damage-type multiplier map, if it carries one."""
-        obj = getattr(combatant, "_obj", None)
-        db = getattr(obj, "db", None)
-        if db is not None:
-            r = db.get("resistances")
-            if isinstance(r, dict):
-                return r
-        return None
 
     def is_defeated(self, combatant: Combatant) -> bool:
         """Defeated at 0 HP (Diku goes to negatives before true death, but
