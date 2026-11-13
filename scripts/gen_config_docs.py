@@ -31,6 +31,16 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 |---|---|---|
 """
 
+FEATURE_KEYS = """
+## Keys declared by built-in features
+
+A feature can declare its own keys. These exist only when the feature is in
+`FEATURES` (all of them are by default).
+
+| Key | Feature | Default | What it does |
+|---|---|---|---|
+"""
+
 CALLBACKS = """
 ## Callbacks
 
@@ -43,7 +53,10 @@ calls it.
 
 
 def _default(f) -> str:
-    value = f.default if f.default is not MISSING else None
+    return _value(f.default if f.default is not MISSING else None)
+
+
+def _value(value) -> str:
     if isinstance(value, pathlib.Path):
         value = str(value)
     text = "`None`" if value is None else f"`{value!r}`"
@@ -60,7 +73,14 @@ def render() -> str:
     rows = [f"| `{f.metadata['key']}` | {_default(f)} | {_cell(f.metadata['doc'])} |"
             for f in keys]
     callback_rows = [f"| `{f.name}` | {_cell(f.metadata['doc'])} |" for f in callbacks]
-    return HEADER + "\n".join(rows) + "\n" + CALLBACKS + "\n".join(callback_rows) + "\n"
+    from realm.features import load
+    from realm.std import CLASSIC
+    declared = load(CLASSIC).settings
+    feature_rows = [
+        f"| `{key}` | `{feature}` | {_value(default)} | {_cell(doc)} |"
+        for key, (default, doc, feature) in declared.items()]
+    return (HEADER + "\n".join(rows) + "\n" + FEATURE_KEYS + "\n".join(feature_rows)
+            + "\n" + CALLBACKS + "\n".join(callback_rows) + "\n")
 
 
 def main() -> None:

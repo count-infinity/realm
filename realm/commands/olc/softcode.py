@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import json
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import require_control, resolve_target, save_object
 from realm.commands.olc.modify import _parse_value
 from realm.core.attrflags import cloneable_attrs
@@ -417,53 +417,3 @@ async def cmd_zone(ctx: CommandContext) -> None:
     await ctx.session.send(f"{target.name} {role} zone '{zone}'.")
 
 
-def register_softcode_commands(dispatcher: CommandDispatcher) -> None:
-    """Register live-composition builder commands."""
-    from functools import partial
-    register = partial(dispatcher.register, category="building")
-
-    register(
-        "@behavior",
-        cmd_behavior,
-        aliases=["@behaviors"],
-        help_text="Attach, detach, or list behaviors on an object",
-        usage="@behavior <object> [= <behavior_id>, key:value, ...]",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@clone",
-        cmd_clone,
-        help_text="Duplicate an object with its attributes, tags, and behaviors",
-        usage="@clone <object> [= <new name>]",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@zone",
-        cmd_zone,
-        help_text="Manage zones: membership, masters, room lists",
-        usage="@zone <object> [= <zone>]",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@force",
-        cmd_force,
-        help_text="Make something you control execute a command",
-        usage="@force <target> = <command>",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@tr",
-        cmd_trigger,
-        aliases=["@trigger"],
-        help_text="Run the script stored in an object's attribute",
-        usage="@tr <object>/<attribute>",
-        permission="builder",
-    )

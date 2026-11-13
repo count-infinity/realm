@@ -21,16 +21,6 @@ from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from typing import Any
 
-# Importing the behavior kit registers its behaviors with the
-# BehaviorRegistry so persisted worlds can rehydrate them.
-import realm.behaviors  # noqa: F401
-import realm.combat.behaviors  # noqa: F401
-
-# Importing these registers their deferred-destination resolvers with
-# the movement kernel before any player can walk such an exit.
-import realm.core.instances  # noqa: F401
-import realm.core.wilderness  # noqa: F401
-from realm.combat.manager import CombatManager
 from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.config.loader import Settings
 from realm.core.action_types import ActionType
@@ -180,7 +170,8 @@ class GameServer:
         return self.world.scripts if self.world is not None else None
 
     @property
-    def combat_manager(self) -> CombatManager | None:
+    def combat_manager(self) -> Any:
+        """The combat feature's manager (``world.services['combat']``), if installed."""
         return self.world.services.get("combat") if self.world is not None else None
 
     @property
@@ -190,6 +181,14 @@ class GameServer:
     async def start(self) -> None:
         """Start the game server."""
         logger.info(f"Starting {self.settings.game_name} game server...")
+
+        # The game's features. Their registries (behaviors, rulesets,
+        # destination resolvers, softcode functions) install BEFORE the world
+        # loads, so a saved behavior always finds its class.
+        from realm.features import load
+        from realm.std import CLASSIC
+        features = load(self.settings.features or CLASSIC)
+        features.install_registries()
 
         # Initialize persistence
         self.persistence = PersistenceManager(
@@ -229,17 +228,14 @@ class GameServer:
         # guard, so nobody logs in to "nowhere".
         await self._reconcile_orphaned_players()
 
-        # Encounters don't survive a reboot, but the in_combat tag does —
-        # clear it so mid-fight-saved creatures rejoin the ambient beat.
-        await self._scrub_stale_combat_state()
-
         # Set up session callbacks
         self.session_manager.on_connect(self._on_session_connect)
         self.session_manager.on_disconnect(self._on_session_disconnect)
 
         # Wire the engine: the same build_world the Simulator uses.
         self.world = build_world(self.persistence, self.settings,
-                                 sessions=self.session_manager)
+                                 sessions=self.session_manager, features=features)
+        await features.boot(self.world)
 
         # Server-only wiring around the shared world.
         self.dispatcher.set_login_handler(self._handle_login)
@@ -256,21 +252,9 @@ class GameServer:
             self._tick_task = asyncio.create_task(self._tick_loop())
             self._reap_task = asyncio.create_task(self._reap_loop())
 
-        # Call register_commands callback if defined in settings
-        if self.settings.register_commands:
-            try:
-                self.settings.register_commands(self)
-            except Exception as e:
-                logger.error(f"Error in register_commands callback: {e}")
-                raise
-
-        # Call register_protocols callback if defined in settings
-        if self.settings.register_protocols:
-            try:
-                self.settings.register_protocols(self)
-            except Exception as e:
-                logger.error(f"Error in register_protocols callback: {e}")
-                raise
+        # Protocols the features declared join any registered on the server.
+        for name, cls, kwargs in self.world.protocols:
+            self.register_protocol(name, cls, **kwargs)
 
         # Start built-in protocol servers
         if self.settings.enable_telnet:
@@ -503,24 +487,6 @@ class GameServer:
                     f"Reaped {obj.name} ({obj.id}): stored location "
                     f"{loc_id} vanished and it has no player owner"
                 )
-
-    async def _scrub_stale_combat_state(self) -> None:
-        """Encounters are runtime-only — a reboot ends every fight. But the
-        ``in_combat`` tag persists, so a creature saved mid-fight reloads still
-        tagged with no encounter to drive it: the ambient beat driver would
-        skip it forever (its poison/bleed frozen) and it couldn't leave the
-        room (movement blocks on ``in_combat``). Clear the tag and any queued
-        action on load so those objects rejoin the ambient beat and can be
-        re-engaged cleanly."""
-        if not self.persistence:
-            return
-        for obj in list(self.persistence.find_cached(tag='in_combat')):
-            obj.remove_tag('in_combat')
-            if obj.db.get('combat_queued') is not None:
-                obj.db.combat_queued = None
-            await self.persistence.save(obj)
-            logger.info(f"Cleared stale in_combat on {obj.name} (no encounter "
-                        "survives reboot)")
 
     async def _ensure_startup_room(self) -> None:
         """Create a default startup room when neither the database nor
@@ -902,18 +868,15 @@ class GameServer:
                 await self._reap()
 
     async def _reap(self) -> None:
-        """Slow housekeeping — idle instances, wilderness cells, expired
-        objects — off the fast pulse (zone reset is a behavior on the
-        master, not here)."""
-        from realm.core import instances, wilderness
+        """Slow housekeeping off the fast pulse: the features' reapers
+        (idle instances, wilderness cells) and the kernel's expiry sweep."""
         from realm.core.events import reap_expired
-        for fn, label in ((instances.reap_idle, "Instance"),
-                          (wilderness.reap_wilderness, "Wilderness"),
-                          (reap_expired, "Expiry")):
+        reapers = [*(self.world.reapers if self.world is not None else []), reap_expired]
+        for fn in reapers:
             try:
                 await fn(self.persistence)
             except Exception:
-                logger.exception(f"{label} reap error")
+                logger.exception(f"Reap error in {fn.__module__}.{fn.__qualname__}")
 
     async def _handle_unknown(self, ctx: CommandContext) -> None:
         """Handle unknown commands: softcode $-command fallback."""

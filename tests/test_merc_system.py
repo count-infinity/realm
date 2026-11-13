@@ -38,7 +38,6 @@ def _make(system, sim, room, name, cls):
 
 
 def _merc_ruleset():
-    RulesetRegistry._ensure_builtins()
     return RulesetRegistry.get("merc")()
 
 

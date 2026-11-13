@@ -86,7 +86,6 @@ async def spawn_tracked(prototype: dict[str, Any], room: GameObject,
     return spawn
 
 
-@BehaviorRegistry.register
 class SpawnerBehavior(Behavior):
     """
     Keep N copies of a prototype alive in this room.
@@ -191,7 +190,6 @@ def object_prototype(obj: GameObject) -> dict[str, Any]:
     }
 
 
-@BehaviorRegistry.register
 class RestockBehavior(Behavior):
     """
     Keep an owner's canonical objects present: a shop's wares, a room's floor
@@ -252,7 +250,6 @@ class RestockBehavior(Behavior):
                 await persistence.save(item)
 
 
-@BehaviorRegistry.register
 class PopulationBehavior(Behavior):
     """
     A zone-level mob orchestrator: keep a population of a prototype spread

@@ -100,6 +100,9 @@ class ScriptEngine:
         self.trigger_manager = TriggerManager()
         self.sandbox = ScriptSandbox()
         self._persistence = persistence
+        # Feature-owned softcode-queued world ops: kind -> async
+        # (engine, frame, obj, payload). Filled by FeatureSet.install_runtime.
+        self.queue_kinds: dict[str, Any] = {}
         self.dispatcher = None  # set by GameServer; enables force()
         self._depth = 0
         # One-shot scheduled commands, keyed by a handle id so softcode can
@@ -1026,6 +1029,25 @@ class ScriptEngine:
         from realm.core.verbs import do_whisper
         await do_whisper(speaker, target, message, scripted=True)
 
+    @staticmethod
+    def _installed_queue_kind(kind: str):
+        """A queue kind from the installed feature set: the live world's, or
+        the CLASSIC default when an engine runs with no world (tests, tools)."""
+        from realm.features import ensure_registries, installed
+        ensure_registries()
+        features = installed()
+        if features is None:
+            return None
+        for feature in features.features:
+            if kind in feature.queue_kinds:
+                return feature.queue_kinds[kind]
+        return None
+
+    @property
+    def store(self):
+        """The world store this engine reads and saves through."""
+        return self._persistence
+
     async def _deliver_queued(self, functions: ScriptFrame) -> None:
         """
         Drain the queue scripts fill during (worker-thread) execution:
@@ -1059,20 +1081,6 @@ class ScriptEngine:
                 except DestroyRefused as refused:
                     logger.info(f"Softcode destroy of {obj.name} ({obj.id}) refused: "
                                 f"{refused.reason}")
-            elif kind == 'death_check':
-                # message slot carries the killer (the scripted object).
-                if int(obj.db.get('hp') or 0) <= 0:
-                    from realm.combat.manager import get_combat_manager
-                    manager = get_combat_manager()
-                    if manager is not None:
-                        killer = message if message is not None else None
-                        await manager.handle_death(obj, killer=killer)
-            elif kind == 'combat':
-                # message slot carries the combat target.
-                from realm.combat.manager import get_combat_manager
-                manager = get_combat_manager()
-                if manager is not None:
-                    await manager.initiate(obj, message)
             elif kind == 'wait':
                 seconds, command, wait_id = message
                 self.schedule_wait(obj, seconds, command, wait_id=wait_id)
@@ -1091,37 +1099,6 @@ class ScriptEngine:
                 await self._propagate_act(
                     functions.executor, obj, msg, targeting, action_type,
                     payload, act_tags)
-            elif kind == 'ability':
-                from realm.systems.abilities import SPELL_DEF_TAG, invoke_ability
-                adef, target = message
-                if adef.has_tag(SPELL_DEF_TAG):
-                    await invoke_ability(obj, adef, target, verb="cast", domain="spell")
-                else:
-                    await invoke_ability(obj, adef, target)
-            elif kind == 'cast':
-                from realm.core.events import fire_event
-                from realm.core.propagation import _room_of
-                from realm.permissions.locks import LockType, check_lock
-                ability, extra_tags = message
-                caster = functions.executor
-                # Remote reach is authority-gated by the target room's REACH
-                # lock, exactly like act(targeting='remote') — a co-located
-                # cast is ward-defended and open. Denied remote casts drop
-                # (the target's room sealed itself against reaching in).
-                target_room = _room_of(obj)
-                reach_ok = (caster is not None
-                            and _room_of(caster) is target_room)
-                if not reach_ok and caster is not None and target_room is not None:
-                    reach_ok = check_lock(target_room, LockType.REACH, caster)
-                if reach_ok:
-                    # No kernel-forced category — 'magic' is genre (a hard-SF
-                    # psi power isn't magic). The caster supplies the tags;
-                    # wards key on those or on atype == ActionType.ON_CAST.
-                    await fire_event(
-                        caster, obj, ActionType.ON_CAST,
-                        tags=set(extra_tags),
-                        extra={"ability": ability, "caster": caster},
-                        gated=True)
             elif kind == 'move_to':
                 if self._persistence is not None:
                     from realm.core.movement import move_to
@@ -1136,32 +1113,14 @@ class ScriptEngine:
                         logger.warning(
                             f"Scripted move_to of {obj.name}: destination "
                             f"{dest_id} not in cache; move dropped")
-            elif kind == 'enter_instance':
-                if self._persistence is not None:
-                    from realm.core import instances
-                    template, mode, return_room_id, ttl = message
-                    return_room = (self._persistence.get_cached(return_room_id)
-                                   if return_room_id else None)
-                    kwargs: dict[str, Any] = {
-                        'mode': mode, 'return_room': return_room}
-                    if ttl is not None:
-                        kwargs['idle_ttl'] = ttl
-                    entry = await instances.enter(
-                        template, obj, self._persistence, **kwargs)
-                    if entry is None:
-                        logger.warning(
-                            f"enter_instance({template!r}) for {obj.name}: "
-                            f"no entry room materialized; move dropped")
-            elif kind == 'wilderness':
-                if self._persistence is not None:
-                    from realm.core import wilderness
-                    region, x, y = message
-                    cell = await wilderness.enter_cell(
-                        obj, region, x, y, self._persistence)
-                    if cell is None:
-                        logger.warning(
-                            f"enter_wilderness({region!r}, {x}, {y}) for "
-                            f"{obj.name}: no cell materialized; move dropped")
+            else:
+                handler = self.queue_kinds.get(kind) or self._installed_queue_kind(kind)
+                if handler is not None:
+                    await handler(self, functions, obj, message)
+                else:
+                    logger.warning(
+                        f"Softcode queued {kind!r} on {obj.name}, but no installed "
+                        f"feature handles it; dropped")
         functions.command_queue.clear()
 
     async def _propagate_act(self, actor, target, message, targeting,

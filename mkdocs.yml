@@ -74,6 +74,7 @@ nav:
     - 13. The Enthrall Spell: tutorial/13-the-enthrall-spell.md
     - 14. The Reading of the Will: tutorial/14-the-reading-of-the-will.md
   - How-To Guides:
+    - Features: guides/features.md
     - Game Systems: guides/game-systems.md
     - Add a Character Class: guides/add-a-class.md
     - Customize Character Creation: guides/custom-chargen.md

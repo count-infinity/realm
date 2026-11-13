@@ -35,6 +35,15 @@ ENCODING = "utf-8"
 # with the system they were made under, and there is no migration.
 GAME_SYSTEM = "rules.GameRules"
 
+# The features your game is made of. CLASSIC is every built-in feature
+# (talk, movement, items, building, combat, economy, ...); "game" is your
+# own game.py. Leave features out to build a smaller game, for example a
+# social game with no combat or money:
+#   FEATURES = ["basics", "talk", "movement", "look", "items", "building", "game"]
+from realm.std import CLASSIC  # noqa: E402
+
+FEATURES = [*CLASSIC, "game"]
+
 
 # =============================================================================
 # NETWORK SETTINGS
@@ -96,7 +105,8 @@ RECURSION_LIMIT = 1000
 # =============================================================================
 # CALLBACKS (Optional)
 # =============================================================================
-# Uncomment and implement these functions to customize behavior.
+# Uncomment and implement these functions to hook the server's lifecycle.
+# Commands, behaviors and protocols are declared in game.py instead.
 
 # async def init_world(server):
 #     \"\"\"
@@ -112,21 +122,3 @@ RECURSION_LIMIT = 1000
 #         tags=['room', 'start_room'],
 #     )
 #     await server.persistence.save(town_square)
-
-
-# def register_commands(server):
-#     \"\"\"
-#     Register custom commands for your game.
-#     \"\"\"
-#     @server.dispatcher.command("wave", aliases=["wav"])
-#     async def cmd_wave(ctx):
-#         await ctx.session.send("You wave enthusiastically!")
-
-
-# def register_protocols(server):
-#     \"\"\"
-#     Register custom protocols (Godot, custom clients, etc.)
-#     \"\"\"
-#     # from myprotocols import GodotServer
-#     # server.register_protocol("godot", GodotServer, port=4002)
-#     pass

@@ -12,11 +12,12 @@ from __future__ import annotations
 import pytest
 
 from realm.commands import CommandDispatcher
-from realm.commands.builtin import register_all_commands
 from realm.core.describe import may_examine
 from realm.core.objects import GameObject
+from realm.features import load
 from realm.gateway.session import Session
 from realm.permissions.locks import LockType, set_lock
+from realm.std import CLASSIC
 
 
 def _drain(session) -> str:
@@ -30,7 +31,7 @@ class TestExamineLock:
 
     def setup_method(self):
         self.dispatcher = CommandDispatcher()
-        register_all_commands(self.dispatcher)
+        load(CLASSIC).install_commands(self.dispatcher)
         self.room = GameObject("Vault", tags=['room'])
         self.player = GameObject("Snoop", tags=['player'], location=self.room)
         self.session = Session()

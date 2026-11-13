@@ -1,11 +1,10 @@
 """
 Framework behavior kit: composable NPC and world behaviors.
 
-Importing this package registers every behavior with the
-BehaviorRegistry, so persisted worlds can rehydrate them by id.
+The classes live here; the built-in features (``realm/std/``) declare them,
+which is what registers them for a world.
 """
 
-import realm.combat.behaviors  # noqa: F401 — register the combat AI behaviors
 from realm.behaviors.caster import CasterBehavior
 from realm.behaviors.decay import DecayBehavior
 from realm.behaviors.effects import (

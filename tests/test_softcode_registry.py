@@ -115,3 +115,4 @@ class TestRegistration:
             assert ScriptFrame().to_dict()["capstr"]("hi") == "HI"
         finally:
             registry._REGISTRY["capstr"] = original
+            registry._invalidate()

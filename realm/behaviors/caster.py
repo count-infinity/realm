@@ -20,13 +20,12 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING
 
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.behaviors import Behavior
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
-@BehaviorRegistry.register
 class CasterBehavior(Behavior):
     """Casts a random spell from its list each tick while fighting."""
 

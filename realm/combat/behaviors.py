@@ -35,7 +35,6 @@ def _ensure_strategy_rule(obj: GameObject, condition: str, action: str) -> None:
     obj.db.combat_strategy = rules
 
 
-@BehaviorRegistry.register
 class AggressiveBehavior(Behavior):
     """
     Attacks valid targets on sight (they enter, or it wanders in on them).
@@ -96,7 +95,6 @@ class AggressiveBehavior(Behavior):
         await manager.initiate(obj, target)
 
 
-@BehaviorRegistry.register
 class DefensiveBehavior(Behavior):
     """
     Fights back only when attacked (the encounter engine's defender
@@ -117,7 +115,6 @@ class DefensiveBehavior(Behavior):
         _ensure_strategy_rule(obj, f"!me.hp_percent < {flee_percent}", "flee")
 
 
-@BehaviorRegistry.register
 class FleeingBehavior(Behavior):
     """
     A coward's reflex: flee combat below an HP threshold. Implemented as
@@ -138,7 +135,6 @@ class FleeingBehavior(Behavior):
         _ensure_strategy_rule(obj, f"!me.hp_percent < {flee_percent}", "flee")
 
 
-@BehaviorRegistry.register
 class GuardBehavior(Behavior):
     """
     Blocks movement for those without permission.
@@ -183,7 +179,6 @@ class GuardBehavior(Behavior):
         action.block(challenge)
 
 
-@BehaviorRegistry.register
 class HealerBehavior(Behavior):
     """
     Heals injured allies in the room, periodically.
@@ -243,7 +238,6 @@ class HealerBehavior(Behavior):
             break
 
 
-@BehaviorRegistry.register
 class CombatantBehavior(Behavior):
     """
     Combat flavor: last words on death.
@@ -265,7 +259,6 @@ class CombatantBehavior(Behavior):
             obj.location.msg_contents(str(death_msg))
 
 
-@BehaviorRegistry.register
 class WanderingBehavior(Behavior):
     """
     Roams through random open exits.
@@ -330,7 +323,6 @@ class WanderingBehavior(Behavior):
         await move_through_exit(obj, destination, exit_obj=exit_obj)
 
 
-@BehaviorRegistry.register
 class VenomousBehavior(Behavior):
     """
     Envenoms a victim on a landed hit (ROM spec_poison, a poisoned fang).
@@ -394,7 +386,6 @@ class VenomousBehavior(Behavior):
             target.msg("You are poisoned!")
 
 
-@BehaviorRegistry.register
 class PeacekeeperBehavior(Behavior):
     """
     Attacks WANTED criminals in its room (ROM spec_guard, done right).

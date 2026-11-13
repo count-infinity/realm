@@ -1,0 +1,38 @@
+"""
+__GAME_NAME__: the game's own feature.
+
+Everything this game adds to REALM is declared on ``feature``: commands,
+behaviors, softcode functions, observers, config settings. ``config.py``
+lists this module in FEATURES as "game", so it loads before the world does
+and saved behaviors always find their class. See docs/guides/features.md.
+"""
+
+from realm.core.behaviors import Behavior  # noqa: F401  (used by the behavior example)
+from realm.features import Feature
+
+feature = Feature("__GAME_ID__")
+
+
+# A command. Players type `wave`.
+# @feature.command("wave", category="social", help_text="Wave hello")
+# async def cmd_wave(ctx):
+#     await ctx.session.send("You wave.")
+
+
+# A behavior. Attach it with `@behavior <object> = __GAME_ID___chime`.
+# @feature.behavior
+# class Chime(Behavior):
+#     behavior_id = "__GAME_ID___chime"
+#
+#     @property
+#     def should_tick(self):
+#         return True
+#
+#     async def tick(self, obj, delta):
+#         obj.db.set("chimes", int(obj.db.get("chimes") or 0) + 1)
+
+
+# A softcode function: `double(4)`. readonly=True: locks and wards may call it.
+# @feature.function(readonly=True)
+# def double(n):
+#     return 2 * n

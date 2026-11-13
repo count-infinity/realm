@@ -14,7 +14,7 @@ after wards have had their say), and fires.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object
 from realm.systems.spells import (
     cast_spell,
@@ -99,11 +99,3 @@ async def cmd_spells(ctx: CommandContext) -> None:
     await ctx.session.send("\n".join(lines))
 
 
-def register_magic_commands(dispatcher: CommandDispatcher) -> None:
-    """Register spellcasting commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="combat")
-    register("cast", cmd_cast,
-             help_text="Cast a spell", usage="cast <spell> [target]")
-    register("spells", cmd_spells,
-             help_text="List spells you can cast", usage="spells")

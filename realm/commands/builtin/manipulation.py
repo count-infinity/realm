@@ -26,7 +26,7 @@ Everything is lean state on ordinary objects — capability and state are
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object
 from realm.core.action_types import ActionType
 from realm.core.checks import check, contest
@@ -477,29 +477,3 @@ async def cmd_search(ctx: CommandContext) -> None:
         await ctx.session.send("You find nothing unusual.")
 
 
-def register_manipulation_commands(dispatcher: CommandDispatcher) -> None:
-    """Register manipulation commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="items")
-    register("open", cmd_open,
-                        help_text="Open a door or container", usage="open <target>")
-    register("close", cmd_close,
-                        help_text="Close a door or container", usage="close <target>")
-    register("lock", cmd_lock_item,
-                        help_text="Lock with a carried key", usage="lock <target>")
-    register("unlock", cmd_unlock_item,
-                        help_text="Unlock with a carried key", usage="unlock <target>")
-    register("pick", cmd_pick,
-                        help_text="Pick a lock with skill", usage="pick <target>")
-    register("use", cmd_use,
-                        help_text="Use an object, or an item on a target",
-                        usage="use <target> | use <item> on <target>")
-    register("wear", cmd_wear,
-                        help_text="Wear a carried item", usage="wear <item>")
-    register("remove", cmd_unwear, aliases=["unwear"],
-                        help_text="Take off a worn item", usage="remove <item>")
-    register("hide", cmd_hide,
-                        help_text="Hide (Stealth check)", usage="hide")
-    register("search", cmd_search,
-                        help_text="Search for the hidden (Observation check)",
-                        usage="search")

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from realm.combat.manager import get_combat_manager, is_combat_capable
 from realm.combat.maneuver import QueuedAction
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object
 from realm.core.action_types import ActionType
 from realm.core.checks import check
@@ -141,6 +141,10 @@ def _make_shortcut(maneuver_key: str):
         ctx.args = f"{maneuver_key} {ctx.args}".strip()
         await cmd_queue(ctx)
     return shortcut
+
+
+cmd_defend = _make_shortcut("defend")
+cmd_defend.__name__ = "cmd_defend"
 
 
 async def cmd_flee(ctx: CommandContext) -> None:
@@ -388,51 +392,6 @@ async def cmd_unwield(ctx: CommandContext) -> None:
             await ctx.session.send(f"You lower {item.name}.")
             return
     await ctx.session.send("You have nothing readied.")
-
-
-def register_combat_commands(dispatcher: CommandDispatcher) -> None:
-    """Register combat commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="combat")
-    register("attack", cmd_attack, aliases=["kill", "att"],
-                        help_text="Attack someone (starts combat)",
-                        usage="attack <target>")
-    register("queue", cmd_queue, aliases=["q"],
-                        help_text="Choose your next combat action",
-                        usage="queue <maneuver> [target]")
-    register("defend", _make_shortcut("defend"),
-                        help_text="Fight defensively next beat")
-    register("flee", cmd_flee,
-                        help_text="Try to escape combat",
-                        usage="flee [direction]")
-    register("combat", cmd_combat_status, aliases=["cstat"],
-                        help_text="Show the current fight")
-    register("pace", cmd_pace,
-                        help_text="Set your combat beat (seconds)",
-                        usage="pace <seconds>")
-    register("combatdefault", cmd_combat_default,
-                        help_text="Default action when a beat fires unqueued",
-                        usage="combatdefault <attack|defend|repeat|nothing>")
-    register("wimpy", cmd_wimpy,
-                        help_text="Auto-flee below an HP percentage",
-                        usage="wimpy <percent>|off")
-    register("firstaid", cmd_firstaid, aliases=["aid"],
-                        help_text="Tend wounds (First Aid skill)",
-                        usage="firstaid [target]")
-    register("points", cmd_points, aliases=["cp", "score"],
-                        help_text="Show character points and skills")
-    register("wield", cmd_wield, aliases=["ready", "draw"],
-                        help_text="Ready a carried weapon",
-                        usage="wield <weapon>")
-    register("unwield", cmd_unwield, aliases=["lower", "sheathe"],
-                        help_text="Lower your readied weapon",
-                        usage="unwield")
-    register("improve", cmd_improve,
-                        help_text="Spend points to raise a skill",
-                        usage="improve <skill>")
-    register("showrolls", cmd_rolls,
-                        help_text="Show or hide dice-roll detail in combat",
-                        usage="showrolls [on|off]")
 
 
 async def cmd_points(ctx: CommandContext) -> None:

@@ -4,60 +4,34 @@ This guide explains how to add a new connection protocol to REALM, such as a cus
 
 !!! important "REALM is a Library"
     You should **never need to modify REALM's source code** to add a protocol.
-    Protocols are registered through your game's configuration or entry points.
+    A protocol is declared by a feature: your game's `game.py`, or a feature
+    package you install.
 
 ## Overview
 
 Adding a protocol requires:
 
 1. A **protocol server class** in your game's code
-2. **Registration** via config or entry points
+2. A **declaration** on a feature: `feature.protocol(...)`
 3. A **writer function** that sends data to clients
 
-## Quick Start: Register via Configuration
+## Quick Start
 
-In your game's `config/settings.yaml`:
-
-```yaml
-# config/settings.yaml
-server:
-  protocols:
-    telnet:
-      enabled: true
-      port: 4000
-    websocket:
-      enabled: true
-      port: 4001
-    # Custom protocol from your game code
-    godot:
-      enabled: true
-      port: 4002
-      class: "mygame.protocols.GodotServer"
-```
-
-REALM will import and instantiate your protocol class automatically.
-
-## Quick Start: Register via Python
-
-In your game's entry point:
+In your game's feature module:
 
 ```python
-# mygame/server.py
-from realm import GameServer
+# mygame/game.py
+from realm.features import Feature
 from mygame.protocols import GodotServer
 
-async def main():
-    server = GameServer()
-
-    # Register your custom protocol
-    server.register_protocol(
-        "godot",
-        GodotServer,
-        port=4002,
-    )
-
-    await server.run_forever()
+feature = Feature("mygame")
+feature.protocol("godot", GodotServer, port=4002)
 ```
+
+`config.py` lists the feature in `FEATURES` (`FEATURES = [*CLASSIC, "game"]`).
+When the server starts, it constructs each declared protocol as
+`GodotServer(session_manager, on_command, port=4002)` and calls its
+`start()`. See [Features](../guides/features.md).
 
 ## Protocol Server Interface
 
@@ -308,36 +282,27 @@ class GodotServer:
 
 ## Using Your Protocol
 
-### Option 1: Configuration (Recommended)
-
-```yaml
-# config/settings.yaml
-server:
-  protocols:
-    godot:
-      enabled: true
-      port: 4002
-      class: "mygame.protocols.GodotServer"
-```
-
-### Option 2: Python Registration
+### Declared by a feature (recommended)
 
 ```python
-# mygame/server.py
-from realm import GameServer
+# mygame/game.py
+feature.protocol("godot", GodotServer, port=4002)
+```
+
+Leave the feature out of `FEATURES` and the protocol is not started.
+
+### Registered on a server you build yourself
+
+When you embed REALM as a library and construct the server in your own
+code, register the protocol before `start()`:
+
+```python
+from realm.server.game import GameServer
 from mygame.protocols import GodotServer
 
 server = GameServer()
 server.register_protocol("godot", GodotServer, port=4002)
 await server.run_forever()
-```
-
-### Option 3: Entry Points (for pip-installable plugins)
-
-```toml
-# In your plugin's pyproject.toml
-[project.entry-points."realm.protocols"]
-godot = "mygame.protocols:GodotServer"
 ```
 
 ## Checklist

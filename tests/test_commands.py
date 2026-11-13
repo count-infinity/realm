@@ -4,9 +4,10 @@ import pytest
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_exit, find_object, format_list
-from realm.commands.builtin import register_all_commands
 from realm.core.objects import GameObject
+from realm.features import load
 from realm.gateway.session import Session
+from realm.std import CLASSIC
 
 
 class TestCommandBase:
@@ -126,7 +127,7 @@ class TestBuiltinCommands:
     def setup_method(self):
         """Set up test environment."""
         self.dispatcher = CommandDispatcher()
-        register_all_commands(self.dispatcher)
+        load(CLASSIC).install_commands(self.dispatcher)
 
         self.room = GameObject("Test Room", tags=['room'])
         self.room.description = "A test room."
@@ -365,7 +366,7 @@ class TestCommandRegistration:
     def test_all_commands_registered(self):
         """All expected commands are registered."""
         dispatcher = CommandDispatcher()
-        register_all_commands(dispatcher)
+        load(CLASSIC).install_commands(dispatcher)
 
         expected = [
             # Movement
@@ -386,7 +387,7 @@ class TestCommandRegistration:
     def test_aliases_registered(self):
         """Command aliases are registered."""
         dispatcher = CommandDispatcher()
-        register_all_commands(dispatcher)
+        load(CLASSIC).install_commands(dispatcher)
 
         # Check some aliases
         assert dispatcher.get_command("l") is not None  # look

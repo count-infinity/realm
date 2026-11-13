@@ -6,28 +6,39 @@ is `realm.commands` — the command system's own package (`Command`,
 `realm/commands/dispatcher.py`; the server *hosts* a dispatcher, it
 doesn't own the types).
 
-## Registering Commands
+## Declaring Commands
+
+A command belongs to a feature (see [Features](../guides/features.md)).
+The game declares its own in `game.py`; the built-in ones are declared the
+same way in `realm/std/`:
 
 ```python
-from realm.commands import CommandDispatcher, CommandContext
+# mygame/game.py
+from realm.commands import CommandContext
+from realm.features import Feature
 
-dispatcher = CommandDispatcher()
+feature = Feature("mygame")
 
+@feature.command("wave", aliases=["wav"], help_text="Wave at someone",
+                 usage="wave [target]", permission="player", category="social")
 async def cmd_wave(ctx: CommandContext) -> None:
     """Wave at someone."""
     if ctx.args:
         await ctx.session.send(f"You wave at {ctx.args}.")
     else:
         await ctx.session.send("You wave.")
-
-# Register with aliases, permission, and a help category
-dispatcher.register("wave", cmd_wave, aliases=["wav"],
-                    help_text="Wave at someone", usage="wave [target]",
-                    permission="player", category="social")
 ```
 
-`help` derives its listing from these registrations — set `category`
-and `help_text` and your command documents itself.
+When the world is built, `FeatureSet.install_runtime` registers every
+declared command of the loaded features on the world's dispatcher
+(`CommandDispatcher.register`). A command name or alias declared by two
+features raises `FeatureError` naming both, unless one says `replace=True`.
+A feature left out of `FEATURES` contributes no commands, so they are
+unknown and absent from `help`.
+
+`help` derives its listing from these declarations — set `category` (the
+feature's name by default) and `help_text` and your command documents
+itself.
 
 ## Command Context
 

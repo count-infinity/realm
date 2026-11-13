@@ -123,9 +123,10 @@ class TestHelp:
         use_persistence(self.persistence)
 
     def _ctx(self, player, args=""):
-        from realm.commands.builtin import register_all_commands
+        from realm.features import load
+        from realm.std import CLASSIC
         ctx = make_context(player, args=args)
-        register_all_commands(ctx.dispatcher)
+        load(CLASSIC).install_commands(ctx.dispatcher)
         return ctx
 
     async def test_help_lists_by_category(self):

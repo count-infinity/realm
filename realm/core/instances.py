@@ -22,7 +22,6 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from realm.core.movement import register_dest_resolver
 from realm.core.query import find_objects
 from realm.core.teardown import (
     EPHEMERAL_TAG,
@@ -338,12 +337,6 @@ async def reap_idle(persistence, *, now: float | None = None) -> int:
             await destroy_instance(master, persistence)
             reaped += 1
     return reaped
-
-
-# Private space: every walker may land in a different copy, so flee
-# refuses these exits (see register_dest_resolver).
-register_dest_resolver(RESOLVER_NAME, resolve_instance_exit,
-                       shared_destination=False)
 
 
 __all__ = [

@@ -209,7 +209,6 @@ class TestDoubleTickGuard:
             PersistenceManager,
             set_active_manager,
         )
-        from realm.server.game import GameServer
 
         pm = PersistenceManager(":memory:")
         await pm.initialize()
@@ -221,10 +220,11 @@ class TestDoubleTickGuard:
             await pm.save(mob)
             assert mob not in ambient_beat_targets([mob])   # skipped while tagged
 
-            # __new__ skips __init__: the scrub touches only .persistence.
-            server = GameServer.__new__(GameServer)
-            server.persistence = pm
-            await server._scrub_stale_combat_state()
+            # The combat feature's on_boot hook; it touches only world.store.
+            from types import SimpleNamespace
+
+            from realm.std.combat import _scrub_stale_combat_state
+            await _scrub_stale_combat_state(SimpleNamespace(store=pm))
 
             assert not mob.has_tag("in_combat")
             assert mob.db.get("combat_queued") is None

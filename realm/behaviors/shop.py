@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.behaviors import Behavior
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -26,7 +26,6 @@ if TYPE_CHECKING:
 DEFAULT_VALUE = 10
 
 
-@BehaviorRegistry.register
 class ShopkeeperBehavior(Behavior):
     """
     Marks an NPC as a merchant and prices its wares.

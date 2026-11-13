@@ -51,15 +51,19 @@ For speed or complexity beyond softcode, register a native function and
 call it by name from softcode:
 
 ```python
-# mygame/bindings.py
-from realm.scripting import softcode_function
+# mygame/game.py — the game's feature, listed in config.py's FEATURES
+from realm.features import Feature
 
-@softcode_function(group="Dice & skill checks", readonly=True)
+feature = Feature("mygame")
+
+@feature.function(group="Dice & skill checks", readonly=True)
 def exploding_pool(pool, tn):
     ...            # arbitrary native Python — fast, complex, whatever
-
-# config.py:  import bindings   → softcode/OLC can now call exploding_pool(...)
 ```
+
+A function declared on a feature exists only while that feature is in
+`FEATURES`. (A module that calls `realm.scripting.softcode_function` at
+import time also works; such a function is always visible, like a built-in.)
 
 ```python
     resolve_rule = "exploding_pool(attr('pool'), 4)"
@@ -79,15 +83,15 @@ ward runs on the decision path, where a side effect would fire even when
 the action is refused. `group` is its section in the
 [softcode reference](../reference/softcode.md) (default `"Game"`).
 
-A name can be registered once. Registering a name that is already taken
-(including a built-in such as `controls`) raises `ValueError`; pass
-`replace=True` to override it on purpose. Inside a `resolve_rule`, the
+A name can be registered once. Declaring a name that is already taken
+(including a built-in such as `controls`) raises `FeatureError` naming both
+owners; pass `replace=True` to override it on purpose. Inside a `resolve_rule`, the
 rule's own names (`skill`, `attr`, `mod`, `skill_name`) win over a
 function with the same name.
 
 **The trust boundary (important):** a binding is unsandboxed native code,
 so registering one is a **deploy-time act by the operator** — the game's
-`config.py` imports the module. It is *never* something a builder types at
+`config.py` lists the feature that declares it. It is *never* something a builder types at
 an in-game prompt. Sandboxed softcode **composes** bindings; it cannot
 register them. Operators extend the vocabulary; builders compose it. This
 is also the performance escape hatch — a rule that's too slow in softcode

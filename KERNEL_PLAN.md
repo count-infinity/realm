@@ -12,7 +12,7 @@ its own and leaves the suite green.
 | 1 | Fix the defects, delete the dead code | S | [x] |
 | 2 | One composition root, one source of defaults | S–M | [x] |
 | 3 | One softcode function registry, one namespace builder | M | [x] |
-| 4 | Features: built-ins use the front door | M–L | [ ] |
+| 4 | Features: built-ins use the front door | M–L | [x] |
 | 5 | One service function per world operation | M | [ ] |
 | 6 | One softcode dialect, open vocabularies | M | [ ] |
 | 7 | Move the files, replace the global setters, add boundary tests | L | [ ] |
@@ -927,53 +927,53 @@ rules system does not require combat. When `combat` is absent,
 
 Tasks:
 
-- [ ] Write `tests/test_features.py` first:
-  - [ ] **Default equals today.** With `CLASSIC`, the command names, the
+- [x] Write `tests/test_features.py` first:
+  - [x] **Default equals today.** With `CLASSIC`, the command names, the
         softcode namespace keys, the propagation observers and the registered
         behavior ids equal lists frozen in the test from the state after
         step 3.
-  - [ ] **Subtract.** `Simulator(features=["basics", "talk", "movement",
+  - [x] **Subtract.** `Simulator(features=["basics", "talk", "movement",
         "look", "items", "building"])`: `attack`, `buy`, `cast`, `wimpy` and
         `improve` are unknown commands and absent from `help`. Softcode
         `credits`, `damage` and `start_combat` raise NameError. The engine's
         only observer is the script engine. `world.services` has no
         `"combat"`. An `act()` tagged hostile between two players starts
         nothing. `BehaviorRegistry.get("aggressive")` is `None`.
-  - [ ] **A game feature.** A module written to `tmp_path` declares one
+  - [x] **A game feature.** A module written to `tmp_path` declares one
         behavior, one command and one softcode function. Listed in
         `FEATURES`, all three work. Attach the behavior, save to SQLite,
         boot a second server on the same file: the behavior still ticks,
         with no import in `config.py`.
-  - [ ] **Collisions.** Two features declaring the same behavior id, command
+  - [x] **Collisions.** Two features declaring the same behavior id, command
         name, softcode function or ruleset name raise `FeatureError` that
         names both.
-  - [ ] **Requirements.** A feature list with `combat` but without `rules`
+  - [x] **Requirements.** A feature list with `combat` but without `rules`
         raises `FeatureError`.
-- [ ] Add `realm/features.py`.
-- [ ] Add `realm/std/` and `realm/games/` declaration modules per the table.
+- [x] Add `realm/features.py`.
+- [x] Add `realm/std/` and `realm/games/` declaration modules per the table.
       Move the content of each `register_*_commands` function into the
       matching declarations. Delete `register_all_commands`, the 16
       `register_*_commands` functions, and the side-effect imports at
       `server/game.py:26-27` and in `realm/behaviors/__init__.py`.
-- [ ] Replace the 26 `@BehaviorRegistry.register` decorators with
+- [x] Replace the 26 `@BehaviorRegistry.register` decorators with
       `feature.behavior(...)` declarations.
-- [ ] Move the feature-specific queue kinds out of
+- [x] Move the feature-specific queue kinds out of
       `ScriptEngine._deliver_queued` into `feature.queue_kind` handlers:
       `death_check`, `combat`, `cast`, `enter_instance`, `wilderness`. The
       kernel keeps `pemit`, `remit`, `oemit`, `oob`, `save`, `destroy`,
       `wait`, `cancel_wait`, `prompt`, `force`, `act`, `move_to`.
-- [ ] Move `GameServer._reap`'s instance and wilderness calls to
+- [x] Move `GameServer._reap`'s instance and wilderness calls to
       `feature.reaper`. Move `_scrub_stale_combat_state` into the combat
       feature's `on_boot`.
-- [ ] Reduce `build_world` to kernel wiring plus `install_runtime`. Change
+- [x] Reduce `build_world` to kernel wiring plus `install_runtime`. Change
       `GameServer.start` to the boot order of 4.2.
-- [ ] Tests that call `register_all_commands` or a `register_*_commands`
+- [x] Tests that call `register_all_commands` or a `register_*_commands`
       function (17 uses in 6 files) switch to `Simulator` or to
       `realm.features.load(CLASSIC).install_runtime(world)`.
-- [ ] Delete the `register_commands` and `register_protocols` config
+- [x] Delete the `register_commands` and `register_protocols` config
       callbacks. A game declares commands and protocols in its feature
       module. Keep `init_world`, `on_start`, `on_stop`.
-- [ ] Scaffold: `realm init` writes `game.py` with
+- [x] Scaffold: `realm init` writes `game.py` with
       `feature = Feature("<game id>")` and one commented example each of a
       command, a behavior and a softcode function. `config.py.template` gets
       `FEATURES = [*CLASSIC, "game"]` and loses the two callback examples.
@@ -981,22 +981,22 @@ Tasks:
 
 ### Acceptance
 
-- [ ] `tests/test_features.py` passes. The suite is green.
-- [ ] `git grep -n "crime\|stealth_observer\|CombatManager\|equipment_observer" realm/server/`
+- [x] `tests/test_features.py` passes. The suite is green.
+- [x] `git grep -n "crime\|stealth_observer\|CombatManager\|equipment_observer" realm/server/`
       is empty.
-- [ ] `git grep -n "@BehaviorRegistry.register\|def register_.*_commands" realm/`
+- [x] `git grep -n "@BehaviorRegistry.register\|def register_.*_commands" realm/`
       is empty.
 
 ### Docs
 
-- [ ] New guide `docs/guides/features.md`: choosing features, writing one,
+- [x] New guide `docs/guides/features.md`: choosing features, writing one,
       collisions, requirements. Add it to `mkdocs.yml`.
-- [ ] `docs/getting-started/first-game.md`: `game.py` and `FEATURES`.
-- [ ] `docs/architecture/commands.md`: registration through `feature.command`.
-- [ ] `docs/protocols/adding-protocol.md`: rewrite around `feature.protocol`.
+- [x] `docs/getting-started/first-game.md`: `game.py` and `FEATURES`.
+- [x] `docs/architecture/commands.md`: registration through `feature.command`.
+- [x] `docs/protocols/adding-protocol.md`: rewrite around `feature.protocol`.
       Remove the `config/settings.yaml` section; that mechanism never existed.
-- [ ] `docs/guides/creating-your-own-system.md`: ruleset declaration.
-- [ ] `README.md` and `CLAUDE.md`: the extension table.
+- [x] `docs/guides/creating-your-own-system.md`: ruleset declaration.
+- [x] `README.md` and `CLAUDE.md`: the extension table.
 
 ### Closes
 
@@ -2629,3 +2629,13 @@ entry closed.
 | 2026-11-13 | 3.4 | Tests that monkeypatched `realm.scripting.functions.random.randint` now patch `realm.scripting.lib.mathx.random.randint` (same `random` module). `tests/test_scripting.py` calls the frame-free helpers on an instance (`ScriptFrame().ucfirst(...)`). | The functions moved; the patched object did not. |
 | 2026-11-13 | 3.5 | `use_ability` is registered `harm=True`, as task 3.5 says; Appendix A's row leaves the column blank. It looks the definition up with `find_ability_def` (ability or spell), checks `can_invoke`, and the engine runs a `spell_def` with the `cast`/`spell:` flavor and an `ability_def` with the default `use`/`ability:` one. | An ability can damage a target the executor need not control, like `damage()`. |
 | 2026-11-13 | 3 Docs | The reference's "Context names" section became "Where softcode runs (profiles)", a table generated from `namespace.PROFILES`, `PROFILE_EXTRAS` and `PROFILE_SUBJECT`. The reference now lists 101 functions: the 98 before, `skill` and `check` (3.3) and `use_ability` (3.5). | The acceptance line named only `use_ability`; Appendix A lists the subject helpers as additions of 3.3. |
+| 2026-11-13 | 4.1 | With no live world the registries hold the `CLASSIC` set (installed lazily by `features.ensure_registries()` on first lookup), and `World.close()` restores that default instead of clearing them. | Library code and the many tests that never build a world (bare `ScriptEngine`, `BehaviorRegistry.create`) keep seeing every built-in; a live world still sees exactly its own set. |
+| 2026-11-13 | 4.1 | Added `Feature.on_install(fn)`, a sync `(world)` hook run by `install_runtime`. The combat feature creates its `CombatManager` there; only the stale-combat scrub is an `on_boot` hook. `Simulator` runs `on_boot` hooks only when a test awaits `sim.boot()`. | `Simulator.__init__` is synchronous and cannot await `on_boot`; the manager must exist in every Simulator. |
+| 2026-11-13 | 4.1 | Built-in softcode functions stay import-time registrations in `realm/scripting/lib/`, now carrying `owner=` (combat, effects, abilities, economy, social, rules, instances, wilderness); `registered()` shows only installed owners. `Feature.function` / `Feature.softfn` are for features' own functions and are installed per world. An import-time `@softcode_function` is owner `kernel`, always visible. | The plan's owner field without rewriting step 3's library a second time. |
+| 2026-11-13 | 4.1 | `ScriptEngine` looks up a queue kind in its own table (filled by `install_runtime`), then in the installed feature set. | Tests drive a bare `ScriptEngine()` with no world; in a live world the installed set is the world's own, so a left-out feature's kinds are still absent. |
+| 2026-11-13 | 4.1 | The five combat keys (`COMBAT_RULESET`, `SHOW_ROLLS`, `COMBAT_BEAT_*`) left `Settings` and are `combat` feature settings, read with `world.setting(key)`. `Settings._raw` became `Settings.raw`. `load_config` loads the configured features to check typos against kernel plus feature keys (`known_config_keys()`); `KNOWN_CONFIG_KEYS` stays the kernel keys. | As planned; `raw` is now read by `World.setting` and tests pass feature keys with `Settings(raw={...})`. |
+| 2026-11-13 | 4.1 | Added `FeatureSet.install_commands(dispatcher)`; tests that called `register_all_commands` use `load(CLASSIC).install_commands(dispatcher)`. | Those tests need a populated dispatcher, not a whole world. |
+| 2026-11-13 | 4.3 | Declaration modules were generated from the live dispatcher so every command keeps its aliases, permission, category, help and usage exactly; the frozen-state test confirms 115 commands. The `defend` handler, a closure, got a module-level name (`cmd_defend`). The rules systems are modules `realm/games/{gurps,d20,merc}.py`; step 7 may turn them into packages. | Exactness over hand-copying 115 registrations. |
+| 2026-11-13 | 4.3 | Name resolvers and speech renderers (`register_name_resolver`, `register_speech_renderer`) are not feature declarations; only tests use them, and they stay as module setters until step 7. `GameServer.register_protocol` stays for code that builds its own server. | Not in the Feature API of 4.1. |
+| 2026-11-13 | 4 Docs | `docs/protocols/adding-protocol.md` also lost its entry-point section: like `config/settings.yaml`, that mechanism never existed. The BACKLOG YAML and entry-point protocol items are marked superseded. | Docs describe only what exists. |
+| 2026-11-13 | 4 Tests | `tests/test_ruleset_registry.py` (from 1.6) was rewritten for declarations: a second feature declaring `gurps` collides; `replace=True` overrides and keeps `d20`/`merc`; `RulesetRegistry.register` remains the low-level call. The stale-combat test calls the combat feature's `on_boot` hook. | The 1.6 mechanism (`_builtins_loaded`) is gone. |

@@ -6,7 +6,7 @@ Handles viewing rooms, objects, and players.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_exit, find_object
 from realm.core.action_tags import VISUAL
 from realm.core.action_types import ActionType
@@ -252,23 +252,3 @@ async def _show_exit(ctx: CommandContext, exit_obj) -> None:
     await ctx.session.send("")
 
 
-def register_look_commands(dispatcher: CommandDispatcher) -> None:
-    """Register look commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="looking")
-
-    register(
-        "look",
-        cmd_look,
-        aliases=["l"],
-        help_text="Look at your surroundings or an object",
-        usage="look [target]",
-    )
-
-    register(
-        "examine",
-        cmd_examine,
-        aliases=["ex", "exam"],
-        help_text="Examine an object in detail",
-        usage="examine <target>",
-    )

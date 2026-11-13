@@ -37,6 +37,8 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     Creates a directory with:
     - config.py: Game configuration
+    - rules.py: the game system (a GameSystem subclass)
+    - game.py: the game's own feature (commands, behaviors, softcode)
     - data/welcome.txt: Welcome screen
     - data/: Directory for database and data files
 
@@ -93,6 +95,16 @@ def cmd_init(args: argparse.Namespace) -> int:
     (project_dir / "rules.py").write_text(rules_content)
     print("  Created rules.py")
 
+    # Create game.py — the game's own feature (commands, behaviors, softcode
+    # functions), listed in config.py's FEATURES as "game".
+    game_content = (
+        get_template("game.py.template")
+        .replace("__GAME_NAME__", display_name)
+        .replace("__GAME_ID__", system_id)
+    )
+    (project_dir / "game.py").write_text(game_content)
+    print("  Created game.py")
+
     # Create welcome.txt from template
     welcome_content = render_template(
         "welcome.txt.template",
@@ -106,7 +118,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"  cd {game_name}")
     print("  realm start")
     print()
-    print("Customize your rules in rules.py; other settings in config.py.")
+    print("Customize your rules in rules.py, add commands and behaviors in game.py;")
+    print("other settings are in config.py.")
 
     return 0
 

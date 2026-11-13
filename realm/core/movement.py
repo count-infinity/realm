@@ -63,7 +63,13 @@ def register_dest_resolver(name: str, resolver, *,
     different, so pursuit is impossible — flee refuses such exits
     (escaping combat into a freshly imported private dungeon is not a
     flee, it's a teleport)."""
-    _DEST_RESOLVERS[str(name)] = (resolver, bool(shared_destination))
+    _resolvers()[str(name)] = (resolver, bool(shared_destination))
+
+
+def _resolvers():
+    from realm.features import ensure_registries
+    ensure_registries()
+    return _DEST_RESOLVERS
 
 
 def has_dest_resolver(exit_obj: GameObject | None) -> bool:
@@ -77,7 +83,7 @@ def has_private_dest_resolver(exit_obj: GameObject | None) -> bool:
     if exit_obj is None:
         return False
     name = exit_obj.db.get('dest_resolver')
-    entry = _DEST_RESOLVERS.get(str(name)) if name else None
+    entry = _resolvers().get(str(name)) if name else None
     return entry is not None and not entry[1]
 
 
@@ -89,7 +95,7 @@ async def _resolve_deferred_destination(
     name = exit_obj.db.get('dest_resolver')
     if not name:
         return None
-    entry = _DEST_RESOLVERS.get(str(name))
+    entry = _resolvers().get(str(name))
     if entry is None:
         # A typo'd resolver name is a builder bug, not world geography —
         # fail loud, never masquerade as a map edge (vision #10).

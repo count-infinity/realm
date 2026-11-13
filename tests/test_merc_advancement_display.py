@@ -16,9 +16,10 @@ from __future__ import annotations
 import pytest
 
 from realm.commands import CommandDispatcher
-from realm.commands.builtin import register_all_commands
 from realm.core.objects import GameObject
+from realm.features import load
 from realm.gateway.session import Session
+from realm.std import CLASSIC
 from realm.systems import GurpsSystem, MercSystem, set_game_system
 
 
@@ -77,7 +78,7 @@ class TestSystemAwareScore:
         set_game_system(system)
         try:
             dispatcher = CommandDispatcher()
-            register_all_commands(dispatcher)
+            load(CLASSIC).install_commands(dispatcher)
             room = GameObject("Square", tags=['room'])
             player = GameObject("Grog", tags=['player'], location=room)
             player.db.level = 3
@@ -118,7 +119,7 @@ class TestInventoryEquipMarks:
 
     async def test_wielded_and_worn_are_marked(self):
         dispatcher = CommandDispatcher()
-        register_all_commands(dispatcher)
+        load(CLASSIC).install_commands(dispatcher)
         room = GameObject("Square", tags=['room'])
         player = GameObject("Grog", tags=['player'], location=room)
         sword = GameObject("a short sword", tags=['thing'], location=player)

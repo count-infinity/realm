@@ -40,7 +40,11 @@ REALM must be usable as a library, not an application to fork.
   - Allows users to register custom protocols without modifying REALM
   - Protocol classes instantiated with session_manager, on_command, host, port
 
-- [ ] Implement config-based protocol loading (YAML)
+- [x] ~~Implement config-based protocol loading (YAML)~~ Superseded
+  2026-11-13 (KERNEL_PLAN step 4): a feature declares a protocol with
+  `feature.protocol(name, cls, **kwargs)` and the game lists the feature in
+  `FEATURES`. The YAML loader and entry-point discovery below were never
+  built and are not planned.
   ```yaml
   protocols:
     godot:
@@ -50,7 +54,7 @@ REALM must be usable as a library, not an application to fork.
   ```
   - REALM imports and instantiates the class automatically
 
-- [ ] Implement entry point protocol discovery
+- [x] ~~Implement entry point protocol discovery~~ (superseded, see above)
   - `[project.entry-points."realm.protocols"]`
   - Allows pip-installable protocol plugins
 
@@ -66,7 +70,10 @@ REALM must be usable as a library, not an application to fork.
   - Callbacks (init_world, on_start, on_stop, register_commands, register_protocols)
 
 ### Command Registration
-- [ ] Implement decorator-based command registration
+- [x] ~~Implement decorator-based command registration~~ DONE 2026-11-13
+  (KERNEL_PLAN step 4): `@feature.command("wave", aliases=["wav"])` in the
+  game's `game.py`. Every built-in command is declared the same way in
+  `realm/std/`.
   ```python
   from realm import command
 
@@ -75,7 +82,9 @@ REALM must be usable as a library, not an application to fork.
       await ctx.send("You wave.")
   ```
 
-- [ ] Auto-discover commands from user's `commands/` directory
+- [x] ~~Auto-discover commands from user's `commands/` directory~~
+  Superseded: a game lists its feature modules in `FEATURES`; nothing is
+  discovered implicitly.
 
 ### Playable Midgaard on merc (DONE 2026-07-30)
 - [x] A complete, runnable Diku: `examples/midgaard` (config + the

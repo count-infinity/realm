@@ -10,11 +10,39 @@ cd mygame
 realm start
 ```
 
-This scaffolds a small project: `config.py` holds your settings (ports,
-game name, tick rate); **`rules.py`** is your own game system (character
-creation, skills, advancement) — pre-wired and ready to customize; and
-`data/` holds the SQLite database and welcome screen. The server is now
-listening on telnet port 4000.
+This scaffolds a small project:
+
+- `config.py` holds your settings (ports, game name, tick rate) and
+  `FEATURES`, the list of features your game is made of.
+- **`rules.py`** is your own game system (character creation, skills,
+  advancement), pre-wired and ready to customize.
+- **`game.py`** is your game's own feature: the place for your commands,
+  behaviors and softcode functions. It has a commented example of each.
+- `data/` holds the SQLite database and welcome screen.
+
+The server is now listening on telnet port 4000.
+
+## Choose your features
+
+`config.py` starts with every built-in feature plus your own:
+
+```python
+from realm.std import CLASSIC
+FEATURES = [*CLASSIC, "game"]
+```
+
+`CLASSIC` is talk, movement, items, building, rules, combat, abilities,
+economy, social, crime, NPC behaviors, spawning, instances, wilderness and
+the GURPS, D20 and Merc rulesets. A game that does not want some of them
+lists what it does want instead; this one has no combat and no money:
+
+```python
+FEATURES = ["basics", "talk", "movement", "look", "items", "building", "game"]
+```
+
+A left-out feature's commands, behaviors and softcode functions do not
+exist in your world. See [Features](../guides/features.md) for the full
+list and for writing your own.
 
 ## Connect and become the superuser
 

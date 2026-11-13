@@ -16,7 +16,6 @@ from realm.testing import Simulator
 
 
 def _merc():
-    RulesetRegistry._ensure_builtins()
     return RulesetRegistry.get("merc")()
 
 

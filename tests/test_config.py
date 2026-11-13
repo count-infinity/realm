@@ -68,7 +68,10 @@ class TestOneSourceOfDefaults:
             if (isinstance(node, ast.Assign) and len(node.targets) == 1
                     and isinstance(node.targets[0], ast.Name)
                     and node.targets[0].id.isupper()):
-                out[node.targets[0].id] = ast.literal_eval(node.value)
+                try:
+                    out[node.targets[0].id] = ast.literal_eval(node.value)
+                except ValueError:      # FEATURES = [*CLASSIC, "game"]
+                    out[node.targets[0].id] = None
         return out
 
     def test_every_template_key_is_known(self):
@@ -76,8 +79,9 @@ class TestOneSourceOfDefaults:
         active = set(self._active_assignments())
         commented = set(re.findall(r"^#\s*([A-Z][A-Z0-9_]+)\s*=", self._template(),
                                    flags=re.MULTILINE))
-        unknown = (active | commented) - KNOWN_CONFIG_KEYS
-        assert not unknown, f"template keys Settings does not declare: {sorted(unknown)}"
+        from realm.config.loader import known_config_keys
+        unknown = (active | commented) - known_config_keys()
+        assert not unknown, f"template keys neither Settings nor a feature declares: {sorted(unknown)}"
 
     def test_active_template_values_equal_the_defaults(self):
         from dataclasses import fields
@@ -87,7 +91,7 @@ class TestOneSourceOfDefaults:
                     for f in fields(Settings) if "key" in f.metadata}
         differ = {}
         for key, value in self._active_assignments().items():
-            if key in ("GAME_NAME", "GAME_SYSTEM"):
+            if key in ("GAME_NAME", "GAME_SYSTEM", "FEATURES"):
                 continue
             default = defaults[key]
             if isinstance(default, pathlib.Path):

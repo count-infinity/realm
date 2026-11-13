@@ -1,21 +1,27 @@
 """
-The composition root: ``build_world`` wires every engine subsystem.
+The composition root: ``build_world`` wires the kernel, then the features.
 
 ``GameServer.start`` and the test ``Simulator`` both call ``build_world``,
-so a test cannot pass on wiring the live game lacks. Each registration it
-makes on ambient state (module setters, propagation observers) pushes its
-undo onto ``World._closers``; ``World.close`` runs them newest first.
+so a test cannot pass on wiring the live game lacks. The kernel part is
+the same for every game: syntax settings, the store, the dispatcher, the
+script engine, the game system and the world tempo. Everything else comes
+from the loaded features (``FeatureSet.install_runtime``): commands,
+observers, the combat manager, queue kinds, reapers.
+
+Each registration on ambient state (module setters, propagation observers)
+pushes its undo onto ``World._closers``; ``World.close`` runs them newest
+first and then restores the default registries.
 
 What stays outside: opening and loading the store (the server does that
-before calling ``build_world``), the login flow, the "Huh?" wrapper around
-the softcode fallback, the tick and reap loops, and the protocol servers.
+first), the login flow, the "Huh?" wrapper around the softcode fallback,
+the tick and reap loops, and the protocol servers.
 """
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Any
 
 from realm.config.loader import Settings
@@ -23,6 +29,7 @@ from realm.config.loader import Settings
 if TYPE_CHECKING:
     from realm.commands.dispatcher import CommandDispatcher
     from realm.core.propagation import PropagationEngine
+    from realm.features import FeatureSet
     from realm.gateway.session import SessionManager
     from realm.scripting.engine import ScriptEngine
     from realm.systems.base import GameSystem
@@ -41,36 +48,66 @@ class World:
     rules: GameSystem
     scripts: ScriptEngine | None
     sessions: SessionManager | None
-    services: dict[str, Any] = field(default_factory=dict)
+    features: FeatureSet | None = None
+    services: dict[str, Any] = field(default_factory=dict)  # features' services, e.g. "combat"
+    reapers: list[Callable] = field(default_factory=list)   # async (store) sweeps
+    protocols: list[tuple[str, type, dict[str, Any]]] = field(default_factory=list)
     _closers: list[Callable[[], None]] = field(default_factory=list, repr=False)
 
+    def add_closer(self, undo: Callable[[], None]) -> None:
+        """Run ``undo`` when the world closes (newest first)."""
+        self._closers.append(undo)
+
+    def observe(self, observer: Callable) -> None:
+        """Add a propagation observer for the life of this world."""
+        self.engine.add_observer(observer)
+        self._closers.append(lambda: self.engine.remove_observer(observer))
+
+    def setting(self, key: str) -> Any:
+        """A config value by its ``config.py`` key: a kernel key from
+        ``Settings``, or a key a loaded feature declared (its value from
+        ``config.py``, else the declared default)."""
+        for f in fields(Settings):
+            if f.metadata.get("key") == key:
+                return getattr(self.settings, f.name)
+        declared = self.features.settings if self.features is not None else {}
+        if key not in declared:
+            raise KeyError(f"{key!r} is not a kernel setting and no loaded feature "
+                           f"declares it")
+        return self.settings.raw.get(key, declared[key][0])
+
     def close(self) -> None:
-        """Undo every ambient registration, newest first. Safe to call twice."""
+        """Undo every ambient registration, newest first, then restore the
+        default registries. Safe to call twice."""
         while self._closers:
             undo = self._closers.pop()
             try:
                 undo()
             except Exception:
                 logger.exception("World.close: an undo step failed")
+        if self.features is not None:
+            features, self.features = self.features, None
+            features.close(self)
 
 
 def build_world(store, settings: Settings | None = None, *,
                 sessions: SessionManager | None = None,
-                defer_timers: bool = False) -> World:
+                defer_timers: bool = False,
+                features: FeatureSet | None = None) -> World:
     """Wire the engine around an already-open ``store``.
+
+    ``features`` must already have run ``install_registries`` (the server
+    does that before loading the world). Without it, the set named by
+    ``settings.features`` (default ``CLASSIC``) is loaded and installed here.
 
     ``defer_timers`` makes softcode ``wait()`` fire only when a test pumps
     ``engine.tick_waits()`` (the Simulator's virtual clock).
     """
-    from realm.combat.manager import CombatManager, set_combat_manager
-    from realm.combat.system import create_combat_system, set_show_rolls_default
-    from realm.commands.builtin import register_all_commands
     from realm.commands.dispatcher import CommandDispatcher
     from realm.core import behaviors as behaviors_module
     from realm.core.checks import set_check_resolver, set_skill_defaults
     from realm.core.markup import set_markup_marker
     from realm.core.objects import set_check_hook
-    from realm.core.perception import stealth_observer
     from realm.core.propagation import get_engine
     from realm.core.verbs import set_emote_sigil
     from realm.gateway.session import set_heredoc_sigils
@@ -80,16 +117,17 @@ def build_world(store, settings: Settings | None = None, *,
     from realm.scripting.inline import set_inline_delimiters
     from realm.scripting.sandbox import set_interpreter_recursion_limit
     from realm.scripting.triggers import set_trigger_sigils
-    from realm.systems import equipment_observer, resolve_game_system, set_game_system
-    from realm.systems.crime import crime_observer
+    from realm.systems import resolve_game_system, set_game_system
 
     cfg = settings or Settings()
+    if features is None:
+        from realm.features import load
+        from realm.std import CLASSIC
+        features = load(cfg.features or CLASSIC)
+        features.install_registries()
+
     engine = get_engine()
     closers: list[Callable[[], None]] = []
-
-    def observe(observer) -> None:
-        engine.add_observer(observer)
-        closers.append(lambda: engine.remove_observer(observer))
 
     # 1. Syntax. A bad value raises here, at boot, not mid-render.
     set_inline_delimiters(cfg.inline_open, cfg.inline_close)
@@ -112,75 +150,45 @@ def build_world(store, settings: Settings | None = None, *,
     set_active_manager(store)
     closers.append(lambda: set_active_manager(None))
 
-    # 3. Commands.
+    # 3. Commands (the features fill it in).
     dispatcher = CommandDispatcher()
     dispatcher.persistence = store
     dispatcher.session_manager = sessions
 
-    # 4. Softcode: $-command fallback, ^listen / ON_<EVENT> observer, on_check hook.
-    scripts: ScriptEngine | None = None
+    # 4. Rules resolution: skill defaults and the check resolver.
+    rules = resolve_game_system(cfg.game_system)
+    set_game_system(rules)
+    closers.append(lambda: set_game_system(None))
+    set_skill_defaults(rules.skill_defaults())
+    set_check_resolver(rules.resolve_check)
+    closers.append(lambda: set_check_resolver(None))
+
+    # 5. World tempo (ambient beat, default behavior cadence).
+    previous_tick = behaviors_module.WORLD_TICK
+    behaviors_module.set_world_tick(cfg.world_beat)
+    closers.append(lambda: behaviors_module.set_world_tick(previous_tick))
+
+    world = World(settings=cfg, store=store, engine=engine, dispatcher=dispatcher,
+                  rules=rules, scripts=None, sessions=sessions, _closers=closers)
+
+    # 6. Softcode: $-command fallback, ^listen / ON_<EVENT> observer, on_check hook.
     if cfg.enable_scripting:
         scripts = ScriptEngine(persistence=store)
         scripts.defer_waits = defer_timers
         scripts.dispatcher = dispatcher
         scripts.session_manager = sessions
-        observe(scripts.handle_action)
+        world.observe(scripts.handle_action)
         set_script_engine(scripts)
         closers.append(lambda: set_script_engine(None))
         set_check_hook(scripts.run_check_hook)
         closers.append(lambda: set_check_hook(None))
         closers.append(scripts.shutdown_waits)
         dispatcher.set_unknown_handler(scripts.handle_unknown_command)
+        world.scripts = scripts
 
-    # 5. Loud actions break stealth, whoever performs them.
-    observe(stealth_observer)
-
-    # 6. Rules: skill defaults, check resolver, gear changes.
-    rules = resolve_game_system(cfg.game_system)
-    set_game_system(rules)
-    closers.append(lambda: set_game_system(None))
-    observe(equipment_observer)
-    set_skill_defaults(rules.skill_defaults())
-    set_check_resolver(rules.resolve_check)
-    closers.append(lambda: set_check_resolver(None))
-
-    # 7. Combat. COMBAT_RULESET overrides the system's own pairing.
-    combat = CombatManager(
-        create_combat_system(cfg.combat_ruleset or rules.ruleset_name),
-        beat_min=cfg.combat_beat_min,
-        beat_max=cfg.combat_beat_max,
-        beat_default=cfg.combat_beat_default,
-        session_manager=sessions,
-    )
-    set_combat_manager(combat)
-    closers.append(lambda: set_combat_manager(None))
-    closers.append(combat.stop_all)
-    set_show_rolls_default(cfg.show_rolls)
-    closers.append(lambda: set_show_rolls_default(False))
-    observe(combat.hostile_observer)
-
-    # 8. Crime: assaulting a player flags the attacker wanted.
-    observe(crime_observer)
-
-    # 9. World tempo (ambient beat, default behavior cadence).
-    previous_tick = behaviors_module.WORLD_TICK
-    behaviors_module.set_world_tick(cfg.world_beat)
-    closers.append(lambda: behaviors_module.set_world_tick(previous_tick))
-
-    # 10. The stock command set.
-    register_all_commands(dispatcher)
-
-    return World(
-        settings=cfg,
-        store=store,
-        engine=engine,
-        dispatcher=dispatcher,
-        rules=rules,
-        scripts=scripts,
-        sessions=sessions,
-        services={"combat": combat},
-        _closers=closers,
-    )
+    # 7. Everything else: the loaded features.
+    features.install_runtime(world)
+    return world
 
 
 __all__ = ["World", "build_world"]

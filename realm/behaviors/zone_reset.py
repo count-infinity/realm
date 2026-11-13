@@ -27,7 +27,7 @@ import time as _time
 from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.behaviors import Behavior
 from realm.core.query import find_objects
 from realm.core.zones import zone_rooms, zone_tags
 
@@ -49,7 +49,6 @@ def _resolve_room(ref, persistence) -> GameObject | None:
     return rooms[0] if rooms else None
 
 
-@BehaviorRegistry.register
 class ZoneResetBehavior(Behavior):
     """Repop a zone's canonical contents on a timer, while nobody's inside."""
 

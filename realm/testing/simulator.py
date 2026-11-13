@@ -39,26 +39,37 @@ class Simulator:
     """A live, in-process REALM world for tests and content checks."""
 
     def __init__(self, *, game_system: Any = None, scripting: bool | None = None,
-                 settings: Settings | None = None) -> None:
+                 settings: Settings | None = None,
+                 features: list[str] | None = None) -> None:
         """Build a world with the server's own ``build_world``.
 
         ``settings`` configures it like a game's config.py does
-        (``Settings(command_sigil='!')``); ``game_system`` and ``scripting``
-        are shortcuts for its ``game_system`` and ``enable_scripting``.
+        (``Settings(command_sigil='!')``; feature keys go in
+        ``Settings(raw={...})``). ``game_system``, ``scripting`` and
+        ``features`` are shortcuts for its ``game_system``,
+        ``enable_scripting`` and ``features`` (default: every built-in).
+        Feature ``on_boot`` hooks run only when a test awaits ``boot()``.
         """
+        from realm.features import load
         from realm.server.world import build_world
+        from realm.std import CLASSIC
 
         overrides: dict[str, Any] = {}
         if game_system is not None:
             overrides["game_system"] = game_system
         if scripting is not None:
             overrides["enable_scripting"] = scripting
+        if features is not None:
+            overrides["features"] = list(features)
+        settings = replace(settings or Settings(), **overrides)
+        self.features = load(settings.features or CLASSIC)
+        self.features.install_registries()
         reset_engine()
         self.store = MemoryStore()
         # Virtual clock: waits fire when the test pumps tick_waits(), not on
         # wall-clock timers — deterministic like the rest of the Simulator.
-        self.world = build_world(self.store, replace(settings or Settings(), **overrides),
-                                 defer_timers=True)
+        self.world = build_world(self.store, settings, defer_timers=True,
+                                 features=self.features)
         self.dispatcher = self.world.dispatcher
         self.engine = self.world.scripts
         self.game_system = self.world.rules
@@ -144,6 +155,10 @@ class Simulator:
 
     def session(self, player: GameObject) -> Session | None:
         return self._sessions.get(player.id)
+
+    async def boot(self) -> None:
+        """Run the features' ``on_boot`` hooks, as a server does after loading."""
+        await self.features.boot(self.world)
 
     def close(self) -> None:
         """Tear down every ambient registration this Simulator made."""

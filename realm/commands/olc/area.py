@@ -15,7 +15,7 @@ import json
 import re
 from pathlib import Path
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.persistence.worldio import (
     apply_plan,
     diff_plan,
@@ -182,18 +182,3 @@ async def cmd_pack(ctx: CommandContext) -> None:
         "Its classes and skills are now live.")
 
 
-def register_area_commands(dispatcher: CommandDispatcher) -> None:
-    from functools import partial
-    register = partial(dispatcher.register, category="building",
-                       permission="builder")
-    register("@areas", cmd_areas, help_text="List importable area files",
-             usage="@areas")
-    register("@pack", cmd_pack,
-             help_text="List or import built-in content packs (classes/skills/gear)",
-             usage="@pack [<name>]")
-    register("@export", cmd_export,
-             help_text="Export a zone to an area file",
-             usage="@export <zone>")
-    register("@import", cmd_import,
-             help_text="Import an area (plan; /apply to execute)",
-             usage="@import[/apply] <name>")

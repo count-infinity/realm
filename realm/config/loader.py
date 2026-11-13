@@ -125,19 +125,12 @@ class Settings:
     flush_interval: float = setting(
         30.0, "FLUSH_INTERVAL", "Seconds between saves of changed objects to the database.")
 
-    # --- Combat ---
-    combat_ruleset: str | None = setting(
-        None, "COMBAT_RULESET",
-        "Combat ruleset name. Unset, the game system picks its own; set it "
-        "only to mix systems on purpose.")
-    show_rolls: bool = setting(
-        False, "SHOW_ROLLS",
-        "Show dice detail on combat messages. Players override with `showrolls on|off`.")
-    combat_beat_min: float = setting(4.0, "COMBAT_BEAT_MIN", "Shortest combat round, in seconds.")
-    combat_beat_max: float = setting(120.0, "COMBAT_BEAT_MAX", "Longest combat round, in seconds.")
-    combat_beat_default: float = setting(
-        15.0, "COMBAT_BEAT_DEFAULT",
-        "Default combat round, in seconds.")
+    # --- Features ---
+    features: list[str] | None = setting(
+        None, "FEATURES",
+        "The features this game is made of, by name or module path. Unset, every "
+        "built-in feature (`realm.std.CLASSIC`). A game lists its own module too: "
+        "`FEATURES = [*CLASSIC, \"game\"]`.")
 
     # --- Callbacks: functions of the same name in config.py ---
     init_world: Callable[[GameServer], Awaitable[None]] | None = callback(
@@ -146,14 +139,10 @@ class Settings:
         "`async def on_start(server)`: runs after the server has started.")
     on_stop: Callable[[GameServer], Awaitable[None]] | None = callback(
         "`async def on_stop(server)`: runs when the server stops.")
-    register_commands: Callable[[GameServer], None] | None = callback(
-        "`def register_commands(server)`: add the game's own commands.")
-    register_protocols: Callable[[GameServer], None] | None = callback(
-        "`def register_protocols(server)`: add custom network protocols.")
 
     # --- Set by load_config, not config keys ---
     game_dir: Path = field(default_factory=Path.cwd)
-    _raw: dict[str, Any] = field(default_factory=dict, repr=False)
+    raw: dict[str, Any] = field(default_factory=dict, repr=False)  # every config.py name
 
     def __post_init__(self) -> None:
         # A path given as a string (GameServer(db_path=":memory:")) is a Path.
@@ -165,7 +154,7 @@ class Settings:
 
     def get(self, key: str, default: Any = None) -> Any:
         """A raw ``config.py`` value by name, including the game's own constants."""
-        return self._raw.get(key, default)
+        return self.raw.get(key, default)
 
 
 #: Every UPPERCASE key ``load_config`` consumes. A config.py may define other
@@ -175,7 +164,16 @@ KNOWN_CONFIG_KEYS = frozenset(
     f.metadata["key"] for f in fields(Settings) if "key" in f.metadata)
 
 
-def _warn_near_miss_keys(user_config: dict[str, Any]) -> None:
+def known_config_keys(feature_names=None) -> frozenset[str]:
+    """The kernel keys plus every key the named features declare
+    (default: ``realm.std.CLASSIC``)."""
+    from realm.features import load
+    from realm.std import CLASSIC
+    return KNOWN_CONFIG_KEYS | frozenset(load(feature_names or CLASSIC).settings)
+
+
+def _warn_near_miss_keys(user_config: dict[str, Any],
+                         known: frozenset[str] = KNOWN_CONFIG_KEYS) -> None:
     """Warn about probable typos of real config keys.
 
     A misspelled key (``TELNET_PROT``) is otherwise ignored without a
@@ -185,10 +183,9 @@ def _warn_near_miss_keys(user_config: dict[str, Any]) -> None:
     """
     import difflib
     for key in user_config:
-        if not key.isupper() or key in KNOWN_CONFIG_KEYS:
+        if not key.isupper() or key in known:
             continue
-        close = difflib.get_close_matches(key, KNOWN_CONFIG_KEYS, n=1,
-                                          cutoff=0.8)
+        close = difflib.get_close_matches(key, known, n=1, cutoff=0.8)
         if close:
             logger.warning(
                 f"config: unknown key {key!r} looks like a typo of "
@@ -224,7 +221,8 @@ def load_config(game_dir: Path | None = None) -> Settings:
     user_config: dict[str, Any] = {}
     if config_file.exists():
         user_config = _load_config_file(config_file, game_dir)
-        _warn_near_miss_keys(user_config)
+        # Loading the features here also fails fast on a bad FEATURES list.
+        _warn_near_miss_keys(user_config, known_config_keys(user_config.get("FEATURES")))
         logger.info(f"Loaded config from {config_file}")
     else:
         logger.warning(f"No config.py in {game_dir}; running on built-in defaults")
@@ -238,7 +236,7 @@ def load_config(game_dir: Path | None = None) -> Settings:
             values[f.name] = value
         elif f.metadata.get("callback") and f.name in user_config:
             values[f.name] = user_config[f.name]
-    return Settings(**values, game_dir=game_dir, _raw=user_config)
+    return Settings(**values, game_dir=game_dir, raw=user_config)
 
 
 def _load_config_file(config_file: Path, game_dir: Path) -> dict[str, Any]:

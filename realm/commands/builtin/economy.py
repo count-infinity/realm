@@ -9,7 +9,7 @@ react with ON_PAYMENT triggers (the bribed ogre steps aside).
 from __future__ import annotations
 
 from realm.behaviors.shop import find_shopkeeper
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object
 from realm.core.action_types import ActionType
 from realm.core.economy import (
@@ -208,22 +208,3 @@ async def cmd_pay(ctx: CommandContext) -> None:
     deliver_messages(action)
 
 
-def register_economy_commands(dispatcher: CommandDispatcher) -> None:
-    from functools import partial
-    register = partial(dispatcher.register, category="economy")
-    register("credits", cmd_credits, aliases=["money", "balance"],
-                        help_text="Show your balance",
-                        usage="credits")
-    register("list", cmd_list, aliases=["wares"],
-                        help_text="See what the merchant here sells",
-                        usage="list")
-    register("buy", cmd_buy, aliases=["purchase"],
-                        help_text="Buy from the merchant here",
-                        usage="buy <item>")
-    register("sell", cmd_sell,
-                        help_text="Sell to the merchant here",
-                        usage="sell <item>")
-    register("pay", cmd_pay,
-                        help_text="Pay someone (softcode sees ON_PAYMENT)",
-                        usage="pay <amount> to <target>",
-                        parse_equals=True)

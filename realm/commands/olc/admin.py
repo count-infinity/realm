@@ -6,7 +6,7 @@ Commands for teleportation, ownership, destruction, and other admin tasks.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object_global, require_control, resolve_target, save_object
 from realm.core.lifecycle import DestroyRefused, destroy_object
 from realm.core.render import render_room
@@ -394,73 +394,3 @@ async def cmd_boot(ctx: CommandContext) -> None:
     await ctx.session.send(f"Booted {target.name}.")
 
 
-def register_admin_commands(dispatcher: CommandDispatcher) -> None:
-    """Register admin OLC commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="building")
-
-    register(
-        "@teleport",
-        cmd_teleport,
-        aliases=["@tel"],
-        help_text="Teleport to a location",
-        usage="@teleport [<object> =] <destination>",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@chown",
-        cmd_chown,
-        help_text="Change ownership of an object",
-        usage="@chown <object> = <new owner>",
-        permission="admin",
-        parse_equals=True,
-    )
-
-    register(
-        "@destroy",
-        cmd_destroy,
-        aliases=["@recycle"],
-        help_text="Destroy an object",
-        usage="@destroy <object>",
-        permission="builder",
-    )
-
-    register(
-        "@nuke",
-        cmd_nuke,
-        help_text="Destroy a player object",
-        usage="@nuke <player>",
-        permission="admin",
-    )
-
-    register(
-        "@find",
-        cmd_find,
-        aliases=["@search"],
-        help_text="Search for objects",
-        usage="@find[/tag|/owner] <search>",
-        permission="builder",
-    )
-
-    register(
-        "@examine",
-        cmd_examine_full,
-        aliases=["@ex"],
-        help_text="Show detailed object information",
-        usage="@examine <object>",
-        permission="builder",
-    )
-
-    # NOTE: @force is registered by register_softcode_commands (the real
-    # implementation via server.puppet.force_command). The former stub here
-    # was dead code — softcode registers after admin, so it always won.
-
-    register(
-        "@boot",
-        cmd_boot,
-        help_text="Disconnect a player",
-        usage="@boot <player>",
-        permission="admin",
-    )

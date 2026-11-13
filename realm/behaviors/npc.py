@@ -18,7 +18,7 @@ import random
 from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.behaviors import Behavior
 from realm.core.checks import contest
 from realm.core.perception import break_stealth, can_see
 from realm.core.propagation import Action, propagate
@@ -39,7 +39,6 @@ async def _npc_say(npc: GameObject, message: str) -> None:
     await propagate(action)
 
 
-@BehaviorRegistry.register
 class WatchfulBehavior(Behavior):
     """
     An observer that challenges arrivals and contests sneaking.
@@ -99,7 +98,6 @@ class WatchfulBehavior(Behavior):
             await _npc_say(obj, challenge)
 
 
-@BehaviorRegistry.register
 class PatrolBehavior(Behavior):
     """
     Walk a route of exit names, one step every few ticks.
@@ -173,7 +171,6 @@ class PatrolBehavior(Behavior):
 # scavenger, which had no equivalent.
 
 
-@BehaviorRegistry.register
 class ScavengerBehavior(Behavior):
     """
     Eat corpses and pick up litter (ROM ACT_SCAVENGER / spec_fido).
@@ -234,7 +231,6 @@ class ScavengerBehavior(Behavior):
                                   exclude=[obj])
 
 
-@BehaviorRegistry.register
 class StealBehavior(Behavior):
     """
     Pickpockets a little coin from a mortal in the room (ROM spec_thief).

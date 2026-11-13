@@ -26,7 +26,6 @@ import logging
 from typing import TYPE_CHECKING
 
 from realm.core.beats import BeatBehavior
-from realm.core.behaviors import BehaviorRegistry
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -169,7 +168,6 @@ class TimedEffectBehavior(BeatBehavior):
         obj.remove_behavior(self)
 
 
-@BehaviorRegistry.register
 class DamageOverTimeBehavior(TimedEffectBehavior):
     """
     Bleeding, poison, burning: periodic damage until it expires.
@@ -234,7 +232,6 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
                 obj.msg("Everything goes black...")
 
 
-@BehaviorRegistry.register
 class ModifierEffectBehavior(TimedEffectBehavior):
     """
     A pure condition: no pulses, just check modifiers for a while.
@@ -270,7 +267,6 @@ class ModifierEffectBehavior(TimedEffectBehavior):
             obj.msg(str(apply_msg))
 
 
-@BehaviorRegistry.register
 class DispositionBoostBehavior(TimedEffectBehavior):
     """
     A temporary opinion: fast-talk wears off.
@@ -333,7 +329,6 @@ class DispositionBoostBehavior(TimedEffectBehavior):
         await super()._expire(obj)
 
 
-@BehaviorRegistry.register
 class RegenerationBehavior(TimedEffectBehavior):
     """
     Periodic healing (a medkit's afterglow, trollish vitality).
@@ -362,7 +357,6 @@ class RegenerationBehavior(TimedEffectBehavior):
         obj.db.hp = min(int(max_hp), int(hp) + heal)
 
 
-@BehaviorRegistry.register
 class WantedBehavior(TimedEffectBehavior):
     """
     A criminal's ticking wanted status (see systems/crime.py). No pulse — it

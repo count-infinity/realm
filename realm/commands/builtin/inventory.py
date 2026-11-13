@@ -6,7 +6,7 @@ Handles getting, dropping, and managing items.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object, find_player, format_list
 from realm.core.action_types import ActionType
 from realm.core.economy import currency_name, get_credits
@@ -343,45 +343,3 @@ async def cmd_put(ctx: CommandContext) -> None:
     deliver_messages(action)
 
 
-def register_inventory_commands(dispatcher: CommandDispatcher) -> None:
-    """Register inventory commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="items")
-
-    register(
-        "inventory",
-        cmd_inventory,
-        aliases=["i", "inv"],
-        help_text="Show your inventory",
-    )
-
-    register(
-        "get",
-        cmd_get,
-        aliases=["take", "grab"],
-        help_text="Pick up an object",
-        usage="get <object> [from <container>]",
-    )
-
-    register(
-        "drop",
-        cmd_drop,
-        help_text="Drop an object",
-        usage="drop <object>",
-    )
-
-    register(
-        "give",
-        cmd_give,
-        help_text="Give an object to someone",
-        usage="give <object> to <player>",
-        parse_equals=True,
-    )
-
-    register(
-        "put",
-        cmd_put,
-        aliases=["place"],
-        help_text="Put an object in a container",
-        usage="put <object> in <container>",
-    )

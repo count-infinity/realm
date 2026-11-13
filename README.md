@@ -46,6 +46,26 @@ help                              # every command, grouped and searchable
 > `pip install -e realm` (editable) is the install for now; once published
 > it becomes `pip install realm`.
 
+## Where your code goes
+
+A game is a list of **features** (`FEATURES` in `config.py`). The built-in
+ones (talk, movement, building, combat, economy, ...) and your own
+`game.py` use the same declarations, so a game can leave out anything it
+does not want. See [Features](docs/guides/features.md).
+
+| You want to add | Write it in | With |
+|---|---|---|
+| a command | `game.py` | `@feature.command("wave")` |
+| an NPC or object behavior | `game.py` | `@feature.behavior` on a `Behavior` subclass |
+| a native softcode function | `game.py` | `@feature.function(readonly=True)` |
+| a reaction to every action | `game.py` | `@feature.observer` |
+| a combat ruleset | `game.py` | `feature.ruleset("mine", MyRuleset)` |
+| a network protocol | `game.py` | `feature.protocol("godot", GodotServer, port=4002)` |
+| a config setting | `game.py` | `feature.setting("MY_KEY", default, doc)` |
+| your rules (chargen, skills, advancement) | `rules.py` | a `GameSystem` subclass, selected by `GAME_SYSTEM` |
+| rooms, items, NPCs, scripts | the game itself | `@dig`, `@create`, `@set`, softcode |
+| reusable content | a pack | `realm pack export` / `@pack` |
+
 ## The example game
 
 A GURPS-flavored space station with an infiltration scenario, combat, and

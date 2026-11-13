@@ -584,8 +584,8 @@ class TestCommandAuthority:
 class TestTriggerLocks:
 
     async def test_use_lock_gates_dollar_commands(self):
-        from realm.core.propagation import get_engine
         from realm.commands.dispatcher import CommandContext
+        from realm.core.propagation import get_engine
 
         room = GameObject("Cantina", tags=["room"])
         npc = GameObject("Zeke", location=room)
@@ -1302,10 +1302,11 @@ class TestForce:
         use_persistence(self.persistence)
 
     def _dispatcher(self):
-        from realm.commands.builtin import register_all_commands
         from realm.commands.dispatcher import CommandDispatcher
+        from realm.features import load
+        from realm.std import CLASSIC
         d = CommandDispatcher()
-        register_all_commands(d)
+        load(CLASSIC).install_commands(d)
         d.persistence = self.persistence
         return d
 
@@ -1350,15 +1351,15 @@ class TestForce:
                    for m in drain(sess))
 
     async def test_forced_npc_cannot_run_builder_commands(self):
-        from realm.commands.olc import register_olc_commands
         from realm.commands.olc.softcode import cmd_force
+        from realm.features import load
 
         room = GameObject("Stage", tags=["room"])
         bob, _ = make_player("Bob", room)
         GameObject("imp", tags=["npc"], location=room)
 
         d = self._dispatcher()
-        register_olc_commands(d)
+        load(["building"]).install_commands(d)
         ctx = make_context(bob, left_args="imp",
                            right_args="@set Bob/hacked = true")
         ctx.dispatcher = d

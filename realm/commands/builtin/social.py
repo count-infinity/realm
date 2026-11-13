@@ -8,7 +8,7 @@ reaction rolls), honest persuasion (permanent +1), and fast talk
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object
 from realm.core.checks import contest
 from realm.core.disposition import (
@@ -227,32 +227,3 @@ async def cmd_party(ctx: CommandContext) -> None:
     await ctx.session.send("\n".join(lines))
 
 
-def register_social_commands(dispatcher: CommandDispatcher) -> None:
-    from functools import partial
-    register = partial(dispatcher.register, category="social")
-    # NOT "greet" — that's a classic softcode $-command name and
-    # builtins shadow the softcode fallback.
-    register(
-        "consider", cmd_greet, aliases=["con"],
-        help_text="Size up an NPC's attitude toward you",
-        usage="consider <npc>")
-    register(
-        "persuade", cmd_persuade,
-        help_text="Win someone over honestly (persuasion vs will)",
-        usage="persuade <npc>")
-    register(
-        "fasttalk", cmd_fasttalk, aliases=["fast-talk"],
-        help_text="Bend the truth for temporary goodwill (fast_talk vs detect_lies)",
-        usage="fasttalk <npc>")
-    register(
-        "follow", cmd_follow,
-        help_text="Walk exits after someone (follow with no target stops)",
-        usage="follow [<target>]")
-    register(
-        "unfollow", cmd_unfollow,
-        help_text="Stop following",
-        usage="unfollow")
-    register(
-        "party", cmd_party, aliases=["group"],
-        help_text="Show who's traveling with you",
-        usage="party")

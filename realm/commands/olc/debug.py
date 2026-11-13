@@ -8,7 +8,7 @@ dropping to mortal perception for honest testing.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 
 
 async def cmd_eval(ctx: CommandContext) -> None:
@@ -189,28 +189,3 @@ async def cmd_quell(ctx: CommandContext) -> None:
             "'unquell' to restore.")
 
 
-def register_debug_commands(dispatcher: CommandDispatcher) -> None:
-    from functools import partial
-    builder = partial(dispatcher.register, category="building", permission="builder")
-    builder("@eval", cmd_eval, aliases=["@ev"],
-            help_text="Run arbitrary softcode and report the result",
-            usage="@eval <code>")
-    builder("@reload", cmd_reload,
-            help_text="Re-read data-driven rules (skill_def/class_def) from the world",
-            usage="@reload")
-    builder("@foreach", cmd_foreach,
-            help_text="Run a command for every matching object (%o = #id)",
-            usage="@foreach <search> = <command>", parse_equals=True)
-    builder("@stats", cmd_stats, aliases=["@metrics"],
-            help_text="Live engine metrics (tick, behaviors, combat)",
-            usage="@stats")
-    builder("@rolls", cmd_rolls,
-            help_text="Toggle skill-roll visibility for yourself",
-            usage="@rolls [on|off]")
-    # quell is player-level so a quelled admin can still unquell.
-    dispatcher.register("quell", cmd_quell, category="utility",
-                        help_text="Drop to mortal perception/authority",
-                        usage="quell")
-    dispatcher.register("unquell", cmd_quell, category="utility",
-                        help_text="Restore full powers after quell",
-                        usage="unquell")

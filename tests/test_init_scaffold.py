@@ -30,7 +30,10 @@ def clean_import_state():
     before_path = list(sys.path)
     yield
     sys.modules.pop("rules", None)
+    sys.modules.pop("game", None)
     sys.path[:] = before_path
+    from realm.features import install_default
+    install_default()
 
 
 def test_init_creates_prewired_rules(tmp_path, monkeypatch, clean_import_state):
@@ -85,3 +88,37 @@ def test_sanitize_system_id():
     assert _sanitize_system_id("space-frontier") == "space_frontier"
     assert _sanitize_system_id("2cool") == "g_2cool"    # id can't start with a digit
     assert _sanitize_system_id("___") == "game"         # never empty
+
+
+async def test_scaffold_feature_examples_boot(tmp_path, monkeypatch, clean_import_state):
+    """game.py ships three commented examples (a command, a behavior, a
+    softcode function). Uncommented, the scaffold boots with all three, and
+    config.py lists the game in FEATURES (KERNEL_PLAN 4.3)."""
+    import re
+
+    from realm.core.behaviors import BehaviorRegistry
+    from realm.scripting.registry import registered
+    from realm.server.game import GameServer
+
+    monkeypatch.chdir(tmp_path)
+    assert cmd_init(_Args("questcove")) == 0
+    project = tmp_path / "questcove"
+    assert 'FEATURES = [*CLASSIC, "game"]' in (project / "config.py").read_text()
+
+    game_py = project / "game.py"
+    text = game_py.read_text()
+    # Uncomment the example code; keep the "# A ..." prose comments.
+    text = re.sub(r"^# (?!A )", "", text, flags=re.M)
+    text = re.sub(r"^#$", "", text, flags=re.M)
+    game_py.write_text(text)
+
+    settings = load_config(project)
+    assert "game" in settings.features
+    server = GameServer(settings, enable_telnet=False, tick_interval=0)
+    await server.start()
+    try:
+        assert server.dispatcher.get_command("wave") is not None
+        assert BehaviorRegistry.get("questcove_chime") is not None
+        assert registered()["double"].fn(4) == 8
+    finally:
+        await server.stop()

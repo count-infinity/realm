@@ -1,7 +1,9 @@
 """
-RulesetRegistry (realm/combat/system.py): built-ins always load, a game's
-earlier registration of a built-in name wins, and a name is never silently
-replaced (KERNEL_PLAN step 1.6).
+Combat rulesets as feature declarations (KERNEL_PLAN 1.6, then 4.1).
+
+The shipped rulesets come from the ``gurps``, ``d20`` and ``merc``
+features. A second declaration of a taken name is a collision unless it
+says ``replace=True``; ``RulesetRegistry.register`` is the low-level call.
 """
 
 from __future__ import annotations
@@ -9,39 +11,57 @@ from __future__ import annotations
 import pytest
 
 from realm.combat.ruleset import Ruleset
+from realm.combat.rulesets.d20 import D20Ruleset
 from realm.combat.system import RulesetRegistry
-
-
-@pytest.fixture(autouse=True)
-def fresh_registry(monkeypatch):
-    """Each test starts with an empty registry that has not loaded built-ins."""
-    monkeypatch.setattr(RulesetRegistry, "_rulesets", {})
-    monkeypatch.setattr(RulesetRegistry, "_builtins_loaded", False)
+from realm.features import Feature, FeatureError, FeatureSet, install_default, load
 
 
 class HouseGurps(Ruleset):
     """Stands in for a game's own ruleset."""
 
 
-class TestBuiltins:
+@pytest.fixture(autouse=True)
+def restore_default():
+    yield
+    install_default()
 
-    def test_game_registering_gurps_first_keeps_the_other_builtins(self):
-        RulesetRegistry.register("gurps", HouseGurps)
 
+def _house(replace: bool) -> Feature:
+    house = Feature("house", requires=["rules"])
+    house.ruleset("gurps", HouseGurps, replace=replace)
+    return house
+
+
+class TestDefault:
+
+    def test_shipped_rulesets_and_aliases(self):
+        assert RulesetRegistry.get("d20") is D20Ruleset
+        assert RulesetRegistry.get("dnd") is D20Ruleset
+        assert {"gurps", "3d6", "merc", "diku"} <= set(RulesetRegistry.list_all())
+
+
+class TestFeatureDeclarations:
+
+    def test_redeclaring_a_shipped_name_is_a_collision(self):
+        shipped = load(["rules", "gurps"]).features
+        with pytest.raises(FeatureError, match="'gurps'.*'house'"):
+            FeatureSet([*shipped, _house(replace=False)])
+
+    def test_replace_overrides_and_keeps_the_others(self):
+        shipped = load(["rules", "gurps", "d20", "merc"]).features
+        FeatureSet([*shipped, _house(replace=True)]).install_registries()
         assert RulesetRegistry.get("gurps") is HouseGurps
-        assert RulesetRegistry.get("d20") is not None
+        assert RulesetRegistry.get("d20") is D20Ruleset
         assert RulesetRegistry.get("merc") is not None
 
 
-class TestRegister:
+class TestLowLevelRegister:
 
     def test_taken_name_raises(self):
-        RulesetRegistry.get("gurps")          # loads the built-ins
         with pytest.raises(ValueError, match="gurps"):
             RulesetRegistry.register("gurps", HouseGurps)
 
     def test_replace_true_replaces(self):
-        RulesetRegistry.get("gurps")
         RulesetRegistry.register("gurps", HouseGurps, replace=True)
         assert RulesetRegistry.get("gurps") is HouseGurps
 

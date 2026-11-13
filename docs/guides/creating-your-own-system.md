@@ -157,7 +157,6 @@ import random
 from realm.combat.ruleset import (
     Ruleset, AttackResult, DamageResult, RollResult, DamageType,
 )
-from realm.combat.system import RulesetRegistry
 
 
 class PercentileRuleset(Ruleset):
@@ -218,8 +217,6 @@ class PercentileRuleset(Ruleset):
             for o in defender.obj.contents
             if o.has_tag("worn") and o.db.get("dr") is not None))
 
-
-RulesetRegistry.register("percentile", PercentileRuleset)
 ```
 
 **How this maps to your spec:**
@@ -269,16 +266,28 @@ GAME_SYSTEM = "rules.PercentileSystem"
 ```
 
 That's the whole hookup for skills, chargen, advancement, and currency. The
-**combat** ruleset registers itself the moment `rules.py` is imported (the
-`RulesetRegistry.register("percentile", …)` line), and `PercentileSystem.
-ruleset_name = "percentile"` tells the engine to use it. Keep the two names in
-sync and you're done.
+**combat** ruleset is a declaration on your game's feature, in `game.py`:
 
-A ruleset name can be registered once. Registering a name that already
-belongs to a different class raises `ValueError`. To replace a shipped
-ruleset deliberately, pass `replace=True`
-(`RulesetRegistry.register("gurps", MyGurps, replace=True)`); the other
-shipped rulesets (`d20`, `merc`, …) stay available.
+```python
+# game.py
+from realm.features import Feature
+from rules import PercentileRuleset
+
+feature = Feature("percentile_game", requires=["rules"])
+feature.ruleset("percentile", PercentileRuleset)
+```
+
+`config.py` lists the feature (`FEATURES = [*CLASSIC, "game"]`), and
+`PercentileSystem.ruleset_name = "percentile"` tells the combat feature to
+use it. Keep the two names in sync and you're done. A ruleset is used only
+when the `combat` feature is installed; a game without combat needs none.
+
+A ruleset name can be declared once. A second feature declaring a taken name
+(including a shipped one such as `gurps`) raises `FeatureError` naming both
+features. To replace a shipped ruleset deliberately, declare it with
+`replace=True` (`feature.ruleset("gurps", MyGurps, replace=True)`); the other
+shipped rulesets (`d20`, `merc`, …) stay available. See
+[Features](features.md).
 
 **Skills as data (optional but recommended).** `resolve_check` reads the
 governing characteristic from `skill_defaults()`, but the per-character

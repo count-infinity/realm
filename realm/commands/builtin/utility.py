@@ -6,7 +6,7 @@ General-purpose commands like who, quit, help.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.core.action_types import ActionType
 
 
@@ -315,74 +315,3 @@ async def cmd_color(ctx: CommandContext) -> None:
                             if want == "on" else ""))
 
 
-def register_utility_commands(dispatcher: CommandDispatcher) -> None:
-    """Register utility commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="utility")
-
-    register(
-        "color",
-        cmd_color,
-        help_text="Toggle color output",
-        usage="color on|off",
-    )
-
-    register(
-        "who",
-        cmd_who,
-        help_text="Show who is online",
-    )
-
-    register(
-        "quit",
-        cmd_quit,
-        aliases=["QUIT"],
-        help_text="Disconnect from the game",
-    )
-
-    register(
-        "logout",
-        cmd_logout,
-        help_text="Leave your character, back to the connection screen",
-        usage="logout",
-    )
-
-    register(
-        "help",
-        cmd_help,
-        aliases=["?"],
-        help_text="Show help on commands",
-        usage="help [command]",
-    )
-
-    register(
-        "commands",
-        cmd_commands,
-        help_text="List all available commands",
-    )
-
-    register(
-        "time",
-        cmd_time,
-        help_text="Show the current time",
-    )
-
-    register(
-        "uptime",
-        cmd_uptime,
-        help_text="Show server uptime",
-        permission="builder",
-    )
-
-    register(
-        "think",
-        cmd_think,
-        help_text="Think to yourself",
-        usage="think <thought>",
-    )
-
-    register(
-        "recall",
-        cmd_recall,
-        help_text="Return to your home",
-    )

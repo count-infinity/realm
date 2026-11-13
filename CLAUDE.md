@@ -48,7 +48,9 @@ not the feature.
 |---|---|
 | `realm/cli.py` | `realm init` / `realm start` |
 | `realm/server/game.py` | GameServer — opens the store, loads the world, runs loops and protocols |
-| `realm/server/world.py` | `build_world()` — wires the engine; the server and the Simulator both call it |
+| `realm/server/world.py` | `build_world()` — wires the kernel, then the loaded features; the server and the Simulator both call it |
+| `realm/features.py` | `Feature`, `FeatureSet`, `load()`: how commands, behaviors, softcode functions and observers join a world |
+| `realm/std/` | The built-in features' declaration modules (`BUILTIN`, `CLASSIC`) |
 | `realm/config/loader.py` | `Settings` (every config key, its default and doc) and `load_config` |
 | `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, kind predicates |
 | `realm/core/propagation.py` | Two-pass check/react action pipeline |
@@ -62,6 +64,18 @@ not the feature.
 | `realm/packs/` | Content packs (worldio JSON bundles) |
 | `realm/persistence/worldio.py` | Export/import with ref remapping |
 | `realm/persistence/store.py` | `Store` protocol: what engine code may call on a store (`PersistenceManager`, `MemoryStore`) |
+
+## Where code joins a world
+
+Everything optional is a **feature** (`realm/features.py`): a named set of
+declarations (`feature.command`, `.behavior`, `.function`/`.softfn`,
+`.observer`, `.ruleset`, `.dest_resolver`, `.reaper`, `.queue_kind`,
+`.check_modifier`, `.protocol`, `.setting`, `.on_install`/`.on_boot`/`.on_close`).
+Built-ins are declared in `realm/std/<feature>.py` and `realm/games/<system>.py`;
+a game declares its own in `game.py`; `FEATURES` in config lists them
+(default `realm.std.CLASSIC`). Do not register at import time
+(`@BehaviorRegistry.register`, `dispatcher.register`) in engine code: declare on a
+feature. Collisions raise `FeatureError`. Guide: `docs/guides/features.md`.
 
 ## Development environment
 

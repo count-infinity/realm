@@ -34,7 +34,6 @@ import logging
 import time
 from typing import TYPE_CHECKING
 
-from realm.core.movement import register_dest_resolver
 from realm.core.query import find_objects
 from realm.core.teardown import (
     EPHEMERAL_TAG,
@@ -553,9 +552,6 @@ async def reap_wilderness(persistence, *, now: float | None = None) -> int:
             await destroy_cell(cell, persistence)
             reaped += 1
     return reaped
-
-
-register_dest_resolver(RESOLVER_NAME, resolve_wilderness_exit)
 
 
 __all__ = [

@@ -40,11 +40,20 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `WORLD_BEAT` | `4.0` | Seconds in one out-of-combat round (poison, regen) and the default cadence of pulse-counting behaviors. |
 | `REAP_INTERVAL` | `5.0` | Seconds between housekeeping sweeps (idle instances, wilderness cells, expired objects). |
 | `FLUSH_INTERVAL` | `30.0` | Seconds between saves of changed objects to the database. |
-| `COMBAT_RULESET` | `None` | Combat ruleset name. Unset, the game system picks its own; set it only to mix systems on purpose. |
-| `SHOW_ROLLS` | `False` | Show dice detail on combat messages. Players override with `showrolls on\|off`. |
-| `COMBAT_BEAT_MIN` | `4.0` | Shortest combat round, in seconds. |
-| `COMBAT_BEAT_MAX` | `120.0` | Longest combat round, in seconds. |
-| `COMBAT_BEAT_DEFAULT` | `15.0` | Default combat round, in seconds. |
+| `FEATURES` | `None` | The features this game is made of, by name or module path. Unset, every built-in feature (`realm.std.CLASSIC`). A game lists its own module too: `FEATURES = [*CLASSIC, "game"]`. |
+
+## Keys declared by built-in features
+
+A feature can declare its own keys. These exist only when the feature is in
+`FEATURES` (all of them are by default).
+
+| Key | Feature | Default | What it does |
+|---|---|---|---|
+| `COMBAT_RULESET` | `combat` | `None` | Combat ruleset name. Unset, the game system picks its own; set it only to mix systems on purpose. |
+| `SHOW_ROLLS` | `combat` | `False` | Show dice detail on combat messages. Players override with `showrolls on\|off`. |
+| `COMBAT_BEAT_MIN` | `combat` | `4.0` | Shortest combat round, in seconds. |
+| `COMBAT_BEAT_MAX` | `combat` | `120.0` | Longest combat round, in seconds. |
+| `COMBAT_BEAT_DEFAULT` | `combat` | `15.0` | Default combat round, in seconds. |
 
 ## Callbacks
 
@@ -56,5 +65,3 @@ calls it.
 | `init_world` | `async def init_world(server)`: runs once, when the database is empty. |
 | `on_start` | `async def on_start(server)`: runs after the server has started. |
 | `on_stop` | `async def on_stop(server)`: runs when the server stops. |
-| `register_commands` | `def register_commands(server)`: add the game's own commands. |
-| `register_protocols` | `def register_protocols(server)`: add custom network protocols. |

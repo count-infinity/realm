@@ -72,21 +72,23 @@ class CombatResult:
 
 
 class RulesetRegistry:
-    """Rulesets register by name — a game ships its own with
-    ``RulesetRegistry.register('mysystem', MyRuleset)`` and selects it
-    via COMBAT_RULESET / GameSystem.ruleset_name. Same shape as the
-    behavior and game-system registries."""
+    """Combat rulesets by name. A game declares its own with
+    ``feature.ruleset('mysystem', MyRuleset)`` and selects it via
+    COMBAT_RULESET / GameSystem.ruleset_name; the shipped ones come from the
+    ``gurps``, ``d20`` and ``merc`` features (``realm/games/``). The table
+    holds exactly the installed features' rulesets (see realm.features).
+    ``register`` is the low-level call, for tests."""
 
     _rulesets: dict[str, type] = {}
-    _builtins_loaded: bool = False
 
     @classmethod
     def register(cls, name: str, ruleset_class: type, *,
                  replace: bool = False) -> None:
         """Register ``ruleset_class`` under ``name`` (case-insensitive).
         Raises ValueError when the name is taken by a different class,
-        unless ``replace`` is true. Registering a built-in name (``gurps``)
-        before the built-ins load overrides that built-in only."""
+        unless ``replace`` is true."""
+        from realm.features import ensure_registries
+        ensure_registries()
         key = name.lower()
         current = cls._rulesets.get(key)
         if current is not None and current is not ruleset_class and not replace:
@@ -98,29 +100,15 @@ class RulesetRegistry:
 
     @classmethod
     def get(cls, name: str) -> type | None:
-        cls._ensure_builtins()
+        from realm.features import ensure_registries
+        ensure_registries()
         return cls._rulesets.get(name.lower())
 
     @classmethod
     def list_all(cls) -> list[str]:
-        cls._ensure_builtins()
+        from realm.features import ensure_registries
+        ensure_registries()
         return sorted(cls._rulesets)
-
-    @classmethod
-    def _ensure_builtins(cls) -> None:
-        """Load the shipped rulesets once. ``setdefault`` keeps a game's
-        earlier registration of the same name."""
-        if not cls._builtins_loaded:
-            from realm.combat.rulesets.d20 import D20Ruleset
-            from realm.combat.rulesets.gurps import GURPSRuleset
-            from realm.combat.rulesets.merc import MercRuleset
-            cls._rulesets.setdefault('d20', D20Ruleset)
-            cls._rulesets.setdefault('dnd', D20Ruleset)
-            cls._rulesets.setdefault('gurps', GURPSRuleset)
-            cls._rulesets.setdefault('3d6', GURPSRuleset)
-            cls._rulesets.setdefault('merc', MercRuleset)
-            cls._rulesets.setdefault('diku', MercRuleset)
-            cls._builtins_loaded = True
 
 
 def find_wielded(obj) -> Any | None:

@@ -32,13 +32,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.behaviors import Behavior
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
-@BehaviorRegistry.register
 class ScriptTickerBehavior(Behavior):
     """Runs the owner's ``on_tick`` softcode attribute periodically."""
 

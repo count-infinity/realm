@@ -6,7 +6,7 @@ Commands for creating new objects, rooms, and exits.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_object_global, require_control, save_object
 from realm.core.objects import GameObject
 from realm.core.search import match_one
@@ -400,60 +400,3 @@ async def cmd_pair(ctx: CommandContext) -> None:
         f"Paired: '{exit_obj.name}' <-> '{far.name}'.")
 
 
-def register_create_commands(dispatcher: CommandDispatcher) -> None:
-    """Register creation OLC commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="building")
-
-    register(
-        "@create",
-        cmd_create,
-        help_text="Create a new object",
-        usage="@create <name> [= <parent>]",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@dig",
-        cmd_dig,
-        help_text="Create a new room with exits",
-        usage="@dig <room name> [= <exit1>, <exit2>]",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@open",
-        cmd_open,
-        help_text="Create an exit to a room",
-        usage="@open <exit name> = <destination>",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@pair",
-        cmd_pair,
-        help_text="Marry two exits as the faces of one door",
-        usage="@pair <exit> [= <far exit>]",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@link",
-        cmd_link,
-        help_text="Link an exit to a destination",
-        usage="@link <exit> = <destination>",
-        permission="builder",
-        parse_equals=True,
-    )
-
-    register(
-        "@unlink",
-        cmd_unlink,
-        help_text="Unlink an exit",
-        usage="@unlink <exit>",
-        permission="builder",
-    )

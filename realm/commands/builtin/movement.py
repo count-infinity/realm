@@ -6,7 +6,7 @@ Handles player movement through exits and the world.
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_exit
 from realm.core.movement import (
     fire_exit_fail,
@@ -83,34 +83,3 @@ async def cmd_direction(ctx: CommandContext) -> None:
     await cmd_go(ctx)
 
 
-def register_movement_commands(dispatcher: CommandDispatcher) -> None:
-    """Register movement commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="movement")
-
-    register(
-        "go",
-        cmd_go,
-        help_text="Move in a direction",
-        usage="go <direction>",
-    )
-
-    # Cardinal directions
-    for direction in ['north', 'south', 'east', 'west', 'up', 'down']:
-        dispatcher.register(
-            direction,
-            cmd_direction,
-            help_text=f"Go {direction}",
-        )
-
-    # Diagonal directions
-    for direction in ['northeast', 'northwest', 'southeast', 'southwest']:
-        dispatcher.register(
-            direction,
-            cmd_direction,
-            help_text=f"Go {direction}",
-        )
-
-    # In/out
-    register("in", cmd_direction, help_text="Go in")
-    register("out", cmd_direction, help_text="Go out")

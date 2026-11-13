@@ -9,7 +9,7 @@ debuff vetoes speech).
 
 from __future__ import annotations
 
-from realm.commands import CommandContext, CommandDispatcher
+from realm.commands import CommandContext
 from realm.commands.base import find_player
 from realm.core.action_tags import SOUND
 from realm.core.action_types import ActionType
@@ -234,61 +234,3 @@ async def cmd_shout(ctx: CommandContext) -> None:
     # adjacent rooms via exits — needs a multi-room chain helper.
 
 
-def register_communication_commands(dispatcher: CommandDispatcher) -> None:
-    """Register communication commands with the dispatcher."""
-    from functools import partial
-    register = partial(dispatcher.register, category="communication")
-
-    register(
-        "say",
-        cmd_say,
-        aliases=["'"],
-        help_text="Say something to the room",
-        usage='say <message> or "<message>',
-    )
-
-    register(
-        "pose",
-        cmd_pose,
-        aliases=["emote"],
-        help_text="Emote an action",
-        usage="pose <action> or :<action>",
-    )
-
-    register(
-        "semipose",
-        cmd_semipose,
-        help_text="Emote with name attached",
-        usage="semipose <action> or ;<action>",
-    )
-
-    register(
-        "emit",
-        cmd_emit,
-        help_text="Emit a message to the room",
-        usage="emit <message> or \\<message>",
-        permission="builder",
-    )
-
-    register(
-        "whisper",
-        cmd_whisper,
-        aliases=["w"],
-        help_text="Whisper privately to someone",
-        usage="whisper <player> = <message>",
-        parse_equals=True,
-    )
-
-    register(
-        "ooc",
-        cmd_ooc,
-        help_text="Out-of-character speech",
-        usage="ooc <message>",
-    )
-
-    register(
-        "shout",
-        cmd_shout,
-        help_text="Shout to the room (and nearby)",
-        usage="shout <message>",
-    )

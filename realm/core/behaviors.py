@@ -304,22 +304,26 @@ class BehaviorRegistry:
         cls._scripted_factory = factory
 
     @classmethod
-    def register(cls, behavior_class: type[Behavior]) -> type[Behavior]:
-        """
-        Register a behavior class.
+    def _table(cls) -> dict[str, type[Behavior]]:
+        from realm.features import ensure_registries
+        ensure_registries()
+        return cls._behaviors
 
-        Can be used as a decorator:
-        @BehaviorRegistry.register
-        class MyBehavior(Behavior):
-            behavior_id = "my_behavior"
+    @classmethod
+    def register(cls, behavior_class: type[Behavior]) -> type[Behavior]:
+        """Register a behavior class directly: the low-level call, for tests.
+
+        Engine and game code declare behaviors on a feature
+        (``feature.behavior(MyBehavior)``) so the table holds exactly the
+        installed features' behaviors (see realm.features).
         """
-        cls._behaviors[behavior_class.behavior_id] = behavior_class
+        cls._table()[behavior_class.behavior_id] = behavior_class
         return behavior_class
 
     @classmethod
     def get(cls, behavior_id: str) -> type[Behavior] | None:
         """Get a behavior class by its ID."""
-        return cls._behaviors.get(behavior_id)
+        return cls._table().get(behavior_id)
 
     @classmethod
     def create(cls, behavior_id: str, **params: Any) -> Behavior | None:
@@ -329,7 +333,7 @@ class BehaviorRegistry:
         scripted-behavior factory (strict: the ``behavior_def`` object must
         exist), so world-defined behaviors attach exactly like compiled ones.
         """
-        behavior_class = cls._behaviors.get(behavior_id)
+        behavior_class = cls._table().get(behavior_id)
         if behavior_class:
             return behavior_class(**params)
         if cls._scripted_factory is not None:
@@ -342,7 +346,7 @@ class BehaviorRegistry:
         behavior_id = data.get('behavior_id')
         if not behavior_id:
             return None
-        behavior_class = cls._behaviors.get(behavior_id)
+        behavior_class = cls._table().get(behavior_id)
         if behavior_class:
             return behavior_class.from_dict(data)
         if cls._scripted_factory is not None:
@@ -355,11 +359,11 @@ class BehaviorRegistry:
     @classmethod
     def list_all(cls) -> list[str]:
         """List all registered behavior IDs."""
-        return list(cls._behaviors.keys())
+        return list(cls._table().keys())
 
     @classmethod
     def describe_all(cls) -> list[dict[str, Any]]:
         """``describe()`` for every registered behavior, sorted by id —
         the palette a builder tool renders."""
         return [bc.describe()
-                for _, bc in sorted(cls._behaviors.items())]
+                for _, bc in sorted(cls._table().items())]
