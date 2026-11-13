@@ -133,6 +133,31 @@ class TestSetWarnsOnDeadScripts:
         out = await self._set(world, "@set relic/desc = A relic (cracked")
         assert not any("will not run" in line for line in out)
 
+    @pytest.mark.parametrize("cmd", [
+        "@set relic/on_tick = say hi",
+        "@set relic/cmd_a = $a:pose waves",
+        "@set relic/ON_RESET = trigger me/reseal",
+    ])
+    async def test_silent_on_command_line_scripts(self, world, cmd):
+        """A one-line game command is a valid script; it is not Python."""
+        out = await self._set(world, cmd)
+        assert not any("will not run" in line for line in out)
+
+    async def test_still_warns_on_broken_python_tick(self, world):
+        out = await self._set(world, "@set relic/on_tick = if (")
+        assert any("will not run" in line for line in out)
+
+
+class TestValidateScript:
+
+    def test_command_line_script_is_valid(self):
+        from realm.scripting.triggers import validate_script
+        assert validate_script("say hi") == []
+
+    def test_broken_python_is_reported(self):
+        from realm.scripting.triggers import validate_script
+        assert validate_script("if (") != []
+
 
 class TestScriptCodeOf:
     """Which attributes are scripts — recognised the way the engine does."""

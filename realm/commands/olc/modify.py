@@ -248,11 +248,10 @@ async def cmd_set(ctx: CommandContext) -> None:
         # to say nothing at all — you'd learn months later, or never. Warn
         # rather than refuse: placeholders and @import are legitimate, and
         # the runtime now fails safe on its own (a broken ward blocks).
-        from realm.scripting.triggers import script_code_of
+        from realm.scripting.triggers import script_code_of, validate_script
         code = script_code_of(attr_name, value)
         if code is not None:
-            from realm.core.safe_eval import validate_code
-            errors = validate_code(code)
+            errors = validate_script(code)
             if errors:
                 await ctx.session.send(
                     f"Warning: {target.name}/{attr_name} will not run — "

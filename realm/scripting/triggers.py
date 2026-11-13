@@ -529,3 +529,17 @@ def script_code_of(attr_name: str, value: object) -> str | None:
     if name in ('ON_CHECK', 'ON_TICK') or name.startswith(EVENT_ATTR_PREFIX):
         return value.strip()
     return None
+
+
+def validate_script(code: str) -> list[str]:
+    """Problems that would stop ``code`` from running, or ``[]``.
+
+    A one-line game command (``say hi``, ``pose waves``, ``trigger me/x``)
+    runs as a command, not Python, so it is valid as written. Anything else
+    is checked as sandboxed Python.
+    """
+    from realm.core.safe_eval import validate_code
+    from realm.scripting.sandbox import SimpleScriptRunner
+    if SimpleScriptRunner.is_simple_script(code):
+        return []
+    return validate_code(code)

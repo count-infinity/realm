@@ -206,12 +206,12 @@ attribute as Python, so every command-line script (`say ...`, `pose ...`,
 `trigger ...`) prints "will not run" and then runs. The README's parrot
 example hits this.
 
-- [ ] Add `validate_script(code: str) -> list[str]` next to `script_code_of`
+- [x] Add `validate_script(code: str) -> list[str]` next to `script_code_of`
       in `scripting/triggers.py`. It returns `[]` when
       `SimpleScriptRunner.is_simple_script(code)` is true and
       `validate_code(code)` otherwise.
-- [ ] `cmd_set` calls `validate_script`.
-- [ ] Tests: `@set x/on_tick = say hi`, `@set x/cmd_a = $a:pose waves` and
+- [x] `cmd_set` calls `validate_script`.
+- [x] Tests: `@set x/on_tick = say hi`, `@set x/cmd_a = $a:pose waves` and
       `@set x/ON_RESET = trigger me/reseal` print no warning.
       `@set x/on_tick = if (` still warns.
 
