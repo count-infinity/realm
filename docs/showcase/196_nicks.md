@@ -34,8 +34,8 @@ against builtins, their aliases, and unique command prefixes, then against
 room exits, and only a word that matches none of those falls through to
 your ring; a word that collides is handled by the engine and your nick
 never fires. Movement is the one place REALM ships shorthands for you:
-`n`/`s`/`e`/`w` (and `ne`/`sw`/`u`/`d`, plus `in`/`out`) are built-in
-direction aliases, expanded before dispatch, so a nick earns its keep on
+`n`/`s`/`e`/`w` (and `ne`/`sw`/`u`/`d`, plus `in`/`out`) are the
+`movement` feature's direction aliases, so a nick earns its keep on
 the shortcuts the engine leaves to you (`fetch`, `stow`, a named route).
 
 ### How does a short verb reach the real command?

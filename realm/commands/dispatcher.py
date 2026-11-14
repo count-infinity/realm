@@ -81,46 +81,21 @@ class Command:
     category: str = "general"  # help-screen grouping
 
 
-# Special token mappings
-TOKEN_MAP = {
-    '"': 'say',
-    ':': 'pose',
-    ';': 'semipose',
-    '\\': 'emit',
-    "'": 'say',  # Alternative for say
-}
-
-# Direction aliases
-DIRECTION_ALIASES = {
-    'n': 'north',
-    's': 'south',
-    'e': 'east',
-    'w': 'west',
-    'u': 'up',
-    'd': 'down',
-    'ne': 'northeast',
-    'nw': 'northwest',
-    'se': 'southeast',
-    'sw': 'southwest',
-    'in': 'in',
-    'out': 'out',
-}
-
-
 class CommandDispatcher:
     """
     Dispatches commands to registered handlers.
 
     Implements the parsing pipeline:
     1. Trim input
-    2. Check for special tokens (", :, etc.)
-    3. Expand aliases
-    4. Match exit names (if playing)
-    5. Look up command
-    6. Parse switches
-    7. Parse arguments
-    8. Execute
-    9. Fall back to softcode (future)
+    2. A one-character token declared by a command (``:waves`` -> pose)
+    3. Split the command word, its ``/switches`` and ``left = right`` args
+    4. Look up the command: exact name, alias, unique prefix
+    5. Otherwise the fallbacks, in order (``feature.fallback``: the
+       ``movement`` feature walks a typed exit name)
+    6. Otherwise the unknown handler (softcode ``$``-commands, then "Huh?")
+
+    The dispatcher knows no command, exit or direction by name: every one
+    comes from a feature.
     """
 
     def __init__(self):
@@ -140,6 +115,8 @@ class CommandDispatcher:
 
         # Handler for unknown commands (for softcode fallback)
         self._unknown_handler: CommandHandler | None = None
+        self._tokens: dict[str, str] = {}               # one-char prefix -> command
+        self._fallbacks: list[Callable[[CommandContext], Awaitable[bool]]] = []
 
         # Handler for login state
         self._login_handler: CommandHandler | None = None
@@ -155,8 +132,10 @@ class CommandDispatcher:
         permission: str = "player",
         parse_equals: bool = False,
         category: str = "general",
+        tokens: tuple[str, ...] | list[str] = (),
     ) -> None:
-        """Register a command handler."""
+        """Register a command handler. Each of ``tokens`` is a one-character
+        prefix that runs it (``:waves``)."""
         cmd = Command(
             name=name.lower(),
             handler=handler,
@@ -172,6 +151,8 @@ class CommandDispatcher:
         # Register aliases
         for alias in cmd.aliases:
             self._aliases[alias] = cmd.name
+        for token in tokens:
+            self._tokens[token] = cmd.name
 
     def unregister(self, name: str) -> None:
         """Unregister a command."""
@@ -180,6 +161,11 @@ class CommandDispatcher:
             cmd = self._commands.pop(name)
             for alias in cmd.aliases:
                 self._aliases.pop(alias, None)
+
+    def add_fallback(self, fn: Callable[[CommandContext], Awaitable[bool]]) -> None:
+        """Try ``fn(ctx) -> bool`` when no command matches, after those
+        added before it; True means it handled the line."""
+        self._fallbacks.append(fn)
 
     def set_unknown_handler(self, handler: CommandHandler) -> None:
         """Set handler for unknown commands (softcode fallback)."""
@@ -235,9 +221,9 @@ class CommandDispatcher:
         args = ""
         switches: list[str] = []
 
-        # Step 1: Check for special tokens
-        if raw_input and raw_input[0] in TOKEN_MAP:
-            command_name = TOKEN_MAP[raw_input[0]]
+        # Step 1: a command's one-character token
+        if raw_input and raw_input[0] in self._tokens:
+            command_name = self._tokens[raw_input[0]]
             args = raw_input[1:].lstrip()
             return CommandContext(
                 session=session,
@@ -261,11 +247,7 @@ class CommandDispatcher:
 
         command_name = raw_command.lower()
 
-        # Step 4: Check for direction aliases
-        if command_name in DIRECTION_ALIASES:
-            command_name = DIRECTION_ALIASES[command_name]
-
-        # Step 5: Parse left/right arguments if '=' present
+        # Step 4: Parse left/right arguments if '=' present
         left_args = args
         right_args = ""
         if '=' in args:
@@ -312,17 +294,9 @@ class CommandDispatcher:
             )
             return
 
-        # Try exit matching (if player has location). Multi-word exit
-        # names ("fire escape") arrive split into command+args, so try
-        # the full raw input as well.
-        if ctx.player and ctx.player.location:
-            exit_obj = (
-                self._find_exit(ctx.player.location, name)
-                or self._find_exit(ctx.player.location, ctx.raw_input.strip())
-            )
-            if exit_obj:
-                # Execute movement through the exit
-                await self._handle_exit(ctx, exit_obj)
+        # The features' fallbacks (a typed exit name), in order.
+        for fallback in self._fallbacks:
+            if await fallback(ctx):
                 return
 
         # Fall back to unknown handler (softcode)
@@ -342,67 +316,11 @@ class CommandDispatcher:
                 matches.append(cmd_name)
         return matches
 
-    def _find_exit(self, room: GameObject, name: str) -> GameObject | None:
-        """Find an exit by exact name, alias, or unambiguous prefix."""
-        name_lower = name.lower()
-        exits = [o for o in room.contents if o.is_exit]
-        # Exact name or explicit alias first.
-        for obj in exits:
-            if obj.name.lower() == name_lower:
-                return obj
-            aliases = obj.db.get('aliases', [])
-            if name_lower in [a.lower() for a in aliases]:
-                return obj
-        # Then a unique prefix ("trapd" -> "trapdoor") — but never a
-        # substring, so 'or' won't match 'north'.
-        from realm.core.search import AmbiguousMatchError, match_one
-        try:
-            return match_one(name, exits, allow_substring=False)
-        except AmbiguousMatchError:
-            return None
-
-    async def _handle_exit(self, ctx: CommandContext, exit_obj: GameObject) -> None:
-        """Handle movement through an exit."""
-        if not ctx.player:
-            return
-
-        from realm.core.movement import (
-            fire_exit_fail,
-            has_dest_resolver,
-            move_through_exit,
-            resolve_exit_destination,
-        )
-        from realm.core.render import render_room
-
-        destination = resolve_exit_destination(exit_obj, self.persistence)
-        if not destination and not has_dest_resolver(exit_obj):
-            # A dead-end exit fires ON_FAIL — an @afail hook may materialize
-            # the room beyond it (an instance portal) and move us in.
-            moved = await fire_exit_fail(
-                ctx.player, exit_obj, 'no_destination',
-                direction=exit_obj.name)
-            if moved:
-                await ctx.session.send(
-                    render_room(ctx.player.location, ctx.player))
-            else:
-                await ctx.session.send(
-                    exit_obj.db.get('fail_msg')
-                    or "That exit leads nowhere you can reach.")
-            return
-
-        # Move through the exit via the shared movement path so on_leave/on_enter
-        # events fire (and behaviors like GuardBehavior get a chance to block).
-        moved = await move_through_exit(
-            ctx.player, destination, exit_obj=exit_obj, direction=exit_obj.name
-        )
-        if not moved:
-            return
-
-        # Show new room
-        await ctx.session.send(render_room(ctx.player.location, ctx.player))
-
     async def _run_command(self, cmd: Command, ctx: CommandContext) -> None:
         """Run a command after finding it."""
+        # The handler sees the command's own name, whichever alias, prefix
+        # or token reached it ('n' runs north with command_name 'north').
+        ctx.command_name = cmd.name
         # Permission check
         if not self._check_permission(ctx.player, cmd.permission):
             await ctx.session.send("Permission denied.")

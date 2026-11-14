@@ -33,3 +33,20 @@ feature.command(
 # Gear changes reach the rules package as events: on_wear/on_remove ->
 # GameSystem.on_equipment_change (Merc AC).
 feature.observer(equipment_observer)
+
+
+@feature.traversal_gate(reason="skill",
+                        attrs=["check_skill", "check_difficulty", "check_fail_msg"])
+async def skill_gate(actor, exit_obj, direction):
+    """Skill-gated exits (fire escapes, ledges): ``db.check_skill`` names
+    the skill, ``db.check_difficulty`` subtracts, ``db.check_fail_msg``
+    replaces the failure line."""
+    skill = exit_obj.db.get('check_skill')
+    if not skill:
+        return None
+    from realm.core.checks import check
+    difficulty = int(exit_obj.db.get('check_difficulty') or 0)
+    if check(actor, str(skill), -difficulty).success:
+        return None
+    return (exit_obj.db.get('check_fail_msg')
+            or f"You fail to make it {direction} ({skill} check).")

@@ -229,6 +229,10 @@ class TestDoors:
         assert not door.has_tag("locked")  # no lockpicks penalty
 
     async def test_skill_gated_exit(self):
+        # The rules feature's gate, on this bare world.
+        from realm.core.world import get_world
+        from realm.std.rules import skill_gate
+        get_world().traversal_gates.append((skill_gate, "skill"))
         alley = GameObject("Alley", tags=["room"])
         landing = GameObject("Landing", tags=["room"])
         fire = GameObject("fire escape", location=alley, tags=["exit"])
@@ -487,7 +491,9 @@ class TestMultiWordExits:
         sess = RealSession(protocol="test", address="127.0.0.1")
         sess.link_player(raven)
 
+        from realm.commands.builtin.movement import walk_typed_exit
         dispatcher = CommandDispatcher()
+        dispatcher.add_fallback(walk_typed_exit)      # the movement feature's
         await dispatcher.dispatch(sess, "fire escape")
 
         assert raven.location is b

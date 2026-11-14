@@ -1,12 +1,13 @@
 """
 The ``movement`` feature.
 
-Walking through exits: go and the directions.
+Walking through exits: go, the directions and their abbreviations, and a
+typed exit name.
 """
 
 from __future__ import annotations
 
-from realm.commands.builtin.movement import cmd_direction, cmd_go
+from realm.commands.builtin.movement import cmd_direction, cmd_go, walk_typed_exit
 from realm.features import Feature
 
 feature = Feature(
@@ -21,18 +22,22 @@ feature.command(
     help_text='Move in a direction',
     usage='go <direction>',
 )
-feature.command('north', cmd_direction, category='general', help_text='Go north')
-feature.command('south', cmd_direction, category='general', help_text='Go south')
-feature.command('east', cmd_direction, category='general', help_text='Go east')
-feature.command('west', cmd_direction, category='general', help_text='Go west')
-feature.command('up', cmd_direction, category='general', help_text='Go up')
-feature.command('down', cmd_direction, category='general', help_text='Go down')
-feature.command('northeast', cmd_direction, category='general', help_text='Go northeast')
-feature.command('northwest', cmd_direction, category='general', help_text='Go northwest')
-feature.command('southeast', cmd_direction, category='general', help_text='Go southeast')
-feature.command('southwest', cmd_direction, category='general', help_text='Go southwest')
+# The directions and their abbreviations ('n' is north).
+_DIRECTIONS = [
+    ('north', 'n'), ('south', 's'), ('east', 'e'), ('west', 'w'),
+    ('up', 'u'), ('down', 'd'),
+    ('northeast', 'ne'), ('northwest', 'nw'),
+    ('southeast', 'se'), ('southwest', 'sw'),
+]
+for _name, _short in _DIRECTIONS:
+    feature.command(_name, cmd_direction, aliases=[_short], category='general',
+                    help_text=f'Go {_name}')
 feature.command('in', cmd_direction, category='movement', help_text='Go in')
 feature.command('out', cmd_direction, category='movement', help_text='Go out')
+
+# A line that names an exit of the room walks through it ("vault",
+# "fire escape"), after every command and before softcode $-commands.
+feature.fallback(walk_typed_exit)
 
 
 @feature.script_verb("move", aliases=["go"], sugar=True,

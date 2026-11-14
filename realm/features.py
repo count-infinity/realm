@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import importlib
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -60,6 +60,7 @@ class _Command:
     usage: str
     parse_equals: bool
     replace: bool
+    tokens: tuple[str, ...] = ()
 
 
 @dataclass
@@ -90,6 +91,12 @@ class Feature:
         self.reapers: list[Callable] = []
         self.queue_kinds: dict[str, Callable] = {}
         self.check_modifiers: list[Callable] = []
+        self.fallbacks: list[Callable] = []
+        self.traversal_gates: list[tuple[Callable, str]] = []
+        self.after_traverse_hooks: list[Callable] = []
+        #: attribute name -> what reads it; ``@examine`` warns when an object
+        #: carries one and this feature is not loaded.
+        self.attributes: dict[str, str] = {}
         self.name_resolvers: list[Callable] = []
         self.speech_renderers: list[Callable] = []
         self.group_formatters: list[tuple[Callable, bool]] = []
@@ -113,12 +120,23 @@ class Feature:
     def command(self, name: str, handler: Callable | None = None, *,
                 aliases: Sequence[str] = (), permission: str = "player",
                 category: str | None = None, help_text: str = "", usage: str = "",
-                parse_equals: bool = False, replace: bool = False):
-        """Declare a command. Without ``handler``, a decorator."""
+                parse_equals: bool = False, token: str | Sequence[str] = (),
+                replace: bool = False):
+        """Declare a command. Without ``handler``, a decorator.
+
+        ``token`` is a one-character prefix that runs the command with the
+        rest of the line as its arguments (``:waves`` is ``pose waves``);
+        a sequence declares several."""
+        tokens = (token,) if isinstance(token, str) else tuple(token)
+        for t in tokens:
+            if len(t) != 1 or t.isalnum() or t.isspace():
+                raise FeatureError(f"command {name!r}: token {t!r} must be one "
+                                   f"non-alphanumeric, non-space character")
+
         def declare(fn: Callable) -> Callable:
             self.commands.append(_Command(
                 name.lower(), fn, tuple(a.lower() for a in aliases), permission,
-                category or self.name, help_text, usage, parse_equals, replace))
+                category or self.name, help_text, usage, parse_equals, replace, tokens))
             return fn
         return declare if handler is None else declare(handler)
 
@@ -236,6 +254,33 @@ class Feature:
     def check_modifier(self, fn: Callable) -> Callable:
         """Declare a ``(obj, skill) -> int`` modifier folded into every check."""
         self.check_modifiers.append(fn)
+        return fn
+
+    def fallback(self, fn: Callable) -> Callable:
+        """Declare an ``async (ctx) -> bool`` tried when no command matches,
+        in feature order, before softcode ``$``-commands. Return True when it
+        handled the line (``movement`` walks a typed exit name)."""
+        self.fallbacks.append(fn)
+        return fn
+
+    def traversal_gate(self, fn: Callable | None = None, *, reason: str = "gate",
+                       attrs: Sequence[str] = ()):
+        """Declare an ``async (actor, exit_obj, direction) -> str | None``
+        asked before anyone walks through an exit. A string blocks the move
+        with that message; ``event:on_fail`` fires with ``reason``. ``attrs``
+        names the exit attributes the gate reads, so ``@examine`` can say
+        they do nothing in a world without this feature."""
+        def declare(f: Callable) -> Callable:
+            self.traversal_gates.append((f, reason))
+            for attr in attrs:
+                self.attributes[attr] = f"read by {self.name}'s {reason} gate"
+            return f
+        return declare if fn is None else declare(fn)
+
+    def after_traverse(self, fn: Callable) -> Callable:
+        """Declare an ``async (actor, origin, destination, exit_obj, *,
+        fleeing)`` run after anyone walks through an exit."""
+        self.after_traverse_hooks.append(fn)
         return fn
 
     def name_resolver(self, fn: Callable) -> Callable:
@@ -401,6 +446,7 @@ class FeatureSet:
         from realm.config.loader import KNOWN_CONFIG_KEYS
         from realm.scripting.registry import static_functions
         commands, behaviors = _Claims("command"), _Claims("behavior")
+        command_tokens = _Claims("command token")
         functions, rulesets = _Claims("softcode function"), _Claims("ruleset")
         resolvers, kinds = _Claims("destination resolver"), _Claims("queue kind")
         settings = _Claims("config key")
@@ -436,6 +482,8 @@ class FeatureSet:
             for c in f.commands:
                 for key in (c.name, *c.aliases):
                     commands.claim(key, c.handler, f.name, c.replace)
+                for tok in c.tokens:
+                    command_tokens.claim(tok, c.handler, f.name, c.replace)
             for cls, replace in f.behaviors:
                 behaviors.claim(cls.behavior_id, cls, f.name, replace)
             for fn in f.functions:
@@ -515,7 +563,7 @@ class FeatureSet:
                 dispatcher.register(
                     c.name, c.handler, aliases=list(c.aliases), help_text=c.help_text,
                     usage=c.usage, permission=c.permission, parse_equals=c.parse_equals,
-                    category=c.category)
+                    category=c.category, tokens=c.tokens)
 
     def install_runtime(self, world: World) -> None:
         """Wire the runtime declarations onto ``world``."""
@@ -530,6 +578,10 @@ class FeatureSet:
             checks.modifier_providers.extend(f.check_modifiers)
             for name, fn, shared, _replace in f.dest_resolvers:
                 world.dest_resolvers[name] = (fn, shared)
+            for fn in f.fallbacks:
+                world.dispatcher.add_fallback(fn)
+            world.traversal_gates.extend(f.traversal_gates)
+            world.after_traverse.extend(f.after_traverse_hooks)
             world.name_resolvers.extend(f.name_resolvers)
             world.speech_renderers.extend(f.speech_renderers)
             for fn, _replace in f.group_formatters:
@@ -597,5 +649,22 @@ def installed() -> FeatureSet | None:
     return _installed
 
 
+def unloaded_attribute_owners(attrs: Iterable[str], loaded: Iterable[str]) -> dict[str, str]:
+    """Which of ``attrs`` a built-in feature gives meaning to, when that
+    feature is not among ``loaded``: attribute -> feature name. ``@examine``
+    uses it to say a ``check_skill`` does nothing in a world without
+    ``rules``."""
+    from realm.std import BUILTIN
+    wanted, have = set(attrs), set(loaded)
+    out: dict[str, str] = {}
+    for name in BUILTIN:
+        if name in have or not wanted:
+            continue
+        for attr in _resolve(name, None).attributes:
+            if attr in wanted:
+                out[attr] = name
+    return out
+
+
 __all__ = ["Feature", "FeatureError", "FeatureSet", "load", "install_default",
-           "ensure_registries", "installed"]
+           "ensure_registries", "installed", "unloaded_attribute_owners"]

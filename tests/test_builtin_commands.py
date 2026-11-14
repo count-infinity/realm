@@ -263,6 +263,7 @@ class TestMovementCommand:
 
     async def test_dispatcher_exit_name_fires_movement_events(self):
         """Typing a bare exit name (default-game path) fires on_enter to bystanders."""
+        from realm.commands.builtin.movement import walk_typed_exit
         from realm.commands.dispatcher import CommandDispatcher
 
         room_a, room_b, _ = await self._setup_two_rooms()
@@ -270,6 +271,7 @@ class TestMovementCommand:
         carol, sess_c = make_player("Carol", location=room_b)
 
         dispatcher = CommandDispatcher()
+        dispatcher.add_fallback(walk_typed_exit)      # the movement feature's
         await dispatcher.dispatch(sess_a, "north")
 
         assert alice.location is room_b
@@ -277,6 +279,7 @@ class TestMovementCommand:
 
     async def test_dispatcher_exit_name_honors_block(self):
         """A behavior blocking on_leave stops movement via the dispatcher path too."""
+        from realm.commands.builtin.movement import walk_typed_exit
         from realm.commands.dispatcher import CommandDispatcher
 
         room_a, room_b, _ = await self._setup_two_rooms()
@@ -292,6 +295,7 @@ class TestMovementCommand:
         room_a.add_behavior(Lockdown())
 
         dispatcher = CommandDispatcher()
+        dispatcher.add_fallback(walk_typed_exit)
         await dispatcher.dispatch(sess, "north")
 
         assert alice.location is room_a, "should not have moved"

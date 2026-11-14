@@ -323,7 +323,7 @@ async def move_through_exit(
     Returns ``True`` if the actor moved, ``False`` if blocked.
 
     Deliberate asymmetries with ``move_to`` (traversal vs direct placement):
-    the in_combat/unconscious gates and follower cascade apply only here —
+    the in_combat/unconscious gates and after-traverse hooks (followers) apply only here —
     walking is embodied travel; a teleport is the spell's problem — and the
     TELEPORT lock applies only to ``move_to`` (walking in isn't teleporting).
 
@@ -368,25 +368,21 @@ async def move_through_exit(
         await fire_exit_fail(actor, exit_obj, 'closed', direction=direction)
         return False
 
-    # Skill-gated exits (fire escapes, ledges): db.check_skill names the
-    # skill, db.check_difficulty subtracts, db.check_fail_msg customizes.
-    check_skill = exit_obj.db.get('check_skill') if exit_obj is not None else None
-    if check_skill:
-        from realm.core.checks import check
-        difficulty = int(exit_obj.db.get('check_difficulty') or 0)
-        result = check(actor, str(check_skill), -difficulty)
-        if not result.success:
-            actor.msg(
-                exit_obj.db.get('check_fail_msg')
-                or f"You fail to make it {direction} ({check_skill} check)."
-            )
-            if origin is not None:
-                origin.msg_contents(
-                    f"{actor.get_display_name(None)} tries to go {direction} and fails.",
-                    exclude=[actor],
-                )
-            await fire_exit_fail(actor, exit_obj, 'skill', direction=direction)
-            return False
+    # The features' traversal gates (``feature.traversal_gate``: the
+    # ``rules`` feature's skill-gated exits). A message blocks the move.
+    from realm.core.world import find_world
+    world = find_world()
+    if exit_obj is not None and world is not None:
+        for gate, reason in world.traversal_gates:
+            refusal = await gate(actor, exit_obj, direction)
+            if refusal:
+                actor.msg(refusal)
+                if origin is not None:
+                    origin.msg_contents(
+                        f"{actor.get_display_name(None)} tries to go {direction} "
+                        f"and fails.", exclude=[actor])
+                await fire_exit_fail(actor, exit_obj, reason, direction=direction)
+                return False
 
     # Deferred destination (kernel bit #3): the room beyond this exit may
     # not exist yet — materialize it now, only after every origin-side
@@ -468,13 +464,11 @@ async def move_through_exit(
         "exits": [o.name for o in destination.contents if o.is_exit],
     })
 
-    # Followers walk after their leader (room-local scan of the origin,
-    # so chains cascade and cycles self-resolve — the mover already left
-    # the room being scanned). Fleeing breaks the chain: you escape
-    # alone.
-    if not fleeing:
-        from realm.core.party import bring_followers
-        await bring_followers(actor, origin, destination, exit_obj)
+    # The features' after-traverse hooks (``feature.after_traverse``: the
+    # ``social`` feature brings followers along).
+    if world is not None:
+        for hook in world.after_traverse:
+            await hook(actor, origin, destination, exit_obj, fleeing=fleeing)
 
     return True
 

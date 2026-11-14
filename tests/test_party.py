@@ -25,8 +25,16 @@ def two_rooms():
     return west, east, door
 
 
+@pytest.fixture
+def followers(world):
+    """A bare world with the social feature's follower hook."""
+    from realm.std.social import bring_followers
+    world.after_traverse.append(bring_followers)
+    return world
+
+
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("world")
+@pytest.mark.usefixtures("followers")
 class TestFollowing:
 
     async def test_follower_walks_after_leader(self):

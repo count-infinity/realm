@@ -70,3 +70,14 @@ feature.command(
 )
 
 feature.behavior(DispositionBoostBehavior)
+
+
+@feature.after_traverse
+async def bring_followers(actor, origin, destination, exit_obj, *, fleeing):
+    """Followers walk after their leader (a room-local scan of the origin,
+    so chains cascade and cycles self-resolve: the mover already left the
+    room being scanned). Fleeing breaks the chain: you escape alone."""
+    if fleeing:
+        return
+    from realm.core.party import bring_followers as _bring
+    await _bring(actor, origin, destination, exit_obj)

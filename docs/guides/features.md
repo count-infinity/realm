@@ -86,7 +86,10 @@ Everything a feature can declare:
 
 | Declaration | What it adds |
 |---|---|
-| `feature.command(name, handler, aliases=, permission=, category=, help_text=, usage=, parse_equals=)` | a command (decorator when `handler` is omitted) |
+| `feature.command(name, handler, aliases=, permission=, category=, help_text=, usage=, parse_equals=, token=)` | a command (decorator when `handler` is omitted); `token=":"` makes `:text` run it |
+| `feature.fallback(fn)` | an `async (ctx) -> bool` tried when no command matches, before softcode `$`-commands (`movement` walks a typed exit name) |
+| `feature.traversal_gate(fn, reason=, attrs=)` | an `async (actor, exit_obj, direction) -> str \| None` asked before a walk through an exit; a string refuses with that line and fires `event:on_fail` with `reason`. `attrs` are the exit attributes it reads (`@examine` warns about them in a world without the feature) |
+| `feature.after_traverse(fn)` | an `async (actor, origin, destination, exit_obj, *, fleeing)` run after a walk (`social` brings followers) |
 | `feature.behavior(cls)` | a behavior class, by its `behavior_id` (class decorator) |
 | `feature.function(fn, name=, group=, readonly=, harm=)` | a native softcode function |
 | `feature.softfn(fn, ...)` | a softcode function whose first parameter is the run's frame |
@@ -181,7 +184,7 @@ command of the same pattern wins).
 ## Collisions
 
 A name can belong to one feature. Two features declaring the same command
-(or alias), behavior id, softcode function, ruleset, destination resolver,
+(or alias, or token), behavior id, softcode function, ruleset, destination resolver,
 queue kind, config key, script verb (or token), event (or hook), lock type,
 audience, definition kind or group formatter raise `FeatureError` at load, naming both:
 

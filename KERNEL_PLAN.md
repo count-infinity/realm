@@ -1655,25 +1655,25 @@ Every edge from a kernel module to a feature module, and its fix:
 
 Tasks:
 
-- [ ] `Feature.fallback`, `Feature.traversal_gate`, `Feature.after_traverse`
+- [x] `Feature.fallback`, `Feature.traversal_gate`, `Feature.after_traverse`
       with tests in `tests/test_features.py`: without `movement`, typing an
       exit name is an unknown command; without `rules`, an exit with
       `check_skill` set is passable and `@examine` shows a warning that the
       attribute has no effect; without `social`, nobody follows.
-- [ ] Move `_handle_exit`, `_find_exit` and their helpers. Today
+- [x] Move `_handle_exit`, `_find_exit` and their helpers. Today
       `CommandDispatcher._execute` tries direct match, alias, unique prefix,
       exit name, then the unknown handler (`$`-commands), then "Huh?". The
       fallback order under `CLASSIC` must keep that; pin it with a test
       before moving.
-- [ ] `DIRECTION_ALIASES` (`dispatcher.py`, parse step 6) is movement
+- [x] `DIRECTION_ALIASES` (`dispatcher.py`, parse step 6) is movement
       vocabulary in the kernel parser. Delete it and declare `n`, `s`, `e`
       and the rest as aliases on the direction commands in `movement`.
-- [ ] `TOKEN_MAP` (`dispatcher.py:91`) maps `"`, `'`, `:`, `;` and `\` to
+- [x] `TOKEN_MAP` (`dispatcher.py:91`) maps `"`, `'`, `:`, `;` and `\` to
       talk commands. Delete it and add `token=` to `Feature.command`
       (`feature.command("pose", cmd_pose, token=":")`). The dispatcher keeps
       the mechanism, a registry of one-character prefixes, and no entries.
       A duplicate token raises `FeatureError`.
-- [ ] `dispatcher.set_login_handler` and `set_unknown_handler` stay as the
+- [x] `dispatcher.set_login_handler` and `set_unknown_handler` stay as the
       kernel slots; 7.4 fills the first from a feature.
 
 ### 7.4 Split the mixed files
@@ -2664,3 +2664,8 @@ entry closed.
 | 2026-11-13 | 7.2 | `GameServer.start` builds the world right after opening the store, before `_load_world` and `init_world`, so loading reaches the store through it; feature `on_boot` still runs after the load. The CLI's export/import/pack commands share `_offline_world()`, which installs the game's feature registries before loading (they used CLASSIC defaults). `core/objects.py` calls `defs.touched` directly (the `set_defs_hook` setter is gone). | Required by `get_world().store`. |
 | 2026-11-13 | 7.2 | Pass-3 grep: besides `_current`, `realm/` keeps `features._installed`, `scripting/verbs._installed`, `core/eventdefs._installed` and `scripting/registry._view`/`_ACTIVE_OWNERS` (the per-process registries step 4 installs before a world loads, so saved behaviors find their classes), `entitlements._role_def_table` (a cache of role_def data), `locks._build_namespace` (a lazy import) and `puppet._force_depth` (a recursion counter). None is wired by a boot-time setter. | Step 4 design. |
 | 2026-11-13 | 7.2 | Tests: `tests/conftest.py` resets the world around every test and asserts the no-world `Checks` is unchanged. Fixtures `world`, `classic_world`, `classic_world_unscripted`, `configure`, and `reconfigure(world, **changes)`. About 60 world-less unit-test classes now take `world` (or `classic_world` where they need built-in vocabularies). New tests: presentation declarations reach the world, group-formatter collision, settings validation, the start-up settings log. | |
+| 2026-11-13 | 7.3 | The script engine stays on the kernel's `set_unknown_handler` slot rather than becoming a fallback: fallbacks (feature order) run before the unknown handler, so CLASSIC keeps command → exit → `$`-command → "Huh?" by construction. `tests/test_features.py::TestDispatchOrder` pinned the order before the move and still passes. | Plan let the script engine register a fallback; the slot is the kernel's anyway (last task of 7.3). |
+| 2026-11-13 | 7.3 | `_run_command` sets `ctx.command_name` to the command's own name, so `n` runs north with `command_name == 'north'` (`cmd_direction` reads it) and `unq` reaches `unquell` as `'unquell'` (it compared against the typed prefix before). | Needed once direction aliases are ordinary aliases. |
+| 2026-11-13 | 7.3 | `whisper` lost its `w` alias and `say` its `'` alias: `w` was always rewritten to `west` before lookup, so the alias never fired, and `'` is now a `say` token. `Feature.command(token=)` takes one character or a sequence (`say` has `"` and `'`); a duplicate token raises `FeatureError` ("command token"). | Collision with `movement`'s `w`. |
+| 2026-11-13 | 7.3 | `go`, the directions and a typed exit name share `commands/builtin/movement.walk`; a typed dead-end exit now says "That exit doesn't lead anywhere." like `go` (the dispatcher said "That exit leads nowhere you can reach."). `exit_by_name` keeps the dispatcher's exact-name, alias, unique-prefix match (ambiguous is no match, so the line falls through to `$`-commands). | One walk path. |
+| 2026-11-13 | 7.3 | A refusing traversal gate gets the kernel's room line ("X tries to go D and fails.") and `event:on_fail` with the gate's declared `reason` (`rules` declares `"skill"`, so `adata('reason')` is unchanged). Gates and after-traverse hooks are `World` lists filled by `install_runtime`. The `@examine` warning comes from `Feature.attributes` (filled by `traversal_gate(attrs=)`): `features.unloaded_attribute_owners` imports the built-in feature modules not in the world and names the owner of any attribute the object carries. | Mechanism for the plan's warning. |

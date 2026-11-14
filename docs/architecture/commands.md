@@ -85,10 +85,18 @@ CommandContext(
 
 ## Command Resolution Order
 
-1. **Exact / alias match** - `look`, or `l` if aliased
-2. **Token shortcuts** - `"hello` = say, `:waves` = pose
-3. **Exit names** - `north`, `trapdoor` walk matching exits
-4. **Unknown handler** - falls through to softcode `$`-command search
+1. **Token shortcuts** - a command's one-character `token=`: `"hello` = say,
+   `:waves` = pose (the `talk` feature declares them)
+2. **Exact name, alias, unique prefix** - `look`, `l`, `n` (north's alias,
+   declared by `movement`); the handler sees the command's own name in
+   `ctx.command_name`
+3. **Fallbacks**, in feature order - `feature.fallback(fn)`, an
+   `async (ctx) -> bool`; `movement` walks a typed exit name (`trapdoor`,
+   `fire escape`)
+4. **Unknown handler** - softcode `$`-commands, then "Huh?"
+
+The dispatcher itself knows no command, token, direction or exit: a world
+without `talk` has no `"`, one without `movement` walks no typed exit.
 
 ## Login vs Playing Commands
 
@@ -110,8 +118,8 @@ dispatcher.set_unknown_handler(my_unknown_handler)
 | Command | Aliases | Description |
 |---------|---------|-------------|
 | `look` | `l` | Look at current room |
-| `say` | `'` | Say something |
-| `pose` | `:` | Emote an action |
+| `say` | token `"` or `'` | Say something |
+| `pose` | `emote`, token `:` | Emote an action |
 | `who` | | List online players |
 | `inventory` | `i`, `inv` | List carried items |
 | `help` | `?` | Show available commands |

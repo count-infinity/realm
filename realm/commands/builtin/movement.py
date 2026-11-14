@@ -6,6 +6,8 @@ Handles player movement through exits and the world.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from realm.commands import CommandContext
 from realm.commands.base import find_exit
 from realm.core.movement import (
@@ -15,30 +17,15 @@ from realm.core.movement import (
     resolve_exit_destination,
 )
 from realm.core.render import render_room
+from realm.core.search import AmbiguousMatchError, match_one
+
+if TYPE_CHECKING:
+    from realm.core.objects import GameObject
 
 
-async def cmd_go(ctx: CommandContext) -> None:
-    """
-    Move through an exit.
-
-    Usage: go <direction>
-
-    Example:
-        go north
-        north                  (bare exit names work too)
-    """
-    if not ctx.args:
-        await ctx.session.send("Go where?")
-        return
-
-    direction = ctx.args.strip()
-
-    # Find the exit
-    exit_obj = find_exit(ctx, direction)
-    if not exit_obj:
-        await ctx.session.send(f"You can't go {direction}.")
-        return
-
+async def walk(ctx: CommandContext, exit_obj: GameObject, direction: str) -> None:
+    """Walk ``ctx.player`` through ``exit_obj`` and show the room beyond.
+    ``go``, the direction commands and a typed exit name all end here."""
     dest_obj = resolve_exit_destination(exit_obj, ctx.persistence)
     if not dest_obj and not has_dest_resolver(exit_obj):
         # A dead-end exit fires ON_FAIL — an @afail hook may materialize the
@@ -63,14 +50,52 @@ async def cmd_go(ctx: CommandContext) -> None:
     await ctx.session.send(render_room(ctx.player.location, ctx.player))
 
 
-async def cmd_direction(ctx: CommandContext) -> None:
-    """
-    Move in a cardinal direction.
+def exit_by_name(room: GameObject, name: str) -> GameObject | None:
+    """An exit of ``room`` by exact name, alias, or unambiguous prefix
+    (never a substring, so 'or' won't match 'north'). Ambiguous is None."""
+    name_lower = name.lower()
+    exits = [o for o in room.contents if o.is_exit]
+    for obj in exits:
+        if obj.name.lower() == name_lower:
+            return obj
+        if name_lower in [a.lower() for a in obj.db.get('aliases', [])]:
+            return obj
+    try:
+        return match_one(name, exits, allow_substring=False)
+    except AmbiguousMatchError:
+        return None
 
-    This is the handler for n, s, e, w, etc.
+
+async def walk_typed_exit(ctx: CommandContext) -> bool:
+    """The ``movement`` feature's fallback: a line that is no command but
+    names an exit walks through it. Multi-word exit names ("fire escape")
+    arrive split into command and args, so the whole line is tried too."""
+    if not ctx.player or not ctx.player.location:
+        return False
+    room = ctx.player.location
+    exit_obj = (exit_by_name(room, ctx.command_name)
+                or exit_by_name(room, ctx.raw_input.strip()))
+    if exit_obj is None:
+        return False
+    await walk(ctx, exit_obj, exit_obj.name)
+    return True
+
+
+async def cmd_go(ctx: CommandContext) -> None:
     """
-    # The command name IS the direction (after alias expansion)
-    direction = ctx.command_name
+    Move through an exit.
+
+    Usage: go <direction>
+
+    Example:
+        go north
+        north                  (bare exit names work too)
+    """
+    if not ctx.args:
+        await ctx.session.send("Go where?")
+        return
+
+    direction = ctx.args.strip()
 
     # Find the exit
     exit_obj = find_exit(ctx, direction)
@@ -78,8 +103,22 @@ async def cmd_direction(ctx: CommandContext) -> None:
         await ctx.session.send(f"You can't go {direction}.")
         return
 
-    # Reuse the go command logic with the direction as args
-    ctx.args = direction
-    await cmd_go(ctx)
+    await walk(ctx, exit_obj, direction)
+
+
+async def cmd_direction(ctx: CommandContext) -> None:
+    """
+    Move in a cardinal direction.
+
+    This is the handler for n, s, e, w, etc.
+    """
+    # The command's own name IS the direction ('n' reaches it as 'north').
+    direction = ctx.command_name
+
+    exit_obj = find_exit(ctx, direction)
+    if not exit_obj:
+        await ctx.session.send(f"You can't go {direction}.")
+        return
+    await walk(ctx, exit_obj, direction)
 
 

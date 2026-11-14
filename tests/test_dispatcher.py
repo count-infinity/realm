@@ -3,8 +3,6 @@
 import pytest
 
 from realm.commands.dispatcher import (
-    DIRECTION_ALIASES,
-    TOKEN_MAP,
     CommandContext,
     CommandDispatcher,
 )
@@ -198,8 +196,8 @@ class TestCommandDispatcher:
         async def pose_handler(ctx):
             called.append(('pose', ctx.args))
 
-        dispatcher.register("say", say_handler)
-        dispatcher.register("pose", pose_handler)
+        dispatcher.register("say", say_handler, tokens=['"'])
+        dispatcher.register("pose", pose_handler, tokens=[':'])
 
         session = Session()
         player = GameObject("Player", tags=['player'])
@@ -250,16 +248,16 @@ class TestCommandDispatcher:
         assert captured == [("foo", "bar baz")]
 
     @pytest.mark.asyncio
-    async def test_direction_aliases(self):
-        """Direction aliases are expanded."""
+    async def test_an_alias_reaches_the_command_by_its_own_name(self):
+        """'n' runs north, and the handler sees command_name 'north'."""
         dispatcher = CommandDispatcher()
         called = []
 
         async def handler(ctx):
             called.append(ctx.command_name)
 
-        dispatcher.register("north", handler)
-        dispatcher.register("south", handler)
+        dispatcher.register("north", handler, aliases=["n"])
+        dispatcher.register("south", handler, aliases=["s"])
 
         session = Session()
         player = GameObject("Player", tags=['player'])
@@ -341,45 +339,63 @@ class TestCommandDispatcher:
         assert called == [("+finger", "Alice")]
 
 
-class TestTokenMap:
-    """Test that TOKEN_MAP contains expected tokens."""
+class TestTheKernelKnowsNoVocabulary:
+    """Tokens, directions and exits come from features (KERNEL_PLAN 7.3)."""
 
-    def test_say_tokens(self):
-        """Say tokens are defined."""
-        assert TOKEN_MAP.get('"') == 'say'
-        assert TOKEN_MAP.get("'") == 'say'
+    def _session(self):
+        session = Session()
+        session.link_player(GameObject("Player", tags=['player']))
+        return session
 
-    def test_pose_token(self):
-        """Pose token is defined."""
-        assert TOKEN_MAP.get(':') == 'pose'
+    @pytest.mark.asyncio
+    async def test_a_bare_dispatcher_has_no_tokens_or_directions(self):
+        dispatcher = CommandDispatcher()
+        unknown = []
 
-    def test_semipose_token(self):
-        """Semipose token is defined."""
-        assert TOKEN_MAP.get(';') == 'semipose'
+        async def on_unknown(ctx):
+            unknown.append(ctx.command_name)
 
-    def test_emit_token(self):
-        """Emit token is defined."""
-        assert TOKEN_MAP.get('\\') == 'emit'
+        dispatcher.set_unknown_handler(on_unknown)
+        session = self._session()
+        await dispatcher.dispatch(session, '"hello')
+        await dispatcher.dispatch(session, "n")
+        assert unknown == ['"hello', "n"]
 
+    def test_classic_declares_the_talk_tokens_and_direction_aliases(self):
+        from realm.features import load
+        from realm.std import CLASSIC
+        dispatcher = CommandDispatcher()
+        load(CLASSIC).install_commands(dispatcher)
+        assert dispatcher._tokens == {'"': 'say', "'": 'say', ':': 'pose',
+                                      ';': 'semipose', '\\': 'emit'}
+        for short, name in [('n', 'north'), ('s', 'south'), ('e', 'east'),
+                            ('w', 'west'), ('u', 'up'), ('d', 'down'),
+                            ('ne', 'northeast'), ('nw', 'northwest'),
+                            ('se', 'southeast'), ('sw', 'southwest')]:
+            assert dispatcher.get_command(short).name == name
 
-class TestDirectionAliases:
-    """Test that direction aliases are defined."""
+    @pytest.mark.asyncio
+    async def test_fallbacks_run_in_order_before_the_unknown_handler(self):
+        dispatcher = CommandDispatcher()
+        seen = []
 
-    def test_cardinal_directions(self):
-        """Cardinal directions are aliased."""
-        assert DIRECTION_ALIASES['n'] == 'north'
-        assert DIRECTION_ALIASES['s'] == 'south'
-        assert DIRECTION_ALIASES['e'] == 'east'
-        assert DIRECTION_ALIASES['w'] == 'west'
+        async def first(ctx):
+            seen.append("first")
+            return ctx.command_name == "one"
 
-    def test_vertical_directions(self):
-        """Up/down are aliased."""
-        assert DIRECTION_ALIASES['u'] == 'up'
-        assert DIRECTION_ALIASES['d'] == 'down'
+        async def second(ctx):
+            seen.append("second")
+            return ctx.command_name == "two"
 
-    def test_diagonal_directions(self):
-        """Diagonal directions are aliased."""
-        assert DIRECTION_ALIASES['ne'] == 'northeast'
-        assert DIRECTION_ALIASES['nw'] == 'northwest'
-        assert DIRECTION_ALIASES['se'] == 'southeast'
-        assert DIRECTION_ALIASES['sw'] == 'southwest'
+        async def on_unknown(ctx):
+            seen.append("unknown")
+
+        dispatcher.add_fallback(first)
+        dispatcher.add_fallback(second)
+        dispatcher.set_unknown_handler(on_unknown)
+        session = self._session()
+        await dispatcher.dispatch(session, "one")
+        await dispatcher.dispatch(session, "two")
+        await dispatcher.dispatch(session, "three")
+        assert seen == ["first", "first", "second",
+                        "first", "second", "unknown"]

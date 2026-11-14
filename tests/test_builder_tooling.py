@@ -174,15 +174,14 @@ class TestDetailRemove:
 class TestExitPrefix:
 
     def test_prefix_matches_exit(self):
-        from realm.commands.dispatcher import CommandDispatcher
+        from realm.commands.builtin.movement import exit_by_name
 
         room = GameObject("Steps", tags=["room"])
         GameObject("trapdoor", tags=["exit"], location=room)
         GameObject("hatch", tags=["exit"], location=room)
-        d = CommandDispatcher()
-        assert d._find_exit(room, "trapd").name == "trapdoor"
-        assert d._find_exit(room, "trapdoor").name == "trapdoor"
-        assert d._find_exit(room, "h").name == "hatch"
+        assert exit_by_name(room, "trapd").name == "trapdoor"
+        assert exit_by_name(room, "trapdoor").name == "trapdoor"
+        assert exit_by_name(room, "h").name == "hatch"
 
 
 class TestRollVisibility:

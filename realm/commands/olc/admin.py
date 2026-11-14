@@ -316,6 +316,17 @@ async def cmd_examine_full(ctx: CommandContext) -> None:
                 f"\nInherited (from {target.parent.name}):")
             for key, value in sorted(inherited.items()):
                 await ctx.session.send(f"  {key}: {value!r}")
+    # An attribute a feature gives meaning to does nothing in a world
+    # without that feature (a check_skill exit without `rules`): say so.
+    from realm.core.world import find_world
+    from realm.features import unloaded_attribute_owners
+    world = find_world()
+    if world is not None and world.features is not None:
+        idle = unloaded_attribute_owners(target.db.merged(), world.features.names)
+        for key, owner in sorted(idle.items()):
+            await ctx.session.send(
+                f"  Warning: {key} has no effect: the {owner!r} feature "
+                f"is not loaded.")
 
     # Behaviors
     behaviors = target.get_behaviors()

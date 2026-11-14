@@ -26,7 +26,7 @@ feature = Feature(
 feature.command(
     'say',
     cmd_say,
-    aliases=["'"],
+    token=['"', "'"],
     category='communication',
     help_text='Say something to the room',
     usage='say <message> or "<message>',
@@ -35,6 +35,7 @@ feature.command(
     'pose',
     cmd_pose,
     aliases=['emote'],
+    token=':',
     category='communication',
     help_text='Emote an action',
     usage='pose <action> or :<action>',
@@ -42,6 +43,7 @@ feature.command(
 feature.command(
     'semipose',
     cmd_semipose,
+    token=';',
     category='communication',
     help_text='Emote with name attached',
     usage='semipose <action> or ;<action>',
@@ -49,6 +51,7 @@ feature.command(
 feature.command(
     'emit',
     cmd_emit,
+    token='\\',
     permission='builder',
     category='communication',
     help_text='Emit a message to the room',
@@ -71,7 +74,6 @@ feature.command(
 feature.command(
     'whisper',
     cmd_whisper,
-    aliases=['w'],
     category='communication',
     help_text='Whisper privately to someone',
     usage='whisper <player> = <message>',

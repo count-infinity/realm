@@ -72,7 +72,10 @@ Everything optional is a **feature** (`realm/features.py`): a named set of
 declarations (`feature.command`, `.behavior`, `.function`/`.softfn`,
 `.observer`, `.ruleset`, `.dest_resolver`, `.reaper`, `.queue_kind`,
 `.check_modifier`, `.name_resolver`, `.speech_renderer`, `.group_formatter`,
-`.protocol`, `.setting`, `.on_install`/`.on_boot`/`.on_close`).
+`.fallback`, `.traversal_gate`, `.after_traverse`, `.protocol`, `.setting`,
+`.on_install`/`.on_boot`/`.on_close`; `.command(token=)` for `:pose`-style
+prefixes). The dispatcher and `core/movement.py` know no command, token,
+direction, exit or follower by name.
 Built-ins are declared in `realm/std/<feature>.py` and `realm/games/<system>.py`;
 a game declares its own in `game.py`; `FEATURES` in config lists them
 (default `realm.std.CLASSIC`). Do not register at import time

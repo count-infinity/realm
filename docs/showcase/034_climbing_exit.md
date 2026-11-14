@@ -6,7 +6,7 @@
 ledge. Traversing it rolls your Climbing skill; a failed roll drops you back
 down for 1d6 falling damage, and the descent is its own, easier roll.
 
-**Concepts:** the engine's built-in skill-gated exits (`check_skill`,
+**Concepts:** the `rules` feature's skill-gated exits (`check_skill`,
 `check_difficulty`, `check_fail_msg`),
 [`ON_FAIL`](../reference/softcode.md#lifecycle-hooks) on the exit as the
 consequence hook, [`damage()`](../reference/softcode.md#fn-damage) under
@@ -23,7 +23,8 @@ each direction is its own climb.
 
 ### Where does the roll come from?
 
-You do not script the check. Any exit with a `check_skill` attribute rolls
+You do not script the check. In a world with the `rules` feature (every
+built-in game has it), any exit with a `check_skill` attribute rolls
 that skill on every traversal, at a penalty of `check_difficulty`, and on a
 failure it refuses the move, shows your `check_fail_msg` to the climber, and
 prints `<name> tries to go rock chimney and fails.` to everyone else in the

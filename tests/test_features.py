@@ -311,3 +311,197 @@ class TestRequirements:
     def test_unknown_feature_raises(self):
         with pytest.raises(FeatureError, match="no_such_feature"):
             load(["no_such_feature"])
+
+
+class TestDispatchOrder:
+    """CLASSIC tries a command (exact, alias, unique prefix), then an exit
+    of the room, then softcode ``$``-commands. Pinned before the exit
+    matcher left the dispatcher (KERNEL_PLAN 7.3)."""
+
+    def _hall(self, sim):
+        hall, vault = sim.room("Hall"), sim.room("Vault")
+        door = sim.obj("vault", location=hall, tags=["exit"])
+        door.db.set("destination", vault.id)
+        alice = sim.player("Alice", location=hall)
+        sign = sim.obj("sign", location=hall)
+        sign.db.set("cmd_vault", "$vault:say The sign answers.")
+        sign.db.set("cmd_ponder", "$ponder:say The sign ponders.")
+        return hall, vault, alice
+
+    async def test_an_exit_beats_a_softcode_command(self):
+        with Simulator() as sim:
+            hall, vault, alice = self._hall(sim)
+            await sim.do(alice, "vault")
+            assert alice.location is vault
+            assert not any("answers" in line for line in sim.seen(alice))
+
+    async def test_a_command_beats_an_exit_and_softcode_comes_last(self):
+        with Simulator() as sim:
+            hall, vault, alice = self._hall(sim)
+            look = sim.obj("look", location=hall, tags=["exit"])
+            look.db.set("destination", vault.id)
+            await sim.do(alice, "look")
+            assert alice.location is hall              # the command won
+            await sim.do(alice, "ponder")
+            assert any("ponders" in line for line in sim.seen(alice))
+
+    async def test_direction_abbreviations_walk(self):
+        with Simulator() as sim:
+            hall, north = sim.room("Hall"), sim.room("North Room")
+            door = sim.obj("north", location=hall, tags=["exit"])
+            door.db.set("destination", north.id)
+            alice = sim.player("Alice", location=hall)
+            await sim.do(alice, "n")
+            assert alice.location is north
+
+    async def test_talk_tokens(self):
+        with Simulator() as sim:
+            hall = sim.room("Hall")
+            alice = sim.player("Alice", location=hall)
+            await sim.do(alice, '"hello')
+            await sim.do(alice, ":waves")
+            out = sim.seen(alice)
+            assert any('You say, "hello"' in line for line in out)
+            assert any("Alice waves" in line for line in out)
+
+
+class TestMovementSeams:
+    """Exits, skill gates and followers are features' declarations
+    (KERNEL_PLAN 7.3), not the kernel's."""
+
+    def _two_rooms(self, sim, exit_name="vault"):
+        hall, vault = sim.room("Hall"), sim.room("Vault")
+        door = sim.obj(exit_name, location=hall, tags=["exit"])
+        door.db.set("destination", vault.id)
+        return hall, vault, door
+
+    async def test_without_movement_an_exit_name_is_an_unknown_command(self):
+        with Simulator(features=["basics", "talk", "look"]) as sim:
+            hall, vault, _door = self._two_rooms(sim)
+            alice = sim.player("Alice", location=hall)
+            await sim.do(alice, "vault")
+            assert alice.location is hall
+
+    async def test_a_skill_gate_blocks_with_rules(self):
+        with Simulator() as sim:
+            hall, vault, door = self._two_rooms(sim)
+            door.db.set("check_skill", "climbing")
+            alice = sim.player("Alice", location=hall)
+            sim.world.services["checks"].resolver = (
+                lambda obj, skill, mod: __import__("realm.core.dice", fromlist=["x"])
+                .CheckResult(False, -3, 13, 10, skill))
+            await sim.do(alice, "vault")
+            assert alice.location is hall
+            assert any("climbing check" in line for line in sim.seen(alice))
+
+    async def test_without_rules_a_skill_gate_is_passable_and_examine_warns(self):
+        with Simulator(features=SOCIAL_GAME) as sim:
+            hall, vault, door = self._two_rooms(sim)
+            door.db.set("check_skill", "climbing")
+            ada = sim.player("Ada", location=hall)
+            ada.add_tag("admin")
+            await sim.do(ada, "@examine vault")
+            out = "\n".join(sim.seen(ada))
+            assert "check_skill has no effect" in out and "'rules'" in out
+            await sim.do(ada, "vault")
+            assert ada.location is vault
+
+    async def test_with_rules_examine_does_not_warn(self):
+        with Simulator() as sim:
+            hall, vault, door = self._two_rooms(sim)
+            door.db.set("check_skill", "climbing")
+            ada = sim.player("Ada", location=hall)
+            ada.add_tag("admin")
+            await sim.do(ada, "@examine vault")
+            assert "has no effect" not in "\n".join(sim.seen(ada))
+
+    async def test_without_social_nobody_follows(self):
+        from realm.core.party import set_following
+        with Simulator(features=SOCIAL_GAME) as sim:
+            hall, vault, _door = self._two_rooms(sim)
+            alice = sim.player("Alice", location=hall)
+            bob = sim.player("Bob", location=hall)
+            set_following(bob, alice)
+            await sim.do(alice, "vault")
+            assert alice.location is vault and bob.location is hall
+
+    async def test_with_social_followers_follow(self):
+        from realm.core.party import set_following
+        with Simulator() as sim:
+            hall, vault, _door = self._two_rooms(sim)
+            alice = sim.player("Alice", location=hall)
+            bob = sim.player("Bob", location=hall)
+            set_following(bob, alice)
+            await sim.do(alice, "vault")
+            assert bob.location is vault
+
+
+SEAM_MODULE = '''
+from realm.features import Feature
+
+feature = Feature("{name}")
+calls = []
+
+
+@feature.fallback
+async def knock(ctx):
+    if ctx.command_name != "knock":
+        return False
+    await ctx.session.send("Knock knock.")
+    return True
+
+
+@feature.traversal_gate(reason="toll", attrs=["toll"])
+async def toll(actor, exit_obj, direction):
+    if exit_obj.db.get("toll") and not actor.db.get("paid"):
+        return "Pay the toll first."
+    return None
+
+
+@feature.after_traverse
+async def note(actor, origin, destination, exit_obj, *, fleeing):
+    calls.append((actor.name, origin.name, destination.name, fleeing))
+
+
+@feature.command("ping", token="!")
+async def ping(ctx):
+    await ctx.session.send("pong " + ctx.args)
+'''
+
+
+class TestSeamDeclarations:
+
+    @pytest.fixture
+    def seam(self, tmp_path, monkeypatch):
+        name = f"kp_seam_{uuid.uuid4().hex[:8]}"
+        (tmp_path / f"{name}.py").write_text(textwrap.dedent(SEAM_MODULE.format(name=name)))
+        monkeypatch.syspath_prepend(str(tmp_path))
+        return name
+
+    async def test_fallback_gate_after_traverse_and_token(self, seam):
+        import importlib
+        module = importlib.import_module(seam)
+        with Simulator(features=["basics", "movement", seam]) as sim:
+            hall, vault = sim.room("Hall"), sim.room("Vault")
+            door = sim.obj("gate", location=hall, tags=["exit"])
+            door.db.set("destination", vault.id)
+            door.db.set("toll", 2)
+            alice = sim.player("Alice", location=hall)
+            await sim.do(alice, "knock")
+            await sim.do(alice, "!there")
+            out = sim.seen(alice)
+            assert "Knock knock." in out and "pong there" in out
+            await sim.do(alice, "gate")
+            assert alice.location is hall
+            assert "Pay the toll first." in sim.seen(alice)
+            alice.db.set("paid", True)
+            await sim.do(alice, "gate")
+            assert alice.location is vault
+            assert module.calls == [("Alice", "Hall", "Vault", False)]
+
+    def test_a_duplicate_token_raises(self):
+        a, b = Feature("alpha"), Feature("beta")
+        a.command("ping", lambda ctx: None, token="!")
+        b.command("pong", lambda ctx: None, token="!")
+        with pytest.raises(FeatureError, match="command token '!'.*'alpha'.*'beta'"):
+            FeatureSet([a, b])
