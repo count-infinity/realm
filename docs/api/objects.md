@@ -8,6 +8,7 @@
 The base class for all game objects.
 
 ```python
+# doctest: skip
 class GameObject:
     id: str              # UUID
     name: str            # display name (articles computed at render)
@@ -58,7 +59,7 @@ that fooled `@examine` would be a grief tool.
 ### Creating Objects
 
 ```python
-from realm.core.objects import GameObject
+from realm import GameObject
 
 room = GameObject(
     name="Town Square",

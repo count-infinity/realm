@@ -42,9 +42,11 @@ the tutorial's command sequence is one of them.
 
 Code that needs the store, the propagation engine, the script engine, the
 game system or a feature's service asks the running world
-(`realm.core.world.get_world()`). `tests/conftest.py` makes every test start
-and end with **no** world installed, so nothing one test wires can leak into
-the next. A test that needs a world takes a fixture:
+(`realm.core.world.get_world()`). The fixtures come from the pytest plugin
+`realm.testing.fixtures` (`tests/conftest.py` lists it in `pytest_plugins`,
+as a game's own tests do). It makes every test start and end with **no**
+world installed, so nothing one test wires can leak into the next. A test
+that needs a world takes a fixture:
 
 | Fixture | World |
 |---|---|
@@ -68,7 +70,7 @@ def test_rigged_check(world):
     world.speech_renderers.append(shout)       # what feature.speech_renderer adds
 ```
 
-`reconfigure(world, **changes)` (from `tests.conftest`) changes a Simulator's
+`reconfigure(world, **changes)` (from `realm.testing`) changes a Simulator's
 or another fixture's settings (`reconfigure(sim.world, keyid_sigil="$$")`).
 A bad value raises `ValueError`, exactly as it would in `config.py`.
 

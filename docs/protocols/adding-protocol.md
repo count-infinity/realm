@@ -7,6 +7,13 @@ This guide explains how to add a new connection protocol to REALM, such as a cus
     A protocol is declared by a feature: your game's `game.py`, or a feature
     package you install.
 
+!!! warning "Not yet public API"
+    `Feature` is public, but the session and server names this guide uses
+    (`realm.gateway.session.SessionManager`, `connect_session`,
+    `format_peer_address`, `realm.server.game.GameServer`) are internal:
+    they may move between releases without notice
+    ([Public API](../reference/public-api.md)).
+
 ## Overview
 
 Adding a protocol requires:
@@ -21,7 +28,7 @@ In your game's feature module:
 
 ```python
 # mygame/game.py
-from realm.features import Feature
+from realm import Feature
 from mygame.protocols import GodotServer
 
 feature = Feature("mygame")

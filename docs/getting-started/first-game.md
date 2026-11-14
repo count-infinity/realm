@@ -27,7 +27,7 @@ The server is now listening on telnet port 4000.
 `config.py` starts with every built-in feature plus your own:
 
 ```python
-from realm.std import CLASSIC
+from realm import CLASSIC
 FEATURES = [*CLASSIC, "game"]
 ```
 

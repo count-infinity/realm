@@ -7,8 +7,8 @@ lists this module in FEATURES as "game", so it loads before the world does
 and saved behaviors always find their class. See docs/guides/features.md.
 """
 
-from realm.core.behaviors import Behavior  # noqa: F401  (used by the behavior example)
-from realm.features import Feature
+from realm import Behavior  # noqa: F401  (used by the behavior example)
+from realm import Feature
 
 feature = Feature("__GAME_ID__")
 

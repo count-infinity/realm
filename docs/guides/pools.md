@@ -61,7 +61,7 @@ is `hull`.
 From Python:
 
 ```python
-from realm.core import pools
+from realm import pools
 
 change = pools.harm(ship, "shields", 10, soak=True)  # lowers shields, spills into hull
 await pools.settle(change, source=attacker)          # ON_POOL, ON_SPENT

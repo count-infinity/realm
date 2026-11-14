@@ -44,8 +44,8 @@ Put all of this in your game's `rules.py` (what `realm init` scaffolds and
 
 ```python
 # rules.py
-from realm.core.pools import Pool
-from realm.std.rules.system import ChoiceStep, GameSystem, PointBuyMixin
+from realm import Pool
+from realm.std.rules import ChoiceStep, GameSystem, PointBuyMixin
 
 
 class PercentileSystem(PointBuyMixin, GameSystem):
@@ -67,7 +67,7 @@ class PercentileSystem(PointBuyMixin, GameSystem):
         }
 
     def resolve_check(self, obj, skill, modifier):
-        from realm.core.dice import margin_under, roll
+        from realm import dice
         trained = obj.db.get(f"skill_{skill}")
         if trained is not None:
             target = int(trained)                    # skills are stored as %
@@ -76,7 +76,7 @@ class PercentileSystem(PointBuyMixin, GameSystem):
             stat, _ = self.skill_defaults().get(skill, ("speed", 0))
             target = int(obj.db.get(stat) or 10) * 5
         # roll ≤ target succeeds; margin = how far under (degree of success).
-        return margin_under(roll("1d100"), target + modifier)
+        return dice.margin_under(dice.roll("1d100"), target + modifier)
 
     def improve_cost(self, skill, current_level):
         return max(1, current_level // 10)           # dearer near mastery
@@ -129,7 +129,7 @@ for health and resources (`[Pool("hp")]` unless you say otherwise; see
 ```
 
 **The resolver returns a graded `CheckResult`, not a bool.** `margin_under(rolled,
-target)` (from `realm.core.dice`) hands back `(success, margin, …)` — the *degree*
+target)` (from `realm.dice`) hands back `(success, margin, …)` — the *degree*
 of success, which softcode and combat both branch on. You're composing a stock
 **reducer** (`margin_under`) with `roll("1d100")`; you never hand-write the
 success test. Other families reuse the same reducer library: `margin_over` for
@@ -175,9 +175,7 @@ landed hit *gets through* (in `apply_damage`).
 ```python
 # rules.py (continued)
 import random
-from realm.std.combat.ruleset import (
-    Ruleset, AttackResult, DamageResult, RollResult, DamageType,
-)
+from realm.std.combat import AttackResult, DamageResult, DamageType, RollResult, Ruleset
 
 
 class PercentileRuleset(Ruleset):
@@ -294,7 +292,7 @@ That's the whole hookup for skills, chargen, advancement, and currency. The
 
 ```python
 # game.py
-from realm.features import Feature
+from realm import Feature
 from rules import PercentileRuleset
 
 feature = Feature("percentile_game", requires=["rules"])

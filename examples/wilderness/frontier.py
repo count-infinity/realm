@@ -67,7 +67,7 @@ async def create_frontier(repo) -> dict:
     """Build the frontier's persistent seam: trailhead room, region
     master, gate exit. Cells are never built here — they materialize when
     someone walks."""
-    from realm.core.objects import GameObject
+    from realm import GameObject
 
     trailhead = GameObject(
         name="Frontier Trailhead",

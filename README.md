@@ -8,7 +8,7 @@ from inside the game.
 Async (asyncio) with SQLite persistence — a single process, with no
 external services to stand up. Python 3.12+.
 
-```python
+```text
 # The whole stack in five in-game lines — no world files, no restart:
 @dig The Garden = north
 @desc here = Roses climb a broken trellis. [[result = ansi('rh', 'Thorns') if skill('observation') >= 12 else '']]

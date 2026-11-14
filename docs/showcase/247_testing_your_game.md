@@ -173,8 +173,11 @@ but this harness, pointed at each build.
 
 ## Going further
 
-- **Fixtures:** wrap `Simulator()` in a pytest fixture that `yield`s the
-  world and calls `sim.close()` in a `finally` — every test starts clean.
+- **Fixtures:** put `pytest_plugins = ["realm.testing.fixtures"]` in your
+  `tests/conftest.py` for REALM's own `world` and `classic_world` fixtures
+  ([Public API](../reference/public-api.md#testing)), or wrap `Simulator()`
+  in a fixture that `yield`s it and calls `sim.close()` in a `finally`.
+  Either way every test starts clean.
 - **Virtual-clock chains:** a `wait()` that schedules another `wait()`
   advances one `waits.tick()` at a time, so you can assert the state
   *between* steps of a relay.

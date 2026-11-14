@@ -65,7 +65,7 @@ checks pick it up. (Classes need no reload.)
 For seeding or tests, `realm.std.rules.definitions` has builders:
 
 ```python
-from realm.std.rules.definitions import define_skill, define_class
+from realm.std.rules import define_class, define_skill
 
 await persistence.save(define_skill("piloting", "dexterity", -4))
 await persistence.save(define_class(

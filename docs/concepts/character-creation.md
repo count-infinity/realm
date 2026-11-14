@@ -88,6 +88,7 @@ offers. In GURPS it's the `TEMPLATES` dict at the top of
 `realm/games/gurps/system.py`:
 
 ```python
+# doctest: skip
 TEMPLATES = {
     "soldier": ("tough and dangerous …",
                 {'strength': 12, 'health': 12, …},   # stats

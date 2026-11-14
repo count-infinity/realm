@@ -155,7 +155,7 @@ class TestClone:
 class TestConfigurableSigil:
 
     async def test_multi_char_sigil(self, sim):
-        from tests.conftest import reconfigure
+        from realm.testing import reconfigure
         room = sim.room("Vault")
         ada = admin(sim, room)
         core = sim.obj("BankNet Core", location=room)

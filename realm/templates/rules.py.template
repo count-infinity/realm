@@ -24,7 +24,7 @@ config.py.
 
 from __future__ import annotations
 
-from realm.games.gurps.system import GurpsSystem
+from realm.games.gurps import GurpsSystem
 
 
 class GameRules(GurpsSystem):
@@ -40,8 +40,8 @@ class GameRules(GurpsSystem):
     # A "class" is a (blurb, stats, skills) entry offered at creation.
     # Uncomment to offer your own alongside (or instead of) the built-ins:
     #
-    # from realm.std.rules.system import ChoiceStep
-    # from realm.games.gurps.system import TEMPLATES
+    # from realm.std.rules import ChoiceStep
+    # from realm.games.gurps import TEMPLATES
     #
     # MY_TEMPLATES = {
     #     **TEMPLATES,                       # keep the stock classes (optional)

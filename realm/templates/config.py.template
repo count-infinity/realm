@@ -40,7 +40,7 @@ GAME_SYSTEM = "rules.GameRules"
 # own game.py. Leave features out to build a smaller game, for example a
 # social game with no combat or money:
 #   FEATURES = ["accounts", "basics", "talk", "movement", "look", "items", "building", "game"]
-from realm.std import CLASSIC  # noqa: E402
+from realm import CLASSIC  # noqa: E402
 
 FEATURES = [*CLASSIC, "game"]
 
@@ -113,7 +113,7 @@ RECURSION_LIMIT = 1000
 #     Called once when the world is empty.
 #     Create your starting rooms, NPCs, and items here.
 #     \"\"\"
-#     from realm.core.objects import GameObject
+#     from realm import GameObject
 #
 #     # Example: Create a starting room
 #     town_square = GameObject(

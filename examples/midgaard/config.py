@@ -53,8 +53,7 @@ async def init_world(server):
     import json
     from pathlib import Path
 
-    from realm.packs import import_pack
-    from realm.persistence.worldio import import_objects
+    from realm import import_objects, import_pack
 
     area = Path(__file__).parent / "data" / "areas" / "midgaard.json"
     # preserve_ids: the area's exits and resets reference rooms by their

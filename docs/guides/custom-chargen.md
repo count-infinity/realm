@@ -23,8 +23,8 @@ to return the sequence you want:
 
 ```python
 # rules.py  (created by `realm init`)
-from realm.games.gurps.system import GurpsSystem
-from realm.std.rules.system import ChoiceStep
+from realm.games.gurps import GurpsSystem
+from realm.std.rules import ChoiceStep
 
 class GameRules(GurpsSystem):
     system_id = "mygame"          # your project's id, set by realm init
@@ -53,7 +53,7 @@ and reboot-safe; you only supply the steps. A custom step needs just two
 methods:
 
 ```python
-from realm.std.rules.system import ChargenStep
+from realm.std.rules import ChargenStep
 
 class NameStep(ChargenStep):
     key = "callsign"
@@ -76,6 +76,7 @@ is a single step — `create` drops the player straight into the world
 with just their baseline stats:
 
 ```python
+# doctest: skip
 # rules.py
     def chargen_steps(self):
         return []          # no menu; everyone starts identical
@@ -93,6 +94,7 @@ steps and override `apply_baseline` to seed a character-point pool on
 every fresh sheet:
 
 ```python
+# doctest: skip
 # rules.py
     def chargen_steps(self):
         return []
@@ -109,7 +111,7 @@ into whatever room is tagged `start_room`. Build one in your
 ```python
 # config.py
 async def init_world(server):
-    from realm.core.objects import GameObject
+    from realm import GameObject
     academy = GameObject(
         name="The Academy Drill Hall",
         description=("Training dummies line the walls. A sign reads: spend "

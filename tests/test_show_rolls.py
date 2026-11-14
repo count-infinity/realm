@@ -17,7 +17,7 @@ from realm.std.combat.system import (
     append_roll_notes,
     shows_rolls,
 )
-from tests.conftest import reconfigure
+from realm.testing import reconfigure
 
 
 def _fighter(name, **stats):

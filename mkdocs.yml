@@ -100,6 +100,7 @@ nav:
   - Reference:
     - Softcode: reference/softcode.md
     - Configuration: reference/config.md
+    - Public API: reference/public-api.md
     - "API: Core Objects": api/objects.md
     - "API: Sessions": api/sessions.md
     - "API: Propagation": api/events.md

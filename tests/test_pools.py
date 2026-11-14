@@ -122,7 +122,7 @@ def test_damage_and_vital_pools(world):
 
 
 def test_the_damage_pool_setting(world):
-    from tests.conftest import reconfigure
+    from realm.testing import reconfigure
     reconfigure(world, damage_pool="harm")
     assert pools.damage_pool(thing(harm=0, max_harm=6)) == "harm"
     assert pools.damage_pool(thing(hp=10)) is None

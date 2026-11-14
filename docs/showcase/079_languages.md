@@ -39,7 +39,7 @@ game's feature module, not softcode:
 
 ```python
 # game.py — your game's feature (config.py: FEATURES = [*CLASSIC, "game"])
-from realm.features import Feature
+from realm import Feature
 
 feature = Feature("game")
 

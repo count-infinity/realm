@@ -6,6 +6,7 @@ Quick reference for ``realm.core.propagation``. The concepts:
 ## Action
 
 ```python
+# doctest: skip
 Action(
     actor: GameObject | None,
     target: GameObject | None,

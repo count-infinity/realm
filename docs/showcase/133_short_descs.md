@@ -40,7 +40,7 @@ the real name:
 
 ```python
 # game.py — your game's feature (config.py: FEATURES = [*CLASSIC, "game"])
-from realm.features import Feature
+from realm import Feature
 
 feature = Feature("game")
 

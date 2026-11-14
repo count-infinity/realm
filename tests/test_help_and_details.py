@@ -258,7 +258,7 @@ class TestInlineSoftcode:
         ${...} block don't terminate it early."""
         from realm.core.world import get_world
         from realm.scripting.inline import eval_inline
-        from tests.conftest import reconfigure
+        from realm.testing import reconfigure
 
         room, thief, _ = self._cellar()
         reconfigure(get_world(), inline_open="${", inline_close="}")
@@ -275,7 +275,7 @@ class TestInlineSoftcode:
     def test_configurable_delimiters_non_bracket_closer(self):
         from realm.core.world import get_world
         from realm.scripting.inline import eval_inline
-        from tests.conftest import reconfigure
+        from realm.testing import reconfigure
 
         room, thief, _ = self._cellar()
         reconfigure(get_world(), inline_open="<<", inline_close=">>")

@@ -54,8 +54,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from realm.core.objects import GameObject
-    from realm.persistence.store import Store
+    from realm import GameObject, Store
 
 
 class ShipClass(Enum):
@@ -232,7 +231,7 @@ class Spaceship:
         Returns:
             Spaceship wrapper
         """
-        from realm.core.objects import GameObject
+        from realm import GameObject
 
         template = SHIP_TEMPLATES[ship_class]
 

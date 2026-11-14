@@ -46,6 +46,8 @@ not the feature.
 
 | File | Purpose |
 |---|---|
+| `realm/__init__.py` | The public names (`realm.__all__`, loaded on first use via `realm/_exports.py`); feature and game packages publish theirs in their `__init__.py`. Frozen by `tests/test_public_api.py`; docs/reference/public-api.md |
+| `realm/testing/` | `Simulator`, `build_test_world`, `reconfigure`; `fixtures.py` is the pytest plugin (`world`, `classic_world`, the `features` marker) the suite and a game's tests load |
 | `realm/cli.py` | `realm init` / `realm start` |
 | `realm/server/game.py` | GameServer — opens the store, loads the world, runs loops and protocols; input goes session prompt → feature input interceptors → dispatcher (login is the `accounts` feature's) |
 | `realm/server/world.py` | `build_world()` — wires the kernel, then the loaded features; the server and the Simulator both call it |

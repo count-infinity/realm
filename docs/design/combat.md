@@ -106,6 +106,7 @@ is winding up — and a `telegraph` option can show players too).
 ### 3. `realm/combat/encounter.py` — the beat engine (new, the core)
 
 ```python
+# doctest: skip
 class CombatEncounter:
     id, room, participants: dict[obj_id -> Participant]
     beat_seconds: float        # clamped to server [min, max] config

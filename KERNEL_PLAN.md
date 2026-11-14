@@ -2157,7 +2157,7 @@ imports from deep module paths that steps 3 to 7 just moved. `realm init
 
 ### 9.1 The public names
 
-- [ ] `realm/__init__.py` exports, with an explicit `__all__`:
+- [x] `realm/__init__.py` exports, with an explicit `__all__`:
 
       | Name | From |
       |---|---|
@@ -2175,28 +2175,28 @@ imports from deep module paths that steps 3 to 7 just moved. `realm init
       | `Settings` | `realm.config.loader` |
       | `softcode_function` | `realm.scripting.registry` |
 
-- [ ] Rules and combat types are not in the root, because a bare world must
+- [x] Rules and combat types are not in the root, because a bare world must
       not load them. Their public homes are `realm.std.rules`
       (`GameSystem`, `PointBuyMixin`, `ChargenStep`, `ChoiceStep`, `check`)
       and `realm.std.combat` (`Ruleset`, `Combatant`, `deal_damage`,
       `CombatView`). Each feature package's `__init__.py` gets an `__all__`.
-- [ ] `realm.testing` exports `Simulator` and the `world` fixtures as a
+- [x] `realm.testing` exports `Simulator` and the `world` fixtures as a
       pytest plugin (`pytest_plugins = ["realm.testing.fixtures"]`), so a
       game's tests get them with one line.
-- [ ] Importing `realm` must not import `realm.std.<feature>` modules. Use a
+- [x] Importing `realm` must not import `realm.std.<feature>` modules. Use a
       module-level `__getattr__` for `CLASSIC` if needed. The boundary test
       `test_stock_game_is_only_a_feature_list` already checks this.
-- [ ] State the rule in `docs/reference/public-api.md`: public means
+- [x] State the rule in `docs/reference/public-api.md`: public means
       `realm.__all__`, `realm.features`, `realm.testing` and each
       `realm.std.<feature>.__all__`. Everything else may move without notice.
-- [ ] `tests/test_public_api.py`:
-  - [ ] `realm.__all__` equals a list frozen in the test. Changing the
+- [x] `tests/test_public_api.py`:
+  - [x] `realm.__all__` equals a list frozen in the test. Changing the
         public surface is then a deliberate edit.
-  - [ ] Every fenced `python` block in `docs/**/*.md`, `README.md` and the
+  - [x] Every fenced `python` block in `docs/**/*.md`, `README.md` and the
         templates is parsed with `ast`; every `import realm...` and
         `from realm... import name` in it resolves. A block that is
         intentionally partial opts out with a first line `# doctest: skip`.
-- [ ] Rewrite imports in `examples/`, `realm/templates/` and the guides to
+- [x] Rewrite imports in `examples/`, `realm/templates/` and the guides to
       use the public names.
 
 ### 9.2 Add-on features as installable packages
@@ -2715,3 +2715,7 @@ entry closed.
 | 2026-11-14 | 8 acceptance | The `'hp'`/`"hp"` grep lists, besides `Pool("hp")` (the base and Merc `pools()`) and `DAMAGE_POOL`: (a) content and starting data: `GameSystem.baseline_stats` and Merc's baseline (the declared `hp` pool's starting value) and the spawner docstring's prototype; (b) game systems in `realm/games/` naming the pool their own `pools()` declares (GURPS/D20/Merc chargen `set_pool(player, 'hp', ...)`, Merc's level gain, GURPS `mark_system`); (c) docstring and softcode examples (`pools.py`, `get_attr`, `pool`, `mend_pool`, `Combatant.get_stat`); (d) the GMCP `Char.Vitals` keys `hp`/`max_hp`, a client protocol, with values from the vital pool. Read (b) as game content: the games ring is where a system's vocabulary belongs; nothing in `realm/core`, `realm/scripting` or `realm/std` writes `hp`. `Ruleset.required_stats` (declared, never read, naming `hp` in all three rulesets) was deleted, with its line in the custom-system guide. | The plan's list did not name the games ring; "the engine writes no hp" is the goal. |
 | 2026-11-14 | 8 acceptance | `Ruleset.is_defeated` deleted (the question 8.3 left open): who leaves an encounter is `Combatant.vital_spent`, the rule the death observer follows, so a ruleset override could only disagree with it. `CombatSystem.attack` and `heal` read it; `test_combat.py`'s `test_is_defeated_at_zero_hp` became `test_defeated_at_zero_hp` (same assertions on `vital_spent`). A game that fights on below 0 lowers its pool's `spent_at`. | One rule, one place. |
 | 2026-11-14 | 8 docs | `docs/guides/pools.md` gains the ship, harm clock and door as worked examples; `docs/design/combat.md` a "Damage and death today" section (the old Death bullet marked superseded) and changelog row; `abilities.md` a "Costs are pools" section (up pools, block messages); `spells.md` the `mana` sugar and any-pool costs; `interception.md` "Where soak sits" (wards, resistances, ruleset armor, then soak; `damage()`/DoT skip wards and the ruleset); `VISION.md` invariant 7 cites the pool module. `creating-your-own-system.md` was done in 8.4. References regenerated (no change since the last commit). The BACKLOG HARM note is marked closed. Suite: 2676. | |
+| 2026-11-14 | 9.1 | Public names load on first use (PEP 562): `realm/_exports.py::exports(globals(), {name: "module:attr" or "module"})` gives a package its `__all__`, `__getattr__` and `__dir__`; the root and every feature and game package use it, so `import realm` (and every root name) loads no `realm.std.<feature>` or `realm.games` module (a subprocess test), and importing one part of a feature does not load its other parts. An unknown name is an `AttributeError` naming the package. | Eager imports in `realm/__init__` would load the feature system for any `import realm.core.x`. |
+| 2026-11-14 | 9.1 | The root list grew beyond the plan's table (deviation), each because game-facing material needed it: `dice` and `defs` (modules, like `pools` and `ops`: a custom `resolve_check` composes dice; a `feature.def_kind` reads its definitions), `import_objects`, `import_pack` and `Store` (what the examples' `init_world` uses to load an area and a pack). `realm.games.<name>.__all__` is public too (`GurpsSystem`/`GURPSRuleset`/`TEMPLATES`, the D20 and Merc equivalents): the scaffold's `rules.py` subclasses `GurpsSystem`. Feature `__all__`s are the plan's rules and combat names plus what the docs used (`CheckResult`, `default_resolver`, `define_skill`, `define_class`, the combat result types, `CombatAction`, `invoke_ability`, `gate_item_action`, the action enums); thirteen features publish nothing (`__all__ = []`). All frozen in `tests/test_public_api.py`. | |
+| 2026-11-14 | 9.1 | `realm.testing.fixtures` is the plugin (`world`, `classic_world`, `classic_world_unscripted`, `configure`, the `features` marker, the per-test world reset); `realm.testing.worlds` holds `build_test_world` and `reconfigure` without pytest, exported by `realm.testing`. `tests/conftest.py` keeps only the suite's shared-`Checks` guard; the marker moved out of `pyproject.toml`; `from tests.conftest import reconfigure` became `from realm.testing import reconfigure` in four tests. A subprocess test runs a game's one-line `conftest.py` against all four fixtures. | |
+| 2026-11-14 | 9.1 | The documented-import check covers fenced `python` blocks in `docs/**`, the README, `realm/templates/*.py.template` and `examples/**/*.py`; a block is dedented before parsing (a method shown alone is still Python). Seven sketches got `# doctest: skip`; the README's in-game command block was mislabeled `python` and is now `text`. Imports were rewritten to public homes in the templates, examples and the game-facing docs (guides, getting-started, api, showcase, protocols); design, development, architecture and reference docs describe internals and were left. The protocols guide still needs `realm.gateway.session` and `realm.server.game`; it now says those are internal and may move. Suite: 2685. | Making the network layer public is a separate decision. |

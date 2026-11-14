@@ -95,6 +95,7 @@ boot-registered observer (`equipment_observer`, alongside the stealth and
 hostile observers) forwards the applied change to the active system:
 
 ```python
+# doctest: skip
 def on_equipment_change(self, player) -> None:
     # default: nothing is equipment-derived
 ```
@@ -130,7 +131,7 @@ instead of a built-in. Put it in `rules.py` (replacing the scaffolded
 
 ```python
 # rules.py
-from realm.std.rules.system import ChoiceStep, GameSystem, PointBuyMixin
+from realm.std.rules import ChoiceStep, GameSystem, PointBuyMixin
 
 class SavageSystem(PointBuyMixin, GameSystem):    # kills bank CP; improve spends
     system_id = "savage"
@@ -142,7 +143,7 @@ class SavageSystem(PointBuyMixin, GameSystem):    # kills bank CP; improve spend
 
     def resolve_check(self, obj, skill, modifier):
         # your dice here — return a CheckResult
-        from realm.std.rules.checks import default_resolver
+        from realm.std.rules import default_resolver
         return default_resolver(obj, skill, modifier)
 
     def improve_cost(self, skill, current_level):

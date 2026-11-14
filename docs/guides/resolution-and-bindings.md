@@ -52,7 +52,7 @@ call it by name from softcode:
 
 ```python
 # mygame/game.py — the game's feature, listed in config.py's FEATURES
-from realm.features import Feature
+from realm import Feature
 
 feature = Feature("mygame")
 
@@ -104,7 +104,7 @@ real checks:
 
 ```python
 from realm.testing import Simulator
-from realm.std.rules.checks import check
+from realm.std.rules import check
 
 sim = Simulator(game_system="mygame.rules.MyRules")
 hacker = sim.obj("Hacker", pool=10)

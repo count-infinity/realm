@@ -53,8 +53,7 @@ async def init_world(server):
 
     from ships import create_ship_prototypes
 
-    from realm.packs import import_pack
-    from realm.persistence.worldio import import_objects
+    from realm import import_objects, import_pack
 
     area = Path(__file__).parent / "data" / "areas" / "station.json"
     # preserve_ids: this is the canonical first-boot world, and some NPC

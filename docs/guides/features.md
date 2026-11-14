@@ -12,7 +12,7 @@ leaves out simply does not exist in its world.
 `config.py` lists them:
 
 ```python
-from realm.std import CLASSIC
+from realm import CLASSIC
 FEATURES = [*CLASSIC, "game"]          # every built-in, plus your game.py
 ```
 
@@ -63,8 +63,7 @@ declaration. A feature module exposes a `feature` attribute:
 
 ```python
 # game.py
-from realm.core.behaviors import Behavior
-from realm.features import Feature
+from realm import Behavior, Feature
 
 feature = Feature("mygame", requires=["rules"])
 
@@ -183,7 +182,7 @@ def zone_players(action):
 
 ```python
 feature.def_kind("recipe", "recipe_def", parse=lambda obj: obj.db.get("needs"))
-# from realm.core.defs import all_defs, find_def; find_def("recipe", "stew")
+# from realm import defs; defs.find_def("recipe", "stew"); defs.all_defs("recipe")
 ```
 
 **Global softcode commands** need no feature: an admin tags an object
