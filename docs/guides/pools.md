@@ -101,8 +101,9 @@ module, so it works on whatever pool an object names:
 | an ability cost `{"pool": "mana", "n": 15}` | `spend`: blocked with "You don't have the mana." when short |
 | chargen, a level gain | `set_pool` |
 
-A ruleset's `is_defeated` is "the vital pool is spent", and combat's
-status line and strategies (`me.hp_percent`) read the vital pool. Damage
+A combatant is out of the fight when its vital pool is spent
+(`Combatant.vital_spent`); no ruleset decides otherwise. Combat's status
+line and strategies (`me.hp_percent`) read the vital pool. Damage
 stops at a pool's `floor`, 0 by default, for every source. A game whose
 characters go below zero gives its `hp` pool `floor=None` (in
 `GameSystem.pools()` or a feature's `feature.pool`), and a `spent_at` below
@@ -174,3 +175,57 @@ steps on it:
 
 See the [softcode reference](../reference/softcode.md#pools) for each
 function's signature.
+
+## Worked examples
+
+Each of these runs in `tests/test_pools_in_play.py`, and none of the
+objects has an `hp` attribute.
+
+### A ship: shields over an armored hull
+
+```text
+@create ship
+@tag ship = npc
+@set ship/pools = {"shields": {"overflow": "hull"}, "hull": {"soak_attr": "armor"}}
+@set ship/shields = 20
+@set ship/max_shields = 20
+@set ship/hull = 30
+@set ship/max_hull = 30
+@set ship/armor = 2
+@set ship/damage_pool = shields
+@set ship/when_spent = none
+@set ship/on_spent = if adata('pool') == 'hull': remit(here, 'The ship breaks apart.')
+```
+
+`attack ship` works under every stock ruleset. Each blow empties the
+shields first; what they cannot hold spills into the hull, less the 2 its
+armor soaks. When the hull reaches 0 the ship is out of the fight, its
+`ON_SPENT` hook fires once, and `when_spent = none` leaves the hulk where
+it is for the hook to describe. Its `npc` tag is what makes it something
+the `attack` command will fight.
+
+### A harm clock
+
+```text
+@set Rue/pools = {"harm": {"direction": "up"}}
+@set Rue/harm = 0
+@set Rue/max_harm = 6
+@set Rue/damage_pool = harm
+```
+
+`damage(Rue, 2)` from a trap fills the clock: 2, 4, 6. The third segment
+spends it, and Rue falls unconscious through the same death path a sword
+uses. `hitprcnt` counts what is left of the clock: at 4 of 6, 33 percent.
+
+### A door with structure
+
+```text
+@set vault door/structure = 10
+@set vault door/max_structure = 10
+@set vault door/damage_pool = structure
+@set vault door/when_spent = destroy
+```
+
+Any damage reaches it: an ability's `damage` effect, softcode `damage()`.
+When its structure is spent the door is destroyed the way `@destroy` does
+it, and the exit on the far side forgets its partner.

@@ -88,6 +88,25 @@ composes with them (an `on_check` `mod(-3)` and a native DR of 2 both
 apply). It's sandboxed softcode under the usual limits — keep it small and
 cheap, since it fires for every action you participate in.
 
+### Where soak sits
+
+A blow that goes through the damage event is reduced in this order:
+
+1. **Wards** (`on_check` on the target, its room and the rest of the
+   propagation chain): `block()` stops it, `mod()` and
+   `set_adata('damage', …)` lower it.
+2. **Resistances**: the target's `resistances` map scales each damage type.
+3. **The ruleset's own armor**: GURPS DR, the Merc and D20 rules, or your
+   ruleset's `apply_damage`.
+4. **Soak**, last: the damage lands in the target's [damage pool](pools.md)
+   with soak, and each pool the harm reaches subtracts its `soak_attr`.
+   Shields with no soak over a hull whose `armor` is 2 lose the full spill,
+   then the hull loses the rest less 2.
+
+Swings and ability or spell damage take all four steps. Softcode
+`damage()` and damage over time skip the event and the ruleset: they run
+steps 2 and 4 only.
+
 ## Who gets an `on_check`
 
 The `on_check` *attribute* is consulted only on an action's

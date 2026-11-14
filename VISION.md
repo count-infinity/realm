@@ -78,7 +78,12 @@ of no features creates, scripts, propagates, saves and loads) and
 7. **Entity-agnostic mechanics.** Kernel mechanics bind variables *by
    name* over entity data. They must not assume a character shape (HP,
    melee, humanoid). A ship, a car, and a door run the same mechanics as a
-   person — or the abstraction has failed.
+   person — or the abstraction has failed. The pool module
+   (`realm/core/pools.py`) is the first full instance: damage, healing,
+   costs and death work on any bounded number an object names, so stock
+   combat fights a ship's shields and hull, softcode fills a harm clock,
+   and an ability batters down a door's structure
+   (`tests/test_pools_in_play.py`).
 8. **Graded, not binary.** Outcomes carry degree/margin/tier; the kernel
    does not collapse to a bool prematurely.
 9. **Subsystems are compositions.** Chases, races, crafting, social

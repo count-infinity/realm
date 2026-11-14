@@ -13,7 +13,7 @@ from realm.core.defs import all_defs
 from realm.core.pools import set_pool
 from realm.std.rules.checks import CheckResult, skill_level
 from realm.std.rules.definitions import apply_class
-from realm.std.rules.system import ChoiceStep, GameSystem
+from realm.std.rules.system import ChoiceStep, GameSystem, PointBuyMixin
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -42,8 +42,9 @@ BUILTIN_SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
 }
 
 
-class D20System(GameSystem):
-    """d20-flavored rules package. Skills and classes are data (see
+class D20System(PointBuyMixin, GameSystem):
+    """d20-flavored rules package, buying skills with character points
+    (PointBuyMixin) at an escalating price. Skills and classes are data (see
     realm.std.rules.definitions): built-ins here, overridden by
     ``skill_def`` / ``class_def`` objects in the world."""
 

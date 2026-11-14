@@ -49,8 +49,6 @@ class D20Ruleset(Ruleset):
     description = "D&D 5th Edition style d20 + modifier vs AC"
     version = "1.0"
 
-    required_stats = ['strength', 'dexterity', 'armor_class', 'hp']
-
     def __init__(
         self,
         default_proficiency: int = 2,

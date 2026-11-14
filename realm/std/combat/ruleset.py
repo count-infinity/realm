@@ -20,7 +20,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from realm.core.pools import is_spent, vital_pool
 from realm.std.combat.maneuver import BASE_MANEUVERS
 
 if TYPE_CHECKING:
@@ -219,9 +218,6 @@ class Ruleset(ABC):
     description: str = "Abstract base ruleset"
     version: str = "1.0"
 
-    # Stat names this ruleset uses (for validation)
-    required_stats: list[str] = []
-
     # --- Maneuver vocabulary ---
     #
     # The encounter engine schedules whatever maneuvers the ruleset
@@ -389,11 +385,6 @@ class Ruleset(ABC):
         (``realm.core.pools``). Every ruleset's ``apply_damage`` ends here.
         Returns what the pools took."""
         return target.take_damage(amount, soak=True)
-
-    def is_defeated(self, combatant: Combatant) -> bool:
-        """Defeated when the vital pool is spent. A ruleset may override
-        (a death check)."""
-        return is_spent(combatant.obj, vital_pool(combatant.obj))
 
     # --- Shared steps ---
 

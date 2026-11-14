@@ -16,6 +16,7 @@ from realm.core.pools import (
     PoolChange,
     damage_pool,
     harm,
+    is_spent,
     mend,
     pool_get,
     pool_max,
@@ -191,6 +192,13 @@ class Combatant:
         if percent is None:
             return 1.0 if self.vital > 0 else 0.0
         return percent / 100
+
+    @property
+    def vital_spent(self) -> bool:
+        """The vital pool is spent: out of the fight, and (through combat's
+        observer on ``pool:on_spent``) down. To fall later, a game lowers
+        the pool's ``spent_at``."""
+        return is_spent(self._obj, vital_pool(self._obj))
 
     def take_damage(self, amount: int, *, soak: bool = False) -> int:
         """Harm the damage pool (spilling down its overflow chain). The

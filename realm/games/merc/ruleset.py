@@ -46,8 +46,6 @@ class MercRuleset(Ruleset):
     description = "Diku/Merc/ROM d20 THAC0 vs descending armor class"
     version = "1.0"
 
-    required_stats = ["thac0", "armor_class", "strength", "hp"]
-
     def _damroll(self, attacker: Combatant, weapon: Any | None) -> int:
         # Strength-based bonus to damage (Diku 'damroll'), plus any bonus the
         # weapon itself carries.

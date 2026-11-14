@@ -16,7 +16,7 @@ from realm.core.dice import margin_under, roll
 from realm.core.pools import set_pool
 from realm.std.rules.checks import skill_level
 from realm.std.rules.definitions import apply_class
-from realm.std.rules.system import ChoiceStep, GameSystem
+from realm.std.rules.system import ChoiceStep, GameSystem, PointBuyMixin
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -89,8 +89,8 @@ def _apply_bonus_skill(player: GameObject, name: str) -> None:
         player.db.set(attr, int(current) + 1)
 
 
-class GurpsSystem(GameSystem):
-    """GURPS 4e-lite: 3d6 roll-under, 4 CP per skill level.
+class GurpsSystem(PointBuyMixin, GameSystem):
+    """GURPS 4e-lite: 3d6 roll-under, 4 CP per skill level (PointBuyMixin).
 
     Skills and classes are DATA: built-in tables here are the default,
     but ``skill_def`` / ``class_def`` objects in the world override them
@@ -122,9 +122,6 @@ class GurpsSystem(GameSystem):
         elif r >= 17:
             result.success = False
         return result
-
-    def improve_cost(self, skill: str, current_level: int) -> int:
-        return 4
 
     def _class_options(self) -> dict[str, tuple[str, dict, dict]]:
         """Classes chargen offers: the built-in TEMPLATES, extended and

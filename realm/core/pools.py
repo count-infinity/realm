@@ -127,9 +127,9 @@ def _from_spec(name: str, spec: Any, where: GameObject) -> Pool:
     return Pool(name, **spec, owner=f"{where.name} ({where.id})")
 
 
-def _declared(obj: GameObject, name: str) -> Pool | None:
-    """Sources 1 to 3: the ``pools`` attribute up the parent chain, then
-    the world's defaults."""
+def _spec_layers(obj: GameObject):
+    """``(node, specs)`` for each ``pools`` attribute up the parent chain
+    (sources 1 and 2), nearest first."""
     node, depth = obj, 0
     while node is not None and depth <= 8:
         specs = node.db.own("pools")
@@ -137,14 +137,33 @@ def _declared(obj: GameObject, name: str) -> Pool | None:
             if not isinstance(specs, dict):
                 raise ValueError(f"{node.name}: the pools attribute must be a dict "
                                  f"(got {specs!r})")
-            if name in specs:
-                return _from_spec(name, specs[name], node)
+            yield node, specs
         node, depth = node.parent, depth + 1
+
+
+def _world_defaults() -> dict[str, Pool]:
     from realm.core.world import find_world
     world = find_world()
-    if world is not None:
-        return world.pools.get(name)
-    return None
+    return world.pools if world is not None else {}
+
+
+def _declared(obj: GameObject, name: str) -> Pool | None:
+    """Sources 1 to 3: the ``pools`` attribute up the parent chain, then
+    the world's defaults."""
+    for node, specs in _spec_layers(obj):
+        if name in specs:
+            return _from_spec(name, specs[name], node)
+    return _world_defaults().get(name)
+
+
+def declared_pools(obj: GameObject) -> list[str]:
+    """The declared pools (sources 1 to 3) the object has: the world's
+    defaults in declaration order, then any its ``pools`` attribute adds.
+    Implicit pools (any numeric attribute) are not listed."""
+    names = list(_world_defaults())
+    for _node, specs in _spec_layers(obj):
+        names.extend(n for n in specs if n not in names)
+    return [n for n in names if has_pool(obj, n)]
 
 
 def pool_def(obj: GameObject, name: str) -> Pool | None:
@@ -402,6 +421,7 @@ def add_default(world: World, pool: Pool) -> None:
 __all__ = [
     "Pool", "PoolChange", "SPEC_KEYS",
     "pool_def", "pool_get", "pool_max", "pool_percent", "has_pool", "is_spent",
+    "declared_pools",
     "damage_pool", "vital_pool",
     "harm", "mend", "spend", "set_pool", "settle", "add_default",
 ]

@@ -63,8 +63,6 @@ class GURPSRuleset(Ruleset):
     description = "GURPS-style 3d6 roll-under skill system"
     version = "1.0"
 
-    required_stats = ['skill_melee', 'strength', 'hp', 'dodge']
-
     def __init__(
         self,
         allow_active_defense: bool = True,

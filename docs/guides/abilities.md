@@ -47,10 +47,31 @@ only the data differs.
 | field | meaning |
 |---|---|
 | `target` | `self`, `ally`, `victim`, or `room` (every character present). Default: `victim` if it has a damage effect, else `self`. |
-| `cost` | a spec: `{"pool": "mana", "n": 15}` (any attr pool, e.g. `stamina`), or `{"per_day": 2}` (a counter toward a daily cap), or omitted (free). Legacy `mana = 15` is sugar for the mana pool. |
+| `cost` | a spec: `{"pool": "mana", "n": 15}` (any [pool](pools.md), e.g. `stamina` or `heat`), or `{"per_day": 2}` (a counter toward a daily cap), or omitted (free). Legacy `mana = 15` is sugar for the mana pool. |
 | `effects` | a list of effect specs (below). |
 | `classes` / `level` / `skill_req` | eligibility. A player must qualify; NPCs always pass (their repertoire is whatever behavior granted it). `skill_req = {"skill": "melee", "min": 12}` gates a maneuver on skill. |
 | `on_invoke` / `on_cast` | bespoke softcode, run as the def, for anything the specs do not cover. |
+
+### Costs are pools
+
+A `pool` cost is a [pool](pools.md) `spend`: all or nothing. A down pool
+(mana, stamina) must hold the whole cost and drops by it; an up pool (heat,
+strain, stress) rises by it and refuses a cost that would pass its max.
+Either way a cost the caster cannot pay blocks the ability with "You don't
+have the <pool>." and nothing is spent. Paying fires the pool's `ON_POOL`
+hook (and `ON_SPENT` when it empties or fills), so a ship can vent heat or
+a caster can faint from the hook.
+
+```text
+# A gun deck that runs hot: three volleys from cold, then it must cool.
+@set ship/pools = {"heat": {"direction": "up"}}
+@set ship/heat = 0
+@set ship/max_heat = 9
+@set volley/cost = {"pool": "heat", "n": 3}
+```
+
+A caster with no such pool is told "You have no heat to spend."; an NPC
+without it pays nothing.
 
 ### Effect specs
 

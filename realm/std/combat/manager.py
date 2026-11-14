@@ -251,13 +251,13 @@ class CombatManager:
         if room is not None:
             room.msg_contents(f"{npc.name} falls dead!", exclude=[npc])
 
-        # Character-point award: the victim's worth (db.points, GURPS-ish)
-        # scaled down, split across the killer's party members present
-        # (solo killers keep the whole award).
-        if killer is not None and killer.is_player:
-            system = get_world().rules
-            award = (system.death_award(npc, killer) if system
-                     else max(1, int(npc.db.get('points') or 10) // 10))
+        # The kill award: the game system says what the victim is worth
+        # (character points, experience, or 0 for none), split across the
+        # killer's party members present (solo killers keep the whole award).
+        system = get_world().rules
+        award = (system.death_award(npc, killer)
+                 if killer is not None and killer.is_player else 0)
+        if award > 0:
             from realm.core.zones import zone_property
             multiplier = zone_property(room, 'xp_multiplier', 1.0)
             award = max(1, round(award * float(multiplier)))
@@ -270,15 +270,9 @@ class CombatManager:
                 sharers = [killer]
             share = max(1, award // len(sharers))
             for member in sharers:
-                if system is not None:
-                    # The system decides how a reward lands — CP by default,
-                    # XP + level-up for an XP system (grant_award).
-                    system.grant_award(member, share)
-                else:
-                    member.db.character_points = \
-                        int(member.db.get('character_points') or 0) + share
-                    member.msg(f"You gain {share} character point"
-                               f"{'s' if share != 1 else ''}.")
+                # The system decides how a reward lands: character points
+                # (PointBuyMixin), XP and a level-up (MercSystem).
+                system.grant_award(member, share)
 
         # Corpse: a container holding the fallen's belongings.
         corpse = GameObjectCls(name=f"corpse of {npc.name}",

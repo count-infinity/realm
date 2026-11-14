@@ -45,7 +45,7 @@ A `spell_def` is declarative for the common shapes:
 
 | attr | meaning |
 |---|---|
-| `level`, `mana` | minimum caster level; mana cost (modifiable in-flight) |
+| `level`, `mana` | minimum caster level; mana cost (modifiable in-flight). `mana = 15` is sugar for the cost spec `{"pool": "mana", "n": 15}`; a `cost` spec can name any [pool](pools.md) instead, up pools included (see [costs are pools](abilities.md#costs-are-pools)) |
 | `classes` | who may learn it (omit = any class; NPCs always pass) |
 | `target` | `victim` (default when damaging), `ally` (them or you), `self` |
 | `damage_dice`, `damage_type` | typed damage, dealt **through the active ruleset's `apply_damage`** — so `resistances` multipliers and DR fire with no spell-side code |

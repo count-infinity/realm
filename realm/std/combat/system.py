@@ -277,7 +277,7 @@ class CombatSystem:
         # Defeat ends the defender's part in the fight. Death itself, and
         # ON_HITPRCNT, come from the observers on the vital pool when the
         # caller settles ``changes`` (realm.std.combat.vitals).
-        target_defeated = self.ruleset.is_defeated(dfn)
+        target_defeated = dfn.vital_spent
         if target_defeated:
             dfn.state = CombatState.DEFEATED
 
@@ -336,7 +336,7 @@ class CombatSystem:
             await settle(change, source=hlr.obj if hlr else None)
 
         # If target was defeated and is no longer spent, revive them
-        if tgt.state == CombatState.DEFEATED and not self.ruleset.is_defeated(tgt):
+        if tgt.state == CombatState.DEFEATED and not tgt.vital_spent:
             tgt.state = CombatState.IDLE
 
         return actual

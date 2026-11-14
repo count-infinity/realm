@@ -187,6 +187,7 @@ rule pending (Open Question 1).
 - **Death**: `combat:on_death` already propagates. Consequence policy
   pending (Open Question 3). NPC death v1: corpse container (`corpse of
   X`, holds inventory, decays after N ticks via a `DecayBehavior`).
+  *Superseded by "Damage and death today" below (KERNEL_PLAN step 8).*
 - **First aid**: `firstaid [target|me]` — skill check, heals margin-based
   amount, usable out of combat only (Story 3/5 requirement).
 - **Softcode**: ON_ATTACK/ON_DAMAGE/ON_DEATH triggers already fire via
@@ -322,6 +323,32 @@ probabilistic flavor inside the strategy system if wanted.
 5. **Heist integration** — Nexagen guards fight back; failure path
    playthrough added to the e2e (spotted → combat → flee → re-hide).
 
+## Damage and death today
+
+Damage lands in a pool, and death is an observer (KERNEL_PLAN step 8;
+[Pools](../guides/pools.md)).
+
+- **Damage lands in the damage pool.** Every ruleset's `apply_damage` ends
+  in `Ruleset.write_damage`, which harms the target's damage pool
+  (`damage_pool(obj)`: its `damage_pool` attribute, else `DAMAGE_POOL`)
+  with soak, spilling down the pool's `overflow` chain. Spells, softcode
+  `damage()`, damage over time and `harm_pool()` land the same way. Damage
+  stops at the pool's `floor`.
+- **Out of the fight is the vital pool spent.** `Combatant.vital_spent`
+  (the end of the overflow chain, `vital_pool(obj)`) decides who leaves
+  an encounter. No ruleset overrides it; a game that fights on below 0
+  lowers the pool's `spent_at`.
+- **Death is an observer.** Settling a change propagates `pool:on_spent`;
+  combat's observer (`realm/std/combat/vitals.py`) runs
+  `CombatManager.handle_death` when the spent pool is the vital one, with
+  the source as the killer. A swing settles after its hit message
+  (`CombatEncounter.land`), so the room hears the hit before the fall.
+- **What death does is data.** `obj.db.when_spent` is `unconscious` (a
+  player's default), `corpse` (anything else's), `destroy` or `none`.
+  `ON_DEATH` fires for every rule.
+- **`ON_HITPRCNT` is the other observer**, on `pool:on_change` for the
+  vital pool: once per fall through `db.hitprcnt`, from any source.
+
 ## Changelog
 
 - **2026-11-14 (KERNEL_PLAN 8.2).** Damage, healing and costs go through
@@ -347,6 +374,11 @@ probabilistic flavor inside the strategy system if wanted.
   `corpse`, `destroy` or `none`, defaulting to unconscious for a player
   and a corpse for anything else; `ON_DEATH`'s `fatal` is True when the
   body is gone.
+- **2026-11-14 (KERNEL_PLAN step 8 acceptance).** `Ruleset.is_defeated` is
+  gone: a combatant is out of the fight when its vital pool is spent
+  (`Combatant.vital_spent`), the same rule the death observer follows, so
+  a ruleset cannot disagree with it. The unused `Ruleset.required_stats`
+  is gone too.
 
 ## Open Questions (answers shape Phase 1)
 

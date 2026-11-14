@@ -50,43 +50,42 @@ The whole package swaps: under `d20`, `stealth` and `persuade` roll a
 d20 too — not just combat. (This wiring was completed 2026-07-07;
 before that, non-combat checks ignored the system.)
 
-## Advancement: two models, one seam
+## Advancement: neutral by default, two models on top
 
 The two ways characters grow — **point-buy** (GURPS/D20: a kill banks
 character points, `improve` spends them per skill) and **XP leveling**
 (Merc: a kill banks experience that auto-converts to levels, each rolling
-HP and granting practices) — are genuinely different, and the ABC does
-**not** try to unify them into one model. Instead it exposes the single
-point they share: a method that deposits a kill's reward.
+HP and granting practices) — are genuinely different, and the base class
+does **not** pick either. `GameSystem` answers its four advancement
+questions neutrally:
 
-```python
-def grant_award(self, player, amount) -> None:
-    # default: bank character points (point-buy)
-    player.db.character_points = (player.db.get('character_points') or 0) + amount
-```
+| Method | Neutral `GameSystem` | `PointBuyMixin` (GURPS, D20) | `MercSystem` |
+|---|---|---|---|
+| `improve_cost(skill, level)` | `None`: `improve` says the game has no skill purchase | 4 (D20 escalates) | inherits `None`; Merc trains with practices |
+| `death_award(victim, killer)` | 0: kills award nothing | the victim's `points` over ten | the victim's `points` as XP, bent by level difference |
+| `grant_award(player, amount)` | nothing | bank `character_points` | bank XP, then `advance_level` |
+| `score_lines(player)` | the character's pools (`HP: 7/10`) | character points, skills, the `improve` hint | level, XP to next, pools, THAC0/AC, gear |
 
-The combat death path calls `system.grant_award(member, share)` and asks
-no more. GURPS/D20 use the default; `MercSystem` overrides it to bank XP
-and call its own `advance_level`. Everything model-specific — the XP
-curve, the level-up routine — lives on the subclass, **not** on the ABC.
-So a point-buy system and an XP system coexist by each owning its own
-advancement and sharing only the deposit. If your system needs leveling,
-override `grant_award` and add your own advancement methods; if it's
-point-buy, do nothing and use `improve`.
+A point-buy game lists the mixin first: `class MySystem(PointBuyMixin,
+GameSystem)`. The combat death path calls `system.death_award` and, when it
+is above 0, `system.grant_award(member, share)` for each party member, and
+asks no more. Everything model-specific (the XP curve, the level-up
+routine) lives on the subclass, not on the base, so a point-buy system and
+an XP system coexist by each owning its own advancement and sharing only
+the deposit. An XP system that inherited the character-point
+`death_award` would starve its level curve; that bug shipped once, and is
+why the seam exists.
 
-Two sibling seams follow the same pattern:
+`score` should speak your system's language: override `score_lines`, don't
+teach the command. `pool_lines(player)` (from `realm.std.rules.system`)
+renders the pools line Merc's sheet uses.
 
-- **`death_award(victim, killer=None)`** prices a kill in the system's
-  own currency. The default is CP scaling (`points // 10`); MercSystem
-  overrides it to pay the victim's full `points` as XP, bent by the
-  killer/victim level difference (tough prey pays a premium, grey-con
-  prey a pittance). An XP system that inherits the CP default starves
-  its level curve — that exact bug shipped and is why the seam exists.
-- **`score_lines(player)`** renders the `score` sheet in the system's
-  vocabulary. The default is the point-buy view (character points +
-  skills + `improve` hint); MercSystem shows level, experience-to-next,
-  HP/mana, THAC0/AC, and what's wielded and worn. `score` should speak
-  your system's language — override this, don't teach the command.
+## Pools
+
+`pools()` returns the world-default pool definitions for this game's
+health and resources ([Pools](pools.md)). The base returns `[Pool("hp")]`;
+`MercSystem` returns `hp`, `mana` and `move`, and its characters start
+with `move` 100/100 as well as `hp` and `mana`.
 
 ## Equipment-derived stats: an event, not a command hook
 
@@ -131,9 +130,9 @@ instead of a built-in. Put it in `rules.py` (replacing the scaffolded
 
 ```python
 # rules.py
-from realm.std.rules.system import GameSystem, ChoiceStep
+from realm.std.rules.system import ChoiceStep, GameSystem, PointBuyMixin
 
-class SavageSystem(GameSystem):
+class SavageSystem(PointBuyMixin, GameSystem):    # kills bank CP; improve spends
     system_id = "savage"
     ruleset_name = "d20"          # reuse a combat ruleset, or ship your own
     currency_name = "scrip"
@@ -160,9 +159,10 @@ class SavageSystem(GameSystem):
 GAME_SYSTEM = "rules.SavageSystem"
 ```
 
-The `resolve_check`, `improve_cost`, `death_award`, `score_lines`, and
-`chargen_steps` methods are the seams; everything else inherits sensible
-defaults.
+The `resolve_check`, `improve_cost`, `death_award`, `grant_award`,
+`score_lines`, `pools` and `chargen_steps` methods are the seams; everything
+else inherits sensible defaults. Leave out `PointBuyMixin` and the game has
+no advancement economy until you write one.
 
 Two combat-adjacent settings worth knowing:
 

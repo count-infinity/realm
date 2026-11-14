@@ -231,16 +231,18 @@ class TestD20Ruleset:
         assert actual == 5  # Half damage from resistance
         assert defender.vital == 45
 
-    def test_is_defeated_at_zero_hp(self):
-        """Combatant is defeated at 0 HP."""
+    def test_defeated_at_zero_hp(self):
+        """Combatant is out of the fight at 0 HP: its vital pool is spent,
+        the same rule combat's death observer follows (no ruleset override)."""
         obj = GameObject("Fighter")
         obj.db.hp = 0
 
         combatant = Combatant(obj)
-        assert self.ruleset.is_defeated(combatant) is True
+        assert combatant.vital_spent is True
+        assert not hasattr(self.ruleset, "is_defeated")
 
         obj.db.hp = 1
-        assert self.ruleset.is_defeated(combatant) is False
+        assert combatant.vital_spent is False
 
 
 class TestGURPSRuleset:

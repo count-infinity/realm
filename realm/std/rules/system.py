@@ -122,56 +122,35 @@ class GameSystem(ABC):
         return {}
 
     # --- Advancement ---
+    #
+    # Neutral: no skill purchase, no kill award, a sheet of pools. A
+    # point-buy game mixes in PointBuyMixin; an XP game (MercSystem)
+    # overrides these four itself.
 
-    def improve_cost(self, skill: str, current_level: int) -> int:
-        """Character points to raise ``skill`` by one level."""
-        return 4
+    def improve_cost(self, skill: str, current_level: int) -> int | None:
+        """Character points to raise ``skill`` by one level. None: this game
+        has no skill purchase (the ``improve`` command says so)."""
+        return None
 
     def death_award(self, victim: GameObject,
                     killer: GameObject | None = None) -> int:
-        """How much a kill is worth (split across the party). The unit is
-        the system's advancement currency — character points by default,
-        experience for an XP system. ``killer`` lets a system shape the
-        award by level difference (MercSystem does); the default ignores
-        it."""
-        return max(1, int(victim.db.get('points') or 10) // 10)
+        """How much a kill is worth (split across the party), in the
+        system's advancement currency. 0: kills award nothing. ``killer``
+        lets a system shape the award by level difference (MercSystem
+        does)."""
+        return 0
 
     def grant_award(self, player: GameObject, amount: int) -> None:
-        """Deposit one share of a kill's reward on ``player``.
-
-        The single advancement seam the ABC owns, and the only place the
-        two progression models meet. The DEFAULT banks character points —
-        point-buy, what GURPS/D20 use with the ``improve`` command. An
-        XP/level system overrides this to bank experience and level up
-        (see MercSystem). Everything model-specific — an XP curve, a
-        level-up routine — lives in the subclass, deliberately NOT here, so
-        CP and XP systems coexist by each owning their own advancement and
-        sharing only this deposit."""
-        player.db.character_points = \
-            int(player.db.get('character_points') or 0) + int(amount)
-        player.msg(f"You gain {amount} character point"
-                   f"{'s' if amount != 1 else ''}.")
+        """Deposit one share of a kill's reward on ``player``: the one
+        advancement seam the progression models share. Point-buy banks
+        character points (PointBuyMixin); an XP system banks experience
+        and levels up (MercSystem). Neutral: nothing."""
 
     def score_lines(self, player: GameObject) -> list[str]:
-        """The ``score`` sheet, in this system's own vocabulary.
-
-        The DEFAULT is the point-buy view (character points + trained
-        skills + how to spend). An XP/level system overrides this to show
-        level, experience, and its combat numbers instead — ``score``
-        should speak the system's language, not GURPS's.
-        """
-        cp = int(player.db.get('character_points') or 0)
-        lines = [f"Character points: {cp}"]
-        skills = sorted(
-            (key[6:], value) for key, value in player.db.all().items()
-            if key.startswith('skill_')
-        )
-        if skills:
-            lines.append("Skills:")
-            lines.extend(f"  {name:20} {level}" for name, level in skills)
-        cost = self.improve_cost('', 0)
-        lines.append(f"\nSpend with: improve <skill>  ({cost} points per level)")
-        return lines
+        """The ``score`` sheet, in this system's own vocabulary. Neutral:
+        the character's pools (``pool_lines``)."""
+        line = pool_lines(player)
+        return [line] if line else []
 
     # --- Skill resolution ---
     #
@@ -245,6 +224,62 @@ class GameSystem(ABC):
         persistence-having companion to ``finish_chargen`` (minting items
         needs both). Default: nothing. A class-based system overrides it to
         hand out a starting weapon/armor (see MercSystem)."""
+
+
+def _pool_label(name: str) -> str:
+    words = name.replace("_", " ")
+    return words.upper() if len(name) <= 2 else words.capitalize()
+
+
+def pool_lines(obj: GameObject) -> str:
+    """One line naming the object's declared pools (``realm.core.pools``):
+    ``HP: 7/10   Mana: 40/100``. Empty when it has none."""
+    from realm.core.pools import declared_pools, pool_get, pool_max
+    parts = []
+    for name in declared_pools(obj):
+        value, maximum = pool_get(obj, name), pool_max(obj, name)
+        shown = f"{value}/{maximum}" if maximum is not None else f"{value}"
+        parts.append(f"{_pool_label(name)}: {shown}")
+    return "   ".join(parts)
+
+
+class PointBuyMixin:
+    """The character-point economy: kills bank character points, and
+    ``improve`` spends them on skills. Mix in ahead of GameSystem
+    (``class GurpsSystem(PointBuyMixin, GameSystem)``); override
+    ``improve_cost`` for a different price curve (D20System escalates)."""
+
+    def improve_cost(self, skill: str, current_level: int) -> int | None:
+        """Character points to raise ``skill`` by one level: a flat 4."""
+        return 4
+
+    def death_award(self, victim: GameObject,
+                    killer: GameObject | None = None) -> int:
+        """The victim's worth (``db.points``, default 10) over ten, at
+        least 1."""
+        return max(1, int(victim.db.get('points') or 10) // 10)
+
+    def grant_award(self, player: GameObject, amount: int) -> None:
+        """Bank the share as character points."""
+        player.db.character_points = \
+            int(player.db.get('character_points') or 0) + int(amount)
+        player.msg(f"You gain {amount} character point"
+                   f"{'s' if amount != 1 else ''}.")
+
+    def score_lines(self, player: GameObject) -> list[str]:
+        """Character points, trained skills and how to spend."""
+        cp = int(player.db.get('character_points') or 0)
+        lines = [f"Character points: {cp}"]
+        skills = sorted(
+            (key[6:], value) for key, value in player.db.all().items()
+            if key.startswith('skill_')
+        )
+        if skills:
+            lines.append("Skills:")
+            lines.extend(f"  {name:20} {level}" for name, level in skills)
+        cost = self.improve_cost('', 0)
+        lines.append(f"\nSpend with: improve <skill>  ({cost} points per level)")
+        return lines
 
 
 def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem:
@@ -340,7 +375,9 @@ __all__ = [
     "ChargenStep",
     "ChoiceStep",
     "GameSystem",
+    "PointBuyMixin",
     "equipment_observer",
+    "pool_lines",
     "resolve_game_system",
     "reload_rules",
 ]

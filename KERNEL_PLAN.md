@@ -2068,64 +2068,64 @@ Tasks:
 `score_lines` printing them. A level-based or diceless game inherits a
 character-point economy it has to switch off.
 
-- [ ] `GameSystem` keeps the interface with neutral defaults:
+- [x] `GameSystem` keeps the interface with neutral defaults:
       `improve_cost` returns `None` (the `improve` command then says the
       game has no skill purchase), `death_award` returns 0, `grant_award`
       does nothing, `score_lines` lists the object's pools, `pools()`
       returns `[Pool("hp")]`.
-- [ ] Add `PointBuyMixin` with today's defaults. `GurpsSystem` uses it.
+- [x] Add `PointBuyMixin` with today's defaults. `GurpsSystem` uses it.
       `D20System` and `MercSystem` already override what they need; verify
       each override still applies and drop the ones that now equal the
       neutral default.
-- [ ] `MercSystem.pools()` returns `hp`, `mana` and `move`.
+- [x] `MercSystem.pools()` returns `hp`, `mana` and `move`.
 
 ### 8.5 Proof
 
 Create `tests/test_pools_in_play.py`. No test in this file may define a
 `hp` attribute on the non-character entity.
 
-- [ ] **A ship.** An object with `pools` as in 8.1, `shields=20`,
+- [x] **A ship.** An object with `pools` as in 8.1, `shields=20`,
       `max_shields=20`, `hull=30`, `max_hull=30`, `armor=2`,
       `damage_pool="shields"`, `on_spent="none"` and an `ON_SPENT` attribute.
       A player attacks it with the stock `attack` command under each of the
       three rulesets. Shields fall first, then the hull less soak, the
       `ON_SPENT` hook fires once when the hull is spent, and no `hp`
       attribute appears on the ship.
-- [ ] **A harm clock.** A character with
+- [x] **A harm clock.** A character with
       `pools={"harm": {"direction": "up"}}`, `harm=0`, `max_harm=6`,
       `damage_pool="harm"`. Softcode `damage(target, 2)` three times: harm
       reads 2, 4, 6, and the death path runs on the third.
-- [ ] **A door.** A `structure` pool on an exit, damaged by an ability
+- [x] **A door.** A `structure` pool on an exit, damaged by an ability
       effect, destroyed on spent through `on_spent="destroy"`.
-- [ ] **Costs.** An ability with `{"pool": "heat", "n": 3}` on a ship with an
+- [x] **Costs.** An ability with `{"pool": "heat", "n": 3}` on a ship with an
       up pool `heat`: `spend` raises heat and blocks at max.
-- [ ] **Unchanged play.** The existing combat, effects, spells and
+- [x] **Unchanged play.** The existing combat, effects, spells and
       abilities tests pass with no change to their `hp` assertions.
 
 ### Acceptance
 
-- [ ] `git grep -nE "db\.hp *[-+]?=[^=]|db\.set\(['\"]hp['\"]|set_stat\(['\"]hp['\"]" realm/`
+- [x] `git grep -nE "db\.hp *[-+]?=[^=]|db\.set\(['\"]hp['\"]|set_stat\(['\"]hp['\"]" realm/`
       returns nothing.
-- [ ] `git grep -n "'hp'\|\"hp\"" realm/` lists only `Pool("hp")` defaults,
+- [x] `git grep -n "'hp'\|\"hp\"" realm/` lists only `Pool("hp")` defaults,
       the `DAMAGE_POOL` setting and content templates.
-- [ ] `tests/test_pools.py` and `tests/test_pools_in_play.py` pass. The
+- [x] `tests/test_pools.py` and `tests/test_pools_in_play.py` pass. The
       suite is green.
-- [ ] `tests/test_boundaries.py` still passes: `realm/core/pools.py` imports
+- [x] `tests/test_boundaries.py` still passes: `realm/core/pools.py` imports
       nothing from `realm.std`.
 
 ### Docs
 
-- [ ] New guide `docs/guides/pools.md`: the ship, the harm clock and the
+- [x] New guide `docs/guides/pools.md`: the ship, the harm clock and the
       door as worked examples. Add it to `mkdocs.yml`.
-- [ ] `docs/design/combat.md`: damage lands in a pool; death is an observer.
-- [ ] `docs/guides/creating-your-own-system.md`: `pools()`, the neutral
+- [x] `docs/design/combat.md`: damage lands in a pool; death is an observer.
+- [x] `docs/guides/creating-your-own-system.md`: `pools()`, the neutral
       base, `PointBuyMixin`.
-- [ ] `docs/guides/abilities.md` and `docs/guides/spells.md`: costs use
+- [x] `docs/guides/abilities.md` and `docs/guides/spells.md`: costs use
       pools, including up pools.
-- [ ] `docs/guides/interception.md`: where soak sits relative to wards and
+- [x] `docs/guides/interception.md`: where soak sits relative to wards and
       resistances.
-- [ ] Regenerate the softcode reference and the config reference.
-- [ ] `VISION.md`: invariant 7 cites the pool module as its first full
+- [x] Regenerate the softcode reference and the config reference.
+- [x] `VISION.md`: invariant 7 cites the pool module as its first full
       instance.
 
 ### Closes
@@ -2707,3 +2707,11 @@ entry closed.
 | 2026-11-14 | 8.3 | The swing path settles after its messages: `deal_damage` returns `(dealt, action, changes)` unsettled; `apply_typed_damage` settles at once; `CombatSystem.attack` puts them on `CombatResult.changes`; the new `CombatEncounter.land` (used by melee, `shoot` and GURPS all-out attack) delivers the messages, removes a defeated target from the encounter, then settles, which runs the death observer. `CombatManager.handle_defeat` is deleted. Settling inside `attack` would have printed "falls dead!" before "You hit". | One death call for every route; no double death on swings. |
 | 2026-11-14 | 8.3 | Death follows `pool:on_spent`, which fires only on the crossing: damage to an object already spent no longer runs the death path again (softcode `damage()` on an unconscious player used to announce a second `ON_DEATH`). `Ruleset.is_defeated` now only decides who leaves an encounter; a ruleset overriding it to a rule other than "vital pool spent" would disagree with the observer, so the system guide now says to lower the pool's `spent_at` instead. None of the three rulesets overrides it. | Flag for 8.4/acceptance: drop `is_defeated` as an override point? |
 | 2026-11-14 | 8.3 | Added kernel `pools.pool_percent(obj, name, value=None)` (how much is left before spent, as a percent; an up pool counts what is left below its max). `ON_HITPRCNT` and `Combatant.vital_percent` use it, so a harm clock at 4 of 6 is 33%, not 67%. The damage-over-time tick now narrates, expires itself if the pool is spent, then settles, so "You are wracked" comes before "Everything goes black". `tests/test_event_hooks.py::test_hitprcnt_fires_once_on_threshold_cross` now runs with `combat` and settles the blow; `test_features` frozen state lists the two observers as added after the freeze. Suite: 2657. | |
+| 2026-11-14 | 8.4 | `D20System` uses `PointBuyMixin` too (deviation): it inherited the whole character-point economy (CP from kills, CP on `score`, `improve`) and overrode only `improve_cost`, so with a neutral base it would have lost advancement. Its escalating `improve_cost` stays; `GurpsSystem.improve_cost` (4) equalled the mixin's and was dropped. `MercSystem` keeps its `death_award`/`grant_award`/`score_lines` (none equals neutral) and now inherits `improve_cost` `None`: `improve` under Merc says "This game has no skill purchase." instead of "costs 4 points; you have 0" (Merc never banks CP). | The plan's "D20 already overrides what it needs" was true only of `improve_cost`. |
+| 2026-11-14 | 8.4 | Neutral `score_lines` is one line from `pool_lines(player)` (`HP: 7/10   Stress: 2/6`; a name of two letters or fewer is upper-cased), built on a new kernel `pools.declared_pools(obj)`: the world defaults the object has, then any its `pools` attribute adds (implicit numeric attributes are not listed). Merc's sheet uses the same line in place of its `hp`/`mana` reads; Merc characters start with `move` 100/100 so the third pool exists. | Lists pools without listing every number. |
+| 2026-11-14 | 8.4 | The kill award runs only when `death_award` is above 0 (it used to floor every award at 1). The `rules`-less fallbacks were deleted: `_npc_death`'s character-point branch, `score`'s and `improve`'s `system is None` branches and `IMPROVE_COST`. `combat` requires `rules`, which always sets `world.rules`. `tests/test_query_zones.py::test_zone_xp_multiplier_applies` built a combat manager in a bare world and relied on that fallback; it now declares `@pytest.mark.features("rules")`. Suite: 2669. | |
+| 2026-11-14 | 8.5 | `tests/test_pools_in_play.py`. The ship and the door set `when_spent` (see 8.3), not `on_spent`. The ship is tagged `npc` (only players and NPCs are combat-capable, so `attack ship` starts a fight), sits out its turns (`combat_default=nothing`), and the test records each landed blow's `PoolChange` by wrapping `CombatEncounter.land`: shields only until they hit 0, then each spill into the hull less `min(2, spill)` soaked; parametrized over GURPS, D20 and Merc (also passes under six other seeds). The harm clock is a player (unconscious on the third `damage()`). The door is an exit damaged by an ability `damage` effect; `destroy` deletes it and unpairs the far side. The heat cost uses a ship with `effects=[]` against a rock. | |
+| 2026-11-14 | 8.5 | "Unchanged play" is a test: it diffs the combat, effects, spells and abilities tests against the `Move files` commit and fails on any removed `assert` naming `hp` that is not the same line with the 8.2 `vital` rename. One line is allowed by name: `assert obj.db.hp == 40`, the test of the `Combatant.hp` setter 8.2 removed. (The trap test's `hp == 0` and `.total_applied` changes from 8.2 are in `test_softcode_builders.py` and `test_resistance_delivery.py`, outside these four.) The test skips outside a git checkout. Suite: 2676. | |
+| 2026-11-14 | 8 acceptance | The `'hp'`/`"hp"` grep lists, besides `Pool("hp")` (the base and Merc `pools()`) and `DAMAGE_POOL`: (a) content and starting data: `GameSystem.baseline_stats` and Merc's baseline (the declared `hp` pool's starting value) and the spawner docstring's prototype; (b) game systems in `realm/games/` naming the pool their own `pools()` declares (GURPS/D20/Merc chargen `set_pool(player, 'hp', ...)`, Merc's level gain, GURPS `mark_system`); (c) docstring and softcode examples (`pools.py`, `get_attr`, `pool`, `mend_pool`, `Combatant.get_stat`); (d) the GMCP `Char.Vitals` keys `hp`/`max_hp`, a client protocol, with values from the vital pool. Read (b) as game content: the games ring is where a system's vocabulary belongs; nothing in `realm/core`, `realm/scripting` or `realm/std` writes `hp`. `Ruleset.required_stats` (declared, never read, naming `hp` in all three rulesets) was deleted, with its line in the custom-system guide. | The plan's list did not name the games ring; "the engine writes no hp" is the goal. |
+| 2026-11-14 | 8 acceptance | `Ruleset.is_defeated` deleted (the question 8.3 left open): who leaves an encounter is `Combatant.vital_spent`, the rule the death observer follows, so a ruleset override could only disagree with it. `CombatSystem.attack` and `heal` read it; `test_combat.py`'s `test_is_defeated_at_zero_hp` became `test_defeated_at_zero_hp` (same assertions on `vital_spent`). A game that fights on below 0 lowers its pool's `spent_at`. | One rule, one place. |
+| 2026-11-14 | 8 docs | `docs/guides/pools.md` gains the ship, harm clock and door as worked examples; `docs/design/combat.md` a "Damage and death today" section (the old Death bullet marked superseded) and changelog row; `abilities.md` a "Costs are pools" section (up pools, block messages); `spells.md` the `mana` sugar and any-pool costs; `interception.md` "Where soak sits" (wards, resistances, ruleset armor, then soak; `damage()`/DoT skip wards and the ruleset); `VISION.md` invariant 7 cites the pool module. `creating-your-own-system.md` was done in 8.4. References regenerated (no change since the last commit). The BACKLOG HARM note is marked closed. Suite: 2676. | |

@@ -31,10 +31,10 @@ from typing import TYPE_CHECKING, Any
 
 from realm.core.defs import all_defs
 from realm.core.objects import GameObject
-from realm.core.pools import pool_get, pool_max, set_pool
+from realm.core.pools import Pool, pool_get, pool_max, set_pool
 from realm.std.rules.checks import CheckResult, skill_level
 from realm.std.rules.definitions import apply_class
-from realm.std.rules.system import ChoiceStep, GameSystem
+from realm.std.rules.system import ChoiceStep, GameSystem, pool_lines
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -110,12 +110,17 @@ class MercSystem(GameSystem):
 
     # --- baseline & skills ---
 
+    def pools(self) -> list[Pool]:
+        """Diku's three: hit points, mana and movement."""
+        return [Pool("hp"), Pool("mana"), Pool("move")]
+
     def baseline_stats(self) -> dict[str, Any]:
         return {
             "strength": 13, "intelligence": 13, "wisdom": 13,
             "dexterity": 13, "constitution": 13,
             "level": 1, "xp": 0, "practices": 0,
             "hp": 20, "max_hp": 20, "mana": 100, "max_mana": 100,
+            "move": 100, "max_move": 100,
             "thac0": 20, "armor_class": 10,
         }
 
@@ -247,9 +252,7 @@ class MercSystem(GameSystem):
         lines = [
             f"You are {player.name}, a level {level} {cls}.",
             f"Experience: {xp} / {self.xp_to_next(level)} to level {level + 1}",
-            f"HP: {player.db.get('hp')}/{player.db.get('max_hp')}"
-            + (f"   Mana: {player.db.get('mana')}/{player.db.get('max_mana')}"
-               if player.db.get('max_mana') else ""),
+            pool_lines(player),
             f"THAC0: {player.db.get('thac0')}   "
             f"AC: {player.db.get('armor_class')}",
         ]

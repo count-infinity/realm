@@ -58,7 +58,7 @@ not the feature.
 | `realm/core/pools.py` | Pools: bounded numbers on objects (hp, shields, stress); `harm`/`mend`/`spend`, then `settle` fires `ON_POOL`/`ON_SPENT`; combat's `std/combat/vitals.py` turns a spent vital pool into death and a fall through `hitprcnt` into `ON_HITPRCNT` |
 | `realm/std/rules/checks.py` | Skill checks, contests; the `rules` feature's `Checks` service (resolver, skill table, modifier providers) |
 | `realm/core/perception.py` | Visibility & naming choke points |
-| `realm/std/rules/system.py` | `GameSystem`, the swappable rules package; `GAME_SYSTEM` names one |
+| `realm/std/rules/system.py` | `GameSystem`, the swappable rules package (neutral: no advancement economy); `PointBuyMixin` adds character points; `GAME_SYSTEM` names one |
 | `realm/games/<name>/` | The built-in game systems (GURPS/D20/Merc): `system.py`, `ruleset.py` (combat), `feature.py` |
 | `realm/scripting/` | Sandboxed softcode: `$commands`, `^listens`, `ON_<EVENT>` |
 | `realm/scripting/registry.py` | The softcode function registry: `softfn` / `softcode_function` with `group`, `readonly`, `harm` flags |

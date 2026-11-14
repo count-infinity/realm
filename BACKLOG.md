@@ -4205,7 +4205,10 @@ Concrete fixes this makes non-optional (independent of the big picture):
 One tier (**HARM**) to start; HARM/WORLDEDIT split later is a `role_def`
 data change, no code fork. Rejected: **`Damageable` as an attachable
 behavior** — taking damage is entity-agnostic (people/mobs/ships/doors),
-must not be attach-or-forget. Still needed and orthogonal: a
+must not be attach-or-forget. *(Closed 2026-11-14 by KERNEL_PLAN step 8:
+pools, `realm/core/pools.py` — anything with a numeric pool named by its
+`damage_pool` takes damage, heals, pays costs and dies through stock
+code; docs/guides/pools.md.)* Still needed and orthogonal: a
 **target/PvP-consent axis** (author-tier says the code may harm, not
 *whom* — a builder's over-generic `$zap <target>` is a confused deputy);
 seed exists at `enactor_consent` (functions.py:86). Next increments: (1)

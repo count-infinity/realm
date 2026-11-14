@@ -116,6 +116,7 @@ class TestZoneSeams:
         await move_through_exit(alice, keep, exit_obj=door)
         assert master.db.get("stirred") is True
 
+    @pytest.mark.features("rules")           # the award is the game system's
     async def test_zone_xp_multiplier_applies(self, world):
         from realm.std.combat.manager import CombatManager
         from realm.std.combat.system import CombatSystem

@@ -15,20 +15,13 @@ async def cmd_points(ctx: CommandContext) -> None:
 
     The sheet speaks the active game system's language: a point-buy
     system (GURPS/D20) shows character points and skills; an XP system
-    (merc) shows level, experience, combat stats, and equipment.
+    (merc) shows level, experience, pools, combat stats, and equipment; a
+    system that says nothing shows the character's pools.
 
     Usage: score / points
     """
-    system = get_world().rules
-    if system is not None:
-        lines = system.score_lines(ctx.player)
-    else:
-        cp = int(ctx.player.db.get('character_points') or 0)
-        lines = [f"Character points: {cp}"]
+    lines = get_world().rules.score_lines(ctx.player)
     await ctx.session.send("\n" + "\n".join(lines) + "\n")
-
-
-IMPROVE_COST = 4  # character points per +1 skill level (GURPS-ish)
 
 
 async def cmd_improve(ctx: CommandContext) -> None:
@@ -48,10 +41,12 @@ async def cmd_improve(ctx: CommandContext) -> None:
     if skill.startswith('skill_'):
         skill = skill[6:]
 
-    cp = int(ctx.player.db.get('character_points') or 0)
-    system = get_world().rules
     current = skill_level(ctx.player, skill)
-    cost = system.improve_cost(skill, current) if system else IMPROVE_COST
+    cost = get_world().rules.improve_cost(skill, current)
+    if cost is None:
+        await ctx.session.send("This game has no skill purchase.")
+        return
+    cp = int(ctx.player.db.get('character_points') or 0)
     if cp < cost:
         await ctx.session.send(
             f"Improving {skill} costs {cost} points; you have {cp}."

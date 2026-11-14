@@ -172,6 +172,14 @@ def test_a_rules_system_supplies_world_defaults():
         assert pools.pool_def(thing(hull=3), "hull").soak_attr == "plating"
 
 
+def test_declared_pools_lists_what_the_object_has(world):
+    pools.add_default(world, Pool("hp"))
+    pools.add_default(world, Pool("mana"))
+    ship = thing(hp=3, shields=5, strength=12, pools={"shields": {"overflow": "hp"}})
+    assert pools.declared_pools(ship) == ["hp", "shields"]   # no mana; strength is implicit
+    assert pools.declared_pools(thing(strength=12)) == []
+
+
 def test_conflicting_world_defaults_fail_loudly(world):
     from realm.features import Feature, FeatureError, FeatureSet
     one, two = Feature("one"), Feature("two")

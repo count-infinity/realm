@@ -38,7 +38,8 @@ The GameSystem answers a small, fixed set of questions:
 | `finish_chargen()` | derived stats + the welcome line |
 | `skill_defaults()` | untrained skill → (attribute, penalty) |
 | `resolve_check()` | how a skill roll is resolved (3d6 vs d20…) |
-| `improve_cost()` | character points to raise a skill |
+| `pools()` | the health and resource pools (`hp` by default) |
+| `improve_cost()` | character points to raise a skill (`None` unless the system buys skills, as `PointBuyMixin` does) |
 
 The engine **never branches on "is this GURPS?"** — it asks the
 GameSystem. That's the whole design: swap the object, swap the game.

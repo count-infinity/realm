@@ -44,10 +44,11 @@ Put all of this in your game's `rules.py` (what `realm init` scaffolds and
 
 ```python
 # rules.py
-from realm.std.rules.system import GameSystem, ChoiceStep
+from realm.core.pools import Pool
+from realm.std.rules.system import ChoiceStep, GameSystem, PointBuyMixin
 
 
-class PercentileSystem(GameSystem):
+class PercentileSystem(PointBuyMixin, GameSystem):
     system_id = "percentile"
     ruleset_name = "percentile"     # our combat ruleset, registered in Part 2
     currency_name = "shillings"
@@ -105,7 +106,27 @@ class PercentileSystem(GameSystem):
         return "Your fate is cast. Welcome."
 ```
 
-**Two things worth understanding here:**
+**Three things worth understanding here:**
+
+**Advancement is opt-in.** `GameSystem` on its own has no economy:
+`improve_cost` is `None` (the `improve` command says the game has no skill
+purchase), a kill awards nothing (`death_award` is 0, `grant_award` does
+nothing), and `score` lists the character's pools. `PointBuyMixin`, listed
+before `GameSystem`, supplies the character-point economy GURPS and D20
+use: a kill banks `character_points` (the victim's `points` over ten),
+`improve` spends them, and `score` shows them with your skills. We keep its
+economy and change only the price with our own `improve_cost`. An XP and
+level game overrides `death_award`, `grant_award` and `score_lines` itself,
+as `MercSystem` does. A diceless game leaves them all neutral.
+
+**Pools are the system's to declare.** `pools()` returns the world defaults
+for health and resources (`[Pool("hp")]` unless you say otherwise; see
+[Pools](pools.md)). A system with fatigue as well as HP returns both:
+
+```python
+    def pools(self):
+        return [Pool("hp"), Pool("fatigue", direction="up")]
+```
 
 **The resolver returns a graded `CheckResult`, not a bool.** `margin_under(rolled,
 target)` (from `realm.core.dice`) hands back `(success, margin, …)` — the *degree*
@@ -161,7 +182,6 @@ from realm.std.combat.ruleset import (
 
 class PercentileRuleset(Ruleset):
     name = "Percentile"
-    required_stats = ["power", "speed", "hp"]
 
     # 1) Does it land? Weapon attack band vs the defender's ACTIVE DODGE.
     def roll_attack(self, attacker, defender, weapon=None, modifiers=None):
@@ -189,9 +209,10 @@ class PercentileRuleset(Ruleset):
         damage.resisted += damage.total - dealt
         return self.write_damage(target, dealt)   # into the target's damage pool
 
-    # 4) Out of the fight: the base class says "the vital pool is spent"
-    #    (hp at 0), the same moment combat's death observer runs. To fall
-    #    later, give the hp pool a lower spent_at in GameSystem.pools().
+    # 4) Out of the fight is not the ruleset's call: a combatant is down
+    #    when its vital pool is spent (hp at 0), the moment combat's death
+    #    observer runs. To fall later, give the hp pool a lower spent_at in
+    #    GameSystem.pools().
 
     # --- helpers ---------------------------------------------------------
     def _band(self, obj, prefix, default):
