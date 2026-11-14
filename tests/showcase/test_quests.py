@@ -22,7 +22,7 @@ Harness notes (mirrors the other showcase suites):
 - ``prompt()`` needs a session lookup the GameServer normally wires; the
   fixture supplies it (``engine.session_manager``).
 - ``wait()`` runs on the Simulator's virtual clock — pump it with
-  ``sim.engine.tick_waits()``; ``script_ticker`` ``on_tick`` routines are
+  ``sim.engine.waits.tick()``; ``script_ticker`` ``on_tick`` routines are
   fired directly with ``@tr <obj>/on_tick``.
 """
 
@@ -241,12 +241,12 @@ class TestCollectionCounters:
 
         # A non-objective pickup does not move the counter.
         await sim.do(raven, "get rusty wrench")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert raven.db.get("salvage_count") in (None, 0)
 
         for i in range(1, 6):
             await sim.do(raven, "get salvage relay")
-            await sim.engine.tick_waits()
+            await sim.engine.waits.tick()
             assert raven.db.get("salvage_count") == i, f"after relay {i}"
 
         assert raven.db.get("salvage_done") == 1
@@ -258,18 +258,18 @@ class TestCollectionCounters:
         raven = sim.player("Raven", location=hub)
         for _ in range(5):
             await sim.do(raven, "get salvage relay")
-            await sim.engine.tick_waits()
+            await sim.engine.waits.tick()
         assert raven.db.get("salvage_count") == 5
 
         # Dropping a relay never lowers the tally -- progress is monotonic,
         # tracked by the 'counted' tag stamped on each relay when first seen.
         await sim.do(raven, "drop salvage relay")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert raven.db.get("salvage_count") == 5
 
         # Re-picking that same, already-counted relay does not double-count it.
         await sim.do(raven, "get salvage relay")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert raven.db.get("salvage_count") == 5
 
 
@@ -386,7 +386,7 @@ class TestCutscenes:
         await sim.do(ada, "play briefing")
         ada_lines, ben_lines = [], []
         for _ in range(6):  # pump the virtual clock through the chain
-            await sim.engine.tick_waits()
+            await sim.engine.waits.tick()
             ada_lines += sim.seen(ada)
             ben_lines += sim.seen(ben)
         text = joined(ada_lines)
@@ -404,14 +404,14 @@ class TestCutscenes:
 
         await sim.do(bela, "@set holoprojector/pace = 0")
         await sim.do(ada, "play briefing")
-        await sim.engine.tick_waits()          # first line lands
+        await sim.engine.waits.tick()          # first line lands
         first = sim.seen(ada)
         assert any("star map" in m for m in first)
 
         await sim.do(ada, "skip")
         assert any("snaps off" in m for m in sim.seen(ada))
         # Pump again: no further lines arrive.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert all("collapses into darkness" not in m for m in sim.seen(ada))
 
     async def test_skip_when_idle_is_harmless(self, world):

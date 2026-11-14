@@ -280,7 +280,7 @@ class BehaviorRegistry:
     _behaviors: dict[str, type[Behavior]] = {}
 
     # Fallback factory for ids with no Python class: behavior logic defined
-    # in-world as `behavior_def` objects (see realm.behaviors.scripted, which
+    # in-world as `behavior_def` objects (see realm.scripting.scripted_behavior, which
     # installs it). Signature: (behavior_id, params, strict) -> Behavior|None.
     # `strict` asks the factory to verify the definition exists — used at
     # attach time so a typo errors; the persistence load path passes False so

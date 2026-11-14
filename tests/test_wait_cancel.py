@@ -41,7 +41,7 @@ class TestCancelableWait:
     async def test_uncancelled_wait_fires(self, world):
         w = world
         await w.sim.eval(w.clock, "wait(0, 'trigger me/boom')")
-        await w.sim.engine.tick_waits()
+        await w.sim.engine.waits.tick()
         assert w.clock.db.get("fired") == 1
 
     async def test_cancel_prevents_firing(self, world):
@@ -49,7 +49,7 @@ class TestCancelableWait:
         # Schedule and cancel in one script — the handle round-trips.
         await w.sim.eval(
             w.clock, "t = wait(0, 'trigger me/boom'); cancel_wait(t)")
-        await w.sim.engine.tick_waits()
+        await w.sim.engine.waits.tick()
         assert w.clock.db.get("fired") is None      # defused
 
     async def test_cancel_across_scripts_via_stored_handle(self, world):
@@ -57,7 +57,7 @@ class TestCancelableWait:
         res, _ = await w.sim.eval(
             w.clock, "result = wait(0, 'trigger me/boom')")
         await w.sim.eval(w.clock, f"cancel_wait('{res}')")
-        await w.sim.engine.tick_waits()
+        await w.sim.engine.waits.tick()
         assert w.clock.db.get("fired") is None
 
     async def test_cancel_requires_control_of_the_scheduler(self, world):
@@ -69,7 +69,7 @@ class TestCancelableWait:
         gremlin = w.sim.obj("gremlin", location=w.room)
         await w.sim.eval(gremlin, f"cancel_wait('{res}')", enactor=gremlin)
 
-        await w.sim.engine.tick_waits()
+        await w.sim.engine.waits.tick()
         assert w.alice.db.get("fired") == 1         # cancel denied, wait fired
 
     async def test_cancel_unknown_handle_is_harmless(self, world):

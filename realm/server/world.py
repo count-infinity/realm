@@ -44,14 +44,13 @@ def build_world(store, settings: Settings | None = None, *,
     ``settings.features`` (default ``CLASSIC``) is loaded and installed here.
 
     ``defer_timers`` makes softcode ``wait()`` fire only when a test pumps
-    ``engine.tick_waits()`` (the Simulator's virtual clock).
+    ``engine.waits.tick()`` (the Simulator's virtual clock).
     """
     from realm.commands.dispatcher import CommandDispatcher
-    from realm.core.checks import Checks, skill_table
+    from realm.core.checks import Checks
     from realm.core.propagation import PropagationEngine
     from realm.scripting.engine import ScriptEngine
     from realm.scripting.sandbox import set_interpreter_recursion_limit
-    from realm.systems import resolve_game_system
 
     cfg = settings or Settings()
     if features is None:
@@ -76,27 +75,26 @@ def build_world(store, settings: Settings | None = None, *,
     dispatcher.persistence = store
     dispatcher.session_manager = sessions
 
-    # 3. The world. Install it now: everything below (a game system reading
-    # its skill_def objects, a feature's on_install) reaches the store
-    # through it. Closing it (the first closer, so it runs last) restores
-    # the world that was current before.
-    rules = resolve_game_system(cfg.game_system)
+    # 3. The world. Install it now: everything below (a feature's
+    # on_install, a game system reading its skill_def objects) reaches the
+    # store through it. Closing it (the first closer, so it runs last)
+    # restores the world that was current before. Checks start neutral; the
+    # ``rules`` feature resolves GAME_SYSTEM into ``world.rules`` and gives
+    # them its resolver and skill table.
     world = World(settings=cfg, store=store, engine=engine, dispatcher=dispatcher,
-                  rules=rules, scripts=None, sessions=sessions, _closers=closers)
+                  rules=None, scripts=None, sessions=sessions, _closers=closers,
+                  services={"checks": Checks()})
     previous = set_world(world)
     closers.insert(0, lambda: set_world(previous) if find_world() is world else None)
-    # Rules resolution: skill defaults and the check resolver.
-    world.services["checks"] = Checks(resolver=rules.resolve_check,
-                                      skill_defaults=skill_table(rules.skill_defaults()))
 
     # 4. Softcode: $-command fallback, ^listen / ON_<EVENT> observer, on_check hook.
     if cfg.enable_scripting:
         scripts = ScriptEngine(persistence=store)
-        scripts.defer_waits = defer_timers
+        scripts.waits.defer = defer_timers
         scripts.dispatcher = dispatcher
         scripts.session_manager = sessions
         world.observe(scripts.handle_action)
-        closers.append(scripts.shutdown_waits)
+        closers.append(scripts.waits.shutdown)
         dispatcher.set_unknown_handler(scripts.handle_unknown_command)
         world.scripts = scripts
 

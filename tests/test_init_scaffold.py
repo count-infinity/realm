@@ -13,7 +13,7 @@ import pytest
 
 from realm.cli import _sanitize_system_id, cmd_init
 from realm.config.loader import load_config
-from realm.systems.base import resolve_game_system
+from realm.std.rules.system import resolve_game_system
 
 
 class _Args:

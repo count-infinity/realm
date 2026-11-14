@@ -28,7 +28,7 @@ def two_rooms():
 @pytest.fixture
 def followers(world):
     """A bare world with the social feature's follower hook."""
-    from realm.std.social import bring_followers
+    from realm.std.social.feature import bring_followers
     world.after_traverse.append(bring_followers)
     return world
 

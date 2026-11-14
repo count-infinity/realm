@@ -67,7 +67,7 @@ class TestBehaviorCommaParse:
         assert b.get_param("taunt") == "You should not have climbed, little one"
 
     async def test_behavior_set_edits_interval(self):
-        from realm.behaviors.ticker import ScriptTickerBehavior
+        from realm.scripting.ticker import ScriptTickerBehavior
         from realm.commands.olc.softcode import cmd_behavior
 
         room = GameObject("Lair", tags=["room"])
@@ -206,7 +206,7 @@ class TestHiddenObjectSearch:
         use_persistence(self.persistence)
 
     async def test_concealed_object_found_by_flat_check(self, world):
-        from realm.commands.builtin.manipulation import cmd_search
+        from realm.std.stealth.commands import cmd_search
         from realm.core.checks import CheckResult, checks
 
         room = GameObject("Steps", tags=["room"])

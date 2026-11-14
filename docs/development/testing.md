@@ -159,7 +159,7 @@ async def test_npc_greets(sim):
   `Simulator(settings=Settings(command_sigil="!"))`
   (`from realm.config.loader import Settings`).
 - Softcode `wait()` runs on a virtual clock: it fires when the test calls
-  `sim.engine.tick_waits()`.
+  `sim.engine.waits.tick()`.
 - The world lives in a `MemoryStore` (`sim.store`); `sim.world` is the
   installed `World`.
 

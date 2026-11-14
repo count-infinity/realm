@@ -47,11 +47,11 @@ not the feature.
 | File | Purpose |
 |---|---|
 | `realm/cli.py` | `realm init` / `realm start` |
-| `realm/server/game.py` | GameServer — opens the store, loads the world, runs loops and protocols |
+| `realm/server/game.py` | GameServer — opens the store, loads the world, runs loops and protocols; input goes session prompt → feature input interceptors → dispatcher (login is the `accounts` feature's) |
 | `realm/server/world.py` | `build_world()` — wires the kernel, then the loaded features; the server and the Simulator both call it |
 | `realm/core/world.py` | `World`, the one handle to the running world: `get_world().store` / `.engine` / `.scripts` / `.rules` / `.services`, and `setting(key)` for config |
 | `realm/features.py` | `Feature`, `FeatureSet`, `load()`: how commands, behaviors, softcode functions and observers join a world |
-| `realm/std/` | The built-in features' declaration modules (`BUILTIN`, `CLASSIC`) |
+| `realm/std/` | The built-in features (`BUILTIN`, `CLASSIC`): one package each, `feature.py` declares it, the rest are its parts |
 | `realm/config/loader.py` | `Settings` (every config key, its default and doc) and `load_config` |
 | `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, kind predicates |
 | `realm/core/propagation.py` | Two-pass check/react action pipeline |
@@ -61,7 +61,7 @@ not the feature.
 | `realm/scripting/` | Sandboxed softcode: `$commands`, `^listens`, `ON_<EVENT>` |
 | `realm/scripting/registry.py` | The softcode function registry: `softfn` / `softcode_function` with `group`, `readonly`, `harm` flags |
 | `realm/scripting/namespace.py` | `build_namespace(profile, ...)`: the one builder for script, check, inline, lock, detail and rule contexts |
-| `realm/scripting/lib/` | The built-in softcode functions, one module per owner; `functions.py` holds the per-run `ScriptFrame` |
+| `realm/scripting/lib/` | The kernel's softcode functions, one module per area (a feature's own are in `realm/std/<feature>/softcode.py`, declared by its `feature.py`); `functions.py` holds the per-run `ScriptFrame` |
 | `realm/packs/` | Content packs (worldio JSON bundles) |
 | `realm/persistence/worldio.py` | Export/import with ref remapping |
 | `realm/persistence/store.py` | `Store` protocol: what engine code may call on a store (`PersistenceManager`, `MemoryStore`) |
@@ -72,11 +72,16 @@ Everything optional is a **feature** (`realm/features.py`): a named set of
 declarations (`feature.command`, `.behavior`, `.function`/`.softfn`,
 `.observer`, `.ruleset`, `.dest_resolver`, `.reaper`, `.queue_kind`,
 `.check_modifier`, `.name_resolver`, `.speech_renderer`, `.group_formatter`,
-`.fallback`, `.traversal_gate`, `.after_traverse`, `.protocol`, `.setting`,
+`.fallback`, `.traversal_gate`, `.after_traverse`, `.sight_rule`, `.marker`,
+`.input_interceptor`, `.login`, `.protocol`, `.setting`,
 `.on_install`/`.on_boot`/`.on_close`; `.command(token=)` for `:pose`-style
-prefixes). The dispatcher and `core/movement.py` know no command, token,
+prefixes). A built-in feature is a package `realm/std/<name>/`: `feature.py`
+declares it; `actions.py` (its action-type enum), `verbs.py`, `softcode.py`
+and the rest are its parts, importable without loading the feature. The
+kernel's `ActionType` holds only kernel events; `world.rules` (the game
+system) is set by the `rules` feature and the kernel never calls it. The dispatcher and `core/movement.py` know no command, token,
 direction, exit or follower by name.
-Built-ins are declared in `realm/std/<feature>.py` and `realm/games/<system>.py`;
+Built-ins are declared in `realm/std/<feature>/feature.py` and `realm/games/<system>.py`;
 a game declares its own in `game.py`; `FEATURES` in config lists them
 (default `realm.std.CLASSIC`). Do not register at import time
 (`@BehaviorRegistry.register`, `dispatcher.register`) in engine code: declare on a

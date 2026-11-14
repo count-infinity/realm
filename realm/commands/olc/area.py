@@ -174,7 +174,7 @@ async def cmd_pack(ctx: CommandContext) -> None:
         await ctx.session.send(f"Error: {exc}")
         return
     from realm.permissions.entitlements import reload_role_defs
-    from realm.systems import reload_rules
+    from realm.std.rules.system import reload_rules
     reload_rules()   # data-driven skills take effect immediately
     reload_role_defs()   # custom role_def ranks too
     await ctx.session.send(

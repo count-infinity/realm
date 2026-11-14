@@ -24,7 +24,7 @@ to return the sequence you want:
 ```python
 # rules.py  (created by `realm init`)
 from realm.systems.gurps import GurpsSystem
-from realm.systems.base import ChoiceStep
+from realm.std.rules.system import ChoiceStep
 
 class GameRules(GurpsSystem):
     system_id = "mygame"          # your project's id, set by realm init
@@ -53,7 +53,7 @@ and reboot-safe; you only supply the steps. A custom step needs just two
 methods:
 
 ```python
-from realm.systems.base import ChargenStep
+from realm.std.rules.system import ChargenStep
 
 class NameStep(ChargenStep):
     key = "callsign"

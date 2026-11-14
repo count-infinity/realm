@@ -29,7 +29,7 @@ import pytest
 
 from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.events import reap_expired
-from realm.core.perception import stealth_observer
+from realm.std.stealth.hiding import stealth_observer
 from realm.core.world import get_world
 from realm.testing import Simulator
 
@@ -458,7 +458,7 @@ class TestGasBomb:
         assert raven.location is office
 
         # The fuse is a wait(): fire it.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
 
         clouds = sim.store.find_cached(name="a cloud of stinging gas")
         cloud_rooms = {c.location for c in clouds}

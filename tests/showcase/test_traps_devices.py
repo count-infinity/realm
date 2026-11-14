@@ -17,7 +17,7 @@ higher skill. Several builds run @reload (skill_def registration),
 which re-installs the GURPS dice resolver — the line runner re-pins
 the deterministic resolver after every command.
 
-Time is virtual throughout: wait() fuses fire on tick_waits() pumps,
+Time is virtual throughout: wait() fuses fire on waits.tick() pumps,
 beat-driven effects (poison, sedation) advance via deliver_beat(),
 script_ticker heartbeats are ticked by hand, and expire() lifetimes
 are reaped with a forged clock.
@@ -474,7 +474,7 @@ class TestSelfDestruct:
         assert "SELF-DESTRUCT SEQUENCE INITIATED" in text(sim, raven)
         assert brain.db.get("pending")
 
-        await sim.engine.tick_waits()      # one chain stage
+        await sim.engine.waits.tick()      # one chain stage
         assert "SELF-DESTRUCT IN" in text(sim, raven)
         assert brain.db.get("count") == 4
 
@@ -497,7 +497,7 @@ class TestSelfDestruct:
         assert brain.db.get("count") is None
 
         # The cancelled wait never fires; nothing burns.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert objs(sim, "a sheet of roaring flame") == []
 
         # The code itself is engine-secret to strangers, readable to the owner.
@@ -516,7 +516,7 @@ class TestSelfDestruct:
 
         await sim.do(builder, "self destruct")
         for _ in range(5):                 # stages 4, 3, 2, 1, boom
-            await sim.engine.tick_waits()
+            await sim.engine.waits.tick()
 
         assert "Fire tears through every compartment!" in text(sim, raven)
         flames = objs(sim, "a sheet of roaring flame")

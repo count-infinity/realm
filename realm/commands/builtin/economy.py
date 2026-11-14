@@ -11,7 +11,6 @@ from __future__ import annotations
 from realm.behaviors.shop import find_shopkeeper
 from realm.commands import CommandContext
 from realm.commands.base import find_object
-from realm.core.action_types import ActionType
 from realm.core.economy import (
     currency_name,
     get_credits,
@@ -23,6 +22,7 @@ from realm.core.propagation import (
     gate_action,
 )
 from realm.core.search import match_one
+from realm.std.economy.actions import EconomyAction
 
 
 async def cmd_credits(ctx: CommandContext) -> None:
@@ -192,7 +192,7 @@ async def cmd_pay(ctx: CommandContext) -> None:
     action = Action(
         actor=ctx.player,
         target=target,
-        action_type=ActionType.PAYMENT,
+        action_type=EconomyAction.PAYMENT,
         extra={"amount": amount},
     )
     action.add_message("actor",

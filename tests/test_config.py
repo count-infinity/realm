@@ -150,30 +150,31 @@ class TestNearMissWarning:
 class TestWelcomeScreenPriority:
 
     def _server(self, **attrs):
-        # _get_welcome_screen touches only these attributes; a full
-        # GameServer() boot mutates ambient module state (sigils etc.).
+        # The accounts feature's welcome screen reads only the world's
+        # settings; a stand-in world is enough.
+        from types import SimpleNamespace
+
         from realm.config.loader import Settings
-        from realm.server.game import GameServer
-        server = GameServer.__new__(GameServer)
-        server.settings = Settings(**{"game_name": "Testia", "welcome_file": None, **attrs})
-        return server
+        from realm.std.accounts.login import Accounts
+        settings = Settings(**{"game_name": "Testia", "welcome_file": None, **attrs})
+        return Accounts(SimpleNamespace(settings=settings, store=None))
 
     def test_banner_wins_over_file(self, tmp_path):
         welcome = tmp_path / "welcome.txt"
         welcome.write_text("from the file", encoding="utf-8")
         server = self._server(welcome_banner="from the config",
                               welcome_file=welcome)
-        assert server._get_welcome_screen() == "from the config"
+        assert server.welcome_screen() == "from the config"
 
     def test_file_wins_when_no_banner(self, tmp_path):
         welcome = tmp_path / "welcome.txt"
         welcome.write_text("from the file", encoding="utf-8")
         server = self._server(welcome_file=welcome)
-        assert server._get_welcome_screen() == "from the file"
+        assert server.welcome_screen() == "from the file"
 
     def test_default_when_neither(self):
         server = self._server()
-        assert "Testia" in server._get_welcome_screen()
+        assert "Testia" in server.welcome_screen()
 
 
 class TestTickIntervalDefault:

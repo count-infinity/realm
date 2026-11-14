@@ -20,8 +20,9 @@ from typing import TYPE_CHECKING
 from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior
 from realm.core.checks import contest
-from realm.core.perception import break_stealth, can_see
+from realm.core.perception import can_see
 from realm.core.propagation import Action, propagate
+from realm.std.stealth.hiding import HIDDEN_TAG, break_stealth
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -33,7 +34,7 @@ async def _npc_say(npc: GameObject, message: str) -> None:
     """An NPC speaks through the propagation engine (real speech)."""
     if npc.location is None:
         return
-    from realm.core.verbs import speech_action
+    from realm.std.talk.verbs import speech_action
     action = speech_action(npc, message)
     action.tags.add("npc")
     await propagate(action)
@@ -77,7 +78,7 @@ class WatchfulBehavior(Behavior):
         if not (actor.is_player or actor.is_npc):
             return
 
-        if actor.has_tag('hidden'):
+        if actor.has_tag(HIDDEN_TAG):
             perception_skill = self.get_param('perception', 'observation')
             alertness = int(obj.db.get('alert_level') or 0)
             if contest(obj, perception_skill, actor, 'stealth',

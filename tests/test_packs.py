@@ -16,7 +16,7 @@ from realm.packs import (
     pack_files,
     pack_manifest,
 )
-from realm.systems import reload_rules
+from realm.std.rules.system import reload_rules
 from realm.testing import Simulator
 
 

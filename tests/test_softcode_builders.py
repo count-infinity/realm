@@ -17,7 +17,7 @@ import asyncio
 
 import pytest
 
-from realm.behaviors.ticker import ScriptTickerBehavior
+from realm.scripting.ticker import ScriptTickerBehavior
 from realm.commands.olc.softcode import cmd_behavior, cmd_clone, cmd_trigger
 from realm.core.objects import GameObject
 from realm.core.safe_eval import eval_bool, eval_expression, validate_code
@@ -918,13 +918,13 @@ class TestWaits:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        engine.defer_waits = True   # virtual clock: fire on tick_waits()
+        engine.waits.defer = True   # virtual clock: fire on waits.tick()
         get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(crier, "on_cue")
         assert not any("Hear ye, later" in m for m in drain(sess))  # not yet
 
-        await engine.tick_waits()
+        await engine.waits.tick()
         assert any("Hear ye, later" in m for m in drain(sess))
 
     async def test_simple_wait_command_form(self):
@@ -934,11 +934,11 @@ class TestWaits:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        engine.defer_waits = True   # virtual clock: fire on tick_waits()
+        engine.waits.defer = True   # virtual clock: fire on waits.tick()
         get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(crier, "on_cue")
-        await engine.tick_waits()
+        await engine.waits.tick()
         assert any('crier says, "Boom!"' in m for m in drain(sess))
 
     async def test_halted_wait_does_not_fire(self):
@@ -947,21 +947,21 @@ class TestWaits:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        engine.defer_waits = True   # virtual clock: fire on tick_waits()
+        engine.waits.defer = True   # virtual clock: fire on waits.tick()
         get_world().engine.add_observer(engine.handle_action)
 
-        engine.schedule_wait(crier, 0, "say Too late!")
+        engine.waits.schedule(crier, 0, "say Too late!")
         crier.add_tag("halt")
-        await engine.tick_waits()
+        await engine.waits.tick()
         assert not any("Too late" in m for m in drain(sess))
 
     async def test_future_wait_not_due_yet(self):
         crier = GameObject("crier")
         engine = ScriptEngine()
-        engine.defer_waits = True   # virtual clock: fire on tick_waits()
-        engine.schedule_wait(crier, 300, "say Way later")
-        await engine.tick_waits()
-        assert len(engine._waits) == 1
+        engine.waits.defer = True   # virtual clock: fire on waits.tick()
+        engine.waits.schedule(crier, 300, "say Way later")
+        await engine.waits.tick()
+        assert len(engine.waits.pending) == 1
 
     async def test_real_timer_wait_fires_exactly(self):
         # Production path (no defer): each wait is its own asyncio timer and
@@ -970,14 +970,20 @@ class TestWaits:
         crier = GameObject("crier")
         crier.db.boom = "set_attr(me, 'fired', 1)"
 
-        engine = ScriptEngine()   # defer_waits stays False -> real timers
+        engine = ScriptEngine()   # waits.defer stays False -> real timers
         try:
-            engine.schedule_wait(crier, 0.02, "trigger me/boom")
+            engine.waits.schedule(crier, 0.02, "trigger me/boom")
             assert crier.db.get("fired") is None            # not yet
-            await asyncio.sleep(0.06)
-            assert crier.db.get("fired") == 1               # fired on its timer
+            # Fired on its own timer, with nothing pumping it. Poll rather
+            # than sleep a fixed slice: a GC pause in a full run can delay
+            # the loop past a tight margin.
+            for _ in range(100):
+                await asyncio.sleep(0.01)
+                if crier.db.get("fired") == 1:
+                    break
+            assert crier.db.get("fired") == 1
         finally:
-            engine.shutdown_waits()
+            engine.waits.shutdown()
 
     async def test_cancel_stops_real_timer(self):
         crier = GameObject("crier")
@@ -985,13 +991,13 @@ class TestWaits:
 
         engine = ScriptEngine()   # real timers
         try:
-            wid = engine.schedule_wait(crier, 0.05, "trigger me/boom")
-            assert engine.cancel_wait(wid) is True
+            wid = engine.waits.schedule(crier, 0.05, "trigger me/boom")
+            assert engine.waits.cancel(wid) is True
             await asyncio.sleep(0.08)
             assert crier.db.get("fired") is None            # defused
-            assert len(engine._waits) == 0
+            assert len(engine.waits.pending) == 0
         finally:
-            engine.shutdown_waits()
+            engine.waits.shutdown()
 
 
 # --- The banshee-wail pipeline: condition modifiers ------------------------------

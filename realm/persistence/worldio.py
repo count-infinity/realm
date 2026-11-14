@@ -178,7 +178,7 @@ async def import_objects(data: dict, persistence, *,
             "not in this world) — inherited hooks/commands are gone; "
             "include the template in the export or re-@parent by hand",
             name)
-    from realm.behaviors.scripted import report_unresolved
+    from realm.scripting.scripted_behavior import report_unresolved
     report_unresolved(results)
     return results
 
@@ -412,7 +412,7 @@ async def apply_plan(data: dict, plan: SyncPlan, persistence) -> dict:
         if persistence is not None:
             await persistence.save(obj)
 
-    from realm.behaviors.scripted import report_unresolved
+    from realm.scripting.scripted_behavior import report_unresolved
     report_unresolved(objs)
     return {'created': len(plan.create), 'updated': len(plan.update),
             'orphaned': len(plan.orphan)}

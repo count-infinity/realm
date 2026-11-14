@@ -11,7 +11,7 @@ If this file is green, the tutorial's typed lines work.
 
 One deliberate divergence: the tutorial paces its sequences with
 wait(4, ...) / wait(3, ...); here the delay is 0 so the Simulator's
-virtual clock (engine.tick_waits()) can drive them deterministically.
+virtual clock (engine.waits.tick()) can drive them deterministically.
 """
 
 from __future__ import annotations
@@ -187,7 +187,7 @@ def cell_exits_code(jetty_id: str, harbor_id: str) -> str:
 @pytest.fixture
 def world():
     from realm.behaviors.shop import ShopkeeperBehavior
-    from realm.systems import reload_rules
+    from realm.std.rules.system import reload_rules
 
     sim = Simulator()
     wilderness.reset()
@@ -344,7 +344,7 @@ async def pump(w, times: int = 12) -> None:
     """Advance the virtual clock: fire due waits, repeatedly (each step
     of a sequence schedules the next)."""
     for _ in range(times):
-        await w.engine.tick_waits()
+        await w.engine.waits.tick()
 
 
 def credits_of(obj) -> int:
@@ -403,7 +403,7 @@ class TestTheCrossing:
         await w.sim.do(w.alice, "pay 10 to the ferryman")
         await w.sim.do(w.alice, "passage")
         await w.sim.do(w.alice, "board")
-        await w.engine.tick_waits()                 # one stroke: out the gate
+        await w.engine.waits.tick()                 # one stroke: out the gate
         cell = w.ferry.location
         assert cell.has_tag("wildcell:gullwater:0,0")
 

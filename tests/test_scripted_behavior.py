@@ -14,7 +14,7 @@ import asyncio
 
 import pytest
 
-from realm.behaviors.scripted import ScriptedBehavior, find_behavior_def
+from realm.scripting.scripted_behavior import ScriptedBehavior, find_behavior_def
 from realm.core.behaviors import BehaviorRegistry
 from realm.testing import Simulator
 
@@ -276,7 +276,7 @@ class TestUnresolvedBehaviors:
     that must be said out loud, once per behavior id (KERNEL_PLAN 1.7)."""
 
     def test_reports_each_missing_id_once_with_its_count(self, world, caplog):
-        from realm.behaviors.scripted import report_unresolved
+        from realm.scripting.scripted_behavior import report_unresolved
         sim, bay, _bob = world
         a = sim.obj("vent a", location=bay)
         b = sim.obj("vent b", location=bay)
@@ -284,7 +284,7 @@ class TestUnresolvedBehaviors:
             obj.add_behavior(BehaviorRegistry.from_dict(
                 {"behavior_id": "ghost_def", "params": {}}))
 
-        with caplog.at_level("WARNING", logger="realm.behaviors.scripted"):
+        with caplog.at_level("WARNING", logger="realm.scripting.scripted_behavior"):
             problems = report_unresolved([a, b, bay])
 
         assert len(problems) == 1
@@ -293,7 +293,7 @@ class TestUnresolvedBehaviors:
         assert [r.getMessage() for r in caplog.records] == problems
 
     async def test_resolved_defs_are_not_reported(self, world):
-        from realm.behaviors.scripted import report_unresolved
+        from realm.scripting.scripted_behavior import report_unresolved
         sim, bay, bob = world
         await build_filter_def(sim, bob)
         filt = sim.obj("carbon filter", location=bay)
@@ -327,8 +327,9 @@ async def test_load_world_reports_unresolved_behaviors(caplog, world):
 
         server = GameServer.__new__(GameServer)
         server.persistence = pm
-        server._startup_room = None
-        with caplog.at_level("WARNING", logger="realm.behaviors.scripted"):
+        server.world = get_world()
+        server.world.startup_room = None
+        with caplog.at_level("WARNING", logger="realm.scripting.scripted_behavior"):
             await server._load_world()
 
         assert any("ghost_def" in r.getMessage() for r in caplog.records)

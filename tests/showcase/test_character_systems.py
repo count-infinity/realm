@@ -16,7 +16,7 @@ does), so injuries, encumbrance, hunger, and traits change rolls by their
 stated amounts. Effect beats are advanced by calling deliver_beat() by
 hand; ticker behaviors are fired with @tr; the death path (item 140) uses a
 diceless GURPS ruleset with resolve_round() fired by hand, and the clone
-bay's zero-second wait() fuse is pumped with tick_waits() (the Simulator
+bay's zero-second wait() fuse is pumped with waits.tick() (the Simulator
 defers waits to a virtual clock).
 """
 
@@ -437,7 +437,7 @@ class TestDeathCloning:
         controller = obj(sim, "resurrection controller")
         assert controller.db.get("fallen") == [cass.id]     # heard, filed
 
-        await sim.engine.tick_waits()                       # the wait(0) handoff
+        await sim.engine.waits.tick()                       # the wait(0) handoff
         assert cass.location is clonebay                    # reborn across the station
         assert not cass.has_tag("unconscious")              # and the tag stays off
         assert int(cass.db.get("hp")) == 30                 # restored to full
@@ -474,7 +474,7 @@ class TestDeathCloning:
         await combat.handle_death(dov)
         assert controller.db.get("fallen") == [cass.id, dov.id]
 
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert cass.location is clonebay
         assert dov.location is clonebay
         assert int(cass.db.get("clone_count")) == 1         # billed once each
@@ -488,7 +488,7 @@ class TestDeathCloning:
         deck = room(sim, "The Combat Deck")
         pip = sim.player("Pip", location=deck, hp=1, max_hp=12, credits=10)
         await combat.handle_death(pip)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert pip.location is room(sim, "The Clone Bay")    # nobody is left to rot
         assert int(pip.db.get("credits")) == 0              # the vat takes the lot
 
@@ -506,7 +506,7 @@ class TestDeathCloning:
 
         # The bay heard this death too — adata('fatal') was True, so it kept
         # its vats shut and filed nobody.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert not obj(sim, "resurrection controller").db.get("fallen")
 
 

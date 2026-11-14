@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.std.combat.actions import CombatAction
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -252,7 +253,7 @@ class CombatantBehavior(Behavior):
     }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
-        if action.action_type != ActionType.ON_DEATH or action.target is not obj:
+        if action.action_type != CombatAction.ON_DEATH or action.target is not obj:
             return
         death_msg = self.get_param('death_message')
         if death_msg and obj.location is not None:
@@ -351,7 +352,7 @@ class VenomousBehavior(Behavior):
     }
 
     async def on_react(self, obj: GameObject, action: Action) -> None:
-        if action.action_type != ActionType.ON_DAMAGE or action.actor is not obj:
+        if action.action_type != CombatAction.ON_DAMAGE or action.actor is not obj:
             return
         if action.blocked:
             return

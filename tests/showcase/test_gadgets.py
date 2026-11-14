@@ -15,7 +15,7 @@ it" section and driven through the real dispatcher, so a doc edit that
 breaks the build breaks this suite — drift is impossible rather than
 merely detectable.
 Timers are driven deterministically: script_ticker scripts via
-`@tr <obj>/on_tick`, wait() chains via engine.tick_waits() after
+`@tr <obj>/on_tick`, wait() chains via engine.waits.tick() after
 zeroing the tempo/delay data attribute, prompt() wizards by invoking
 the session's captured input handler — the same techniques the heist
 and economy arc tests use.
@@ -411,7 +411,7 @@ class TestMusicBox:
     async def _built(self, sim):
         room, bilda = workshop_and_builder(sim)
         await build(sim, bilda, MUSICBOX_BUILD)
-        # Test-only: zero the tempo so tick_waits() can fire each link of
+        # Test-only: zero the tempo so waits.tick() can fire each link of
         # the wait() chain deterministically (the gas-bomb fuse trick).
         await build(sim, bilda, ["@set music box/tempo = 0"])
         return room, bilda
@@ -426,14 +426,14 @@ class TestMusicBox:
 
         # Each wait() link plays one note and re-arms the next.
         sim.seen(kess)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "music box plays a bright, glassy arpeggio." in sim.seen(kess)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert ("music box plays three descending notes, like rain off "
                 "a roof." in sim.seen(kess))
 
         # The last turn: final note, then the wind-down — chain over.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         out = sim.seen(kess)
         assert ("music box plays a tiny waltz figure, slightly out of "
                 "tune." in out)
@@ -442,7 +442,7 @@ class TestMusicBox:
         assert find_one(sim, "music box").db.get("turns") == 0
 
         # Silence after: no pending waits remain.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert not any("music box plays" in line for line in sim.seen(kess))
 
     async def test_rewinding_stacks_turns_without_double_chains(self, sim):
@@ -455,7 +455,7 @@ class TestMusicBox:
 
         # One tick, exactly ONE note — a second chain would double up.
         sim.seen(bilda)   # drain the wind chatter
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         notes = [line for line in sim.seen(bilda) if "music box plays" in line]
         assert len(notes) == 1
 

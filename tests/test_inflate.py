@@ -4,7 +4,7 @@ One way to build an object from data (KERNEL_PLAN 5.3).
 
 from __future__ import annotations
 
-from realm.behaviors.scripted import ScriptedBehavior
+from realm.scripting.scripted_behavior import ScriptedBehavior
 from realm.core.inflate import inflate
 
 

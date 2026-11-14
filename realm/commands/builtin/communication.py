@@ -12,8 +12,8 @@ from __future__ import annotations
 from realm.commands import CommandContext
 from realm.commands.base import find_player
 from realm.core.action_tags import SOUND
-from realm.core.action_types import ActionType
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.std.talk.actions import TalkAction
 
 
 async def cmd_say(ctx: CommandContext) -> None:
@@ -33,7 +33,7 @@ async def cmd_say(ctx: CommandContext) -> None:
         await ctx.session.send("You have nowhere to speak from.")
         return
 
-    from realm.core.verbs import do_say
+    from realm.std.talk.verbs import do_say
     action = await do_say(ctx.player, ctx.args)
     if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't speak here.")
@@ -62,7 +62,7 @@ async def cmd_pose(ctx: CommandContext) -> None:
     if ctx.player.location is None:
         return
 
-    from realm.core.verbs import do_pose
+    from realm.std.talk.verbs import do_pose
     action = await do_pose(ctx.player, ctx.args)
     if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't emote here.")
@@ -86,7 +86,7 @@ async def cmd_semipose(ctx: CommandContext) -> None:
     if location is None:
         return
 
-    from realm.core.verbs import do_semipose
+    from realm.std.talk.verbs import do_semipose
     action = await do_semipose(ctx.player, ctx.args)
     if action.blocked:
         ctx.player.msg(action.block_reason or "You can't emote here.")
@@ -107,7 +107,7 @@ async def cmd_emit(ctx: CommandContext) -> None:
     if ctx.player.location is None:
         return
 
-    from realm.core.verbs import do_emit
+    from realm.std.talk.verbs import do_emit
     action = await do_emit(ctx.player, ctx.args)
     if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't emit here.")
@@ -139,7 +139,7 @@ async def cmd_whisper(ctx: CommandContext) -> None:
 
     # do_whisper builds the actor/target/room lines and propagates; the
     # bystander room audience sees the vague "X whispers something to Y".
-    from realm.core.verbs import do_whisper
+    from realm.std.talk.verbs import do_whisper
     action = await do_whisper(ctx.player, target, message)
     if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't whisper here.")
@@ -165,7 +165,7 @@ async def cmd_ooc(ctx: CommandContext) -> None:
     action = Action(
         actor=ctx.player,
         target=location,
-        action_type=ActionType.OOC,
+        action_type=TalkAction.OOC,
         chain=ROOM_TARGET_CHAIN,
         extra={"message": message},
     )
@@ -202,7 +202,7 @@ async def cmd_shout(ctx: CommandContext) -> None:
     action = Action(
         actor=ctx.player,
         target=location,
-        action_type=ActionType.SHOUT,
+        action_type=TalkAction.SHOUT,
         chain=ROOM_TARGET_CHAIN,
         # 'sound' tag lets behaviors react to any noisy action regardless
         # of whether it's speech, shouting, combat, etc.

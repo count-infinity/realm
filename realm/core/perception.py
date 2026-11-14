@@ -12,6 +12,9 @@ Tag-driven (no rigid types, per REALM's object model):
   can't be targeted; invisible *actors* still act, but bystanders who
   can't see them read "Someone" in messages.
 - Admins and above see everything.
+- A feature adds rules of its own (``feature.sight_rule``): the ``stealth``
+  feature hides a ``hidden`` character, and ``feature.marker`` adds its
+  ``(hidden)`` marker to listings.
 
 The single naming entry point is :func:`perceived_name` (exposed as
 ``GameObject.get_display_name(looker)``) — message formatting, room
@@ -23,8 +26,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.core.action_types import ActionType
-
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -33,19 +34,9 @@ LIGHT_TAG = "light"
 NIGHTVISION_TAG = "nightvision"
 INVISIBLE_TAG = "invisible"
 SEE_INVISIBLE_TAG = "see_invisible"
-HIDDEN_TAG = "hidden"
-
-# Actions loud enough to break stealth. Movement is deliberately absent —
-# sneaking room to room is the point of hiding; Watchful observers contest it.
-LOUD_ACTIONS = {
-    ActionType.SPEECH, ActionType.SHOUT, ActionType.OOC,
-    ActionType.EMOTE, ActionType.SEMIPOSE, ActionType.EMIT,
-    ActionType.ON_GET, ActionType.ON_OPEN, ActionType.ON_CLOSE,
-    ActionType.ON_ATTACK,
-}
 
 
-def _sees_all(viewer: GameObject) -> bool:
+def sees_all(viewer: GameObject) -> bool:
     """Whether ``viewer`` sees through darkness and invisibility — the SEE_ALL
     entitlement (every built-in ADMIN+ has it; a custom role may too)."""
     from realm.permissions.entitlements import SEE_ALL
@@ -77,7 +68,7 @@ def can_see_room(viewer: GameObject | None, room: GameObject | None) -> bool:
         return True
     if room_is_lit(room):
         return True
-    return viewer.has_tag(NIGHTVISION_TAG) or _sees_all(viewer)
+    return viewer.has_tag(NIGHTVISION_TAG) or sees_all(viewer)
 
 
 def can_see(viewer: GameObject | None, obj: GameObject) -> bool:
@@ -86,22 +77,24 @@ def can_see(viewer: GameObject | None, obj: GameObject) -> bool:
 
     You always see yourself; admins see everything; invisibility beats
     normal sight; darkness hides everything in an unlit room from
-    viewers without nightvision.
+    viewers without nightvision. Then the world's sight rules
+    (``feature.sight_rule``): any False hides.
     """
     if viewer is None or viewer is obj:
         return True
-    if _sees_all(viewer):
+    if sees_all(viewer):
         return True
     if obj.has_tag(INVISIBLE_TAG) and not viewer.has_tag(SEE_INVISIBLE_TAG):
-        return False
-    # Hidden (active stealth) isn't countered by see_invisible — only by
-    # winning a contest (the `search` command, Watchful observers) or by
-    # the hider acting loudly.
-    if obj.has_tag(HIDDEN_TAG):
         return False
     location = obj.location
     if location is not None and not can_see_room(viewer, location):
         return False
+    from realm.core.world import find_world
+    world = find_world()
+    if world is not None:
+        for rule in world.sight_rules:
+            if rule(viewer, obj) is False:
+                return False
     return True
 
 
@@ -113,21 +106,26 @@ def display_markers(obj: GameObject, looker: GameObject | None) -> str:
 
         glowing   anyone (a ``glowing`` tag; ambient light cue)
         magic     lookers tagged ``detect_magic`` (or admins)
-        hidden    only admins/those who can see a still-hidden thing —
-                  so a builder sees WHY an item is special
-        invisible likewise, for a see_invisible looker
+        invisible a see_invisible looker (or admins)
+
+    then the world's markers (``feature.marker``: ``stealth`` shows
+    ``hidden`` to an admin, so a builder sees WHY an item is special).
     """
     marks = []
     if obj.has_tag('glowing'):
         marks.append('glowing')
     if obj.has_tag('magic') and looker is not None and (
-            looker.has_tag('detect_magic') or _sees_all(looker)):
+            looker.has_tag('detect_magic') or sees_all(looker)):
         marks.append('magic')
-    if obj.has_tag(HIDDEN_TAG) and looker is not None and _sees_all(looker):
-        marks.append('hidden')
     if obj.has_tag('invisible') and looker is not None and (
-            looker.has_tag('see_invisible') or _sees_all(looker)):
+            looker.has_tag('see_invisible') or sees_all(looker)):
         marks.append('invisible')
+    from realm.core.world import find_world
+    world = find_world()
+    for fn in (world.markers if world is not None else ()):
+        mark = fn(obj, looker)
+        if mark:
+            marks.append(mark)
     return f" ({', '.join(marks)})" if marks else ""
 
 
@@ -162,51 +160,16 @@ def perceived_name(obj: GameObject, looker: GameObject | None = None) -> str:
     return "something"
 
 
-def break_stealth(obj: GameObject, reason: str = "") -> bool:
-    """
-    Drop an object's ``hidden`` tag and announce it. Returns True if the
-    object was actually hidden.
-    """
-    if not obj.has_tag(HIDDEN_TAG):
-        return False
-    obj.remove_tag(HIDDEN_TAG)
-    obj.msg(reason or "You are no longer hidden.")
-    room = obj.location
-    if room is not None:
-        room.msg_contents(
-            f"{obj.name} emerges from hiding.", exclude=[obj],
-        )
-    return True
-
-
-async def stealth_observer(action) -> None:
-    """
-    Propagation observer: acting loudly breaks the actor's stealth.
-
-    Registered by GameServer alongside the script engine. Runs after
-    delivery, so bystanders hear the unattributed action ("Someone
-    says...") and THEN see the hider revealed — you gave yourself away.
-    """
-    actor = action.actor
-    if actor is None or action.blocked:
-        return
-    if action.action_type in LOUD_ACTIONS and actor.has_tag(HIDDEN_TAG):
-        break_stealth(actor, "Your action gives you away!")
-
-
 __all__ = [
     "DARK_TAG",
     "LIGHT_TAG",
     "NIGHTVISION_TAG",
     "INVISIBLE_TAG",
     "SEE_INVISIBLE_TAG",
-    "HIDDEN_TAG",
     "display_markers",
-    "LOUD_ACTIONS",
+    "sees_all",
     "room_is_lit",
     "can_see_room",
     "can_see",
     "perceived_name",
-    "break_stealth",
-    "stealth_observer",
 ]

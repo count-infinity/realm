@@ -37,7 +37,7 @@ the GURPS, D20 and Merc rulesets. A game that does not want some of them
 lists what it does want instead; this one has no combat and no money:
 
 ```python
-FEATURES = ["basics", "talk", "movement", "look", "items", "building", "game"]
+FEATURES = ["accounts", "basics", "talk", "movement", "look", "items", "building", "game"]
 ```
 
 A left-out feature's commands, behaviors and softcode functions do not

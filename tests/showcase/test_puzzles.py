@@ -20,7 +20,7 @@ Determinism:
   searcher at Observation 13 clears conceal_difficulty <= 3 and no more.
 - `wait()` chains (the Simon flashes, the escape-room countdown) run on the
   Simulator's virtual clock: the builds set the beat/interval to 0 so a
-  pumped `tick_waits()` fires the due waits immediately.
+  pumped `waits.tick()` fires the due waits immediately.
 - `on_tick` (the shifting maze) is driven by `run_object_script(warden,
   'on_tick')` — exactly what the `script_ticker` behavior calls, run as the
   warden, deterministically.
@@ -148,7 +148,7 @@ async def drain_waits(sim, times=10):
     """Pump the virtual clock: fire every wait already due (beat/interval
     are zeroed in the tests that use this, so due == immediately)."""
     for _ in range(times):
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
 
 
 # --- 209. Lever combination ----------------------------------------------------

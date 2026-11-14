@@ -15,7 +15,7 @@ straight out of its markdown and driven through the real dispatcher, so
 the tests execute what the docs actually say — a doc edit that breaks a
 build breaks this suite, and there is nothing left to drift.
 Time and dice are deterministic: script_ticker scripts fire via
-`@tr <obj>/on_tick`, wait() chains via engine.tick_waits() after
+`@tr <obj>/on_tick`, wait() chains via engine.waits.tick() after
 zeroing the lull/window attributes (the music-box trick), beat-driven
 effects via deliver_beat(), and every die roll is pinned by
 monkeypatching the two random sources (realm.core.dice for
@@ -641,7 +641,7 @@ class TestCookingBuffs:
 
 BUILD_130 = build_lines("130_fishing.md")
 
-# Test-only: collapse the real-time lull/window so tick_waits() drives
+# Test-only: collapse the real-time lull/window so waits.tick() drives
 # the bite chain deterministically (the music-box tempo trick).
 FAST_WATER = [
     "@set scum pond/lull = 0",
@@ -680,7 +680,7 @@ class TestFishing:
         assert ("A line is already out. Watch the float; hook when it "
                 "dips." in text(out))
 
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "The float dips hard -- something is on!" in text(sim.seen(bilda))
 
         pinned_water.dice["value"] = 2    # roll 6 vs 9: margin +3
@@ -693,7 +693,7 @@ class TestFishing:
         assert pond.db.get("line_out") is None
 
         # The stale window-closer finds the state gone and stays silent.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert ("The water stills." not in text(sim.seen(bilda)))
 
     async def test_windows_misses_and_guards(self, sim, pinned_water):
@@ -711,21 +711,21 @@ class TestFishing:
         out = await do(sim, bilda, "hook")
         assert ("You yank at still water; anything under the scum is "
                 "long warned off." in text(out))
-        await sim.engine.tick_waits()   # stale bite: line_out gone, silent
+        await sim.engine.waits.tick()   # stale bite: line_out gone, silent
         assert "The float dips" not in text(sim.seen(bilda))
 
         # Miss the window entirely: the pond closes it.
         await do(sim, bilda, "cast line")
-        await sim.engine.tick_waits()   # bite
+        await sim.engine.waits.tick()   # bite
         sim.seen(bilda)
-        await sim.engine.tick_waits()   # slack
+        await sim.engine.waits.tick()   # slack
         assert ("The water stills. The line drifts back slack, bait gone."
                 in text(sim.seen(bilda)))
         assert pond.db.get("bite_open") is None
 
         # Blow the roll: the dice go on the record.
         await do(sim, bilda, "cast line")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         pinned_water.dice["value"] = 6    # roll 18 vs 9
         out = await do(sim, bilda, "hook")
         assert ("It spits the hook and is gone. (rolled 18 vs angling 9)"

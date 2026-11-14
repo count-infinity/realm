@@ -25,13 +25,13 @@ The one rule every hook can rely on: **``on_check`` sees the world before,
 stops the middle.**
 
 ```python
-from realm.core.action_types import ActionType
 from realm.core.propagation import Action, ROOM_TARGET_CHAIN, propagate
+from realm.std.talk.actions import TalkAction
 
 action = Action(
     actor=player,
     target=room,
-    action_type=ActionType.SPEECH,      # == "event:speech"
+    action_type=TalkAction.SPEECH,      # == "event:speech"
     chain=ROOM_TARGET_CHAIN,
     extra={"message": "hello"},
 )
@@ -43,13 +43,17 @@ await propagate(action)
 ### Action types
 
 ``action_type`` is a ``namespace:verb`` string (``"event:on_enter"``,
-``"combat:on_damage"``, ``"item:on_get"``). The engine's own vocabulary
-lives in one place, ``realm.core.action_types.ActionType`` — a ``StrEnum``,
-so each member *is* its string: ``ActionType.ON_ENTER == "event:on_enter"``,
-it hashes into string sets, and it serialises as the plain string.
+``"combat:on_damage"``, ``"item:on_get"``). The kernel's own vocabulary
+(movement, looking, connection, failure, lifecycle) is
+``realm.core.action_types.ActionType``; each feature that owns more keeps its
+own enum next to it: ``TalkAction`` (``realm.std.talk.actions``),
+``ItemAction``, ``CombatAction``, ``EconomyAction``, ``AbilityAction``. Each is
+a ``StrEnum``, so each member *is* its string:
+``ActionType.ON_ENTER == "event:on_enter"``, it hashes into string sets, and it
+serialises as the plain string.
 
-Engine code always routes through the enum, and so should yours when you
-mean an engine event. The reason is a bug class, not style: a behavior
+Engine code always routes through an enum, and so should yours when you
+mean an engine or feature event. The reason is a bug class, not style: a behavior
 decides whether to react by comparing ``action.action_type``, so a typo'd
 literal (``"event:on_entre"``) never matches and the behavior **silently
 stops firing** — no error, just a dead feature. ``ActionType.ON_ENTRE``
@@ -67,17 +71,18 @@ async def on_react(self, obj, action):
 everything that hangs off it (``realm/core/eventdefs.py``):
 
 ```python
-feature.event(ActionType.ON_GET, hook="GET", doc="this object is picked up",
+feature.event(ItemAction.ON_GET, hook="GET", doc="this object is picked up",
               target_lock=("basic", "You can't pick up {name}."))
-feature.event(ActionType.SPEECH, doc="say", payload={"message": "what was said"},
-              speech=True, target_lock=("speech", "You can't speak here."))
+feature.event(TalkAction.SPEECH, doc="say", payload={"message": "what was said"},
+              speech=True, listen=True, target_lock=("speech", "You can't speak here."))
 ```
 
 The declaration gives the ``ON_<HOOK>`` softcode attribute, the line in the
 reference and ``@events``, the ``adata()`` keys (the generated payload table;
 ``tests/test_payload_docs_match_engine.py`` checks them against what the
-engine really sends), the lock enforced on the target or tool, and whether
-``{actor}`` is a voice (``voice_as``). A world without the owning feature
+engine really sends), the lock enforced on the target or tool, whether
+``{actor}`` is a voice (``voice_as``), and whether softcode ``^listen``
+triggers overhear its ``extra["message"]`` (``listen``; a whisper is not). A world without the owning feature
 has none of it: without ``items``, ``ON_GET`` is not a hook.
 
 Undeclared types stay legal: ability domains minted at runtime
@@ -119,7 +124,7 @@ than interpolating it, for both reasons.
 ```python
 @feature.speech_renderer
 def garble(body, action, looker):
-    if action.action_type != ActionType.SPEECH:
+    if action.action_type != TalkAction.SPEECH:
         return body
     tongue = action.actor.db.get('speaking')
     if tongue and looker and tongue not in (looker.db.get('languages') or []):
@@ -184,7 +189,7 @@ the feature that declares it.
 
 ```python
 # Gate an action (locks + behaviors may veto), then act:
-from realm.core.verbs import gate_item_action
+from realm.std.items.verbs import gate_item_action
 action = await gate_item_action(actor, "item:on_get", target,
                                 fail_msg="You can't.")
 if action is not None:
@@ -193,5 +198,5 @@ if action is not None:
     deliver_messages(action)
 ```
 
-The manipulation verb cores in ``realm/core/verbs.py`` are the
+The manipulation verb cores in ``realm/std/items/verbs.py`` are the
 reference implementations.

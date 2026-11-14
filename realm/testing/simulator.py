@@ -64,7 +64,7 @@ class Simulator:
         self.features = load(settings.features or CLASSIC)
         self.features.install_registries()
         self.store = MemoryStore()
-        # Virtual clock: waits fire when the test pumps tick_waits(), not on
+        # Virtual clock: waits fire when the test pumps waits.tick(), not on
         # wall-clock timers — deterministic like the rest of the Simulator.
         self.world = build_world(self.store, settings, defer_timers=True,
                                  features=self.features)

@@ -85,7 +85,7 @@ class TestEachVerb:
         await run(sim, alice, golem, "trigger chime")
         assert "ding" in heard(sim, alice)
         await run(sim, alice, golem, "wait 0 say later")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "later" in heard(sim, alice)
         await run(sim, alice, golem, "move north")
         assert golem.location is yard

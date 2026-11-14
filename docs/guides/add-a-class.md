@@ -25,7 +25,7 @@ as the in-box `TEMPLATES`. In your `rules.py`:
 ```python
 # rules.py  (created by `realm init` — already selected by config.py)
 from realm.systems.gurps import GurpsSystem, TEMPLATES
-from realm.systems.base import ChoiceStep
+from realm.std.rules.system import ChoiceStep
 
 MY_TEMPLATES = {
     **TEMPLATES,                       # keep the in-box classes (optional)

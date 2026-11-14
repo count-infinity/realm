@@ -35,7 +35,8 @@ world.observe(async_fn)                 # ... or for this world's life
 
 ## Canonical action builders
 
-``realm.core.verbs`` exports ``speech_action`` / ``pose_action`` and
-the manipulation cores (``do_get``, ``do_drop``, ``do_give``,
-``do_open``, ``do_close``) — use these instead of hand-building
-common shapes.
+``realm.std.talk.verbs`` exports ``speech_action`` / ``pose_action`` (and
+``do_say``, ``do_pose``, ...), and ``realm.std.items.verbs`` the manipulation
+cores (``gate_item_action``, ``do_get``, ``do_drop``, ``do_give``,
+``do_open``, ``do_close``) — use these instead of hand-building common
+shapes.

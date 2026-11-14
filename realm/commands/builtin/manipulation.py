@@ -1,6 +1,7 @@
 """
-Object manipulation: doors and containers, keys and lockpicks,
-wearables, hiding and searching.
+Object manipulation: doors and containers, keys, wearables. (Hiding,
+searching and lockpicking are the ``stealth`` feature's:
+``realm/std/stealth/commands.py``.)
 
 Everything is lean state on ordinary objects — capability and state are
 **tags**, values are attributes:
@@ -12,27 +13,21 @@ Everything is lean state on ordinary objects — capability and state are
   both: movement refuses closed exits, ``get from``/``put in`` refuse
   closed containers.
 - ``locked`` tag + ``db.key_id`` — physically locked; opened by a
-  carried key/keycard whose ``db.unlocks`` matches, by the ``pick``
-  skill command (``db.lock_difficulty``, ``db.lock_skill`` for
-  electronic locks), or by admins. Distinct from permission locks:
+  carried key/keycard whose ``db.unlocks`` matches, by ``stealth``'s
+  ``pick`` (``db.lock_difficulty``, ``db.lock_skill`` for electronic
+  locks), or by admins. Distinct from permission locks:
   locks/@lock decide who MAY, ``locked`` is what IS.
 - ``wearable`` tag + ``db.slot`` + ``db.grants_tags`` — worn gear can
   grant perception tags (nightvision goggles).
-- ``hidden`` tag — granted by the ``hide`` skill check, broken by loud
-  actions or a winning ``search``/Watchful contest.
-- ``invisible`` + ``db.conceal_difficulty`` — concealed scenery
-  (a safe behind a painting) revealed by ``search``.
 """
 
 from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object
-from realm.core.action_types import ActionType
-from realm.core.checks import check, contest
 from realm.core.objects import GameObject
-from realm.core.perception import room_is_lit
 from realm.core.propagation import Action, deliver_messages, gate_action
+from realm.std.items.actions import ItemAction
 
 
 def _find_thing_or_exit(ctx: CommandContext, name: str) -> GameObject | None:
@@ -84,7 +79,7 @@ async def cmd_open(ctx: CommandContext) -> None:
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
-    from realm.core.verbs import do_open
+    from realm.std.items.verbs import do_open
     await do_open(ctx.player, target)
 
 
@@ -104,7 +99,7 @@ async def cmd_close(ctx: CommandContext) -> None:
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
-    from realm.core.verbs import do_close
+    from realm.std.items.verbs import do_close
     await do_close(ctx.player, target)
 
 
@@ -145,7 +140,7 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
     if key is None:
         await ctx.session.send("You don't have the key.")
         return
-    if await _gated(ctx, ActionType.ON_LOCK, target, tool=key,
+    if await _gated(ctx, ItemAction.ON_LOCK, target, tool=key,
                     fail_msg="The lock won't catch.",
                     apply=lambda _a: target.add_tag('locked')) is None:
         return
@@ -175,60 +170,11 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
     if key is None:
         await ctx.session.send("You don't have the key.")
         return
-    if await _gated(ctx, ActionType.ON_UNLOCK, target, tool=key,
+    if await _gated(ctx, ItemAction.ON_UNLOCK, target, tool=key,
                     fail_msg="The lock holds fast.",
                     apply=lambda _a: target.remove_tag('locked')) is None:
         return
     ctx.player.msg(f"You unlock {target.name} with {key.name}.")
-
-
-async def cmd_pick(ctx: CommandContext) -> None:
-    """
-    Pick a lock with skill (lockpicking by default; a lock may demand
-    another skill via db.lock_skill — e.g. electronics).
-
-    Usage: pick <target>
-
-    Example:
-        pick chest             (lockpicking check; carry lockpicks)
-    """
-    if not ctx.player or not ctx.args:
-        await ctx.session.send("Pick what?")
-        return
-    target = _find_thing_or_exit(ctx, ctx.args.strip())
-    if not target:
-        await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
-        return
-    if not target.has_tag('locked'):
-        await ctx.session.send("It isn't locked.")
-        return
-
-    skill = target.db.get('lock_skill') or 'lockpicking'
-    modifier = -int(target.db.get('lock_difficulty') or 0)
-    # Proper tools matter: without lockpicks you're improvising.
-    if skill == 'lockpicking':
-        has_tools = any(item.has_tag('lockpicks') for item in ctx.player.contents)
-        if not has_tools:
-            modifier -= 5
-
-    result = check(ctx.player, skill, modifier)
-    if result.success:
-        # The same gated unlock event the `unlock` command fires — wards may
-        # veto a picked lock too, and ON_UNLOCK mirrors/alarms hear it.
-        # `picked` in the action data lets scripts tell a jimmy from a key.
-        if await _gated(ctx, ActionType.ON_UNLOCK, target, data={'picked': True},
-                        fail_msg=f"The lock on {target.name} defies your "
-                                 f"tools.",
-                        apply=lambda _a: target.remove_tag('locked')) is None:
-            return
-        ctx.player.msg(f"Click. You defeat the lock on {target.name}.")
-        if ctx.player.location:
-            ctx.player.location.msg_contents(
-                f"{ctx.player.get_display_name(None)} fiddles with {target.name}.",
-                exclude=[ctx.player],
-            )
-    else:
-        ctx.player.msg(f"The lock on {target.name} resists your attempt.")
 
 
 async def cmd_use(ctx: CommandContext) -> None:
@@ -276,7 +222,7 @@ async def cmd_use(ctx: CommandContext) -> None:
     if item is not None and item.db.get('unlocks') and \
             item.db.get('unlocks') == target.db.get('key_id'):
         now_locked = not target.has_tag('locked')
-        atype = ActionType.ON_LOCK if now_locked else ActionType.ON_UNLOCK
+        atype = ItemAction.ON_LOCK if now_locked else ItemAction.ON_UNLOCK
         fail = "The lock won't catch." if now_locked else "The lock holds fast."
 
         def _flip(_a):
@@ -293,7 +239,7 @@ async def cmd_use(ctx: CommandContext) -> None:
         return
 
     action = await _gated(
-        ctx, ActionType.ON_USE, target, tool=item,
+        ctx, ItemAction.ON_USE, target, tool=item,
         fail_msg=f"You can't use {'that on ' if item else ''}{target.name}.",
     )
     if action is None:
@@ -351,7 +297,7 @@ async def cmd_wear(ctx: CommandContext) -> None:
                 granted.append(tag)
         item.db.granted_active = granted
 
-    action = await _gated(ctx, ActionType.ON_WEAR, item,
+    action = await _gated(ctx, ItemAction.ON_WEAR, item,
                           fail_msg=f"You can't wear {item.name}.",
                           apply=_don)
     if action is None:
@@ -388,7 +334,7 @@ async def cmd_unwear(ctx: CommandContext) -> None:
         item.db.granted_active = []
 
     removing = await _gated(
-        ctx, ActionType.ON_REMOVE, item,
+        ctx, ItemAction.ON_REMOVE, item,
         fail_msg="You can't seem to take it off.",
         apply=_doff)
     if removing is None:
@@ -400,80 +346,3 @@ async def cmd_unwear(ctx: CommandContext) -> None:
             f"{ctx.player.get_display_name(None)} takes off {item.name}.",
             exclude=[ctx.player],
         )
-
-
-# --- Stealth --------------------------------------------------------------------
-
-
-async def cmd_hide(ctx: CommandContext) -> None:
-    """
-    Slip out of sight (Stealth check; darkness helps).
-
-    Staying hidden lasts until you act loudly or someone spots you.
-
-    Usage: hide
-    """
-    if ctx.player.has_tag('hidden'):
-        await ctx.session.send("You are already hidden.")
-        return
-    room = ctx.player.location
-    modifier = 3 if (room is not None and not room_is_lit(room)) else 0
-
-    result = check(ctx.player, 'stealth', modifier)
-    if result.success:
-        ctx.player.add_tag('hidden')
-        await ctx.session.send("You slip out of sight.")
-    else:
-        await ctx.session.send("You can't find anywhere to hide.")
-
-
-async def cmd_search(ctx: CommandContext) -> None:
-    """
-    Search the room (Observation check): reveals concealed objects and
-    contests hidden characters' Stealth.
-
-    Usage: search
-    """
-    if not ctx.player or not ctx.player.location:
-        return
-    room = ctx.player.location
-    found: list[str] = []
-
-    for obj in list(room.contents):
-        if obj is ctx.player:
-            continue
-        if obj.has_tag('hidden'):
-            is_character = obj.is_player or obj.is_npc
-            if is_character:
-                # A hidden PERSON opposes with their Stealth.
-                won = contest(ctx.player, 'observation', obj, 'stealth')
-            else:
-                # A concealed OBJECT has no Stealth — a flat Observation
-                # check against its conceal_difficulty (default 0).
-                diff = int(obj.db.get('conceal_difficulty') or 0)
-                won = check(ctx.player, 'observation', -diff).success
-            if won:
-                obj.remove_tag('hidden')
-                found.append(obj.get_display_name(ctx.player))
-                if is_character:
-                    obj.msg(f"{ctx.player.name} spots you!")
-                    room.msg_contents(
-                        f"{ctx.player.name} spots {obj.name} hiding!",
-                        exclude=[ctx.player, obj],
-                    )
-        elif obj.has_tag('invisible') and obj.db.get('conceal_difficulty') is not None:
-            result = check(ctx.player, 'observation',
-                           -int(obj.db.get('conceal_difficulty') or 0))
-            if result.success:
-                obj.remove_tag('invisible')
-                reveal = obj.db.get('reveal_msg') or f"{ctx.player.name} uncovers {obj.name}!"
-                found.append(obj.name)
-                room.msg_contents(reveal, exclude=[ctx.player])
-                ctx.player.msg(reveal)
-
-    if found:
-        await ctx.session.send(f"Your search turns up: {', '.join(found)}.")
-    else:
-        await ctx.session.send("You find nothing unusual.")
-
-

@@ -200,7 +200,7 @@ class CommandDispatcher:
                 )
                 await self._login_handler(ctx)
             else:
-                await session.send("You must log in first.")
+                await session.send("This world has no login feature installed.")
             return
 
         # Parse the command

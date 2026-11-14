@@ -33,6 +33,7 @@ class EventDef:
     target_lock: tuple[str, str] | None = None   # (lock type, failure template)
     tool_lock: tuple[str, str] | None = None
     speech: bool = False                   # {actor} is a voice (see voice_as)
+    listen: bool = False                   # extra["message"] reaches ^listen triggers
     owner: str = "kernel"
 
 

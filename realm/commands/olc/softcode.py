@@ -60,7 +60,7 @@ async def cmd_behavior(ctx: CommandContext) -> None:
         return
 
     if ctx.switches and ctx.switches[0].lower() == 'info':
-        from realm.behaviors.scripted import describe_behavior_def, find_behavior_def
+        from realm.scripting.scripted_behavior import describe_behavior_def, find_behavior_def
         ident = (ctx.left_args or '').strip()
         if not ident:
             await ctx.session.send(

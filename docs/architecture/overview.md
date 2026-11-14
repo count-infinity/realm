@@ -79,8 +79,12 @@ The server layer contains the game logic:
   `setting("EMOTE_SIGIL")`. Nothing else is pushed into module globals at
   boot, so two worlds in one process switch with `use_world`.
 - **GameServer** - Opens the store, calls `build_world`, loads the world,
-  then runs the login flow, tick and reap loops, and protocol servers. It
-  logs every setting that differs from its default at INFO
+  then runs the tick and reap loops and protocol servers. Every line of
+  input goes the same way: the session's own prompt, then the features'
+  input interceptors, then the dispatcher. Logging in and character
+  creation are the `accounts` feature's (`feature.login` fills the
+  dispatcher's login slot; a chargen interceptor takes a character still in
+  creation). It logs every setting that differs from its default at INFO
 - **CommandDispatcher** - Routes commands to handlers (permissions, categories)
 - **ScriptEngine** - Softcode: `$`-commands, `^listen`, `ON_<EVENT>` triggers, tickers
 - **GameSystem** - The swappable rules package (GURPS/D20: chargen, skills, combat ruleset)

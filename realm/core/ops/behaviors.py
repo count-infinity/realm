@@ -32,8 +32,8 @@ def _attached(obj: GameObject, behavior_id: str) -> Behavior | None:
 
 def check_attach_behavior(actor: GameObject | None, obj: GameObject,
                           behavior_id: str) -> None:
-    from realm.behaviors.scripted import find_behavior_def
     from realm.core.behaviors import BehaviorRegistry
+    from realm.scripting.scripted_behavior import find_behavior_def
     _require_build(actor, obj)
     if (BehaviorRegistry.get(str(behavior_id)) is None
             and find_behavior_def(str(behavior_id)) is None):

@@ -193,7 +193,7 @@ class TestMirrorHearsEveryPath:
             success = True
             margin = 5
         monkeypatch.setattr(
-            "realm.commands.builtin.manipulation.check",
+            "realm.std.stealth.commands.check",
             lambda *a, **k: _Pass())
 
         await sim.do(bilda, "pick vault door")

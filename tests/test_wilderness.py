@@ -668,7 +668,8 @@ async def test_reboot_reconciles_objects_with_dangled_locations(tmp_path, world)
         await pm2.load_all()
         server = GameServer.__new__(GameServer)
         server.persistence = pm2
-        server._startup_room = pm2.get_cached(start_id)
+        server.world = get_world()
+        server.world.startup_room = pm2.get_cached(start_id)
         await server._reconcile_orphaned_players()
 
         sword2 = pm2.get_cached(sword_id)
@@ -724,7 +725,8 @@ async def test_reconcile_empties_a_dangling_container_before_reaping_it(tmp_path
         await pm2.load_all()
         server = GameServer.__new__(GameServer)
         server.persistence = pm2
-        server._startup_room = pm2.get_cached(start_id)
+        server.world = get_world()
+        server.world.startup_room = pm2.get_cached(start_id)
         await server._reconcile_orphaned_players()
 
         start2 = pm2.get_cached(start_id)

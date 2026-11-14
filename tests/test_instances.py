@@ -452,11 +452,12 @@ async def test_reboot_reconciles_a_player_whose_instance_vanished(world):
         assert lost.location is None
 
         # __new__ skips __init__ deliberately: _reconcile_orphaned_players
-        # touches only .persistence and ._startup_room, and a full GameServer
+        # touches only .persistence and .world.startup_room, and a full GameServer
         # would drag in sockets/dispatcher we don't want in a unit test.
         server = GameServer.__new__(GameServer)
         server.persistence = pm
-        server._startup_room = start
+        server.world = get_world()
+        server.world.startup_room = start
         await server._reconcile_orphaned_players()
 
         assert lost.location is start

@@ -19,22 +19,32 @@ import glob
 import pathlib
 
 from realm.core.action_types import ActionType
+from realm.std.abilities.actions import AbilityAction
+from realm.std.combat.actions import CombatAction
+from realm.std.economy.actions import EconomyAction
+from realm.std.items.actions import ItemAction
+from realm.std.talk.actions import TalkAction
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 DOC = REPO / "docs" / "reference" / "softcode.md"
 
 
+#: The kernel's enum and each feature's, by the name call sites use.
+ACTION_ENUMS = {cls.__name__: cls for cls in (
+    ActionType, TalkAction, ItemAction, CombatAction, EconomyAction, AbilityAction)}
+
+
 def _action_type_value(node: ast.expr) -> str | None:
-    """The action type at a construction site: a string literal, or an
-    ``ActionType.X`` member (the enum that replaced the literals). Members
-    resolve through the real enum, so a stale name here raises KeyError
-    rather than silently vanishing from the derived table."""
+    """The action type at a construction site: a string literal, or a
+    member of ``ActionType`` or a feature's enum (``TalkAction.SPEECH``).
+    Members resolve through the real enum, so a stale name here raises
+    KeyError rather than silently vanishing from the derived table."""
     if isinstance(node, ast.Constant):
         return node.value if isinstance(node.value, str) else None
     if (isinstance(node, ast.Attribute)
             and isinstance(node.value, ast.Name)
-            and node.value.id == "ActionType"):
-        return ActionType[node.attr].value
+            and node.value.id in ACTION_ENUMS):
+        return ACTION_ENUMS[node.value.id][node.attr].value
     return None
 
 

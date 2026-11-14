@@ -18,11 +18,8 @@ from realm.core.objects import GameObject
 from realm.core.propagation import Action
 from realm.core.world import get_world
 from realm.gateway.session import Session
-from realm.systems import (
-    GurpsSystem,
-    MercSystem,
-    equipment_observer,
-)
+from realm.std.rules.system import equipment_observer
+from realm.systems import GurpsSystem, MercSystem
 
 
 def _player(name, location):

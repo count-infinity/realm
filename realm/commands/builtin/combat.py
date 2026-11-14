@@ -14,9 +14,9 @@ from realm.combat.manager import is_combat_capable
 from realm.combat.maneuver import QueuedAction
 from realm.commands import CommandContext
 from realm.commands.base import find_object
-from realm.core.action_types import ActionType
 from realm.core.checks import check
 from realm.core.world import get_world
+from realm.std.items.actions import ItemAction
 
 
 def _manager(ctx: CommandContext):
@@ -359,7 +359,7 @@ async def cmd_wield(ctx: CommandContext) -> None:
         return
 
     from realm.core.events import fire_event
-    wielding = await fire_event(ctx.player, weapon, ActionType.ON_WIELD, gated=True)
+    wielding = await fire_event(ctx.player, weapon, ItemAction.ON_WIELD, gated=True)
     if wielding.blocked:
         ctx.player.msg(wielding.block_reason or f"You can't ready {weapon.name}.")
         return
@@ -383,7 +383,7 @@ async def cmd_unwield(ctx: CommandContext) -> None:
     from realm.core.events import fire_event
     for item in ctx.player.contents:
         if item.has_tag('wielded'):
-            lowering = await fire_event(ctx.player, item, ActionType.ON_UNWIELD,
+            lowering = await fire_event(ctx.player, item, ItemAction.ON_UNWIELD,
                                         gated=True)
             if lowering.blocked:
                 ctx.player.msg(

@@ -1692,19 +1692,19 @@ its own `StrEnum`:
 
 String values do not change, so saved worlds and softcode are unaffected.
 
-- [ ] Split the enum. 27 engine files and 1 test file reference
+- [x] Split the enum. 27 engine files and 1 test file reference
       `ActionType.<MEMBER>`; rewrite each reference to its new enum.
-- [ ] `tests/test_payload_docs_match_engine.py::_action_type_value` resolves
+- [x] `tests/test_payload_docs_match_engine.py::_action_type_value` resolves
       `ActionType.X` by name. Teach it the five new enums.
 
 **`core/perception.py`.** The kernel keeps sight as a mechanism: `can_see`,
 `can_see_room`, `room_is_lit`, `display_markers`, `perceived_name`, the name
 resolvers, invisibility and darkness. Stealth leaves.
 
-- [ ] Add `register_sight_rule(fn)` with `fn(viewer, obj) -> bool | None`.
+- [x] Add `register_sight_rule(fn)` with `fn(viewer, obj) -> bool | None`.
       `False` hides, `None` has no opinion. `can_see` runs the rules after
       its own checks.
-- [ ] Move to `std/stealth/`: the `HIDDEN_TAG` branch of `can_see` (as a
+- [x] Move to `std/stealth/`: the `HIDDEN_TAG` branch of `can_see` (as a
       sight rule), the `hidden` marker of `display_markers` (as a marker
       rule on the same pattern), `break_stealth`, `stealth_observer` and the
       loud-action set at `perception.py:42`. Move `cmd_hide`, `cmd_search`
@@ -1712,20 +1712,20 @@ resolvers, invisibility and darkness. Stealth leaves.
 
 **`core/verbs.py`.** No kernel code remains in it.
 
-- [ ] `do_say`, `do_pose`, `do_semipose`, `do_emit`, `do_whisper`, the
+- [x] `do_say`, `do_pose`, `do_semipose`, `do_emit`, `do_whisper`, the
       `*_action` builders, `_speak` and the emote-reference parser move to
       `std/talk/verbs.py`.
-- [ ] `gate_item_action`, `do_get`, `do_drop`, `do_give`, `do_open`,
+- [x] `gate_item_action`, `do_get`, `do_drop`, `do_give`, `do_open`,
       `do_close` move to `std/items/verbs.py`.
-- [ ] Delete `core/verbs.py`.
+- [x] Delete `core/verbs.py`.
 
 **`scripting/engine.py`.** Steps 4 and 6 already moved the queue kinds and
 the verb handlers out. What is left is kernel.
 
-- [ ] Move the wait scheduler (`schedule_wait`, `cancel_wait`, `_wait_timer`,
+- [x] Move the wait scheduler (`schedule_wait`, `cancel_wait`, `_wait_timer`,
       `_deliver_wait`, `tick_waits`, `shutdown_waits`) to
       `scripting/waits.py` as a `WaitScheduler` owned by the engine.
-- [ ] Confirm the module imports nothing from `realm.std` or `realm.games`.
+- [x] Confirm the module imports nothing from `realm.std` or `realm.games`.
 
 **`scripting/functions.py`.** Task 3.4 split it into `scripting/lib/*.py`
 by owner. Now move each feature's file next to the feature
@@ -1737,27 +1737,27 @@ math and logic. Appendix A lists the owner of every function.
 **`server/game.py`.** The server keeps sockets, sessions, the tick loop, the
 reaper loop, start and stop. Login, character creation and `who` are policy.
 
-- [ ] Add an **input interceptor** list to the server:
+- [x] Add an **input interceptor** list to the server:
       `Feature.input_interceptor(fn, *, order=0)` with
       `async fn(world, session, line) -> bool`. `_on_command` runs: the
       session's own `input_handler`, then interceptors in order, then the
       dispatcher. The chargen branch at `server/game.py:800` becomes an
       interceptor.
-- [ ] Add `Feature.login(fn)` with `async fn(ctx) -> None`. It fills the
+- [x] Add `Feature.login(fn)` with `async fn(ctx) -> None`. It fills the
       dispatcher's existing login slot (`set_login_handler`), which receives
       input from a session with no player. Exactly one may be registered.
-- [ ] Create the feature `accounts` in `std/accounts/` and move
+- [x] Create the feature `accounts` in `std/accounts/` and move
       `_handle_login`, `_do_connect`, `_do_create`, `_handle_chargen`,
       `_enter_world`, `_announce_connect`, `_do_who`, `_get_welcome_screen`
       and `_default_welcome_screen` into it. `accounts` requires nothing;
       it reads `world.rules` for chargen steps when a rules system exists.
-- [ ] Add `accounts` to `CLASSIC`. With no login handler registered the
+- [x] Add `accounts` to `CLASSIC`. With no login handler registered the
       server prints one line, "This world has no login feature installed."
-- [ ] `GameSystem`, `ChargenStep`, `ChoiceStep`, `resolve_game_system`,
+- [x] `GameSystem`, `ChargenStep`, `ChoiceStep`, `resolve_game_system`,
       `equipment_observer` and `reload_rules` move from `systems/base.py` to
       `std/rules/system.py`. `World.rules` is typed `Any | None`; the
       kernel never calls a method on it.
-- [ ] `behaviors/scripted.py` and `behaviors/ticker.py` are kernel: move
+- [x] `behaviors/scripted.py` and `behaviors/ticker.py` are kernel: move
       them to `scripting/scripted_behavior.py` and `scripting/ticker.py`.
 
 ### 7.5 Move the files
@@ -2669,3 +2669,13 @@ entry closed.
 | 2026-11-13 | 7.3 | `whisper` lost its `w` alias and `say` its `'` alias: `w` was always rewritten to `west` before lookup, so the alias never fired, and `'` is now a `say` token. `Feature.command(token=)` takes one character or a sequence (`say` has `"` and `'`); a duplicate token raises `FeatureError` ("command token"). | Collision with `movement`'s `w`. |
 | 2026-11-13 | 7.3 | `go`, the directions and a typed exit name share `commands/builtin/movement.walk`; a typed dead-end exit now says "That exit doesn't lead anywhere." like `go` (the dispatcher said "That exit leads nowhere you can reach."). `exit_by_name` keeps the dispatcher's exact-name, alias, unique-prefix match (ambiguous is no match, so the line falls through to `$`-commands). | One walk path. |
 | 2026-11-13 | 7.3 | A refusing traversal gate gets the kernel's room line ("X tries to go D and fails.") and `event:on_fail` with the gate's declared `reason` (`rules` declares `"skill"`, so `adata('reason')` is unchanged). Gates and after-traverse hooks are `World` lists filled by `install_runtime`. The `@examine` warning comes from `Feature.attributes` (filled by `traversal_gate(attrs=)`): `features.unloaded_attribute_owners` imports the built-in feature modules not in the world and names the owner of any attribute the object carries. | Mechanism for the plan's warning. |
+| 2026-11-13 | 7.4 | Every built-in feature is now a package `realm/std/<name>/` whose declarations are in `feature.py` (`BUILTIN` maps to `realm.std.<name>.feature`) and whose `__init__.py` is empty. A part (`actions.py`, `verbs.py`, `softcode.py`, `hiding.py`) must import without loading the feature: `realm/combat/*` still lives outside `std/` until batch E and imports `realm.std.combat.actions`, which would otherwise run the feature module and import `realm.combat` back. | Plan's paths `std/talk/actions.py` etc. need packages. |
+| 2026-11-13 | 7.4 | The script engine's `LISTENABLE_ACTIONS` (talk vocabulary in the kernel) became `feature.event(listen=True)`: `talk` declares it on say, shout, ooc and emit, never whisper. | The enum split would have left a kernel import of `TalkAction`. |
+| 2026-11-13 | 7.4 | Sight and markers are `feature.sight_rule` / `feature.marker` declarations filling `World.sight_rules` / `World.markers`, not a module-level `register_sight_rule` (the 7.2 pattern). `can_see` runs them after its own checks, so SEE_ALL still sees a hidden thing; feature markers follow the kernel's (`(invisible, hidden)` order). `perception.sees_all` is public for the stealth marker. Without `stealth`, `hidden` is only a tag. | 7.2: no module-level registries. |
+| 2026-11-13 | 7.4 | `cmd_pick` (now `std/stealth/commands.py`) calls `items`' `gate_item_action` instead of `manipulation._gated`, a duplicate; the `picked` key it sends became visible to the payload check and is declared on `item:on_unlock` (reference regenerated). | No private cross-module import. |
+| 2026-11-13 | 7.4 | A feature's softcode functions are plain functions in `std/<feature>/softcode.py`, declared by `feature.softfn(...)` in its `feature.py` with their group and flags (no import-time `owner=` registration). `scripting/lib/checks.py` split: the dice primitives stay kernel in `lib/dice.py`; `lib/travel.py` keeps `move_to`; `enter_instance` / `enter_wilderness` went to `instances` / `wilderness`. The generated reference still lists 104 functions. | CLAUDE.md rule: declare on a feature. |
+| 2026-11-13 | 7.4 | `WaitScheduler` (`scripting/waits.py`) is `engine.waits`: `schedule`, `cancel`, `tick`, `shutdown`, `defer`, `pending`. The engine keeps no `*_wait` wrappers; every caller (about 100 test lines) uses `engine.waits.*`. | No shims. |
+| 2026-11-13 | 7.4 | `accounts`: an `Accounts` service in `world.services["accounts"]` holds the login flow; `server/auth.py` moved to `std/accounts/auth.py` (the rate limit is per world) and `GameServer.auth` is gone. `accounts` fills the dispatcher's existing `welcome_screen` slot; the server greets a connection with it, or "This world has no login feature installed." (also what the empty login slot answers). `startup_room` is a `World` field (`GameServer.startup_room` reads and writes it). `accounts` is first in `CLASSIC`; the documented smaller-game `FEATURES` lists and the config template now include it. | A world needs a login. |
+| 2026-11-13 | 7.4 | `build_world` no longer resolves `GAME_SYSTEM`: `world.rules` starts None and `world.services["checks"]` neutral; the `rules` feature's `on_install` resolves the game system and calls `reload_rules()`, which fills the checks. This undoes the 7.2 choice that the kernel builds checks from the rules. `GameSystem`, `ChargenStep`, `ChoiceStep`, `resolve_game_system`, `equipment_observer`, `reload_rules` live in `realm.std.rules.system`; `realm.systems` exports only the three concrete systems (batch A moves them). | Plan: the kernel never calls `world.rules`. |
+| 2026-11-13 | 7.4 | Kernel imports of feature code left for 7.5/7.6: `core/defs.py` → `systems.definitions` (batch D), `core/wilderness.py` → `behaviors.spawner` (batch B), `features.py` → `combat.system.RulesetRegistry`, `commands/olc` → `std.rules.system.reload_rules` (batch F), `core/economy.py` reads `world.rules.currency_name` (batch C). `scripting/engine.py` imports nothing from `realm.std` or `realm.games`. | |
+| 2026-11-13 | 7.4 | `test_softcode_builders::TestWaits::test_real_timer_wait_fires_exactly` failed about one full run in three (a 20 ms timer checked after a fixed 60 ms sleep; it passes alone and in every subset). It now polls for up to a second, still with nothing pumping the wait. | Flaky under load, not a regression. |

@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import pytest
 
-from realm.core.action_types import ActionType
 from realm.core.checks import resolve_with_rule
 from realm.core.describe import DETAILS_ATTR, detail_lines
 from realm.core.propagation import Action
 from realm.permissions.locks import LockType, check_lock, set_lock
 from realm.scripting.inline import eval_inline
 from realm.scripting.registry import softcode_function, unregister
+from realm.std.items.actions import ItemAction
 from realm.testing import Simulator
 
 
@@ -48,7 +48,7 @@ async def _script(sim, thing, fn):
 
 
 async def _ward(sim, thing, viewer, fn):
-    action = Action(actor=viewer, target=thing, action_type=ActionType.ON_GET)
+    action = Action(actor=viewer, target=thing, action_type=ItemAction.ON_GET)
     await sim.engine.run_check_code(thing, action, f"set_adata('seen', {fn}())")
     return action
 

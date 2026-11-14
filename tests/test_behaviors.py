@@ -173,10 +173,10 @@ class TestBehaviorRegistry:
 
     def test_from_dict_unknown_id_falls_back_to_scripted(self):
         # An id with no Python class is assumed to name a behavior_def
-        # (see realm.behaviors.scripted): the load path must hand back a
+        # (see realm.scripting.scripted_behavior): the load path must hand back a
         # ScriptedBehavior rather than dropping the saved behavior, even
         # when the def object has not loaded yet.
-        from realm.behaviors.scripted import ScriptedBehavior
+        from realm.scripting.scripted_behavior import ScriptedBehavior
         data = {'behavior_id': 'unknown', 'params': {}}
         restored = BehaviorRegistry.from_dict(data)
         assert isinstance(restored, ScriptedBehavior)

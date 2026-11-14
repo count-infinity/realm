@@ -20,7 +20,8 @@ from realm.combat.rulesets.merc import MercRuleset
 from realm.combat.system import CombatSystem
 from realm.core.world import get_world
 from realm.persistence.worldio import import_objects
-from realm.systems import MercSystem, reload_rules
+from realm.std.rules.system import reload_rules
+from realm.systems import MercSystem
 from realm.systems.definitions import apply_class
 from realm.testing import Simulator
 

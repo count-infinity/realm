@@ -240,7 +240,7 @@ class TestTimedDoor:
         await sim.do(pat, "press switch")
         assert "countdown resets" in text(sim, pat)
         assert switch.db.get("pending") == 2
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         out = text(sim, pat)
         assert out.count("WHAM!") == 1
         assert door.has_tag("closed")
@@ -258,7 +258,7 @@ class TestTimedDoor:
         await sim.do(pat, "press switch")
         await sim.do(pat, "blast door")
         assert pat.location is vault
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert door.has_tag("closed")
         # Sealed again from outside...
         late = sim.player("Late", location=gen)
@@ -280,7 +280,7 @@ class TestTimedDoor:
         await sim.do(pat, "press switch")
         await sim.do(pat, "close blast door")   # hand-close mid-window
         sim.seen(pat)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         # The has_tag guard means no double "WHAM!" onto a shut door.
         assert "WHAM!" not in text(sim, pat)
         assert door.has_tag("closed")
@@ -551,7 +551,7 @@ class TestAirlock:
         await sim.do(pat, "cycle in")
         assert "pumps are already running" in text(sim, pat)
 
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         out = text(sim, pat)
         assert "outer door unseals" in out
         assert all(not f.has_tag("closed") for f in self._faces(sim, "outer door"))
@@ -568,7 +568,7 @@ class TestAirlock:
         await sim.do(pat, "outer door")
         assert pat.location is chamber
         await sim.do(pat, "cycle in")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "inner door unseals" in text(sim, pat)
         await sim.do(pat, "inner door")
         assert pat.location is deck

@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object, find_player, format_list
-from realm.core.action_types import ActionType
 from realm.core.economy import currency_name, get_credits
 from realm.core.language import numbered_name
 from realm.core.objects import GameObject
 from realm.core.propagation import deliver_messages
 from realm.core.render import group_contents
-from realm.core.verbs import do_drop, do_get, do_give, gate_item_action
+from realm.std.items.actions import ItemAction
+from realm.std.items.verbs import do_drop, do_get, do_give, gate_item_action
 
 
 def _summarize(items: list[GameObject]) -> str:
@@ -119,7 +119,7 @@ async def cmd_get(ctx: CommandContext) -> None:
             return
 
     # One verb core for typed and scripted gets (locks, behavior gates,
-    # and messages all live in realm.core.verbs.do_get).
+    # and messages all live in realm.std.items.verbs.do_get).
     await do_get(ctx.player, target)
 
 
@@ -149,7 +149,7 @@ async def _get_all(ctx: CommandContext, from_container=None) -> None:
         def _take(_a, item=item):
             item.location = ctx.player
         action = await gate_item_action(
-            ctx.player, ActionType.ON_GET, item,
+            ctx.player, ItemAction.ON_GET, item,
             fail_msg=f"You can't pick up {item.name}.",
             apply=_take,
         )
@@ -216,7 +216,7 @@ async def _drop_all(ctx: CommandContext) -> None:
         def _release(_a, item=item):
             item.location = ctx.player.location
         action = await gate_item_action(
-            ctx.player, ActionType.ON_DROP, item,
+            ctx.player, ItemAction.ON_DROP, item,
             fail_msg=f"You can't drop {item.name}.",
             apply=_release,
         )
@@ -329,7 +329,7 @@ async def cmd_put(ctx: CommandContext) -> None:
         item.location = container
 
     action = await gate_item_action(
-        ctx.player, ActionType.ON_PUT, container,
+        ctx.player, ItemAction.ON_PUT, container,
         tool=item,
         extra={"item": item},
         fail_msg=f"You can't put {item.name} in {container.name}.",

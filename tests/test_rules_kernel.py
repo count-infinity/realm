@@ -15,7 +15,7 @@ from realm.core.objects import GameObject
 from realm.scripting import softcode_function
 from realm.scripting.registry import unregister
 from realm.systems import GurpsSystem
-from realm.systems.base import GameSystem
+from realm.std.rules.system import GameSystem
 from realm.systems.gurps import BUILTIN_SKILL_DEFAULTS
 from realm.testing import Simulator
 

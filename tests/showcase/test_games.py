@@ -15,7 +15,7 @@ build breaks this suite, and there is nothing left to drift.
 Determinism: rand() is pinned via realm.scripting.lib.mathx.random,
 the dice kernel (roll/margin_under/skill_check/contest) via
 realm.core.dice.random; wait() chains run on the Simulator's virtual
-clock (engine.tick_waits()); prompt() wizards answer through the
+clock (engine.waits.tick()); prompt() wizards answer through the
 session's captured input handler — the same techniques the gadget and
 economy suites use.
 """
@@ -524,7 +524,7 @@ class TestTriviaHost:
     async def test_a_full_timed_round(self, sim):
         room, vala, kess, bob = parlor_and_staff(sim)
         await build(sim, vala, TRIVIA_BUILD)
-        # Test-only pacing: zero the window and tempo so tick_waits()
+        # Test-only pacing: zero the window and tempo so waits.tick()
         # can drive the clock deterministically.
         await do(sim, vala, "@set Quizmaster Quill/window = 0")
         await do(sim, vala, "@set Quizmaster Quill/tempo = 0")
@@ -544,15 +544,15 @@ class TestTriviaHost:
         assert "Kess has it: jupiter! Score: 1." in sim.seen(bob)
 
         # The beat timer asks the next question.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert any("Question 2: How many faces has a d20?" in line
                    for line in sim.seen(bob))
 
         # Nobody answers -> the window closes with the answer.
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert any("Time! The answer was: 20." in line
                    for line in sim.seen(bob))
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert any("Question 3: What do you pay a ferryman?" in line
                    for line in sim.seen(kess))
 
@@ -563,7 +563,7 @@ class TestTriviaHost:
         joined = "\n".join(out)
         assert "Kess -- 1" in joined and "Bob -- 1" in joined
 
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert any("That is the game! Top score: Bob, Kess with 1."
                    in line for line in sim.seen(kess))
 

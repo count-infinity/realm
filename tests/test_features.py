@@ -56,9 +56,10 @@ SOFTCODE_NAMES = [
 ]
 OBSERVERS = [
     'realm.combat.manager.CombatManager.hostile_observer',
-    'realm.core.perception.stealth_observer',
     'realm.scripting.engine.ScriptEngine.handle_action',
-    'realm.systems.base.equipment_observer', 'realm.systems.crime.crime_observer',
+    'realm.std.rules.system.equipment_observer',
+    'realm.std.stealth.hiding.stealth_observer',
+    'realm.systems.crime.crime_observer',
 ]
 BEHAVIOR_IDS = [
     'aggressive', 'caster', 'combatant', 'damage_over_time', 'decay', 'defensive',
@@ -289,6 +290,7 @@ class TestCollisions:
         ("softcode function", lambda f, tag: f.function(lambda: tag, name="same_fn")),
         ("ruleset", lambda f, tag: f.ruleset("same_rules", type(f"R{tag}", (), {}))),
         ("group formatter", lambda f, tag: f.group_formatter(lambda obj, n: tag)),
+        ("login handler", lambda f, tag: f.login(lambda ctx: None)),
     ])
     def test_two_features_one_name_raise_naming_both(self, kind, declare):
         a, b = self._pair(declare)

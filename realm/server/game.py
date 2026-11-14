@@ -30,15 +30,12 @@ from realm.core.propagation import (
     Action,
     propagate,
 )
-from realm.core.render import render_room
 from realm.core.world import World
 from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager
 from realm.scripting.engine import ScriptEngine
-from realm.server.auth import AuthService
 from realm.server.world import build_world
-from realm.systems.base import GameSystem
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +76,6 @@ class GameServer:
         # chargen, and dispatch see identical input from any protocol.
         self.session_manager.set_input_sink(self._on_command)
         self.persistence: PersistenceManager | None = None
-        self.auth: AuthService | None = None
 
         # Protocol servers - built-in
         self._telnet_server: TelnetServer | None = None
@@ -96,7 +92,6 @@ class GameServer:
         self._running = False
         self._tick_task: asyncio.Task[None] | None = None
         self._reap_task: asyncio.Task[None] | None = None
-        self._startup_room: GameObject | None = None
 
         # Callbacks
         self._on_start: list[Callable[[], Awaitable[None]]] = []
@@ -176,7 +171,7 @@ class GameServer:
         return self.world.services.get("combat") if self.world is not None else None
 
     @property
-    def game_system(self) -> GameSystem | None:
+    def game_system(self) -> Any | None:
         return self.world.rules if self.world is not None else None
 
     async def start(self) -> None:
@@ -198,7 +193,6 @@ class GameServer:
         )
         await self.persistence.initialize()
         await self.persistence.start_flush_loop()
-        self.auth = AuthService(self.persistence)
 
         # Wire the world (the same build_world the Simulator uses) before it
         # loads, so loading and init_world find the store through it.
@@ -240,12 +234,10 @@ class GameServer:
 
         await features.boot(self.world)
 
-        # Server-only wiring around the shared world.
-        self.dispatcher.set_login_handler(self._handle_login)
+        # Server-only wiring around the shared world. (The login handler and
+        # the welcome screen are the login feature's: `accounts`.)
         self.dispatcher.server = self  # @stats reads settings
         self.dispatcher.set_unknown_handler(self._handle_unknown)
-        # `logout` redisplays this without dropping the connection.
-        self.dispatcher.welcome_screen = self._get_welcome_screen
 
         # The world's heartbeat: drives tickable behaviors (patrols, AI)
         # and flushes sessions so NPC-initiated output reaches players
@@ -415,10 +407,10 @@ class GameServer:
 
         for obj in objects:
             if obj.has_tag('start_room'):
-                self._startup_room = obj
+                self.world.startup_room = obj
                 break
 
-        from realm.behaviors.scripted import report_unresolved
+        from realm.scripting.scripted_behavior import report_unresolved
         report_unresolved(objects)
         return len(objects)
 
@@ -444,7 +436,7 @@ class GameServer:
             if player.location is not None:
                 continue
             home = self.persistence.get_cached(player.db.get('home'))
-            dest = home or self._startup_room
+            dest = home or self.world.startup_room
             if dest is None:
                 continue
             player.location = dest
@@ -466,7 +458,7 @@ class GameServer:
             refuge = None
             if owner is not None and owner.is_player:
                 refuge = (owner_refuge(self.persistence, owner)
-                          or self._startup_room)
+                          or self.world.startup_room)
             if refuge is not None:
                 obj.location = refuge
                 await self.persistence.save(obj)
@@ -481,7 +473,7 @@ class GameServer:
                 try:
                     await ops.destroy(None, obj, self.persistence)
                 except ops.OpError as refused:
-                    obj.location = self._startup_room
+                    obj.location = self.world.startup_room
                     await self.persistence.save(obj)
                     logger.warning(
                         f"Reconciled {obj.name} ({obj.id}): stored location "
@@ -496,62 +488,23 @@ class GameServer:
     async def _ensure_startup_room(self) -> None:
         """Create a default startup room when neither the database nor
         init_world provided one."""
-        if self._startup_room or not self.persistence:
+        if self.world.startup_room or not self.persistence:
             return
 
-        self._startup_room = GameObject(
+        self.world.startup_room = GameObject(
             name="The Void",
             description="You are floating in an empty void. This is the default starting location.",
             tags=['room', 'start_room'],
         )
-        await self.persistence.save(self._startup_room)
+        await self.persistence.save(self.world.startup_room)
         logger.info("Created default startup room")
 
     async def _on_session_connect(self, session: Session) -> None:
-        """Called when a new session connects."""
-        welcome_text = self._get_welcome_screen()
-        await session.send(welcome_text)
-
-    def _get_welcome_screen(self) -> str:
-        """
-        Get the connection welcome screen.
-
-        Resolution order:
-        1. WELCOME_BANNER (inline in config.py — the most deliberate)
-        2. Configured welcome_file (WELCOME_FILE, resolved from the game
-           directory; default data/welcome.txt)
-        3. Falls back to default welcome message
-
-        Returns:
-            The welcome screen text to display on connection.
-        """
-        # An inline banner in config.py wins outright.
-        if self.settings.welcome_banner:
-            return self.settings.welcome_banner
-
-        # Try configured welcome file
-        if self.settings.welcome_file and self.settings.welcome_file.exists():
-            try:
-                return self.settings.welcome_file.read_text(encoding='utf-8')
-            except Exception as e:
-                logger.warning(f"Failed to read welcome file: {e}")
-
-        return self._default_welcome_screen()
-
-    def _default_welcome_screen(self) -> str:
-        """Return the default welcome screen."""
-        lines = [
-            "",
-            "=" * 60,
-            f"  Welcome to {self.settings.game_name}",
-            "  Powered by REALM",
-            "=" * 60,
-            "",
-            "Enter 'connect <name> <password>' to log in",
-            "Enter 'create <name> <password>' to create a new character",
-            "",
-        ]
-        return "\n".join(lines)
+        """Greet a new connection with the login feature's welcome screen."""
+        if self.dispatcher.welcome_screen is None:
+            await session.send("This world has no login feature installed.")
+            return
+        await session.send(self.dispatcher.welcome_screen())
 
     async def _on_session_disconnect(self, session: Session) -> None:
         """Called when a session disconnects."""
@@ -581,12 +534,12 @@ class GameServer:
                 await session.flush_output()
                 return
 
-        # Mid-chargen input goes to the chargen flow, not the dispatcher.
-        if (session.player is not None
-                and session.player.db.get('chargen_step') is not None):
-            await self._handle_chargen(session, command)
-            await session.flush_output()
-            return
+        # Then the features' interceptors, in order (``accounts`` routes a
+        # character still in creation to chargen).
+        for _order, interceptor in self.world.input_interceptors:
+            if await interceptor(self.world, session, command):
+                await session.flush_output()
+                return
 
         await self.dispatcher.dispatch(session, command)
 
@@ -596,192 +549,6 @@ class GameServer:
         # typed a command of their own.
         for s in self.session_manager.all_sessions():
             await s.flush_output()
-
-    async def _handle_login(self, ctx: CommandContext) -> None:
-        """Handle commands when not logged in."""
-        args = ctx.args.split()
-
-        if not args:
-            return
-
-        cmd = args[0].lower()
-
-        if cmd == 'connect' and len(args) >= 3:
-            name = args[1]
-            password = args[2]
-            await self._do_connect(ctx.session, name, password)
-
-        elif cmd == 'create' and len(args) >= 3:
-            name = args[1]
-            password = args[2]
-            await self._do_create(ctx.session, name, password)
-
-        elif cmd == 'quit':
-            await ctx.session.send("Goodbye!")
-            await self.session_manager.destroy_session(ctx.session)
-
-        elif cmd == 'who':
-            await self._do_who(ctx.session)
-
-        else:
-            await ctx.session.send(
-                "Commands: connect <name> <password>, create <name> <password>, who, quit"
-            )
-
-    async def _do_connect(self, session: Session, name: str, password: str) -> None:
-        """Handle the connect command (identity via AuthService)."""
-        if not self.persistence or not self.auth:
-            await session.send("Server not ready.")
-            return
-
-        player, error = await self.auth.authenticate(name, password)
-        if player is None:
-            await session.send(error)
-            return
-
-        # Link player to session
-        self.session_manager.link_player_to_session(session, player)
-
-        # A persistent softcode prompt outstanding from before a reboot
-        # resumes: the player's next line runs its callback again.
-        pending = player.db.get('input_prompt')
-        if pending and self.script_engine is not None:
-            self.script_engine._install_softcode_prompt(
-                player, "(resuming...)", pending.get('callback'),
-                pending.get('executor'), True)
-
-        # Warn if the character was made under a different rules package
-        # (config is boot-time-fixed; a mid-life swap leaves old sheets
-        # authored under the wrong rules).
-        made_under = player.db.get('game_system')
-        if (made_under and self.game_system
-                and made_under != self.game_system.system_id):
-            await session.send(
-                f"[!] {player.name} was created under the '{made_under}' "
-                f"rules but this server now runs '{self.game_system.system_id}'. "
-                "Your character sheet may not match the current rules.")
-
-        # Unfinished chargen resumes where it left off.
-        if player.db.get('chargen_step') is not None and self.game_system:
-            steps = self.game_system.chargen_steps()
-            index = min(int(player.db.get('chargen_step') or 0),
-                        max(0, len(steps) - 1))
-            await session.send("\nWelcome back — let's finish your character.\n")
-            if steps:
-                await session.send(steps[index].prompt(player))
-            return
-
-        await self._announce_connect(player, returning=True)
-
-        # Show room
-        await session.send(render_room(player.location, player))
-
-    async def _do_create(self, session: Session, name: str, password: str) -> None:
-        """Handle the create command (identity via AuthService)."""
-        if not self.persistence or not self.auth:
-            await session.send("Server not ready.")
-            return
-
-        player, error = await self.auth.create_account(
-            name, password, system=self.game_system)
-        if player is None:
-            await session.send(error)
-            return
-
-        self.session_manager.link_player_to_session(session, player)
-        await session.send(f"\nCharacter '{name}' created.")
-        if player.has_tag('god'):
-            await session.send(
-                "As the first character on this server you have SUPERUSER "
-                "powers (builder and admin commands — see 'help').")
-
-        steps = self.game_system.chargen_steps()
-        if steps:
-            player.db.chargen_step = 0
-            await self.persistence.save(player)
-            await session.send("")
-            await session.send(steps[0].prompt(player))
-            return
-
-        await self._enter_world(session, player)
-
-    async def _handle_chargen(self, session: Session, response: str) -> None:
-        """
-        Drive the game system's chargen flow (Template Method: the loop
-        lives here, the steps come from the system). State is
-        ``db.chargen_step`` — reboot-safe mid-creation.
-        """
-        player = session.player
-        if response.strip().lower() in ('quit', 'logout'):
-            await session.send("Goodbye! Your unfinished character will wait.")
-            await self.session_manager.destroy_session(session)
-            return
-        steps = self.game_system.chargen_steps() if self.game_system else []
-        index = int(player.db.get('chargen_step') or 0)
-
-        if not steps or index >= len(steps):
-            player.db.delete('chargen_step')
-            await self._enter_world(session, player)
-            return
-
-        if response.strip():
-            advance, feedback = steps[index].handle(player, response)
-            await session.send(feedback)
-            if advance:
-                index += 1
-        if index >= len(steps):
-            player.db.delete('chargen_step')
-            welcome = self.game_system.finish_chargen(player)
-            if self.persistence:
-                await self.persistence.save(player)
-                # Starting kit (a weapon, armor): async companion to
-                # finish_chargen, since minting items needs persistence.
-                await self.game_system.outfit_new_character(
-                    player, self.persistence)
-            await session.send(welcome)
-            await self._enter_world(session, player)
-        else:
-            player.db.chargen_step = index
-            await session.send("")
-            await session.send(steps[index].prompt(player))
-
-    async def _enter_world(self, session: Session, player: GameObject) -> None:
-        """Place a finished character in the world and announce them."""
-        if player.location is None:
-            player.location = self._startup_room
-        if self.persistence:
-            await self.persistence.save(player)
-        await session.send(f"\nWelcome to the world, {player.name}!\n")
-        await self._announce_connect(player, returning=False)
-        await session.send(render_room(player.location, player))
-
-    async def _announce_connect(self, player: GameObject, *, returning: bool) -> None:
-        """Tell the player and bystanders that the player has connected."""
-        location = player.location
-        if location is None:
-            return
-        verb = "has reconnected" if returning else "arrives"
-        action = Action(
-            actor=player,
-            target=location,
-            action_type=ActionType.CONNECT,
-            chain=ROOM_TARGET_CHAIN,
-            extra={"returning": returning},
-        )
-        if returning:
-            action.add_message("actor", f"\nWelcome back, {player.name}!\n")
-        action.add_message("room", f"{{actor}} {verb}.")
-        await propagate(action)
-
-    async def _do_who(self, session: Session) -> None:
-        """Show who is online."""
-        playing = self.session_manager.playing_sessions()
-        await session.send(f"\n{len(playing)} player(s) online:")
-        for s in playing:
-            if s.player:
-                idle = int(s.idle_time)
-                await session.send(f"  {s.player.name} (idle {idle}s)")
-        await session.send("")
 
     async def _tick_loop(self) -> None:
         """
@@ -890,9 +657,10 @@ class GameServer:
 
     @property
     def startup_room(self) -> GameObject | None:
-        """The room new characters and roomless players start in."""
-        return self._startup_room
+        """The room new characters and roomless players start in
+        (``world.startup_room``)."""
+        return self.world.startup_room if self.world is not None else None
 
     @startup_room.setter
     def startup_room(self, room: GameObject | None) -> None:
-        self._startup_room = room
+        self.world.startup_room = room

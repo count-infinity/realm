@@ -20,20 +20,16 @@ from realm.behaviors.npc import (
     StealBehavior,
     WatchfulBehavior,
 )
-from realm.behaviors.scripted import ScriptedBehavior
 from realm.behaviors.shop import ShopkeeperBehavior
 from realm.behaviors.spawner import (
     PopulationBehavior,
     RestockBehavior,
     SpawnerBehavior,
 )
-from realm.behaviors.ticker import ScriptTickerBehavior
 from realm.behaviors.zone_reset import ZoneResetBehavior
 
 __all__ = [
     "CasterBehavior",
-    "ScriptedBehavior",
-    "ScriptTickerBehavior",
     "SpawnerBehavior",
     "RestockBehavior",
     "PopulationBehavior",

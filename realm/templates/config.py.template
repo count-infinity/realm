@@ -39,7 +39,7 @@ GAME_SYSTEM = "rules.GameRules"
 # (talk, movement, items, building, combat, economy, ...); "game" is your
 # own game.py. Leave features out to build a smaller game, for example a
 # social game with no combat or money:
-#   FEATURES = ["basics", "talk", "movement", "look", "items", "building", "game"]
+#   FEATURES = ["accounts", "basics", "talk", "movement", "look", "items", "building", "game"]
 from realm.std import CLASSIC  # noqa: E402
 
 FEATURES = [*CLASSIC, "game"]

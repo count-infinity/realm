@@ -130,6 +130,7 @@ payload: its subject is `target`.
 | `event:whisper` | `message`: what was said | `talk` |
 | `item:on_give` | `item`: what was given (also the action's tool); target is the recipient | `items` |
 | `item:on_put` | `item`: what was put in; target is the container | `items` |
+| `item:on_unlock` | `picked`: True when a lockpick, not a key, opened it | `items` |
 
 ```
 @set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.

@@ -52,7 +52,7 @@ async def cmd_reload(ctx: CommandContext) -> None:
     """
     from realm.core.defs import all_defs, def_kinds, invalidate
     from realm.permissions.entitlements import reload_role_defs
-    from realm.systems import reload_rules
+    from realm.std.rules.system import reload_rules
     invalidate()                    # every in-world definition is re-read
     reload_rules()
     problems = reload_role_defs()   # custom role_def ranks take effect immediately
@@ -141,7 +141,7 @@ async def cmd_stats(ctx: CommandContext) -> None:
 
     engine = get_world().scripts
     if engine is not None:
-        lines.append(f"  scheduled waits: {len(engine._waits)}")
+        lines.append(f"  scheduled waits: {len(engine.waits.pending)}")
 
     manager = get_world().services.get("combat")
     if manager is not None:

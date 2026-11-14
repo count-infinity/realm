@@ -92,11 +92,15 @@ class Feature:
         self.queue_kinds: dict[str, Callable] = {}
         self.check_modifiers: list[Callable] = []
         self.fallbacks: list[Callable] = []
+        self.input_interceptors: list[tuple[int, Callable]] = []
+        self.logins: list[Callable] = []
         self.traversal_gates: list[tuple[Callable, str]] = []
         self.after_traverse_hooks: list[Callable] = []
         #: attribute name -> what reads it; ``@examine`` warns when an object
         #: carries one and this feature is not loaded.
         self.attributes: dict[str, str] = {}
+        self.sight_rules: list[Callable] = []
+        self.markers: list[Callable] = []
         self.name_resolvers: list[Callable] = []
         self.speech_renderers: list[Callable] = []
         self.group_formatters: list[tuple[Callable, bool]] = []
@@ -188,15 +192,17 @@ class Feature:
               payload: dict[str, str] | None = None,
               target_lock: tuple[str, str] | None = None,
               tool_lock: tuple[str, str] | None = None, speech: bool = False,
-              replace: bool = False) -> None:
+              listen: bool = False, replace: bool = False) -> None:
         """Declare an action type (or, with ``action_type=None``, a hook fired
         outside propagation): its ``ON_<hook>`` attribute, reference line,
         ``adata()`` payload keys, the lock checked on its target or tool
-        (``(lock type, failure template)``), and whether ``{actor}`` is a voice."""
+        (``(lock type, failure template)``), whether ``{actor}`` is a voice,
+        and whether its ``extra["message"]`` is overheard by softcode
+        ``^listen`` triggers (``listen``)."""
         from realm.core.eventdefs import EventDef
         self.events.append((EventDef(
             action_type, hook.upper() if hook else None, doc, dict(payload or {}),
-            target_lock, tool_lock, speech, owner=self.name), replace))
+            target_lock, tool_lock, speech, listen, owner=self.name), replace))
 
     def lock_type(self, name: str, *, default: str = "True", doc: str = "") -> None:
         """Declare a lock type and the expression it uses when no lock of the
@@ -256,6 +262,22 @@ class Feature:
         self.check_modifiers.append(fn)
         return fn
 
+    def input_interceptor(self, fn: Callable | None = None, *, order: int = 0):
+        """Declare an ``async (world, session, line) -> bool`` that sees a
+        line of input after the session's own prompt and before the
+        dispatcher, lowest ``order`` first. True means it consumed the line
+        (``accounts`` routes a character still in creation to chargen)."""
+        def declare(f: Callable) -> Callable:
+            self.input_interceptors.append((order, f))
+            return f
+        return declare if fn is None else declare(fn)
+
+    def login(self, fn: Callable) -> Callable:
+        """Declare the ``async (ctx) -> None`` that handles input from a
+        session with no player (``connect``, ``create``). One per game."""
+        self.logins.append(fn)
+        return fn
+
     def fallback(self, fn: Callable) -> Callable:
         """Declare an ``async (ctx) -> bool`` tried when no command matches,
         in feature order, before softcode ``$``-commands. Return True when it
@@ -281,6 +303,20 @@ class Feature:
         """Declare an ``async (actor, origin, destination, exit_obj, *,
         fleeing)`` run after anyone walks through an exit."""
         self.after_traverse_hooks.append(fn)
+        return fn
+
+    def sight_rule(self, fn: Callable) -> Callable:
+        """Declare a ``(viewer, obj) -> bool | None`` rule of sight, asked
+        after the kernel's (yourself, SEE_ALL, invisibility, darkness):
+        False hides ``obj`` from ``viewer``, None has no opinion. The
+        ``stealth`` feature hides a ``hidden`` character this way."""
+        self.sight_rules.append(fn)
+        return fn
+
+    def marker(self, fn: Callable) -> Callable:
+        """Declare a ``(obj, looker) -> str | None`` parenthetical marker on
+        a name in room listings (``a key (hidden)``), after the kernel's."""
+        self.markers.append(fn)
         return fn
 
     def name_resolver(self, fn: Callable) -> Callable:
@@ -456,6 +492,7 @@ class FeatureSet:
         audience_names = _Claims("audience")
         kind_names = _Claims("definition kind")
         formatters = _Claims("group formatter")
+        logins = _Claims("login handler")
         from realm.core.defs import kernel_kinds
         for dk in kernel_kinds():
             kind_names.claim(dk.name, dk.tag, "kernel", False)
@@ -497,6 +534,8 @@ class FeatureSet:
                 kinds.claim(kind, handler, f.name, False)
             for fn, replace in f.group_formatters:
                 formatters.claim("group_formatter", fn, f.name, replace)
+            for fn in f.logins:
+                logins.claim("login", fn, f.name, False)
             for dk in f.def_kinds:
                 kind_names.claim(dk.name, dk, f.name, False)
             for aname, resolver in f.audiences.items():
@@ -580,8 +619,13 @@ class FeatureSet:
                 world.dest_resolvers[name] = (fn, shared)
             for fn in f.fallbacks:
                 world.dispatcher.add_fallback(fn)
+            world.input_interceptors.extend(f.input_interceptors)
+            for fn in f.logins:
+                world.dispatcher.set_login_handler(fn)
             world.traversal_gates.extend(f.traversal_gates)
             world.after_traverse.extend(f.after_traverse_hooks)
+            world.sight_rules.extend(f.sight_rules)
+            world.markers.extend(f.markers)
             world.name_resolvers.extend(f.name_resolvers)
             world.speech_renderers.extend(f.speech_renderers)
             for fn, _replace in f.group_formatters:
@@ -590,6 +634,7 @@ class FeatureSet:
                 world.scripts.queue_kinds.update(f.queue_kinds)
             world.reapers.extend(f.reapers)
             world.protocols.extend(f.protocols)
+        world.input_interceptors.sort(key=lambda pair: pair[0])
         for f in self.features:
             for hook in f.install_hooks:
                 hook(world)
@@ -614,8 +659,8 @@ class FeatureSet:
 
 def _kernel_behaviors() -> list[type]:
     """Behaviors of the kernel's scripting runtime: always installed."""
-    import realm.behaviors.scripted  # noqa: F401  (installs the behavior_def fallback)
-    from realm.behaviors.ticker import ScriptTickerBehavior
+    import realm.scripting.scripted_behavior  # noqa: F401  (installs the behavior_def fallback)
+    from realm.scripting.ticker import ScriptTickerBehavior
     return [ScriptTickerBehavior]
 
 

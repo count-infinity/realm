@@ -22,7 +22,7 @@ Determinism:
   success iff effective skill >= 10;
 - script_ticker behaviors are pumped by calling the attached
   behavior's tick() directly (peaches, belts);
-- wait() runs on the Simulator's virtual clock (engine.tick_waits());
+- wait() runs on the Simulator's virtual clock (engine.waits.tick());
 - expiry is reaped by calling reap_expired() with a synthetic "now"
   past the grace period (trash bin).
 """
@@ -355,7 +355,7 @@ class TestTrashIncinerator:
                 "your mind: rummage <item>." in out)
         # The sweep is deferred one beat; the lease lands on the pump.
         assert peel.db.get("expires_at") is None
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert peel.db.get("expires_at") is not None
 
         # The pardon: timestamp gone, item back in hand.
@@ -369,7 +369,7 @@ class TestTrashIncinerator:
         # Commit both. Within the grace period nothing burns.
         await do(sim, bilda, "put banana peel in rubbish bin")
         await do(sim, bilda, "put broken hourglass in rubbish bin")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert await reap_expired(sim.store, now=time.time()) == 0
         assert peel.location is bin_
 
@@ -390,11 +390,11 @@ class TestTrashIncinerator:
         peel = find_one(sim, "banana peel")
 
         await do(sim, bilda, "put banana peel in rubbish bin")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         first = peel.db.get("expires_at")
         await do(sim, bilda, "rummage banana peel")
         await do(sim, bilda, "put banana peel in rubbish bin")
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert peel.db.get("expires_at") >= first  # a fresh 60s lease
 
 

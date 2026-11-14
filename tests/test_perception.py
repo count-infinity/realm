@@ -305,11 +305,21 @@ class TestDisplayMarkers:
         assert display_markers(wand, mundane) == ""
         assert display_markers(wand, mage) == " (magic)"
 
-    def test_hidden_marker_for_admin_only(self):
+    def test_hidden_marker_for_admin_only(self, classic_world):
+        """The stealth feature's marker; a mortal sees no (hidden)."""
         from realm.core.perception import display_markers
         key = GameObject("key", tags=["thing", "hidden"])
         admin = GameObject("Ada", tags=["player", "admin"])
+        mortal = GameObject("Bob", tags=["player"])
         assert display_markers(key, admin) == " (hidden)"
+        assert display_markers(key, mortal) == ""
+
+    def test_without_stealth_hidden_is_just_a_tag(self, world):
+        from realm.core.perception import can_see, display_markers
+        key = GameObject("key", tags=["thing", "hidden"])
+        bob = GameObject("Bob", tags=["player"])
+        assert can_see(bob, key)
+        assert display_markers(key, GameObject("Ada", tags=["player", "admin"])) == ""
 
     def test_room_render_shows_markers(self):
         room = GameObject("Cave", tags=["room"])

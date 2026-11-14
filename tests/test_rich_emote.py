@@ -19,8 +19,8 @@ from types import SimpleNamespace
 import pytest
 
 from realm.config.loader import Settings
-from realm.core.verbs import parse_emote_refs
 from realm.core.world import get_world, setting
+from realm.std.talk.verbs import parse_emote_refs
 from realm.testing import Simulator
 
 

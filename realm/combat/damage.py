@@ -24,14 +24,14 @@ from typing import TYPE_CHECKING
 from realm.combat.combatant import Combatant
 from realm.combat.ruleset import DamageResult, DamageType
 from realm.core.action_tags import HOSTILE
-from realm.core.action_types import ActionType
 from realm.core.propagation import Action, propagate
+from realm.std.combat.actions import CombatAction
 
 if TYPE_CHECKING:
     from realm.combat.ruleset import Ruleset
     from realm.core.objects import GameObject
 
-DAMAGE_EVENT = ActionType.ON_DAMAGE
+DAMAGE_EVENT = CombatAction.ON_DAMAGE
 
 
 async def deal_damage(
@@ -54,7 +54,7 @@ async def deal_damage(
         target=defender.obj,
         # Literal (not DAMAGE_EVENT) so the payload-doc AST scanner and a
         # plain grep both find this firing site.
-        action_type=ActionType.ON_DAMAGE,
+        action_type=CombatAction.ON_DAMAGE,
         tags={HOSTILE, *(tags or set())},
         extra={
             "damage": damage.total,

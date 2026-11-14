@@ -1,31 +1,14 @@
 """
-Game systems: swappable rules packages (GURPS, D20, yours).
+The built-in game systems: GURPS, D20, Merc.
 
-``GAME_SYSTEM`` in config.py is a dotted import path to a GameSystem
-subclass (e.g. ``"rules.GameRules"`` or ``"realm.systems.GurpsSystem"``),
-resolved by :func:`resolve_game_system`.
+A game system is a ``GameSystem`` subclass (``realm.std.rules.system``);
+``GAME_SYSTEM`` in config.py names one by dotted import path
+(``"realm.systems.GurpsSystem"``, ``"rules.GameRules"``), and the ``rules``
+feature resolves it.
 """
 
-from realm.systems.base import (
-    ChargenStep,
-    ChoiceStep,
-    GameSystem,
-    equipment_observer,
-    reload_rules,
-    resolve_game_system,
-)
 from realm.systems.d20 import D20System
 from realm.systems.gurps import GurpsSystem
 from realm.systems.merc import MercSystem
 
-__all__ = [
-    "ChargenStep",
-    "ChoiceStep",
-    "GameSystem",
-    "GurpsSystem",
-    "D20System",
-    "MercSystem",
-    "equipment_observer",
-    "reload_rules",
-    "resolve_game_system",
-]
+__all__ = ["GurpsSystem", "D20System", "MercSystem"]

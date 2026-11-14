@@ -8,9 +8,9 @@ from __future__ import annotations
 import pytest
 
 from realm.core.objects import GameObject
-from realm.server.auth import hash_password, verify_password
+from realm.std.accounts.auth import hash_password, verify_password
 from realm.systems import D20System, GurpsSystem
-from realm.systems.base import ChoiceStep, resolve_game_system
+from realm.std.rules.system import ChoiceStep, resolve_game_system
 
 
 class TestResolveGameSystem:
@@ -149,14 +149,14 @@ class TestAuth:
 class TestAuthService:
 
     def _service(self, **kw):
-        from realm.server.auth import AuthService
+        from realm.std.accounts.auth import AuthService
         from tests.test_olc import MockPersistence
         pers = MockPersistence()
         return AuthService(pers, **kw), pers
 
     async def _account(self, pers, name="Bob", password="s2"):
         from realm.core.objects import GameObject
-        from realm.server.auth import hash_password
+        from realm.std.accounts.auth import hash_password
         p = GameObject(name, tags=["player"])
         p.db.password = hash_password(password)
         pers.add(p)
@@ -269,7 +269,7 @@ class TestCheckResolution:
 class TestSystemStamp:
 
     def _service(self):
-        from realm.server.auth import AuthService
+        from realm.std.accounts.auth import AuthService
         from tests.test_olc import MockPersistence
         return AuthService(MockPersistence()), None
 

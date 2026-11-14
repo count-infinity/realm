@@ -36,7 +36,7 @@ Three verbs are the whole API:
 
 The Simulator runs on a **virtual clock**: `wait()` timers don't fire on
 wall-clock time, they wait for your test to pump `await
-sim.engine.tick_waits()`. That makes time deterministic — no `sleep`, no
+sim.engine.waits.tick()`. That makes time deterministic — no `sleep`, no
 flakiness — and it's how you test fuses, delays, and chains.
 
 ## Build it
@@ -95,7 +95,7 @@ async def test_fortune_cookie_and_relay():
         sim.seen(alice)
         await sim.do(alice, "ping drone")
         assert sim.seen(alice) == []          # the wait hasn't fired yet
-        await sim.engine.tick_waits()         # advance the virtual clock
+        await sim.engine.waits.tick()         # advance the virtual clock
         assert "The drone pings back." in "\n".join(sim.seen(alice))
     finally:
         sim.close()
@@ -176,7 +176,7 @@ but this harness, pointed at each build.
 - **Fixtures:** wrap `Simulator()` in a pytest fixture that `yield`s the
   world and calls `sim.close()` in a `finally` — every test starts clean.
 - **Virtual-clock chains:** a `wait()` that schedules another `wait()`
-  advances one `tick_waits()` at a time, so you can assert the state
+  advances one `waits.tick()` at a time, so you can assert the state
   *between* steps of a relay.
 - **Two players, one room:** assert that a `remit` reached the bystander
   and a `pemit` did *not* — the private/public boundary, tested.

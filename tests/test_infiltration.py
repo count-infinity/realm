@@ -16,10 +16,7 @@ from realm.behaviors import PatrolBehavior, WatchfulBehavior
 from realm.commands.builtin.communication import cmd_say
 from realm.commands.builtin.inventory import cmd_get
 from realm.commands.builtin.manipulation import (
-    cmd_hide,
     cmd_open,
-    cmd_pick,
-    cmd_search,
     cmd_unwear,
     cmd_use,
     cmd_wear,
@@ -28,6 +25,8 @@ from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.checks import CheckResult, check, checks, contest, skill_level
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
+from realm.std.stealth.commands import cmd_hide, cmd_pick, cmd_search
+from realm.std.stealth.hiding import hidden_from_sight, hidden_marker, stealth_observer
 from realm.core.perception import can_see, can_see_room
 from realm.core.world import get_world
 from realm.gateway.session import Session
@@ -47,6 +46,9 @@ def level_resolver(obj, skill, modifier):
 @pytest.fixture(autouse=True)
 def deterministic_checks(world):
     world.services["checks"].resolver = level_resolver
+    # The stealth feature's sight rule and marker, on this bare world.
+    world.sight_rules.append(hidden_from_sight)
+    world.markers.append(hidden_marker)
     yield
 
 
@@ -231,7 +233,7 @@ class TestDoors:
     async def test_skill_gated_exit(self):
         # The rules feature's gate, on this bare world.
         from realm.core.world import get_world
-        from realm.std.rules import skill_gate
+        from realm.std.rules.feature import skill_gate
         get_world().traversal_gates.append((skill_gate, "skill"))
         alley = GameObject("Alley", tags=["room"])
         landing = GameObject("Landing", tags=["room"])
@@ -363,9 +365,7 @@ class TestStealth:
         assert not can_see(bob, pro)
 
     async def test_loud_action_breaks_stealth(self):
-        get_world().engine.add_observer(
-            __import__("realm.core.perception", fromlist=["stealth_observer"]).stealth_observer
-        )
+        get_world().engine.add_observer(stealth_observer)
         room = GameObject("Room", tags=["room"])
         pro, sess = make_player("Pro", location=room, skill_stealth=13)
         await cmd_hide(make_ctx(sess))

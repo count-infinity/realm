@@ -17,7 +17,7 @@ Determinism: skill checks use the level resolver (success iff effective
 skill >= 10, contests go to the higher skill, ties to the opponent);
 combat swings use a diceless GURPS ruleset (3d6 always rolls 10, damage
 a flat 3 before DR). Encounter beats are fired by calling
-resolve_round() by hand; wait() fuses fire on tick_waits() pumps;
+resolve_round() by hand; wait() fuses fire on waits.tick() pumps;
 out-of-combat effect beats advance via deliver_beat().
 """
 
@@ -291,7 +291,7 @@ class TestGrenades:
         assert "A grenade bounces in" in text(sim, brick)
 
         sim.seen(mook)
-        await sim.engine.tick_waits()                  # the fuse runs out
+        await sim.engine.waits.tick()                  # the fuse runs out
         brick_out = text(sim, brick)
         assert "WHUMP." in brick_out
         assert "You dive clear of the blast!" in brick_out
@@ -312,10 +312,10 @@ class TestGrenades:
         await run_lines(sim, builder, ["@set frag grenade/fuse = 0"])
         await sim.do(zeke, "pull pin")
 
-        await sim.engine.tick_waits()                  # boom: still in hand
+        await sim.engine.waits.tick()                  # boom: still in hand
         assert "slips through Zeke's fingers!" in text(sim, builder)
         assert obj(sim, "frag grenade").location is bunker
-        await sim.engine.tick_waits()                  # the chained blast
+        await sim.engine.waits.tick()                  # the chained blast
         assert "WHUMP." in text(sim, zeke)
         assert int(zeke.db.get("hp")) < 30             # reflexes 7: no save
         assert objs(sim, "frag grenade") == []
@@ -339,7 +339,7 @@ class TestGrenades:
         await sim.do(mook, "throw grenade trench")
         assert "It caroms off the frame" in text(sim, builder)
         assert obj(sim, "frag grenade").location is limbo
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert objs(sim, "frag grenade")               # inert, intact
 
 

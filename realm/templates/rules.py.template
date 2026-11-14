@@ -40,7 +40,7 @@ class GameRules(GurpsSystem):
     # A "class" is a (blurb, stats, skills) entry offered at creation.
     # Uncomment to offer your own alongside (or instead of) the built-ins:
     #
-    # from realm.systems.base import ChoiceStep
+    # from realm.std.rules.system import ChoiceStep
     # from realm.systems.gurps import TEMPLATES
     #
     # MY_TEMPLATES = {

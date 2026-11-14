@@ -11,7 +11,8 @@ import pytest
 
 from realm.core.checks import skill_level
 from realm.core.world import find_world
-from realm.systems import GurpsSystem, reload_rules
+from realm.std.rules.system import reload_rules
+from realm.systems import GurpsSystem
 from realm.systems.definitions import define_class, define_skill
 from realm.testing import Simulator
 

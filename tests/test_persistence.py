@@ -458,7 +458,7 @@ class TestDirtySweep:
         """@destroy (via persistence.delete) drops the object from the behavior
         tick registry immediately, so a destroyed ticker stops ticking (and
         leaves @stats) instead of lingering as a phantom until GC."""
-        from realm.behaviors.ticker import ScriptTickerBehavior
+        from realm.scripting.ticker import ScriptTickerBehavior
         from realm.core.behaviors import behavior_owners
 
         db = tmp_path / "registry.db"

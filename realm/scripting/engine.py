@@ -24,7 +24,6 @@ MAX_SCRIPT_DEPTH so NPCs answering NPCs can't recurse forever.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -45,6 +44,7 @@ from realm.scripting.triggers import (
     unknown_verb,
 )
 from realm.scripting.verbs import installed as installed_verbs
+from realm.scripting.waits import WaitScheduler
 
 if TYPE_CHECKING:
     from realm.commands.dispatcher import CommandContext
@@ -53,22 +53,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
-
-# --- Ambient engine accessor -------------------------------------------------
-# Set by GameServer at startup so behaviors (script_ticker) and builder
-# commands (@tr) can reach the live engine — same pattern as the combat
-# manager and persistence manager.
-
-# Action types whose extra["message"] counts as overhearable speech.
-# Whispers are deliberately excluded — bystanders only see the vague
-# "X whispers something to Y" line, so scripts shouldn't overhear either.
-LISTENABLE_ACTIONS = {
-    ActionType.SPEECH,
-    ActionType.SHOUT,
-    ActionType.OOC,
-    ActionType.EMIT,
-}
 
 
 class ScriptEngine:
@@ -95,21 +79,9 @@ class ScriptEngine:
         self.queue_kinds: dict[str, Any] = {}
         self.dispatcher = None  # set by GameServer; enables force()
         self._depth = 0
-        # One-shot scheduled commands, keyed by a handle id so softcode can
-        # cancel a pending wait (LDMud call_out/remove_call_out; MOO
-        # fork/kill_task). Each wait is its OWN asyncio task sleeping the
-        # exact duration — a wait(0.15, ...) fires at 0.15s, not quantized to
-        # the heartbeat (see docs/design/time-and-beats.md, decision 2).
-        # value = (fire_at_monotonic, executor, command, timer_task).
-        # In-memory only — like MUSH @waits, pending waits don't survive a
-        # reboot; shutdown_waits() cancels the tasks on stop/reboot.
-        self._waits: dict[
-            str, tuple[float, GameObject, str, asyncio.Task[None] | None]] = {}
-        # Virtual-clock mode: when True (the Simulator sets it), waits do NOT
-        # spawn real timers — they wait for an explicit tick_waits() pump, so
-        # tests advance time deterministically. Production leaves it False and
-        # each wait fires on its own exact asyncio timer.
-        self.defer_waits: bool = False
+        # One-shot softcode waits (wait() / cancel_wait()); the Simulator
+        # sets ``waits.defer`` for a virtual clock it pumps with waits.tick().
+        self.waits = WaitScheduler(self._run_script_command)
 
     # --- Entry point: unknown command fallback ---
 
@@ -165,7 +137,11 @@ class ScriptEngine:
         room = self._action_room(action)
 
         # ^listen triggers on overheard speech
-        if action.action_type in LISTENABLE_ACTIONS and room is not None:
+        # (an event declared ``listen=True``: say, shout, ooc, emit; never a
+        # whisper, whose bystanders only see "X whispers something to Y")
+        from realm.core.eventdefs import installed as installed_events
+        event = installed_events().get(action.action_type)
+        if event is not None and event.listen and room is not None:
             message = action.extra.get("message")
             if message:
                 await self.handle_speech(action.actor, str(message), room,
@@ -708,93 +684,6 @@ class ScriptEngine:
         verb, rest = found
         await verb.handler(self, executor, rest)
 
-    # --- One-shot waits (fired from the server heartbeat) ---
-
-    def schedule_wait(self, executor: GameObject, seconds: float, command: str,
-                      *, wait_id: str | None = None) -> str:
-        """Schedule a script command to run *exactly* ``seconds`` from now.
-
-        Each wait is its own asyncio task (LDMud ``call_out`` / MOO ``fork``),
-        so precision is the event loop's, not the heartbeat's — a 0.15s fuse
-        fires at 0.15s. Returns the handle id; pass ``wait_id`` to register
-        under a caller-chosen id (so ``wait()`` can hand the id back before
-        the op drains). In-memory only — pending waits don't survive a reboot.
-        """
-        import time as _time
-        import uuid
-        seconds = max(0.0, min(float(seconds), 3600.0))
-        wait_id = wait_id or uuid.uuid4().hex
-        task = (None if self.defer_waits
-                else asyncio.ensure_future(self._wait_timer(wait_id, seconds)))
-        self._waits[wait_id] = (_time.monotonic() + seconds, executor,
-                                str(command), task)
-        return wait_id
-
-    def cancel_wait(self, wait_id: str, *, by: GameObject | None = None) -> bool:
-        """Cancel a pending wait by its handle. When ``by`` is given, only a
-        controller of the wait's executor may cancel it (the id alone is not
-        authority — it may have been stored in a readable attr)."""
-        entry = self._waits.get(wait_id)
-        if entry is None:
-            return False
-        if by is not None:
-            from realm.permissions.locks import controls
-            if not controls(by, entry[1]):
-                return False
-        entry = self._waits.pop(wait_id, None)
-        if entry is None:
-            return False
-        if entry[3] is not None:
-            entry[3].cancel()
-        return True
-
-    async def _wait_timer(self, wait_id: str, seconds: float) -> None:
-        """The per-wait timer: sleep the exact duration, then deliver."""
-        try:
-            if seconds > 0:
-                await asyncio.sleep(seconds)
-        except asyncio.CancelledError:
-            return
-        await self._deliver_wait(wait_id)
-
-    async def _deliver_wait(self, wait_id: str) -> None:
-        """Run a wait's command once. Atomically claims the entry (pop), so a
-        wait can't fire twice even if its timer and ``tick_waits`` race."""
-        entry = self._waits.pop(wait_id, None)
-        if entry is None:
-            return
-        _at, executor, command, _task = entry
-        if executor.is_halted:
-            return
-        await self._run_script_command(executor, command)
-
-    async def tick_waits(self) -> None:
-        """Fire any waits already due *now*, synchronously.
-
-        Production waits fire on their own exact timers; this is the
-        deterministic drive for tests (and a belt-and-suspenders catch-up if a
-        timer was starved). Only past-deadline waits fire — future ones wait
-        for their timer.
-        """
-        if not self._waits:
-            return
-        import time as _time
-        now = _time.monotonic()
-        due = [wid for wid, entry in self._waits.items() if entry[0] <= now]
-        for wid in due:
-            entry = self._waits.get(wid)
-            if entry is not None and entry[3] is not None:
-                entry[3].cancel()      # stop its timer; we deliver now
-            await self._deliver_wait(wid)
-
-    def shutdown_waits(self) -> None:
-        """Cancel every pending wait timer (stop/reboot — waits are in-memory
-        and don't survive it). Idempotent."""
-        for _at, _executor, _command, task in list(self._waits.values()):
-            if task is not None:
-                task.cancel()
-        self._waits.clear()
-
     async def _scripted_trigger(self, executor: GameObject, spec: str) -> None:
         """
         ``trigger <attr>`` runs the executor's own attribute;
@@ -899,9 +788,9 @@ class ScriptEngine:
                                 f"{refused.reason}")
             elif kind == 'wait':
                 seconds, command, wait_id = message
-                self.schedule_wait(obj, seconds, command, wait_id=wait_id)
+                self.waits.schedule(obj, seconds, command, wait_id=wait_id)
             elif kind == 'cancel_wait':
-                self.cancel_wait(str(message), by=functions.executor)
+                self.waits.cancel(str(message), by=functions.executor)
             elif kind == 'prompt':
                 text, callback, executor_id, persistent = message
                 self._install_softcode_prompt(

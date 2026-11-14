@@ -20,6 +20,12 @@ GAME_SYSTEM = "realm.systems.GurpsSystem"  # a built-in, unmodified (or ".D20Sys
 class in `rules.py`, so what it subclasses is the *only* place the rules
 are decided — there's no id string to fall out of sync with it.
 
+The `rules` feature (in `CLASSIC`) resolves it when the world is built and
+installs it as `world.rules`, with the world's skill checks resolving and
+defaulting through it. A world without `rules` has no game system: checks
+use the kernel's neutral 3d6 roll-under, and character creation has no
+steps. `GameSystem` and its helpers live in `realm.std.rules.system`.
+
 Three systems ship in-box:
 
 | | **GURPS** (`gurps`) | **D20** (`d20`) | **Merc** (`merc`) |
@@ -125,7 +131,7 @@ instead of a built-in. Put it in `rules.py` (replacing the scaffolded
 
 ```python
 # rules.py
-from realm.systems.base import GameSystem, ChoiceStep
+from realm.std.rules.system import GameSystem, ChoiceStep
 
 class SavageSystem(GameSystem):
     system_id = "savage"

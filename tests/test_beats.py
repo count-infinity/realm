@@ -221,7 +221,7 @@ class TestDoubleTickGuard:
             # The combat feature's on_boot hook; it touches only world.store.
             from types import SimpleNamespace
 
-            from realm.std.combat import _scrub_stale_combat_state
+            from realm.std.combat.feature import _scrub_stale_combat_state
             await _scrub_stale_combat_state(SimpleNamespace(store=pm))
 
             assert not mob.has_tag("in_combat")

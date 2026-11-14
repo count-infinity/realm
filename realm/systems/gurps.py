@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.defs import all_defs
-from realm.systems.base import ChoiceStep, GameSystem
+from realm.std.rules.system import ChoiceStep, GameSystem
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject

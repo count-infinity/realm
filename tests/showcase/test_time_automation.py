@@ -15,7 +15,7 @@ flows and assert outcomes.
 
 Time is virtual throughout: script_ticker heartbeats are advanced by
 hand (one tick() call fires an interval:1 on_tick once), wait() fuses
-fire on tick_waits() pumps (the Simulator defers waits to a virtual
+fire on waits.tick() pumps (the Simulator defers waits to a virtual
 clock), expire() lifetimes are reaped with a forged clock, and the
 zone_reset behavior is driven directly like tests/test_zone_reset.py.
 """
@@ -305,7 +305,7 @@ class TestDelayedActions:
         chamber = room(sim, "Ritual Chamber")
         bell = obj(sim, "ceremony bell")
         pip = sim.player("Pip", location=chamber)
-        # Zero the pause so the deferred waits are due on each tick_waits()
+        # Zero the pause so the deferred waits are due on each waits.tick()
         # pump (the same trick 056 uses with interval:0 — virtual clock).
         await sim.do(builder, "@set ceremony bell/gap = 0")
 
@@ -313,9 +313,9 @@ class TestDelayedActions:
         assert "The bell rings once." in text(sim, pip)
         assert bell.db.get("pending")
 
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "The bell rings twice." in text(sim, pip)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "The bell rings a third and final time." in text(sim, pip)
         assert bell.db.get("pending") is None   # chain finished
 
@@ -342,7 +342,7 @@ class TestDelayedActions:
 
         # The cancelled chain never rings again.
         sim.seen(pip)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "rings twice" not in text(sim, pip)
 
         # And with nothing pending, silence reports the dead panel.
@@ -396,11 +396,11 @@ class TestGlobalCountdown:
         assert "the Convergence in 3 minutes." in text(sim, at_docks)
         assert herald.db.get("pending")
 
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "the Convergence in 2 minutes." in text(sim, at_docks)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "the Convergence in 1 minutes." in text(sim, at_docks)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "the Convergence begins NOW!" in text(sim, at_plaza)
         assert "the Convergence begins NOW!" in text(sim, at_docks)
         assert herald.db.get("pending") is None
@@ -423,7 +423,7 @@ class TestGlobalCountdown:
 
         # Nothing fires after a scrub.
         sim.seen(mara)
-        await sim.engine.tick_waits()
+        await sim.engine.waits.tick()
         assert "begins NOW" not in text(sim, mara)
 
 

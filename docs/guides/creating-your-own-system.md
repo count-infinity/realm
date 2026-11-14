@@ -26,7 +26,7 @@ up front:
 
 | Surface | Class | What it owns |
 |---|---|---|
-| **`GameSystem`** (`realm.systems.base`) | you subclass it | *everything non-combat*: skill-check resolution, chargen, advancement, derived stats, currency |
+| **`GameSystem`** (`realm.std.rules.system`) | you subclass it | *everything non-combat*: skill-check resolution, chargen, advancement, derived stats, currency |
 | **Combat `Ruleset`** (`realm.combat.ruleset`) | you subclass it | *combat only*: attack, damage, armor, defeat |
 
 They're wired together by one line: your `GameSystem` sets
@@ -44,7 +44,7 @@ Put all of this in your game's `rules.py` (what `realm init` scaffolds and
 
 ```python
 # rules.py
-from realm.systems.base import GameSystem, ChoiceStep
+from realm.std.rules.system import GameSystem, ChoiceStep
 
 
 class PercentileSystem(GameSystem):

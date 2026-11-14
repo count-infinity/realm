@@ -145,7 +145,7 @@ async def _wait(engine, executor: GameObject, rest: str) -> None:
         seconds = float(parts[0])
     except ValueError:
         return
-    engine.schedule_wait(executor, seconds, parts[1])
+    engine.waits.schedule(executor, seconds, parts[1])
 
 
 async def _trigger(engine, executor: GameObject, rest: str) -> None:

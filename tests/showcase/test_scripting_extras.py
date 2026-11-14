@@ -384,7 +384,7 @@ class TestTestingYourGame:
         sim.seen(alice)
         await sim.do(alice, "ping drone")
         assert sim.seen(alice) == []                 # the wait hasn't fired
-        await sim.engine.tick_waits()                # advance the virtual clock
+        await sim.engine.waits.tick()                # advance the virtual clock
         assert "The drone pings back." in joined(sim.seen(alice))
 
 

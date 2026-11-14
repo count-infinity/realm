@@ -53,10 +53,16 @@ class World:
     store: Any
     engine: PropagationEngine
     dispatcher: CommandDispatcher
-    rules: Any                                   # the game system, if any
+    rules: Any | None                            # the game system (the rules feature's)
     scripts: ScriptEngine | None
     sessions: SessionManager | None
     features: FeatureSet | None = None
+    #: Where new characters and roomless players are placed (the server
+    #: sets it from a ``start_room``-tagged room, or makes one).
+    startup_room: Any = None
+    #: (order, async (world, session, line) -> bool): input a feature
+    #: consumes before the dispatcher sees it (character creation).
+    input_interceptors: list[tuple[int, Callable]] = field(default_factory=list)
     services: dict[str, Any] = field(default_factory=dict)  # e.g. "combat", "checks"
     reapers: list[Callable] = field(default_factory=list)   # async (store) sweeps
     protocols: list[tuple[str, type, dict[str, Any]]] = field(default_factory=list)
@@ -66,6 +72,8 @@ class World:
     traversal_gates: list[tuple[Callable, str]] = field(default_factory=list)
     #: async (actor, origin, destination, exit_obj, *, fleeing)
     after_traverse: list[Callable] = field(default_factory=list)
+    sight_rules: list[Callable] = field(default_factory=list)   # (viewer, obj) -> bool | None
+    markers: list[Callable] = field(default_factory=list)       # (obj, looker) -> str | None
     name_resolvers: list[Callable] = field(default_factory=list)      # perception
     speech_renderers: list[Callable] = field(default_factory=list)    # per listener
     group_formatter: Callable | None = None                           # contents lines

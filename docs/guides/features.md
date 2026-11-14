@@ -22,6 +22,7 @@ module path on `sys.path` (your game directory is on it, so `"game"` is
 
 | Feature | Gives you | Requires |
 |---|---|---|
+| `accounts` | the welcome screen; `connect`, `create`, `who`, `quit` at the login prompt; character creation from the game system's chargen steps | |
 | `basics` | help, commands, who, quit, logout, color, think, time, uptime, recall | |
 | `talk` | say, pose, semipose, emit, ooc, shout, whisper | |
 | `movement` | go and the directions, in, out | |
@@ -51,7 +52,7 @@ money; `attack`, `buy` and `damage()` are unknown there, and no NPC turns
 aggressive:
 
 ```python
-FEATURES = ["basics", "talk", "movement", "look", "items", "building", "game"]
+FEATURES = ["accounts", "basics", "talk", "movement", "look", "items", "building", "game"]
 ```
 
 ## Writing a feature
@@ -87,6 +88,8 @@ Everything a feature can declare:
 | Declaration | What it adds |
 |---|---|
 | `feature.command(name, handler, aliases=, permission=, category=, help_text=, usage=, parse_equals=, token=)` | a command (decorator when `handler` is omitted); `token=":"` makes `:text` run it |
+| `feature.login(fn)` | the `async (ctx)` that handles input from a session with no player (one per game; `accounts` declares it). Without one the server answers "This world has no login feature installed." |
+| `feature.input_interceptor(fn, order=)` | an `async (world, session, line) -> bool` that sees input before the dispatcher, lowest `order` first; True consumes the line (`accounts` routes chargen) |
 | `feature.fallback(fn)` | an `async (ctx) -> bool` tried when no command matches, before softcode `$`-commands (`movement` walks a typed exit name) |
 | `feature.traversal_gate(fn, reason=, attrs=)` | an `async (actor, exit_obj, direction) -> str \| None` asked before a walk through an exit; a string refuses with that line and fires `event:on_fail` with `reason`. `attrs` are the exit attributes it reads (`@examine` warns about them in a world without the feature) |
 | `feature.after_traverse(fn)` | an `async (actor, origin, destination, exit_obj, *, fleeing)` run after a walk (`social` brings followers) |
@@ -99,13 +102,15 @@ Everything a feature can declare:
 | `feature.reaper(fn)` | an `async (store)` sweep on the reap cadence |
 | `feature.queue_kind(kind, handler)` | a world op softcode queues for the event loop |
 | `feature.check_modifier(fn)` | a `(obj, skill) -> int` modifier folded into every check |
+| `feature.sight_rule(fn)` | `(viewer, obj) -> bool \| None`: after the kernel's sight (invisibility, darkness), False hides (`stealth` hides a `hidden` character) |
+| `feature.marker(fn)` | `(obj, looker) -> str \| None`: a parenthetical marker on a listed name (`a key (hidden)`) |
 | `feature.name_resolver(fn)` | `(obj, looker, current) -> name`: who an object appears to be (recognition, disguise) |
 | `feature.speech_renderer(fn)` | `(body, action, looker) -> body`: a spoken line per listener (languages, slurring) |
 | `feature.group_formatter(fn, replace=)` | `(obj, count) -> str`: how a grouped contents line reads (one per game) |
 | `feature.protocol(name, cls, **kwargs)` | a protocol server (see [Adding a Protocol](../protocols/adding-protocol.md)) |
 | `feature.setting(key, default, doc)` | a `config.py` key; read it with `world.setting(key)` |
 | `feature.script_verb(name, aliases=, token=, sugar=, doc=)` | a script command line (decorator) |
-| `feature.event(action_type, hook=, doc=, payload=, target_lock=, tool_lock=, speech=)` | an action type and its `ON_<HOOK>` |
+| `feature.event(action_type, hook=, doc=, payload=, target_lock=, tool_lock=, speech=, listen=)` | an action type and its `ON_<HOOK>`; `listen=True` lets `^listen` triggers overhear its message |
 | `feature.lock_type(name, default=, doc=)` | a lock type with a default expression |
 | `feature.entitlement(name, doc)` | an entitlement name |
 | `feature.audience(name)` | a message audience (decorator on its resolver) |
@@ -118,7 +123,8 @@ Behaviors, rulesets, destination resolvers and softcode functions are
 installed **before the world loads**, so a saved behavior always finds its
 class, with no import in `config.py`.
 
-Read the built-in features in `realm/std/` for worked examples: `combat.py`
+Read the built-in features in `realm/std/` for worked examples (each is a
+package; `feature.py` holds its declarations): `combat/feature.py`
 creates its manager in `on_install`, scrubs stale fight state in `on_boot`
 and declares two queue kinds.
 
