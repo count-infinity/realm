@@ -16,9 +16,11 @@ from realm import CLASSIC
 FEATURES = [*CLASSIC, "game"]          # every built-in, plus your game.py
 ```
 
-`FEATURES` unset means `CLASSIC`. A name is either a built-in feature or a
-module path on `sys.path` (your game directory is on it, so `"game"` is
-`game.py`). The built-in features:
+`FEATURES` unset means `CLASSIC`. A name is, in this order, a built-in
+feature, a feature an installed package provides
+([Add-on packages](#add-on-packages)), or a module path on `sys.path` (your
+game directory is on it, so `"game"` is `game.py`). `realm features` lists
+everything available. The built-in features:
 
 | Feature | Gives you | Requires |
 |---|---|---|
@@ -231,6 +233,66 @@ another feature's code is allowed only when you `requires` it
 `FEATURES`. A missing requirement raises `FeatureError` at load (`feature
 'crime' requires 'combat', which is not in FEATURES`). Requirements are
 never added for you: the list in `config.py` is the whole game.
+
+## Add-on packages
+
+A feature can be published as an ordinary Python package. The package
+declares it in the entry-point group `realm.features`:
+
+```toml
+# pyproject.toml of the realm-weather package
+[project.entry-points."realm.features"]
+weather = "realm_weather:feature"
+```
+
+```python
+# realm_weather/__init__.py
+from realm import Feature
+
+feature = Feature("weather", requires=["talk"], doc="Rain and shine.")
+```
+
+After `pip install realm-weather`, a game enables it by name:
+
+```python
+FEATURES = [*CLASSIC, "weather", "game"]
+```
+
+Installing a package makes a feature **available, not enabled**: nothing
+in it runs, or is even imported, until a game lists it. Its requirements
+are checked like a built-in's.
+
+The rules, each a `FeatureError` at load:
+
+- The entry-point name is the feature's name: `weather` must load
+  `Feature("weather")`, and must load a `Feature`.
+- A package may not claim a built-in's name. This fails every load, not
+  only one that lists the name, so a package that shadows `combat` is
+  found at once.
+- Two installed packages may not claim the same name.
+
+### `realm features`
+
+Run in a game directory, `realm features` lists every available feature:
+the built-ins, each installed package's (with the package and version) and
+the game directory's own (the module paths in `FEATURES`), with what each
+requires and how many commands, behaviors, softcode functions and other
+declarations it makes. A `*` marks the ones `FEATURES` lists.
+
+```text
+$ realm features
+combat   * built-in; requires rules, items; 10 commands, 6 behaviors, 3 softcode functions, ...
+weather    installed: realm-weather 1.0; requires talk; 1 command, 1 setting
+mygame   * game directory (game); requires talk; 2 commands
+```
+
+`realm features --check` loads `FEATURES` the way `realm start` would, and
+reports a missing requirement or a collision without starting the server:
+
+```text
+$ realm features --check
+FEATURES does not load: command 'forecast' is declared by both 'weather' and 'mygame'. ...
+```
 
 ## In tests
 

@@ -311,6 +311,47 @@ async def cmd_start(args: argparse.Namespace) -> int:
     return 0
 
 
+def _plural(label: str, n: int) -> str:
+    return f"{n} {label[:-1] if n == 1 and label.endswith('s') else label}"
+
+
+def cmd_features(args: argparse.Namespace) -> int:
+    """List every available feature, or (``--check``) load this game's
+    ``FEATURES`` and report collisions and missing requirements."""
+    from realm.features import FeatureError, available, feature_names, load
+
+    try:
+        settings = load_config()
+    except FeatureError as exc:
+        print(f"FEATURES does not load: {exc}")
+        return 1
+    if args.check:
+        try:
+            loaded = load(settings.features)
+        except FeatureError as exc:
+            print(f"FEATURES does not load: {exc}")
+            return 1
+        print(f"OK: {len(loaded.names)} features ({', '.join(loaded.names)})")
+        return 0
+
+    listed = feature_names(settings.features)
+    items = available(listed)
+    width = max(len(item.name) for item in items)
+    for item in items:
+        mark = "*" if item.name in listed else " "
+        if item.error is not None:
+            print(f"{item.name:<{width}} {mark} {item.source}: {item.error}")
+            continue
+        requires = ", ".join(item.feature.requires) or "nothing"
+        counts = ", ".join(_plural(label, n) for label, n in item.declared().items())
+        print(f"{item.name:<{width}} {mark} {item.source}; requires {requires}"
+              + (f"; {counts}" if counts else ""))
+        if item.feature.doc:
+            print(f"{'':<{width}}     {item.feature.doc}")
+    print("\n* listed in this game's FEATURES")
+    return 0
+
+
 def cmd_version(args: argparse.Namespace) -> int:
     """Show version info."""
     print("REALM Framework v0.1.0")
@@ -382,6 +423,13 @@ def main() -> int:
         help="Enable debug logging",
     )
 
+    # realm features [--check]
+    features_parser = subparsers.add_parser(
+        "features", help="List the available features, or check this game's FEATURES")
+    features_parser.add_argument(
+        "--check", action="store_true",
+        help="Load FEATURES and report collisions and missing requirements")
+
     # realm version
     subparsers.add_parser("version", help="Show version info")
 
@@ -397,6 +445,8 @@ def main() -> int:
         return asyncio.run(cmd_import(args))
     elif args.command == "pack":
         return asyncio.run(cmd_pack(args))
+    elif args.command == "features":
+        return cmd_features(args)
     elif args.command == "version":
         return cmd_version(args)
     else:

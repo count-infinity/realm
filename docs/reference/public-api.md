@@ -9,7 +9,9 @@ Import a name from its public home, not from the module behind it.
 Public means:
 
 - `realm.__all__`, below;
-- `realm.features` (the `Feature` declaration API and `load`);
+- `realm.features` (the `Feature` declaration API and `load`), and the
+  entry-point group `realm.features` an add-on package declares its
+  feature in ([Add-on packages](../guides/features.md#add-on-packages));
 - `realm.testing` and its pytest plugin `realm.testing.fixtures`;
 - each `realm.std.<feature>.__all__` and `realm.games.<name>.__all__`.
 

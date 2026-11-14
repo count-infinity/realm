@@ -2201,7 +2201,7 @@ imports from deep module paths that steps 3 to 7 just moved. `realm init
 
 ### 9.2 Add-on features as installable packages
 
-- [ ] `realm.features.load` resolves a name in this order: the built-in
+- [x] `realm.features.load` resolves a name in this order: the built-in
       table, the entry-point group `realm.features`, a dotted module path.
       A third-party package declares:
 
@@ -2210,16 +2210,16 @@ imports from deep module paths that steps 3 to 7 just moved. `realm init
       weather = "realm_weather:feature"
       ```
 
-- [ ] An installed feature is **available**, not enabled. It runs only when
+- [x] An installed feature is **available**, not enabled. It runs only when
       a game lists it in `FEATURES`. Nothing is activated by installation.
-- [ ] A name defined by both an entry point and the built-in table raises
+- [x] A name defined by both an entry point and the built-in table raises
       `FeatureError` at load.
-- [ ] Add `realm features` to the CLI. With no argument it prints every
+- [x] Add `realm features` to the CLI. With no argument it prints every
       available feature with its source (built-in, installed package, game
       directory), its requirements and counts of what it declares. With
       `--check` it loads the game's `FEATURES` and reports collisions and
       missing requirements without starting the server.
-- [ ] Test with a fake distribution: write a `*.dist-info/entry_points.txt`
+- [x] Test with a fake distribution: write a `*.dist-info/entry_points.txt`
       under `tmp_path`, put it on `sys.path`, and load the feature by name.
 
 ### 9.3 Everything the CLI needs is inside the wheel
@@ -2719,3 +2719,5 @@ entry closed.
 | 2026-11-14 | 9.1 | The root list grew beyond the plan's table (deviation), each because game-facing material needed it: `dice` and `defs` (modules, like `pools` and `ops`: a custom `resolve_check` composes dice; a `feature.def_kind` reads its definitions), `import_objects`, `import_pack` and `Store` (what the examples' `init_world` uses to load an area and a pack). `realm.games.<name>.__all__` is public too (`GurpsSystem`/`GURPSRuleset`/`TEMPLATES`, the D20 and Merc equivalents): the scaffold's `rules.py` subclasses `GurpsSystem`. Feature `__all__`s are the plan's rules and combat names plus what the docs used (`CheckResult`, `default_resolver`, `define_skill`, `define_class`, the combat result types, `CombatAction`, `invoke_ability`, `gate_item_action`, the action enums); thirteen features publish nothing (`__all__ = []`). All frozen in `tests/test_public_api.py`. | |
 | 2026-11-14 | 9.1 | `realm.testing.fixtures` is the plugin (`world`, `classic_world`, `classic_world_unscripted`, `configure`, the `features` marker, the per-test world reset); `realm.testing.worlds` holds `build_test_world` and `reconfigure` without pytest, exported by `realm.testing`. `tests/conftest.py` keeps only the suite's shared-`Checks` guard; the marker moved out of `pyproject.toml`; `from tests.conftest import reconfigure` became `from realm.testing import reconfigure` in four tests. A subprocess test runs a game's one-line `conftest.py` against all four fixtures. | |
 | 2026-11-14 | 9.1 | The documented-import check covers fenced `python` blocks in `docs/**`, the README, `realm/templates/*.py.template` and `examples/**/*.py`; a block is dedented before parsing (a method shown alone is still Python). Seven sketches got `# doctest: skip`; the README's in-game command block was mislabeled `python` and is now `text`. Imports were rewritten to public homes in the templates, examples and the game-facing docs (guides, getting-started, api, showcase, protocols); design, development, architecture and reference docs describe internals and were left. The protocols guide still needs `realm.gateway.session` and `realm.server.game`; it now says those are internal and may move. Suite: 2685. | Making the network layer public is a separate decision. |
+| 2026-11-14 | 9.2 | `load` resolves a name as a built-in, then an entry point in `realm.features` (`installed_packages()`), then a module path. Every `load` checks all installed entry points (deviation in reach: the plan said "at load"): a package claiming a built-in name, or two packages claiming one name, fail any load, not only one listing that name, so a shadowing package is found at once. Entry points are read, never imported, until a game lists the name. An entry point must load a `Feature` whose `name` equals the entry-point name. The scan is cached per `sys.path` (`functools.lru_cache`): uncached it cost 4 ms per `load` and took the suite from 28 s to 45 s; a package installed into a running process is seen at its next start. | |
+| 2026-11-14 | 9.2 | `realm features` lists built-ins, installed packages (with distribution and version) and the game directory's features (the module paths in `FEATURES`; other modules in the game directory are not imported to look for features), with requirements and per-kind declaration counts; a broken or conflicting package is shown with its error rather than stopping the listing. `--check` runs `load(settings.features)` and prints the first `FeatureError` (missing requirement or collision) or `OK: N features`. Listing helpers `available()`/`Available` live in `realm/features.py`; the two boundary tests that used the private `_module_path`/`_resolve` now use `_builtin_module`/`_resolve(..., {})`. Suite: 2697. | `FeatureSet` raises on the first collision, so `--check` reports one at a time. |

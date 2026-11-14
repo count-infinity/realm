@@ -32,6 +32,7 @@ every built-in.
 
 from __future__ import annotations
 
+import functools
 import importlib
 import importlib.util
 import logging
@@ -404,6 +405,10 @@ class Feature:
 #: Where a built-in feature named ``x`` is declared, first match wins.
 BUILTIN_ROOTS = ("realm.std", "realm.games")
 
+#: The entry-point group an installed package declares its features in:
+#: ``[project.entry-points."realm.features"]`` / ``weather = "realm_weather:feature"``.
+ENTRY_POINT_GROUP = "realm.features"
+
 
 def default_features() -> list[str]:
     """The ``FEATURES`` default (``Settings``), as a list of names."""
@@ -426,27 +431,105 @@ def feature_names(spec: Sequence[str] | str | None) -> list[str]:
     return list(spec)
 
 
-def _module_path(name: str) -> str:
-    """A built-in name (``talk``) by convention, else the name as a module
-    path (``game`` is the game's ``game.py``)."""
-    if "." not in name:
-        for root in BUILTIN_ROOTS:
-            if importlib.util.find_spec(f"{root}.{name}") is not None:
-                return f"{root}.{name}.feature"
-    return name
+def _builtin_module(name: str) -> str | None:
+    """The module declaring built-in feature ``name`` (``realm.std.talk.feature``),
+    or None when no built-in has that name."""
+    if "." in name:
+        return None
+    for root in BUILTIN_ROOTS:
+        if importlib.util.find_spec(f"{root}.{name}") is not None:
+            return f"{root}.{name}.feature"
+    return None
 
 
-def _resolve(name: str, required_by: str | None) -> Feature:
-    path = _module_path(name)
+def builtin_names() -> list[str]:
+    """Every built-in feature: each package under ``BUILTIN_ROOTS`` with a
+    ``feature.py``."""
+    import pkgutil
+    names = []
+    for root in BUILTIN_ROOTS:
+        package = importlib.import_module(root)
+        for info in pkgutil.iter_modules(package.__path__):
+            if info.ispkg and importlib.util.find_spec(f"{root}.{info.name}.feature"):
+                names.append(info.name)
+    return sorted(names)
+
+
+def _distribution(entry: Any) -> str:
+    """``realm-weather 1.0`` for an entry point's package."""
+    dist = getattr(entry, "dist", None)
+    return f"{dist.name} {dist.version}" if dist is not None else entry.value
+
+
+def installed_packages() -> dict[str, list[Any]]:
+    """The features installed packages declare: entry-point name -> its
+    entry points (more than one is a conflict). Nothing is imported. The
+    scan is cached per ``sys.path``: what is installed changes only with it
+    (a package installed into a running process is seen at its next start)."""
+    import sys
+    return _scan_packages(tuple(sys.path))
+
+
+@functools.lru_cache(maxsize=8)
+def _scan_packages(path: tuple[str, ...]) -> dict[str, list[Any]]:
+    from importlib.metadata import entry_points
+    found: dict[str, list[Any]] = {}
+    seen: set[tuple[str, str, str]] = set()
+    for entry in entry_points(group=ENTRY_POINT_GROUP):
+        key = (entry.name, entry.value, _distribution(entry))
+        if key in seen:                     # one package found twice on sys.path
+            continue
+        seen.add(key)
+        found.setdefault(entry.name, []).append(entry)
+    return found
+
+
+def _check_installed(packages: dict[str, list[Any]]) -> None:
+    """An installed package may not claim a built-in name, and two may not
+    claim one name."""
+    for name, entries in sorted(packages.items()):
+        sources = ", ".join(sorted(_distribution(e) for e in entries))
+        if _builtin_module(name) is not None:
+            raise FeatureError(
+                f"feature {name!r} is built in, and also installed by {sources}. "
+                f"Uninstall the package or ask its author to rename the entry point.")
+        if len(entries) > 1:
+            raise FeatureError(f"feature {name!r} is installed by more than one "
+                               f"package ({sources}); uninstall all but one.")
+
+
+def _from_entry_point(name: str, entry: Any, who: str) -> Feature:
+    source = _distribution(entry)
+    feature = entry.load()
+    if not isinstance(feature, Feature):
+        raise FeatureError(f"feature {name!r}{who}: the entry point {entry.value!r} in "
+                           f"{source} is not a Feature ({type(feature).__name__})")
+    if feature.name != name:
+        raise FeatureError(f"feature {name!r}{who}: the entry point in {source} loads "
+                           f"a feature named {feature.name!r}; the names must match")
+    return feature
+
+
+def _resolve(name: str, required_by: str | None,
+             packages: dict[str, list[Any]]) -> Feature:
+    """``name`` as a built-in, then an installed package's entry point, then
+    a module path (``game`` is the game directory's ``game.py``)."""
     who = f" (required by {required_by!r})" if required_by else ""
+    path = _builtin_module(name)
+    if path is None and name in packages:
+        return _from_entry_point(name, packages[name][0], who)
+    if path is None:
+        path = name
     try:
         module = importlib.import_module(path)
     except ModuleNotFoundError as exc:
         if exc.name and path.startswith(exc.name):
+            listed = sorted(packages) or ["none"]
             raise FeatureError(
                 f"feature {name!r}{who}: no module {path!r}. A built-in name is one of "
-                f"{sorted(default_features())}; anything else is a module path on "
-                f"sys.path (the game directory is on it).") from exc
+                f"{builtin_names()}; installed packages provide {listed}; anything "
+                f"else is a module path on sys.path (the game directory is on it)."
+            ) from exc
         raise
     feature = getattr(module, "feature", None)
     if not isinstance(feature, Feature):
@@ -457,13 +540,17 @@ def _resolve(name: str, required_by: str | None) -> Feature:
 
 def load(names: Sequence[str] | str | None = None) -> FeatureSet:
     """Resolve, check and order the named features (a list, a dotted path
-    to one, or None for the ``FEATURES`` default)."""
+    to one, or None for the ``FEATURES`` default). A name is a built-in, an
+    installed package's feature (``ENTRY_POINT_GROUP``) or a module path.
+    Installed packages are only read: one runs when ``names`` lists it."""
+    packages = installed_packages()
+    _check_installed(packages)
     features: list[Feature] = []
     seen: dict[str, Feature] = {}
     for name in feature_names(names):
         if name in seen:
             continue
-        feature = _resolve(name, None)
+        feature = _resolve(name, None, packages)
         seen[name] = feature
         features.append(feature)
     loaded = {f.name for f in features}
@@ -756,6 +843,61 @@ def ruleset_table() -> dict[str, type]:
     return _RULESETS
 
 
+@dataclass
+class Available:
+    """A feature a game could list in ``FEATURES``, for ``realm features``."""
+
+    name: str
+    source: str                      # "built-in", "installed: pkg 1.0", "game directory (game)"
+    feature: Feature | None = None
+    error: str | None = None         # why it could not be read
+
+    def declared(self) -> dict[str, int]:
+        """What the feature declares: label -> count, for the non-empty ones."""
+        if self.feature is None:
+            return {}
+        skip = {"name", "requires", "doc"}
+        out = {}
+        for attr, value in vars(self.feature).items():
+            if attr in skip or not isinstance(value, (list, dict, tuple)) or not value:
+                continue
+            label = "softcode functions" if attr == "functions" else attr.replace("_", " ")
+            out[label] = len(value)
+        return out
+
+
+def available(game_names: Sequence[str] = ()) -> list[Available]:
+    """Every feature a game could list: the built-ins, each installed
+    package's, and the game directory's (the names in ``game_names`` that
+    are neither, imported to read them). Conflicts are shown, not raised."""
+    out = [Available(name, "built-in", feature=_resolve(name, None, {}))
+           for name in builtin_names()]
+    packages = installed_packages()
+    for name, entries in sorted(packages.items()):
+        for entry in entries:
+            item = Available(name, f"installed: {_distribution(entry)}")
+            if _builtin_module(name) is not None:
+                item.error = "conflicts with the built-in of that name"
+            elif len(entries) > 1:
+                item.error = "installed by more than one package"
+            else:
+                try:
+                    item.feature = _from_entry_point(name, entry, "")
+                except Exception as exc:  # a broken package is reported, not fatal
+                    item.error = str(exc)
+            out.append(item)
+    for name in game_names:
+        if _builtin_module(name) is not None or name in packages:
+            continue
+        try:
+            feature = _resolve(name, None, packages)
+        except Exception as exc:
+            out.append(Available(name, f"game directory ({name})", error=str(exc)))
+            continue
+        out.append(Available(feature.name, f"game directory ({name})", feature=feature))
+    return out
+
+
 def installed() -> FeatureSet | None:
     """The feature set whose registries are installed."""
     return _installed
@@ -771,12 +913,14 @@ def unloaded_attribute_owners(attrs: Iterable[str], loaded: Iterable[str]) -> di
     for name in default_features():
         if name in have or not wanted:
             continue
-        for attr in _resolve(name, None).attributes:
+        for attr in _resolve(name, None, {}).attributes:
             if attr in wanted:
                 out[attr] = name
     return out
 
 
 __all__ = ["Feature", "FeatureError", "FeatureSet", "load", "feature_names",
-           "default_features", "install_default",
+           "default_features", "install_default", "builtin_names", "installed_packages",
+           "Available", "available",
+           "ENTRY_POINT_GROUP",
            "ensure_registries", "installed", "unloaded_attribute_owners"]

@@ -103,7 +103,7 @@ def test_feature_requires_match_imports():
     from realm.features import _resolve
     offenders = []
     for root, pkg in _feature_packages():
-        feature = _resolve(pkg.name, None)
+        feature = _resolve(pkg.name, None, {})
         allowed = set(feature.requires) | {pkg.name}
         for path in _files(pkg):
             for line, module in _imports(path):
@@ -222,8 +222,8 @@ def test_stock_game_is_only_a_feature_list():
                          text=True, check=True)
     bare, packages = json.loads(out.stdout.strip().splitlines()[-1])
     assert bare == []
-    from realm.features import _module_path, feature_names
+    from realm.features import _builtin_module, feature_names
     from realm.std import CLASSIC
-    expected = sorted(_module_path(name).rpartition(".")[0]
+    expected = sorted(_builtin_module(name).rpartition(".")[0]
                       for name in feature_names(list(CLASSIC)))
     assert packages == expected
