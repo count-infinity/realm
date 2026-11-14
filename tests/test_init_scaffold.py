@@ -17,10 +17,11 @@ from realm.std.rules.system import resolve_game_system
 
 
 class _Args:
-    def __init__(self, name, force=False, template=None):
+    def __init__(self, name, force=False, template=None, features="classic"):
         self.name = name
         self.force = force
         self.template = template
+        self.features = features
 
 
 @pytest.fixture
@@ -122,3 +123,61 @@ async def test_scaffold_feature_examples_boot(tmp_path, monkeypatch, clean_impor
         assert registered()["double"].fn(4) == 8
     finally:
         await server.stop()
+
+
+# --- the presets and the scaffold's own tests (KERNEL_PLAN 9.4) -------------------
+
+
+PRESETS = {
+    "classic": None,
+    "social": ["accounts", "basics", "talk", "movement", "look", "items", "building",
+               "game"],
+    "bare": ["accounts", "look", "building", "game"],
+}
+
+
+@pytest.mark.parametrize("preset", sorted(PRESETS))
+def test_each_preset_passes_its_own_tests(preset, tmp_path, monkeypatch, clean_import_state):
+    """Scaffold, then run the scaffold's own tests in a subprocess from its
+    directory, as its author would (``pytest``)."""
+    import os
+    import subprocess
+
+    monkeypatch.chdir(tmp_path)
+    assert cmd_init(_Args("questcove", features=preset)) == 0
+    project = tmp_path / "questcove"
+    for name in ("config.py", "game.py", "README.md", "data/welcome.txt",
+                 "tests/test_game.py"):
+        assert (project / name).is_file(), name
+    assert (project / "rules.py").exists() == (preset == "classic")
+
+    config = (project / "config.py").read_text()
+    if PRESETS[preset] is None:
+        assert 'FEATURES = [*CLASSIC, "game"]' in config
+        assert 'GAME_SYSTEM = "rules.GameRules"' in config
+    else:
+        assert f"FEATURES = {PRESETS[preset]!r}".replace("'", '"') in config
+        assert "\nGAME_SYSTEM" not in config            # no rules feature, no rules.py
+
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_ADDOPTS"}
+    run = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:randomly",
+                          "-p", "no:cacheprovider"],
+                         cwd=project, env=env, capture_output=True, text=True, timeout=120)
+    assert run.returncode == 0, run.stdout + run.stderr
+    assert "1 passed" in run.stdout
+
+
+def test_the_readme_is_short_and_points_to_one_page(tmp_path, monkeypatch, clean_import_state):
+    monkeypatch.chdir(tmp_path)
+    assert cmd_init(_Args("questcove")) == 0
+    readme = (tmp_path / "questcove" / "README.md").read_text()
+    assert len(readme.strip().splitlines()) <= 10
+    assert "getting-started/first-game" in readme
+    assert "realm start" in readme and "pytest" in readme and "game.py" in readme
+
+
+def test_an_unknown_preset_is_refused(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    assert cmd_init(_Args("questcove", features="huge")) == 1
+    assert "classic, social, bare" in capsys.readouterr().out
+    assert not (tmp_path / "questcove").exists()

@@ -73,6 +73,38 @@ class Simulator:
 
         self._sessions: dict[str, Session] = {}
 
+    @classmethod
+    def from_game(cls, game_dir: Any) -> Simulator:
+        """The world a game directory's ``config.py`` describes (its
+        ``FEATURES``, ``GAME_SYSTEM`` and settings; the directory goes on
+        ``sys.path`` so ``game.py`` and ``rules.py`` import). Await
+        ``start()`` to run its first boot."""
+        from realm.config.loader import load_config
+        return cls(settings=load_config(game_dir))
+
+    async def start(self) -> None:
+        """Boot as a server does on an empty database: the game's
+        ``init_world`` (with this Simulator as its server), role ranks, a
+        default start room if none was made, then the features' ``on_boot``
+        hooks."""
+        from realm.server.world import prepare_world
+        await prepare_world(self.world, self, empty=not list(self.store.all_cached()))
+        await self.boot()
+
+    # The two things ``init_world(server)`` uses, so a Simulator can host it.
+
+    @property
+    def persistence(self) -> MemoryStore:
+        return self.store
+
+    @property
+    def startup_room(self) -> GameObject | None:
+        return self.world.startup_room
+
+    @startup_room.setter
+    def startup_room(self, room: GameObject | None) -> None:
+        self.world.startup_room = room
+
     # --- Building the world --------------------------------------------------
 
     def add(self, obj: GameObject) -> GameObject:

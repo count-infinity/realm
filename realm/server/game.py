@@ -35,7 +35,7 @@ from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager
 from realm.scripting.engine import ScriptEngine
-from realm.server.world import build_world
+from realm.server.world import build_world, prepare_world
 
 logger = logging.getLogger(__name__)
 
@@ -197,25 +197,11 @@ class GameServer:
         # Load world
         loaded_count = await self._load_world()
 
-        # Call init_world only on first boot (empty database) — its documented
-        # contract. Running it on every start would recreate world objects
-        # over the loaded ones, leaving players in stale duplicate rooms.
-        if loaded_count == 0 and self.settings.init_world:
-            try:
-                await self.settings.init_world(self)
-            except Exception as e:
-                logger.error(f"Error in init_world callback: {e}")
-                raise
-
-        # Pick up any custom role_def ranks now the world is in the cache
-        # (built-in roles work without this; this activates data-defined ranks
-        # from boot — including any init_world just created — rather than
-        # waiting for the first @reload).
-        from realm.permissions.entitlements import reload_role_defs
-        reload_role_defs()
-
-        # Fall back to a default startup room if the world still lacks one.
-        await self._ensure_startup_room()
+        # init_world on first boot (empty database) only — running it on
+        # every start would recreate world objects over the loaded ones —
+        # then role_def ranks and a default start room (shared with the
+        # Simulator).
+        await prepare_world(self.world, self, empty=loaded_count == 0)
 
         # Relocate any player whose saved location vanished (e.g. an instance
         # room that was never persisted) — the reboot half of the evacuation
@@ -478,20 +464,6 @@ class GameServer:
                     f"Reaped {obj.name} ({obj.id}): stored location "
                     f"{loc_id} vanished and it has no player owner"
                 )
-
-    async def _ensure_startup_room(self) -> None:
-        """Create a default startup room when neither the database nor
-        init_world provided one."""
-        if self.world.startup_room or not self.persistence:
-            return
-
-        self.world.startup_room = GameObject(
-            name="The Void",
-            description="You are floating in an empty void. This is the default starting location.",
-            tags=['room', 'start_room'],
-        )
-        await self.persistence.save(self.world.startup_room)
-        logger.info("Created default startup room")
 
     async def _on_session_connect(self, session: Session) -> None:
         """Greet a new connection with the login feature's welcome screen."""

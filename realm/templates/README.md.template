@@ -1,0 +1,9 @@
+# __GAME_NAME__
+
+A game built on REALM.
+
+- **Start it:** `realm start`, then connect a MUD client (or `telnet localhost 4000`).
+- **Settings and features:** `config.py`. **Your code:** `game.py` (commands, behaviors, softcode functions).__RULES_LINE__
+- **Test it:** `pip install pytest`, then `pytest` (see `tests/test_game.py`).
+- **Where everything goes:** https://count-infinity.github.io/realm/getting-started/first-game/
+  (in the REALM source: `docs/getting-started/first-game.md`).

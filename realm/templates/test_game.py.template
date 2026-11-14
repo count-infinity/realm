@@ -1,0 +1,23 @@
+"""
+__GAME_NAME__ smoke test: the game boots from its own config.py and a
+player can look around. Run it with ``pytest`` from the game directory.
+"""
+
+import asyncio
+from pathlib import Path
+
+from realm.testing import Simulator
+
+GAME_DIR = Path(__file__).resolve().parent.parent
+
+
+def test_a_player_sees_the_start_room():
+    sim = Simulator.from_game(GAME_DIR)
+    try:
+        asyncio.run(sim.start())              # init_world, start room, boot hooks
+        room = sim.startup_room
+        player = sim.player("Tester", location=room)
+        asyncio.run(sim.do(player, "look"))
+        assert any(room.name in line for line in sim.seen(player))
+    finally:
+        sim.close()

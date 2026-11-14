@@ -2255,16 +2255,16 @@ mygame/
   README.md          start, connect, where code goes, how to test
 ```
 
-- [ ] Add `tests/test_game.py` to the scaffold: boot a `Simulator` from the
+- [x] Add `tests/test_game.py` to the scaffold: boot a `Simulator` from the
       game's own `config.py`, connect a player, `look`, and assert the
       startup room renders.
-- [ ] Add `--features classic|social|bare` to `realm init`. `classic` is the
+- [x] Add `--features classic|social|bare` to `realm init`. `classic` is the
       default. `social` writes `FEATURES = ["accounts", "basics", "talk",
       "movement", "look", "items", "building", "game"]` and omits
       `rules.py`. `bare` writes `["accounts", "building", "game"]`.
-- [ ] Extend `tests/test_init_scaffold.py`: for each preset, scaffold into
+- [x] Extend `tests/test_init_scaffold.py`: for each preset, scaffold into
       `tmp_path` and run the scaffold's own tests in a subprocess.
-- [ ] The scaffold `README.md` is ten lines and links to one page,
+- [x] The scaffold `README.md` is ten lines and links to one page,
       `docs/getting-started/first-game.md`.
 
 ### 9.5 One page that says where things go
@@ -2724,3 +2724,6 @@ entry closed.
 | 2026-11-14 | 9.3 | `examples/` is `realm/examples/` (a package with an `__init__`, so `importlib.resources.files("realm.examples")` finds it; `realm init --template` copies through `as_file`). The spacegame package's own `__init__` imported `examples.spacegame.ships`; it is `realm.examples.spacegame.ships` now. Moving it under `realm/` put its pre-existing unused `typing.Any` in the lint baseline; removed, so `ruff check realm/` stays at 14. A built wheel (`pip wheel .`) was inspected: the area JSON, configs and `ships.py` are in it. | |
 | 2026-11-14 | 9.3 | `scripts/rom_import.py` became `realm/tools/rom_import.py` (`git mv`) and absorbed `rom_import_batch.py` as `area_files`/`convert_tree`/`TreeResult`; both script `main`s are gone. `realm import-rom FILES... [--out] [--repop] [--zone-reset] [--report [FILE]]`: one area file writes its JSON to `--out` (stdout without it) and a bare `--report` prints its gaps to stderr; several files or a directory make `--out` a directory of one JSON per area and `--report FILE` the parity report (stdout without it), exiting 1 if any area failed (deviation: the plan's `--out pack.json` merging several areas into one document was not done, because vnums collide across unrelated area sets). | |
 | 2026-11-14 | 9.3 | `tests/test_packaging.py` copies `realm/` alone to `tmp_path`, asserts the copy is what imports, and runs `python -m realm.cli init demo --template spacegame`, `features` and `features --check` from an unrelated directory. `pyproject.toml`: classifiers drop 3.11, mypy `python_version` and ruff `target-version` are 3.12 (ruff still 14 on `realm/`, 117 on `tests/` either way); `[project.urls]` adds Homepage, Documentation and "Feature packages" (the add-on section of the features guide). Suite: 2701. | |
+| 2026-11-14 | 9.4 | The `bare` preset is `["accounts", "look", "building", "game"]` (deviation: the plan's list omits `look`, which `building` requires since 7.6 and which the scaffold's own test runs). `social` and `bare` omit `rules.py` and the `GAME_SYSTEM` line: `realm init` cuts those blocks out of `config.py.template` (anchored on their first and last lines, so the template stays the one source and stays valid Python for `test_config`/`test_public_api`). `--features` is an argparse choice and `cmd_init` refuses an unknown preset too. | |
+| 2026-11-14 | 9.4 | "Boot a Simulator from the game's own config.py" needed two additions: `Simulator.from_game(dir)` (`load_config(dir)` into the Simulator) and `await sim.start()`, the server's first-boot step: `init_world` on an empty store, role ranks, a default start room, then feature `on_boot`. That step is now one function, `realm.server.world.prepare_world(world, host, empty=...)`, which `GameServer.start` calls instead of its inline code and `_ensure_startup_room` (deleted). `init_world(server)` only ever uses `server.persistence` and `server.startup_room`, so the Simulator offers both and hosts it. The scaffold test is synchronous (`asyncio.run`) so a game needs only `pytest`, not `pytest-asyncio`. | |
+| 2026-11-14 | 9.4 | The scaffold `README.md` (eight lines) links to the docs site's `getting-started/first-game/` and names `docs/getting-started/first-game.md` in the source; that page now covers the presets, `tests/test_game.py` and how to run it. `tests/test_init_scaffold.py` scaffolds each preset into `tmp_path` and runs its `pytest` in a subprocess (one test passes in each). Suite: 2706. | |

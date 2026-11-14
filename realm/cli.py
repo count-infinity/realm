@@ -41,6 +41,40 @@ def _examples() -> Any:
     return importlib.resources.files("realm.examples")
 
 
+
+#: The two parts of config.py.template a preset rewrites: from the first
+#: line given through the end of the second.
+_RULES_BLOCK = ("# Your game's rules", 'GAME_SYSTEM = "rules.GameRules"\n\n')
+_FEATURES_BLOCK = ("# The features your game is made of.", 'FEATURES = [*CLASSIC, "game"]\n')
+
+
+def _rewrite(text: str, block: tuple[str, str], new: str) -> str:
+    """``text`` with the template block ``block`` replaced by ``new``."""
+    start = text.index(block[0])
+    end = text.index(block[1], start) + len(block[1])
+    return text[:start] + new + text[end:]
+
+
+#: ``realm init --features``: the FEATURES list a preset writes (None:
+#: every built-in, CLASSIC) and whether it gets a rules.py.
+PRESETS: dict[str, tuple[list[str] | None, bool]] = {
+    "classic": (None, True),
+    "social": (["accounts", "basics", "talk", "movement", "look", "items",
+                "building", "game"], False),
+    "bare": (["accounts", "look", "building", "game"], False),
+}
+
+
+def _features_settings(names: list[str]) -> str:
+    listed = ", ".join(f'"{n}"' for n in names)
+    return ("# The features your game is made of: built-in features by name, and\n"
+            "# \"game\" is your own game.py. Add more from realm.CLASSIC as you\n"
+            "# need them (`realm features` lists them all). With no \"rules\"\n"
+            "# feature there is no game system: no skill checks, combat or\n"
+            "# advancement, and no rules.py.\n"
+            f"FEATURES = [{listed}]\n")
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     """
     Initialize a new game project.
@@ -51,11 +85,24 @@ def cmd_init(args: argparse.Namespace) -> int:
     - game.py: the game's own feature (commands, behaviors, softcode)
     - data/welcome.txt: Welcome screen
     - data/: Directory for database and data files
+    - tests/test_game.py: a smoke test (``pytest``)
+    - README.md: how to start, test, and where code goes
+
+    ``--features`` picks the preset: ``classic`` (every built-in, and
+    rules.py), ``social`` (no rules, combat or money) or ``bare``
+    (accounts, look, building and the game).
 
     With --template, copies the shipped example ``realm/examples/<template>/``.
     """
     game_name = args.name
     project_dir = Path.cwd() / game_name
+
+    preset = args.features
+    if preset not in PRESETS:
+        print(f"Error: unknown --features preset '{preset}'. "
+              f"Choose one of: {', '.join(PRESETS)}.")
+        return 1
+    feature_list, with_rules = PRESETS[preset]
 
     # Validate name
     if not game_name.isidentifier():
@@ -88,32 +135,42 @@ def cmd_init(args: argparse.Namespace) -> int:
     system_id = _sanitize_system_id(game_name)
 
     # Create config.py from template
-    config_content = render_template(
-        "config.py.template",
-        game_name=display_name,
-    )
+    config_content = render_template("config.py.template", game_name=display_name)
+    if not with_rules:
+        config_content = _rewrite(config_content, _RULES_BLOCK, "")
+    if feature_list is not None:
+        config_content = _rewrite(config_content, _FEATURES_BLOCK,
+                                  _features_settings(feature_list))
     (project_dir / "config.py").write_text(config_content)
     print("  Created config.py")
 
-    # Create rules.py — the game's own GameSystem subclass, pre-wired and
-    # selected by config.py. This is where the user shapes chargen/skills.
-    rules_content = (
-        get_template("rules.py.template")
-        .replace("__GAME_NAME__", display_name)
-        .replace("__GAME_ID__", system_id)
-    )
-    (project_dir / "rules.py").write_text(rules_content)
-    print("  Created rules.py")
+    def from_template(name: str, **extra: str) -> str:
+        text = (get_template(name).replace("__GAME_NAME__", display_name)
+                .replace("__GAME_ID__", system_id))
+        for key, value in extra.items():
+            text = text.replace(key, value)
+        return text
+
+    if with_rules:
+        # rules.py — the game's own GameSystem subclass, pre-wired and
+        # selected by config.py. This is where the user shapes chargen/skills.
+        (project_dir / "rules.py").write_text(from_template("rules.py.template"))
+        print("  Created rules.py")
 
     # Create game.py — the game's own feature (commands, behaviors, softcode
     # functions), listed in config.py's FEATURES as "game".
-    game_content = (
-        get_template("game.py.template")
-        .replace("__GAME_NAME__", display_name)
-        .replace("__GAME_ID__", system_id)
-    )
-    (project_dir / "game.py").write_text(game_content)
+    (project_dir / "game.py").write_text(from_template("game.py.template"))
     print("  Created game.py")
+
+    (project_dir / "tests").mkdir(exist_ok=True)
+    (project_dir / "tests" / "test_game.py").write_text(
+        from_template("test_game.py.template"))
+    print("  Created tests/test_game.py")
+
+    rules_line = " **Your rules:** `rules.py`." if with_rules else ""
+    (project_dir / "README.md").write_text(
+        from_template("README.md.template", __RULES_LINE__=rules_line))
+    print("  Created README.md")
 
     # Create welcome.txt from template
     welcome_content = render_template(
@@ -128,8 +185,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(f"  cd {game_name}")
     print("  realm start")
     print()
-    print("Customize your rules in rules.py, add commands and behaviors in game.py;")
-    print("other settings are in config.py.")
+    print("Add commands and behaviors in game.py"
+          + ("; customize your rules in rules.py" if with_rules else "")
+          + "; other settings are in config.py. Run the tests with pytest.")
 
     return 0
 
@@ -442,6 +500,10 @@ def main() -> int:
         "--template", "-t",
         help="Use an example template (e.g., spacegame)",
     )
+    init_parser.add_argument(
+        "--features", default="classic", choices=list(PRESETS),
+        help="classic: every built-in feature and a rules.py (default); "
+             "social: no rules, combat or money; bare: accounts, look, building")
 
     # realm export / import
     export_parser = subparsers.add_parser(

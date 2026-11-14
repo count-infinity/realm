@@ -99,4 +99,37 @@ def build_world(store, settings: Settings | None = None, *,
     return world
 
 
-__all__ = ["build_world"]
+async def prepare_world(world: World, host, *, empty: bool) -> None:
+    """The first-boot steps after a world is loaded, shared by
+    ``GameServer.start`` and ``Simulator.start``: the game's ``init_world``
+    (only when the store was ``empty``; it receives ``host``, which offers
+    ``persistence`` and a settable ``startup_room``), data-defined role
+    ranks, and a default start room when neither the data nor
+    ``init_world`` provided one."""
+    init_world = world.settings.init_world
+    if empty and init_world:
+        try:
+            await init_world(host)
+        except Exception as e:
+            logger.error(f"Error in init_world callback: {e}")
+            raise
+
+    # Data-defined role_def ranks active from boot (including any
+    # init_world just created) rather than from the first @reload.
+    from realm.permissions.entitlements import reload_role_defs
+    reload_role_defs()
+
+    if world.startup_room is None:
+        from realm.core.objects import GameObject
+        world.startup_room = GameObject(
+            name="The Void",
+            description="You are floating in an empty void. This is the default "
+                        "starting location.",
+            tags=['room', 'start_room'],
+        )
+        if world.store is not None:
+            await world.store.save(world.startup_room)
+        logger.info("Created default startup room")
+
+
+__all__ = ["build_world", "prepare_world"]

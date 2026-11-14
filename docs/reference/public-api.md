@@ -71,6 +71,12 @@ in `FEATURES`.
 from realm.testing import Simulator, build_test_world, reconfigure
 ```
 
+`Simulator.from_game(path)` builds the world a game directory's
+`config.py` describes; `await sim.start()` runs its first boot (the game's
+`init_world`, role ranks, a default start room, the features' `on_boot`
+hooks), as `realm start` does on an empty database. `sim.startup_room` is
+the start room.
+
 A game's `tests/conftest.py` gets the fixtures with one line:
 
 ```python

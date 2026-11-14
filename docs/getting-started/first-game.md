@@ -19,8 +19,17 @@ This scaffolds a small project:
 - **`game.py`** is your game's own feature: the place for your commands,
   behaviors and softcode functions. It has a commented example of each.
 - `data/` holds the SQLite database and welcome screen.
+- `tests/test_game.py` is a smoke test: it boots your game from its own
+  `config.py` and checks a player can look around the start room.
+- `README.md` says how to start, where code goes and how to test, and
+  points back here.
 
 The server is now listening on telnet port 4000.
+
+To start smaller, pick a preset: `realm init mygame --features social`
+(no rules, combat or money, and no `rules.py`) or `--features bare`
+(only logging in, looking and building). `classic`, every built-in
+feature, is the default.
 
 ## Choose your features
 
@@ -93,6 +102,20 @@ generation** — pick a background (soldier, infiltrator, face,
 technician) and a bonus skill, then arrive in the Docking Bay. Try
 `north` to the Promenade, `consider` NPCs, and `attack` something you
 shouldn't.
+
+## Test it
+
+```bash
+pip install pytest
+pytest
+```
+
+`tests/test_game.py` builds your game in memory with
+`Simulator.from_game(...)`, runs its first boot (your `init_world`, then a
+default start room if you made none), and drives a player through the
+real commands. Add a test beside it whenever you add a command; the
+[Simulator](../reference/public-api.md#testing) runs softcode and commands
+exactly as a connected player would see them.
 
 ## Stopping and restarting
 
