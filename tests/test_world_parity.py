@@ -10,8 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from realm.combat.manager import get_combat_manager
-from realm.core.propagation import get_engine
+from realm.core.world import find_world, get_world
 from realm.scripting.functions import ScriptFrame
 from realm.server.game import GameServer
 from realm.testing import Simulator
@@ -31,10 +30,10 @@ def _qualname(fn) -> str:
 
 
 def _snapshot(dispatcher, store) -> Wiring:
-    manager = get_combat_manager()
+    manager = get_world().services.get("combat")
     return Wiring(
         commands=set(dispatcher._commands),
-        observers={_qualname(o) for o in get_engine()._observers},
+        observers={_qualname(o) for o in get_world().engine._observers},
         ruleset=type(manager.combat_system.ruleset) if manager else None,
         softcode_names=set(ScriptFrame(persistence=store).to_dict()),
     )
@@ -63,6 +62,24 @@ async def test_server_and_simulator_are_wired_alike():
 
 async def test_closing_the_world_undoes_its_registrations():
     sim = Simulator()
+    world = sim.world
     sim.close()
-    assert get_engine()._observers == []
-    assert get_combat_manager() is None
+    assert find_world() is None
+    assert world.engine._observers == []
+
+
+async def test_start_logs_the_settings_that_differ_from_the_defaults(caplog):
+    """The one place a maintainer sees how this game is configured."""
+    import logging
+
+    from realm.config.loader import Settings
+    server = GameServer(settings=Settings(db_path=":memory:", emote_sigil="@",
+                                          raw={"SHOW_ROLLS": True}),
+                        enable_telnet=False)
+    with caplog.at_level(logging.INFO, logger="realm.server.game"):
+        await server.start()
+        await server.stop()
+    lines = [r.getMessage() for r in caplog.records]
+    assert "setting EMOTE_SIGIL = '@'" in lines
+    assert "setting SHOW_ROLLS = True" in lines           # a feature's key
+    assert not any(line.startswith("setting MARKUP_MARKER") for line in lines)

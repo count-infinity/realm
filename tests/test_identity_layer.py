@@ -2,7 +2,7 @@
 
 `get_display_name(looker)` -> `perceived_name` is the documented seam for
 "who does this person appear to be?" It now runs a registry of resolvers
-(`register_name_resolver`), so recognition (a stranger reads as "a tall
+(`feature.name_resolver`), so recognition (a stranger reads as "a tall
 woman" until introduced) and disguise (an assumed identity) are a few
 lines of game code instead of a GameObject subclass.
 
@@ -19,10 +19,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.perception import (
-    clear_name_resolvers,
-    register_name_resolver,
-)
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 
@@ -32,11 +29,9 @@ def world():
     room = sim.room("Plaza")
     alice = sim.player("Alice", location=room)
     bob = sim.player("Bob", location=room)
-    clear_name_resolvers()
     try:
         yield SimpleNamespace(sim=sim, room=room, alice=alice, bob=bob)
     finally:
-        clear_name_resolvers()
         sim.close()
 
 
@@ -64,7 +59,7 @@ class TestRecognition:
     async def test_stranger_reads_as_sdesc_in_speech(self, world):
         w = world
         w.alice.db.set('sdesc', 'a tall woman')
-        register_name_resolver(recognition_resolver)
+        get_world().name_resolvers.append(recognition_resolver)
         w.sim.seen(w.bob)
 
         await w.sim.do(w.alice, "say well met")
@@ -75,7 +70,7 @@ class TestRecognition:
     async def test_stranger_reads_as_sdesc_in_the_room_listing(self, world):
         w = world
         w.alice.db.set('sdesc', 'a tall woman')
-        register_name_resolver(recognition_resolver)
+        get_world().name_resolvers.append(recognition_resolver)
 
         await w.sim.do(w.bob, "look")
         out = "\n".join(w.sim.seen(w.bob))
@@ -86,7 +81,7 @@ class TestRecognition:
     async def test_stranger_reads_as_sdesc_when_looked_at(self, world):
         w = world
         w.alice.db.set('sdesc', 'a tall woman')
-        register_name_resolver(recognition_resolver)
+        get_world().name_resolvers.append(recognition_resolver)
 
         await w.sim.do(w.bob, "look Alice")
         out = "\n".join(w.sim.seen(w.bob))
@@ -96,7 +91,7 @@ class TestRecognition:
     async def test_introduction_reveals_the_real_name(self, world):
         w = world
         w.alice.db.set('sdesc', 'a tall woman')
-        register_name_resolver(recognition_resolver)
+        get_world().name_resolvers.append(recognition_resolver)
 
         # Bob is introduced to Alice.
         w.alice.db.set('recognized_by', [w.bob.id])
@@ -109,7 +104,7 @@ class TestRecognition:
     async def test_you_always_know_yourself(self, world):
         w = world
         w.alice.db.set('sdesc', 'a tall woman')
-        register_name_resolver(recognition_resolver)
+        get_world().name_resolvers.append(recognition_resolver)
         w.sim.seen(w.alice)
 
         await w.sim.do(w.alice, "say testing")
@@ -133,7 +128,7 @@ class TestDisguise:
     async def test_disguise_covers_the_room_listing(self, world):
         w = world
         w.alice.db.set('disguise', 'a hooded figure')
-        register_name_resolver(disguise_resolver)
+        get_world().name_resolvers.append(disguise_resolver)
 
         await w.sim.do(w.bob, "look")
         out = "\n".join(w.sim.seen(w.bob))
@@ -146,7 +141,7 @@ class TestDisguise:
         disguise silences the real name without any speech-specific code."""
         w = world
         w.alice.db.set('disguise', 'a hooded figure')
-        register_name_resolver(disguise_resolver)
+        get_world().name_resolvers.append(disguise_resolver)
         w.sim.seen(w.bob)
 
         await w.sim.do(w.alice, "say you don't know me")
@@ -161,7 +156,7 @@ class TestDisguise:
         themselves, and the no-space form is preserved."""
         w = world
         w.alice.db.set('disguise', 'a hooded figure')
-        register_name_resolver(disguise_resolver)
+        get_world().name_resolvers.append(disguise_resolver)
         w.sim.seen(w.alice)
         w.sim.seen(w.bob)
 
@@ -181,7 +176,7 @@ class TestExamineShowsTruth:
         w = world
         w.bob.add_tag('builder')
         w.alice.db.set('disguise', 'a hooded figure')
-        register_name_resolver(disguise_resolver)
+        get_world().name_resolvers.append(disguise_resolver)
 
         await w.sim.do(w.bob, "examine Alice")
         out = "\n".join(w.sim.seen(w.bob))
@@ -202,8 +197,8 @@ class TestResolverMechanics:
 
     async def test_resolvers_compose_in_order(self, world):
         w = world
-        register_name_resolver(lambda o, lk, cur: cur.upper() if lk else cur)
-        register_name_resolver(lambda o, lk, cur: f"[{cur}]" if lk else cur)
+        get_world().name_resolvers.append(lambda o, lk, cur: cur.upper() if lk else cur)
+        get_world().name_resolvers.append(lambda o, lk, cur: f"[{cur}]" if lk else cur)
         w.sim.seen(w.bob)
 
         await w.sim.do(w.alice, "say hi")
@@ -216,8 +211,8 @@ class TestResolverMechanics:
         def boom(obj, looker, current):
             raise RuntimeError("resolver broke")
 
-        register_name_resolver(boom)
-        register_name_resolver(lambda o, lk, cur: cur + "?" if lk else cur)
+        get_world().name_resolvers.append(boom)
+        get_world().name_resolvers.append(lambda o, lk, cur: cur + "?" if lk else cur)
         w.sim.seen(w.bob)
 
         await w.sim.do(w.alice, "say still named")
@@ -232,7 +227,7 @@ class TestResolverMechanics:
         w = world
         w.alice.db.set('sdesc', 'a tall woman')
         w.alice.add_tag('hidden')          # can_see -> False
-        register_name_resolver(recognition_resolver)
+        get_world().name_resolvers.append(recognition_resolver)
         w.sim.seen(w.bob)
 
         await w.sim.do(w.alice, "say from the shadows")

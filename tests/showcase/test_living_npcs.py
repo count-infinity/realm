@@ -21,8 +21,8 @@ resolve_round() fired by hand.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -349,10 +349,11 @@ class TestNpcSchedule:
 class TestGuardResponse:
 
     async def test_crime_summons_the_watch(self, town):
-        from realm.combat.manager import CombatManager, set_combat_manager
+        from realm.combat.manager import CombatManager
         from realm.combat.rulesets.gurps import GURPSRuleset
         from realm.combat.system import CombatSystem
         from realm.core.disposition import get_disposition
+        from realm.core.world import get_world
 
         class SteadyRuleset(GURPSRuleset):
             """GURPS with the dice removed: 3d6 always 10, damage flat 2."""
@@ -377,7 +378,7 @@ class TestGuardResponse:
         manager = CombatManager(CombatSystem(ruleset=SteadyRuleset()),
                                 beat_min=4.0, beat_max=600.0,
                                 beat_default=300.0)
-        set_combat_manager(manager)
+        get_world().services["combat"] = manager
         try:
             # Try it: give yourself a sheet and start the trouble.
             for line in ("@set me/hp = 12", "@set me/max_hp = 12",
@@ -403,4 +404,3 @@ class TestGuardResponse:
             assert get_disposition(bren, tam) == -5
         finally:
             manager.stop_all()
-            set_combat_manager(None)

@@ -431,17 +431,18 @@ async def test_ephemeral_objects_are_never_persisted(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_reboot_reconciles_a_player_whose_instance_vanished():
+async def test_reboot_reconciles_a_player_whose_instance_vanished(world):
     """Kernel bit #2, reboot half: a player left pointing at an ephemeral
     room (which never reloads) must be relocated on world-load, not dropped
     at 'nowhere'."""
     from realm.core.objects import GameObject
-    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.core.world import get_world
+    from realm.persistence.manager import PersistenceManager
     from realm.server.game import GameServer
 
     pm = PersistenceManager(":memory:")
     await pm.initialize()
-    set_active_manager(pm)
+    get_world().store = pm
     try:
         start = GameObject(name="The Void", tags=["room", "start_room"])
         await pm.save(start)
@@ -460,5 +461,4 @@ async def test_reboot_reconciles_a_player_whose_instance_vanished():
 
         assert lost.location is start
     finally:
-        set_active_manager(None)
         await pm.close()

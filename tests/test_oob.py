@@ -10,15 +10,7 @@ import json
 import pytest
 
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
 from realm.gateway.session import Session
-
-
-@pytest.fixture(autouse=True)
-def fresh():
-    reset_engine()
-    yield
-    reset_engine()
 
 
 class FakeTransport:
@@ -110,6 +102,7 @@ class TestTelnetGmcp:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestEngineEmissions:
 
     async def test_room_info_on_movement(self):

@@ -13,8 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.ops import Refused, check_destroy, destroy
 from realm.core.objects import GameObject
+from realm.core.ops import Refused, check_destroy, destroy
 from realm.testing import Simulator
 
 
@@ -169,12 +169,13 @@ class TestDestroyObject:
         assert await destroy(None, chest, sim.store) == 2
 
 
-async def test_destroyed_room_keeps_player_row_on_sqlite(tmp_path):
-    from realm.persistence.manager import PersistenceManager, set_active_manager
+async def test_destroyed_room_keeps_player_row_on_sqlite(tmp_path, world):
+    from realm.core.world import get_world
+    from realm.persistence.manager import PersistenceManager
 
     pm = PersistenceManager(tmp_path / "world.db")
     await pm.initialize()
-    set_active_manager(pm)
+    get_world().store = pm
     try:
         start = GameObject("Limbo", tags=["room", "start_room"])
         doomed = GameObject("Doomed Hall", tags=["room"])
@@ -189,5 +190,4 @@ async def test_destroyed_room_keeps_player_row_on_sqlite(tmp_path):
         assert not await pm.exists(doomed.id)
         assert alice.location is start
     finally:
-        set_active_manager(None)
         await pm.close()

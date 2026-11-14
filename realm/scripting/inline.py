@@ -51,12 +51,7 @@ _SYNC_KINDS = ('pemit', 'remit', 'oemit', 'save')
 
 # Configurable block delimiters — ``[[ ]]`` by default; a game more at
 # home with ``${ }`` (or anything else) sets INLINE_OPEN/INLINE_CLOSE
-# in config.py. Ambient module state, wired at server construction like
-# the other singletons.
-DEFAULT_OPEN = '[['
-DEFAULT_CLOSE = ']]'
-_open = DEFAULT_OPEN
-_close = DEFAULT_CLOSE
+# in config.py.
 
 # When the closer starts with a bracket character, the scanner tracks
 # THAT pair's nesting so code using it survives: subscripts under ]],
@@ -64,28 +59,8 @@ _close = DEFAULT_CLOSE
 _BRACKET_FOR_CLOSER = {']': '[', '}': '{', ')': '('}
 
 
-def set_inline_delimiters(open_: str = DEFAULT_OPEN,
-                          close_: str = DEFAULT_CLOSE) -> None:
-    """Install the inline-block delimiters (game config). Both must be
-    non-empty and distinct-from-each-other strings; a bad pair is a
-    config error and raises rather than silently mangling every
-    description in the game."""
-    global _open, _close
-    open_, close_ = str(open_), str(close_)
-    if not open_.strip() or not close_.strip():
-        raise ValueError("inline delimiters must be non-empty")
-    if open_ == close_:
-        raise ValueError(
-            "inline open and close delimiters must differ "
-            f"(both were {open_!r})")
-    _open, _close = open_, close_
-
-
-def get_inline_delimiters() -> tuple[str, str]:
-    return _open, _close
-
-
-def _find_block(text: str, start: int) -> tuple[int, int] | None:
+def _find_block(text: str, start: int, open_: str, close_: str,
+                ) -> tuple[int, int] | None:
     """Locate the next inline block at or after ``start``.
 
     The closing delimiter is the first one at bracket-depth zero
@@ -95,12 +70,12 @@ def _find_block(text: str, start: int) -> tuple[int, int] | None:
     would). Returns ``(open_idx, close_idx)`` with ``close_idx`` at the
     first char of the terminator, or None (no block / unterminated —
     an unterminated block stays literal text)."""
-    open_idx = text.find(_open, start)
+    open_idx = text.find(open_, start)
     if open_idx == -1:
         return None
-    close_char = _close[0]
+    close_char = close_[0]
     open_bracket = _BRACKET_FOR_CLOSER.get(close_char)
-    i = open_idx + len(_open)
+    i = open_idx + len(open_)
     depth = 0
     quote: str | None = None
     n = len(text)
@@ -119,7 +94,7 @@ def _find_block(text: str, start: int) -> tuple[int, int] | None:
         elif ch == close_char:
             if depth > 0:
                 depth -= 1
-            elif text.startswith(_close, i):
+            elif text.startswith(close_, i):
                 return open_idx, i
             # a lone unmatched closer-char at depth 0 that isn't the
             # full delimiter (']' under ']]'): literal, keep scanning
@@ -129,10 +104,11 @@ def _find_block(text: str, start: int) -> tuple[int, int] | None:
 
 def eval_inline(text: str, me: GameObject, viewer: GameObject | None) -> str:
     """Render a description's inline blocks for this viewer."""
-    if not text or _open not in text:
+    from realm.core.world import get_world, setting
+    open_, close_ = setting("INLINE_OPEN"), setting("INLINE_CLOSE")
+    if not text or open_ not in text:
         return text
 
-    from realm.persistence.manager import get_active_manager
     from realm.scripting.namespace import build_namespace
     from realm.scripting.sandbox import ScriptContext, ScriptError, ScriptSandbox
 
@@ -141,7 +117,7 @@ def eval_inline(text: str, me: GameObject, viewer: GameObject | None) -> str:
     namespace, functions = build_namespace(
         'inline', executor=me, enactor=viewer,
         location=me.location if me.location is not None else me,
-        store=get_active_manager(), subject=viewer)
+        store=get_world().store, subject=viewer)
 
     def run_block(code: str) -> str:
         ctx = ScriptContext(enactor=viewer, executor=me, location=me.location)
@@ -156,7 +132,7 @@ def eval_inline(text: str, me: GameObject, viewer: GameObject | None) -> str:
     pos = 0
     count = 0
     while True:
-        found = _find_block(text, pos)
+        found = _find_block(text, pos, open_, close_)
         if found is None:
             break
         open_idx, close_idx = found
@@ -164,8 +140,8 @@ def eval_inline(text: str, me: GameObject, viewer: GameObject | None) -> str:
         count += 1
         if count <= MAX_BLOCKS:
             parts.append(
-                run_block(text[open_idx + len(_open):close_idx].strip()))
-        pos = close_idx + len(_close)
+                run_block(text[open_idx + len(open_):close_idx].strip()))
+        pos = close_idx + len(close_)
     parts.append(text[pos:])
     rendered = ''.join(parts)
 
@@ -188,6 +164,4 @@ def eval_inline(text: str, me: GameObject, viewer: GameObject | None) -> str:
     return rendered
 
 
-__all__ = ["eval_inline", "MAX_BLOCKS",
-           "set_inline_delimiters", "get_inline_delimiters",
-           "DEFAULT_OPEN", "DEFAULT_CLOSE"]
+__all__ = ["eval_inline", "MAX_BLOCKS"]

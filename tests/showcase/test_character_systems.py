@@ -29,7 +29,7 @@ from types import SimpleNamespace
 import pytest
 
 from realm.core.beats import deliver_beat
-from realm.core.checks import CheckResult, set_check_resolver, skill_level
+from realm.core.checks import CheckResult, checks, skill_level
 from realm.testing import Simulator
 
 # Output that must never appear while running a "Build it" transcript.
@@ -83,13 +83,12 @@ def level_resolver(obj, skill, modifier):
 @pytest.fixture
 def sim():
     simulator = Simulator()
-    set_check_resolver(level_resolver)
+    checks().resolver = level_resolver
     # prompt() finds player sessions through the engine's session manager;
     # the Simulator leaves it to the test to wire (as the combat suite does).
     simulator.engine.session_manager = SimpleNamespace(
         all_sessions=lambda: list(simulator._sessions.values()))
     yield simulator
-    set_check_resolver(None)
     simulator.close()
 
 
@@ -97,9 +96,10 @@ def sim():
 def combat():
     """A live CombatManager on a diceless ruleset; beats fired by hand."""
     from realm.combat.combatant import clear_combatant_cache
-    from realm.combat.manager import CombatManager, set_combat_manager
+    from realm.combat.manager import CombatManager
     from realm.combat.rulesets.gurps import GURPSRuleset
     from realm.combat.system import CombatSystem
+    from realm.core.world import get_world
 
     class SteadyRuleset(GURPSRuleset):
         def roll_3d6(self):
@@ -114,10 +114,9 @@ def combat():
         CombatSystem(ruleset=SteadyRuleset()),
         beat_min=4.0, beat_max=600.0, beat_default=300.0,
     )
-    set_combat_manager(manager)
+    get_world().services["combat"] = manager
     yield manager
     manager.stop_all()
-    set_combat_manager(None)
     clear_combatant_cache()
 
 
@@ -126,7 +125,7 @@ async def run_lines(sim, player, lines):
         # submit_line (not do): real input path, so '''-heredoc blocks
         # accumulate; one-liners dispatch identically.
         await sim.submit_line(player, line)
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
 
 
 async def build(sim, item: int, *, admin=False):
@@ -342,7 +341,7 @@ class TestHungerThirst:
 
         for _ in range(7):
             await sim.do(builder, "@tr life support monitor/on_tick")
-            set_check_resolver(level_resolver)
+            checks().resolver = level_resolver
 
         stream = text(sim, vale)
         assert "Your stomach growls; your mouth is dry." in stream   # thresholds
@@ -365,7 +364,7 @@ class TestHungerThirst:
         drifter = sim.player("Drifter", location=limbo)      # unzoned
         for _ in range(5):
             await sim.do(builder, "@tr life support monitor/on_tick")
-            set_check_resolver(level_resolver)
+            checks().resolver = level_resolver
         assert drifter.db.get("hunger") is None              # never touched
 
 

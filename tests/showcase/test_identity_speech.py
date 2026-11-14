@@ -1,8 +1,8 @@
 """Showcase verification — Identity & Speech (items 133, 134, 84, 79, 139, 85).
 
 These tutorials sit on the two per-viewer seams shipped 2026-07-17:
-`register_name_resolver` (who someone appears to be) and
-`register_speech_renderer` (how their words arrive). Most carry a small
+`feature.name_resolver` (who someone appears to be) and
+`feature.speech_renderer` (how their words arrive). Most carry a small
 NATIVE half — a resolver/renderer a game registers at deploy time — plus
 in-game softcode that drives it. The Build-it command lines are read
 straight from each tutorial's markdown and driven through the dispatcher;
@@ -20,10 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from realm.core.perception import (
-    clear_name_resolvers,
-    register_name_resolver,
-)
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -77,12 +74,10 @@ def masq():
     ada = sim.player("Ada", location=hall)
     ada.add_tag("admin")                 # owns the steward it @creates
     bran = sim.player("Bran", location=hall)
-    clear_name_resolvers()
-    register_name_resolver(_recognition_resolver)
+    get_world().name_resolvers.append(_recognition_resolver)
     try:
         yield sim, ada, bran
     finally:
-        clear_name_resolvers()
         sim.close()
 
 

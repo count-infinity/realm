@@ -2,9 +2,8 @@
 CombatManager: encounter lifecycle for the running server.
 
 One encounter per room; joining a fight in a room merges into the
-existing encounter. The manager is owned by GameServer (like the script
-engine) and exposed ambiently for behaviors (same pattern as the
-propagation-engine and persistence singletons).
+existing encounter. The combat feature creates it when the world is
+built; code reaches it as ``get_world().services.get("combat")``.
 
 It also observes propagation: any successful action tagged ``hostile``
 between two combat-capable parties starts the fight, crediting the
@@ -212,7 +211,7 @@ class CombatManager:
             await self._npc_death(obj, killer)
 
     async def _npc_death(self, npc: GameObject, killer: GameObject | None) -> None:
-        from realm.persistence.manager import get_active_manager
+        from realm.core.world import get_world
 
         room = npc.location
         if room is not None:
@@ -223,8 +222,8 @@ class CombatManager:
         # (solo killers keep the whole award).
         if killer is not None and killer.is_player:
             from realm.core.party import party_members
-            from realm.systems.base import get_game_system
-            system = get_game_system()
+            from realm.core.world import get_world
+            system = get_world().rules
             award = (system.death_award(npc, killer) if system
                      else max(1, int(npc.db.get('points') or 10) // 10))
             from realm.core.zones import zone_property
@@ -259,7 +258,7 @@ class CombatManager:
         from realm.behaviors.decay import DecayBehavior
         corpse.add_behavior(DecayBehavior(ticks=150))
 
-        persistence = get_active_manager()
+        persistence = get_world().store
         if persistence is not None:
             await persistence.save(corpse)
             npc.location = None
@@ -277,22 +276,8 @@ class CombatManager:
 
 
 # Ambient accessor (set by GameServer, same pattern as persistence).
-_active_manager: CombatManager | None = None
-
-
-def set_combat_manager(manager: CombatManager | None) -> None:
-    global _active_manager
-    _active_manager = manager
-
-
-def get_combat_manager() -> CombatManager | None:
-    return _active_manager
-
-
 __all__ = [
     "CombatManager",
     "deliver_combat_messages",
     "is_combat_capable",
-    "set_combat_manager",
-    "get_combat_manager",
 ]

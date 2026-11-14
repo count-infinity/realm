@@ -111,8 +111,8 @@ def _cache_live(obj: GameObject | None) -> bool:
     """Is this object still the live, registered copy?"""
     if obj is None:
         return False
-    from realm.persistence.manager import get_active_manager
-    manager = get_active_manager()
+    from realm.core.world import get_world
+    manager = get_world().store
     return manager is None or manager.get_cached(obj.id) is obj
 
 
@@ -429,9 +429,9 @@ async def resolve_wilderness_exit(
     cell this exit leads to. ``None`` = a true map edge (the kernel shows
     the exit's authored ``fail_msg``); a broken provider raises
     ``DestinationUnavailable`` with a *distinct* message (R10)."""
-    from realm.persistence.manager import get_active_manager
+    from realm.core.world import get_world
 
-    persistence = get_active_manager()
+    persistence = get_world().store
     coords = _target_coords(exit_obj)
     if coords is None:
         logger.warning(

@@ -24,42 +24,15 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from realm.core.world import setting
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 
 # Trigger sigils are game settings (COMMAND_SIGIL / LISTEN_SIGIL in
 # config.py) — '$' and '^' by default, for worlds where those collide
-# with prose or house conventions. Ambient module state, wired at
-# server construction like the other singletons.
-DEFAULT_COMMAND_SIGIL = '$'
-DEFAULT_LISTEN_SIGIL = '^'
-_command_sigil = DEFAULT_COMMAND_SIGIL
-_listen_sigil = DEFAULT_LISTEN_SIGIL
-
-
-def set_trigger_sigils(command: str = DEFAULT_COMMAND_SIGIL,
-                       listen: str = DEFAULT_LISTEN_SIGIL) -> None:
-    """Install the trigger sigils (game config). Any length (1-16
-    characters); no whitespace, no letters/digits (a sigil of 'go'
-    would swallow ordinary values), and no ':' — the colon is the
-    pattern:action separator, so a sigil containing one would break
-    every trigger it prefixes. A bad sigil is a config error and
-    raises at boot, not mid-parse."""
-    global _command_sigil, _listen_sigil
-    for name, sigil in (("command", str(command)), ("listen", str(listen))):
-        if (not sigil or len(sigil) > 16
-                or any(c.isalnum() or c.isspace() or c == ':'
-                       for c in sigil)):
-            raise ValueError(
-                f"{name} sigil must be 1-16 non-alphanumeric, non-space "
-                f"characters with no ':' (got {sigil!r})")
-    _command_sigil = str(command)
-    _listen_sigil = str(listen)
-
-
-def get_trigger_sigils() -> tuple[str, str]:
-    return _command_sigil, _listen_sigil
+# with prose or house conventions. No ':' (the pattern:action separator).
 
 
 @dataclass
@@ -279,7 +252,8 @@ class TriggerManager:
             return None
 
         value = value.strip()
-        if not value.startswith(_command_sigil):
+        sigil = setting("COMMAND_SIGIL")
+        if not value.startswith(sigil):
             return None
 
         # Find the colon separator
@@ -287,7 +261,7 @@ class TriggerManager:
         if colon_pos == -1:
             return None
 
-        pattern = value[len(_command_sigil):colon_pos].strip()
+        pattern = value[len(sigil):colon_pos].strip()
         action = value[colon_pos + 1:].strip()
 
         if not pattern or not action:
@@ -307,14 +281,15 @@ class TriggerManager:
             return None
 
         value = value.strip()
-        if not value.startswith(_listen_sigil):
+        sigil = setting("LISTEN_SIGIL")
+        if not value.startswith(sigil):
             return None
 
         colon_pos = value.find(':')
         if colon_pos == -1:
             return None
 
-        pattern = value[len(_listen_sigil):colon_pos].strip()
+        pattern = value[len(sigil):colon_pos].strip()
         action = value[colon_pos + 1:].strip()
 
         if not pattern or not action:
@@ -445,8 +420,8 @@ def get_search_objects(player: GameObject) -> list[GameObject]:
             add_if_new(master)
 
     # 5. Global commands: the tag index makes this lookup cheap.
-    from realm.persistence.manager import get_active_manager
-    store = get_active_manager()
+    from realm.core.world import get_world
+    store = get_world().store
     if store is not None:
         for obj in store.find_cached(tag=GLOBAL_COMMANDS_TAG):
             add_if_new(obj)
@@ -465,7 +440,7 @@ def script_code_of(attr_name: str, value: object) -> str | None:
     """
     if not isinstance(value, str) or not value.strip():
         return None
-    command_sigil, listen_sigil = get_trigger_sigils()
+    command_sigil, listen_sigil = setting("COMMAND_SIGIL"), setting("LISTEN_SIGIL")
     for sigil in (command_sigil, listen_sigil):
         if value.startswith(sigil) and ':' in value:
             # `.strip()` matters: builders write "$fetch *: force(...)" with a

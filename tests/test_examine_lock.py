@@ -27,6 +27,7 @@ def _drain(session) -> str:
     return "\n".join(output)
 
 
+@pytest.mark.usefixtures("world")
 class TestExamineLock:
 
     def setup_method(self):

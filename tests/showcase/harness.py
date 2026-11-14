@@ -24,9 +24,9 @@ special wiring (the heist's observers, a custom resolver) composes
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from types import SimpleNamespace
-import re
 
 from realm.testing import Simulator
 

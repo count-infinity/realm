@@ -42,9 +42,9 @@ questions need resolver seams — and three of the four already exist.**
 
 | Pull question | Choke point | Seam | Status |
 |---|---|---|---|
-| what is this called (to this looker)? | `perceived_name` | `register_name_resolver` | ✅ shipped |
-| what modifies this check? | `condition_modifier` | `add_modifier_provider` | ✅ shipped |
-| how does a check resolve? | `check()` | `set_check_resolver` / `resolve_rule` | ✅ shipped |
+| what is this called (to this looker)? | `perceived_name` | `feature.name_resolver` | ✅ shipped |
+| what modifies this check? | `condition_modifier` | `feature.check_modifier` | ✅ shipped |
+| how does a check resolve? | `check()` | the world's `services["checks"]` / `resolve_rule` | ✅ shipped |
 | **who can see whom?** | `can_see` / `room_is_lit` | `register_visibility_resolver` | ❌ **missing** |
 
 Visibility is the one closed pull seam:
@@ -86,7 +86,7 @@ realm/packs/stealth/
 - The data files import in-game (`@import pack`), exactly as today.
 - A pack module registers through **public seams only**: command
   registration, `add_observer`, `register_visibility_resolver`,
-  `add_modifier_provider`, behavior registration. If a stock pack needs a
+  `feature.check_modifier`, behavior registration. If a stock pack needs a
   private hook, the kernel is missing a seam — that's the dogfood test.
 
 ## De-hardcoding inventory (what leaves the kernel)

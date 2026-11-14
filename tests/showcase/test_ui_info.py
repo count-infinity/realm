@@ -14,8 +14,8 @@ this suite, and drift is impossible rather than merely detectable.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 

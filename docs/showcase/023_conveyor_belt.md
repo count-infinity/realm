@@ -47,7 +47,7 @@ script_ticker, interval:1` runs the belt's
 read `next_stop`, hand every piece of cargo one hop toward it with
 [`move_to`](../reference/softcode.md#fn-move_to), and rattle audibly only if
 something actually moved. The interval counts world beats, not seconds. A beat
-is one `WORLD_TICK`, about four seconds by default, so `interval:1` fires once
+is one `WORLD_BEAT`, about four seconds by default, so `interval:1` fires once
 per beat. Each time a belt ticks it hands whatever sits on it one segment
 onward, so a crate travels the line segment by segment on the heartbeat instead
 of jumping to the far end at once. Because a ticker fires only on the object it

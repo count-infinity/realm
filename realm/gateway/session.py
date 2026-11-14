@@ -15,6 +15,8 @@ from collections.abc import Awaitable, Callable
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
 
+from realm.core.world import setting
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -27,35 +29,12 @@ logger = logging.getLogger(__name__)
 # block is dispatched as ONE command with its newlines and indentation intact
 # (so a builder can @set a readable multi-line script instead of a `;`
 # one-liner). Open and close default to the same ''' but may be distinct
-# (<<< ... >>>) for worlds whose scripts use ''' internally. Ambient module
-# state, wired at server construction like the other sigils.
-DEFAULT_HEREDOC_OPEN = "'''"
-DEFAULT_HEREDOC_CLOSE = "'''"
-_heredoc_open = DEFAULT_HEREDOC_OPEN
-_heredoc_close = DEFAULT_HEREDOC_CLOSE
+# (<<< ... >>>) for worlds whose scripts use ''' internally.
 
 #: Discards a runaway/mistyped block instead of dispatching it.
 HEREDOC_ABORT = "@abort"
 #: Backstop against an unterminated block growing without bound.
 HEREDOC_MAX_LINES = 1000
-
-
-def set_heredoc_sigils(open_sigil: str = DEFAULT_HEREDOC_OPEN,
-                       close_sigil: str = DEFAULT_HEREDOC_CLOSE) -> None:
-    """Install the multi-line-input delimiters (game config). Each is 1-16
-    non-alphanumeric, non-space characters (an alnum sigil would swallow
-    ordinary commands ending in that word). Open and close may be equal
-    (``''' ... '''``) or distinct (``<<< ... >>>``). A bad value raises at
-    boot, not mid-input."""
-    global _heredoc_open, _heredoc_close
-    for name, sig in (("open", str(open_sigil)), ("close", str(close_sigil))):
-        if (not sig or len(sig) > 16
-                or any(c.isalnum() or c.isspace() for c in sig)):
-            raise ValueError(
-                f"heredoc {name} sigil must be 1-16 non-alphanumeric, "
-                f"non-space characters (got {sig!r})")
-    _heredoc_open = str(open_sigil)
-    _heredoc_close = str(close_sigil)
 
 
 class SessionState(Enum):
@@ -264,7 +243,7 @@ class Session:
         if self._heredoc is not None:
             body_line = raw.rstrip("\r\n")
             marker = body_line.strip()
-            if marker == _heredoc_close:
+            if marker == setting("HEREDOC_CLOSE"):
                 head, body = self._heredoc['head'], self._heredoc['body']
                 self._heredoc = None
                 self.touch()
@@ -294,13 +273,14 @@ class Session:
         # only in normal command mode (a pending prompt/wizard or login owns
         # the input instead). The '\n' guard skips a whole multi-line paste
         # arriving as one websocket message.
-        if (_heredoc_open and self.player is not None
+        opener = setting("HEREDOC_OPEN")
+        if (self.player is not None
                 and self._prompt_future is None and self.input_handler is None
-                and "\n" not in line and line.endswith(_heredoc_open)):
-            self._heredoc = {'head': line[:-len(_heredoc_open)], 'body': []}
+                and "\n" not in line and line.endswith(opener)):
+            self._heredoc = {'head': line[:-len(opener)], 'body': []}
             self.touch()
             self.send_nowait(
-                f"Multi-line input — end with a line of {_heredoc_close}, "
+                f"Multi-line input — end with a line of {setting('HEREDOC_CLOSE')}, "
                 f"or {HEREDOC_ABORT} to cancel.")
             self._flush_soon()
             return

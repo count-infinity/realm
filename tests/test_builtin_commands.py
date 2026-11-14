@@ -26,10 +26,10 @@ from realm.commands.builtin.inventory import cmd_drop, cmd_get, cmd_give, cmd_pu
 from realm.commands.builtin.look import cmd_look
 from realm.commands.builtin.movement import cmd_go
 from realm.commands.builtin.utility import cmd_logout
+from realm.commands.dispatcher import CommandContext
 from realm.core.behaviors import Behavior
 from realm.core.objects import GameObject
 from realm.gateway.session import Session, SessionState
-from realm.commands.dispatcher import CommandContext
 
 # --- Helpers --------------------------------------------------------------
 
@@ -76,6 +76,7 @@ def make_ctx(
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestCommunicationCommands:
 
     async def test_say_delivers_to_actor_and_room(self):
@@ -193,6 +194,7 @@ class TestCommunicationCommands:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestMovementCommand:
 
     async def _setup_two_rooms(self):
@@ -300,6 +302,7 @@ class TestMovementCommand:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestLookCommand:
 
     async def test_look_at_room_propagates_event_look(self):
@@ -355,6 +358,7 @@ class TestLookCommand:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestInventoryCommands:
 
     async def test_get_moves_item_and_messages(self):
@@ -509,6 +513,7 @@ class TestOnCommandFlushesAllSessions:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestLogout:
     """`logout` is the inverse of *login*, not of `quit`: the character leaves
     play but the connection stays open, back at the connection screen."""
@@ -516,8 +521,8 @@ class TestLogout:
     def _wire(self, player, sess):
         """Wire a ctx the way GameServer does — a real SessionManager holding
         the session, plus the welcome-screen provider."""
-        from realm.gateway.session import SessionManager
         from realm.commands.dispatcher import CommandDispatcher
+        from realm.gateway.session import SessionManager
 
         manager = SessionManager()
         manager._sessions[sess.id] = sess

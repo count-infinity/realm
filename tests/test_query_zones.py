@@ -8,8 +8,8 @@ from __future__ import annotations
 import pytest
 
 from realm.core.objects import GameObject
-from realm.core.propagation import get_engine, reset_engine
 from realm.core.query import find_objects
+from realm.core.world import get_world
 from realm.core.zones import zone_masters, zone_property, zone_rooms
 from realm.gateway.session import Session
 from tests.test_olc import MockPersistence, make_context, use_persistence
@@ -17,9 +17,7 @@ from tests.test_olc import MockPersistence, make_context, use_persistence
 
 @pytest.fixture(autouse=True)
 def fresh():
-    reset_engine()
     yield
-    reset_engine()
 
 
 def make_world(pers):
@@ -50,22 +48,19 @@ class TestFindObjects:
         assert len(find_objects(objs, tag="room", limit=2)) == 2
 
 
+@pytest.mark.usefixtures("world")
 class TestZones:
 
     def test_masters_and_property(self):
         pers = MockPersistence()
         use_persistence(pers)
         keep, _y, woods, master, _s = make_world(pers)
-        from realm.persistence.manager import set_active_manager
-        set_active_manager(pers)
-        try:
-            assert zone_masters(keep) == [master]
-            assert zone_masters(woods) == []
-            assert zone_property(keep, "xp_multiplier", 1.0) == 1.2
-            assert zone_property(woods, "xp_multiplier", 1.0) == 1.0
-            assert {r.name for r in zone_rooms("castle")} == {"Keep", "Yard"}
-        finally:
-            set_active_manager(None)
+        get_world().store = pers
+        assert zone_masters(keep) == [master]
+        assert zone_masters(woods) == []
+        assert zone_property(keep, "xp_multiplier", 1.0) == 1.2
+        assert zone_property(woods, "xp_multiplier", 1.0) == 1.0
+        assert {r.name for r in zone_rooms("castle")} == {"Keep", "Yard"}
 
     def test_overlapping_zones_max_wins(self):
         pers = MockPersistence()
@@ -76,39 +71,32 @@ class TestZones:
         m2.db.xp_multiplier = 1.5
         for o in (room, m1, m2):
             pers.add(o)
-        from realm.persistence.manager import set_active_manager
-        set_active_manager(pers)
-        try:
-            assert zone_property(room, "xp_multiplier") == 1.5
-        finally:
-            set_active_manager(None)
+        get_world().store = pers
+        assert zone_property(room, "xp_multiplier") == 1.5
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestZoneSeams:
 
     async def test_zone_wide_dollar_command(self):
-        from realm.scripting.engine import ScriptEngine
         from realm.commands.dispatcher import CommandContext
+        from realm.scripting.engine import ScriptEngine
 
         pers = MockPersistence()
         keep, _y, _w, master, _s = make_world(pers)
         master.db.cmd_pray = "$pray:say The castle hears your prayer."
-        from realm.persistence.manager import set_active_manager
-        set_active_manager(pers)
-        try:
-            alice = GameObject("Alice", tags=["player"], location=keep)
-            sess = Session(protocol="test", address="1.1.1.1")
-            sess.link_player(alice)
+        get_world().store = pers
+        alice = GameObject("Alice", tags=["player"], location=keep)
+        sess = Session(protocol="test", address="1.1.1.1")
+        sess.link_player(alice)
 
-            engine = ScriptEngine()
-            get_engine().add_observer(engine.handle_action)
-            ctx = CommandContext(session=sess, player=alice, raw_input="pray",
-                                 command_name="pray", args="")
-            handled = await engine.handle_unknown_command(ctx)
-            assert handled is True
-        finally:
-            set_active_manager(None)
+        engine = ScriptEngine()
+        get_world().engine.add_observer(engine.handle_action)
+        ctx = CommandContext(session=sess, player=alice, raw_input="pray",
+                             command_name="pray", args="")
+        handled = await engine.handle_unknown_command(ctx)
+        assert handled is True
 
     async def test_master_witnesses_member_room_events(self):
         from realm.core.movement import move_through_exit
@@ -120,30 +108,25 @@ class TestZoneSeams:
         door.db.destination_obj = keep
         master.db.on_enter = "remit(get('#' + '%l'), 'The castle stirs.')"
         master.db.on_enter = "set_attr(me, 'stirred', True)"
-        from realm.persistence.manager import set_active_manager
-        set_active_manager(pers)
-        try:
-            alice = GameObject("Alice", tags=["player"], location=yard)
-            engine = ScriptEngine(persistence=pers)
-            get_engine().add_observer(engine.handle_action)
+        get_world().store = pers
+        alice = GameObject("Alice", tags=["player"], location=yard)
+        engine = ScriptEngine(persistence=pers)
+        get_world().engine.add_observer(engine.handle_action)
 
-            await move_through_exit(alice, keep, exit_obj=door)
-            assert master.db.get("stirred") is True
-        finally:
-            set_active_manager(None)
+        await move_through_exit(alice, keep, exit_obj=door)
+        assert master.db.get("stirred") is True
 
-    async def test_zone_xp_multiplier_applies(self):
-        from realm.combat.manager import CombatManager, set_combat_manager
+    async def test_zone_xp_multiplier_applies(self, world):
+        from realm.combat.manager import CombatManager
         from realm.combat.system import CombatSystem
-        from realm.persistence.manager import set_active_manager
         from tests.test_combat_encounters import FixedRuleset
 
         pers = MockPersistence()
         keep, _y, _w, master, _s = make_world(pers)
-        set_active_manager(pers)
+        get_world().store = pers
         mgr = CombatManager(CombatSystem(ruleset=FixedRuleset()),
                             beat_min=4, beat_max=120, beat_default=15)
-        set_combat_manager(mgr)
+        get_world().services["combat"] = mgr
         try:
             alice = GameObject("Alice", tags=["player"], location=keep)
             ogre = GameObject("ogre", tags=["npc"], location=keep)
@@ -153,28 +136,23 @@ class TestZoneSeams:
             assert alice.db.get("character_points") == 12
         finally:
             mgr.stop_all()
-            set_combat_manager(None)
-            set_active_manager(None)
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestSoftcodeSurfaces:
 
     async def test_search_world_and_zone_sugar(self):
-        from realm.persistence.manager import set_active_manager
         from realm.scripting.functions import ScriptFrame
 
         pers = MockPersistence()
         keep, _y, _w, master, sword = make_world(pers)
-        set_active_manager(pers)
-        try:
-            funcs = ScriptFrame(executor=master, persistence=pers)
-            assert sword in funcs.search_world(tag="thing")
-            assert funcs.search_world(attr="value", value=50) == [sword]
-            assert {r.name for r in funcs.zone_rooms("castle")} == {"Keep", "Yard"}
-            assert funcs.zones_of(keep) == ["castle"]
-        finally:
-            set_active_manager(None)
+        get_world().store = pers
+        funcs = ScriptFrame(executor=master, persistence=pers)
+        assert sword in funcs.search_world(tag="thing")
+        assert funcs.search_world(attr="value", value=50) == [sword]
+        assert {r.name for r in funcs.zone_rooms("castle")} == {"Keep", "Yard"}
+        assert funcs.zones_of(keep) == ["castle"]
 
     async def test_protected_attrs_hidden(self):
         from realm.scripting.functions import ScriptFrame
@@ -192,6 +170,7 @@ class TestSoftcodeSurfaces:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestZoneCommand:
 
     def setup_method(self):
@@ -200,31 +179,27 @@ class TestZoneCommand:
 
     async def test_zone_add_master_and_rooms(self):
         from realm.commands.olc.softcode import cmd_zone
-        from realm.persistence.manager import set_active_manager
 
-        set_active_manager(self.persistence)
-        try:
-            room = GameObject("Keep", tags=["room"])
-            bea = GameObject("Bea", tags=["player", "builder"], location=room)
-            brain = GameObject("Castle Brain", location=room, owner=bea)
-            self.persistence.add(room)
-            self.persistence.add(brain)
+        get_world().store = self.persistence
+        room = GameObject("Keep", tags=["room"])
+        bea = GameObject("Bea", tags=["player", "builder"], location=room)
+        brain = GameObject("Castle Brain", location=room, owner=bea)
+        self.persistence.add(room)
+        self.persistence.add(brain)
 
-            ctx = make_context(bea, left_args="here", right_args="castle")
-            await cmd_zone(ctx)
-            assert room.has_tag("zone:castle")
+        ctx = make_context(bea, left_args="here", right_args="castle")
+        await cmd_zone(ctx)
+        assert room.has_tag("zone:castle")
 
-            ctx = make_context(bea, left_args="Castle Brain",
-                               right_args="castle", switches=["master"])
-            await cmd_zone(ctx)
-            assert brain.has_tag("zone_master")
-            assert zone_masters(room) == [brain]
+        ctx = make_context(bea, left_args="Castle Brain",
+                           right_args="castle", switches=["master"])
+        await cmd_zone(ctx)
+        assert brain.has_tag("zone_master")
+        assert zone_masters(room) == [brain]
 
-            ctx = make_context(bea, args="castle", switches=["rooms"])
-            await cmd_zone(ctx)
-            assert any("Keep" in m for m in ctx.session.messages)
-        finally:
-            set_active_manager(None)
+        ctx = make_context(bea, args="castle", switches=["rooms"])
+        await cmd_zone(ctx)
+        assert any("Keep" in m for m in ctx.session.messages)
 
 
 class TestTagValues:

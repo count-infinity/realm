@@ -7,20 +7,16 @@ from __future__ import annotations
 
 import pytest
 
-from realm.core.checks import set_check_resolver
+from realm.core.checks import checks
 from realm.core.describe import detail_lines
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
 from realm.core.render import render_room
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 
 @pytest.fixture(autouse=True)
-def fresh():
-    reset_engine()
+def fresh(classic_world):
     yield
-    set_check_resolver(None)
-    reset_engine()
 
 
 def level_resolver(obj, skill, modifier):
@@ -32,7 +28,7 @@ def level_resolver(obj, skill, modifier):
 class TestDetailLines:
 
     def test_skill_gated_detail(self):
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
         room = GameObject("Cellar", tags=["room"])
         room.db.desc_extras = [
             ["check('observation', -2)", "You notice a small hole in the wall."],
@@ -63,7 +59,7 @@ class TestDetailLines:
         assert detail_lines(room, ghost) == ["The walls remember you."]
 
     def test_render_room_includes_details(self):
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
         room = GameObject("Cellar", tags=["room"])
         room.description = "A damp cellar."
         room.db.desc_extras = [["check('observation')", "A glint of metal."]]
@@ -193,7 +189,7 @@ class TestInlineSoftcode:
         """The user's pseudocode, near-verbatim: cache the roll per viewer."""
         from realm.scripting.inline import eval_inline
 
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
         room, thief, mook = self._cellar()
         room.description = (
             "A dusty cellar."
@@ -260,48 +256,40 @@ class TestInlineSoftcode:
         """A game that prefers ${ } gets it — and the depth tracking
         follows the configured closer, so dict literals inside a
         ${...} block don't terminate it early."""
-        from realm.scripting.inline import (
-            eval_inline,
-            set_inline_delimiters,
-        )
+        from realm.core.world import get_world
+        from realm.scripting.inline import eval_inline
+        from tests.conftest import reconfigure
 
         room, thief, _ = self._cellar()
-        set_inline_delimiters("${", "}")
-        try:
-            room.description = (
-                "Moods: ${result = {'grim': 'dark', 'warm': 'cozy'}['grim']}."
-            )
-            assert eval_inline(room.description, room, thief) == \
-                "Moods: dark."
-            # And the old delimiters are now just literal text.
-            room.description = "Raw [[not code]] here"
-            assert eval_inline(room.description, room, thief) == \
-                "Raw [[not code]] here"
-        finally:
-            set_inline_delimiters()
+        reconfigure(get_world(), inline_open="${", inline_close="}")
+        room.description = (
+            "Moods: ${result = {'grim': 'dark', 'warm': 'cozy'}['grim']}."
+        )
+        assert eval_inline(room.description, room, thief) == \
+            "Moods: dark."
+        # And the old delimiters are now just literal text.
+        room.description = "Raw [[not code]] here"
+        assert eval_inline(room.description, room, thief) == \
+            "Raw [[not code]] here"
 
     def test_configurable_delimiters_non_bracket_closer(self):
-        from realm.scripting.inline import (
-            eval_inline,
-            set_inline_delimiters,
-        )
+        from realm.core.world import get_world
+        from realm.scripting.inline import eval_inline
+        from tests.conftest import reconfigure
 
         room, thief, _ = self._cellar()
-        set_inline_delimiters("<<", ">>")
-        try:
-            room.description = "Depth: <<result = 'ten >> feet'[:3]>> down"
-            assert eval_inline(room.description, room, thief) == \
-                "Depth: ten down"
-        finally:
-            set_inline_delimiters()
+        reconfigure(get_world(), inline_open="<<", inline_close=">>")
+        room.description = "Depth: <<result = 'ten >> feet'[:3]>> down"
+        assert eval_inline(room.description, room, thief) == \
+            "Depth: ten down"
 
     def test_bad_delimiters_fail_loud_at_config_time(self):
-        from realm.scripting.inline import set_inline_delimiters
+        from realm.config.loader import Settings
 
         with pytest.raises(ValueError):
-            set_inline_delimiters("", "]]")
+            Settings(inline_open="", inline_close="]]")
         with pytest.raises(ValueError):
-            set_inline_delimiters("%%", "%%")
+            Settings(inline_open="%%", inline_close="%%")
 
     def test_settings_carry_inline_delimiters(self):
         from realm.config.loader import Settings
@@ -334,7 +322,7 @@ class TestInlineSoftcode:
         assert eval_inline(room.description, room, thief) == "fresh"
 
     def test_render_room_evaluates_blocks(self):
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
         room, thief, mook = self._cellar()
         room.description = ("A cellar.[[result = ' A glint of metal.' "
                             "if skill('detection') >= 12 else '']]")

@@ -8,8 +8,8 @@ words; one who does not hears only `<something in Trade>`. The words
 garble, but the name over them does not.
 
 **Concepts:** the per-listener **speech renderer**
-(`register_speech_renderer`), one short native binding a game registers at
-deploy time, plus an in-game `$speak <tongue>` command and per-character
+(`feature.speech_renderer`), one short native declaration in the game's
+feature module, plus an in-game `$speak <tongue>` command and per-character
 `speaking` and `languages` attributes. As with the introductions steward in
 [short descriptions](133_short_descs.md), the policy half (what a stranger
 to the tongue actually hears) is the game's own, so it lives in setup
@@ -34,13 +34,17 @@ returns the body that particular looker should read. Ours is nine lines. A
 speaker carries `db.speaking` (the tongue on their lips right now) and a
 listener carries `db.languages` (the tongues they know). If the looker
 lacks the speaker's tongue they get a placeholder; everyone else, and the
-speaker's own ear, reads it plain. This is native setup Python, registered
-once at deploy time, not softcode:
+speaker's own ear, reads it plain. This is native Python declared in the
+game's feature module, not softcode:
 
 ```python
-# In your game's setup (config.py's on_start, or a bindings module):
-from realm.core.propagation import register_speech_renderer
+# game.py — your game's feature (config.py: FEATURES = [*CLASSIC, "game"])
+from realm.features import Feature
 
+feature = Feature("game")
+
+
+@feature.speech_renderer
 def garble_unknown_tongue(body, action, looker):
     if action.action_type != "event:speech":
         return body                      # only spoken words garble
@@ -50,8 +54,6 @@ def garble_unknown_tongue(body, action, looker):
     if tongue in (looker.db.get("languages") or []):
         return body                      # this listener shares the tongue
     return f"<something in {tongue.title()}>"
-
-register_speech_renderer(garble_unknown_tongue)
 ```
 
 **The renderer touches the body, never the name.** It rewrites only

@@ -27,9 +27,9 @@ forged clock (reap_expired), exactly as on the world tick.
 
 from __future__ import annotations
 
+import re
 import time
 from pathlib import Path
-import re
 
 import pytest
 

@@ -11,16 +11,14 @@ from realm.behaviors.shop import ShopkeeperBehavior, find_shopkeeper
 from realm.core.disposition import set_disposition
 from realm.core.economy import adjust_credits, get_credits, transfer_credits
 from realm.core.objects import GameObject
-from realm.core.propagation import get_engine, reset_engine
+from realm.core.world import get_world
 from realm.gateway.session import Session
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 
 @pytest.fixture(autouse=True)
 def fresh_engine():
-    reset_engine()
     yield
-    reset_engine()
 
 
 class TestEconomyCore:
@@ -82,6 +80,7 @@ class TestShopPricing:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestShopCommands:
 
     def setup_method(self):
@@ -138,6 +137,7 @@ class TestShopCommands:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestPayAndBribes:
 
     def setup_method(self):
@@ -176,7 +176,7 @@ class TestPayAndBribes:
         adjust_credits(bob, 50)
 
         engine = ScriptEngine()
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         ctx = make_context(bob, args="25 to ogre")
         ctx.session.link_player(bob)

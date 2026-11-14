@@ -596,15 +596,16 @@ async def test_deleted_object_is_not_resurrected_by_a_stale_flush():
 
 
 @pytest.mark.asyncio
-async def test_wilderness_cells_are_never_persisted():
+async def test_wilderness_cells_are_never_persisted(world):
     """A real ``:memory:`` PersistenceManager never writes a cell or its
     exits (mirror of test_instances.test_ephemeral_objects_are_never_persisted)."""
     from realm.core.objects import GameObject
-    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.core.world import get_world
+    from realm.persistence.manager import PersistenceManager
 
     pm = PersistenceManager(":memory:")
     await pm.initialize()
-    set_active_manager(pm)
+    get_world().store = pm
     wilderness.reset()
     try:
         master = GameObject(name="wilds", tags=["wilderness_region"])
@@ -622,24 +623,24 @@ async def test_wilderness_cells_are_never_persisted():
         assert pm.get_cached(cell.id) is cell
     finally:
         wilderness.reset()
-        set_active_manager(None)
         await pm.close()
 
 
 @pytest.mark.asyncio
-async def test_reboot_reconciles_objects_with_dangled_locations(tmp_path):
+async def test_reboot_reconciles_objects_with_dangled_locations(tmp_path, world):
     """R9's crash-path backstop: a persistent object whose stored location
     was an ephemeral room reloads dangling — a player-owned one lands in
     its owner's refuge; an unowned one is reaped, loudly. Nothing sits
     silently at location=None."""
     from realm.core.objects import GameObject
-    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.core.world import get_world
+    from realm.persistence.manager import PersistenceManager
     from realm.server.game import GameServer
 
     db = tmp_path / "wild.db"
     pm = PersistenceManager(db)
     await pm.initialize()
-    set_active_manager(pm)
+    get_world().store = pm
     try:
         start = GameObject(name="The Void", tags=["room", "start_room"])
         await pm.save(start)
@@ -658,12 +659,11 @@ async def test_reboot_reconciles_objects_with_dangled_locations(tmp_path):
         await pm.save(rock)
         sword_id, rock_id, start_id = sword.id, rock.id, start.id
     finally:
-        set_active_manager(None)
         await pm.close()
 
     pm2 = PersistenceManager(db)
     await pm2.initialize()
-    set_active_manager(pm2)
+    get_world().store = pm2
     try:
         await pm2.load_all()
         server = GameServer.__new__(GameServer)
@@ -677,22 +677,22 @@ async def test_reboot_reconciles_objects_with_dangled_locations(tmp_path):
         assert pm2.get_cached(rock_id) is None               # reaped
         assert await pm2.exists(rock_id) is False
     finally:
-        set_active_manager(None)
         await pm2.close()
 
 
 @pytest.mark.asyncio
-async def test_reconcile_empties_a_dangling_container_before_reaping_it(tmp_path):
+async def test_reconcile_empties_a_dangling_container_before_reaping_it(tmp_path, world):
     """A player (or player property) that reloaded INSIDE a dangling
     unowned container is released before the container is deleted."""
     from realm.core.objects import GameObject
-    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.core.world import get_world
+    from realm.persistence.manager import PersistenceManager
     from realm.server.game import GameServer
 
     db = tmp_path / "nest.db"
     pm = PersistenceManager(db)
     await pm.initialize()
-    set_active_manager(pm)
+    get_world().store = pm
     try:
         start = GameObject(name="The Void", tags=["room", "start_room"])
         await pm.save(start)
@@ -714,13 +714,12 @@ async def test_reconcile_empties_a_dangling_container_before_reaping_it(tmp_path
         await pm.save(sword)
         ids = (start.id, wagon.id, rider.id, sword.id)
     finally:
-        set_active_manager(None)
         await pm.close()
 
     start_id, wagon_id, rider_id, sword_id = ids
     pm2 = PersistenceManager(db)
     await pm2.initialize()
-    set_active_manager(pm2)
+    get_world().store = pm2
     try:
         await pm2.load_all()
         server = GameServer.__new__(GameServer)
@@ -734,5 +733,4 @@ async def test_reconcile_empties_a_dangling_container_before_reaping_it(tmp_path
         assert pm2.get_cached(wagon_id) is None              # then reaped
         assert await pm2.exists(wagon_id) is False
     finally:
-        set_active_manager(None)
         await pm2.close()

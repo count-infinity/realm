@@ -31,12 +31,13 @@ from realm.core.propagation import (
     propagate,
 )
 from realm.core.render import render_room
+from realm.core.world import World
 from realm.gateway.session import Session, SessionManager
 from realm.gateway.telnet import TelnetServer
-from realm.persistence.manager import PersistenceManager, set_active_manager
+from realm.persistence.manager import PersistenceManager
 from realm.scripting.engine import ScriptEngine
 from realm.server.auth import AuthService
-from realm.server.world import World, build_world
+from realm.server.world import build_world
 from realm.systems.base import GameSystem
 
 logger = logging.getLogger(__name__)
@@ -197,8 +198,13 @@ class GameServer:
         )
         await self.persistence.initialize()
         await self.persistence.start_flush_loop()
-        set_active_manager(self.persistence)
         self.auth = AuthService(self.persistence)
+
+        # Wire the world (the same build_world the Simulator uses) before it
+        # loads, so loading and init_world find the store through it.
+        # Feature on_boot hooks run once it is loaded, below.
+        self.world = build_world(self.persistence, self.settings,
+                                 sessions=self.session_manager, features=features)
 
         # Load world
         loaded_count = await self._load_world()
@@ -232,9 +238,6 @@ class GameServer:
         self.session_manager.on_connect(self._on_session_connect)
         self.session_manager.on_disconnect(self._on_session_disconnect)
 
-        # Wire the engine: the same build_world the Simulator uses.
-        self.world = build_world(self.persistence, self.settings,
-                                 sessions=self.session_manager, features=features)
         await features.boot(self.world)
 
         # Server-only wiring around the shared world.
@@ -308,6 +311,8 @@ class GameServer:
                 logger.error(f"Error in startup callback: {e}")
 
         logger.info(f"{self.settings.game_name} game server started")
+        for key, value in self.world.changed_settings().items():
+            logger.info(f"setting {key} = {value!r}")
 
     async def stop(self) -> None:
         """Stop the game server."""
@@ -791,17 +796,15 @@ class GameServer:
         import time as _time
         import weakref
 
-        from realm.core.beats import (
-            WORLD_TICK,
-            ambient_beat_targets,
-            deliver_beat,
-        )
+        from realm.core.beats import ambient_beat_targets, deliver_beat
         from realm.core.behaviors import behavior_owners
+
+        world_beat = self.world.setting("WORLD_BEAT")
 
         last_ticked: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
         next_pulse = _time.monotonic()
         # Start the ambient-beat clock now, so the first beat lands one
-        # WORLD_TICK after boot rather than immediately on pulse one.
+        # WORLD_BEAT after boot rather than immediately on pulse one.
         last_world_beat = _time.monotonic()
         while True:
             # Drift-correcting sleep: aim for a fixed grid, and if a heavy
@@ -815,7 +818,7 @@ class GameServer:
             now = _time.monotonic()
 
             # --- Real-time behaviors (spawners, decay, wander, tickers) ---
-            # Each fires on its own tick_interval (default WORLD_TICK), so the
+            # Each fires on its own tick_interval (default WORLD_BEAT), so the
             # fast heartbeat never changes their pacing.
             for obj in behavior_owners():
                 for behavior in obj.get_behaviors():
@@ -839,9 +842,9 @@ class GameServer:
                         )
 
             # --- Ambient beat: out-of-combat objects advance one beat every
-            # WORLD_TICK. Combatants are driven by their encounter instead
+            # WORLD_BEAT. Combatants are driven by their encounter instead
             # (the double-tick guard), so they're skipped here. ---
-            if now - last_world_beat >= WORLD_TICK:
+            if now - last_world_beat >= world_beat:
                 last_world_beat = now
                 for obj in ambient_beat_targets(behavior_owners()):
                     try:

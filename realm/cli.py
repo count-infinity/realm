@@ -21,7 +21,10 @@ import asyncio
 import logging
 import shutil
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from realm.config.loader import load_config
 from realm.server.game import GameServer
@@ -175,59 +178,65 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
     return 0
 
 
+@asynccontextmanager
+async def _offline_world() -> AsyncIterator[Any]:
+    """This game's world, loaded and installed, with no server around it
+    (export, import, pack import). Its features' registries are installed
+    before the load, as at boot, so saved behaviors find their classes."""
+    from realm.features import load
+    from realm.persistence.manager import PersistenceManager
+    from realm.server.world import build_world
+    from realm.std import CLASSIC
+
+    settings = load_config()
+    features = load(settings.features or CLASSIC)
+    features.install_registries()
+    persistence = PersistenceManager(settings.db_path)
+    await persistence.initialize()
+    try:
+        world = build_world(persistence, settings, features=features)
+        try:
+            await persistence.load_all()
+            yield world
+        finally:
+            world.close()
+    finally:
+        await persistence.close()
+
+
 async def cmd_export(args: argparse.Namespace) -> int:
     """Export the world (or one zone) to an area file."""
     import json as _json
 
-    from realm.config.loader import load_config
-    from realm.persistence.manager import PersistenceManager, set_active_manager
     from realm.persistence.worldio import export_objects, export_zone
 
-    settings = load_config()
-    persistence = PersistenceManager(settings.db_path)
-    await persistence.initialize()
-    try:
-        await persistence.load_all()
-        set_active_manager(persistence)
+    async with _offline_world() as world:
         if args.zone:
             data = export_zone(args.zone)
         else:
-            objects = [o for o in persistence.all_cached()
+            objects = [o for o in world.store.all_cached()
                        if args.include_players or not o.is_player]
             data = export_objects(objects)
         with open(args.file, 'w') as f:
             _json.dump(data, f, indent=2)
         print(f"Exported {len(data['objects'])} objects to {args.file}")
         return 0
-    finally:
-        set_active_manager(None)
-        await persistence.close()
 
 
 async def cmd_import(args: argparse.Namespace) -> int:
     """Import an area file into this game's world."""
     import json as _json
 
-    from realm.config.loader import load_config
-    from realm.persistence.manager import PersistenceManager, set_active_manager
     from realm.persistence.worldio import import_objects
 
     with open(args.file) as f:
         data = _json.load(f)
 
-    settings = load_config()
-    persistence = PersistenceManager(settings.db_path)
-    await persistence.initialize()
-    try:
-        await persistence.load_all()
-        set_active_manager(persistence)
-        created = await import_objects(data, persistence)
+    async with _offline_world() as world:
+        created = await import_objects(data, world.store)
         print(f"Imported {len(created)} objects from {args.file} "
               f"(fresh ids, references remapped)")
         return 0
-    finally:
-        set_active_manager(None)
-        await persistence.close()
 
 
 async def cmd_pack(args: argparse.Namespace) -> int:
@@ -248,24 +257,14 @@ async def cmd_pack(args: argparse.Namespace) -> int:
         print("Usage: realm pack import <name>")
         return 1
 
-    from realm.config.loader import load_config
-    from realm.persistence.manager import PersistenceManager, set_active_manager
-
-    settings = load_config()
-    persistence = PersistenceManager(settings.db_path)
-    await persistence.initialize()
-    try:
-        await persistence.load_all()
-        set_active_manager(persistence)
-        created = await import_pack(args.name, persistence)
+    async with _offline_world() as world:
+        try:
+            created = await import_pack(args.name, world.store)
+        except (FileNotFoundError, ValueError) as exc:
+            print(f"Error: {exc}")
+            return 1
         print(f"Imported {len(created)} objects from pack '{args.name}'.")
         return 0
-    except (FileNotFoundError, ValueError) as exc:
-        print(f"Error: {exc}")
-        return 1
-    finally:
-        set_active_manager(None)
-        await persistence.close()
 
 
 def _log_level(args: argparse.Namespace, settings) -> int:

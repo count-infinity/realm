@@ -1,6 +1,6 @@
 # 134. Disguises
 
-> Checklist item 134 ([small]): *apparent-identity override on the register_name_resolver seam*
+> Checklist item 134 ([small]): *apparent-identity override on the feature.name_resolver seam*
 
 **What you'll build:** a wardrobe that hands out disguises. Pull one on and
 the whole room reads you as **"a masked courier"** in the occupant list, in
@@ -8,7 +8,7 @@ the whole room reads you as **"a masked courier"** in the occupant list, in
 on a winning perception roll, see through it, after which *they* read your
 true name while everyone else still sees the mask.
 
-**Concepts:** the **name-resolver seam** (`register_name_resolver`), the same
+**Concepts:** the **name-resolver seam** (`feature.name_resolver`), the same
 short binding that powers [short-descs](133_short_descs.md) turned to the
 opposite purpose, plus a [`check_roll`](../reference/softcode.md#fn-check_roll)
 see-through contest, an admin-owned wardrobe that writes the wearer's
@@ -32,9 +32,13 @@ always know your own face) and never to anyone on the wearer's `pierced_by`
 list, the ids of watchers who have already seen through the mask:
 
 ```python
-# In your game's setup (config.py's on_start, or a bindings module):
-from realm.core.perception import register_name_resolver
+# game.py — your game's feature (config.py: FEATURES = [*CLASSIC, "game"])
+from realm.features import Feature
 
+feature = Feature("game")
+
+
+@feature.name_resolver
 def wear_a_disguise(obj, looker, current):
     disguise = obj.db.get('disguise')
     pierced = obj.db.get('pierced_by') or []
@@ -42,8 +46,6 @@ def wear_a_disguise(obj, looker, current):
             and looker.id not in pierced):
         return disguise          # the room reads the assumed identity
     return current               # you, and anyone who saw through it
-
-register_name_resolver(wear_a_disguise)
 ```
 
 **Voice comes free.** Speech attribution is named through the very same

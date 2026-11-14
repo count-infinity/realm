@@ -56,8 +56,8 @@ class DecayBehavior(Behavior):
             )
         obj.location = None
 
-        from realm.persistence.manager import get_active_manager
-        persistence = get_active_manager()
+        from realm.core.world import get_world
+        persistence = get_world().store
         if persistence is not None:
             await persistence.delete(obj)
 

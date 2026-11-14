@@ -65,13 +65,22 @@ The **SessionManager** is protocol-agnostic and manages all sessions uniformly.
 
 The server layer contains the game logic:
 
-- **build_world / World** (`realm/server/world.py`) - The composition root. Given an
-  open store and `Settings`, it installs the syntax settings, the dispatcher,
-  the script engine, the propagation observers, the game system and the combat
-  manager, and returns a `World` whose `close()` undoes all of it. The server
-  and the test Simulator both call it.
-- **GameServer** - Opens and loads the store, calls `build_world`, then runs the
-  login flow, tick and reap loops, and protocol servers
+- **build_world** (`realm/server/world.py`) - The composition root. Given an
+  open store and `Settings`, it builds a `World`: a fresh propagation engine,
+  the dispatcher, the game system and its check resolution, the script
+  engine, and every loaded feature's runtime declarations (observers, the
+  combat manager, name resolvers, speech renderers...). It installs that
+  world and returns it; `close()` undoes all of it. The server and the test
+  Simulator both call it.
+- **World** (`realm/core/world.py`) - The one handle to the running world.
+  Code that needs the store, the engine, the script engine, the rules or a
+  feature's service asks `get_world()` (`get_world().store`,
+  `get_world().services.get("combat")`) and reads configuration with
+  `setting("EMOTE_SIGIL")`. Nothing else is pushed into module globals at
+  boot, so two worlds in one process switch with `use_world`.
+- **GameServer** - Opens the store, calls `build_world`, loads the world,
+  then runs the login flow, tick and reap loops, and protocol servers. It
+  logs every setting that differs from its default at INFO
 - **CommandDispatcher** - Routes commands to handlers (permissions, categories)
 - **ScriptEngine** - Softcode: `$`-commands, `^listen`, `ON_<EVENT>` triggers, tickers
 - **GameSystem** - The swappable rules package (GURPS/D20: chargen, skills, combat ruleset)

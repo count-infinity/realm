@@ -361,6 +361,7 @@ class TestTriggerManager:
         assert len(matches) == 2
 
 
+@pytest.mark.usefixtures("world")
 class TestGetSearchObjects:
     """Test the search order for triggers."""
 

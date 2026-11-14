@@ -14,8 +14,8 @@ them — if this file is green, the lines the docs print work.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 

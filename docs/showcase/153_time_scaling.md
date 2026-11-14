@@ -33,11 +33,11 @@ how many game-minutes the clock advances per tick.
 ### How the one number becomes a speed
 
 The conversion is worth seeing plainly. A `script_ticker` behavior with
-`interval:N` fires every `N × WORLD_TICK` real seconds, and `WORLD_TICK` is
+`interval:N` fires every `N × WORLD_BEAT` real seconds, and `WORLD_BEAT` is
 4 seconds. If each tick adds `step` game-minutes, then:
 
 ```
-game-minutes per real-second  =  step / (interval × WORLD_TICK)
+game-minutes per real-second  =  step / (interval × WORLD_BEAT)
 ```
 
 That ratio **is** your TIME_FACTOR. Raise `step` (or lower `interval`) and

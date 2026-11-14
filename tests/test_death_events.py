@@ -20,9 +20,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.combat.manager import CombatManager, set_combat_manager
+from realm.combat.manager import CombatManager
 from realm.combat.rulesets.d20 import D20Ruleset
 from realm.combat.system import CombatSystem
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 WITNESS = (
@@ -37,7 +38,7 @@ def world():
     sim = Simulator()
     mgr = CombatManager(CombatSystem(ruleset=D20Ruleset()),
                         beat_min=4.0, beat_max=120.0, beat_default=15.0)
-    set_combat_manager(mgr)
+    get_world().services["combat"] = mgr
     room = sim.room("Pit")
     alice = sim.player("Alice", location=room)
     alice.db.set('hp', 10)
@@ -50,7 +51,6 @@ def world():
                               mark=mark, witness=witness)
     finally:
         mgr.stop_all()
-        set_combat_manager(None)
         sim.close()
 
 
@@ -192,15 +192,15 @@ class TestRealSwingStillFires:
 
     async def test_a_real_swing_kill_announces_once(self):
         from realm.combat.rulesets.gurps import GURPSRuleset
-        from realm.core.checks import set_check_resolver
+        from realm.core.checks import checks
 
         sim = Simulator()
         # Diceless: every 3d6 is a 10, so swings land deterministically.
-        set_check_resolver(lambda actor, skill, mod=0, **kw: SimpleNamespace(
-            success=True, margin=6, critical=False, roll=10))
+        checks().resolver = lambda actor, skill, mod=0, **kw: SimpleNamespace(
+            success=True, margin=6, critical=False, roll=10)
         mgr = CombatManager(CombatSystem(ruleset=GURPSRuleset()),
                             beat_min=4.0, beat_max=120.0, beat_default=15.0)
-        set_combat_manager(mgr)
+        get_world().services["combat"] = mgr
         try:
             room = sim.room("Pit")
             hero = sim.player("Hero", location=room, hp=30, max_hp=30,
@@ -224,6 +224,4 @@ class TestRealSwingStillFires:
             assert witness.db.get('count') == 1, "the swing double-announced"
         finally:
             mgr.stop_all()
-            set_combat_manager(None)
-            set_check_resolver(None)
             sim.close()

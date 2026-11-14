@@ -30,7 +30,6 @@ from typing import Any
 
 from realm.config.loader import Settings
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
 from realm.gateway.session import Session
 from realm.persistence.memory import MemoryStore
 
@@ -64,7 +63,6 @@ class Simulator:
         settings = replace(settings or Settings(), **overrides)
         self.features = load(settings.features or CLASSIC)
         self.features.install_registries()
-        reset_engine()
         self.store = MemoryStore()
         # Virtual clock: waits fire when the test pumps tick_waits(), not on
         # wall-clock timers — deterministic like the rest of the Simulator.
@@ -163,7 +161,6 @@ class Simulator:
     def close(self) -> None:
         """Tear down every ambient registration this Simulator made."""
         self.world.close()
-        reset_engine()
 
     def __enter__(self) -> Simulator:
         return self

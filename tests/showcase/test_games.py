@@ -22,8 +22,8 @@ economy suites use.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -816,8 +816,8 @@ class TestArmWrestling:
     async def test_skill_def_bridges_strength_into_contests(self, sim):
         room, vala, kess, bob = parlor_and_staff(sim)
         await build(sim, vala, WRESTLE_BUILD)
-        from realm.core.checks import SKILL_DEFAULTS
-        assert SKILL_DEFAULTS.get("brawn") == ("strength", 0)
+        from realm.core.checks import checks
+        assert checks().skill_defaults.get("brawn") == ("strength", 0)
 
     async def test_wagered_bout_with_crowd_call(self, sim, pinned_dice):
         room, vala, kess, bob = parlor_and_staff(sim)

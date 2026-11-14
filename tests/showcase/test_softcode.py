@@ -20,8 +20,8 @@ block's opener fails loudly here instead of silently skipping it.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 import re
+from pathlib import Path
 
 import pytest
 

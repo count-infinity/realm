@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from realm.core import dice
-from realm.core.checks import resolve_with_rule, set_skill_defaults, skill_level
+from realm.core.checks import checks, resolve_with_rule, skill_level, skill_table
 from realm.core.objects import GameObject
 from realm.scripting import softcode_function
 from realm.scripting.registry import unregister
@@ -21,8 +21,8 @@ from realm.testing import Simulator
 
 
 @pytest.fixture(autouse=True)
-def gurps_skills():
-    set_skill_defaults(BUILTIN_SKILL_DEFAULTS)
+def gurps_skills(world):
+    world.services["checks"].skill_defaults = skill_table(BUILTIN_SKILL_DEFAULTS)
     yield
 
 
@@ -147,7 +147,7 @@ class TestKernelNeutrality:
     def test_unlisted_skill_does_not_assume_a_humanoid_stat(self):
         # A ship with no 'intelligence' rolling an unlisted skill must NOT
         # be silently rated off intelligence — it gets a neutral floor.
-        set_skill_defaults({})                    # nothing listed
+        checks().skill_defaults = skill_table()   # nothing listed
         ship = GameObject("Corvette", tags=["vehicle"])
         ship.db.intelligence = 99                 # even if it had one...
         assert skill_level(ship, "gunnery") == 5  # neutral floor, not 99-5

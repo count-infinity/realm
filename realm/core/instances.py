@@ -63,8 +63,8 @@ def _leader_ids(player: GameObject) -> list[str]:
     cycle-guarded. Routing walks the whole chain: when A follows B
     follows C, A is party to C's shared copy even though A's direct
     leader owns nothing."""
-    from realm.persistence.manager import get_active_manager
-    manager = get_active_manager()
+    from realm.core.world import get_world
+    manager = get_world().store
     ids: list[str] = []
     seen = {player.id}
     current = player.db.get("following")
@@ -203,11 +203,11 @@ async def resolve_instance_exit(
     ``shared`` owner is routed into the owner's copy, a follower of a
     ``solo`` owner is bounced at the threshold, and a mob never
     materializes a copy of its own."""
+    from realm.core.world import get_world
     from realm.core.zones import zone_rooms
     from realm.permissions.locks import LockType, check_lock
-    from realm.persistence.manager import get_active_manager
 
-    persistence = get_active_manager()
+    persistence = get_world().store
     template = exit_obj.db.get("instance_template")
     if not template or persistence is None:
         logger.warning(

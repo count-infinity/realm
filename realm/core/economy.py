@@ -21,9 +21,9 @@ CREDITS_ATTR = "credits"
 
 def currency_name() -> str:
     """The active game system's currency label (fallback: credits)."""
-    from realm.systems.base import get_game_system
+    from realm.core.world import get_world
 
-    system = get_game_system()
+    system = get_world().rules
     return system.currency_name if system else "credits"
 
 

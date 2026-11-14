@@ -40,7 +40,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.core.behaviors import Behavior
-    from realm.server.world import World
+    from realm.core.world import World
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +90,9 @@ class Feature:
         self.reapers: list[Callable] = []
         self.queue_kinds: dict[str, Callable] = {}
         self.check_modifiers: list[Callable] = []
+        self.name_resolvers: list[Callable] = []
+        self.speech_renderers: list[Callable] = []
+        self.group_formatters: list[tuple[Callable, bool]] = []
         self.protocols: list[tuple[str, type, dict[str, Any]]] = []
         self.settings: dict[str, tuple[Any, str]] = {}
         self.script_verbs: list[Any] = []
@@ -235,6 +238,45 @@ class Feature:
         self.check_modifiers.append(fn)
         return fn
 
+    def name_resolver(self, fn: Callable) -> Callable:
+        """Declare an override of the name a looker sees an object by.
+
+        Called ``fn(obj, looker, current) -> str`` while ``obj``'s name is
+        resolved for ``looker``, ``current`` being the best name so far
+        (from ``obj.name``). Return a replacement, or ``current`` to pass:
+        short-descs until introduced, a disguise to a looker who hasn't
+        seen through it. Speech attribution flows through the same name,
+        so a disguise covers a voice too.
+
+        Resolvers run only when the looker can see the object, and only on
+        narration and listings, never on ``@examine``, owner readouts or
+        logs, which must show the truth. They compose in feature order; one
+        that raises is logged and skipped (a cosmetic override must not
+        blank a name)."""
+        self.name_resolvers.append(fn)
+        return fn
+
+    def speech_renderer(self, fn: Callable) -> Callable:
+        """Declare a per-listener transform of a spoken body.
+
+        Called ``fn(body, action, looker) -> body`` once per recipient of a
+        speech-family message: garble a tongue the listener doesn't know,
+        hand a bystander whisper fragments, slur a drunk's line. ``looker``
+        is None when nobody in particular is addressed. Renderers compose in
+        feature order; one that raises is logged and skipped, keeping the
+        last good body (a renderer only rephrases, so it fails open)."""
+        self.speech_renderers.append(fn)
+        return fn
+
+    def group_formatter(self, fn: Callable | None = None, *, replace: bool = False):
+        """Declare how a grouped contents line reads: ``(obj, count) -> str``
+        (``lambda obj, n: f"{obj.name} (x{n})"``). One per game; the
+        default is "an apple" / "3 apples"."""
+        def declare(f: Callable) -> Callable:
+            self.group_formatters.append((f, replace))
+            return f
+        return declare if fn is None else declare(fn)
+
     def protocol(self, name: str, cls: type, **kwargs: Any) -> None:
         """Declare a protocol server, started with ``(session_manager, on_command, **kwargs)``."""
         self.protocols.append((name, cls, kwargs))
@@ -367,6 +409,7 @@ class FeatureSet:
         lock_names = _Claims("lock type")
         audience_names = _Claims("audience")
         kind_names = _Claims("definition kind")
+        formatters = _Claims("group formatter")
         from realm.core.defs import kernel_kinds
         for dk in kernel_kinds():
             kind_names.claim(dk.name, dk.tag, "kernel", False)
@@ -404,6 +447,8 @@ class FeatureSet:
                 resolvers.claim(name, fn, f.name, replace)
             for kind, handler in f.queue_kinds.items():
                 kinds.claim(kind, handler, f.name, False)
+            for fn, replace in f.group_formatters:
+                formatters.claim("group_formatter", fn, f.name, replace)
             for dk in f.def_kinds:
                 kind_names.claim(dk.name, dk, f.name, False)
             for aname, resolver in f.audiences.items():
@@ -430,13 +475,11 @@ class FeatureSet:
         """Reset the global registries to exactly this set's declarations."""
         global _installed
         from realm.combat.system import RulesetRegistry
-        from realm.core import movement
         from realm.core.behaviors import BehaviorRegistry
         from realm.scripting import registry
 
         behaviors: dict[str, type] = {cls.behavior_id: cls for cls in _kernel_behaviors()}
         rulesets: dict[str, type] = {}
-        resolvers: dict[str, tuple[Callable, bool]] = {}
         functions = []
         for f in self.features:
             for cls, _replace in f.behaviors:
@@ -444,16 +487,12 @@ class FeatureSet:
             for name, cls, aliases, _replace in f.rulesets:
                 for key in (name, *aliases):
                     rulesets[key] = cls
-            for name, fn, shared, _replace in f.dest_resolvers:
-                resolvers[name] = (fn, shared)
             for fn in f.functions:
                 functions.append(registry.SoftFn(
                     fn.name, fn.fn, fn.group, fn.readonly, fn.harm,
                     fn.takes_frame, fn.subject, owner=f.name))
         BehaviorRegistry._behaviors = behaviors
         RulesetRegistry._rulesets = rulesets
-        movement._DEST_RESOLVERS.clear()
-        movement._DEST_RESOLVERS.update(resolvers)
         registry.activate({"kernel", *self.names}, functions)
         from realm.scripting import verbs as verb_registry
         verb_registry.install([pair for f in self.features for pair in f.script_verbs])
@@ -480,16 +519,21 @@ class FeatureSet:
 
     def install_runtime(self, world: World) -> None:
         """Wire the runtime declarations onto ``world``."""
-        from realm.core.checks import add_modifier_provider, remove_modifier_provider
+        from realm.core.checks import Checks
 
         world.features = self
+        checks = world.services.setdefault("checks", Checks())
         self.install_commands(world.dispatcher)
         for f in self.features:
             for fn in f.observers:
                 world.observe(fn)
-            for fn in f.check_modifiers:
-                add_modifier_provider(fn)
-                world.add_closer(lambda fn=fn: remove_modifier_provider(fn))
+            checks.modifier_providers.extend(f.check_modifiers)
+            for name, fn, shared, _replace in f.dest_resolvers:
+                world.dest_resolvers[name] = (fn, shared)
+            world.name_resolvers.extend(f.name_resolvers)
+            world.speech_renderers.extend(f.speech_renderers)
+            for fn, _replace in f.group_formatters:
+                world.group_formatter = fn
             if world.scripts is not None:
                 world.scripts.queue_kinds.update(f.queue_kinds)
             world.reapers.extend(f.reapers)

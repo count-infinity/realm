@@ -4,6 +4,11 @@ import pytest
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object_global
+from realm.commands.builtin.utility import (
+    _format_duration,
+    cmd_recall,
+    cmd_uptime,
+)
 from realm.commands.olc.admin import (
     cmd_boot,
     cmd_chown,
@@ -12,11 +17,6 @@ from realm.commands.olc.admin import (
     cmd_find,
     cmd_nuke,
     cmd_teleport,
-)
-from realm.commands.builtin.utility import (
-    _format_duration,
-    cmd_recall,
-    cmd_uptime,
 )
 from realm.commands.olc.create import (
     cmd_create,
@@ -567,6 +567,7 @@ class TestModifyCommands:
         assert "Removed 2 lock(s)" in ctx.session.messages[0]
 
 
+@pytest.mark.usefixtures("world")
 class TestAdminCommands:
     """Test suite for admin OLC commands."""
 
@@ -895,6 +896,7 @@ def test_format_duration():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestStubCommandFixes:
     """Formerly-stub commands, now implemented (or dead code removed).
 

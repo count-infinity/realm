@@ -1615,23 +1615,23 @@ Replacement table. Appendix C repeats it with call-site counts.
 
 Tasks, in three passes so the suite is green after each:
 
-- [ ] **Pass 1, delegate.** Add `realm/core/world.py`. `build_world` calls
+- [x] **Pass 1, delegate.** Add `realm/core/world.py`. `build_world` calls
       `set_world`. Rewrite the body of every getter and setter in the table
       to read or write the current world. No call site changes. Suite green.
-- [ ] Add to `tests/conftest.py`:
-  - [ ] an autouse fixture that restores `set_world(None)` after every test;
-  - [ ] `world`: a fixture returning
+- [x] Add to `tests/conftest.py`:
+  - [x] an autouse fixture that restores `set_world(None)` after every test;
+  - [x] `world`: a fixture returning
         `build_world(MemoryStore(), features=realm.features.load([]))`,
         installed;
-  - [ ] `classic_world`: the same with `load(CLASSIC)`.
-- [ ] **Pass 2, migrate.** One row of the table at a time: change every call
+  - [x] `classic_world`: the same with `load(CLASSIC)`.
+- [x] **Pass 2, migrate.** One row of the table at a time: change every call
       site in `realm/` to the new form, then every test. A test that
       hand-wires services takes the `world` or `classic_world` fixture, or a
       `Simulator`, and sets the field on it. Suite green after each row.
-- [ ] **Pass 3, delete.** Remove the getter and setter functions and their
+- [x] **Pass 3, delete.** Remove the getter and setter functions and their
       module globals. `git grep -n "^_[a-z_]* *\(: [^=]*\)\?= None$" realm/`
       should list `_current` and nothing else that is assigned by a setter.
-- [ ] `GameServer.start` ends by logging the settings that differ from the
+- [x] `GameServer.start` ends by logging the settings that differ from the
       defaults at INFO (one line each), replacing the block of `set_*` calls
       at `server/game.py:154-162` as the place a maintainer sees them.
 
@@ -2656,3 +2656,11 @@ entry closed.
 | 2026-11-13 | 6.6 | Definition caches are dropped by a hook in `GameObject._mark_dirty`, `add_tag` and `remove_tag` (plus store add/delete), not only by the ops and `Store.save`, so a direct `db.set` on a def object is live. Stores keep an insertion-ordered tag index and register as weak tag listeners, so an in-memory `add_tag` is indexed before any save. `skill` and `class` kinds are kernel, not `rules`: the game systems read them during kernel rules resolution. `find_behavior_def` (6 callers) and `find_spell_def` (10) stay as one-line wrappers; `find_ability_def`/`list_ability_defs` stay as small helpers because they search two kinds together. | Correctness of the cache without relying on every writer; a game without `rules` must still boot. |
 | 2026-11-13 | 6.7 | `register_protected_tag(tag, tier)` requires the actor's role to be at least `tier` (role tags keep their stricter outrank rule). `@reload` keeps its first line and adds a `Definitions: ...` count line. | A showcase test pins the first line. |
 | 2026-11-13 | 6 Closes | BACKLOG "Master Room" closed; "Scripting follow-ups" updated; "Script lines through the full command dispatcher" filed as the 6.1 out-of-scope item. | Rule 6. |
+| 2026-11-13 | 7.2 | The passes ran per row, not across all rows: each row's getters and setters were delegated (pass 1), then their call sites migrated and the functions deleted in the same row (passes 2 and 3), suite green after each row. | Smaller diffs to review; the suite was the gate either way. |
+| 2026-11-13 | 7.2 | Checks are a `Checks` dataclass (`resolver`, `skill_defaults`, `modifier_providers`) that `build_world` puts in `world.services["checks"]`, not the `rules` feature: check resolution is kernel (the guide lists it under "the kernel is always there") and a world without the `rules` feature still rolls checks. `feature.check_modifier` fills its providers; `reload_rules()` refreshes it. With no world, `checks()` returns a neutral default that the conftest guard keeps unmutated. | Plan said "the rules feature's service". |
+| 2026-11-13 | 7.2 | `find_world()` is used where no world is legitimate: `find_objects` (no world, nothing to find, so a bare `GameSystem` unit test reads no definitions), `perceived_name`, `render_speech`, the group formatter, `visit_check`'s `on_check` hook and `setting()`. Everything else that needs the store or engine calls `get_world()` and raises without one. | Plan rule for `find_world`. |
+| 2026-11-13 | 7.2 | `group_formatter` is a `World` field set by `feature.group_formatter` (collision-checked: one per game), not a field of the `look` feature's service: the room renderer is kernel and reads it whether or not `look` is loaded. Destination resolvers moved from the per-process registry to `world.dest_resolvers`, filled by `install_runtime`; `feature.name_resolver` and `feature.speech_renderer` are new declarations. | Plan named the look service. |
+| 2026-11-13 | 7.2 | Syntax settings are validated in `Settings.__post_init__` (field metadata `check=`), so a bad sigil raises when `Settings` is built, before `build_world`. `WORLD_BEAT` below 0.1 now raises instead of being clamped. `set_interpreter_recursion_limit` stays: the limit is interpreter state, not a value a use site reads, so `build_world` applies it and a closer restores it. `setting(key, default)` takes a default for a feature key read where the feature may be absent (`SHOW_ROLLS`). | Fail loudly; recursion limit has no use site. |
+| 2026-11-13 | 7.2 | `GameServer.start` builds the world right after opening the store, before `_load_world` and `init_world`, so loading reaches the store through it; feature `on_boot` still runs after the load. The CLI's export/import/pack commands share `_offline_world()`, which installs the game's feature registries before loading (they used CLASSIC defaults). `core/objects.py` calls `defs.touched` directly (the `set_defs_hook` setter is gone). | Required by `get_world().store`. |
+| 2026-11-13 | 7.2 | Pass-3 grep: besides `_current`, `realm/` keeps `features._installed`, `scripting/verbs._installed`, `core/eventdefs._installed` and `scripting/registry._view`/`_ACTIVE_OWNERS` (the per-process registries step 4 installs before a world loads, so saved behaviors find their classes), `entitlements._role_def_table` (a cache of role_def data), `locks._build_namespace` (a lazy import) and `puppet._force_depth` (a recursion counter). None is wired by a boot-time setter. | Step 4 design. |
+| 2026-11-13 | 7.2 | Tests: `tests/conftest.py` resets the world around every test and asserts the no-world `Checks` is unchanged. Fixtures `world`, `classic_world`, `classic_world_unscripted`, `configure`, and `reconfigure(world, **changes)`. About 60 world-less unit-test classes now take `world` (or `classic_world` where they need built-in vocabularies). New tests: presentation declarations reach the world, group-formatter collision, settings validation, the start-up settings log. | |

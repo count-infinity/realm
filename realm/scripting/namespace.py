@@ -124,8 +124,8 @@ class ExprNamespace(LazyNamespace):
     def _make_frame(self) -> ScriptFrame:
         enactor, executor, location, store, subject = self._frame_args
         if store is None:
-            from realm.persistence.manager import get_active_manager
-            store = get_active_manager()
+            from realm.core.world import get_world
+            store = get_world().store
         frame = ScriptFrame(enactor=enactor, executor=executor,
                                 location=location, persistence=store)
         frame.subject = subject

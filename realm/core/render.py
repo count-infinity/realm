@@ -10,7 +10,7 @@ so callers decide what events to fire (``cmd_look`` propagates
 Identical things are grouped for display ("3 apples" instead of three
 "apple" lines) — presentation only, the objects stay individual. Objects
 tagged ``no_group`` are always listed on their own line. Games can
-restyle the grouped line via :func:`set_group_formatter`.
+restyle the grouped line with ``feature.group_formatter``.
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 # A group formatter takes (representative object, count) and returns the
-# display line body. Replaceable per game via set_group_formatter — e.g.
-# lambda obj, n: f"{obj.name} (x{n})" for an "apple (x3)" style.
+# display line body. A game replaces it with ``feature.group_formatter`` —
+# e.g. lambda obj, n: f"{obj.name} (x{n})" for an "apple (x3)" style.
 GroupFormatter = Callable[["GameObject", int], str]
 
 
@@ -34,17 +34,13 @@ def default_group_formatter(obj: GameObject, count: int) -> str:
     return numbered_name(obj, count)
 
 
-_group_formatter: GroupFormatter = default_group_formatter
-
-
-def set_group_formatter(formatter: GroupFormatter | None) -> None:
-    """
-    Replace how grouped contents lines are styled (None restores the
-    default). An extension point for games — call it from a config
-    callback like ``on_start``.
-    """
-    global _group_formatter
-    _group_formatter = formatter or default_group_formatter
+def group_formatter() -> GroupFormatter:
+    """The world's group formatter, else the default."""
+    from realm.core.world import find_world
+    world = find_world()
+    if world is not None and world.group_formatter is not None:
+        return world.group_formatter
+    return default_group_formatter
 
 
 def group_contents(objects: list[GameObject]) -> list[tuple[GameObject, int]]:
@@ -146,7 +142,7 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
         lines.append("")
         lines.append("You see:")
         lines.extend(
-            f"  {_group_formatter(rep, count)}{display_markers(rep, viewer)}"
+            f"  {group_formatter()(rep, count)}{display_markers(rep, viewer)}"
             for rep, count in group_contents(things)
         )
 
@@ -174,6 +170,6 @@ __all__ = [
     "render_room",
     "room_description",
     "group_contents",
-    "set_group_formatter",
+    "group_formatter",
     "default_group_formatter",
 ]

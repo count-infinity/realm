@@ -181,7 +181,7 @@ Independently of the beats work, the real-time loop should get:
 ## Config surface
 
 - `tick_interval` (real-time heartbeat, seconds) — shipped, default lowered to 0.1s.
-- `world_beat` (ambient out-of-combat beat length, seconds) — shipped, default 4s (wired to `set_world_tick` at boot).
+- `world_beat` (ambient out-of-combat beat length, seconds) — shipped, default 4s (read through `setting("WORLD_BEAT")`).
 - `combat_beat_min/max/default` — exist (the encounter clamp).
 - `reap_interval` (GC coarse cadence) — shipped, default 5s (drives `_reap_loop`).
 
@@ -263,9 +263,8 @@ so a roomful of poisons don't pulse in unison; per-beat (interval 1, the combat
 default) effects get no jitter and thus exact, unchanged pulse counts.
 
 **Real-time substrate (A).** `Behavior.tick_interval` now defaults to
-`WORLD_TICK` (in `realm/core/behaviors.py`) instead of 0, so pulse-counting
-world behaviors keep their pacing no matter how fine the heartbeat runs;
-`set_world_tick` is called at boot from the `world_beat` config (default 4s).
+the `WORLD_BEAT` setting (default 4s) instead of 0, so pulse-counting
+world behaviors keep their pacing no matter how fine the heartbeat runs.
 `GameServer._tick_loop` is drift-correcting (aims at a fixed grid, resyncs when
 late), seeds start-phase jitter for new behaviors, and mints the ambient beat
 every `world_beat` via `ambient_beat_targets` + `deliver_beat`. Reaping runs on

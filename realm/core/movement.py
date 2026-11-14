@@ -27,7 +27,7 @@ from realm.core.propagation import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Callable
 
     from realm.core.objects import GameObject
     from realm.persistence.manager import PersistenceManager
@@ -44,32 +44,16 @@ class DestinationUnavailableError(Exception):
 
 # Deferred exit destinations (ephemeral-rooms.md kernel bit #3): an exit
 # may name a resolver (``db.dest_resolver``) instead of storing a
-# ``destination``. ``move_through_exit`` consults the registry only after
-# the origin-side gates pass, materializes the room beyond (a wilderness
-# cell), and the traversal proceeds like any door — wards, locks,
-# ``on_enter``, and the follower cascade unchanged.
-_DEST_RESOLVERS: dict[str, tuple[Callable[[GameObject, GameObject],
-                                          Awaitable[GameObject | None]],
-                                 bool]] = {}
-
-
-def register_dest_resolver(name: str, resolver, *,
-                           shared_destination: bool = True) -> None:
-    """Register an async ``(exit_obj, actor) -> room | None`` resolver
-    under ``name``. An exit opts in with ``db.dest_resolver = name``.
-
-    ``shared_destination=False`` marks a resolver whose product is
-    *private space* (an instance copy): every walker may land somewhere
-    different, so pursuit is impossible — flee refuses such exits
-    (escaping combat into a freshly imported private dungeon is not a
-    flee, it's a teleport)."""
-    _resolvers()[str(name)] = (resolver, bool(shared_destination))
-
-
-def _resolvers():
-    from realm.features import ensure_registries
-    ensure_registries()
-    return _DEST_RESOLVERS
+# ``destination``. ``move_through_exit`` consults the world's resolvers
+# (``feature.dest_resolver``) only after the origin-side gates pass,
+# materializes the room beyond (a wilderness cell), and the traversal
+# proceeds like any door — wards, locks, ``on_enter``, and the follower
+# cascade unchanged. A resolver declared ``shared_destination=False`` makes
+# private space (an instance copy): every walker may land somewhere
+# different, so flee refuses such exits.
+def _resolvers() -> dict[str, tuple[Callable, bool]]:
+    from realm.core.world import get_world
+    return get_world().dest_resolvers
 
 
 def has_dest_resolver(exit_obj: GameObject | None) -> bool:
@@ -127,8 +111,8 @@ def resolve_exit_destination(
     dest_id = exit_obj.db.get('destination')
     if dest_id:
         if persistence is None:
-            from realm.persistence.manager import get_active_manager
-            persistence = get_active_manager()
+            from realm.core.world import get_world
+            persistence = get_world().store
         if persistence is not None:
             return persistence.get_cached(dest_id)
 
@@ -496,5 +480,5 @@ async def move_through_exit(
 
 
 __all__ = ["move_through_exit", "resolve_exit_destination", "fire_exit_fail",
-           "move_to", "register_dest_resolver", "has_dest_resolver",
+           "move_to", "has_dest_resolver",
            "has_private_dest_resolver", "DestinationUnavailableError"]

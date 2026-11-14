@@ -309,14 +309,15 @@ class TestUnresolvedBehaviors:
         assert restored.params == {"cut_to": 3}
 
 
-async def test_load_world_reports_unresolved_behaviors(caplog):
+async def test_load_world_reports_unresolved_behaviors(caplog, world):
     from realm.core.objects import GameObject
-    from realm.persistence.manager import PersistenceManager, set_active_manager
+    from realm.core.world import get_world
+    from realm.persistence.manager import PersistenceManager
     from realm.server.game import GameServer
 
     pm = PersistenceManager(":memory:")
     await pm.initialize()
-    set_active_manager(pm)
+    get_world().store = pm
     try:
         vent = GameObject("vent")
         vent.add_behavior(BehaviorRegistry.from_dict(
@@ -332,5 +333,4 @@ async def test_load_world_reports_unresolved_behaviors(caplog):
 
         assert any("ghost_def" in r.getMessage() for r in caplog.records)
     finally:
-        set_active_manager(None)
         await pm.close()

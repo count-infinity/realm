@@ -12,8 +12,8 @@ from __future__ import annotations
 import pytest
 
 from realm.commands.base import find_exit, find_object, find_object_global
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
 from realm.core.search import (
     AmbiguousMatchError,
     format_ambiguous,
@@ -21,14 +21,11 @@ from realm.core.search import (
     match_one,
 )
 from realm.gateway.session import Session
-from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
 
 @pytest.fixture(autouse=True)
 def fresh_propagation_engine():
-    reset_engine()
     yield
-    reset_engine()
 
 
 def objs(*names: str) -> list[GameObject]:
@@ -171,6 +168,7 @@ class MockPersistence:
         return list(self._cache.values())
 
 
+@pytest.mark.usefixtures("world")
 class TestHelperIntegration:
 
     def test_find_object_partial_in_room(self):

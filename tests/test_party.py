@@ -14,15 +14,7 @@ from realm.core.party import (
     party_members,
     set_following,
 )
-from realm.core.propagation import reset_engine
 from tests.test_olc import MockPersistence, make_context, use_persistence
-
-
-@pytest.fixture(autouse=True)
-def fresh_engine():
-    reset_engine()
-    yield
-    reset_engine()
 
 
 def two_rooms():
@@ -34,6 +26,7 @@ def two_rooms():
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestFollowing:
 
     async def test_follower_walks_after_leader(self):
@@ -89,9 +82,9 @@ class TestFollowing:
 
     async def test_npc_escort_via_softcode(self):
         """The B2 rescue: a prisoner agrees to follow via $-command."""
+        from realm.commands.dispatcher import CommandContext
         from realm.gateway.session import Session
         from realm.scripting.engine import ScriptEngine
-        from realm.commands.dispatcher import CommandContext
 
         west, east, door = two_rooms()
         alice = GameObject("Alice", tags=["player"], location=west)
@@ -104,8 +97,8 @@ class TestFollowing:
         )
 
         engine = ScriptEngine()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        from realm.core.world import get_world
+        get_world().engine.add_observer(engine.handle_action)
         ctx = CommandContext(session=sess, player=alice,
                              raw_input="rescue prisoner",
                              command_name="rescue", args="prisoner")
@@ -182,15 +175,16 @@ class TestFollowCommands:
 @pytest.mark.asyncio
 class TestPartyCpSplit:
 
-    async def test_kill_award_splits_across_party(self):
+    async def test_kill_award_splits_across_party(self, world):
         # ruff: noqa: F811
-        from realm.combat.manager import CombatManager, set_combat_manager
+        from realm.combat.manager import CombatManager
         from realm.combat.system import CombatSystem
+        from realm.core.world import get_world
         from tests.test_combat_encounters import FixedRuleset, make_fighter  # noqa: F401
 
         mgr = CombatManager(CombatSystem(ruleset=FixedRuleset()),
                             beat_min=4, beat_max=120, beat_default=15)
-        set_combat_manager(mgr)
+        get_world().services["combat"] = mgr
         try:
             room = GameObject("Cave", tags=["room"])
             alice = GameObject("Alice", tags=["player"], location=room)
@@ -205,16 +199,16 @@ class TestPartyCpSplit:
             assert bob.db.get("character_points") == 4
         finally:
             mgr.stop_all()
-            set_combat_manager(None)
 
-    async def test_solo_killer_keeps_it_all(self):
-        from realm.combat.manager import CombatManager, set_combat_manager
+    async def test_solo_killer_keeps_it_all(self, world):
+        from realm.combat.manager import CombatManager
         from realm.combat.system import CombatSystem
+        from realm.core.world import get_world
         from tests.test_combat_encounters import FixedRuleset
 
         mgr = CombatManager(CombatSystem(ruleset=FixedRuleset()),
                             beat_min=4, beat_max=120, beat_default=15)
-        set_combat_manager(mgr)
+        get_world().services["combat"] = mgr
         try:
             room = GameObject("Cave", tags=["room"])
             alice = GameObject("Alice", tags=["player"], location=room)
@@ -225,4 +219,3 @@ class TestPartyCpSplit:
             assert alice.db.get("character_points") == 4
         finally:
             mgr.stop_all()
-            set_combat_manager(None)

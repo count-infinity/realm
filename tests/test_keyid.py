@@ -27,15 +27,6 @@ def sim():
         s.close()
 
 
-@pytest.fixture(autouse=True)
-def _reset_keyid_sigil():
-    """Keep the module-global sigil at its default across tests."""
-    from realm.scripting.functions import DEFAULT_KEYID_SIGIL, set_keyid_sigil
-    set_keyid_sigil(DEFAULT_KEYID_SIGIL)
-    yield
-    set_keyid_sigil(DEFAULT_KEYID_SIGIL)
-
-
 def admin(sim, room):
     p = sim.player("Ada", location=room)
     p.add_tag("admin")
@@ -164,21 +155,21 @@ class TestClone:
 class TestConfigurableSigil:
 
     async def test_multi_char_sigil(self, sim):
-        from realm.scripting.functions import set_keyid_sigil
+        from tests.conftest import reconfigure
         room = sim.room("Vault")
         ada = admin(sim, room)
         core = sim.obj("BankNet Core", location=room)
         await sim.do(ada, "@keyid BankNet Core = banknet_core")
-        set_keyid_sigil("$$")
+        reconfigure(sim.world, keyid_sigil="$$")
         assert await resolves_to(sim, ada, "$$banknet_core") == core.id
         # A single '$' is now just a name prefix — a miss, not the keyid.
         assert await resolves_to(sim, ada, "$banknet_core") is None
 
     def test_bad_sigils_rejected(self):
-        from realm.scripting.functions import set_keyid_sigil
+        from realm.config.loader import Settings
         for bad in ("", "key", "a", "#x", "$ ", "x" * 17):
             with pytest.raises(ValueError):
-                set_keyid_sigil(bad)
+                Settings(keyid_sigil=bad)
 
 
 class TestImportKeyid:

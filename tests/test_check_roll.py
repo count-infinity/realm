@@ -18,7 +18,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.checks import set_check_resolver
+from realm.core.checks import checks
 from realm.core.dice import CheckResult
 from realm.testing import Simulator
 
@@ -30,7 +30,7 @@ def world():
     cook = sim.player("Cook", location=room)
     cook.db.set('skill_cooking', 12)
     # Deterministic: 3d6 always totals 10, so margin = effective - 10.
-    set_check_resolver(
+    checks().resolver = (
         lambda obj, skill, mod: CheckResult(
             (obj.db.get(f'skill_{skill}', 8) + mod) >= 10,
             (obj.db.get(f'skill_{skill}', 8) + mod) - 10,
@@ -41,7 +41,6 @@ def world():
     try:
         yield SimpleNamespace(sim=sim, room=room, cook=cook)
     finally:
-        set_check_resolver(None)
         sim.close()
 
 

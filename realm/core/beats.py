@@ -5,12 +5,12 @@ REALM runs two clocks (see docs/design/time-and-beats.md):
 
 - **Real-time seconds** — a fast heartbeat (~0.1s) driving infrastructure:
   ``wait()``, output flush, reapers, and *world* behaviors (spawners, decay,
-  wander) whose cadence is pinned to ``WORLD_TICK`` so the heartbeat rate
+  wander) whose cadence is pinned to the ``WORLD_BEAT`` setting so the heartbeat rate
   never changes their pacing.
 - **Beats (= rounds)** — the turn-unit for **character effects** (poison,
   bleed, buffs, regen) and combat maneuvers. A beat's real-time length is
   *contextual*: the encounter's adjustable beat in combat, the ambient
-  ``WORLD_TICK`` out of combat. Slow the encounter and everything beat-based
+  the ``WORLD_BEAT`` setting out of combat. Slow the encounter and everything beat-based
   on its participants dilates together — bullet-time.
 
 A ``BeatBehavior`` is advanced by ``deliver_beat(obj)`` — called by the
@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.core.behaviors import WORLD_TICK, Behavior, set_world_tick
+from realm.core.behaviors import Behavior
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -107,6 +107,6 @@ def ambient_beat_targets(objs: list[GameObject]) -> list[GameObject]:
 
 
 __all__ = [
-    "WORLD_TICK", "set_world_tick", "BeatBehavior", "deliver_beat",
+    "BeatBehavior", "deliver_beat",
     "has_beat_behavior", "ambient_beat_targets", "IN_COMBAT_TAG",
 ]

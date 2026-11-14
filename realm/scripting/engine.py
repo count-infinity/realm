@@ -60,18 +60,6 @@ logger = logging.getLogger(__name__)
 # commands (@tr) can reach the live engine — same pattern as the combat
 # manager and persistence manager.
 
-_active_engine: ScriptEngine | None = None
-
-
-def set_script_engine(engine: ScriptEngine | None) -> None:
-    global _active_engine
-    _active_engine = engine
-
-
-def get_script_engine() -> ScriptEngine | None:
-    return _active_engine
-
-
 # Action types whose extra["message"] counts as overhearable speech.
 # Whispers are deliberately excluded — bystanders only see the vague
 # "X whispers something to Y" line, so scripts shouldn't overhear either.
@@ -429,7 +417,7 @@ class ScriptEngine:
     def _install_softcode_prompt(self, player, text, callback,
                                  executor_id, persistent):
         """Capture a player's next line into a softcode callback script."""
-        from realm.persistence.manager import get_active_manager
+        from realm.core.world import get_world
 
         session = getattr(player, '_session', None) or self._session_for(player)
         if session is None:
@@ -444,7 +432,7 @@ class ScriptEngine:
                 return False
             sess.input_handler = None
             player.db.delete('input_prompt')
-            manager = get_active_manager()
+            manager = get_world().store
             executor = manager.get_cached(executor_id) if (
                 manager and executor_id) else player
             if executor is None:

@@ -20,27 +20,19 @@ import pytest
 from realm.behaviors.ticker import ScriptTickerBehavior
 from realm.commands.olc.softcode import cmd_behavior, cmd_clone, cmd_trigger
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
 from realm.core.safe_eval import eval_bool, eval_expression, validate_code
+from realm.core.world import get_world
 from realm.gateway.session import Session
-from realm.scripting.engine import (
-    ScriptEngine,
-    get_script_engine,
-    set_script_engine,
-)
+from realm.scripting.engine import ScriptEngine
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 # --- Helpers -----------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
-def fresh_world():
-    """Fresh propagation singleton and no ambient script engine."""
-    reset_engine()
-    set_script_engine(None)
-    yield
-    set_script_engine(None)
-    reset_engine()
+def fresh_world(classic_world_unscripted):
+    """A classic world with scripting off: a test installs its own engine."""
+    return classic_world_unscripted
 
 
 def make_rooms():
@@ -190,8 +182,7 @@ class TestRunObjectScript:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         fired = await engine.run_object_script(npc, "battle_cry")
 
@@ -225,8 +216,7 @@ class TestRunObjectScript:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(bell, "on_ring")
 
@@ -254,7 +244,7 @@ class TestScriptTicker:
         critter.db.on_tick = "move east"
         critter.add_behavior(ScriptTickerBehavior(interval=1))
 
-        set_script_engine(ScriptEngine())
+        get_world().scripts = ScriptEngine()
 
         for behavior in critter.get_behaviors():
             await behavior.tick(critter, 4.0)
@@ -270,9 +260,8 @@ class TestScriptTicker:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
-        set_script_engine(engine)
+        get_world().engine.add_observer(engine.handle_action)
+        get_world().scripts = engine
 
         heard = 0
         for _ in range(6):
@@ -288,7 +277,7 @@ class TestScriptTicker:
         ticker = ScriptTickerBehavior(interval=1)
         npc.add_behavior(ticker)
 
-        assert get_script_engine() is None
+        assert get_world().scripts is None
         await ticker.tick(npc, 4.0)  # must not raise
 
     async def test_ticker_survives_serialization(self):
@@ -435,7 +424,7 @@ class TestTriggerCommand:
         parrot = GameObject("parrot", location=room)
         parrot.db.battle_cry = "say Awk! To arms!"
 
-        set_script_engine(ScriptEngine())
+        get_world().scripts = ScriptEngine()
         ctx = make_context(player, args="parrot/battle_cry")
         await cmd_trigger(ctx)
 
@@ -448,7 +437,7 @@ class TestTriggerCommand:
         player.add_tag("builder")
         GameObject("parrot", location=room)
 
-        set_script_engine(ScriptEngine())
+        get_world().scripts = ScriptEngine()
         ctx = make_context(player, args="parrot/battle_cry")
         await cmd_trigger(ctx)
 
@@ -560,7 +549,7 @@ class TestCommandAuthority:
         parrot = GameObject("parrot", location=room, owner=GameObject("Owner"))
         parrot.db.cry = "say Awk!"
 
-        set_script_engine(ScriptEngine())
+        get_world().scripts = ScriptEngine()
         ctx = make_context(bob, args="parrot/cry")
         await cmd_trigger(ctx)
 
@@ -573,7 +562,7 @@ class TestCommandAuthority:
         bell.db.ring = "say Bong!"
         bell.locks["command"] = "True"  # trigger_ok
 
-        set_script_engine(ScriptEngine())
+        get_world().scripts = ScriptEngine()
         ctx = make_context(bob, args="bell/ring")
         await cmd_trigger(ctx)
 
@@ -585,7 +574,6 @@ class TestTriggerLocks:
 
     async def test_use_lock_gates_dollar_commands(self):
         from realm.commands.dispatcher import CommandContext
-        from realm.core.propagation import get_engine
 
         room = GameObject("Cantina", tags=["room"])
         npc = GameObject("Zeke", location=room)
@@ -595,7 +583,7 @@ class TestTriggerLocks:
         alice.remove_tag("builder")
 
         engine = ScriptEngine()
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
         ctx = CommandContext(session=sess, player=alice, raw_input="greet",
                              command_name="greet", args="")
 
@@ -612,8 +600,7 @@ class TestTriggerLocks:
         alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         await engine.handle_speech(alice, "the treasure is buried", room)
         assert not any("I heard that" in m for m in drain(sess))
@@ -628,8 +615,7 @@ class TestTriggerLocks:
         _alice, sess = make_player("Alice", room)
 
         engine = ScriptEngine()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(bell, "on_ring")
         assert not any("Hear ye" in m for m in drain(sess))
@@ -729,8 +715,7 @@ class TestEngineApi:
         _alice, sess = make_player("Alice", west)
 
         engine = ScriptEngine()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
         await engine.run_object_script(scout, "on_scan")
 
         assert any("1 exit(s)" in m for m in drain(sess))
@@ -752,12 +737,11 @@ class FakeCombatManager:
 
 
 @pytest.fixture
-def fake_combat():
-    from realm.combat.manager import set_combat_manager
+def fake_combat(fresh_world):
+    from realm.core.world import get_world
     manager = FakeCombatManager()
-    set_combat_manager(manager)
+    get_world().services["combat"] = manager
     yield manager
-    set_combat_manager(None)
 
 
 @pytest.mark.asyncio
@@ -935,8 +919,7 @@ class TestWaits:
 
         engine = ScriptEngine()
         engine.defer_waits = True   # virtual clock: fire on tick_waits()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(crier, "on_cue")
         assert not any("Hear ye, later" in m for m in drain(sess))  # not yet
@@ -952,8 +935,7 @@ class TestWaits:
 
         engine = ScriptEngine()
         engine.defer_waits = True   # virtual clock: fire on tick_waits()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(crier, "on_cue")
         await engine.tick_waits()
@@ -966,8 +948,7 @@ class TestWaits:
 
         engine = ScriptEngine()
         engine.defer_waits = True   # virtual clock: fire on tick_waits()
-        from realm.core.propagation import get_engine
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         engine.schedule_wait(crier, 0, "say Too late!")
         crier.add_tag("halt")
@@ -1031,8 +1012,8 @@ class TestConditionModifiers:
         assert condition_modifier(bob, "stealth") == -1     # -2 +1
         assert condition_modifier(bob, "observation") == -7  # -2 -6 +1
 
-    async def test_check_folds_modifiers_before_resolver(self):
-        from realm.core.checks import check, set_check_resolver
+    async def test_check_folds_modifiers_before_resolver(self, world):
+        from realm.core.checks import check, checks
 
         seen = {}
 
@@ -1043,11 +1024,8 @@ class TestConditionModifiers:
 
         bob = GameObject("Bob")
         bob.db.check_mods = {"fear": {"all": -2}}
-        set_check_resolver(recorder)
-        try:
-            check(bob, "stealth", modifier=1)
-        finally:
-            set_check_resolver(None)
+        checks().resolver = recorder
+        check(bob, "stealth", modifier=1)
         assert seen["modifier"] == -1  # explicit +1, fear -2
 
     async def test_modifier_effect_lifecycle(self):
@@ -1282,16 +1260,9 @@ class TestTier1AuthorityFixes:
         assert stocked.db.get("hp") == 5
 
     async def test_engine_floor_survives_system_swap(self):
-        from realm.core.checks import (
-            SKILL_DEFAULTS,
-            set_skill_defaults,
-        )
-        saved = dict(SKILL_DEFAULTS)
-        try:
-            set_skill_defaults({"stealth": ("dexterity", -4)})
-            assert SKILL_DEFAULTS["flee"] == ("dexterity", -2)  # floor kept
-        finally:
-            set_skill_defaults(saved)
+        from realm.core.checks import skill_table
+        table = skill_table({"stealth": ("dexterity", -4)})
+        assert table["flee"] == ("dexterity", -2)  # floor kept
 
 
 @pytest.mark.asyncio
@@ -1368,7 +1339,6 @@ class TestForce:
         assert bob.db.get("hacked") is None  # imp lacks builder permission
 
     async def test_softcode_force(self):
-        from realm.core.propagation import get_engine
         from realm.scripting.engine import ScriptEngine
 
         room = GameObject("Crypt", tags=["room"])
@@ -1379,7 +1349,7 @@ class TestForce:
 
         engine = ScriptEngine(persistence=self.persistence)
         engine.dispatcher = self._dispatcher()
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(master, "on_command")
         assert any('minion says, "Yes, master."' in m for m in drain(sess))

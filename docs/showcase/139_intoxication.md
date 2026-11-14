@@ -11,7 +11,7 @@ your tongue and your aim come back together.
 ([`apply_effect`](../reference/softcode.md#fn-apply_effect) with a
 `modifier_effect`, a penalty that folds into every check and expires on its
 own, the same path as the [cooking buff](129_cooking_buffs.md)), and the
-per-listener **speech renderer** (`register_speech_renderer`) that slurs the
+per-listener **speech renderer** (`feature.speech_renderer`) that slurs the
 spoken body for a drunk speaker, the same hook [languages](079_languages.md)
 garbles on.
 
@@ -44,8 +44,8 @@ writes a skill value, so nothing can drift out of sync or be left un-undone.
 The spoken body is resolved once per listener (see
 [action propagation](../architecture/events.md)), so a transform can
 rephrase it on the way out. This one is a **speech renderer**, the same seam
-[languages](079_languages.md) uses. It is native setup Python a game
-registers once at deploy time, so the policy half lives with the game rather
+[languages](079_languages.md) uses. It is native Python declared in the
+game's feature module, so the policy half lives with the game rather
 than in softcode a player could rewrite. It keys on the *speaker* being
 drunk, which is why it reaches every listener the same way: it is the
 speaker's mouth that is failing, not the listener's ear (the mirror of
@@ -54,9 +54,13 @@ vowels and softens every `s`, deterministically, scaled by how many drinks
 deep the speaker is:
 
 ```python
-# In your game's setup (config.py's on_start, or a bindings module):
-from realm.core.propagation import register_speech_renderer
+# game.py — your game's feature (config.py: FEATURES = [*CLASSIC, "game"])
+from realm.features import Feature
 
+feature = Feature("game")
+
+
+@feature.speech_renderer
 def slur_when_drunk(body, action, looker):
     if action.action_type != "event:speech" or not action.actor.has_tag("drunk"):
         return body
@@ -64,8 +68,6 @@ def slur_when_drunk(body, action, looker):
     swap = {"s": "sh", "S": "Sh"}
     return "".join(
         swap.get(c, c * stretch if c.lower() in "aeiou" else c) for c in body)
-
-register_speech_renderer(slur_when_drunk)
 ```
 
 There is no randomness, so the same words at the same drink count always

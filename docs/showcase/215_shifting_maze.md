@@ -93,7 +93,7 @@ cheapest of the three guarantees and the one players notice most.
 ### How fast is `interval:4`?
 
 `script_ticker`'s `interval` counts **world beats, not seconds**. A beat is
-`WORLD_TICK`, four seconds by default, so `interval:4` fires roughly every
+`WORLD_BEAT`, four seconds by default, so `interval:4` fires roughly every
 sixteen seconds and `interval:15` would be a full minute between shifts. The
 countdown persists in `db.script_tick_wait`, and every ticking behavior in the
 game is driven from the server's one heartbeat loop, so adding shifting exits

@@ -19,9 +19,7 @@ from realm.core.propagation import (
     Step,
     TargetStep,
     deliver_messages,
-    get_engine,
     propagate,
-    reset_engine,
 )
 from realm.core.tags import TagSet
 
@@ -39,8 +37,6 @@ __all__ = [
     "TargetStep",
     "ROOM_TARGET_CHAIN",
     "PropagationEngine",
-    "get_engine",
-    "reset_engine",
     "propagate",
     "deliver_messages",
 ]

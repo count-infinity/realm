@@ -8,20 +8,18 @@ from __future__ import annotations
 
 import pytest
 
+from realm.commands.dispatcher import CommandContext
 from realm.core.markup import Style, parse, strip, to_ansi
 from realm.core.objects import GameObject
-from realm.core.propagation import get_engine, reset_engine
+from realm.core.world import get_world
 from realm.gateway.session import Session
 from realm.scripting.engine import ScriptEngine
 from realm.scripting.functions import ScriptFrame
-from realm.commands.dispatcher import CommandContext
 
 
 @pytest.fixture(autouse=True)
 def fresh():
-    reset_engine()
     yield
-    reset_engine()
 
 
 class TestMarkupAdditions:
@@ -79,6 +77,7 @@ class TestEvalAttr:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestThePennDie:
     """The user's die, translated — full trigger path."""
 
@@ -104,7 +103,7 @@ class TestThePennDie:
         )
 
         engine = ScriptEngine()
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
         ctx = CommandContext(session=sess, player=alice, raw_input="roll",
                              command_name="roll", args="")
         assert await engine.handle_unknown_command(ctx) is True

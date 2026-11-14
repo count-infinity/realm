@@ -121,6 +121,7 @@ class TestFindExit:
         assert result is None
 
 
+@pytest.mark.usefixtures("world")
 class TestBuiltinCommands:
     """Test suite for built-in commands."""
 

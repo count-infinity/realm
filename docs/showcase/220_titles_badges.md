@@ -57,7 +57,7 @@ fixed line per session (`name (idle 4s) in The Landing`) built straight
 from `session.player.name`, with no attribute consulted anywhere, so a
 title column there waits on the audit's G4 presence surface. Prefixing
 the *name itself* ("Void Champion Bob" in every message) is a separate
-mechanism again: names pass through `register_name_resolver` in
+mechanism again: names pass through `feature.name_resolver` in
 `realm/core/perception.py`, which recognition and disguise use, and that
 registration is engine-side Python rather than a softcode function.
 `desc_extras` is the surface softcode owns today, and it is the one the
@@ -318,7 +318,7 @@ Only staff award titles.
   session's idle time, consulting no attribute, so a title column in
   `who` needs the audit's **G4 presence surface**. Reported for the
   integrator; `look` and `$finger` cover the item as written.
-- Per-viewer name overrides go through `register_name_resolver` in
+- Per-viewer name overrides go through `feature.name_resolver` in
   `realm/core/perception.py`, which is Python registration with no
   softcode equivalent, so a title woven into the name itself (and thus
   into speech attribution) is out of reach from in-game code today.

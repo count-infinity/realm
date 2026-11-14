@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 
-from realm.core.checks import CheckResult, set_check_resolver, skill_level
+from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.events import reap_expired
 from realm.testing import Simulator
 
@@ -86,9 +86,8 @@ def sim():
 @pytest.fixture
 def pinned_checks():
     """Install the diceless skill-check resolver for pick tests."""
-    set_check_resolver(level_resolver)
+    checks().resolver = level_resolver
     yield
-    set_check_resolver(None)
 
 
 @pytest.fixture

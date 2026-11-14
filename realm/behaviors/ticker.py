@@ -20,7 +20,7 @@ closed doors, and guard behaviors apply. Runaway machines halt like any
 other softcode: ``@tag <obj> = halt``, or detach the behavior.
 
 Parameters:
-    interval: world beats between runs (default 4). A beat is ``WORLD_TICK``
+    interval: world beats between runs (default 4). A beat is the ``WORLD_BEAT`` setting
         (~4s, configurable), so ``interval:4`` fires roughly every 16 seconds;
         ``interval:1`` every world beat. This is unrelated to the scheduler's
         fast ``tick_interval`` pulse (~0.1s), which is only how often the loop
@@ -52,13 +52,13 @@ class ScriptTickerBehavior(Behavior):
         return True
 
     async def tick(self, obj: GameObject, delta: float) -> None:
-        from realm.scripting.engine import get_script_engine
+        from realm.core.world import get_world
 
         if not self.countdown(obj, 'script_tick_wait',
                               int(self.get_param('interval', 4))):
             return
 
-        engine = get_script_engine()
+        engine = get_world().scripts
         if engine is None:
             return
         attr = str(self.get_param('attr', 'on_tick'))

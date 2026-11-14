@@ -14,7 +14,8 @@ import pytest
 from realm.behaviors.effects import DamageOverTimeBehavior
 from realm.combat.behaviors import VenomousBehavior
 from realm.core.propagation import Action
-from realm.systems import MercSystem, set_game_system
+from realm.core.world import get_world
+from realm.systems import MercSystem
 from realm.testing import Simulator
 
 
@@ -84,7 +85,7 @@ class TestVenomous:
     async def test_a_landed_hit_poisons(self, monkeypatch):
         sim = Simulator()
         try:
-            set_game_system(MercSystem())
+            get_world().rules = MercSystem()
             room = sim.room("Nest")
             snake = sim.obj("a viper", location=room, tags=["npc"])
             snake.db.set("level", 5)
@@ -101,13 +102,12 @@ class TestVenomous:
             assert len(poisons) == 1
             assert poisons[0].get_param("damage_type") == "poison"
         finally:
-            set_game_system(None)
             sim.close()
 
     async def test_a_save_fights_off_the_venom(self, monkeypatch):
         sim = Simulator()
         try:
-            set_game_system(MercSystem())
+            get_world().rules = MercSystem()
             room = sim.room("Nest")
             snake = sim.obj("a viper", location=room, tags=["npc"])
             victim = sim.player("Grog", location=room)
@@ -119,14 +119,13 @@ class TestVenomous:
             assert not any(getattr(b, "kind", None) == "poisoned"
                            for b in victim.get_behaviors())
         finally:
-            set_game_system(None)
             sim.close()
 
     async def test_poison_immune_target_is_not_poisoned(self, monkeypatch):
         # Immunity vetoes at application: no dead poison effect attached.
         sim = Simulator()
         try:
-            set_game_system(MercSystem())
+            get_world().rules = MercSystem()
             room = sim.room("Nest")
             snake = sim.obj("a viper", location=room, tags=["npc"])
             golem = sim.obj("iron golem", location=room, tags=["npc"])
@@ -137,7 +136,6 @@ class TestVenomous:
             assert not any(getattr(b, "kind", None) == "poisoned"
                            for b in golem.get_behaviors())
         finally:
-            set_game_system(None)
             sim.close()
 
     async def test_a_miss_does_not_poison(self, monkeypatch):

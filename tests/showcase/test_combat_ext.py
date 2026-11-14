@@ -23,17 +23,18 @@ out-of-combat effect beats advance via deliver_beat().
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from realm.combat.manager import CombatManager, set_combat_manager
+from realm.combat.manager import CombatManager
 from realm.combat.rulesets.gurps import GURPSRuleset
 from realm.combat.system import CombatSystem
 from realm.core.beats import deliver_beat
-from realm.core.checks import CheckResult, set_check_resolver, skill_level
+from realm.core.checks import CheckResult, checks, skill_level
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 
@@ -107,13 +108,12 @@ BUILD_RED_FLAGS = (
 @pytest.fixture
 def sim():
     simulator = Simulator()
-    set_check_resolver(level_resolver)
+    checks().resolver = level_resolver
     # GameServer wires the session manager at startup; the Simulator
     # leaves it to the test (needed by prompt()).
     simulator.engine.session_manager = SimpleNamespace(
         all_sessions=lambda: list(simulator._sessions.values()))
     yield simulator
-    set_check_resolver(None)
     simulator.close()
 
 
@@ -126,10 +126,9 @@ def combat():
         CombatSystem(ruleset=SteadyRuleset()),
         beat_min=4.0, beat_max=600.0, beat_default=300.0,
     )
-    set_combat_manager(manager)
+    get_world().services["combat"] = manager
     yield manager
     manager.stop_all()
-    set_combat_manager(None)
     clear_combatant_cache()
 
 
@@ -141,7 +140,7 @@ async def run_lines(sim, player, lines):
         # submit_line (not do): real input path, so '''-heredoc blocks
         # accumulate; one-liners dispatch identically.
         await sim.submit_line(player, line)
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
 
 
 async def build(sim, lines, *, admin=False):

@@ -49,12 +49,13 @@ not the feature.
 | `realm/cli.py` | `realm init` / `realm start` |
 | `realm/server/game.py` | GameServer — opens the store, loads the world, runs loops and protocols |
 | `realm/server/world.py` | `build_world()` — wires the kernel, then the loaded features; the server and the Simulator both call it |
+| `realm/core/world.py` | `World`, the one handle to the running world: `get_world().store` / `.engine` / `.scripts` / `.rules` / `.services`, and `setting(key)` for config |
 | `realm/features.py` | `Feature`, `FeatureSet`, `load()`: how commands, behaviors, softcode functions and observers join a world |
 | `realm/std/` | The built-in features' declaration modules (`BUILTIN`, `CLASSIC`) |
 | `realm/config/loader.py` | `Settings` (every config key, its default and doc) and `load_config` |
 | `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, kind predicates |
 | `realm/core/propagation.py` | Two-pass check/react action pipeline |
-| `realm/core/checks.py` | Skill checks, contests, modifier providers, pluggable resolver |
+| `realm/core/checks.py` | Skill checks, contests; the world's `Checks` service (resolver, skill table, modifier providers) |
 | `realm/core/perception.py` | Visibility & naming choke points |
 | `realm/systems/` | Swappable GameSystem rules packages (GURPS/D20/Merc) |
 | `realm/scripting/` | Sandboxed softcode: `$commands`, `^listens`, `ON_<EVENT>` |
@@ -70,12 +71,20 @@ not the feature.
 Everything optional is a **feature** (`realm/features.py`): a named set of
 declarations (`feature.command`, `.behavior`, `.function`/`.softfn`,
 `.observer`, `.ruleset`, `.dest_resolver`, `.reaper`, `.queue_kind`,
-`.check_modifier`, `.protocol`, `.setting`, `.on_install`/`.on_boot`/`.on_close`).
+`.check_modifier`, `.name_resolver`, `.speech_renderer`, `.group_formatter`,
+`.protocol`, `.setting`, `.on_install`/`.on_boot`/`.on_close`).
 Built-ins are declared in `realm/std/<feature>.py` and `realm/games/<system>.py`;
 a game declares its own in `game.py`; `FEATURES` in config lists them
 (default `realm.std.CLASSIC`). Do not register at import time
 (`@BehaviorRegistry.register`, `dispatcher.register`) in engine code: declare on a
 feature. Collisions raise `FeatureError`. Guide: `docs/guides/features.md`.
+
+Engine code reaches the running world through `realm.core.world`
+(`get_world()`, or `find_world()` where no world is legitimate) and reads
+config with `setting("KEY")`. Do not add module-global setters
+(`set_x()` / `get_x()` pairs wired at boot): put the value on `World`, its
+`services`, or a `Settings` key. Tests start with no world; they take the
+`world` / `classic_world` fixtures (`tests/conftest.py`) or a `Simulator`.
 
 ## Development environment
 

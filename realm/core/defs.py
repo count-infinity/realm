@@ -12,7 +12,7 @@ a definition, and how to key it. Every kind shares one cache and one lookup:
 
 The cache for a kind is dropped whenever an object carrying its tag
 changes (an attribute, a tag, a save, a delete): ``realm.core.objects``
-calls :func:`touched` through a hook, so builders' edits are live without
+calls :func:`touched`, so builders' edits are live without
 ``@reload``. A parser that raises is logged at WARNING with the object id
 and that definition is skipped.
 
@@ -157,14 +157,6 @@ def kernel_kinds() -> list[DefKind]:
         DefKind("skill", "skill_def", parse=parse_skill_def),
         DefKind("class", "class_def", parse=parse_class_def),
     ]
-
-
-def _install_hook() -> None:
-    from realm.core.objects import set_defs_hook
-    set_defs_hook(touched)
-
-
-_install_hook()
 
 
 __all__ = ["DefKind", "register_def_kind", "install_def_kinds", "def_kinds", "all_defs",

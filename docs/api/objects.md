@@ -28,12 +28,11 @@ class GameObject:
 ### The display-name seam (recognition & disguise)
 
 `get_display_name(looker)` → `perceived_name` is the one place "who does
-this person appear to be?" is decided. Register overrides with
-`realm.core.perception.register_name_resolver(fn)`:
+this person appear to be?" is decided. A feature declares overrides with
+`feature.name_resolver`:
 
 ```python
-from realm.core.perception import register_name_resolver
-
+@feature.name_resolver
 def recognition(obj, looker, current):
     """Strangers read by their sdesc until introduced."""
     sdesc = obj.db.get('sdesc')
@@ -41,14 +40,12 @@ def recognition(obj, looker, current):
             and looker.id not in (obj.db.get('recognized_by') or []):
         return sdesc
     return current
-
-register_name_resolver(recognition)
 ```
 
 `fn(obj, looker, current) -> str` runs only when `looker` can see `obj`
-(an unseen actor is always "Someone"), composes in registration order,
+(an unseen actor is always "Someone"), composes in feature order,
 and must not raise (a broken one is logged and skipped). With none
-registered, names are unchanged.
+declared, names are unchanged.
 
 Every **narration and listing** surface routes through it — speech
 attribution (`{actor}` in a message), the room's "Players here" list,

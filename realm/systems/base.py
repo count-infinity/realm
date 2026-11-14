@@ -168,8 +168,8 @@ class GameSystem(ABC):
     # --- Skill resolution ---
     #
     # A GameSystem owns how NON-COMBAT skill checks resolve, not just
-    # combat. The server installs this at startup via set_check_resolver,
-    # so `d20` really rolls d20 for stealth/persuade/search — not only
+    # combat. build_world installs it as the world's check resolver
+    # (``services["checks"]``), so `d20` really rolls d20 for stealth/persuade/search — not only
     # for combat. Default: the engine's GURPS-shaped 3d6 roll-under.
 
     #: Optional softcode resolution rule — an expression over the dice
@@ -290,18 +290,6 @@ def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem
 
 # --- Ambient accessor (set by GameServer) ------------------------------------
 
-_active_system: GameSystem | None = None
-
-
-def set_game_system(system: GameSystem | None) -> None:
-    global _active_system
-    _active_system = system
-
-
-def get_game_system() -> GameSystem | None:
-    return _active_system
-
-
 #: Action types that mean a character's worn gear changed.
 EQUIPMENT_EVENTS = frozenset({ActionType.ON_WEAR, ActionType.ON_REMOVE})
 
@@ -316,7 +304,8 @@ async def equipment_observer(action: Any) -> None:
     stealth and hostile observers."""
     if not action.applied or action.action_type not in EQUIPMENT_EVENTS:
         return
-    system = get_game_system()
+    from realm.core.world import get_world
+    system = get_world().rules
     if system is not None and action.actor is not None:
         system.on_equipment_change(action.actor)
 
@@ -325,15 +314,18 @@ def reload_rules() -> None:
     """
     Re-install the active system's data-driven tables, picking up edits to
     ``skill_def`` objects made in-game or by an import. Skill defaults are
-    cached (in ``core.checks``), so they need this refresh; chargen classes
-    are read live each character creation and need no reload.
+    cached (the world's ``services["checks"]``), so they need this refresh;
+    chargen classes are read live each character creation and need no reload.
     """
-    system = get_game_system()
+    from realm.core.world import get_world
+    world = get_world()
+    system = world.rules
     if system is None:
         return
-    from realm.core.checks import set_check_resolver, set_skill_defaults
-    set_skill_defaults(system.skill_defaults())
-    set_check_resolver(system.resolve_check)
+    from realm.core.checks import Checks, skill_table
+    checks = world.services.setdefault("checks", Checks())
+    checks.skill_defaults = skill_table(system.skill_defaults())
+    checks.resolver = system.resolve_check
 
 
 __all__ = [
@@ -343,6 +335,4 @@ __all__ = [
     "equipment_observer",
     "resolve_game_system",
     "reload_rules",
-    "set_game_system",
-    "get_game_system",
 ]

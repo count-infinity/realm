@@ -2,14 +2,14 @@
 
 import pytest
 
-from realm.core.objects import GameObject
-from realm.gateway.session import Session
 from realm.commands.dispatcher import (
     DIRECTION_ALIASES,
     TOKEN_MAP,
     CommandContext,
     CommandDispatcher,
 )
+from realm.core.objects import GameObject
+from realm.gateway.session import Session
 
 
 class TestCommandContext:

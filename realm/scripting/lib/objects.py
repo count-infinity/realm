@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.attrflags import PROTECTED_ATTRS
-from realm.scripting.functions import get_keyid_sigil
+from realm.core.world import setting
 from realm.scripting.registry import softfn
 
 if TYPE_CHECKING:
@@ -47,10 +47,11 @@ def get(frame, spec: str) -> GameObject | None:
 
     # Friendly keyid lookup ($<keyid> by default) — an exact, unique,
     # rename-proof handle resolved through the keyid index.
-    if get_keyid_sigil() and spec.startswith(get_keyid_sigil()):
+    sigil = setting("KEYID_SIGIL")
+    if spec.startswith(sigil):
         if not frame.store:
             return None
-        return frame.store.keyid_holder(spec[len(get_keyid_sigil()):])
+        return frame.store.keyid_holder(spec[len(sigil):])
 
     # Name lookup — local first (executor's room + inventory), like
     # player commands; then the whole world. Same tiered matcher as

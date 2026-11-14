@@ -27,8 +27,8 @@ _SAFE_NAME = re.compile(r'^[A-Za-z0-9_-]+$')
 
 def _areas_dir() -> Path:
     """The sandboxed area directory (created on demand)."""
-    from realm.persistence.manager import get_active_manager
-    manager = get_active_manager()
+    from realm.core.world import get_world
+    manager = get_world().store
     root = Path(manager.db_path).parent if manager else Path("data")
     areas = root / "areas"
     areas.mkdir(parents=True, exist_ok=True)

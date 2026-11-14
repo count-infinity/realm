@@ -27,34 +27,6 @@ if TYPE_CHECKING:
 
 
 
-# The sigil that marks a get()/reference spec as a friendly keyid lookup
-# ('$banknet_core') rather than a name — game-tunable like the trigger and
-# emote sigils, and (unlike the hardcoded '#' id prefix) any length. Ambient
-# module state, wired at server construction alongside the other sigils.
-DEFAULT_KEYID_SIGIL = '$'
-_keyid_sigil = DEFAULT_KEYID_SIGIL
-
-
-def set_keyid_sigil(sigil: str = DEFAULT_KEYID_SIGIL) -> None:
-    """Install the keyid sigil (game config). Any length (1-16 chars); no
-    whitespace or alphanumerics (a sigil of 'key' would swallow ordinary
-    names), and it may not start with '#' — that prefix is reserved for raw
-    id lookup, which is tested first. A bad sigil raises at boot, not
-    mid-lookup."""
-    global _keyid_sigil
-    s = str(sigil)
-    if (not s or len(s) > 16 or s.startswith('#')
-            or any(c.isalnum() or c.isspace() for c in s)):
-        raise ValueError(
-            "keyid sigil must be 1-16 non-alphanumeric, non-space characters "
-            f"and may not start with '#' (got {sigil!r})")
-    _keyid_sigil = s
-
-
-def get_keyid_sigil() -> str:
-    return _keyid_sigil
-
-
 class ScriptFrame:
     """The state of one softcode run: who runs it (``executor``), who
     triggered it (``enactor``), where (``location``), the ``store``, the

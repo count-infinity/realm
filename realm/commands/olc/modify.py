@@ -98,8 +98,8 @@ async def cmd_keyid(ctx: CommandContext) -> None:
         @keyid BankNet Core = banknet_core
         @eval get('$banknet_core')
     """
+    from realm.core.world import setting
     from realm.persistence.keyid import KEYID_ATTR
-    from realm.scripting.functions import get_keyid_sigil
 
     spec = (ctx.left_args or "").strip()
     if not spec:
@@ -112,7 +112,7 @@ async def cmd_keyid(ctx: CommandContext) -> None:
     if not await require_control(ctx, target):
         return
 
-    sigil = get_keyid_sigil()
+    sigil = setting("KEYID_SIGIL")
     persistence = ctx.persistence
 
     # No '=' anywhere → show the current keyid.

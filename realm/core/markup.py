@@ -29,38 +29,26 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-# The markup marker is a game setting (MARKUP_MARKER in config.py) —
-# '|' by default, '~' or similar for worlds that want literal pipes in
-# their prose (ASCII tables). Every scanner/emitter here reads the
-# module global at call time; engine code emits through wrap() so a
-# changed marker never leaks stale literals.
-DEFAULT_MARKER = '|'
-MARKER = DEFAULT_MARKER
+from realm.core.world import setting
+
 _FG = {c: 30 + i for i, c in enumerate('xrgybmcw')}
 
 
-def set_markup_marker(marker: str = DEFAULT_MARKER) -> None:
-    """Install the markup marker (game config). Any length from one
-    character ('|', '~') to a longer token ('%%', '@@@') — every
-    character must be non-alphanumeric and non-space, or the marker
-    would swallow prose. A bad marker is a config error and raises at
-    boot rather than mangling every string in the game. The escape
-    rule follows it: a doubled marker is a literal."""
-    global MARKER
-    marker = str(marker)
-    if (not marker or len(marker) > 16
-            or any(c.isalnum() or c.isspace() for c in marker)):
-        raise ValueError(
-            f"markup marker must be 1-16 non-alphanumeric, non-space "
-            f"characters (got {marker!r})")
-    MARKER = marker
+def marker() -> str:
+    """The markup marker: the MARKUP_MARKER setting, '|' by default, '~'
+    or similar for worlds that want literal pipes in their prose (ASCII
+    tables). Any length ('%%', '@@@'); a doubled marker is a literal.
+    Every scanner/emitter here reads it at call time; engine code emits
+    through wrap() so a changed marker never leaks stale literals."""
+    return setting("MARKUP_MARKER")
 
 
 def wrap(codes: str, text: str) -> str:
     """Color ``text`` with markup ``codes``, closing with a reset —
     the one way engine code should emit markup, so it always uses the
     configured marker: ``wrap('c', name)`` == ``|c<name>|n``."""
-    return f"{MARKER}{codes}{text}{MARKER}n"
+    mk = marker()
+    return f"{mk}{codes}{text}{mk}n"
 
 
 @dataclass(frozen=True)
@@ -104,6 +92,7 @@ def parse(text: str) -> list[tuple[Style, str]]:
     always safe: a dangling ``|`` at end-of-string renders literally,
     and styles simply restart at default in the second half.
     """
+    mk = marker()
     segments: list[tuple[Style, str]] = []
     style = DEFAULT_STYLE
     buf: list[str] = []
@@ -116,17 +105,17 @@ def parse(text: str) -> list[tuple[Style, str]]:
 
     # The marker may be any length (a game setting); offsets are all
     # relative to it. mk_len == 1 with the default '|'.
-    mk_len = len(MARKER)
+    mk_len = len(mk)
     while i < n:
-        if not text.startswith(MARKER, i):
+        if not text.startswith(mk, i):
             buf.append(text[i])
             i += 1
             continue
         if i + mk_len >= n:     # dangling marker: literal
-            buf.append(MARKER)
+            buf.append(mk)
             break
-        if text.startswith(MARKER, i + mk_len):   # doubled marker: escape
-            buf.append(MARKER)
+        if text.startswith(mk, i + mk_len):   # doubled marker: escape
+            buf.append(mk)
             i += 2 * mk_len
             continue
         code = text[i + mk_len]
@@ -160,7 +149,7 @@ def parse(text: str) -> list[tuple[Style, str]]:
             i += mk_len + 1
             continue
         # Unknown code: literal, typo stays visible.
-        buf.append(MARKER)
+        buf.append(mk)
         buf.append(code)
         i += mk_len + 1
     flush()
@@ -169,7 +158,8 @@ def parse(text: str) -> list[tuple[Style, str]]:
 
 def strip(text: str) -> str:
     """The text with all markup removed."""
-    if MARKER not in text:
+    mk = marker()
+    if mk not in text:
         return text
     return ''.join(seg for _style, seg in parse(text))
 
@@ -210,23 +200,25 @@ def truncate(text: str, width: int) -> str:
 
 def render_markup(style: Style) -> str:
     """The markup string that reproduces a Style (used by truncate)."""
+    mk = marker()
     if style.is_default():
         return ''
     parts = []
     if style.fg:
-        parts.append(MARKER + style.fg)
+        parts.append(mk + style.fg)
     if style.bg:
-        parts.append(MARKER + '[' + style.bg)
+        parts.append(mk + '[' + style.bg)
     for flag, code in ((style.bold, 'h'), (style.underline, 'u'),
                        (style.italic, 'i'), (style.reverse, 'v')):
         if flag:
-            parts.append(MARKER + code)
+            parts.append(mk + code)
     return ''.join(parts)
 
 
 def escape(text: str) -> str:
     """Escape player-provided text so pipes render literally."""
-    return text.replace(MARKER, MARKER + MARKER)
+    mk = marker()
+    return text.replace(mk, mk + mk)
 
 
 
@@ -258,7 +250,8 @@ def to_ansi(text: str) -> str:
     combined sequence, and a single reset trails the message iff any
     styling was used (no color bleed into the next prompt).
     """
-    if MARKER not in text:
+    mk = marker()
+    if mk not in text:
         return text
     out: list[str] = []
     previous = DEFAULT_STYLE

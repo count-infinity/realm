@@ -14,12 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from realm.combat.manager import CombatManager, set_combat_manager
+from realm.combat.manager import CombatManager
 from realm.combat.maneuver import QueuedAction
 from realm.combat.rulesets.merc import MercRuleset
 from realm.combat.system import CombatSystem
+from realm.core.world import get_world
 from realm.persistence.worldio import import_objects
-from realm.systems import MercSystem, reload_rules, set_game_system
+from realm.systems import MercSystem, reload_rules
 from realm.systems.definitions import apply_class
 from realm.testing import Simulator
 
@@ -34,11 +35,11 @@ async def _world():
     await import_objects(json.loads(AREA.read_text()), sim.store,
                          preserve_ids=True)
     system = MercSystem()
-    set_game_system(system)
+    get_world().rules = system
     reload_rules()
     mgr = CombatManager(CombatSystem(ruleset=MercRuleset()),
                         beat_min=4.0, beat_max=120.0, beat_default=15.0)
-    set_combat_manager(mgr)
+    get_world().services["combat"] = mgr
     return sim, system, mgr
 
 
@@ -57,8 +58,6 @@ async def _barbarian(sim, system, name="Grog"):
 
 def _teardown(sim):
     from realm.combat.combatant import clear_combatant_cache
-    set_combat_manager(None)
-    set_game_system(None)
     # These tests import with preserve_ids, so the same mob id recurs across
     # sims; drop the id-keyed combatant cache so a later test never wraps a
     # stale, closed-sim object.

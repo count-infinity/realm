@@ -14,9 +14,9 @@ the build breaks this suite. If this file is green, the typed lines work.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
 import time
+from pathlib import Path
 
 import pytest
 
@@ -635,9 +635,10 @@ class TestJobBoard:
 def combat():
     """A deterministic combat manager wired into the Simulator's world:
     3d6 always rolls 10 (skill 12 hits, dodge 0 fails), damage is flat 1."""
-    from realm.combat.manager import CombatManager, set_combat_manager
+    from realm.combat.manager import CombatManager
     from realm.combat.rulesets.gurps import GURPSRuleset
     from realm.combat.system import CombatSystem
+    from realm.core.world import get_world
 
     class FixedRuleset(GURPSRuleset):
         def roll_3d6(self):
@@ -650,12 +651,11 @@ def combat():
 
     mgr = CombatManager(CombatSystem(ruleset=FixedRuleset()),
                         beat_min=4.0, beat_max=120.0, beat_default=60.0)
-    set_combat_manager(mgr)
+    get_world().services["combat"] = mgr
     try:
         yield mgr
     finally:
         mgr.stop_all()
-        set_combat_manager(None)
 
 
 @pytest.mark.asyncio

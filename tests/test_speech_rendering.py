@@ -143,10 +143,7 @@ class TestPlayerTextIsNotSubstituted:
 @pytest.fixture
 def renderers():
     """Registered speech transforms, cleared after each test."""
-    from realm.core.propagation import clear_speech_renderers
-    clear_speech_renderers()
     yield
-    clear_speech_renderers()
 
 
 @pytest.mark.asyncio
@@ -157,7 +154,7 @@ class TestPerListenerTransforms:
 
     async def test_languages_garble_per_listener(self, world, renderers):
         """Item 79. Bob speaks Trade; Cara doesn't."""
-        from realm.core.propagation import register_speech_renderer
+        from realm.core.world import get_world
 
         w = world
         cara = w.sim.player("Cara", location=w.room)
@@ -176,7 +173,7 @@ class TestPerListenerTransforms:
                 return body
             return "<something in Trade>"
 
-        register_speech_renderer(garble)
+        get_world().speech_renderers.append(garble)
         w.sim.seen(w.bob), w.sim.seen(cara)
         await w.sim.do(w.alice, "say the vault is open")
 
@@ -199,7 +196,7 @@ class TestPerListenerTransforms:
         This pins the half that works: the addressee's copy is
         transformable and bystanders are identifiable.
         """
-        from realm.core.propagation import register_speech_renderer
+        from realm.core.world import get_world
 
         w = world
         cara = w.sim.player("Cara", location=w.room)
@@ -213,7 +210,7 @@ class TestPerListenerTransforms:
                     return body.upper()
             return body
 
-        register_speech_renderer(note)
+        get_world().speech_renderers.append(note)
         w.sim.seen(w.bob), w.sim.seen(cara)
         await w.sim.do(w.alice, "whisper Bob = the vault is open")
 
@@ -227,7 +224,7 @@ class TestPerListenerTransforms:
 
     async def test_drink_slurs_for_everyone(self, world, renderers):
         """Item 139. Not per-listener — the same seam still serves."""
-        from realm.core.propagation import register_speech_renderer
+        from realm.core.world import get_world
 
         w = world
         w.alice.db.set('drunk', 1)
@@ -237,7 +234,7 @@ class TestPerListenerTransforms:
                 return body.replace("s", "sh")
             return body
 
-        register_speech_renderer(slur)
+        get_world().speech_renderers.append(slur)
         w.sim.seen(w.bob)
         await w.sim.do(w.alice, "say this is fine")
 
@@ -250,11 +247,11 @@ class TestPerListenerTransforms:
     async def test_renderers_compose_in_order(self, world, renderers):
         """A drunk speaker of a foreign tongue slurs AND garbles: each
         renderer sees the previous one's output."""
-        from realm.core.propagation import register_speech_renderer
+        from realm.core.world import get_world
 
         w = world
-        register_speech_renderer(lambda b, a, lk: b.upper())
-        register_speech_renderer(lambda b, a, lk: b + "!")
+        get_world().speech_renderers.append(lambda b, a, lk: b.upper())
+        get_world().speech_renderers.append(lambda b, a, lk: b + "!")
         w.sim.seen(w.bob)
         await w.sim.do(w.alice, "say hello")
 
@@ -265,15 +262,15 @@ class TestPerListenerTransforms:
         reason: a ward's job is to DENY, so "it errored" must not read as
         "it allowed". A renderer only rephrases; swallowing the sentence
         would be the worse failure."""
-        from realm.core.propagation import register_speech_renderer
+        from realm.core.world import get_world
 
         w = world
 
         def boom(body, action, looker):
             raise RuntimeError("renderer is broken")
 
-        register_speech_renderer(boom)
-        register_speech_renderer(lambda b, a, lk: b + " (ok)")
+        get_world().speech_renderers.append(boom)
+        get_world().speech_renderers.append(lambda b, a, lk: b + " (ok)")
         w.sim.seen(w.bob)
         await w.sim.do(w.alice, "say still here")
 

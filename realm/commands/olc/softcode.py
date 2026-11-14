@@ -226,7 +226,7 @@ async def cmd_trigger(ctx: CommandContext) -> None:
         @set parrot/battle_cry = say To arms!
         @tr parrot/battle_cry
     """
-    from realm.scripting.engine import get_script_engine
+    from realm.core.world import get_world
 
     spec = (ctx.args or "").strip()
     if '/' not in spec:
@@ -250,7 +250,7 @@ async def cmd_trigger(ctx: CommandContext) -> None:
         await ctx.session.send(f"You don't control {target.name}.")
         return
 
-    engine = get_script_engine()
+    engine = get_world().scripts
     if engine is None:
         await ctx.session.send("Scripting is not enabled.")
         return

@@ -10,21 +10,14 @@ from __future__ import annotations
 import pytest
 
 from realm.combat.combatant import Combatant
+from realm.combat.rulesets.merc import MercRuleset
 from realm.combat.system import (
     CombatSystem,
     append_roll_notes,
-    set_show_rolls_default,
     shows_rolls,
 )
-from realm.combat.rulesets.merc import MercRuleset
 from realm.core.objects import GameObject
-
-
-@pytest.fixture(autouse=True)
-def _reset_default():
-    set_show_rolls_default(False)
-    yield
-    set_show_rolls_default(False)
+from tests.conftest import reconfigure
 
 
 def _fighter(name, **stats):
@@ -38,18 +31,18 @@ def _fighter(name, **stats):
 
 class TestPreference:
 
-    def test_player_flag_wins_over_default(self):
+    def test_player_flag_wins_over_default(self, classic_world):
         obj = _fighter("A")
         assert not shows_rolls(obj)              # global default off
         obj.db.show_rolls = True
         assert shows_rolls(obj)
-        set_show_rolls_default(True)
+        reconfigure(classic_world, raw={"SHOW_ROLLS": True})
         obj.db.show_rolls = False                # personal off beats global on
         assert not shows_rolls(obj)
 
-    def test_global_default_applies_when_unset(self):
+    def test_global_default_applies_when_unset(self, classic_world):
         obj = _fighter("A")
-        set_show_rolls_default(True)
+        reconfigure(classic_world, raw={"SHOW_ROLLS": True})
         assert shows_rolls(obj)
 
     def test_none_is_safe(self):
@@ -74,6 +67,7 @@ class TestNotes:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestEndToEnd:
 
     async def test_attack_messages_carry_the_dice(self):

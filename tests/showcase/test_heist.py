@@ -20,17 +20,17 @@ line runner re-pins the deterministic resolver after every command.
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
 import time
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from realm.core.checks import CheckResult, set_check_resolver, skill_level
+from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.events import reap_expired
 from realm.core.perception import stealth_observer
-from realm.core.propagation import get_engine as get_propagation_engine
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 
@@ -88,14 +88,13 @@ BUILD_RED_FLAGS = (
 @pytest.fixture
 def sim():
     simulator = Simulator()
-    set_check_resolver(level_resolver)
+    checks().resolver = level_resolver
     # GameServer registers these at startup; the Simulator leaves wiring
     # to the test (same seams, same objects).
-    get_propagation_engine().add_observer(stealth_observer)
+    get_world().engine.add_observer(stealth_observer)
     simulator.engine.session_manager = SimpleNamespace(
         all_sessions=lambda: list(simulator._sessions.values()))
     yield simulator
-    set_check_resolver(None)
     simulator.close()
 
 
@@ -107,7 +106,7 @@ async def run_lines(sim, player, lines):
         # submit_line (not do): real input path, so '''-heredoc blocks
         # accumulate; one-liners dispatch identically.
         await sim.submit_line(player, line)
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
 
 
 async def build_heist(sim, upto=160):

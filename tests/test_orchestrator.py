@@ -13,7 +13,7 @@ import pytest
 
 from realm.behaviors.npc import StealBehavior
 from realm.behaviors.spawner import PopulationBehavior
-from realm.persistence.manager import get_active_manager
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 WOLF = {"name": "a grey wolf", "tags": ["npc"],
@@ -70,7 +70,7 @@ class TestPopulation:
             await _tick_until(beh, master, 20)
             assert len(_wolves(sim)) == 5
             # Cull below min: delete 4 (1 left < min 2).
-            persistence = get_active_manager()
+            persistence = get_world().store
             for w in _wolves(sim)[:4]:
                 w.location = None
                 await persistence.delete(w)
@@ -93,7 +93,7 @@ class TestPopulation:
             master.add_behavior(beh)
             await _tick_until(beh, master, 20)
             assert len(_wolves(sim)) == 4
-            persistence = get_active_manager()
+            persistence = get_world().store
             _wolves(sim)[0].location = None            # 4 -> 3, still >= min
             await persistence.delete(_wolves(sim)[0])
             await _tick_until(beh, master, 20)

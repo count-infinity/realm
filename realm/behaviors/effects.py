@@ -5,7 +5,7 @@ An effect IS a behavior — attached at runtime (by combat, softcode, a
 trapped chest, a venomous bite), advancing on **beats** (not the real-time
 heartbeat: see ``realm.core.beats`` and docs/design/time-and-beats.md), and
 detaching itself when it expires. A beat is the encounter's adjustable round
-while its owner is fighting and the ambient ``WORLD_TICK`` otherwise, so
+while its owner is fighting and the ambient the ``WORLD_BEAT`` setting otherwise, so
 slowing a fight slows its poisons in lockstep. Because behaviors serialize
 through the BehaviorRegistry, a poisoned character is still poisoned after a
 reboot, with the remaining duration (in beats) intact in ``db.*``.
@@ -80,12 +80,12 @@ class TimedEffectBehavior(BeatBehavior):
         killer. Without it, a bounty board hears the death and has nobody
         to pay, and an arena bell roars that "" put someone down.
         """
-        from realm.persistence.manager import get_active_manager
+        from realm.core.world import get_world
 
         source_id = self.get_param('source_id')
         if not source_id:
             return None
-        persistence = get_active_manager()
+        persistence = get_world().store
         if persistence is None:
             return None
         return persistence.get_cached(str(source_id))
@@ -221,8 +221,8 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
 
         if new_hp <= 0:
             await self._expire(obj)
-            from realm.combat.manager import get_combat_manager
-            manager = get_combat_manager()
+            from realm.core.world import get_world
+            manager = get_world().services.get("combat")
             if manager is not None:
                 # Name the poisoner: the death event is worthless to a
                 # bounty board or an arena bell if the killer is None.
@@ -303,12 +303,12 @@ class DispositionBoostBehavior(TimedEffectBehavior):
                 adjust_disposition(obj, target, int(self.get_param('delta', 2)))
 
     def _target(self, obj: GameObject) -> GameObject | None:
-        from realm.persistence.manager import get_active_manager
+        from realm.core.world import get_world
 
         target_id = self.get_param('target_id')
         if not target_id:
             return None
-        persistence = get_active_manager()
+        persistence = get_world().store
         if persistence is not None:
             found = persistence.get_cached(str(target_id))
             if found is not None:

@@ -20,7 +20,8 @@ from realm.core.objects import GameObject
 from realm.features import load
 from realm.gateway.session import Session
 from realm.std import CLASSIC
-from realm.systems import GurpsSystem, MercSystem, set_game_system
+from realm.systems import GurpsSystem, MercSystem
+from realm.testing import Simulator
 
 
 def _drain(session) -> str:
@@ -75,8 +76,8 @@ class TestMercDeathAward:
 class TestSystemAwareScore:
 
     async def _score(self, system):
-        set_game_system(system)
-        try:
+        with Simulator() as sim:
+            sim.world.rules = system
             dispatcher = CommandDispatcher()
             load(CLASSIC).install_commands(dispatcher)
             room = GameObject("Square", tags=['room'])
@@ -96,8 +97,6 @@ class TestSystemAwareScore:
             session.link_player(player)
             await dispatcher.dispatch(session, "score")
             return _drain(session)
-        finally:
-            set_game_system(None)
 
     async def test_merc_score_speaks_diku(self):
         out = await self._score(MercSystem())
@@ -115,6 +114,7 @@ class TestSystemAwareScore:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestInventoryEquipMarks:
 
     async def test_wielded_and_worn_are_marked(self):

@@ -1,23 +1,23 @@
 # 133. Short-descs & introductions
 
-> Checklist item 133 ([small]): *per-viewer naming (sdesc/recog) on the `register_name_resolver` seam*
+> Checklist item 133 ([small]): *per-viewer naming (sdesc/recog) on the `feature.name_resolver` seam*
 
 **What you'll build:** a masquerade where a stranger reads as **"a tall
 woman"** until she introduces herself, after which you, and only you, see
 her name. Everyone in the room can hold a different set of known and
 unknown faces at the same time.
 
-**Concepts:** the **name-resolver seam** (`register_name_resolver`), one
-short native binding a game registers at deploy time, plus an in-game
+**Concepts:** the **name-resolver seam** (`feature.name_resolver`), one
+short native declaration in the game's feature module, plus an in-game
 `introduce` command and per-character `sdesc` and `recognized_by`
 attributes. This is one of the few tutorials with a Python half, because
 who counts as recognised is a game's own policy, so it lives in the
-game's setup rather than in softcode a player could rewrite.
+game's feature module rather than in softcode a player could rewrite.
 
 ## How it works
 
-The finished piece has two parts: one native resolver registered when the
-game starts, and one admin-owned steward standing in the room that carries
+The finished piece has two parts: one native resolver the game's feature
+declares, and one admin-owned steward standing in the room that carries
 an `introduce` verb. The resolver decides which name each looker sees, and
 the verb records who has been introduced to whom. This section answers
 three questions: where the engine asks who you appear to be, what that
@@ -39,17 +39,19 @@ looker is absent from that list, they read the sdesc; otherwise they read
 the real name:
 
 ```python
-# In your game's setup (config.py's on_start, or a bindings module):
-from realm.core.perception import register_name_resolver
+# game.py — your game's feature (config.py: FEATURES = [*CLASSIC, "game"])
+from realm.features import Feature
 
+feature = Feature("game")
+
+
+@feature.name_resolver
 def strangers_read_by_sdesc(obj, looker, current):
     sdesc = obj.db.get('sdesc')
     if (sdesc and looker is not None and looker is not obj
             and looker.id not in (obj.db.get('recognized_by') or [])):
         return sdesc            # a stranger sees the description
     return current              # you, and those introduced, see the name
-
-register_name_resolver(strangers_read_by_sdesc)
 ```
 
 That is the whole engine side. A resolver returns the name so far or a

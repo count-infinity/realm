@@ -396,6 +396,7 @@ class TestCustomChains:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestTrailingActions:
 
     async def test_trailing_actions_process(self):
@@ -537,6 +538,7 @@ class TestVisitorExtension:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestPropagateConvenience:
 
     async def test_module_propagate_uses_singleton(self):
@@ -736,6 +738,7 @@ class TestDeliverMessages:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestPropagateDelivers:
 
     async def test_propagate_delivers_by_default(self):
@@ -767,6 +770,7 @@ class TestPropagateDelivers:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestSessionMsgWiring:
 
     async def test_link_player_wires_msg_handler(self):

@@ -122,16 +122,8 @@ def find_wielded(obj) -> Any | None:
 # --- Roll visibility ---------------------------------------------------------
 # Every ruleset already narrates its rolls (RollResult.description:
 # "d20(13) vs need 35 (THAC0 20 - AC -15)"); this surfaces them on combat
-# messages. Game-wide default from config SHOW_ROLLS; per-player override
-# on db.show_rolls (the `showrolls on|off` command).
-
-_show_rolls_default = False
-
-
-def set_show_rolls_default(value: bool) -> None:
-    """Install the game-wide default (GameServer, from config SHOW_ROLLS)."""
-    global _show_rolls_default
-    _show_rolls_default = bool(value)
+# messages. Game-wide default from config SHOW_ROLLS (the combat feature's
+# setting); per-player override on db.show_rolls (`showrolls on|off`).
 
 
 def shows_rolls(obj: Any | None) -> bool:
@@ -142,7 +134,10 @@ def shows_rolls(obj: Any | None) -> bool:
     if db is None:
         return False
     pref = db.get('show_rolls')
-    return _show_rolls_default if pref is None else bool(pref)
+    if pref is None:
+        from realm.core.world import setting
+        return bool(setting("SHOW_ROLLS", False))
+    return bool(pref)
 
 
 def append_roll_notes(messages: dict, attacker: Any | None,

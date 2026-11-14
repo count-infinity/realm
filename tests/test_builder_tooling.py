@@ -9,15 +9,13 @@ from __future__ import annotations
 import pytest
 
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
+from realm.core.world import get_world
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 
 @pytest.fixture(autouse=True)
 def fresh():
-    reset_engine()
     yield
-    reset_engine()
 
 
 @pytest.mark.asyncio
@@ -86,29 +84,22 @@ class TestBehaviorCommaParse:
 @pytest.mark.asyncio
 class TestEvalForeach:
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def _store(self, world):
         self.persistence = MockPersistence()
         use_persistence(self.persistence)
-        from realm.persistence.manager import set_active_manager
-        set_active_manager(self.persistence)
-
-    def teardown_method(self):
-        from realm.persistence.manager import set_active_manager
-        set_active_manager(None)
+        world.store = self.persistence
 
     async def test_eval_reports_result(self):
         from realm.commands.olc.debug import cmd_eval
-        from realm.scripting.engine import ScriptEngine, set_script_engine
+        from realm.scripting.engine import ScriptEngine
 
         room = GameObject("Study", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
-        set_script_engine(ScriptEngine(persistence=self.persistence))
-        try:
-            ctx = make_context(bea, args="result = 2 + 40")
-            await cmd_eval(ctx)
-            assert any("42" in m for m in ctx.session.messages)
-        finally:
-            set_script_engine(None)
+        get_world().scripts = ScriptEngine(persistence=self.persistence)
+        ctx = make_context(bea, args="result = 2 + 40")
+        await cmd_eval(ctx)
+        assert any("42" in m for m in ctx.session.messages)
 
     async def test_foreach_runs_per_match(self):
         from realm.commands.olc.debug import cmd_foreach
@@ -197,18 +188,14 @@ class TestExitPrefix:
 class TestRollVisibility:
 
     def test_show_rolls_echoes(self):
-        from realm.core.checks import check, set_check_resolver
+        from realm.core.checks import check
 
         seen = []
         bob = GameObject("Bob", tags=["player"])
         bob.db.dexterity = 12
         bob.db.show_rolls = True
         bob.set_msg_handler(seen.append)
-        set_check_resolver(None)
-        try:
-            check(bob, "stealth")
-        finally:
-            set_check_resolver(None)
+        check(bob, "stealth")
         assert any("roll stealth:" in m for m in seen)
 
 
@@ -219,9 +206,9 @@ class TestHiddenObjectSearch:
         self.persistence = MockPersistence()
         use_persistence(self.persistence)
 
-    async def test_concealed_object_found_by_flat_check(self):
+    async def test_concealed_object_found_by_flat_check(self, world):
         from realm.commands.builtin.manipulation import cmd_search
-        from realm.core.checks import CheckResult, set_check_resolver
+        from realm.core.checks import CheckResult, checks
 
         room = GameObject("Steps", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
@@ -229,11 +216,8 @@ class TestHiddenObjectSearch:
 
         # Force success: a concealed OBJECT uses a flat observation check,
         # not a stealth contest against a statless item.
-        set_check_resolver(lambda o, s, m: CheckResult(True, 3, 8, 11, s))
-        try:
-            ctx = make_context(bob)
-            await cmd_search(ctx)
-        finally:
-            set_check_resolver(None)
+        checks().resolver = lambda o, s, m: CheckResult(True, 3, 8, 11, s)
+        ctx = make_context(bob)
+        await cmd_search(ctx)
         assert not key.has_tag("hidden")
         assert any("tide-worn key" in m for m in ctx.session.messages)

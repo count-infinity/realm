@@ -417,22 +417,21 @@ class _FakeManager:
 
 
 @pytest.fixture
-def role_world():
+def role_world(world):
     """Register a set of world objects as the active manager, and reset the
     role_def cache after — so custom roles don't leak between tests."""
-    from realm.persistence.manager import set_active_manager
+    from realm.core.world import get_world
 
     created = []
 
     def install(*objs):
         created.extend(objs)
-        set_active_manager(_FakeManager(created))
+        get_world().store = _FakeManager(created)
         reload_role_defs()
 
     try:
         yield install
     finally:
-        set_active_manager(None)
         reload_role_defs()
 
 

@@ -35,12 +35,12 @@ PARTNER_ATTR = "partner"
 
 def partner_of(exit_obj: GameObject) -> GameObject | None:
     """The live object this exit's ``partner`` points at, or None."""
-    from realm.persistence.manager import get_active_manager
+    from realm.core.world import get_world
 
     ref = exit_obj.db.get(PARTNER_ATTR)
     if not isinstance(ref, str) or not ref.startswith('#'):
         return None
-    manager = get_active_manager()
+    manager = get_world().store
     return manager.get_cached(ref[1:]) if manager else None
 
 

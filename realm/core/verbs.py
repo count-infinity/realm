@@ -11,21 +11,19 @@ NPC just drops the line) and return False.
 from __future__ import annotations
 
 import re
+from functools import cache
 from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
 from realm.core.language import singular_name
 from realm.core.propagation import Action, deliver_messages, gate_action
+from realm.core.world import setting
 
 # --- Emote references -------------------------------------------------------
 # A rich emote references people/things with a sigil — `pose waves at /Bob` —
 # and each reference is rendered per viewer, so everyone reads the name THEY
 # know (a disguise, an unintroduced stranger) and the referenced person reads
 # "you". The sigil is a game setting (EMOTE_SIGIL), '/' by default.
-
-DEFAULT_EMOTE_SIGIL = '/'
-_emote_sigil = DEFAULT_EMOTE_SIGIL
-_emote_ref_re = re.compile(re.escape(DEFAULT_EMOTE_SIGIL) + r"(\w+)")
 
 # A private, unspellable delimiter for a resolved reference in the pose body:
 # U+FDD0 is a Unicode noncharacter — never valid in text, so a player cannot
@@ -34,25 +32,9 @@ _emote_ref_re = re.compile(re.escape(DEFAULT_EMOTE_SIGIL) + r"(\w+)")
 _EMOTE_REF = "﷐{}﷐"
 
 
-def set_emote_sigil(sigil: str = DEFAULT_EMOTE_SIGIL) -> None:
-    """Install the emote-reference sigil (game config).
-
-    Any 1-16 non-alphanumeric, non-space characters (an alphanumeric sigil
-    would swallow ordinary words mid-emote). A bad value raises at boot,
-    not mid-emote.
-    """
-    global _emote_sigil, _emote_ref_re
-    s = str(sigil)
-    if not s or len(s) > 16 or any(c.isalnum() or c.isspace() for c in s):
-        raise ValueError(
-            f"emote sigil must be 1-16 non-alphanumeric, non-space "
-            f"characters (got {sigil!r})")
-    _emote_sigil = s
-    _emote_ref_re = re.compile(re.escape(s) + r"(\w+)")
-
-
-def get_emote_sigil() -> str:
-    return _emote_sigil
+@cache
+def _emote_ref_re(sigil: str) -> re.Pattern[str]:
+    return re.compile(re.escape(sigil) + r"(\w+)")
 
 
 def parse_emote_refs(poser: GameObject, text: str) -> tuple[str, list]:
@@ -82,7 +64,7 @@ def parse_emote_refs(poser: GameObject, text: str) -> tuple[str, list]:
         refs.append(matches[0])
         return _EMOTE_REF.format(len(refs) - 1)
 
-    return _emote_ref_re.sub(_sub, text), refs
+    return _emote_ref_re(setting("EMOTE_SIGIL")).sub(_sub, text), refs
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject

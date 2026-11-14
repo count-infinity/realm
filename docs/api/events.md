@@ -28,8 +28,9 @@ action.add_modifier(value, reason)      # picked up by combat rolls
 await propagate(action, deliver=True)   # run both passes (+ messages)
 deliver_messages(action)                # deliver staged messages later
 await gate_action(action, fail_msg=...) # check-pass-only convenience
-get_engine() / reset_engine()           # the module singleton
-get_engine().add_observer(async_fn)     # see every action
+get_world().engine                      # the running world's engine
+feature.observer(async_fn)              # see every action (a feature)
+world.observe(async_fn)                 # ... or for this world's life
 ```
 
 ## Canonical action builders

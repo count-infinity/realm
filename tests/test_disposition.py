@@ -10,7 +10,7 @@ import pytest
 
 from realm.behaviors.effects import DispositionBoostBehavior
 from realm.combat.behaviors import AggressiveBehavior, GuardBehavior
-from realm.core.checks import set_check_resolver
+from realm.core.checks import checks
 from realm.core.disposition import (
     adjust_disposition,
     disposition_band,
@@ -20,14 +20,13 @@ from realm.core.disposition import (
     set_disposition,
 )
 from realm.core.objects import GameObject
-from realm.core.propagation import Action, reset_engine
+from realm.core.propagation import Action
+from realm.core.world import get_world
 
 
 @pytest.fixture(autouse=True)
 def fresh_engine():
-    reset_engine()
     yield
-    reset_engine()
 
 
 def level_resolver(win: bool):
@@ -82,6 +81,7 @@ class TestDispositionCore:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestDispositionConsumers:
 
     async def test_guard_waves_friends_through(self):
@@ -99,8 +99,7 @@ class TestDispositionConsumers:
         await guard.get_behaviors()[0].on_check(guard, action2)
         assert not action2.blocked  # friend passes
 
-    async def test_aggressive_spares_the_devoted(self):
-        from realm.combat.manager import set_combat_manager
+    async def test_aggressive_spares_the_devoted(self, world):
 
         class FakeManager:
             def __init__(self):
@@ -110,7 +109,7 @@ class TestDispositionConsumers:
                 self.fights.append((a, b))
 
         manager = FakeManager()
-        set_combat_manager(manager)
+        get_world().services["combat"] = manager
         try:
             room = GameObject("Lair", tags=["room"])
             wolf = GameObject("wolf", location=room)
@@ -126,7 +125,7 @@ class TestDispositionConsumers:
             await behavior._maybe_engage(wolf, bob)
             assert manager.fights == [(wolf, bob)]
         finally:
-            set_combat_manager(None)
+            del get_world().services["combat"]
 
     async def test_fasttalk_boost_wears_off(self):
         room = GameObject("Gate", tags=["room"])
@@ -146,13 +145,11 @@ class TestDispositionConsumers:
 @pytest.mark.asyncio
 class TestSocialCommands:
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def _persistence(self, world):
         from tests.test_olc import MockPersistence, use_persistence
         self.persistence = MockPersistence()
         use_persistence(self.persistence)
-
-    def teardown_method(self):
-        set_check_resolver(None)
 
     def _scene(self):
         room = GameObject("Gate", tags=["room"])
@@ -182,7 +179,7 @@ class TestSocialCommands:
             # Bob always wins, guard always loses.
             return CheckResult(obj is bob, 5 if obj is bob else -5, 8,
                                10, skill)
-        set_check_resolver(rigged)
+        checks().resolver = rigged
 
         ctx = make_context(bob, args="guard")
         await cmd_persuade(ctx)
@@ -205,7 +202,7 @@ class TestSocialCommands:
         def rigged(obj, skill, modifier):
             return CheckResult(obj is npc, 5 if obj is npc else -5, 8,
                                10, skill)
-        set_check_resolver(rigged)
+        checks().resolver = rigged
 
         ctx = make_context(bob, args="guard")
         await cmd_fasttalk(ctx)

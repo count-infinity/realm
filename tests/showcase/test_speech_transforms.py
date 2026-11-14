@@ -1,7 +1,7 @@
 """Showcase verification — Speech transforms (items 79 languages, 139 intoxication).
 
 Both tutorials sit on the per-listener speech-renderer seam shipped
-2026-07-17 (`register_speech_renderer`): the spoken body is resolved once
+2026-07-17 (`feature.speech_renderer`): the spoken body is resolved once
 per recipient, so a native transform can garble it for a listener who
 lacks the tongue (79) or slur it for a drunk speaker (139). Each item's
 native half — the renderer a game registers at deploy time — is defined
@@ -22,10 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from realm.core.propagation import (
-    clear_speech_renderers,
-    register_speech_renderer,
-)
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -109,12 +106,10 @@ def moot():
     vex = sim.player("Vex", location=start)
     mara = sim.player("Mara", location=start)
     bran = sim.player("Bran", location=start)
-    clear_speech_renderers()
-    register_speech_renderer(garble_unknown_tongue)
+    get_world().speech_renderers.append(garble_unknown_tongue)
     try:
         yield sim, ada, vex, mara, bran
     finally:
-        clear_speech_renderers()
         sim.close()
 
 
@@ -179,12 +174,10 @@ def flagon():
     bex = sim.player("Bex", location=start)
     cass = sim.player("Cass", location=start)
     doran = sim.player("Doran", location=start)
-    clear_speech_renderers()
-    register_speech_renderer(slur_when_drunk)
+    get_world().speech_renderers.append(slur_when_drunk)
     try:
         yield sim, ada, bex, cass, doran
     finally:
-        clear_speech_renderers()
         sim.close()
 
 
@@ -249,13 +242,11 @@ def bar_of_babel():
     bex = sim.player("Bex", location=start)
     mara = sim.player("Mara", location=start)
     bran = sim.player("Bran", location=start)
-    clear_speech_renderers()
-    register_speech_renderer(garble_unknown_tongue)   # first: garble
-    register_speech_renderer(slur_when_drunk)          # second: slur the result
+    sim.world.speech_renderers.append(garble_unknown_tongue)   # first: garble
+    sim.world.speech_renderers.append(slur_when_drunk)         # second: slur the result
     try:
         yield sim, ada, bex, mara, bran
     finally:
-        clear_speech_renderers()
         sim.close()
 
 

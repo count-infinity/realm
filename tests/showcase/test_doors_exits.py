@@ -25,7 +25,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.checks import CheckResult, set_check_resolver, skill_level
+from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.events import reap_expired
 from realm.testing import Simulator
 
@@ -70,11 +70,10 @@ BUILD_RED_FLAGS = (
 @pytest.fixture
 def sim():
     simulator = Simulator()
-    set_check_resolver(level_resolver)
+    checks().resolver = level_resolver
     simulator.engine.session_manager = SimpleNamespace(
         all_sessions=lambda: list(simulator._sessions.values()))
     yield simulator
-    set_check_resolver(None)
     simulator.close()
 
 
@@ -83,7 +82,7 @@ async def run_lines(sim, player, lines):
         # submit_line (not do): real input path, so '''-heredoc blocks
         # accumulate; one-liners dispatch identically.
         await sim.submit_line(player, line)
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
 
 
 async def build(sim, doc_name: str):

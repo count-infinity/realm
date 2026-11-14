@@ -200,19 +200,17 @@ class TestDoubleTickGuard:
         assert fighting not in targets          # driven by its encounter
         assert inert not in targets             # nothing to advance
 
-    async def test_reboot_scrubs_stale_in_combat_tag(self):
+    async def test_reboot_scrubs_stale_in_combat_tag(self, world):
         # Encounters don't survive a reboot but the in_combat tag persists.
         # Without a load-time scrub, a mid-fight-saved creature reloads tagged
         # with no encounter — the ambient driver skips it forever and its beat
         # effects freeze. The scrub must clear the tag so it rejoins the beat.
-        from realm.persistence.manager import (
-            PersistenceManager,
-            set_active_manager,
-        )
+        from realm.core.world import get_world
+        from realm.persistence.manager import PersistenceManager
 
         pm = PersistenceManager(":memory:")
         await pm.initialize()
-        set_active_manager(pm)
+        get_world().store = pm
         try:
             mob = GameObject(name="Brawler", tags=["creature", "in_combat"])
             mob.add_behavior(CountingBeat())        # a beat effect (would freeze)
@@ -230,7 +228,6 @@ class TestDoubleTickGuard:
             assert mob.db.get("combat_queued") is None
             assert mob in ambient_beat_targets([mob])   # rejoins the ambient beat
         finally:
-            set_active_manager(None)
             await pm.close()
 
 

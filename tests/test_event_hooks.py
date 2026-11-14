@@ -180,7 +180,7 @@ class TestLoad:
 
 
 @pytest.mark.asyncio
-async def test_hitprcnt_fires_once_on_threshold_cross():
+async def test_hitprcnt_fires_once_on_threshold_cross(world):
     """HP falling through db.hitprcnt fires event:on_hitprcnt exactly once —
     the low-HP AI seam. Driven through the real combat system; the event is
     captured with a propagation observer (no softcode engine here)."""
@@ -188,9 +188,8 @@ async def test_hitprcnt_fires_once_on_threshold_cross():
     from realm.combat.rulesets.d20 import D20Ruleset
     from realm.combat.system import CombatSystem
     from realm.core.objects import GameObject
-    from realm.core.propagation import get_engine, reset_engine
+    from realm.core.world import get_world
 
-    reset_engine()
     clear_combatant_cache()
     fired = []
 
@@ -198,7 +197,7 @@ async def test_hitprcnt_fires_once_on_threshold_cross():
         if action.action_type == "event:on_hitprcnt":
             fired.append(action)
 
-    get_engine().add_observer(observer)
+    get_world().engine.add_observer(observer)
     try:
         attacker = GameObject("Fighter")
         attacker.db.set("strength", 20)
@@ -222,5 +221,4 @@ async def test_hitprcnt_fires_once_on_threshold_cross():
         assert fired[0].extra["percent"] <= 90
         assert fired[0].target is goblin
     finally:
-        reset_engine()
         clear_combatant_cache()

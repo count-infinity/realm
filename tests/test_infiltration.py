@@ -24,14 +24,13 @@ from realm.commands.builtin.manipulation import (
     cmd_use,
     cmd_wear,
 )
-from realm.core.checks import CheckResult, check, contest, set_check_resolver, skill_level
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
+from realm.core.checks import CheckResult, check, checks, contest, skill_level
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
 from realm.core.perception import can_see, can_see_room
-from realm.core.propagation import get_engine as get_propagation_engine
-from realm.core.propagation import reset_engine
+from realm.core.world import get_world
 from realm.gateway.session import Session
-from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
 
 def level_resolver(obj, skill, modifier):
@@ -46,12 +45,9 @@ def level_resolver(obj, skill, modifier):
 
 
 @pytest.fixture(autouse=True)
-def deterministic_checks():
-    reset_engine()
-    set_check_resolver(level_resolver)
+def deterministic_checks(world):
+    world.services["checks"].resolver = level_resolver
     yield
-    set_check_resolver(None)
-    reset_engine()
 
 
 def make_player(name, location=None, **skills):
@@ -95,16 +91,12 @@ class TestChecks:
     def test_attribute_default(self):
         # The active GameSystem owns the defaults table (as on a live
         # server); the engine seed is just the flee floor.
-        from realm.core.checks import SKILL_DEFAULTS, set_skill_defaults
+        from realm.core.checks import skill_table
         from realm.systems import GurpsSystem
-        saved = dict(SKILL_DEFAULTS)
-        try:
-            set_skill_defaults(GurpsSystem().skill_defaults())
-            obj = GameObject("Rube")
-            obj.db.dexterity = 12
-            assert skill_level(obj, "stealth") == 7  # DX-5
-        finally:
-            set_skill_defaults(saved)
+        checks().skill_defaults = skill_table(GurpsSystem().skill_defaults())
+        obj = GameObject("Rube")
+        obj.db.dexterity = 12
+        assert skill_level(obj, "stealth") == 7  # DX-5
 
     def test_check_uses_resolver(self):
         skilled = GameObject("Pro")
@@ -367,7 +359,7 @@ class TestStealth:
         assert not can_see(bob, pro)
 
     async def test_loud_action_breaks_stealth(self):
-        get_propagation_engine().add_observer(
+        get_world().engine.add_observer(
             __import__("realm.core.perception", fromlist=["stealth_observer"]).stealth_observer
         )
         room = GameObject("Room", tags=["room"])

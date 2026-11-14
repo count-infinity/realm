@@ -41,10 +41,10 @@ class CasterBehavior(Behavior):
         return True
 
     async def tick(self, obj: GameObject, delta: float) -> None:
-        from realm.combat.manager import get_combat_manager
+        from realm.core.world import get_world
         from realm.systems.spells import cast_spell, find_spell_def
 
-        manager = get_combat_manager()
+        manager = get_world().services.get("combat")
         if manager is None or obj.location is None:
             return
         encounter = manager.encounter_in(obj.location)

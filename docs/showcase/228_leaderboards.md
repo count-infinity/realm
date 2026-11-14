@@ -37,7 +37,7 @@ attributes with [`set_attr()`](../reference/softcode.md#fn-set_attr). The
 ever lands on a player's call stack.
 
 `script_ticker` counts its `interval` in **world beats**, not seconds, and a
-beat is the configurable `WORLD_TICK` of about four seconds, which makes
+beat is the configurable `WORLD_BEAT` of about four seconds, which makes
 `interval:60` a sweep roughly every four minutes. Raise the number to spare the
 sweep, lower it for a livelier board, since that one parameter tunes the whole
 cost.

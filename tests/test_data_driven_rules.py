@@ -10,7 +10,8 @@ from __future__ import annotations
 import pytest
 
 from realm.core.checks import skill_level
-from realm.systems import GurpsSystem, reload_rules, set_game_system
+from realm.core.world import find_world
+from realm.systems import GurpsSystem, reload_rules
 from realm.systems.definitions import define_class, define_skill
 from realm.testing import Simulator
 
@@ -127,6 +128,6 @@ def test_builtins_restored_after_sim_close():
     sim.add(define_skill("piloting", "dexterity", -4))
     reload_rules()
     sim.close()
+    assert find_world() is None
     # A fresh built-in system has no 'piloting' (the data world is gone).
-    set_game_system(GurpsSystem())
     assert "piloting" not in GurpsSystem().skill_defaults()

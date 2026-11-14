@@ -83,7 +83,7 @@ def leveled(sim):
     @reload line re-installs the game system's dice resolver, so the
     deterministic one must go in last.
     """
-    from realm.core.checks import CheckResult, set_check_resolver, skill_level
+    from realm.core.checks import CheckResult, checks, skill_level
 
     def level_resolver(obj, skill, modifier):
         effective = skill_level(obj, skill) + modifier
@@ -91,10 +91,9 @@ def leveled(sim):
                            effective, skill)
 
     def install():
-        set_check_resolver(level_resolver)
+        checks().resolver = level_resolver
 
     yield install
-    set_check_resolver(None)
 
 
 @pytest.fixture

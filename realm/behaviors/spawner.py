@@ -106,12 +106,12 @@ class SpawnerBehavior(Behavior):
         return name.lower().replace(' ', '_')
 
     async def tick(self, room: GameObject, delta: float) -> None:
-        from realm.persistence.manager import get_active_manager
+        from realm.core.world import get_world
 
         prototype = self.get_param('prototype')
         if not prototype:
             return
-        persistence = get_active_manager()
+        persistence = get_world().store
         key = self._key()
         ids_attr = f"spawner_{key}_ids"
         timer_attr = f"spawner_{key}_timer"
@@ -203,8 +203,8 @@ class RestockBehavior(Behavior):
         return True
 
     async def tick(self, owner: GameObject, delta: float) -> None:
-        from realm.persistence.manager import get_active_manager
-        persistence = get_active_manager()
+        from realm.core.world import get_world
+        persistence = get_world().store
         ftag = str(self.get_param('filter_tag', 'thing'))
 
         # First tick: snapshot the canonical contents.
@@ -317,8 +317,8 @@ class PopulationBehavior(Behavior):
         rooms = self._eligible_rooms(master)
         if not rooms:
             return
-        from realm.persistence.manager import get_active_manager
-        persistence = get_active_manager()
+        from realm.core.world import get_world
+        persistence = get_world().store
 
         ids_attr = f'pop_{key}_ids'
         tracked = list(master.db.get(ids_attr) or [])

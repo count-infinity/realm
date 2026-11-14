@@ -9,7 +9,6 @@ for English's exceptions. Grouping is presentation-only and O(n).
 
 from __future__ import annotations
 
-import pytest
 
 from realm.core.language import (
     article_for,
@@ -21,22 +20,12 @@ from realm.core.language import (
     singular_name,
 )
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
 from realm.core.render import (
     default_group_formatter,
     group_contents,
     render_room,
-    set_group_formatter,
 )
 from realm.core.search import match_objects, match_one
-
-
-@pytest.fixture(autouse=True)
-def clean_state():
-    reset_engine()
-    yield
-    reset_engine()
-    set_group_formatter(None)
 
 
 # --- Articles ----------------------------------------------------------------
@@ -212,17 +201,15 @@ class TestGrouping:
         assert "  Bob" in text
         assert "a Bob" not in text
 
-    def test_group_formatter_hook(self):
+    def test_group_formatter_hook(self, world):
         room = GameObject("Orchard", tags=["room"])
         for _ in range(3):
             GameObject("apple", location=room, tags=["thing"])
         viewer = GameObject("Alice", location=room, tags=["player"])
 
-        set_group_formatter(lambda obj, n: f"{obj.name} (x{n})" if n > 1 else obj.name)
-        try:
-            assert "  apple (x3)" in render_room(room, viewer)
-        finally:
-            set_group_formatter(None)
+        world.group_formatter = lambda obj, n: f"{obj.name} (x{n})" if n > 1 else obj.name
+        assert "  apple (x3)" in render_room(room, viewer)
+        world.group_formatter = None
         assert "  3 apples" in render_room(room, viewer)
 
     def test_default_formatter_uses_articles(self):

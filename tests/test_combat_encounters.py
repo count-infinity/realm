@@ -13,15 +13,15 @@ from __future__ import annotations
 import pytest
 
 from realm.behaviors import WatchfulBehavior
-from realm.combat.manager import CombatManager, set_combat_manager
+from realm.combat.manager import CombatManager
 from realm.combat.maneuver import QueuedAction
 from realm.combat.rulesets.gurps import GURPSRuleset
 from realm.combat.system import CombatSystem
-from realm.core.checks import CheckResult, set_check_resolver, skill_level
+from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
-from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate, reset_engine
-from realm.core.propagation import get_engine as get_propagation_engine
+from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.core.world import get_world
 from realm.gateway.session import Session
 
 
@@ -46,23 +46,15 @@ def level_resolver(obj, skill, modifier):
 
 
 @pytest.fixture
-def manager():
-    from realm.core.checks import SKILL_DEFAULTS
-    saved_defaults = dict(SKILL_DEFAULTS)
-    reset_engine()
-    set_check_resolver(level_resolver)
+def manager(classic_world):
+    classic_world.services["checks"].resolver = level_resolver
     mgr = CombatManager(
         CombatSystem(ruleset=FixedRuleset()),
         beat_min=4.0, beat_max=120.0, beat_default=15.0,
     )
-    set_combat_manager(mgr)
+    get_world().services["combat"] = mgr
     yield mgr
     mgr.stop_all()
-    set_combat_manager(None)
-    set_check_resolver(None)
-    from realm.core.checks import set_skill_defaults
-    set_skill_defaults(saved_defaults)
-    reset_engine()
 
 
 def make_fighter(name, location=None, *, hp=10, skill=12, dodge=6,
@@ -306,7 +298,6 @@ class TestFlee:
         """A wilderness cell's exits carry only a dest_resolver — flee must
         route them into move_through_exit (which resolves after the gates),
         not bail at 'There's nowhere to flee!'."""
-        from realm.core.movement import register_dest_resolver
 
         room = GameObject("Wild Cell", tags=["room"])
         beyond = GameObject("Next Cell", tags=["room"])
@@ -314,7 +305,7 @@ class TestFlee:
         async def stub_resolver(exit_obj, actor):
             return beyond
 
-        register_dest_resolver("flee-test-stub", stub_resolver)
+        get_world().dest_resolvers["flee-test-stub"] = (stub_resolver, True)
         door = GameObject("out", location=room, tags=["exit"])
         door.db.dest_resolver = "flee-test-stub"      # no destination stored
 
@@ -510,7 +501,7 @@ class TestGURPSManeuvers:
 class TestEscalation:
 
     async def test_hostile_action_auto_initiates_with_credit(self, manager):
-        get_propagation_engine().add_observer(manager.hostile_observer)
+        get_world().engine.add_observer(manager.hostile_observer)
         room = GameObject("Arena", tags=["room"])
         alice, _ = make_fighter("Alice", room)
         guard, _ = make_fighter("Guard", room, player=False)
@@ -751,11 +742,11 @@ class TestProgression:
 
     async def test_improve_from_untrained_default(self, manager):
         from realm.commands.builtin.combat import cmd_improve
-        from realm.core.checks import set_skill_defaults
         from realm.commands.dispatcher import CommandContext, CommandDispatcher
+        from realm.core.checks import skill_table
         from realm.systems import GurpsSystem
 
-        set_skill_defaults(GurpsSystem().skill_defaults())
+        checks().skill_defaults = skill_table(GurpsSystem().skill_defaults())
 
         room = GameObject("Arena", tags=["room"])
         alice, sess = make_fighter("Alice", room)  # dexterity 12, no stealth

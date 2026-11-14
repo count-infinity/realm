@@ -74,7 +74,7 @@ records that it was acted on.
 
 This is the one place where two numbers in the build look comparable and are
 not. The [`script_ticker`](../reference/softcode.md#npcs-behaviors) behavior's
-`interval` counts **world beats**, and a beat is the world tempo `WORLD_TICK`,
+`interval` counts **world beats**, and a beat is the world tempo `WORLD_BEAT`,
 four seconds by default, so `interval:15` fires the sweep roughly once every
 60 seconds. The `window` attribute is compared against
 [`now()`](../reference/softcode.md#fn-now) and is therefore in **plain

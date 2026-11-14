@@ -87,8 +87,8 @@ class WatchfulBehavior(Behavior):
                     obj.db.alert_level = alertness + 1
                 await _npc_say(obj, self.get_param('spot_msg', "Hey! Who's there?"))
                 if self.get_param('hostile', False):
-                    from realm.combat.manager import get_combat_manager
-                    manager = get_combat_manager()
+                    from realm.core.world import get_world
+                    manager = get_world().services.get("combat")
                     if manager is not None:
                         await manager.initiate(obj, actor)
             return
@@ -201,9 +201,9 @@ class ScavengerBehavior(Behavior):
             return
         if random.random() > float(self.get_param('chance', 0.5)):
             return
-        from realm.persistence.manager import get_active_manager
+        from realm.core.world import get_world
         room = obj.location
-        persistence = get_active_manager()
+        persistence = get_world().store
 
         if self.get_param('eat_corpses', True):
             corpse = next((c for c in room.contents

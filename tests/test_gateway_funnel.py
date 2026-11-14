@@ -162,7 +162,8 @@ class TestWebSocketParity:
         """The writer installed before create_session must render pipe
         markup as segments — no raw-markup leak window on the welcome
         screen."""
-        from realm.core.markup import MARKER
+        from realm.core.markup import marker
+        MARKER = marker()
         ws = FakeWS()
         writer = make_ws_writer(ws)
 

@@ -14,18 +14,15 @@ import pytest
 
 from realm.commands.builtin.communication import cmd_say
 from realm.commands.builtin.inventory import cmd_drop, cmd_get, cmd_give, cmd_put
+from realm.commands.dispatcher import CommandContext
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
 from realm.gateway.session import Session
-from realm.commands.dispatcher import CommandContext
 
 
 @pytest.fixture(autouse=True)
 def fresh_propagation_engine():
-    reset_engine()
     yield
-    reset_engine()
 
 
 def make_player(name: str, location: GameObject | None = None) -> tuple[GameObject, Session]:
@@ -60,6 +57,7 @@ def make_ctx(sess: Session, *, args: str = "", left_args: str = "",
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("classic_world")
 class TestItemLocks:
 
     async def test_basic_lock_blocks_get(self):
@@ -173,6 +171,7 @@ class TestItemLocks:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("classic_world")
 class TestSpeechLocks:
 
     async def test_speech_lock_silences_say(self):
@@ -211,6 +210,7 @@ class TestSpeechLocks:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestMovementLocks:
 
     def _rooms_with_exit(self):
@@ -280,6 +280,7 @@ class TestMovementLocks:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("classic_world")
 class TestLockCommand:
 
     def _builder_ctx(self, **kwargs):

@@ -22,8 +22,8 @@ if TYPE_CHECKING:
 
 
 def _combat_manager():
-    from realm.combat.manager import get_combat_manager
-    return get_combat_manager()
+    from realm.core.world import get_world
+    return get_world().services.get("combat")
 
 
 def _ensure_strategy_rule(obj: GameObject, condition: str, action: str) -> None:
@@ -367,8 +367,8 @@ class VenomousBehavior(Behavior):
         if isinstance(resist, dict) and float(resist.get('poison', 1.0)) == 0:
             return
         if self.get_param('save', True):
-            from realm.systems.base import get_game_system
-            system = get_game_system()
+            from realm.core.world import get_world
+            system = get_world().rules
             level = int(obj.db.get('level') or 1)
             if system is not None and system.saving_throw(target, level):
                 target.msg("You fight off the venom.")
@@ -412,9 +412,10 @@ class PeacekeeperBehavior(Behavior):
     async def tick(self, obj: GameObject, delta: float) -> None:
         if obj.location is None or obj.has_tag('in_combat'):
             return
-        from realm.combat.manager import get_combat_manager, is_combat_capable
+        from realm.combat.manager import is_combat_capable
+        from realm.core.world import get_world
         from realm.systems.crime import is_wanted, wanted_heat
-        manager = get_combat_manager()
+        manager = get_world().services.get("combat")
         if manager is None:
             return
         criminals = [c for c in obj.location.contents

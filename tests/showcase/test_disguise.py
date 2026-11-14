@@ -2,7 +2,7 @@
 
 Two halves of concealment, riding two different mechanisms:
 
-* **134** rides the ``register_name_resolver`` seam. A mask makes you READ
+* **134** rides the ``feature.name_resolver`` seam. A mask makes you READ
   as an assumed identity everywhere — the room list, ``look``, and (for
   free, since attribution is named through the same seam) speech. A
   ``check_roll`` see-through contest lets a keen watcher pierce it, after
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from realm.core.perception import clear_name_resolvers, register_name_resolver
+from realm.core.world import get_world
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -88,12 +88,10 @@ def greenroom():
     vale = sim.player("Vale", location=hall)
     vale.add_tag("admin")                # owns the wardrobe it @creates
     wynn = sim.player("Wynn", location=hall)
-    clear_name_resolvers()
-    register_name_resolver(_disguise_resolver)
+    get_world().name_resolvers.append(_disguise_resolver)
     try:
         yield sim, vale, wynn
     finally:
-        clear_name_resolvers()
         sim.close()
 
 
@@ -194,11 +192,9 @@ def booth():
     edda = sim.player("Edda", location=studio)
     # 84 registers NOTHING — voice_as is a pure attr. Clear the seam so no
     # stray resolver from another test can bleed in.
-    clear_name_resolvers()
     try:
         yield sim, dex, edda
     finally:
-        clear_name_resolvers()
         sim.close()
 
 

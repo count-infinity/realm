@@ -330,6 +330,7 @@ class TestGURPSRuleset:
         assert actual <= damage.total
 
 
+@pytest.mark.usefixtures("world")
 class TestCombatSystem:
     """Test suite for CombatSystem."""
 
@@ -461,6 +462,7 @@ class TestRollResult:
         assert "18" in str_repr
 
 
+@pytest.mark.usefixtures("world")
 class TestSwappableRulesets:
     """Test that rulesets are truly swappable."""
 

@@ -111,17 +111,15 @@ class TestD20System:
 class TestSkillDefaultsSwap:
 
     def test_system_owns_the_table(self):
-        from realm.core.checks import SKILL_DEFAULTS, set_skill_defaults
+        # build_world installs the selected system's table on the world.
+        from realm.core.checks import checks
+        from realm.testing import Simulator
 
-        saved = dict(SKILL_DEFAULTS)
-        try:
-            set_skill_defaults(D20System().skill_defaults())
-            assert SKILL_DEFAULTS["stealth"] == ("dexterity", -4)
-            assert "lore" in SKILL_DEFAULTS
-            set_skill_defaults(GurpsSystem().skill_defaults())
-            assert SKILL_DEFAULTS["stealth"] == ("dexterity", -5)
-        finally:
-            set_skill_defaults(saved)
+        with Simulator(game_system=D20System):
+            assert checks().skill_defaults["stealth"] == ("dexterity", -4)
+            assert "lore" in checks().skill_defaults
+        with Simulator(game_system=GurpsSystem):
+            assert checks().skill_defaults["stealth"] == ("dexterity", -5)
 
 
 class TestAuth:
@@ -247,18 +245,15 @@ class TestCheckResolution:
         # roll-high, not roll-under: the higher bonus wins, opposite of GURPS
         assert ace_wins > 100
 
-    def test_server_installs_system_resolver(self):
+    def test_server_installs_system_resolver(self, world):
         # Selecting d20 makes check() itself roll d20 (roll-high), proving
         # the resolver is wired to the GameSystem not just combat.
-        from realm.core.checks import check, set_check_resolver
-        try:
-            set_check_resolver(D20System().resolve_check)
-            hero = GameObject("Hero")
-            hero.db.skill_stealth = 30  # auto-clears DC
-            assert check(hero, "stealth").success is True
-            assert check(hero, "stealth").roll <= 20  # a d20, not 3d6
-        finally:
-            set_check_resolver(None)
+        from realm.core.checks import check, checks
+        checks().resolver = D20System().resolve_check
+        hero = GameObject("Hero")
+        hero.db.skill_stealth = 30  # auto-clears DC
+        assert check(hero, "stealth").success is True
+        assert check(hero, "stealth").roll <= 20  # a d20, not 3d6
 
     def test_d20_chargen_sets_armor_class(self):
         sys = D20System()

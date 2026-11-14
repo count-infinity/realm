@@ -24,8 +24,8 @@ roll()/skill_check, realm.scripting.functions for rand()).
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest

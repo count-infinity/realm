@@ -141,9 +141,9 @@ class ScriptedBehavior(Behavior):
         code = self._hook('on_check')
         if code is None:
             return
-        from realm.scripting.engine import get_script_engine
+        from realm.core.world import get_world
 
-        engine = get_script_engine()
+        engine = get_world().scripts
         if engine is not None:
             await engine.run_check_code(obj, action, code,
                                         params=self._params)
@@ -152,9 +152,9 @@ class ScriptedBehavior(Behavior):
         code = self._hook('on_react')
         if code is None:
             return
-        from realm.scripting.engine import get_script_engine
+        from realm.core.world import get_world
 
-        engine = get_script_engine()
+        engine = get_world().scripts
         if engine is not None:
             await engine.run_behavior_script(obj, code, action=action,
                                              params=self._params)
@@ -172,9 +172,9 @@ class ScriptedBehavior(Behavior):
         if not self.countdown(obj, f'sb_{self.behavior_id}_wait',
                               int(self.get_param('interval', 4))):
             return
-        from realm.scripting.engine import get_script_engine
+        from realm.core.world import get_world
 
-        engine = get_script_engine()
+        engine = get_world().scripts
         if engine is not None:
             await engine.run_behavior_script(obj, code, params=self._params)
 

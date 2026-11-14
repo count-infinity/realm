@@ -12,6 +12,7 @@ import weakref
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
+from realm.core import defs
 from realm.core.tags import TagSet
 
 if TYPE_CHECKING:
@@ -21,12 +22,11 @@ if TYPE_CHECKING:
 
 # --- Change hooks -------------------------------------------------------------
 # Stores keep a tag index (realm.persistence.tagindex) and register here so an
-# in-memory add_tag/remove_tag reaches it before any save. The definition
-# cache (realm.core.defs) installs _defs_hook to drop a cached def when its
-# object changes.
+# in-memory add_tag/remove_tag reaches it before any save. A change also
+# tells the definition cache (realm.core.defs), which drops a cached def
+# when its object changes.
 
 _tag_listeners: weakref.WeakSet = weakref.WeakSet()
-_defs_hook: Callable[[GameObject, str | None], None] | None = None
 
 
 def add_tag_listener(listener) -> None:
@@ -34,17 +34,10 @@ def add_tag_listener(listener) -> None:
     _tag_listeners.add(listener)
 
 
-def set_defs_hook(hook: Callable[[GameObject, str | None], None] | None) -> None:
-    """Install the definition cache's change hook (realm.core.defs)."""
-    global _defs_hook
-    _defs_hook = hook
-
-
 def _tag_changed(obj: GameObject, tag: str, added: bool) -> None:
     for listener in list(_tag_listeners):
         listener.on_tag(obj, tag, added)
-    if _defs_hook is not None:
-        _defs_hook(obj, tag)
+    defs.touched(obj, tag)
 
 
 class AttributeProxy:
@@ -173,19 +166,6 @@ class AttributeProxy:
         return result
 
 
-# The check-pass softcode hook — installed by the script engine (dependency
-# inversion, like set_check_resolver). None when scripting is off, so core
-# stays usable on its own. Called during visit_check for an object carrying
-# an ``on_check`` script, letting data/softcode veto or modify an action.
-_check_hook: Any = None
-
-
-def set_check_hook(hook: Any) -> None:
-    """Install (or clear, with None) the softcode check-pass hook."""
-    global _check_hook
-    _check_hook = hook
-
-
 class GameObject:
     """
     Base class for all game objects.
@@ -292,8 +272,7 @@ class GameObject:
     def _mark_dirty(self) -> None:
         """Mark this object as needing persistence."""
         self._dirty = True
-        if _defs_hook is not None:
-            _defs_hook(self, None)
+        defs.touched(self, None)
 
     def is_dirty(self) -> bool:
         """Check if this object needs to be saved."""
@@ -419,8 +398,13 @@ class GameObject:
         # Softcode interception: a participant (the target, the room) can
         # veto or modify the in-flight action from data. Only fires if the
         # object carries an on_check script and a hook is installed.
-        if _check_hook is not None and self.db.get('on_check'):
-            await _check_hook(self, action)
+        # An ``on_check`` script may veto or modify the action: the running
+        # world's script engine runs it (none when scripting is off).
+        if self.db.get('on_check'):
+            from realm.core.world import find_world
+            world = find_world()
+            if world is not None and world.scripts is not None:
+                await world.scripts.run_check_hook(self, action)
 
     async def visit_react(self, action: Action) -> None:
         """Reaction pass: run own behaviors' on_react."""

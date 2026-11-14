@@ -11,11 +11,12 @@ from __future__ import annotations
 import pytest
 
 from realm.combat.behaviors import PeacekeeperBehavior
-from realm.combat.manager import CombatManager, set_combat_manager
+from realm.combat.manager import CombatManager
 from realm.combat.rulesets.merc import MercRuleset
 from realm.combat.system import CombatSystem
 from realm.core.propagation import Action
-from realm.systems import MercSystem, set_game_system
+from realm.core.world import get_world
+from realm.systems import MercSystem
 from realm.systems.crime import (
     clear_wanted,
     crime_observer,
@@ -131,9 +132,9 @@ class TestConsequences:
     async def test_a_peacekeeper_arrests_the_wanted(self):
         sim = Simulator()
         try:
-            set_game_system(MercSystem())
+            get_world().rules = MercSystem()
             mgr = CombatManager(CombatSystem(ruleset=MercRuleset()))
-            set_combat_manager(mgr)
+            get_world().services["combat"] = mgr
             room = sim.room("Market")
             guard = sim.obj("a cityguard", location=room, tags=["npc"])
             guard.db.set("hp", 30)
@@ -148,8 +149,6 @@ class TestConsequences:
             assert outlaw.has_tag("in_combat")          # the criminal
             assert not innocent.has_tag("in_combat")    # not the bystander
         finally:
-            set_combat_manager(None)
-            set_game_system(None)
             sim.close()
 
     async def test_clear_wanted_removes_everything(self):

@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from realm.core.checks import set_check_resolver
+from realm.core.checks import checks
 from realm.core.dice import CheckResult
 from realm.testing import Simulator
 
@@ -55,7 +55,6 @@ def bay():
     builder.add_tag("builder")
     builder.add_tag("admin")          # owns the press that pays out
     yield sim, builder
-    set_check_resolver(None)
     sim.close()
 
 
@@ -131,7 +130,7 @@ class TestAddASkill:
         await run_build(sim, builder)
         vex, _ = crew(sim, builder.location)
 
-        set_check_resolver(pinned(True, 5, 14))
+        checks().resolver = pinned(True, 5, 14)
         sim.seen(vex)
         await sim.submit_line(vex, "diagnose battered coupling")
         assert "grade 3" in "\n".join(sim.seen(vex))
@@ -149,7 +148,7 @@ class TestAddASkill:
         await run_build(sim, builder)
         vex, _ = crew(sim, builder.location)
 
-        set_check_resolver(pinned(False, -3, 14))
+        checks().resolver = pinned(False, -3, 14)
         sim.seen(vex)
         await sim.submit_line(vex, "diagnose battered coupling")
         assert "as scrap" in "\n".join(sim.seen(vex))

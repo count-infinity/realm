@@ -44,7 +44,7 @@ can trap anyone.
 Lyrics need a clock, and REALM gives you two. A `wait()` chain, where each line
 schedules the next, is exact but in-memory, so a reboot mid-song loses the rest
 of the record. The `script_ticker` behavior instead runs the object's `on_tick`
-attribute on the **world beat** (`WORLD_TICK`, roughly four seconds and
+attribute on the **world beat** (`WORLD_BEAT`, roughly four seconds and
 configurable, which is the ambient tempo, not the much faster scheduler pulse),
 and because the state (`spinning`, `cursor`) lives in plain attributes a reboot
 resumes the song where it stopped. Rather than run a permanent clock, this

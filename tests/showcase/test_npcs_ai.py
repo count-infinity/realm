@@ -236,17 +236,16 @@ class TestPatrollingGuard:
 
 @pytest.fixture
 async def warren():
-    from realm.combat.manager import set_combat_manager
+    from realm.core.world import get_world
 
     world = _make_world()
     await world.run(build_lines("062_aggressive_mob.md"))
     manager = _steady_manager()
-    set_combat_manager(manager)
+    get_world().services["combat"] = manager
     try:
         yield SimpleNamespace(**vars(world), manager=manager)
     finally:
         manager.stop_all()
-        set_combat_manager(None)
         world.sim.close()
 
 
@@ -501,12 +500,12 @@ class TestTrainerNpc:
 
 @pytest.fixture
 async def bazaar():
-    from realm.combat.manager import set_combat_manager
     from realm.core.checks import (
         CheckResult,
-        set_check_resolver,
+        checks,
         skill_level,
     )
+    from realm.core.world import get_world
 
     # Deterministic contests: success iff effective level >= 10, margin by
     # level (the engine's own combat-test resolver).
@@ -518,14 +517,13 @@ async def bazaar():
     world = _make_world(role="admin")   # Fenn's fingers need the rank
     await world.run(build_lines("070_pickpocket_npc.md"))
     manager = _steady_manager()
-    set_combat_manager(manager)
-    set_check_resolver(level_resolver)
+    get_world().services["combat"] = manager
+    checks().resolver = level_resolver
     try:
         yield SimpleNamespace(**vars(world), manager=manager)
     finally:
         manager.stop_all()
-        set_combat_manager(None)
-        set_check_resolver(world.sim.game_system.resolve_check)
+        checks().resolver = world.sim.game_system.resolve_check
         world.sim.close()
 
 
@@ -645,17 +643,16 @@ class TestNpcReactions:
 
 @pytest.fixture
 async def undervault():
-    from realm.combat.manager import set_combat_manager
+    from realm.core.world import get_world
 
     world = _make_world()
     await world.run(build_lines("073_boss_phases.md"))
     manager = _steady_manager()
-    set_combat_manager(manager)
+    get_world().services["combat"] = manager
     try:
         yield SimpleNamespace(**vars(world), manager=manager)
     finally:
         manager.stop_all()
-        set_combat_manager(None)
         world.sim.close()
 
 

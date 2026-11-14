@@ -106,8 +106,8 @@ which is what makes rendering perception-aware.
   ``say meet {actor}`` reads back as *"meet Alice"*. As a token it stays
   literal.
 - **It is the seam for per-listener speech.** Because ``{speech}`` is
-  resolved once per recipient, transforms registered with
-  ``register_speech_renderer`` can garble it for a listener who lacks the
+  resolved once per recipient, transforms declared with
+  ``feature.speech_renderer`` can garble it for a listener who lacks the
   language, leak fragments of a whisper to a bystander, or slur it for a
   drunk speaker — see below.
 
@@ -117,8 +117,7 @@ than interpolating it, for both reasons.
 ### Per-listener speech renderers
 
 ```python
-from realm.core.propagation import register_speech_renderer
-
+@feature.speech_renderer
 def garble(body, action, looker):
     if action.action_type != ActionType.SPEECH:
         return body
@@ -126,12 +125,10 @@ def garble(body, action, looker):
     if tongue and looker and tongue not in (looker.db.get('languages') or []):
         return f"<something in {tongue}>"
     return body
-
-register_speech_renderer(garble)
 ```
 
 Called once per recipient while their copy of the message is rendered, in
-registration order, each seeing the previous one's output (a drunk speaker
+feature order, each seeing the previous one's output (a drunk speaker
 of a foreign tongue slurs *and* garbles). ``looker`` is None when nobody
 in particular is addressed.
 

@@ -28,7 +28,8 @@ def ansi(codes: str, text: str) -> str:
 
     Example: ansi('rh', 'DANGER')
     """
-    from realm.core import markup as _markup
+    from realm.core.markup import marker
+    mk = marker()
     fg = None
     bg = None
     bright = False
@@ -41,17 +42,17 @@ def ansi(codes: str, text: str) -> str:
         elif ch == 'h':
             bright = True
         elif ch == 'u':
-            flags += _markup.MARKER + 'u'
+            flags += mk + 'u'
         elif ch == 'i':
-            flags += _markup.MARKER + 'v'   # Penn 'i' = inverse video
+            flags += mk + 'v'   # Penn 'i' = inverse video
     markup = ''
     if fg:
-        markup += _markup.MARKER + (fg.upper() if bright else fg)
+        markup += mk + (fg.upper() if bright else fg)
     elif bright:
-        markup += _markup.MARKER + 'h'
+        markup += mk + 'h'
     if bg:
-        markup += _markup.MARKER + '[' + bg
-    return f"{markup}{flags}{text}{_markup.MARKER}n"
+        markup += mk + '[' + bg
+    return f"{markup}{flags}{text}{mk}n"
 
 @softfn(takes_frame=False, group='Messaging & prompts', readonly=True)
 def escape(text: str) -> str:

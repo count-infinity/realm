@@ -11,10 +11,8 @@ from realm.systems.base import (
     ChoiceStep,
     GameSystem,
     equipment_observer,
-    get_game_system,
     reload_rules,
     resolve_game_system,
-    set_game_system,
 )
 from realm.systems.d20 import D20System
 from realm.systems.gurps import GurpsSystem
@@ -28,8 +26,6 @@ __all__ = [
     "D20System",
     "MercSystem",
     "equipment_observer",
-    "get_game_system",
     "reload_rules",
     "resolve_game_system",
-    "set_game_system",
 ]

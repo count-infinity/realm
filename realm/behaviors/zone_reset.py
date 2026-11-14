@@ -79,9 +79,9 @@ class ZoneResetBehavior(Behavior):
     async def _reset(self, master: GameObject) -> None:
         from realm.behaviors.spawner import spawn_tracked
         from realm.core.events import fire_event
-        from realm.persistence.manager import get_active_manager
+        from realm.core.world import get_world
 
-        persistence = get_active_manager()
+        persistence = get_world().store
         marker = f"reset:{master.id}"
 
         # Custom repop first — doors re-locked, litter cleared, randomness

@@ -19,7 +19,8 @@ import pytest
 from realm.behaviors.caster import CasterBehavior
 from realm.core.behaviors import Behavior
 from realm.core.objects import GameObject
-from realm.systems import GurpsSystem, MercSystem, set_game_system
+from realm.core.world import get_world
+from realm.systems import GurpsSystem, MercSystem
 from realm.systems.spells import (
     cast_spell,
     find_spell_def,
@@ -58,7 +59,6 @@ def world():
     sim = Simulator()
     room = sim.room("Tower")
     yield sim, room
-    set_game_system(None)
     sim.close()
 
 
@@ -142,29 +142,29 @@ class TestCasting:
                                                     ruleset_name):
         """``resistances`` is honored by every ruleset, not only by the
         no-combat-manager fallback (KERNEL_PLAN 1.8)."""
-        from realm.combat.manager import CombatManager, set_combat_manager
+        from realm.combat.manager import CombatManager
         from realm.combat.system import CombatSystem, RulesetRegistry
 
         sim, room = world
-        if ruleset_name is not None:
+        if ruleset_name is None:
+            monkeypatch.delitem(sim.world.services, "combat", raising=False)
+        else:
             ruleset = RulesetRegistry.get(ruleset_name)()
-            set_combat_manager(CombatManager(CombatSystem(ruleset=ruleset)))
-        try:
-            spell = _spell(sim, "fireball", mana=15, damage_dice="6d6",
-                           damage_type="fire")
-            mage = _mage(sim, room)
-            target = _dummy(sim, room, resistances={"fire": 0.0})
-            monkeypatch.setattr("realm.systems.abilities.random.randint",
-                                lambda a, b: 4)
-            action = await cast_spell(mage, spell, target)
-            assert action.extra["dealt"] == 0
-            assert target.db.get("hp") == 100
-        finally:
-            set_combat_manager(None)
+            monkeypatch.setitem(sim.world.services, "combat",
+                                CombatManager(CombatSystem(ruleset=ruleset)))
+        spell = _spell(sim, "fireball", mana=15, damage_dice="6d6",
+                       damage_type="fire")
+        mage = _mage(sim, room)
+        target = _dummy(sim, room, resistances={"fire": 0.0})
+        monkeypatch.setattr("realm.systems.abilities.random.randint",
+                            lambda a, b: 4)
+        action = await cast_spell(mage, spell, target)
+        assert action.extra["dealt"] == 0
+        assert target.db.get("hp") == 100
 
     async def test_save_halves_damage(self, world, monkeypatch):
         sim, room = world
-        set_game_system(MercSystem())
+        get_world().rules = MercSystem()
         spell = _spell(sim, "fireball", mana=15, level=15,
                        damage_dice="6d6", damage_type="fire", save="half")
         mage = _mage(sim, room)
@@ -180,7 +180,7 @@ class TestCasting:
 
     async def test_default_system_has_no_save(self, world, monkeypatch):
         sim, room = world
-        set_game_system(GurpsSystem())
+        get_world().rules = GurpsSystem()
         spell = _spell(sim, "fireball", mana=15, damage_dice="6d6",
                        damage_type="fire", save="half")
         mage = _mage(sim, room)
@@ -265,7 +265,7 @@ class TestCasting:
     async def test_negated_save_shrugs_off_the_effect(self, world,
                                                       monkeypatch):
         sim, room = world
-        set_game_system(MercSystem())
+        get_world().rules = MercSystem()
         spell = _spell(sim, "curse", mana=5, target="victim", hostile=True,
                        save="negates",
                        effect={"behavior_id": "modifier_effect",
@@ -383,15 +383,13 @@ class TestCasterBehavior:
         behavior = CasterBehavior(spells=["fireball", "undefined spell"],
                                   chance=1.0)
         # Out of combat (no manager): no cast.
-        monkeypatch.setattr("realm.combat.manager.get_combat_manager",
-                            lambda: None)
+        monkeypatch.delitem(sim.world.services, "combat", raising=False)
         await behavior.tick(mob, 4.0)
         assert casts == []
         # In combat: casts the defined spell at the opponent.
         enc = _FakeEncounter(_FakePart(mob, target_id=hero.id),
                              _FakePart(hero))
-        monkeypatch.setattr("realm.combat.manager.get_combat_manager",
-                            lambda: _FakeManager(enc))
+        monkeypatch.setitem(sim.world.services, "combat", _FakeManager(enc))
         await behavior.tick(mob, 4.0)
         assert casts == [("mage guard", "fireball", "Conan")]
         assert fireball is not None
@@ -410,8 +408,7 @@ class TestCasterBehavior:
         monkeypatch.setattr("realm.systems.spells.cast_spell", fake_cast)
         enc = _FakeEncounter(_FakePart(mob, target_id=hero.id),
                              _FakePart(hero))
-        monkeypatch.setattr("realm.combat.manager.get_combat_manager",
-                            lambda: _FakeManager(enc))
+        monkeypatch.setitem(sim.world.services, "combat", _FakeManager(enc))
         monkeypatch.setattr("random.random", lambda: 0.9)
         await CasterBehavior(spells=["fireball"], chance=0.5).tick(mob, 4.0)
         assert casts == []                               # 0.9 > 0.5: no cast

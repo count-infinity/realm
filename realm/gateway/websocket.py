@@ -34,9 +34,9 @@ def make_ws_writer(ws: Any) -> callable:
     async def write_to_client(message: str) -> None:
         if ws.closed:
             return
-        from realm.core.markup import MARKER, parse, strip
+        from realm.core.markup import marker, parse, strip
         try:
-            if MARKER in message:
+            if marker() in message:
                 try:
                     segments = [[style.key(), seg]
                                 for style, seg in parse(message)]

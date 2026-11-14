@@ -24,7 +24,7 @@ machinery. REALM runs **two deliberate clocks** (full design in
   [`wait()`](../reference/softcode.md#fn-wait) fuses, output flushing,
   and the **world behaviors** such as spawners, decay, wander,
   zone-reset, and every `script_ticker`. Behaviors do not run at 0.1s,
-  though: each behavior's cadence is pinned to `WORLD_TICK` (the *world
+  though: each behavior's cadence is pinned to `WORLD_BEAT` (the *world
   tempo*, config `world_beat`, default **4s**), so a `script_ticker`
   with `interval:N` fires every **N × 4 seconds** no matter how fine the
   underlying heartbeat runs. That decoupling is why every tutorial can

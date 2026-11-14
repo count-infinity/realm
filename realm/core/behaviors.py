@@ -23,19 +23,6 @@ if TYPE_CHECKING:
     from realm.core.propagation import Action
 
 
-#: The world tempo (seconds): the default cadence for heartbeat behaviors and
-#: the ambient (out-of-combat) beat length. Pinned so the real-time heartbeat
-#: can run much finer (~0.1s) without changing world/effect pacing. See
-#: docs/design/time-and-beats.md.
-WORLD_TICK: float = 4.0
-
-
-def set_world_tick(seconds: float) -> None:
-    """Set the world tempo (clamped to ≥0.1s)."""
-    global WORLD_TICK
-    WORLD_TICK = max(0.1, float(seconds))
-
-
 class Behavior(ABC):
     """
     Base class for composable behaviors.
@@ -198,12 +185,13 @@ class Behavior(ABC):
         """
         Desired seconds between tick() calls. The server heartbeat fires far
         finer than this (~0.1s); a behavior is skipped on the intervening
-        pulses. Default = ``WORLD_TICK`` (the world tempo, ~4s), so
+        pulses. Default = the WORLD_BEAT setting (the world tempo, ~4s), so
         pulse-counting world behaviors keep their pacing no matter how fine
         the heartbeat runs. Override to something smaller for a faster
         cadence.
         """
-        return WORLD_TICK
+        from realm.core.world import setting
+        return setting("WORLD_BEAT")
 
     async def tick(self, obj: GameObject, delta: float) -> None:
         """

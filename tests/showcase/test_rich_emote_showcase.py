@@ -21,15 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from realm.core.perception import (
-    clear_name_resolvers,
-    register_name_resolver,
-)
-from realm.core.verbs import (
-    DEFAULT_EMOTE_SIGIL,
-    get_emote_sigil,
-    set_emote_sigil,
-)
+from realm.config.loader import Settings
+from realm.core.world import get_world, setting
 from realm.testing import Simulator
 
 DOC = (Path(__file__).resolve().parents[2]
@@ -55,12 +48,9 @@ def plaza():
     ada = sim.player("Ada", location=room)
     bob = sim.player("Bob", location=room)
     cara = sim.player("Cara", location=room)
-    clear_name_resolvers()
     try:
         yield sim, ada, bob, cara
     finally:
-        clear_name_resolvers()
-        set_emote_sigil(DEFAULT_EMOTE_SIGIL)
         sim.close()
 
 
@@ -166,7 +156,7 @@ class TestComposesWithDisguise:
         # A game's disguise policy on the same seam 133/134 use. Registered
         # here only to demonstrate composition — the parser itself needs no
         # such binding.
-        register_name_resolver(lambda o, lk, cur: o.db.get('disguise') or cur)
+        get_world().name_resolvers.append(lambda o, lk, cur: o.db.get('disguise') or cur)
         ada.db.set('disguise', 'a hooded figure')
         sim.seen(bob), sim.seen(cara)
         await sim.do(ada, "pose beckons to /Bob.")
@@ -184,12 +174,15 @@ class TestComposesWithDisguise:
 
 class TestConfigurableSigil:
     async def test_default_sigil_is_slash(self, plaza):
-        assert get_emote_sigil() == DEFAULT_EMOTE_SIGIL == "/"
+        assert setting("EMOTE_SIGIL") == Settings().emote_sigil == "/"
         in_doc("EMOTE_SIGIL")
 
-    async def test_changing_the_sigil_reroutes_references(self, plaza):
-        sim, ada, bob, cara = plaza
-        set_emote_sigil("@")
+    async def test_changing_the_sigil_reroutes_references(self):
+        sim = Simulator(settings=Settings(emote_sigil="@"))
+        room = sim.room("Plaza")
+        ada = sim.player("Ada", location=room)
+        bob = sim.player("Bob", location=room)
+        cara = sim.player("Cara", location=room)
         sim.seen(bob), sim.seen(cara)
         await sim.do(ada, "pose waves at @Bob.")
         assert reads(sim, bob, "waves") == ["Ada waves at you."]
@@ -199,11 +192,11 @@ class TestConfigurableSigil:
         sim.seen(cara)
         await sim.do(ada, "pose waves at /Bob.")
         assert reads(sim, cara, "waves") == ["Ada waves at /Bob."]
+        sim.close()
 
     def test_a_bad_sigil_is_rejected_at_config_time(self):
         # The doc's promise: bad values raise at boot, not mid-emote.
         in_doc("1–16 non-alphanumeric, non-space characters")
         for bad in ("", "a", "1", " ", "x/"):
             with pytest.raises(ValueError):
-                set_emote_sigil(bad)
-        set_emote_sigil(DEFAULT_EMOTE_SIGIL)
+                Settings(emote_sigil=bad)

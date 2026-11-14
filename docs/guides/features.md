@@ -96,6 +96,9 @@ Everything a feature can declare:
 | `feature.reaper(fn)` | an `async (store)` sweep on the reap cadence |
 | `feature.queue_kind(kind, handler)` | a world op softcode queues for the event loop |
 | `feature.check_modifier(fn)` | a `(obj, skill) -> int` modifier folded into every check |
+| `feature.name_resolver(fn)` | `(obj, looker, current) -> name`: who an object appears to be (recognition, disguise) |
+| `feature.speech_renderer(fn)` | `(body, action, looker) -> body`: a spoken line per listener (languages, slurring) |
+| `feature.group_formatter(fn, replace=)` | `(obj, count) -> str`: how a grouped contents line reads (one per game) |
 | `feature.protocol(name, cls, **kwargs)` | a protocol server (see [Adding a Protocol](../protocols/adding-protocol.md)) |
 | `feature.setting(key, default, doc)` | a `config.py` key; read it with `world.setting(key)` |
 | `feature.script_verb(name, aliases=, token=, sugar=, doc=)` | a script command line (decorator) |
@@ -180,7 +183,7 @@ command of the same pattern wins).
 A name can belong to one feature. Two features declaring the same command
 (or alias), behavior id, softcode function, ruleset, destination resolver,
 queue kind, config key, script verb (or token), event (or hook), lock type,
-audience or definition kind raise `FeatureError` at load, naming both:
+audience, definition kind or group formatter raise `FeatureError` at load, naming both:
 
 ```text
 FeatureError: command 'wave' is declared by both 'mygame' and 'emotes'.

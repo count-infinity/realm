@@ -10,8 +10,7 @@ from __future__ import annotations
 import pytest
 
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
-from realm.persistence.manager import set_active_manager
+from realm.core.world import get_world
 from realm.persistence.worldio import (
     apply_plan,
     diff_plan,
@@ -22,10 +21,7 @@ from tests.test_olc import MockPersistence, make_context, use_persistence
 
 @pytest.fixture(autouse=True)
 def fresh():
-    reset_engine()
     yield
-    set_active_manager(None)
-    reset_engine()
 
 
 def build_castle(pers):
@@ -42,6 +38,7 @@ def build_castle(pers):
     return keep, gate, yard, rat, master
 
 
+@pytest.mark.usefixtures("world")
 class TestExportSync:
 
     def test_reimport_is_idempotent(self):
@@ -49,7 +46,7 @@ class TestExportSync:
         import asyncio
 
         source = MockPersistence()
-        set_active_manager(source)
+        get_world().store = source
         build_castle(source)
         data = export_zone("castle")
 
@@ -58,7 +55,7 @@ class TestExportSync:
 
         # Import into a FRESH world: all creates, applied once.
         target = MockPersistence()
-        set_active_manager(target)
+        get_world().store = target
         plan = diff_plan(data, "castle", target)
         assert len(plan.create) == 5
 
@@ -73,11 +70,12 @@ class TestExportSync:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestPlanMechanics:
 
     async def test_update_shows_field_changes(self):
         pers = MockPersistence()
-        set_active_manager(pers)
+        get_world().store = pers
         keep, _g, _y, rat, _m = build_castle(pers)
         data = export_zone("castle")
 
@@ -94,7 +92,7 @@ class TestPlanMechanics:
 
     async def test_apply_updates_in_place_preserving_id(self):
         pers = MockPersistence()
-        set_active_manager(pers)
+        get_world().store = pers
         keep, _g, _y, rat, _m = build_castle(pers)
         original_id = keep.id
         data = export_zone("castle")
@@ -107,7 +105,7 @@ class TestPlanMechanics:
 
     async def test_orphan_reported_not_deleted(self):
         pers = MockPersistence()
-        set_active_manager(pers)
+        get_world().store = pers
         keep, _g, _y, _r, _m = build_castle(pers)
         data = export_zone("castle")
         # A new NPC appears in a castle room AFTER export.
@@ -123,7 +121,7 @@ class TestPlanMechanics:
         """The documented hazard: upsert returns a looted item to its
         file location — and the plan shows it first."""
         pers = MockPersistence()
-        set_active_manager(pers)
+        get_world().store = pers
         keep, _g, _y, _r, _m = build_castle(pers)
         sword = GameObject("iron sword", tags=["thing"], location=keep)
         pers.add(sword)
@@ -141,11 +139,12 @@ class TestPlanMechanics:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestControlGate:
 
     async def test_uncontrolled_object_is_conflict(self):
         pers = MockPersistence()
-        set_active_manager(pers)
+        get_world().store = pers
         keep, _g, _y, _r, _m = build_castle(pers)
         keep.owner = GameObject("Someone", tags=["player"])  # not the actor
         data = export_zone("castle")
@@ -162,13 +161,12 @@ class TestControlGate:
 @pytest.mark.asyncio
 class TestAreaCommands:
 
-    def setup_method(self):
+    @pytest.fixture(autouse=True)
+    def _world(self, world):
         self.persistence = MockPersistence()
         use_persistence(self.persistence)
-        set_active_manager(self.persistence)
+        get_world().store = self.persistence
 
-    def teardown_method(self):
-        set_active_manager(None)
 
     async def test_export_then_plan_roundtrip(self, tmp_path):
         from realm.commands.olc.area import cmd_export, cmd_import

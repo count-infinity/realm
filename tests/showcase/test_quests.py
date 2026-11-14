@@ -28,8 +28,8 @@ Harness notes (mirrors the other showcase suites):
 
 from __future__ import annotations
 
-from pathlib import Path
 import re
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest

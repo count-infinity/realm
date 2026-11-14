@@ -14,19 +14,16 @@ import pytest
 from realm.commands.base import find_object, find_player
 from realm.commands.builtin.communication import cmd_say
 from realm.commands.builtin.inventory import cmd_get
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.objects import GameObject
 from realm.core.perception import can_see, can_see_room, perceived_name, room_is_lit
-from realm.core.propagation import reset_engine
 from realm.core.render import render_room
 from realm.gateway.session import Session
-from realm.commands.dispatcher import CommandContext, CommandDispatcher
 
 
 @pytest.fixture(autouse=True)
 def fresh_propagation_engine():
-    reset_engine()
     yield
-    reset_engine()
 
 
 def make_player(name: str, location: GameObject | None = None) -> tuple[GameObject, Session]:
@@ -142,6 +139,7 @@ class TestPerceptionRules:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestPerLookerMessages:
 
     async def test_invisible_speaker_reads_as_someone(self):
@@ -237,6 +235,7 @@ class TestDarknessRendering:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestSightGatedTargeting:
 
     async def test_cannot_target_in_darkness(self):

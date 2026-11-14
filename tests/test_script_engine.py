@@ -17,22 +17,20 @@ import re
 
 import pytest
 
+from realm.commands.dispatcher import CommandContext
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
-from realm.core.propagation import get_engine, reset_engine
+from realm.core.world import get_world
 from realm.gateway.session import Session
 from realm.scripting.engine import ScriptEngine
-from realm.commands.dispatcher import CommandContext
 
 # --- Helpers ---------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
-def fresh_propagation_engine():
-    """Each test gets a fresh propagation singleton (observers reset)."""
-    reset_engine()
-    yield
-    reset_engine()
+def fresh_world(classic_world_unscripted):
+    """A classic world with scripting off: each test wires its own engine."""
+    return classic_world_unscripted
 
 
 def make_player(name: str, location: GameObject | None = None) -> tuple[GameObject, Session]:
@@ -64,7 +62,7 @@ def make_ctx(sess: Session, raw_input: str) -> CommandContext:
 def wired_engine() -> ScriptEngine:
     """A ScriptEngine observing the (fresh) propagation singleton."""
     engine = ScriptEngine()
-    get_engine().add_observer(engine.handle_action)
+    get_world().engine.add_observer(engine.handle_action)
     return engine
 
 
@@ -479,6 +477,6 @@ class TestServerWiring:
         await server.start()
         engine_ref = server.script_engine
         assert engine_ref is not None
-        assert engine_ref.handle_action in get_engine()._observers
+        assert engine_ref.handle_action in get_world().engine._observers
         await server.stop()
-        assert engine_ref.handle_action not in get_engine()._observers
+        assert engine_ref.handle_action not in get_world().engine._observers

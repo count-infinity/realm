@@ -13,15 +13,15 @@ from __future__ import annotations
 import pytest
 
 from realm.commands.builtin.manipulation import cmd_unwear, cmd_wear
-from realm.core.objects import GameObject
-from realm.core.propagation import Action, get_engine, reset_engine
-from realm.gateway.session import Session
 from realm.commands.dispatcher import CommandContext, CommandDispatcher
+from realm.core.objects import GameObject
+from realm.core.propagation import Action
+from realm.core.world import get_world
+from realm.gateway.session import Session
 from realm.systems import (
     GurpsSystem,
     MercSystem,
     equipment_observer,
-    set_game_system,
 )
 
 
@@ -40,20 +40,17 @@ def _ctx(sess, args):
 
 
 @pytest.fixture
-def bus():
-    """The boot wiring in miniature: observer on the engine, system active."""
-    reset_engine()
-    get_engine().add_observer(equipment_observer)
-    yield
-    set_game_system(None)
-    reset_engine()
+def bus(world):
+    """The boot wiring in miniature: the observer on a bare world."""
+    world.observe(equipment_observer)
+    return world
 
 
 @pytest.mark.asyncio
 class TestMercWornArmor:
 
     async def test_wear_lowers_ac_remove_restores(self, bus):
-        set_game_system(MercSystem())
+        get_world().rules = MercSystem()
         room = GameObject("Arena", tags=["room"])
         hero, sess = _player("Conan", room)
         hero.db.dexterity = 13                      # base AC 10
@@ -71,7 +68,7 @@ class TestMercWornArmor:
         assert hero.db.get("armor_class") == 10
 
     async def test_pieces_stack(self, bus):
-        set_game_system(MercSystem())
+        get_world().rules = MercSystem()
         room = GameObject("Arena", tags=["room"])
         hero, sess = _player("Conan", room)
         hero.db.dexterity = 13
@@ -91,7 +88,7 @@ class TestSeamStaysNeutral:
     async def test_default_system_is_a_noop(self, bus):
         # GURPS caches nothing from gear (no armor-DR pipeline yet): wearing
         # goggles must neither crash nor invent an armor_class.
-        set_game_system(GurpsSystem())
+        get_world().rules = GurpsSystem()
         room = GameObject("Room", tags=["room"])
         raven, sess = _player("Raven", room)
         goggles = GameObject("goggles", location=raven,
@@ -102,6 +99,7 @@ class TestSeamStaysNeutral:
 
     async def test_no_active_system_is_safe(self, bus):
         # A bare engine (tests, tools) has no game system installed.
+        bus.rules = None
         room = GameObject("Room", tags=["room"])
         raven, sess = _player("Raven", room)
         cloak = GameObject("cloak", location=raven,
@@ -118,7 +116,7 @@ class TestSeamStaysNeutral:
             def on_equipment_change(self, player):
                 calls.append(player.name)
 
-        set_game_system(Spy())
+        get_world().rules = Spy()
         hero = GameObject("Conan")
         vetoed = Action(actor=hero, target=None, action_type="item:on_wear")
         vetoed.applied = False

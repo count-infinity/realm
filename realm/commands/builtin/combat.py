@@ -10,16 +10,17 @@ player in a fight sets its tempo.
 
 from __future__ import annotations
 
-from realm.combat.manager import get_combat_manager, is_combat_capable
+from realm.combat.manager import is_combat_capable
 from realm.combat.maneuver import QueuedAction
 from realm.commands import CommandContext
 from realm.commands.base import find_object
 from realm.core.action_types import ActionType
 from realm.core.checks import check
+from realm.core.world import get_world
 
 
 def _manager(ctx: CommandContext):
-    manager = get_combat_manager()
+    manager = get_world().services.get("combat")
     if manager is None:
         return None
     return manager
@@ -404,8 +405,7 @@ async def cmd_points(ctx: CommandContext) -> None:
 
     Usage: score / points
     """
-    from realm.systems.base import get_game_system
-    system = get_game_system()
+    system = get_world().rules
     if system is not None:
         lines = system.score_lines(ctx.player)
     else:
@@ -467,8 +467,7 @@ async def cmd_improve(ctx: CommandContext) -> None:
         skill = skill[6:]
 
     cp = int(ctx.player.db.get('character_points') or 0)
-    from realm.systems import get_game_system
-    system = get_game_system()
+    system = get_world().rules
     current = skill_level(ctx.player, skill)
     cost = system.improve_cost(skill, current) if system else IMPROVE_COST
     if cp < cost:

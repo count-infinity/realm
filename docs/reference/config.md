@@ -24,9 +24,9 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `ENABLE_WEBSOCKET` | `False` | Run the WebSocket server (needs aiohttp). |
 | `ENABLE_SCRIPTING` | `True` | Run softcode: `$`-commands, `^`-listens, `ON_<EVENT>` hooks, inline blocks. |
 | `INLINE_OPEN` | `'[['` | Opening delimiter of an inline softcode block in text. |
-| `INLINE_CLOSE` | `']]'` | Closing delimiter of an inline softcode block in text. |
-| `COMMAND_SIGIL` | `'$'` | Prefix of a softcode command attribute (`$greet *:...`). |
-| `LISTEN_SIGIL` | `'^'` | Prefix of a softcode listen attribute (`^*hello*:...`). |
+| `INLINE_CLOSE` | `']]'` | Closing delimiter of an inline softcode block in text. Differs from INLINE_OPEN. |
+| `COMMAND_SIGIL` | `'$'` | Prefix of a softcode command attribute (`$greet *:...`). No `:`. |
+| `LISTEN_SIGIL` | `'^'` | Prefix of a softcode listen attribute (`^*hello*:...`). No `:`. |
 | `MARKUP_MARKER` | `'\|'` | Color-markup marker (`\|r` red, `\|n` reset). |
 | `EMOTE_SIGIL` | `'/'` | Reference sigil in rich emotes (`pose waves at /Bob`). |
 | `KEYID_SIGIL` | `'$'` | Prefix of a friendly keyid reference (`get('$banknet_core')`). May not start with `#`. |
@@ -37,7 +37,7 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `WELCOME_FILE` | `'data/welcome.txt'` | Text shown on connection. |
 | `WELCOME_BANNER` | `None` | Inline welcome text. When set, it wins over WELCOME_FILE. |
 | `TICK_INTERVAL` | `0.1` | Seconds between server pulses (0 disables). Waits, one-shots and reapers land on it; behaviors keep their own cadence. |
-| `WORLD_BEAT` | `4.0` | Seconds in one out-of-combat round (poison, regen) and the default cadence of pulse-counting behaviors. |
+| `WORLD_BEAT` | `4.0` | Seconds in one out-of-combat round (poison, regen) and the default cadence of pulse-counting behaviors. At least 0.1. |
 | `REAP_INTERVAL` | `5.0` | Seconds between housekeeping sweeps (idle instances, wilderness cells, expired objects). |
 | `FLUSH_INTERVAL` | `30.0` | Seconds between saves of changed objects to the database. |
 | `FEATURES` | `None` | The features this game is made of, by name or module path. Unset, every built-in feature (`realm.std.CLASSIC`). A game lists its own module too: `FEATURES = [*CLASSIC, "game"]`. |

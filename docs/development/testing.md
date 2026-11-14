@@ -38,6 +38,41 @@ Live end-to-end drives (telnet scripts that boot a real server) live
 outside the repo during development and verify each feature package;
 the tutorial's command sequence is one of them.
 
+## The world a test runs in
+
+Code that needs the store, the propagation engine, the script engine, the
+game system or a feature's service asks the running world
+(`realm.core.world.get_world()`). `tests/conftest.py` makes every test start
+and end with **no** world installed, so nothing one test wires can leak into
+the next. A test that needs a world takes a fixture:
+
+| Fixture | World |
+|---|---|
+| `world` | built and installed, no features (the bare kernel) |
+| `classic_world` | every built-in feature |
+| `classic_world_unscripted` | every built-in feature, scripting off: the test wires its own `ScriptEngine` |
+| `configure` | `configure(emote_sigil="@")` changes the bare world's settings |
+
+To hand-wire a service, set it on the world. There is nothing to restore;
+the world closes after the test:
+
+```python
+def test_rigged_check(world):
+    world.services["checks"].resolver = always_succeeds
+    world.store = MockPersistence()            # a test double for the store
+    world.speech_renderers.append(shout)       # what feature.speech_renderer adds
+```
+
+`reconfigure(world, **changes)` (from `tests.conftest`) changes a Simulator's
+or another fixture's settings (`reconfigure(sim.world, keyid_sigil="$$")`).
+A bad value raises `ValueError`, exactly as it would in `config.py`.
+
+With no world installed, pure helpers still work: `setting("MARKUP_MARKER")`
+reads the `Settings` default, `find_objects()` finds nothing, and `check()`
+uses a neutral 3d6 resolver. Anything that needs the store or the engine
+raises `RuntimeError: No world is installed`, which means the test wants
+one of the fixtures above.
+
 ## Writing Tests
 
 ```python
@@ -93,7 +128,7 @@ def sim():
     try:
         yield s
     finally:
-        s.close()                 # restores ambient singletons
+        s.close()                 # closes its world
 
 @pytest.mark.asyncio
 async def test_npc_greets(sim):
@@ -125,7 +160,8 @@ async def test_npc_greets(sim):
   (`from realm.config.loader import Settings`).
 - Softcode `wait()` runs on a virtual clock: it fires when the test calls
   `sim.engine.tick_waits()`.
-- The world lives in a `MemoryStore` (`sim.store`).
+- The world lives in a `MemoryStore` (`sim.store`); `sim.world` is the
+  installed `World`.
 
 Because both paths go through the real engine, the transcript is exactly
 what happens live — which makes it the natural way to test data-driven

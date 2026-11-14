@@ -34,11 +34,14 @@ def find_objects(
         attr         object has the attribute; with ``value``, it must equal
         name_like    case-insensitive substring of the name
         limit        cap the result count
+
+    With no world installed there is nothing to filter: the result is
+    empty (a bare unit test of a game system reads no definitions).
     """
     if objects is None:
-        from realm.persistence.manager import get_active_manager
-        manager = get_active_manager()
-        objects = manager.all_cached() if manager else []
+        from realm.core.world import find_world
+        world = find_world()
+        objects = world.store.all_cached() if world is not None else []
 
     wanted_tags = list(tags or [])
     if tag:

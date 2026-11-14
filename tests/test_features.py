@@ -16,7 +16,8 @@ import pytest
 from realm.core.action_tags import HOSTILE
 from realm.core.behaviors import Behavior, BehaviorRegistry
 from realm.core.objects import GameObject
-from realm.core.propagation import Action, get_engine, propagate
+from realm.core.propagation import Action, propagate
+from realm.core.world import get_world
 from realm.features import Feature, FeatureError, FeatureSet, install_default, load
 from realm.scripting.functions import ScriptFrame
 from realm.testing import Simulator
@@ -91,7 +92,7 @@ class TestDefaultEqualsToday:
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze.
             assert sorted(names - {"clone_obj", "set_name", "set_desc"}) == SOFTCODE_NAMES
-            assert sorted(_qualname(o) for o in get_engine()._observers) == OBSERVERS
+            assert sorted(_qualname(o) for o in get_world().engine._observers) == OBSERVERS
             assert sorted(BehaviorRegistry.list_all()) == BEHAVIOR_IDS
         finally:
             sim.close()
@@ -125,7 +126,7 @@ class TestSubtract:
             assert err is not None and fn in err
 
     async def test_no_combat_and_only_the_script_engine_observes(self, social):
-        assert [_qualname(o) for o in get_engine()._observers] == [
+        assert [_qualname(o) for o in get_world().engine._observers] == [
             "realm.scripting.engine.ScriptEngine.handle_action"]
         assert "combat" not in social.world.services
         room = social.room("Plaza")
@@ -184,6 +185,21 @@ async def cmd_chime(ctx):
 @feature.function(readonly=True)
 def chime_count(n):
     return n * 2
+
+
+@feature.name_resolver
+def masked(obj, looker, current):
+    return obj.db.get("mask") or current
+
+
+@feature.speech_renderer
+def shout(body, action, looker):
+    return body.upper()
+
+
+@feature.group_formatter
+def tally(obj, count):
+    return f"{{obj.name}} x{{count}}"
 '''
 
 
@@ -210,6 +226,24 @@ class TestGameFeature:
         finally:
             sim.close()
         assert BehaviorRegistry.get(f"{game_module}_chime") is None
+
+    async def test_presentation_hooks_reach_the_world(self, game_module):
+        """name_resolver, speech_renderer and group_formatter declarations
+        are the running world's, and leave with it."""
+        sim = Simulator(features=["basics", "talk", "look", game_module])
+        try:
+            room = sim.room("Hall")
+            alice = sim.player("Alice", location=room, mask="a masked figure")
+            bob = sim.player("Bob", location=room)
+            for _ in range(2):
+                sim.obj("apple", location=room, tags=["thing"])
+            sim.seen(bob)
+            await sim.do(alice, "say hello")
+            assert 'a masked figure says, "HELLO"' in sim.seen(bob)
+            await sim.do(bob, "look")
+            assert any("apple x2" in line for line in sim.seen(bob))
+        finally:
+            sim.close()
 
     async def test_saved_behavior_survives_a_reboot_without_imports(self, game_module, tmp_path):
         from realm.server.game import GameServer
@@ -254,6 +288,7 @@ class TestCollisions:
                                                     {"behavior_id": "same_id"}))),
         ("softcode function", lambda f, tag: f.function(lambda: tag, name="same_fn")),
         ("ruleset", lambda f, tag: f.ruleset("same_rules", type(f"R{tag}", (), {}))),
+        ("group formatter", lambda f, tag: f.group_formatter(lambda obj, n: tag)),
     ])
     def test_two_features_one_name_raise_naming_both(self, kind, declare):
         a, b = self._pair(declare)

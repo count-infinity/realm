@@ -1,11 +1,13 @@
 """
 Skill checks and opposed contests.
 
-The default resolver is a neutral zero-config fallback (3d6 roll-under
-effective skill, no criticals or other game policy) so ``check()`` works
-before a game system is installed. Every real game swaps the whole
-resolution function with :func:`set_check_resolver` (same extension
-pattern as the render group formatter).
+How a world resolves checks is one :class:`Checks` service, the current
+world's ``services["checks"]`` (``build_world`` installs it from the game
+system): the resolver, the untrained-skill table and the condition
+modifier providers. With no world installed, :func:`checks` returns a
+neutral default (3d6 roll-under effective skill, no criticals or other
+game policy) so ``check()`` works in a bare unit test. A test changes the
+resolver on its world: ``world.services["checks"].resolver = fake``.
 
 Skill levels are lean data, no classes: ``db.skill_<name>`` on the
 actor. An unskilled actor falls back to an attribute default from
@@ -16,6 +18,7 @@ e.g. stealth defaults to DX-5.
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from realm.core.dice import CheckResult, margin_under, roll
@@ -32,23 +35,6 @@ ENGINE_SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
 }
 
 
-# skill -> (attribute name, default penalty). The active GameSystem
-# installs its full table over this at server start (set_skill_defaults);
-# the seed is the engine floor so bare library use still works.
-SKILL_DEFAULTS: dict[str, tuple[str, int]] = dict(ENGINE_SKILL_DEFAULTS)
-
-
-def set_skill_defaults(defaults: dict[str, tuple[str, int]]) -> None:
-    """
-    Install the active GameSystem's untrained-skill table, merged over
-    the engine floor (ENGINE_SKILL_DEFAULTS) — the rules package owns
-    the skill list; the engine keeps the skills it rolls itself.
-    """
-    SKILL_DEFAULTS.clear()
-    SKILL_DEFAULTS.update(ENGINE_SKILL_DEFAULTS)
-    SKILL_DEFAULTS.update(defaults)
-
-
 DEFAULT_ATTRIBUTE = 10
 
 
@@ -57,7 +43,7 @@ def skill_level(obj: GameObject, skill: str) -> int:
     An object's level in a skill.
 
     ``db.skill_<name>`` if trained; otherwise the attribute default from
-    SKILL_DEFAULTS; otherwise DEFAULT_ATTRIBUTE - 5.
+    the world's skill table (:class:`Checks`); otherwise DEFAULT_ATTRIBUTE - 5.
     """
     trained = obj.db.get(f"skill_{skill}")
     if trained is not None:
@@ -67,7 +53,7 @@ def skill_level(obj: GameObject, skill: str) -> int:
     # system's table (data it owns). A skill the table doesn't list gets a
     # neutral floor — NOT a hardcoded humanoid stat, so a ship or door isn't
     # silently rated off an "intelligence" it doesn't have.
-    entry = SKILL_DEFAULTS.get(skill)
+    entry = checks().skill_defaults.get(skill)
     if entry is None:
         return DEFAULT_ATTRIBUTE - 5
     attr, penalty = entry
@@ -132,14 +118,6 @@ def resolve_with_rule(
 
 CheckResolver = Callable[["GameObject", str, int], CheckResult]
 
-_resolver: CheckResolver = default_resolver
-
-
-def set_check_resolver(resolver: CheckResolver | None) -> None:
-    """Replace how checks resolve (None restores the 3d6 default)."""
-    global _resolver
-    _resolver = resolver or default_resolver
-
 
 # --- Condition modifiers (the banshee-wail pipeline) --------------------------
 #
@@ -176,23 +154,45 @@ def _attr_modifier_provider(obj: GameObject, skill: str) -> int:
     return total
 
 
-_modifier_providers: list[ModifierProvider] = [_attr_modifier_provider]
+def skill_table(defaults: dict[str, tuple[str, int]] | None = None,
+                ) -> dict[str, tuple[str, int]]:
+    """A game system's untrained-skill table merged over the engine floor
+    (ENGINE_SKILL_DEFAULTS): the rules own the skill list, the engine keeps
+    the skills it rolls itself."""
+    return {**ENGINE_SKILL_DEFAULTS, **(defaults or {})}
 
 
-def add_modifier_provider(provider: ModifierProvider) -> None:
-    """Register an extra condition-modifier source (darkness, encumbrance...)."""
-    if provider not in _modifier_providers:
-        _modifier_providers.append(provider)
+@dataclass
+class Checks:
+    """How one world resolves checks (``world.services["checks"]``)."""
+
+    resolver: CheckResolver = default_resolver
+    #: skill -> (attribute name, default penalty), over the engine floor.
+    skill_defaults: dict[str, tuple[str, int]] = field(default_factory=skill_table)
+    #: condition-modifier sources (darkness, encumbrance...), summed into
+    #: every check before the resolver sees it.
+    modifier_providers: list[ModifierProvider] = field(
+        default_factory=lambda: [_attr_modifier_provider])
 
 
-def remove_modifier_provider(provider: ModifierProvider) -> None:
-    _modifier_providers[:] = [p for p in _modifier_providers if p is not provider]
+_NO_WORLD = Checks()
+
+
+def checks() -> Checks:
+    """The current world's Checks, else the neutral default."""
+    from realm.core.world import find_world
+    world = find_world()
+    if world is not None:
+        service = world.services.get("checks")
+        if service is not None:
+            return service
+    return _NO_WORLD
 
 
 def condition_modifier(obj: GameObject, skill: str) -> int:
     """Sum every provider's modifier for this check; errors count as 0."""
     total = 0
-    for provider in _modifier_providers:
+    for provider in checks().modifier_providers:
         try:
             total += int(provider(obj, skill))
         except Exception:
@@ -208,7 +208,7 @@ def check(obj: GameObject, skill: str, modifier: int = 0) -> CheckResult:
     are folded in here, upstream of the resolver, so every ruleset and
     injected test resolver inherits them.
     """
-    result = _resolver(obj, skill, modifier + condition_modifier(obj, skill))
+    result = checks().resolver(obj, skill, modifier + condition_modifier(obj, skill))
     # Roll visibility (@rolls on): echo the dice to a curious builder.
     if obj.db.get('show_rolls'):
         obj.msg(f"[roll {result.skill}: {result.roll} vs {result.effective} "
@@ -242,12 +242,15 @@ def contest(
 
 
 __all__ = [
-    "SKILL_DEFAULTS",
+    "ENGINE_SKILL_DEFAULTS",
     "CheckResult",
+    "Checks",
+    "checks",
+    "skill_table",
     "default_resolver",
     "resolve_with_rule",
     "skill_level",
+    "condition_modifier",
     "check",
     "contest",
-    "set_check_resolver",
 ]

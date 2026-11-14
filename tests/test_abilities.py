@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import pytest
 
-from realm.combat.manager import CombatManager, set_combat_manager
+from realm.combat.manager import CombatManager
 from realm.combat.rulesets.merc import MercRuleset
 from realm.combat.system import CombatSystem
 from realm.core.behaviors import Behavior
 from realm.core.objects import GameObject
-from realm.systems import MercSystem, set_game_system
+from realm.core.world import get_world
+from realm.systems import MercSystem
 from realm.systems.abilities import (
     can_invoke,
     find_ability_def,
@@ -47,13 +48,11 @@ def arena():
     sim = Simulator()
     mgr = CombatManager(CombatSystem(ruleset=MercRuleset()),
                         beat_min=4.0, beat_max=120.0, beat_default=15.0)
-    set_combat_manager(mgr)
-    set_game_system(MercSystem())
+    get_world().services["combat"] = mgr
+    get_world().rules = MercSystem()
     room = sim.room("Field")
     yield sim, room
     mgr.stop_all()
-    set_combat_manager(None)
-    set_game_system(None)
     sim.close()
 
 

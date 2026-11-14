@@ -18,16 +18,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.perception import (
-    clear_name_resolvers,
-    register_name_resolver,
-)
-from realm.core.verbs import (
-    DEFAULT_EMOTE_SIGIL,
-    get_emote_sigil,
-    parse_emote_refs,
-    set_emote_sigil,
-)
+from realm.config.loader import Settings
+from realm.core.verbs import parse_emote_refs
+from realm.core.world import get_world, setting
 from realm.testing import Simulator
 
 
@@ -38,12 +31,9 @@ def world():
     ada = sim.player("Ada", location=room)
     bob = sim.player("Bob", location=room)
     cara = sim.player("Cara", location=room)
-    clear_name_resolvers()
     try:
         yield SimpleNamespace(sim=sim, room=room, ada=ada, bob=bob, cara=cara)
     finally:
-        clear_name_resolvers()
-        set_emote_sigil(DEFAULT_EMOTE_SIGIL)
         sim.close()
 
 
@@ -62,7 +52,7 @@ class TestPerViewerReferences:
 
     async def test_reference_honors_a_disguise_per_viewer(self, world):
         w = world
-        register_name_resolver(
+        get_world().name_resolvers.append(
             lambda o, lk, cur: o.db.get('disguise') or cur)
         w.ada.db.set('disguise', 'a hooded figure')
         w.sim.seen(w.cara)
@@ -110,22 +100,20 @@ class TestNonReferencesAndSafety:
 
 
 class TestSigilConfig:
-    def teardown_method(self):
-        set_emote_sigil(DEFAULT_EMOTE_SIGIL)
 
     def test_default_is_slash(self):
-        assert get_emote_sigil() == "/"
+        assert setting("EMOTE_SIGIL") == "/"
 
-    def test_sigil_is_configurable(self):
-        set_emote_sigil("@")
-        assert get_emote_sigil() == "@"
+    def test_sigil_is_configurable(self, configure):
+        configure(emote_sigil="@")
+        assert setting("EMOTE_SIGIL") == "@"
 
     @pytest.mark.parametrize("bad", ["", "a", "1", " ", "x/", "/" * 17])
     def test_bad_sigils_rejected_at_config_time(self, bad):
         with pytest.raises(ValueError):
-            set_emote_sigil(bad)
+            Settings(emote_sigil=bad)
 
-    def test_parse_uses_the_configured_sigil(self):
+    def test_parse_uses_the_configured_sigil(self, configure):
         # A tiny standalone object graph — parse_emote_refs needs only
         # .location and .contents.
         from realm.core.objects import GameObject
@@ -134,7 +122,7 @@ class TestSigilConfig:
         bob = GameObject("Bob", location=room)
         room.contents  # ensure membership realised
 
-        set_emote_sigil("@")
+        configure(emote_sigil="@")
         body, refs = parse_emote_refs(ada, "waves at @Bob")
         assert refs == [bob]
         assert "Bob" not in body            # replaced by a marker

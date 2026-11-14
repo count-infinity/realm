@@ -139,7 +139,8 @@ class TestVetoStopsTheMiddle:
 class TestAppliedFlag:
 
     async def test_applied_is_set_between_the_passes(self, sim):
-        from realm.core.propagation import Action, get_engine
+        from realm.core.propagation import Action
+        from realm.core.world import get_world
         room = sim.room("R")
         witness = {}
 
@@ -148,18 +149,19 @@ class TestAppliedFlag:
             room.db.set("mark", 1)
 
         action = Action(actor=None, target=room, action_type="event:test")
-        result = await get_engine().propagate(action, apply=apply)
+        result = await get_world().engine.propagate(action, apply=apply)
         assert witness["at_apply"] is False
         assert result.applied is True
         assert room.db.get("mark") == 1
 
     async def test_blocked_apply_marks_unapplied(self, sim):
-        from realm.core.propagation import Action, get_engine
+        from realm.core.propagation import Action
+        from realm.core.world import get_world
 
         def apply(action):
             action.block("no")
 
         action = Action(actor=None, target=sim.room("R"),
                         action_type="event:test")
-        result = await get_engine().propagate(action, apply=apply)
+        result = await get_world().engine.propagate(action, apply=apply)
         assert result.blocked and result.applied is False

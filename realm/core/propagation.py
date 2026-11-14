@@ -40,47 +40,13 @@ def _is_speech(action_type: str) -> bool:
     return event is not None and event.speech
 
 
-#: Transforms applied to a spoken body on its way to ONE listener, in
-#: registration order. See :func:`register_speech_renderer`.
-_speech_renderers: list[Callable[..., str]] = []
-
-
-def register_speech_renderer(fn: Callable[..., str]) -> None:
-    """Register a per-listener transform of the spoken body.
-
-    Called as ``fn(body, action, looker) -> body`` once per recipient,
-    while a speech-family message is being rendered for that recipient.
-    The whole point is that each listener may get different words:
-
-    - **languages** — garble the body unless ``looker`` knows the tongue
-    - **overheard whispers** — hand a bystander fragments, the addressee
-      the whole line
-    - **intoxication** — slur it on the way out (same for every listener,
-      but the same seam)
-
-    ``looker`` is None when nobody in particular is being addressed.
-    Renderers run in registration order, each seeing the previous one's
-    output — a drunk speaker of a foreign tongue slurs *and* garbles.
-
-    A renderer must not raise. If one does it is logged and **skipped**,
-    keeping the last good body: a cosmetic transform that breaks must not
-    swallow the line. (Note this is the opposite of an ``on_check`` ward,
-    which fails *closed* — the difference is that a ward's job is to
-    DENY, so "it errored" must not read as "it allowed"; a renderer only
-    rephrases, so failing open costs fidelity, not safety.)
-    """
-    _speech_renderers.append(fn)
-
-
-def clear_speech_renderers() -> None:
-    """Drop all registered renderers (tests, and game teardown)."""
-    _speech_renderers.clear()
-
-
 def render_speech(body: str, action: Action,
                   looker: GameObject | None) -> str:
-    """Run the registered transforms over a spoken body for one listener."""
-    for fn in _speech_renderers:
+    """Run the world's speech renderers (``feature.speech_renderer``) over
+    a spoken body for one listener. No world, no renderers."""
+    from realm.core.world import find_world
+    world = find_world()
+    for fn in (world.speech_renderers if world is not None else ()):
         try:
             body = fn(body, action, looker)
         except Exception as exc:      # noqa: BLE001 - never eat the line
@@ -576,23 +542,6 @@ class PropagationEngine:
         return action
 
 
-_engine: PropagationEngine | None = None
-
-
-def get_engine() -> PropagationEngine:
-    """Return the module-level PropagationEngine singleton."""
-    global _engine
-    if _engine is None:
-        _engine = PropagationEngine()
-    return _engine
-
-
-def reset_engine() -> None:
-    """Drop the module-level engine (for tests that want a fresh one)."""
-    global _engine
-    _engine = None
-
-
 async def propagate(
     action: Action,
     engine: PropagationEngine | None = None,
@@ -613,7 +562,10 @@ async def propagate(
     or when a test wants to inspect raw accumulated messages without side
     effects.
     """
-    return await (engine or get_engine()).propagate(
+    if engine is None:
+        from realm.core.world import get_world
+        engine = get_world().engine
+    return await engine.propagate(
         action, deliver=deliver, apply=apply)
 
 
@@ -771,8 +723,6 @@ __all__ = [
     "remote_chain",
     "ROOM_TARGET_CHAIN",
     "PropagationEngine",
-    "get_engine",
-    "reset_engine",
     "propagate",
     "gate_action",
     "deliver_messages",

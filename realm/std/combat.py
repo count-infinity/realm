@@ -124,8 +124,8 @@ def _start_combat(world) -> None:
     """Create the CombatManager. The ruleset is COMBAT_RULESET, else the
     game system's own pairing; hostile actions between combat-capable
     parties then start a fight (the fireball WAS your turn)."""
-    from realm.combat.manager import CombatManager, set_combat_manager
-    from realm.combat.system import create_combat_system, set_show_rolls_default
+    from realm.combat.manager import CombatManager
+    from realm.combat.system import create_combat_system
 
     manager = CombatManager(
         create_combat_system(world.setting("COMBAT_RULESET") or world.rules.ruleset_name),
@@ -135,11 +135,7 @@ def _start_combat(world) -> None:
         session_manager=world.sessions,
     )
     world.services["combat"] = manager
-    set_combat_manager(manager)
-    world.add_closer(lambda: set_combat_manager(None))
     world.add_closer(manager.stop_all)
-    set_show_rolls_default(bool(world.setting("SHOW_ROLLS")))
-    world.add_closer(lambda: set_show_rolls_default(False))
     world.observe(manager.hostile_observer)
 
 
@@ -160,17 +156,17 @@ async def _scrub_stale_combat_state(world) -> None:
 
 async def _death_check(engine, frame, obj, killer) -> None:
     """Queued by softcode damage(): a target at 0 HP dies through the manager."""
-    from realm.combat.manager import get_combat_manager
+    from realm.core.world import get_world
     if int(obj.db.get('hp') or 0) <= 0:
-        manager = get_combat_manager()
+        manager = get_world().services.get("combat")
         if manager is not None:
             await manager.handle_death(obj, killer=killer)
 
 
 async def _start(engine, frame, obj, target) -> None:
     """Queued by softcode start_combat()."""
-    from realm.combat.manager import get_combat_manager
-    manager = get_combat_manager()
+    from realm.core.world import get_world
+    manager = get_world().services.get("combat")
     if manager is not None:
         await manager.initiate(obj, target)
 

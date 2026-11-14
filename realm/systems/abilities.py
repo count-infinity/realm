@@ -123,9 +123,9 @@ async def apply_typed_damage(target: GameObject, amount: int, dtype_name: str,
     a mundane trap/venom ability passes ``magical=False`` (effect-spec
     key ``magical``)."""
     from realm.combat.damage import apply_resisted, deal_damage, typed_damage_result
-    from realm.combat.manager import get_combat_manager
+    from realm.core.world import get_world
 
-    manager = get_combat_manager()
+    manager = get_world().services.get("combat")
     if manager is not None:
         result = typed_damage_result(amount, dtype_name, magical=magical)
         dealt, _action = await deal_damage(
@@ -198,8 +198,8 @@ def _resolve_targets(actor: GameObject, want: str,
 
 
 def _combat_opponent(actor: GameObject) -> GameObject | None:
-    from realm.combat.manager import get_combat_manager
-    manager = get_combat_manager()
+    from realm.core.world import get_world
+    manager = get_world().services.get("combat")
     if manager is None or actor.location is None:
         return None
     enc = manager.encounter_in(actor.location)
@@ -299,8 +299,8 @@ async def _apply_ability(action: Action, actor: GameObject, adef: GameObject,
 
     code = adef.db.get("on_invoke") or adef.db.get("on_cast")
     if isinstance(code, str) and code.strip():
-        from realm.scripting.engine import get_script_engine
-        engine = get_script_engine()
+        from realm.core.world import get_world
+        engine = get_world().scripts
         if engine is not None:
             await engine.run_behavior_script(adef, code, action=action,
                                              enactor=actor)
@@ -395,8 +395,8 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
     elif etype == "softcode":
         code = eff.get("code")
         if isinstance(code, str) and code.strip():
-            from realm.scripting.engine import get_script_engine
-            engine = get_script_engine()
+            from realm.core.world import get_world
+            engine = get_world().scripts
             if engine is not None:
                 await engine.run_behavior_script(
                     action.tool, code, action=action, enactor=actor,
@@ -404,13 +404,13 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
 
 
 def _game_system():
-    from realm.systems.base import get_game_system
-    return get_game_system()
+    from realm.core.world import get_world
+    return get_world().rules
 
 
 async def _death_check(target: GameObject, killer: GameObject) -> None:
-    from realm.combat.manager import get_combat_manager
-    manager = get_combat_manager()
+    from realm.core.world import get_world
+    manager = get_world().services.get("combat")
     if manager is not None and int(target.db.get("hp") or 0) <= 0:
         await manager.handle_death(target, killer=killer)
 

@@ -23,12 +23,12 @@ async def cmd_eval(ctx: CommandContext) -> None:
         @eval [force('#' + r.id, 'move The Cellar') for r in search_world(tag='rat')]
         @eval result = len(search_world(tag='npc'))
     """
-    from realm.scripting.engine import get_script_engine
+    from realm.core.world import get_world
 
     if not ctx.args:
         await ctx.session.send("Usage: @eval <code>")
         return
-    engine = get_script_engine()
+    engine = get_world().scripts
     if engine is None:
         await ctx.session.send("Scripting is not enabled.")
         return
@@ -114,9 +114,8 @@ async def cmd_stats(ctx: CommandContext) -> None:
     Example:
         @stats
     """
-    from realm.combat.manager import get_combat_manager
     from realm.core.behaviors import behavior_owners
-    from realm.scripting.engine import get_script_engine
+    from realm.core.world import get_world
 
     lines = ["Engine stats:"]
     server = getattr(ctx.dispatcher, 'server', None)
@@ -140,11 +139,11 @@ async def cmd_stats(ctx: CommandContext) -> None:
     if len(tickers) > 12:
         lines.append(f"    ... and {len(tickers) - 12} more")
 
-    engine = get_script_engine()
+    engine = get_world().scripts
     if engine is not None:
         lines.append(f"  scheduled waits: {len(engine._waits)}")
 
-    manager = get_combat_manager()
+    manager = get_world().services.get("combat")
     if manager is not None:
         n = len(getattr(manager, '_encounters', {}) or {})
         lines.append(f"  active combat encounters: {n}")

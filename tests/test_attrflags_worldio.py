@@ -14,18 +14,17 @@ from realm.core.attrflags import (
     writable_attr,
 )
 from realm.core.objects import GameObject
-from realm.core.propagation import reset_engine
+from realm.core.world import get_world
 from realm.persistence.worldio import export_objects, export_zone, import_objects
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 
 @pytest.fixture(autouse=True)
 def fresh():
-    reset_engine()
     yield
-    reset_engine()
 
 
+@pytest.mark.usefixtures("world")
 class TestAttrFlags:
 
     def test_secret_hides_from_strangers(self):
@@ -51,7 +50,6 @@ class TestAttrFlags:
         assert readable_attr(gm_room, "gm_notes", gm_room) is True  # self
 
     def test_search_world_respects_secret(self):
-        from realm.persistence.manager import set_active_manager
         from realm.scripting.functions import ScriptFrame
 
         pers = MockPersistence()
@@ -59,13 +57,10 @@ class TestAttrFlags:
         vault.db.code = 1234
         set_attr_flags(vault, "code", ["secret"])
         pers.add(vault)
-        set_active_manager(pers)
-        try:
-            alice = GameObject("Alice", tags=["player"])
-            funcs = ScriptFrame(executor=alice, persistence=pers)
-            assert funcs.search_world(attr="code") == []
-        finally:
-            set_active_manager(None)
+        get_world().store = pers
+        alice = GameObject("Alice", tags=["player"])
+        funcs = ScriptFrame(executor=alice, persistence=pers)
+        assert funcs.search_world(attr="code") == []
 
     def test_safe_refuses_writes(self):
         obj = GameObject("shrine")
@@ -135,6 +130,7 @@ class TestAttrCommand:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestWorldIO:
 
     async def test_round_trip_remaps_references(self):
@@ -175,7 +171,6 @@ class TestWorldIO:
         assert created[0].db.get("hp") == 10
 
     async def test_export_zone_scopes(self):
-        from realm.persistence.manager import set_active_manager
 
         pers = MockPersistence()
         keep = GameObject("Keep", tags=["room", "zone:castle"])
@@ -184,11 +179,8 @@ class TestWorldIO:
         master = GameObject("Castle Zone", tags=["zone_master", "zone:castle"])
         for o in (keep, rock, outsider, master):
             pers.add(o)
-        set_active_manager(pers)
-        try:
-            data = export_zone("castle")
-        finally:
-            set_active_manager(None)
+        get_world().store = pers
+        data = export_zone("castle")
         names = {e["name"] for e in data["objects"]}
         assert names == {"Keep", "rock", "Castle Zone"}
 

@@ -121,7 +121,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 - [x] 76. **Bulletin boards** [now] — per-location or per-org boards with expiring posts. *(board objects, post attrs, on_tick expiry)*
 - [x] 77. **Handheld radios** [now] — tune to frequencies; anyone on the channel hears you. *(^listen relays, search_world by attr, device-gated comms)*
 - [x] 78. **Station PA system** [now] — broadcast announcements to every room in a zone. *(remit loops over zone_rooms())*
-- [x] 79. **Languages** [small] — speech is garbled for listeners lacking the language skill. *(register_speech_renderer — garble the spoken body per listener)*
+- [x] 79. **Languages** [small] — speech is garbled for listeners lacking the language skill. *(feature.speech_renderer — garble the spoken body per listener)*
 - [ ] 80. **Overheard whispers** [small] — whispering with a Per-based chance of being overheard. *(gap G2: per-bystander leak roll in whisper delivery)*
 - [x] 81. **Graffiti** [now] — write on walls; text persists as a room detail others can read. *(room-owned $-commands, desc_extras, executor authority)*
 - [x] 82. **Newspaper** [now] — periodic issue compiled from player/NPC submissions, sold at kiosks. *(publication attrs, on_tick releases, ON_PAYMENT kiosks)*
@@ -190,13 +190,13 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 ## 12. Character Systems (132–143)
 
 - [x] 132. **Chargen walkthrough** [now] — multi-step chargen with validation and review. *(GameSystem ChargenSteps or admin-owned prompt() wizards)*
-- [x] 133. **Short-descs & introductions** [small] — strangers appear as "a tall woman" until introduced. *(register_name_resolver — per-viewer sdesc/recognition seam)*
-- [x] 134. **Disguises** [small] — masks and outfits that change your apparent identity. *(register_name_resolver disguise + check_roll see-through check)*
+- [x] 133. **Short-descs & introductions** [small] — strangers appear as "a tall woman" until introduced. *(feature.name_resolver — per-viewer sdesc/recognition seam)*
+- [x] 134. **Disguises** [small] — masks and outfits that change your apparent identity. *(feature.name_resolver disguise + check_roll see-through check)*
 - [x] 135. **Injury & treatment** [now] — wound states affecting stats until treated or healed. *(modifier_effect conditions, firstaid, regeneration)*
 - [x] 136. **Encumbrance effects** [now] — carried weight slows movement and penalizes DX. *(ON_GET/ON_DROP weight sums, modifier_effect penalties)*
 - [x] 137. **Hunger & thirst** [now] — optional survival meters with food/drink satisfying them. *(on_tick meters, ON_USE consumables, zone policy toggles)*
 - [x] 138. **Sleep & rest** [now] — resting recovers FP/HP faster; sleeping players are vulnerable. *(rest tags, regeneration boosts, vulnerability wards)*
-- [x] 139. **Intoxication** [small] — drinks impair stats and slur your speech progressively. *(modifier_effect penalty + register_speech_renderer slur, drink-scaled)*
+- [x] 139. **Intoxication** [small] — drinks impair stats and slur your speech progressively. *(modifier_effect penalty + feature.speech_renderer slur, drink-scaled)*
 - [x] 140. **Death & cloning** [now] — death, body handling, and sci-fi clone respawn with costs. *(ON_DEATH, engine corpses/unconsciousness, clone-bay flows)*
 - [x] 141. **Character sheet display** [now] — full sheet rendered attractively. *(the stats command, $sheet via eval_attr layout functions)*
 - [x] 142. **Traits in play** [now] — advantages/disadvantages that actively hook mechanics. *(class_def/skill_def data, trait-driven triggers and wards)*

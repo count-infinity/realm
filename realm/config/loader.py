@@ -24,13 +24,46 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def setting(default: Any, key: str, doc: str, *, path: bool = False) -> Any:
+def setting(default: Any, key: str, doc: str, *, path: bool = False,
+            check: Callable[[str, Any], None] | None = None) -> Any:
     """A ``Settings`` field that is also a ``config.py`` key.
 
     ``path=True`` marks a filesystem path: ``load_config`` resolves a relative
-    value against the game directory.
+    value against the game directory. ``check(what, value)`` raises
+    ValueError for a bad value, so a bad config fails when ``Settings`` is
+    built (at boot), not mid-render.
     """
-    return field(default=default, metadata={"key": key, "doc": doc, "path": path})
+    return field(default=default,
+                 metadata={"key": key, "doc": doc, "path": path, "check": check})
+
+
+def _symbols(what: str, value: Any, *, forbid: str = "", no_prefix: str = "") -> None:
+    """A syntax token: 1-16 characters, none alphanumeric or whitespace (an
+    alphanumeric sigil would swallow ordinary words)."""
+    s = str(value)
+    bad = (not s or len(s) > 16 or any(c.isalnum() or c.isspace() or c in forbid for c in s)
+           or (no_prefix and s.startswith(no_prefix)))
+    if bad:
+        extra = "".join([f" and no {forbid!r}" if forbid else "",
+                         f" and may not start with {no_prefix!r}" if no_prefix else ""])
+        raise ValueError(f"{what} must be 1-16 non-alphanumeric, non-space "
+                         f"characters{extra} (got {value!r})")
+
+
+def _sigil(**kw: str) -> Callable[[str, Any], None]:
+    return lambda what, value: _symbols(what, value, **kw)
+
+
+def _at_least(low: float) -> Callable[[str, Any], None]:
+    def check(what: str, value: Any) -> None:
+        if float(value) < low:
+            raise ValueError(f"{what} must be at least {low} (got {value!r})")
+    return check
+
+
+def _non_empty(what: str, value: Any) -> None:
+    if not str(value).strip():
+        raise ValueError(f"{what} must be non-empty")
 
 
 def callback(doc: str) -> Any:
@@ -72,31 +105,35 @@ class Settings:
         "Run softcode: `$`-commands, `^`-listens, `ON_<EVENT>` hooks, inline blocks.")
     inline_open: str = setting(
         "[[", "INLINE_OPEN",
-        "Opening delimiter of an inline softcode block in text.")
+        "Opening delimiter of an inline softcode block in text.", check=_non_empty)
     inline_close: str = setting(
         "]]", "INLINE_CLOSE",
-        "Closing delimiter of an inline softcode block in text.")
+        "Closing delimiter of an inline softcode block in text. Differs from "
+        "INLINE_OPEN.", check=_non_empty)
     command_sigil: str = setting(
         "$", "COMMAND_SIGIL",
-        "Prefix of a softcode command attribute (`$greet *:...`).")
+        "Prefix of a softcode command attribute (`$greet *:...`). No `:`.",
+        check=_sigil(forbid=":"))
     listen_sigil: str = setting(
         "^", "LISTEN_SIGIL",
-        "Prefix of a softcode listen attribute (`^*hello*:...`).")
+        "Prefix of a softcode listen attribute (`^*hello*:...`). No `:`.",
+        check=_sigil(forbid=":"))
     markup_marker: str = setting(
         "|", "MARKUP_MARKER",
-        "Color-markup marker (`|r` red, `|n` reset).")
+        "Color-markup marker (`|r` red, `|n` reset).", check=_sigil())
     emote_sigil: str = setting(
         "/", "EMOTE_SIGIL",
-        "Reference sigil in rich emotes (`pose waves at /Bob`).")
+        "Reference sigil in rich emotes (`pose waves at /Bob`).", check=_sigil())
     keyid_sigil: str = setting(
         "$", "KEYID_SIGIL",
-        "Prefix of a friendly keyid reference (`get('$banknet_core')`). May not start with `#`.")
+        "Prefix of a friendly keyid reference (`get('$banknet_core')`). May not start with `#`.",
+        check=_sigil(no_prefix="#"))
     heredoc_open: str = setting(
         "'''", "HEREDOC_OPEN",
-        "A line ending in this starts a multi-line block.")
+        "A line ending in this starts a multi-line block.", check=_sigil())
     heredoc_close: str = setting(
         "'''", "HEREDOC_CLOSE",
-        "A line equal to this ends a multi-line block.")
+        "A line equal to this ends a multi-line block.", check=_sigil())
     recursion_limit: int = setting(
         1000, "RECURSION_LIMIT",
         "Process-wide Python recursion limit (every thread, not per script). "
@@ -118,7 +155,7 @@ class Settings:
     world_beat: float = setting(
         4.0, "WORLD_BEAT",
         "Seconds in one out-of-combat round (poison, regen) and the default "
-        "cadence of pulse-counting behaviors.")
+        "cadence of pulse-counting behaviors. At least 0.1.", check=_at_least(0.1))
     reap_interval: float = setting(
         5.0, "REAP_INTERVAL",
         "Seconds between housekeeping sweeps (idle instances, wilderness cells, expired objects).")
@@ -145,12 +182,17 @@ class Settings:
     raw: dict[str, Any] = field(default_factory=dict, repr=False)  # every config.py name
 
     def __post_init__(self) -> None:
-        # A path given as a string (GameServer(db_path=":memory:")) is a Path.
         for f in fields(self):
-            if f.metadata.get("path"):
-                value = getattr(self, f.name)
-                if value is not None and not isinstance(value, Path):
-                    setattr(self, f.name, Path(value))
+            value = getattr(self, f.name)
+            # A path given as a string (GameServer(db_path=":memory:")) is a Path.
+            if f.metadata.get("path") and value is not None and not isinstance(value, Path):
+                setattr(self, f.name, Path(value))
+            check = f.metadata.get("check")
+            if check is not None:
+                check(f.metadata["key"], value)
+        if self.inline_open == self.inline_close:
+            raise ValueError(f"INLINE_OPEN and INLINE_CLOSE must differ "
+                             f"(both were {self.inline_open!r})")
 
     def get(self, key: str, default: Any = None) -> Any:
         """A raw ``config.py`` value by name, including the game's own constants."""

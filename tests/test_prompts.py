@@ -93,23 +93,22 @@ class TestPrompt:
 
 
 @pytest.mark.asyncio
+@pytest.mark.usefixtures("world")
 class TestSoftcodePrompt:
 
     async def _setup(self):
         from realm.core.objects import GameObject
-        from realm.core.propagation import get_engine, reset_engine
+        from realm.core.world import get_world
         from realm.gateway.session import SessionManager
-        from realm.persistence.manager import set_active_manager
         from realm.scripting.engine import ScriptEngine
         from tests.test_olc import MockPersistence
 
-        reset_engine()
         pers = MockPersistence()
-        set_active_manager(pers)
+        get_world().store = pers
         mgr = SessionManager()
         engine = ScriptEngine(persistence=pers)
         engine.session_manager = mgr
-        get_engine().add_observer(engine.handle_action)
+        get_world().engine.add_observer(engine.handle_action)
 
         room = GameObject("Gate", tags=["room"])
         clerk = GameObject("clerk", location=room)
@@ -128,32 +127,24 @@ class TestSoftcodePrompt:
 
     async def test_prompt_runs_callback_with_answer(self):
         engine, pers, room, clerk, alice, sess = await self._setup()
-        try:
-            # The callback runs AS the executor (clerk) — it reacts with
-            # the NPC's authority; the answer is arg0.
-            clerk.db.ask_name = "prompt(enactor, 'Your name?', 'got_name')"
-            clerk.db.got_name = ("set_attr(me, 'last_visitor', arg0)\n"
-                                 "pemit(enactor, 'Welcome, ' + arg0 + '.')")
-            await engine.run_object_script(clerk, "ask_name", enactor=alice)
-            assert sess.input_handler is not None
-            assert any("Your name?" in m for m in self._drain(sess))
-            await sess.input_handler(sess, "Guinevere")
-            assert clerk.db.get("last_visitor") == "Guinevere"   # NPC remembers
-            assert any("Welcome, Guinevere." in m for m in self._drain(sess))
-            assert sess.input_handler is None
-        finally:
-            from realm.persistence.manager import set_active_manager
-            set_active_manager(None)
+        # The callback runs AS the executor (clerk) — it reacts with
+        # the NPC's authority; the answer is arg0.
+        clerk.db.ask_name = "prompt(enactor, 'Your name?', 'got_name')"
+        clerk.db.got_name = ("set_attr(me, 'last_visitor', arg0)\n"
+                             "pemit(enactor, 'Welcome, ' + arg0 + '.')")
+        await engine.run_object_script(clerk, "ask_name", enactor=alice)
+        assert sess.input_handler is not None
+        assert any("Your name?" in m for m in self._drain(sess))
+        await sess.input_handler(sess, "Guinevere")
+        assert clerk.db.get("last_visitor") == "Guinevere"   # NPC remembers
+        assert any("Welcome, Guinevere." in m for m in self._drain(sess))
+        assert sess.input_handler is None
 
     async def test_persistent_flag_stores_db_marker(self):
         engine, pers, room, clerk, alice, sess = await self._setup()
-        try:
-            clerk.db.ask = "prompt(enactor, 'Password?', 'check', persistent=True)"
-            clerk.db.check = "say('heard: ' + arg0)"
-            await engine.run_object_script(clerk, "ask", enactor=alice)
-            assert alice.db.get("input_prompt")["callback"] == "check"
-            await sess.input_handler(sess, "swordfish")
-            assert alice.db.get("input_prompt") is None   # cleared on answer
-        finally:
-            from realm.persistence.manager import set_active_manager
-            set_active_manager(None)
+        clerk.db.ask = "prompt(enactor, 'Password?', 'check', persistent=True)"
+        clerk.db.check = "say('heard: ' + arg0)"
+        await engine.run_object_script(clerk, "ask", enactor=alice)
+        assert alice.db.get("input_prompt")["callback"] == "check"
+        await sess.input_handler(sess, "swordfish")
+        assert alice.db.get("input_prompt") is None   # cleared on answer

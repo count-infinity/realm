@@ -16,22 +16,13 @@ from types import SimpleNamespace
 
 import pytest
 
+from realm.config.loader import Settings
 from realm.gateway.session import (
-    DEFAULT_HEREDOC_CLOSE,
-    DEFAULT_HEREDOC_OPEN,
     HEREDOC_ABORT,
     HEREDOC_MAX_LINES,
     Session,
-    set_heredoc_sigils,
 )
 from realm.testing import Simulator
-
-
-@pytest.fixture(autouse=True)
-def _reset_heredoc_sigils():
-    set_heredoc_sigils(DEFAULT_HEREDOC_OPEN, DEFAULT_HEREDOC_CLOSE)
-    yield
-    set_heredoc_sigils(DEFAULT_HEREDOC_OPEN, DEFAULT_HEREDOC_CLOSE)
 
 
 def _session_with_player() -> Session:
@@ -140,8 +131,8 @@ class TestGating:
 
 class TestDistinctSigils:
 
-    def test_angle_brackets_let_triple_quote_live_in_the_body(self):
-        set_heredoc_sigils("<<<", ">>>")
+    def test_angle_brackets_let_triple_quote_live_in_the_body(self, configure):
+        configure(heredoc_open="<<<", heredoc_close=">>>")
         s = _session_with_player()
         s.submit_input("@set x/s=<<<")
         s.submit_input("a = 1")
@@ -152,7 +143,7 @@ class TestDistinctSigils:
     def test_bad_sigils_rejected(self):
         for bad in ("", "END", "a1", "x" * 17, "a b"):
             with pytest.raises(ValueError):
-                set_heredoc_sigils(bad, bad)
+                Settings(heredoc_open=bad, heredoc_close=bad)
 
 
 class TestEndToEnd:

@@ -59,8 +59,8 @@ async def cmd_cast(ctx: CommandContext) -> None:
         # No such spell — but a softcode $cast verb may own this phrasing
         # ("cast line" on a fishing pond). Builtin registration must not
         # shadow world verbs, so offer the line to the script engine first.
-        from realm.scripting.engine import get_script_engine
-        engine = get_script_engine()
+        from realm.core.world import get_world
+        engine = get_world().scripts
         if engine is not None and await engine.handle_unknown_command(ctx):
             return
         await ctx.session.send(f"You know no spell called '{name}'.")
