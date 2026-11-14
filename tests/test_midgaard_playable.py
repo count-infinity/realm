@@ -1,6 +1,6 @@
 """End-to-end: the Midgaard example game is actually playable on merc.
 
-Loads the shipped ``examples/midgaard`` area on the ``merc`` game system and
+Loads the shipped ``realm/examples/midgaard`` area on the ``merc`` game system and
 walks the scenario the game promises: a level-1 barbarian starts in the
 Common Square kitted with a club, kills a fido for XP, the fido respawns,
 and the shops trade. This is the integration proof that merc + the ROM
@@ -25,7 +25,7 @@ from realm.std.rules.definitions import apply_class
 from realm.std.rules.system import reload_rules
 from realm.testing import Simulator
 
-AREA = Path(__file__).resolve().parents[1] / "examples" / "midgaard" / \
+AREA = Path(__file__).resolve().parents[1] / "realm" / "examples" / "midgaard" / \
     "data" / "areas" / "midgaard.json"
 COMMON_SQUARE = "rom_3025"
 

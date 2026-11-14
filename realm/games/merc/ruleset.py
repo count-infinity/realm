@@ -2,7 +2,7 @@
 Merc/Diku-lineage combat ruleset — THAC0 to-hit, descending armor class.
 
 The model the DikuMUD -> Merc -> ROM family shares, and the one a converted
-ROM area (see scripts/rom_import.py) wants to run on:
+ROM area (see ``realm import-rom``) wants to run on:
 
 - **To hit**: roll d20; a hit needs ``d20 >= thac0 - armor_class``. Lower
   ``thac0`` (a better attacker, from the class/level table) and lower

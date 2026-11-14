@@ -93,7 +93,7 @@ REALM must be usable as a library, not an application to fork.
   the Common Square with a club, kill respawning fidos for XP, trade at the
   shops. Proven end-to-end by `tests/test_midgaard_playable.py` (6:
   chargen→kit→kill→XP→respawn→trade→a mage's fireball). Pieces built:
-  - **Importer `--repop`** (`scripts/rom_import.py`): attaches a `spawner`
+  - **Importer `--repop`** (`realm import-rom`, `realm/tools/rom_import.py`): attaches a `spawner`
     per mob-reset room that ADOPTS the static instances (tags + seeds
     tracking, no duplication) and respawns on death; shopkeepers stay static
     fixtures (their stock is inventory). Reusable for any area. Also emits a

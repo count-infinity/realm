@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
 """
-ROM 2.4 ``.are`` -> REALM area (worldio JSON) converter.
+ROM 2.4 ``.are`` -> REALM area (worldio JSON) converter, behind
+``realm import-rom``.
 
 ROM/Merc area files are section-based: each section opens with a ``#NAME``
 line and records are keyed by ``#vnum``, strings are tilde-terminated, and
@@ -10,8 +10,11 @@ the standard sections and emits a REALM worldio document
 (``{"realm_format": 1, "objects": [...]}``) that ``@import`` /
 ``realm import`` / ``import_objects`` load like any area.
 
-    python scripts/rom_import.py midgaard.are > midgaard.area.json
-    python scripts/rom_import.py midgaard.are -o midgaard.area.json --report
+    realm import-rom midgaard.are --out midgaard.area.json --report
+    realm import-rom areas/ --out converted/ --report parity.md
+
+``convert`` reads one area; ``convert_tree`` converts many and aggregates a
+MERC parity report (the batch run over a whole area collection).
 
 Grounding: the #AREA header and the MOBILES/OBJECTS/ROOMS record layouts
 here were checked against the real canonical Midgaard file (ROM 2.4 "new
@@ -27,7 +30,6 @@ docs/development/rom-import.md.
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import sys
@@ -994,48 +996,159 @@ def _finalize(area: Area) -> None:
             area.objects.append(proto)
 
 
-# --- CLI ---------------------------------------------------------------------
-
-def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("area_file", help="path to a ROM .are file")
-    ap.add_argument("-o", "--output", help="write JSON here (default: stdout)")
-    ap.add_argument("--repop", action="store_true",
-                    help="emit self-repopulating spawners for mob resets "
-                         "(instead of a one-shot static placement)")
-    ap.add_argument("--zone-reset", action="store_true",
-                    help="emit a zone master with a zone_reset behavior "
-                         "(whole-area restore when empty; SMAUG-style). An "
-                         "alternative mob strategy to --repop")
-    ap.add_argument("--report", action="store_true",
-                    help="print a capability-gap report to stderr")
-    args = ap.parse_args(argv)
-
-    text = Path(args.area_file).read_text(errors="replace")
-    area = convert(text, repop=args.repop, zone_reset=args.zone_reset)
-    doc = {"realm_format": 1, "objects": area.objects}
-    out = json.dumps(doc, indent=2) + "\n"
-    if args.output:
-        Path(args.output).write_text(out)
-    else:
-        sys.stdout.write(out)
-
-    rooms = sum(1 for o in area.objects if "room" in o["tags"])
-    exits = sum(1 for o in area.objects if "exit" in o["tags"])
-    mobs = len(area.mob_protos)
-    objs = len(area.obj_protos)
-    placed = sum(1 for o in area.objects
-                 if o["attrs"].get("prototype_vnum") is not None)
-    print(f"[rom_import] {area.name!r}: {rooms} rooms, {exits} exits, "
-          f"{mobs} mob protos, {objs} obj protos, {placed} placed instances",
-          file=sys.stderr)
-    if args.report and area.gaps:
-        print("\n[rom_import] capability gaps / lossy mappings:", file=sys.stderr)
-        for msg, count in sorted(area.gaps.items(), key=lambda kv: -kv[1]):
-            print(f"  ({count:4d}x) {msg}", file=sys.stderr)
-    return 0
+# --- summaries ---------------------------------------------------------------
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+def document(area: Area) -> dict[str, Any]:
+    """The worldio document for ``area``."""
+    return {"realm_format": 1, "objects": area.objects}
+
+
+def counts(area: Area) -> dict[str, int]:
+    """Rooms, exits, mob and object prototypes, placed instances."""
+    return {
+        "rooms": sum(1 for o in area.objects if "room" in o["tags"]),
+        "exits": sum(1 for o in area.objects if "exit" in o["tags"]),
+        "mob_protos": len(area.mob_protos),
+        "obj_protos": len(area.obj_protos),
+        "placed": sum(1 for o in area.objects
+                      if o["attrs"].get("prototype_vnum") is not None),
+    }
+
+
+def summary(area: Area) -> str:
+    c = counts(area)
+    return (f"{area.name!r}: {c['rooms']} rooms, {c['exits']} exits, "
+            f"{c['mob_protos']} mob protos, {c['obj_protos']} obj protos, "
+            f"{c['placed']} placed instances")
+
+
+def gap_lines(area: Area) -> list[str]:
+    """The capability gaps and lossy mappings, most frequent first."""
+    return [f"  ({count:4d}x) {msg}"
+            for msg, count in sorted(area.gaps.items(), key=lambda kv: -kv[1])]
+
+
+# --- many areas ------------------------------------------------------------------
+
+
+def area_files(paths: list[Path]) -> list[Path]:
+    """Each path as is when a file, else every ``*.are`` / ``*.are.txt``
+    under it."""
+    out: list[Path] = []
+    for path in paths:
+        if path.is_dir():
+            for pattern in ("*.are", "*.are.txt"):
+                out.extend(sorted(path.rglob(pattern)))
+        else:
+            out.append(path)
+    return out
+
+
+@dataclass
+class TreeResult:
+    """What ``convert_tree`` did: how many converted, and the parity report."""
+
+    converted: int
+    failed: int
+    report: list[str]
+
+
+def convert_tree(files: list[Path], out: Path | None, *, root: Path | None = None,
+                 repop: bool = False, zone_reset: bool = False) -> TreeResult:
+    """Convert every file, writing each area's JSON under ``out`` (its path
+    relative to ``root``, else its name), and aggregate a MERC parity
+    report: per-area stats and parse failures, each capability gap and how
+    many areas hit it, the special procedures and item types with no MERC
+    equivalent yet, and how many areas carry MOBprogs."""
+    import traceback
+    from collections import Counter
+
+    ok = failed = mobprog_areas = 0
+    totals: Counter[str] = Counter()
+    gap_areas: Counter[str] = Counter()
+    gap_totals: Counter[str] = Counter()
+    specs: Counter[str] = Counter()
+    item_types: Counter[str] = Counter()
+    failures: list[tuple[str, str]] = []
+
+    for path in files:
+        rel = path.relative_to(root) if root is not None else Path(path.name)
+        try:
+            area = convert(path.read_text(errors="replace"),
+                           repop=repop, zone_reset=zone_reset)
+        except Exception as exc:                 # report, don't stop the batch
+            failed += 1
+            failures.append((str(rel), f"{type(exc).__name__}: {exc}"))
+            traceback.print_exc(file=sys.stderr)
+            continue
+        ok += 1
+        totals.update(counts(area))
+        for msg, count in area.gaps.items():
+            gap_areas[msg] += 1
+            gap_totals[msg] += count
+        if any("PROGS" in m for m in area.gaps):
+            mobprog_areas += 1
+        seen_specs: set[str] = set()
+        for o in area.objects:
+            for t in o["tags"]:
+                if t.startswith("rom_spec:"):
+                    name = t.split(":", 1)[1]
+                    if name not in seen_specs:
+                        specs[name] += 1
+                        seen_specs.add(name)
+            it = o["attrs"].get("item_type")
+            if it and "prototype" in o["tags"]:
+                item_types[it] += 1
+        if out is not None:
+            dest = (out / rel).with_suffix("")     # drop .txt
+            if dest.suffix != ".json":
+                dest = dest.with_suffix(".json")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(json.dumps(document(area), indent=2))
+
+    report = _report(len(files), ok, failed, totals, gap_areas, gap_totals,
+                     specs, item_types, mobprog_areas, failures)
+    return TreeResult(ok, failed, report)
+
+
+def _report(n, ok, failed, totals, gap_areas, gap_totals, specs, item_types,
+            mobprog_areas, failures) -> list[str]:
+    lines = ["# ROM -> REALM batch conversion & MERC parity report", "",
+             f"Converted **{ok}/{n}** area files"
+             + (f" ({failed} failed)" if failed else "") + ". World totals: "
+             f"**{totals['rooms']} rooms, {totals['exits']} exits, "
+             f"{totals['mob_protos']} mob prototypes, {totals['obj_protos']} "
+             f"object prototypes, {totals['placed']} placed instances**.", ""]
+
+    lines += ["## Capability gaps, by how many areas hit them", "",
+              "| areas | occurrences | gap |", "|---:|---:|---|"]
+    for msg, areas in gap_areas.most_common():
+        lines.append(f"| {areas} | {gap_totals[msg]} | {msg} |")
+
+    lines += ["", "## ROM special procedures found (no MERC equivalent)", "",
+              f"{sum(specs.values())} spec-proc attachments across "
+              f"{len(specs)} distinct procedures. Each is a compiled C behavior "
+              "that must be re-authored as softcode or a behavior:", "",
+              "| areas | spec_proc |", "|---:|---|"]
+    for name, areas in specs.most_common(40):
+        lines.append(f"| {areas} | `{name}` |")
+    if mobprog_areas:
+        lines += ["", f"Plus **{mobprog_areas}** areas carry MOBprogs/OBJprogs "
+                  "(ROM's trigger scripting) — skipped, portable to softcode."]
+
+    lines += ["", "## Object item types seen (parity of the item model)", "",
+              "| count | item type | MERC status |", "|---:|---|---|"]
+    known = {"weapon", "armor", "light", "food", "drink", "drink_container",
+             "container", "key", "money", "potion", "scroll", "wand", "staff",
+             "treasure", "clothing", "trash", "furniture", "fountain", "pill",
+             "jewelry", "boat"}
+    for it, count in item_types.most_common():
+        status = "modeled (tag + attrs)" if it in known else "**no MERC hook**"
+        lines.append(f"| {count} | `{it}` | {status} |")
+
+    if failures:
+        lines += ["", "## Parse failures", ""]
+        for name, err in failures:
+            lines.append(f"- `{name}` — {err}")
+    return lines

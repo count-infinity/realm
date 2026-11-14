@@ -67,6 +67,8 @@ not the feature.
 | `realm/scripting/namespace.py` | `build_namespace(profile, ...)`: the one builder for script, check, inline, lock, detail and rule contexts |
 | `realm/scripting/lib/` | The kernel's softcode functions, one module per area (a feature's own are in `realm/std/<feature>/softcode.py`, declared by its `feature.py`); `functions.py` holds the per-run `ScriptFrame` |
 | `realm/packs/` | Content packs (worldio JSON bundles) |
+| `realm/examples/` | The example games `realm init --template <name>` copies (midgaard, spacegame, wilderness); inside the package so a wheel has them (`tests/test_packaging.py`) |
+| `realm/tools/rom_import.py` | ROM `.are` -> worldio converter behind `realm import-rom`. `scripts/` holds developer tools only (doc generators, example builders, `dev/move_modules.py`) |
 | `realm/persistence/worldio.py` | Export/import with ref remapping |
 | `realm/persistence/store.py` | `Store` protocol: what engine code may call on a store (`PersistenceManager`, `MemoryStore`) |
 

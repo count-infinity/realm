@@ -172,13 +172,13 @@ grows back from the same formula.
 - **A way home:** `cell_exits` can add an authored exit at the start
   coordinate. Return the compass directions plus a
   `{'name': 'trailhead', 'destination': '<room id>'}` entry only when
-  `x == 10 and y == 10`, and see `examples/wilderness/` for the full worked
+  `x == 10 and y == 10`, and see `realm/examples/wilderness/` for the full worked
   region.
 - **Terrain that matters:** add a `cell_terrain` attribute and let a
   hazard-style tick ([tutorial 043](043_hazard_room.md)) read it, so creek
   cells demand the swimming roll from [tutorial 039](039_underwater_room.md).
 - **Encounters:** `cell_populate` returns spawn prototypes, so wolves prowl the
-  forest cells (`examples/wilderness/frontier.py` spawns exactly this). The
+  forest cells (`realm/examples/wilderness/frontier.py` spawns exactly this). The
   spawns are ephemeral like the cell, so nothing leaks.
 - **Weather over the wilds:** cells are tagged `zone:wilderness:frontier`, so a
   weather master ([tutorial 036](036_weather_system.md)) can rain on whichever

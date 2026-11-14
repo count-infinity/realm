@@ -40,7 +40,7 @@ Three systems ship in-box:
 `merc` is the Diku/Merc/ROM-lineage package (`realm.games.merc.system.MercSystem`) —
 the rules a converted ROM area wants ([Importing ROM
 areas](../development/rom-import.md)). Convert Midgaard, run it on `merc`,
-and it plays like a real Diku. `examples/midgaard` is exactly that, ready to
+and it plays like a real Diku. `realm/examples/midgaard` is exactly that, ready to
 run: a level-1 **barbarian** wakes in the Common Square with a club, kills
 respawning fidos for XP, and trades at the shops (`realm init --template
 midgaard`). Its five classes are warrior, barbarian, thief, cleric, and

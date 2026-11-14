@@ -2224,20 +2224,20 @@ imports from deep module paths that steps 3 to 7 just moved. `realm init
 
 ### 9.3 Everything the CLI needs is inside the wheel
 
-- [ ] `git mv examples realm/examples`. Resolve it with
+- [x] `git mv examples realm/examples`. Resolve it with
       `importlib.resources.files("realm.examples")`. Fix the six test
       references and the docs.
-- [ ] Move `scripts/rom_import.py` and `scripts/rom_import_batch.py` to
+- [x] Move `scripts/rom_import.py` and `scripts/rom_import_batch.py` to
       `realm/tools/rom_import.py` and add `realm import-rom <area files>
       [--out pack.json]`. Update `docs/development/rom-import.md`.
-- [ ] `scripts/` keeps developer tools only: the doc generators, the
+- [x] `scripts/` keeps developer tools only: the doc generators, the
       example builders and `scripts/dev/move_modules.py`.
-- [ ] `tests/test_packaging.py`: copy the `realm/` package directory alone
+- [x] `tests/test_packaging.py`: copy the `realm/` package directory alone
       to `tmp_path`, set `PYTHONPATH` to it, and in a subprocess run
       `python -m realm.cli init demo --template spacegame` from a different
       working directory, then `python -m realm.cli features`. Both succeed.
       This proves nothing reads a sibling of the package.
-- [ ] `pyproject.toml`: `requires-python` says 3.12 while the classifiers,
+- [x] `pyproject.toml`: `requires-python` says 3.12 while the classifiers,
       ruff and mypy say 3.11. Make all four agree on 3.12. Add the
       `realm.features` entry-point group documentation URL to `[project.urls]`.
 
@@ -2721,3 +2721,6 @@ entry closed.
 | 2026-11-14 | 9.1 | The documented-import check covers fenced `python` blocks in `docs/**`, the README, `realm/templates/*.py.template` and `examples/**/*.py`; a block is dedented before parsing (a method shown alone is still Python). Seven sketches got `# doctest: skip`; the README's in-game command block was mislabeled `python` and is now `text`. Imports were rewritten to public homes in the templates, examples and the game-facing docs (guides, getting-started, api, showcase, protocols); design, development, architecture and reference docs describe internals and were left. The protocols guide still needs `realm.gateway.session` and `realm.server.game`; it now says those are internal and may move. Suite: 2685. | Making the network layer public is a separate decision. |
 | 2026-11-14 | 9.2 | `load` resolves a name as a built-in, then an entry point in `realm.features` (`installed_packages()`), then a module path. Every `load` checks all installed entry points (deviation in reach: the plan said "at load"): a package claiming a built-in name, or two packages claiming one name, fail any load, not only one listing that name, so a shadowing package is found at once. Entry points are read, never imported, until a game lists the name. An entry point must load a `Feature` whose `name` equals the entry-point name. The scan is cached per `sys.path` (`functools.lru_cache`): uncached it cost 4 ms per `load` and took the suite from 28 s to 45 s; a package installed into a running process is seen at its next start. | |
 | 2026-11-14 | 9.2 | `realm features` lists built-ins, installed packages (with distribution and version) and the game directory's features (the module paths in `FEATURES`; other modules in the game directory are not imported to look for features), with requirements and per-kind declaration counts; a broken or conflicting package is shown with its error rather than stopping the listing. `--check` runs `load(settings.features)` and prints the first `FeatureError` (missing requirement or collision) or `OK: N features`. Listing helpers `available()`/`Available` live in `realm/features.py`; the two boundary tests that used the private `_module_path`/`_resolve` now use `_builtin_module`/`_resolve(..., {})`. Suite: 2697. | `FeatureSet` raises on the first collision, so `--check` reports one at a time. |
+| 2026-11-14 | 9.3 | `examples/` is `realm/examples/` (a package with an `__init__`, so `importlib.resources.files("realm.examples")` finds it; `realm init --template` copies through `as_file`). The spacegame package's own `__init__` imported `examples.spacegame.ships`; it is `realm.examples.spacegame.ships` now. Moving it under `realm/` put its pre-existing unused `typing.Any` in the lint baseline; removed, so `ruff check realm/` stays at 14. A built wheel (`pip wheel .`) was inspected: the area JSON, configs and `ships.py` are in it. | |
+| 2026-11-14 | 9.3 | `scripts/rom_import.py` became `realm/tools/rom_import.py` (`git mv`) and absorbed `rom_import_batch.py` as `area_files`/`convert_tree`/`TreeResult`; both script `main`s are gone. `realm import-rom FILES... [--out] [--repop] [--zone-reset] [--report [FILE]]`: one area file writes its JSON to `--out` (stdout without it) and a bare `--report` prints its gaps to stderr; several files or a directory make `--out` a directory of one JSON per area and `--report FILE` the parity report (stdout without it), exiting 1 if any area failed (deviation: the plan's `--out pack.json` merging several areas into one document was not done, because vnums collide across unrelated area sets). | |
+| 2026-11-14 | 9.3 | `tests/test_packaging.py` copies `realm/` alone to `tmp_path`, asserts the copy is what imports, and runs `python -m realm.cli init demo --template spacegame`, `features` and `features --check` from an unrelated directory. `pyproject.toml`: classifiers drop 3.11, mypy `python_version` and ruff `target-version` are 3.12 (ruff still 14 on `realm/`, 117 on `tests/` either way); `[project.urls]` adds Homepage, Documentation and "Feature packages" (the add-on section of the features guide). Suite: 2701. | |

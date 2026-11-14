@@ -13,7 +13,7 @@ from realm.persistence.worldio import import_objects
 from realm.testing import Simulator
 
 _STATION = (Path(__file__).resolve().parent.parent
-            / "examples" / "spacegame" / "data" / "areas" / "station.json")
+            / "realm" / "examples" / "spacegame" / "data" / "areas" / "station.json")
 
 
 @pytest.mark.asyncio
@@ -81,7 +81,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_creation(self):
         """Ships should be created from templates."""
-        from examples.spacegame.ships import ShipClass, Spaceship
+        from realm.examples.spacegame.ships import ShipClass, Spaceship
 
         repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.FIGHTER, "Red Five")
@@ -95,7 +95,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_damage(self):
         """Ships should handle damage correctly."""
-        from examples.spacegame.ships import ShipClass, Spaceship
+        from realm.examples.spacegame.ships import ShipClass, Spaceship
 
         repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.CORVETTE, "Test Ship")
@@ -122,7 +122,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_repair(self):
         """Ships should be repairable."""
-        from examples.spacegame.ships import ShipClass, Spaceship
+        from realm.examples.spacegame.ships import ShipClass, Spaceship
 
         repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.FREIGHTER, "Cargo One")
@@ -140,7 +140,7 @@ class TestSpaceships:
     @pytest.mark.asyncio
     async def test_ship_status(self):
         """Ship status should reflect current state."""
-        from examples.spacegame.ships import ShipClass, Spaceship
+        from realm.examples.spacegame.ships import ShipClass, Spaceship
 
         repo = MemoryStore()
         ship = await Spaceship.create(repo, ShipClass.CRUISER, "Battlestar")

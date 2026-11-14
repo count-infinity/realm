@@ -137,7 +137,7 @@ def _sources():
             yield f"{path.relative_to(ROOT)}#{i + 1}", block
     for path in sorted((ROOT / "realm" / "templates").glob("*.py.template")):
         yield str(path.relative_to(ROOT)), path.read_text()
-    for path in sorted((ROOT / "examples").rglob("*.py")):
+    for path in sorted((ROOT / "realm" / "examples").rglob("*.py")):
         yield str(path.relative_to(ROOT)), path.read_text()
 
 

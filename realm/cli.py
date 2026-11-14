@@ -3,8 +3,11 @@ REALM CLI - Command line interface for running REALM-based games.
 
 Usage:
     realm init <gamename>    Create a new game project
+    realm init <gamename> --template midgaard   ... from a shipped example
     realm start              Start the game server from current directory
     realm start --reset-db   Reset database and start
+    realm features [--check] List the available features / check FEATURES
+    realm import-rom <area files> [--out out.json]   Convert ROM areas
     realm version            Show version info
 
 Typical workflow:
@@ -18,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import importlib.resources
 import logging
 import shutil
 import sys
@@ -30,8 +34,11 @@ from realm.config.loader import load_config
 from realm.server.game import GameServer
 from realm.templates import get_template, render_template
 
-# Examples directory (for --template option)
-EXAMPLES_DIR = Path(__file__).parent.parent / "examples"
+
+def _examples() -> Any:
+    """The shipped example games (``realm/examples``), inside the package so
+    an installed wheel has them."""
+    return importlib.resources.files("realm.examples")
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -45,7 +52,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     - data/welcome.txt: Welcome screen
     - data/: Directory for database and data files
 
-    With --template, copies from examples/<template>/ instead.
+    With --template, copies the shipped example ``realm/examples/<template>/``.
     """
     game_name = args.name
     project_dir = Path.cwd() / game_name
@@ -138,11 +145,12 @@ def _sanitize_system_id(game_name: str) -> str:
 
 def _init_from_template(game_name: str, project_dir: Path, template: str) -> int:
     """Initialize a project by copying from an example template."""
-    template_dir = EXAMPLES_DIR / template
+    examples = _examples()
+    source = examples / template
 
-    if not template_dir.exists():
+    if not source.is_dir():
         print(f"Error: Template '{template}' not found.")
-        available = [d.name for d in EXAMPLES_DIR.iterdir()
+        available = [d.name for d in examples.iterdir()
                      if d.is_dir() and not d.name.startswith("_")]
         if available:
             print(f"Available templates: {', '.join(sorted(available))}")
@@ -155,12 +163,13 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
     # are repo-relative, so skip it. (The template folder itself carries
     # only the runnable game — config.py, ships.py, data/ — so there is no
     # build-time or pack-redundant Python left to exclude.)
-    shutil.copytree(
-        template_dir,
-        project_dir,
-        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db",
-                                      "*.sqlite*", "__init__.py"),
-    )
+    with importlib.resources.as_file(source) as template_dir:
+        shutil.copytree(
+            template_dir,
+            project_dir,
+            ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db",
+                                          "*.sqlite*", "__init__.py"),
+        )
 
     # List what was created
     for item in sorted(project_dir.rglob("*")):
@@ -352,6 +361,53 @@ def cmd_features(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_import_rom(args: argparse.Namespace) -> int:
+    """Convert ROM 2.4 ``.are`` files to REALM area files (worldio JSON).
+
+    One area file: its JSON goes to ``--out`` (default stdout), and
+    ``--report`` prints its capability gaps to stderr. Several files, or a
+    directory: ``--out`` is a directory of one JSON per area, and the MERC
+    parity report goes to the file ``--report`` names (default stdout)."""
+    import json
+
+    from realm.tools import rom_import
+
+    paths = [Path(p) for p in args.files]
+    missing = [str(p) for p in paths if not p.exists()]
+    if missing:
+        print(f"Error: no such file or directory: {', '.join(missing)}", file=sys.stderr)
+        return 1
+    single = len(paths) == 1 and paths[0].is_file()
+
+    if single:
+        area = rom_import.convert(paths[0].read_text(errors="replace"),
+                                  repop=args.repop, zone_reset=args.zone_reset)
+        text = json.dumps(rom_import.document(area), indent=2) + "\n"
+        if args.out:
+            Path(args.out).write_text(text)
+        else:
+            sys.stdout.write(text)
+        print(f"[import-rom] {rom_import.summary(area)}", file=sys.stderr)
+        if args.report is not None and area.gaps:
+            print("\n[import-rom] capability gaps / lossy mappings:", file=sys.stderr)
+            print("\n".join(rom_import.gap_lines(area)), file=sys.stderr)
+        return 0
+
+    files = rom_import.area_files(paths)
+    root = paths[0] if len(paths) == 1 else None
+    out = Path(args.out) if args.out else None
+    result = rom_import.convert_tree(files, out, root=root, repop=args.repop,
+                                     zone_reset=args.zone_reset)
+    print(f"[import-rom] {result.converted} converted, {result.failed} failed "
+          f"of {len(files)} files", file=sys.stderr)
+    if args.report:
+        Path(args.report).write_text("\n".join(result.report) + "\n")
+        print(f"[import-rom] parity report -> {args.report}", file=sys.stderr)
+    else:
+        print("\n".join(result.report))
+    return 1 if result.failed else 0
+
+
 def cmd_version(args: argparse.Namespace) -> int:
     """Show version info."""
     print("REALM Framework v0.1.0")
@@ -423,6 +479,28 @@ def main() -> int:
         help="Enable debug logging",
     )
 
+    # realm import-rom <area files> [--out ...]
+    rom_parser = subparsers.add_parser(
+        "import-rom", help="Convert ROM 2.4 .are files to REALM area files")
+    rom_parser.add_argument(
+        "files", nargs="+",
+        help="ROM .are files, or directories searched for *.are / *.are.txt")
+    rom_parser.add_argument(
+        "--out", "-o",
+        help="one file: the JSON to write (default stdout); several or a "
+             "directory: the directory to write one JSON per area into")
+    rom_parser.add_argument(
+        "--repop", action="store_true",
+        help="emit self-repopulating spawners for mob resets")
+    rom_parser.add_argument(
+        "--zone-reset", action="store_true",
+        help="emit a zone master with a zone_reset behavior (whole-area "
+             "restore when empty); an alternative to --repop")
+    rom_parser.add_argument(
+        "--report", nargs="?", const="", default=None,
+        help="one file: print its capability gaps to stderr; several: write "
+             "the parity report (markdown) to this file")
+
     # realm features [--check]
     features_parser = subparsers.add_parser(
         "features", help="List the available features, or check this game's FEATURES")
@@ -445,6 +523,8 @@ def main() -> int:
         return asyncio.run(cmd_import(args))
     elif args.command == "pack":
         return asyncio.run(cmd_pack(args))
+    elif args.command == "import-rom":
+        return cmd_import_rom(args)
     elif args.command == "features":
         return cmd_features(args)
     elif args.command == "version":

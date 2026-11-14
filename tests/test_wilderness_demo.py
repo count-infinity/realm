@@ -17,7 +17,7 @@ from realm.std.wilderness import wilderness as wilderness
 from realm.testing import Simulator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent
-                       / "examples" / "wilderness"))
+                       / "realm" / "examples" / "wilderness"))
 
 from frontier import EDGE_MSG, create_frontier  # noqa: E402
 

@@ -31,7 +31,7 @@ You may **create or edit files ONLY here**:
   alone
 
 **Never** edit: `realm/` source, `BACKLOG.md`, `mkdocs.yml`, `docs/` outside
-`docs/showcase/`, `examples/`, `checklist.md`, `capability_audit.md`, this file,
+`docs/showcase/`, `realm/examples/`, `checklist.md`, `capability_audit.md`, this file,
 other implementers' files, or anything in the reference repos (`~/CoffeeMud`,
 `~/evennia`, `~/pennmush`, `~/solar_frontiers`, and so on). Do not create or
 edit `tests/showcase/__init__.py`, which already exists.

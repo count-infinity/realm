@@ -14,6 +14,6 @@ A GURPS-flavored space station, built the way REALM wants games built:
 ``realm init --template spacegame`` scaffolds a game from this directory.
 """
 
-from examples.spacegame.ships import Spaceship
+from realm.examples.spacegame.ships import Spaceship
 
 __all__ = ['Spaceship']

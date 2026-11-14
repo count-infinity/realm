@@ -1,21 +1,30 @@
 # Importing ROM areas
 
-`scripts/rom_import.py` converts a ROM 2.4 `.are` file (the Diku/Merc/ROM
+`realm import-rom` converts a ROM 2.4 `.are` file (the Diku/Merc/ROM
 lineage — Midgaard and the thousands of areas built on it) into a REALM
 area file (worldio JSON) you can `@import` or load at boot. Pair it with
 the [`merc` game system](../guides/game-systems.md) and a converted area
 plays like a real Diku.
 
 ```bash
-python scripts/rom_import.py midgaard.are -o midgaard.area.json --report
+realm import-rom midgaard.are --out midgaard.area.json --report
 
 # --repop: mobs respawn on death (see "Repopulation" below) — the flag the
-# playable Midgaard example (examples/midgaard) is built with:
-python scripts/rom_import.py midgaard.are -o midgaard.json --repop
+# playable Midgaard example (realm/examples/midgaard) is built with:
+realm import-rom midgaard.are --out midgaard.json --repop
 
-# a whole directory tree at once, with a parity report:
-python scripts/rom_import_batch.py areas/ -o converted/ --report parity.md
+# a whole directory tree at once: one JSON per area under converted/, and
+# the parity report written to parity.md
+realm import-rom areas/ --out converted/ --report parity.md
 ```
+
+With one area file, `--out` is the JSON to write (stdout without it) and a
+bare `--report` prints that area's gaps to stderr. With several files or a
+directory (searched for `*.are` and `*.are.txt`), `--out` is a directory,
+one JSON per area at its path under the input, and `--report FILE` writes
+the parity report there (stdout without it); the command exits 1 if any
+area failed to parse. The converter itself is `realm.tools.rom_import`
+(`convert`, `convert_tree`).
 
 > **Field-tested at scale.** The batch tool was run over the full public
 > ansalon.net area collection — **189 files, 8 MB** — and converted **all
@@ -25,7 +34,7 @@ python scripts/rom_import_batch.py areas/ -o converted/ --report parity.md
 > The [MERC parity](#merc-parity-the-punch-list) section below is the
 > aggregate gap analysis from that run.
 
-> **Playable example.** `examples/midgaard` is a complete, runnable game
+> **Playable example.** `realm/examples/midgaard` is a complete, runnable game
 > built from this pipeline: the ROM Midgaard converted with `--repop`, the
 > `merc` game system, and the `merc-classic` spell pack. `realm init
 > --template midgaard`, connect, make a level-1 **barbarian**, and you wake
@@ -35,13 +44,13 @@ python scripts/rom_import_batch.py areas/ -o converted/ --report parity.md
 
 ```python
 # then, in-game or in init_world:
-from realm.persistence.worldio import import_objects
+from realm import import_objects
 await import_objects(json.load(open("midgaard.area.json")), persistence,
                      preserve_ids=True)
 ```
 
-`--report` prints, to stderr, every lossy mapping it made and how many
-times — read it before shipping an imported area.
+`--report` lists every lossy mapping it made and how many times — read it
+before shipping an imported area.
 
 ## The ROM `.are` format, briefly
 

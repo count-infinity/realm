@@ -5,7 +5,7 @@ Midgaard - a playable Diku/Merc game on REALM.
 imported the way a builder would:
 
 - **World**: ``data/areas/midgaard.json`` - the classic Midgaard, converted
-  from its ROM ``.are`` with ``scripts/rom_import.py --repop`` so its mobs
+  from its ROM ``.are`` with ``realm import-rom --repop`` so its mobs
   (the beastly fido, beggars, cityguards) respawn on death. Import any other
   converted ROM area alongside it the same way.
 - **Rules**: the ``merc`` game system (``GAME_SYSTEM`` below) - THAC0

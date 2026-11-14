@@ -1,9 +1,9 @@
 """
 Generate the frontier demo wilderness as an importable area file.
 
-Runs the example builder (examples/wilderness/frontier.py) once and
+Runs the example builder (realm/examples/wilderness/frontier.py) once and
 exports the persistent seam — trailhead, region master, gate — to
-``examples/wilderness/data/frontier.json``. Cells are never exported;
+``realm/examples/wilderness/data/frontier.json``. Cells are never exported;
 they materialize when someone walks. Import with ``preserve_ids=True``
 (the canonical first-boot path): the provider softcode embeds the
 trailhead's id, and id remapping does not rewrite softcode.
@@ -19,9 +19,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "examples" / "wilderness"))
+sys.path.insert(0, str(ROOT / "realm" / "examples" / "wilderness"))
 
-OUT = ROOT / "examples" / "wilderness" / "data" / "frontier.json"
+OUT = ROOT / "realm" / "examples" / "wilderness" / "data" / "frontier.json"
 
 
 class _Collect:

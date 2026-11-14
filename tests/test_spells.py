@@ -10,10 +10,6 @@ the ``resistances`` layer fires), heals, and effect-behavior attachment.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
-
 import pytest
 
 from realm.core.behaviors import Behavior
@@ -460,13 +456,8 @@ S
 class TestImporterCasterMapping:
 
     def _module(self):
-        spec = importlib.util.spec_from_file_location(
-            "rom_import",
-            Path(__file__).resolve().parents[1] / "scripts" / "rom_import.py")
-        mod = importlib.util.module_from_spec(spec)
-        sys.modules["rom_import"] = mod
-        spec.loader.exec_module(mod)
-        return mod
+        from realm.tools import rom_import
+        return rom_import
 
     def test_spec_cast_becomes_caster_behavior(self):
         rom_import = self._module()

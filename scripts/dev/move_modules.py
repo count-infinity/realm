@@ -12,7 +12,7 @@ Move Python modules and rewrite every reference to them.
 An old path may be a module (``x.py``) or a package (a directory). For each
 move the script runs ``git mv`` (creating missing packages with an empty
 ``__init__.py``), then rewrites, across ``realm/``, ``tests/``, ``docs/``,
-``examples/`` and ``scripts/`` (``realm/templates/`` included):
+``scripts/`` (``realm/templates/`` and ``realm/examples/`` included):
 
 - dotted paths anywhere: ``from X import``, ``import X``, ``import X as``,
   string literals (``GAME_SYSTEM`` values, ``patch("realm....")`` targets),
@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SCAN = ["realm", "tests", "docs", "examples", "scripts"]
+SCAN = ["realm", "tests", "docs", "scripts"]
 SUFFIXES = {".py", ".md", ".template", ".toml", ".cfg", ".ini", ".yml", ".yaml", ".txt"}
 HISTORICAL = ROOT / "docs" / "design"
 

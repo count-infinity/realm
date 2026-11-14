@@ -1,4 +1,5 @@
-"""The ROM 2.4 .are -> REALM worldio converter (scripts/rom_import.py).
+"""The ROM 2.4 .are -> REALM worldio converter (realm/tools/rom_import.py,
+``realm import-rom``).
 
 The fixture below is built from records taken verbatim from the canonical
 Midgaard file (ROM 2.4 "new format"), plus a second room so an exit
@@ -10,22 +11,11 @@ equipped weapon, and a shopkeeper behavior.
 
 from __future__ import annotations
 
-import importlib.util
-import sys
-from pathlib import Path
-
 import pytest
 
 from realm.persistence.worldio import import_objects
 from realm.testing import Simulator
-
-_SPEC = importlib.util.spec_from_file_location(
-    "rom_import",
-    Path(__file__).resolve().parents[1] / "scripts" / "rom_import.py")
-rom_import = importlib.util.module_from_spec(_SPEC)
-sys.modules["rom_import"] = rom_import      # dataclass resolves via sys.modules
-_SPEC.loader.exec_module(rom_import)
-
+from realm.tools import rom_import
 
 ARE = """\
 #AREA
@@ -337,3 +327,43 @@ class TestImportIntoWorld:
             assert behaviors[0].params["buyback"] == 0.8
         finally:
             sim.close()
+
+
+# --- realm import-rom ----------------------------------------------------------
+
+
+def _import_rom(*files: str, out=None, report=None) -> int:
+    import argparse
+
+    from realm.cli import cmd_import_rom
+    return cmd_import_rom(argparse.Namespace(
+        files=list(files), out=out, repop=False, zone_reset=False, report=report))
+
+
+class TestTheCommand:
+
+    def test_one_area_to_a_file(self, tmp_path, capsys):
+        import json
+        are = tmp_path / "midgaard.are"
+        are.write_text(ARE)
+        out = tmp_path / "midgaard.json"
+        assert _import_rom(str(are), out=str(out), report="") == 0   # bare --report
+        doc = json.loads(out.read_text())
+        assert doc["realm_format"] == 1 and doc["objects"]
+        err = capsys.readouterr().err
+        assert "rooms" in err and "capability gaps" in err
+
+    def test_a_directory_with_a_parity_report(self, tmp_path):
+        areas = tmp_path / "areas"
+        (areas / "east").mkdir(parents=True)
+        (areas / "midgaard.are").write_text(ARE)
+        (areas / "east" / "repop.are.txt").write_text(REPOP_ARE)
+        out, report = tmp_path / "converted", tmp_path / "parity.md"
+        assert _import_rom(str(areas), out=str(out), report=str(report)) == 0
+        assert (out / "midgaard.json").is_file()
+        assert (out / "east" / "repop.json").is_file()
+        assert "Converted **2/2** area files" in report.read_text()
+
+    def test_a_missing_file_is_an_error(self, tmp_path, capsys):
+        assert _import_rom(str(tmp_path / "nope.are")) == 1
+        assert "no such file" in capsys.readouterr().err

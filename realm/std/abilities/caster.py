@@ -12,7 +12,7 @@ up on the event bus like any other action.
         spells=["chill touch", "fireball"], chance=0.5))
 
 The ROM importer attaches this automatically to ``rom_spec:spec_cast_*``
-and ``spec_breath_*`` mobs (see scripts/rom_import.py).
+and ``spec_breath_*`` mobs (see ``realm import-rom``).
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 Generate the spacegame world as an importable area file.
 
 Runs the existing Python builders (world.py + nexagen.py) once and exports
-everything to ``examples/spacegame/data/areas/station.json`` — worldio
+everything to ``realm/examples/spacegame/data/areas/station.json`` — worldio
 data the game imports at first boot instead of building line-by-line.
 The Python builders are the authoring source; this file is the artifact.
 
@@ -18,10 +18,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 # The world generators are dev tooling, not part of the runnable game, so
-# they live here in scripts/ rather than in examples/spacegame/.
+# they live here in scripts/ rather than in realm/examples/spacegame/.
 sys.path.insert(0, str(ROOT / "scripts" / "spacegame_world"))
 
-OUT = ROOT / "examples" / "spacegame" / "data" / "areas" / "station.json"
+OUT = ROOT / "realm" / "examples" / "spacegame" / "data" / "areas" / "station.json"
 
 
 class _Collect:
