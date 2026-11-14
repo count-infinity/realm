@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.defs import all_defs
+from realm.core.pools import set_pool
 from realm.std.rules.checks import CheckResult, skill_level
 from realm.std.rules.definitions import apply_class
 from realm.std.rules.system import ChoiceStep, GameSystem
@@ -96,8 +97,7 @@ class D20System(GameSystem):
     def finish_chargen(self, player: GameObject) -> str:
         health = int(player.db.get('health') or 10)
         dexterity = int(player.db.get('dexterity') or 10)
-        player.db.hp = health
-        player.db.max_hp = health
+        set_pool(player, 'hp', health, max=health)
         # AC 10 + DEX modifier ((score-10)//2), D&D-style.
         player.db.armor_class = 10 + (dexterity - 10) // 2
         cls = player.db.get('character_class') or 'adventurer'

@@ -15,6 +15,7 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `GAME_NAME` | `'REALM'` | Name shown on the welcome screen and in logs. |
 | `DEBUG` | `False` | Log at DEBUG level (same as `realm start --debug`). |
 | `GAME_SYSTEM` | `'realm.games.gurps.system.GurpsSystem'` | Dotted import path to the GameSystem subclass that holds the rules (chargen, checks, advancement, combat pairing, currency). Choose it once, before the first character is created. |
+| `DAMAGE_POOL` | `'hp'` | The pool harm lands in first, for an object that does not set its own `damage_pool` attribute (docs/guides/pools.md). |
 | `ENCODING` | `'utf-8'` | Text encoding for telnet input and output (`latin-1` or `cp437` only for legacy clients). |
 | `TELNET_HOST` | `'0.0.0.0'` | Telnet listen address. |
 | `TELNET_PORT` | `4000` | Telnet listen port. |
@@ -40,7 +41,7 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `WORLD_BEAT` | `4.0` | Seconds in one out-of-combat round (poison, regen) and the default cadence of pulse-counting behaviors. At least 0.1. |
 | `REAP_INTERVAL` | `5.0` | Seconds between housekeeping sweeps (idle instances, wilderness cells, expired objects). |
 | `FLUSH_INTERVAL` | `30.0` | Seconds between saves of changed objects to the database. |
-| `FEATURES` | `None` | The features this game is made of, by name or module path. Unset, every built-in feature (`realm.std.CLASSIC`). A game lists its own module too: `FEATURES = [*CLASSIC, "game"]`. |
+| `FEATURES` | `'realm.std.CLASSIC'` | The features this game is made of, by name or module path, or a dotted path to such a list. Unset, every built-in feature (`realm.std.CLASSIC`). A game lists its own module too: `FEATURES = [*CLASSIC, "game"]`. |
 
 ## Keys declared by built-in features
 

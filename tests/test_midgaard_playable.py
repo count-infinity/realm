@@ -280,7 +280,7 @@ class TestMidgaardPlayable:
             merlin.db.mana = 100
             fido = [o for o in square.contents
                     if "npc" in o.tags and "fido" in o.name][0]
-            monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
+            monkeypatch.setattr("realm.std.abilities.abilities.random.randint",
                                 lambda a, b: b)
             fireball = find_spell_def("fireball")
             action = await cast_spell(merlin, fireball, fido)
@@ -292,5 +292,5 @@ class TestMidgaardPlayable:
 
 
 def get_credits_of(obj):
-    from realm.std.economy.money import get_credits
+    from realm.std.economy.credits import get_credits
     return get_credits(obj)

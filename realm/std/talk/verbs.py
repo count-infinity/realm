@@ -12,7 +12,7 @@ import re
 from functools import cache
 from typing import TYPE_CHECKING
 
-from realm.core.propagation import Action
+from realm.core.propagation import Action, propagate
 from realm.core.world import setting
 from realm.std.talk.actions import TalkAction
 
@@ -227,8 +227,19 @@ async def _speak(action: Action, scripted: bool) -> Action:
     return action
 
 
+async def npc_say(npc: GameObject, message: str) -> None:
+    """An NPC speaks through the propagation engine (real speech, tagged
+    ``npc``)."""
+    if npc.location is None:
+        return
+    action = speech_action(npc, message)
+    action.tags.add("npc")
+    await propagate(action)
+
+
 __all__ = [
     "parse_emote_refs",
+    "npc_say",
     "speech_action",
     "pose_action",
     "semipose_action",

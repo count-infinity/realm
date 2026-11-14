@@ -14,10 +14,10 @@ from realm.core.propagation import Action
 from realm.core.world import get_world
 from realm.games.merc.ruleset import MercRuleset
 from realm.games.merc.system import MercSystem
-from realm.std.combat.behaviors import PeacekeeperBehavior
 from realm.std.combat.manager import CombatManager
 from realm.std.combat.system import CombatSystem
-from realm.std.crime.wanted import (
+from realm.std.crime.behaviors import PeacekeeperBehavior
+from realm.std.crime.crime import (
     clear_wanted,
     crime_observer,
     flag_wanted,

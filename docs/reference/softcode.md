@@ -112,7 +112,7 @@ payload: its subject is `target`.
 |---|---|---|
 | `combat:on_attack` | `weapon`: the weapon used; `attacker_hp`: the attacker's HP; `defender_hp`: the defender's HP | `combat` |
 | `combat:on_damage` | `damage`: the amount (a ward may lower it); `damage_types`: amount per damage type | `combat` |
-| `combat:on_death` | `killer`: the killer's name (the killer object is actor); `fatal`: True for a real death | `combat` |
+| `combat:on_death` | `killer`: the killer's name (the killer object is actor); `fatal`: True when the body is gone | `combat` |
 | `event:connect` | `returning`: True when the character already existed | `kernel` |
 | `event:emit` | `message`: the emitted text | `talk` |
 | `event:emote` | `pose`: the pose text | `talk` |
@@ -131,6 +131,8 @@ payload: its subject is `target`.
 | `item:on_give` | `item`: what was given (also the action's tool); target is the recipient | `items` |
 | `item:on_put` | `item`: what was put in; target is the container | `items` |
 | `item:on_unlock` | `picked`: True when a lockpick, not a key, opened it | `items` |
+| `pool:on_change` | `pool`: the pool's name; `old`: its value before; `new`: its value after; `applied`: how much this pool took; `source`: who caused it, or None | `kernel` |
+| `pool:on_spent` | `pool`: the pool's name; `old`: its value before; `new`: its value after; `applied`: how much this pool took; `source`: who caused it, or None | `kernel` |
 
 ```
 @set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.
@@ -205,7 +207,7 @@ veto (a cursed item refusing removal).
 | `ON_CLOSE` | this door/container is closed | `items` |
 | `ON_CONNECT` | player connects | `kernel` |
 | `ON_DAMAGE` | this object takes damage | `combat` |
-| `ON_DEATH` | this object goes down — any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True for a real death (an NPC, now a corpse), False for a player knocked unconscious in place | `combat` |
+| `ON_DEATH` | this object goes down: its vital pool is spent, by any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True when the body is gone (a corpse, or destroyed), False when it stays (unconscious, or `when_spent` is none) | `combat` |
 | `ON_DISCONNECT` | player disconnects | `kernel` |
 | `ON_DROP` | this object is dropped | `items` |
 | `ON_ENTER` | something enters this location | `kernel` |
@@ -213,18 +215,20 @@ veto (a cursed item refusing removal).
 | `ON_FAIL` | a move was thwarted (dead-end/locked exit) — @afail | `kernel` |
 | `ON_GET` | this object is picked up | `items` |
 | `ON_GIVE` | this object is given away | `items` |
-| `ON_HITPRCNT` | HP fell through this object's db.hitprcnt threshold | `combat` |
+| `ON_HITPRCNT` | the vital pool (HP) fell through this object's db.hitprcnt threshold, from any source: a swing, poison, a trap, softcode | `combat` |
 | `ON_LEAVE` | something leaves this location | `kernel` |
 | `ON_LOAD` | this object was just spawned | `kernel` |
 | `ON_LOCK` | this is locked (gated) | `items` |
 | `ON_LOOK` | this object is looked at | `kernel` |
 | `ON_OPEN` | this door/container is opened | `items` |
 | `ON_PAYMENT` | this object was paid | `economy` |
+| `ON_POOL` | one of this object's pools changed (damage, healing, a cost) | `kernel` |
 | `ON_PUSH` | this object is pushed (button, lever) | `items` |
 | `ON_PUT` | this object is put in a container | `items` |
 | `ON_RECEIVE` | this object is given something (recipient side) | `kernel` |
 | `ON_REMOVE` | this object is taken off (gated: cursed gear can refuse) | `items` |
 | `ON_RESET` | this zone master resets (empty + due) — repop, re-lock doors | `kernel` |
+| `ON_SPENT` | one of this object's pools was just used up (the change that crossed into spent) | `kernel` |
 | `ON_TICK` | periodic timer (on_tick behavior) | `kernel` |
 | `ON_UNLOCK` | this is unlocked (gated: a sealed door can refuse) | `items` |
 | `ON_UNWIELD` | this weapon is lowered (gated) | `items` |
@@ -266,7 +270,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`controls`](#fn-controls) | Does the executor control this object? | [Objects & attributes](#objects-attributes) |
 | [`create_obj`](#fn-create_obj) | Create a new thing, owned by the executor's owner (or the executor itself), at the executor's location by default. | [Objects & attributes](#objects-attributes) |
 | [`credits`](#fn-credits) | An object's balance. | [Money](#money) |
-| [`damage`](#fn-damage) | Deal damage to something in the executor's room. | [Combat & effects](#combat-effects) |
+| [`damage`](#fn-damage) | Deal damage to something in the executor's room: it lands in the target's damage pool (`hp` unless it says otherwise). | [Combat & effects](#combat-effects) |
 | [`decr`](#fn-decr) | Decrement a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
 | [`del_attr`](#fn-del_attr) | Delete an attribute from an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`destroy_obj`](#fn-destroy_obj) | Destroy an object the executor controls. | [Objects & attributes](#objects-attributes) |
@@ -285,10 +289,12 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`force`](#fn-force) | Make something the executor controls run a command (queued; executes through the real dispatcher after the script). | [NPCs & behaviors](#npcs-behaviors) |
 | [`get`](#fn-get) | Get an object by ID, friendly keyid, or name. | [Objects & attributes](#objects-attributes) |
 | [`get_attr`](#fn-get_attr) | Get an attribute from an object. | [Objects & attributes](#objects-attributes) |
+| [`harm_pool`](#fn-harm_pool) | Harm a pool of something in reach, spilling into its overflow pool. | [Pools](#pools) |
 | [`has_attr`](#fn-has_attr) | Check if an object has an attribute. | [Objects & attributes](#objects-attributes) |
 | [`has_entitlement`](#fn-has_entitlement) | Whether an object holds a permission entitlement (read-only). | [Locks & permissions](#locks-permissions) |
+| [`has_pool`](#fn-has_pool) | True when the object has the pool. | [Pools](#pools) |
 | [`has_tag`](#fn-has_tag) | Check if an object has a tag. | [Tags & zones](#tags-zones) |
-| [`heal`](#fn-heal) | Restore HP (capped at max_hp) to something in the executor's room. | [Combat & effects](#combat-effects) |
+| [`heal`](#fn-heal) | Mend the damage pool (`hp` unless the target says otherwise), capped at its max, of something in the executor's room. | [Combat & effects](#combat-effects) |
 | [`highest`](#fn-highest) | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), else miss (0). | [Dice & skill checks](#dice-skill-checks) |
 | [`if_else`](#fn-if_else) | Conditional expression. | [Math & logic](#math-logic) |
 | [`incr`](#fn-incr) | Increment a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
@@ -299,6 +305,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`margin_over`](#fn-margin_over) | Roll-over (D20): success if `rolled >= target`; margin is how far over. | [Dice & skill checks](#dice-skill-checks) |
 | [`margin_under`](#fn-margin_under) | Roll-under (GURPS, CoC): success if `rolled <= target`; margin is how far under. | [Dice & skill checks](#dice-skill-checks) |
 | [`member`](#fn-member) | Find position of item in list (1-indexed, 0 if not found). | [Text](#text) |
+| [`mend_pool`](#fn-mend_pool) | Mend a pool of something in reach: raise a down pool toward its max, lower an up pool toward its floor. | [Pools](#pools) |
 | [`mid`](#fn-mid) | Extract substring (1-indexed like MUSH). | [Text](#text) |
 | [`move_to`](#fn-move_to) | Relocate a player/object to a destination with the movement checks baked in — the one relocation verb. | [Movement & travel](#movement-travel) |
 | [`name`](#fn-name) | Get an object's name. | [Objects & attributes](#objects-attributes) |
@@ -308,6 +315,8 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`oob`](#fn-oob) | Send structured out-of-band data (GMCP) to a player's client — custom UI panels from softcode. | [Messaging & prompts](#messaging-prompts) |
 | [`owner`](#fn-owner) | Get an object's owner. | [Objects & attributes](#objects-attributes) |
 | [`pemit`](#fn-pemit) | Send a private message to a target (delivered after the script). | [Messaging & prompts](#messaging-prompts) |
+| [`pool`](#fn-pool) | A pool's value, or None when the object has no such pool. | [Pools](#pools) |
+| [`pool_max`](#fn-pool_max) | A pool's maximum, or None when it is unbounded or absent. | [Pools](#pools) |
 | [`prompt`](#fn-prompt) | Ask a player a question; their next line runs the `callback` attribute (on the executor) with the answer as arg0 — a softcode wizard. | [Messaging & prompts](#messaging-prompts) |
 | [`rand`](#fn-rand) | Random integer between low and high (inclusive). | [Dice & skill checks](#dice-skill-checks) |
 | [`reaction_roll`](#fn-reaction_roll) | Memoized first-impression roll (npc must be in executor's reach). | [NPCs & behaviors](#npcs-behaviors) |
@@ -329,6 +338,8 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`setunion`](#fn-setunion) | Union of two space-separated lists. | [Text](#text) |
 | [`skill`](#fn-skill) | The subject's effective level in a skill (trained, else its default). | [Dice & skill checks](#dice-skill-checks) |
 | [`skill_check`](#fn-skill_check) | Roll a skill check for an object (name/#id or object). | [Dice & skill checks](#dice-skill-checks) |
+| [`spend_pool`](#fn-spend_pool) | Pay a cost from the executor's own pool, all or nothing. | [Pools](#pools) |
+| [`spent`](#fn-spent) | True when the pool is used up (a down pool at or below its `spent_at`, an up pool at its max). | [Pools](#pools) |
 | [`start_combat`](#fn-start_combat) | Throw an attacker the executor controls into combat with a target in the same room (queued; the encounter starts after the script finishes). | [Combat & effects](#combat-effects) |
 | [`strlen`](#fn-strlen) | Get string length. | [Text](#text) |
 | [`switch`](#fn-switch) | Switch statement. | [Math & logic](#math-logic) |
@@ -1340,6 +1351,112 @@ skill_check(enactor, 'stealth', -2)
 ```
 
 
+## Pools
+
+### `harm_pool` {#fn-harm_pool}
+
+```text
+harm_pool(obj: GameObject | str | None, name: str, amount: int) -> int
+```
+
+Harm a pool of something in reach, spilling into its overflow pool.
+No soak, no wards: the deliberate bypass, like `damage()`. Returns the
+amount taken (0 when out of reach or without the pool).
+
+**Example**
+
+```text
+harm_pool(enactor, 'stress', 2)
+```
+
+### `has_pool` {#fn-has_pool}
+
+```text
+has_pool(obj: GameObject | str | None, name: str) -> bool
+```
+
+True when the object has the pool.
+
+**Example**
+
+```text
+has_pool(enactor, 'mana')
+```
+
+### `mend_pool` {#fn-mend_pool}
+
+```text
+mend_pool(obj: GameObject | str | None, name: str, amount: int) -> int
+```
+
+Mend a pool of something in reach: raise a down pool toward its max,
+lower an up pool toward its floor. Returns the amount mended.
+
+**Example**
+
+```text
+mend_pool(enactor, 'hp', 5)
+```
+
+### `pool` {#fn-pool}
+
+```text
+pool(obj: GameObject | str | None, name: str) -> int | None
+```
+
+A pool's value, or None when the object has no such pool.
+
+**Example**
+
+```text
+pool(enactor, 'hp')
+```
+
+### `pool_max` {#fn-pool_max}
+
+```text
+pool_max(obj: GameObject | str | None, name: str) -> int | None
+```
+
+A pool's maximum, or None when it is unbounded or absent.
+
+**Example**
+
+```text
+pool_max(here, 'shields')
+```
+
+### `spend_pool` {#fn-spend_pool}
+
+```text
+spend_pool(name: str, amount: int) -> bool
+```
+
+Pay a cost from the executor's own pool, all or nothing. False, with
+nothing spent, when it is short.
+
+**Example**
+
+```text
+spend_pool('heat', 3)
+```
+
+### `spent` {#fn-spent}
+
+```text
+spent(obj: GameObject | str | None, name: str) -> bool
+```
+
+True when the pool is used up (a down pool at or below its
+`spent_at`, an up pool at its max).
+
+**Example**
+
+```text
+spent(here, 'hull')
+```
+
+
 ## Combat & effects
 
 ### `apply_effect` {#fn-apply_effect}
@@ -1399,9 +1516,12 @@ landed = cast(victim, 'fear', tags=['mind']) and \
 damage(obj: GameObject | str | None, amount: int, dtype: str | None = None) -> bool
 ```
 
-Deal damage to something in the executor's room. Lethal damage
-routes through the combat manager's death path (corpses, CP
-awards, unconsciousness) after the script finishes.
+Deal damage to something in the executor's room: it lands in the
+target's damage pool (`hp` unless it says otherwise). After the
+script finishes the change settles: damage that spends the target's
+vital pool runs the combat manager's death path (corpses, CP awards,
+unconsciousness), and falling through `hitprcnt` fires
+`ON_HITPRCNT`.
 
 With a damage type, the hit routes through the active ruleset's
 `apply_damage` — so a target's `resistances` (and any other
@@ -1421,7 +1541,8 @@ damage(enactor, 12, 'fire')
 heal(obj: GameObject | str | None, amount: int) -> bool
 ```
 
-Restore HP (capped at max_hp) to something in the executor's room.
+Mend the damage pool (`hp` unless the target says otherwise),
+capped at its max, of something in the executor's room.
 
 **Example**
 

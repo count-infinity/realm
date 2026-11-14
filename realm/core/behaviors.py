@@ -279,17 +279,11 @@ class BehaviorRegistry:
 
     _behaviors: dict[str, type[Behavior]] = {}
 
-    # Fallback factory for ids with no Python class: behavior logic defined
-    # in-world as `behavior_def` objects (see realm.scripting.scripted_behavior, which
-    # installs it). Signature: (behavior_id, params, strict) -> Behavior|None.
-    # `strict` asks the factory to verify the definition exists — used at
-    # attach time so a typo errors; the persistence load path passes False so
-    # a def that merely loads later never drops a saved behavior.
-    _scripted_factory = None
-
-    @classmethod
-    def set_scripted_factory(cls, factory) -> None:
-        cls._scripted_factory = factory
+    # An id with no Python class is behavior logic defined in-world as a
+    # `behavior_def` object: realm.scripting.scripted_behavior builds it.
+    # `strict` asks it to verify the definition exists — used at attach time
+    # so a typo errors; the persistence load path passes False so a def
+    # that merely loads later never drops a saved behavior.
 
     @classmethod
     def _table(cls) -> dict[str, type[Behavior]]:
@@ -324,9 +318,8 @@ class BehaviorRegistry:
         behavior_class = cls._table().get(behavior_id)
         if behavior_class:
             return behavior_class(**params)
-        if cls._scripted_factory is not None:
-            return cls._scripted_factory(behavior_id, params, True)
-        return None
+        from realm.scripting.scripted_behavior import scripted_factory
+        return scripted_factory(behavior_id, params, True)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Behavior | None:
@@ -337,12 +330,10 @@ class BehaviorRegistry:
         behavior_class = cls._table().get(behavior_id)
         if behavior_class:
             return behavior_class.from_dict(data)
-        if cls._scripted_factory is not None:
-            # Non-strict: a load must never drop a saved behavior just
-            # because its behavior_def object happens to load later.
-            return cls._scripted_factory(
-                behavior_id, data.get('params', {}), False)
-        return None
+        # Non-strict: a load must never drop a saved behavior just because
+        # its behavior_def object happens to load later.
+        from realm.scripting.scripted_behavior import scripted_factory
+        return scripted_factory(behavior_id, data.get('params', {}), False)
 
     @classmethod
     def list_all(cls) -> list[str]:

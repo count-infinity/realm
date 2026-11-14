@@ -22,8 +22,9 @@ from typing import TYPE_CHECKING, Any
 
 from realm.core.action_tags import HOSTILE
 from realm.core.markup import wrap
+from realm.core.pools import PoolChange, settle
 from realm.core.propagation import Action, propagate
-from realm.features import ensure_registries
+from realm.features import ruleset_table
 from realm.std.combat.actions import CombatAction
 from realm.std.combat.combatant import Combatant, CombatState, get_combatant
 from realm.std.combat.damage import deal_damage
@@ -71,6 +72,10 @@ class CombatResult:
     messages: dict[str, str] = field(default_factory=dict)
     effects: list[str] = field(default_factory=list)
     target_defeated: bool = False
+    #: The blow's pool changes, unsettled: the caller shows the messages,
+    #: then settles them (``pools.settle``), which runs the death and
+    #: ``ON_HITPRCNT`` observers. ``CombatEncounter.land`` does both.
+    changes: list[PoolChange] = field(default_factory=list)
 
 
 class RulesetRegistry:
@@ -81,33 +86,29 @@ class RulesetRegistry:
     holds exactly the installed features' rulesets (see realm.features).
     ``register`` is the low-level call, for tests."""
 
-    _rulesets: dict[str, type] = {}
-
     @classmethod
     def register(cls, name: str, ruleset_class: type, *,
                  replace: bool = False) -> None:
         """Register ``ruleset_class`` under ``name`` (case-insensitive).
         Raises ValueError when the name is taken by a different class,
         unless ``replace`` is true."""
-        ensure_registries()
+        table = ruleset_table()
         key = name.lower()
-        current = cls._rulesets.get(key)
+        current = table.get(key)
         if current is not None and current is not ruleset_class and not replace:
             raise ValueError(
                 f"Ruleset {key!r} is already registered to "
                 f"{current.__module__}.{current.__qualname__}. Pick another "
                 f"name, or pass replace=True to override it.")
-        cls._rulesets[key] = ruleset_class
+        table[key] = ruleset_class
 
     @classmethod
     def get(cls, name: str) -> type | None:
-        ensure_registries()
-        return cls._rulesets.get(name.lower())
+        return ruleset_table().get(name.lower())
 
     @classmethod
     def list_all(cls) -> list[str]:
-        ensure_registries()
-        return sorted(cls._rulesets)
+        return sorted(ruleset_table())
 
 
 def find_wielded(obj) -> Any | None:
@@ -262,8 +263,7 @@ class CombatSystem:
         # Deal it through the shared chokepoint: fires the interceptable
         # combat:on_damage event (a ward/shield/room rule may block or
         # reduce it), honors the reduction, then applies via the ruleset.
-        old_pct = dfn.hp_percent * 100
-        _dealt, damage_action = await deal_damage(
+        _dealt, damage_action, changes = await deal_damage(
             atk.obj, dfn, damage_result, self.ruleset)
         if damage_action.blocked:
             return CombatResult(
@@ -274,30 +274,12 @@ class CombatSystem:
                 },
             )
 
-        # Check if defeated
+        # Defeat ends the defender's part in the fight. Death itself, and
+        # ON_HITPRCNT, come from the observers on the vital pool when the
+        # caller settles ``changes`` (realm.std.combat.vitals).
         target_defeated = self.ruleset.is_defeated(dfn)
         if target_defeated:
             dfn.state = CombatState.DEFEATED
-            # combat:on_death is NOT announced here any more. It used to be,
-            # which is exactly why it only ever fired for swings: softcode
-            # damage(), poison ticks and traps route through the combat
-            # manager's handle_death and never came through this function.
-            # Every caller that sees target_defeated goes on to call
-            # handle_defeat -> handle_death, which now announces it — so
-            # swings still fire it, once, and the silent paths fire it too.
-        else:
-            # ON_HITPRCNT — fire once as HP falls THROUGH the defender's
-            # configured threshold (db.hitprcnt, a percent), so an NPC can
-            # flee/enrage/call-for-help at low HP without polling. Not fired
-            # on death (that's ON_DEATH's job).
-            threshold = dfn.obj.db.get('hitprcnt')
-            if threshold is not None:
-                new_pct = dfn.hp_percent * 100
-                if old_pct > float(threshold) >= new_pct:
-                    from realm.core.events import fire_event
-                    await fire_event(atk.obj, dfn.obj, CombatAction.ON_HITPRCNT,
-                                     extra={"percent": round(new_pct),
-                                            "threshold": int(threshold)})
 
         # Generate messages
         messages = self.ruleset.format_attack_message(atk, dfn, attack_result, damage_result)
@@ -322,6 +304,7 @@ class CombatSystem:
             messages=messages,
             effects=attack_result.effects + damage_result.effects,
             target_defeated=target_defeated,
+            changes=changes,
         )
 
     async def heal(
@@ -349,9 +332,11 @@ class CombatSystem:
 
         # Apply healing
         actual = tgt.heal(final_amount)
+        for change in tgt.drain_changes():
+            await settle(change, source=hlr.obj if hlr else None)
 
-        # If target was defeated and now has HP, revive them
-        if tgt.state == CombatState.DEFEATED and tgt.hp > 0:
+        # If target was defeated and is no longer spent, revive them
+        if tgt.state == CombatState.DEFEATED and not self.ruleset.is_defeated(tgt):
             tgt.state = CombatState.IDLE
 
         return actual
@@ -436,8 +421,8 @@ class CombatSystem:
             tags={HOSTILE},
             extra={
                 'weapon': weapon,
-                'attacker_hp': attacker.hp,
-                'defender_hp': defender.hp,
+                'attacker_hp': attacker.vital,
+                'defender_hp': defender.vital,
             },
         )
         await propagate(action, deliver=False)

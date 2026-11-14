@@ -53,8 +53,8 @@ class CombatView:
         else:
             combatant = participant.combatant
             self.name = participant.obj.name
-            self.hp = combatant.hp
-            self.max_hp = max(1, combatant.max_hp)
+            self.hp = combatant.vital              # the vital pool, by its old name
+            self.max_hp = max(1, combatant.vital_max)
             self.is_alive = combatant.is_alive
 
     @property

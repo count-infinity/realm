@@ -24,7 +24,6 @@ from realm.persistence.worldio import (
     diff_plan,
     export_zone,
 )
-from realm.std.rules.system import reload_rules
 
 _SAFE_NAME = re.compile(r'^[A-Za-z0-9_-]+$')
 
@@ -175,7 +174,9 @@ async def cmd_pack(ctx: CommandContext) -> None:
     except (FileNotFoundError, ValueError) as exc:
         await ctx.session.send(f"Error: {exc}")
         return
-    reload_rules()   # data-driven skills take effect immediately
+    world = get_world()
+    for hook in world.reload_hooks:   # data-driven skills take effect immediately
+        hook(world)
     reload_role_defs()   # custom role_def ranks too
     await ctx.session.send(
         f"Imported {len(created)} objects from pack '{name}'. "

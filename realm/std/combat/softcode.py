@@ -9,15 +9,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core.pools import damage_pool, harm, mend, pool_max
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 def damage(frame, obj: GameObject | str | None, amount: int,
            dtype: str | None = None) -> bool:
     """
-    Deal damage to something in the executor's room. Lethal damage
-    routes through the combat manager's death path (corpses, CP
-    awards, unconsciousness) after the script finishes.
+    Deal damage to something in the executor's room: it lands in the
+    target's damage pool (``hp`` unless it says otherwise). After the
+    script finishes the change settles: damage that spends the target's
+    vital pool runs the combat manager's death path (corpses, CP awards,
+    unconsciousness), and falling through ``hitprcnt`` fires
+    ``ON_HITPRCNT``.
 
     With a damage type, the hit routes through the active ruleset's
     ``apply_damage`` — so a target's ``resistances`` (and any other
@@ -30,31 +35,32 @@ def damage(frame, obj: GameObject | str | None, amount: int,
     target = frame.resolve(obj)
     if not frame.in_reach(target) or int(amount) <= 0:
         return False
-    hp = target.db.get('hp')
-    if hp is None:
+    pool = damage_pool(target)
+    if pool is None:
         return False
     if dtype:
         from realm.std.combat.damage import apply_resisted
-        apply_resisted(target, int(amount), str(dtype))
+        change = apply_resisted(target, int(amount), str(dtype))
     else:
-        target.db.hp = int(hp) - int(amount)
-    frame.command_queue.append(('death_check', target, frame.executor))
+        change = harm(target, pool, int(amount))
+    frame.command_queue.append(('pool_settle', target, (change, frame.executor)))
     frame.command_queue.append(('save', target, ''))
     return True
 
 def heal(frame, obj: GameObject | str | None, amount: int) -> bool:
-    """Restore HP (capped at max_hp) to something in the executor's room.
+    """Mend the damage pool (``hp`` unless the target says otherwise),
+    capped at its max, of something in the executor's room.
 
     Example: heal(enactor, 5)
     """
     target = frame.resolve(obj)
     if not frame.in_reach(target) or int(amount) <= 0:
         return False
-    hp = target.db.get('hp')
-    max_hp = target.db.get('max_hp')
-    if hp is None or max_hp is None:
+    pool = damage_pool(target)
+    if pool is None or pool_max(target, pool) is None:
         return False
-    target.db.hp = min(int(max_hp), int(hp) + int(amount))
+    change = mend(target, pool, int(amount))
+    frame.command_queue.append(('pool_settle', target, (change, frame.executor)))
     frame.command_queue.append(('save', target, ''))
     return True
 

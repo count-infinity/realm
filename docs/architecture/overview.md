@@ -1,113 +1,110 @@
 # Architecture Overview
 
-REALM uses a layered architecture that separates concerns cleanly:
+REALM is a **microkernel**: a small kernel of mechanisms, and everything with
+game meaning in **features** a game lists in `FEATURES`. Three rings:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Client Connections                      │
-│                  (Telnet, WebSocket, Godot)                  │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────────┐
-│                     Gateway Layer                            │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
-│  │   Telnet    │  │  WebSocket  │  │   Custom    │          │
-│  │  Protocol   │  │  Protocol   │  │  Protocol   │          │
-│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘          │
-│         └────────────────┼────────────────┘                  │
-│                          │                                   │
-│              ┌───────────▼───────────┐                       │
-│              │   SessionManager      │                       │
-│              │   (Protocol Agnostic) │                       │
-│              └───────────┬───────────┘                       │
-└──────────────────────────┼──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│                      Server Layer                            │
-│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────┐  │
-│  │  GameServer     │  │  Dispatcher │  │  ScriptEngine   │  │
-│  │  (Orchestrator) │  │  (Commands) │  │  (Softcode)     │  │
-│  └─────────────────┘  └─────────────┘  └─────────────────┘  │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│                       Core Layer                             │
-│  ┌─────────────────┐  ┌─────────────┐  ┌─────────────────┐  │
-│  │   GameObject    │  │  Behaviors  │  │  Propagation    │  │
-│  │  (tags + db.*)  │  │  (brains)   │  │  (all actions)  │  │
-│  └─────────────────┘  └─────────────┘  └─────────────────┘  │
-└──────────────────────────┬──────────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────────┐
-│                   Persistence Layer                          │
-│              ┌─────────────────────────┐                     │
-│              │  PersistenceManager     │                     │
-│              │  (SQLite, WAL mode)     │                     │
-│              └─────────────────────────┘                     │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│ games/      gurps/ d20/ merc/       a GameSystem, its combat ruleset │
+│ ┌──────────────────────────────────────────────────────────────────┐ │
+│ │ std/      accounts/ basics/ talk/ movement/ look/ items/         │ │
+│ │           building/ rules/ stealth/ combat/ effects/ abilities/  │ │
+│ │           economy/ social/ crime/ npc/ spawning/ instances/      │ │
+│ │           wilderness/              one package per feature       │ │
+│ │ ┌──────────────────────────────────────────────────────────────┐ │ │
+│ │ │ kernel    core/ scripting/ commands/ permissions/            │ │ │
+│ │ │           persistence/ gateway/ server/ config/ packs/       │ │ │
+│ │ │           features.py                                        │ │ │
+│ │ └──────────────────────────────────────────────────────────────┘ │ │
+│ └──────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-## Key Components
+Imports point inward only. `tests/test_boundaries.py` enforces it:
 
-### Gateway Layer
+- the kernel imports nothing from `realm/std` or `realm/games` (it names the
+  built-ins only as strings: the `FEATURES` and `GAME_SYSTEM` defaults, and
+  where a built-in name resolves);
+- `std` features do not import `games`;
+- a feature imports another feature's parts only when it `requires` it
+  (naming another feature's action types is allowed);
+- a world of no features boots, saves and loads, and loads no feature module;
+- the default world loads exactly the packages `CLASSIC` names.
 
-The gateway layer handles all network protocols. Each protocol (telnet, websocket, etc.) is responsible for:
+## The kernel
 
-1. Accepting connections
-2. Creating a writer function for output
-3. Calling `SessionManager.create_session(writer=...)`
-4. Translating protocol-specific input to commands
-5. Handling disconnections
+```
+realm/
+  features.py          Feature, FeatureSet, load: how a feature joins a world
+  core/                objects, tags, attrflags, propagation, events, movement,
+                       search, query, zones, beats, behaviors, dice, markup,
+                       safe_eval, language, teardown, pairing, perception, ops/,
+                       inflate, defs, eventdefs, world, action_types
+  scripting/           sandbox, engine, triggers, verbs, registry, namespace,
+                       handle, inline, waits, scripted_behavior, ticker,
+                       lib/ (kernel softcode functions only)
+  commands/            base, dispatcher
+  permissions/         locks, roles, entitlements
+  persistence/         manager (SQLite), memory, store, tagindex, keyid, worldio
+  gateway/             session, telnet, websocket
+  server/              game (GameServer), world (build_world), puppet
+  config/              loader (Settings)
+  packs/               content-pack loader
+  testing/             Simulator
+```
 
-The **SessionManager** is protocol-agnostic and manages all sessions uniformly.
+- **World** (`realm/core/world.py`): the one handle to the running world.
+  Code asks `get_world()` for the store, the propagation engine, the script
+  engine, the rules (`world.rules`, set by the `rules` feature; the kernel
+  never calls it) and features' services (`world.services["combat"]`), and
+  reads configuration with `setting("EMOTE_SIGIL")`. Nothing is pushed into
+  module globals at boot, so two worlds in one process switch with `use_world`.
+- **build_world** (`realm/server/world.py`): the composition root. Given an
+  open store and `Settings`, it builds a `World` (a fresh propagation engine,
+  the dispatcher, the script engine), installs it, then wires every loaded
+  feature's runtime declarations. `close()` undoes all of it. The server and
+  the test Simulator both call it.
+- **GameServer** (`realm/server/game.py`): opens the store, calls
+  `build_world`, loads the world, runs the tick and reap loops and the
+  protocol servers. Input goes the session's own prompt, then the features'
+  input interceptors, then the dispatcher. It logs every setting that
+  differs from its default at INFO.
+- **Gateway**: each protocol accepts connections, makes a writer, calls
+  `SessionManager.create_session(writer=...)` and submits input; the
+  **SessionManager** treats every protocol alike.
+- **CommandDispatcher** (`realm/commands/dispatcher.py`): a command's token,
+  exact name, alias or unique prefix, then the features' fallbacks, then
+  the unknown handler (softcode `$`-commands). It knows no command by name.
+- **ScriptEngine** (`realm/scripting/engine.py`): softcode `$`-commands,
+  `^listen`, `ON_<EVENT>` triggers, waits.
+- **Objects, propagation, behaviors** (`realm/core/`): everything is a
+  `GameObject` (tags and `db.*` attributes); every action flows through one
+  two-pass pipeline ([details](events.md)); behaviors are reusable brains.
+- **Persistence**: `Store` (`realm/persistence/store.py`) is what engine code
+  may call on a store; `PersistenceManager` (SQLite, WAL) and `MemoryStore`
+  provide it, with dirty tracking and a periodic flush.
 
-### Server Layer
+## Features
 
-The server layer contains the game logic:
+A feature is a package `realm/std/<name>/` (a game system's is
+`realm/games/<name>/`). `feature.py` declares it: its commands, behaviors,
+softcode functions, observers, events, settings and the seams it fills
+(see [Features](../guides/features.md)). Its other modules are its parts
+and import without loading the feature:
 
-- **build_world** (`realm/server/world.py`) - The composition root. Given an
-  open store and `Settings`, it builds a `World`: a fresh propagation engine,
-  the dispatcher, the game system and its check resolution, the script
-  engine, and every loaded feature's runtime declarations (observers, the
-  combat manager, name resolvers, speech renderers...). It installs that
-  world and returns it; `close()` undoes all of it. The server and the test
-  Simulator both call it.
-- **World** (`realm/core/world.py`) - The one handle to the running world.
-  Code that needs the store, the engine, the script engine, the rules or a
-  feature's service asks `get_world()` (`get_world().store`,
-  `get_world().services.get("combat")`) and reads configuration with
-  `setting("EMOTE_SIGIL")`. Nothing else is pushed into module globals at
-  boot, so two worlds in one process switch with `use_world`.
-- **GameServer** - Opens the store, calls `build_world`, loads the world,
-  then runs the tick and reap loops and protocol servers. Every line of
-  input goes the same way: the session's own prompt, then the features'
-  input interceptors, then the dispatcher. Logging in and character
-  creation are the `accounts` feature's (`feature.login` fills the
-  dispatcher's login slot; a chargen interceptor takes a character still in
-  creation). It logs every setting that differs from its default at INFO
-- **CommandDispatcher** - Routes commands to handlers (permissions, categories)
-- **ScriptEngine** - Softcode: `$`-commands, `^listen`, `ON_<EVENT>` triggers, tickers
-- **GameSystem** - The swappable rules package (GURPS/D20: chargen, skills, combat ruleset)
+```
+realm/std/combat/
+  feature.py     feature = Feature("combat", requires=["rules", "items"]) ...
+  actions.py     CombatAction (its action types)
+  commands.py    the command handlers
+  softcode.py    its softcode functions (feature.py declares them)
+  behaviors.py   its behaviors
+  manager.py, encounter.py, ...   everything else it needs
+```
 
-### Core Layer
-
-The core layer defines the game world:
-
-- **GameObject** - Everything is a GameObject (rooms, players, items, exits)
-- **Action Propagation** - every game action flows through one two-pass pipeline ([details](events.md))
-- **Behaviors** - reusable brains attached to objects (wandering, shopkeeper, effects)
-- **Attributes & tags** - persistent data via `obj.db.attr`; mechanics are tag-driven
-
-### Persistence Layer
-
-The persistence layer handles saving and loading:
-
-- `Store` (`realm/persistence/store.py`) - the methods engine code may call on a
-  store; `PersistenceManager` (SQLite) and `MemoryStore` (in memory) provide them
-- Dirty tracking for efficient saves
-- Periodic flush to database
-- SQLite (WAL mode) today; the backend is a seam — Postgres is a
-  planned alternative, not yet implemented
+A feature that uses another without needing it asks for its service:
+`world.services.get("look")`, `"economy"`, `"social"`, `"talk"`, `"damage"`,
+`"combat"`; absent means the world lacks it.
 
 ## Data Flow: Command Execution
 
@@ -133,7 +130,8 @@ The persistence layer handles saving and loading:
         │   6. Messages render per looker; observers
         │      (softcode, stealth, combat) see it
         │
-        └─► Command not found? Call unknown_handler (softcode search)
+        └─► No command? The features' fallbacks (a typed exit name),
+            then the unknown handler (softcode $-commands)
 
 7. After handler completes: session.flush_output()
         │
@@ -167,6 +165,7 @@ One pipeline for every action decouples causes from effects:
 - **Extensible** - behaviors and softcode react to any action, no registration tables
 - **Vetoable** - the check pass lets locks and behaviors block before effects
 - **Observable** - stealth, combat auto-initiation, and logging are just observers
+  a feature declares
 
 ## Next Steps
 

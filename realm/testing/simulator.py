@@ -51,7 +51,6 @@ class Simulator:
         """
         from realm.features import load
         from realm.server.world import build_world
-        from realm.std import CLASSIC
 
         overrides: dict[str, Any] = {}
         if game_system is not None:
@@ -61,7 +60,7 @@ class Simulator:
         if features is not None:
             overrides["features"] = list(features)
         settings = replace(settings or Settings(), **overrides)
-        self.features = load(settings.features or CLASSIC)
+        self.features = load(settings.features)
         self.features.install_registries()
         self.store = MemoryStore()
         # Virtual clock: waits fire when the test pumps waits.tick(), not on

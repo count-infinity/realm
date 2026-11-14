@@ -181,6 +181,7 @@ class TestFollowCommands:
 
 
 @pytest.mark.asyncio
+@pytest.mark.features("rules", "effects", "social")
 class TestPartyCpSplit:
 
     async def test_kill_award_splits_across_party(self, world):

@@ -121,6 +121,14 @@ feature.setting("COMBAT_BEAT_DEFAULT", 15.0, "Default combat round, in seconds."
 
 
 @feature.on_install
+def _offer_damage(world) -> None:
+    """Other features deal typed damage through ``world.services["damage"]``
+    (``apply_resisted``, ``deal_damage``) when ``combat`` is in the world."""
+    from realm.std.combat import damage
+    world.services["damage"] = damage
+
+
+@feature.on_install
 def _start_combat(world) -> None:
     """Create the CombatManager. The ruleset is COMBAT_RULESET, else the
     game system's own pairing; hostile actions between combat-capable
@@ -140,6 +148,15 @@ def _start_combat(world) -> None:
     world.observe(manager.hostile_observer)
 
 
+@feature.on_install
+def _watch_vital_pools(world) -> None:
+    """Death and ``ON_HITPRCNT`` follow the vital pool, whatever moved it
+    (``realm.std.combat.vitals``)."""
+    from realm.std.combat.vitals import death_observer, threshold_observer
+    world.observe(death_observer)
+    world.observe(threshold_observer)
+
+
 @feature.on_boot
 async def _scrub_stale_combat_state(world) -> None:
     """Encounters do not survive a reboot, but the ``in_combat`` tag does.
@@ -155,15 +172,6 @@ async def _scrub_stale_combat_state(world) -> None:
             f"Cleared stale in_combat on {obj.name} (no encounter survives reboot)")
 
 
-async def _death_check(engine, frame, obj, killer) -> None:
-    """Queued by softcode damage(): a target at 0 HP dies through the manager."""
-    from realm.core.world import get_world
-    if int(obj.db.get('hp') or 0) <= 0:
-        manager = get_world().services.get("combat")
-        if manager is not None:
-            await manager.handle_death(obj, killer=killer)
-
-
 async def _start(engine, frame, obj, target) -> None:
     """Queued by softcode start_combat()."""
     from realm.core.world import get_world
@@ -172,7 +180,6 @@ async def _start(engine, frame, obj, target) -> None:
         await manager.initiate(obj, target)
 
 
-feature.queue_kind("death_check", _death_check)
 feature.queue_kind("combat", _start)
 
 
@@ -186,13 +193,15 @@ feature.event(CombatAction.ON_DAMAGE, hook="DAMAGE", doc="this object takes dama
               payload={"damage": "the amount (a ward may lower it)",
                        "damage_types": "amount per damage type"})
 feature.event(CombatAction.ON_DEATH, hook="DEATH",
-              doc=("this object goes down — any cause (a swing, poison, a trap, softcode "
-                   "damage). `adata('fatal')` is True for a real death (an NPC, now a "
-                   "corpse), False for a player knocked unconscious in place"),
+              doc=("this object goes down: its vital pool is spent, by any cause (a "
+                   "swing, poison, a trap, softcode damage). `adata('fatal')` is True "
+                   "when the body is gone (a corpse, or destroyed), False when it stays "
+                   "(unconscious, or `when_spent` is none)"),
               payload={"killer": "the killer's name (the killer object is actor)",
-                       "fatal": "True for a real death"})
+                       "fatal": "True when the body is gone"})
 feature.event(CombatAction.ON_HITPRCNT, hook="HITPRCNT",
-              doc="HP fell through this object's db.hitprcnt threshold",
+              doc=("the vital pool (HP) fell through this object's db.hitprcnt "
+                   "threshold, from any source: a swing, poison, a trap, softcode"),
               payload={"percent": "HP percent now", "threshold": "the crossed threshold"})
 feature.event(CombatAction.NARRATE, doc="combat narration")
 
@@ -202,3 +211,15 @@ feature.event(CombatAction.NARRATE, doc="combat narration")
 feature.softfn(softcode.damage, group='Combat & effects', harm=True)
 feature.softfn(softcode.heal, group='Combat & effects')
 feature.softfn(softcode.start_combat, group='Combat & effects')
+
+
+@feature.traversal_gate(reason="combat")
+async def _held_by_the_fight(actor, exit_obj, direction, *, fleeing):
+    """Mid-combat, leaving the room takes a flee attempt (``fleeing``); the
+    unconscious go nowhere."""
+    if actor.has_tag('unconscious'):
+        return "You are unconscious."
+    if actor.has_tag('in_combat') and not fleeing:
+        return "You're in the middle of combat — flee to escape!"
+    return None
+

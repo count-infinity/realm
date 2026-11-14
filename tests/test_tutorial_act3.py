@@ -24,7 +24,7 @@ from realm.core.beats import deliver_beat
 from realm.std.rules.checks import skill_level
 from realm.std.social.disposition import adjust_disposition, get_disposition
 from realm.std.social.party import leader_id
-from realm.std.wilderness import cells as wilderness
+from realm.std.wilderness import wilderness as wilderness
 from realm.testing import Simulator
 
 W = 0   # the tutorial types 4 (and 3 for the bequest); see module docstring

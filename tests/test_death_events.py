@@ -186,7 +186,8 @@ class TestOrderingAndArity:
 @pytest.mark.asyncio
 class TestRealSwingStillFires:
     """The regression that matters most: the announcement was REMOVED from
-    CombatSystem.attack. A swing must still fire it — via handle_defeat ->
+    CombatSystem.attack. A swing must still fire it — via the encounter
+    settling the blow, combat's observer on the spent vital pool, then
     handle_death — exactly once, not zero times and not twice.
     """
 

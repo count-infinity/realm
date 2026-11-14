@@ -17,6 +17,7 @@ from realm.scripting.lib import (  # noqa: F401  (imported to register)
     mathx,
     messaging,
     objects,
+    pools,
     scheduling,
     tags,
     text,

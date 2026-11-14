@@ -79,6 +79,7 @@ nav:
     - Add a Character Class: guides/add-a-class.md
     - Customize Character Creation: guides/custom-chargen.md
     - Skills & Classes as Data: guides/data-driven-rules.md
+    - Pools (Health & Resources): guides/pools.md
     - Abilities as Data: guides/abilities.md
     - Spells as Data: guides/spells.md
     - Resolution & Native Bindings: guides/resolution-and-bindings.md

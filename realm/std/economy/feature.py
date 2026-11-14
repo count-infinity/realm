@@ -77,3 +77,12 @@ feature.event(EconomyAction.PAYMENT, hook="PAYMENT", doc="this object was paid",
 feature.softfn(softcode.credits, group='Money', readonly=True)
 feature.softfn(softcode.adjust_credits, group='Money', harm=True)
 feature.softfn(softcode.transfer_credits, group='Money')
+
+
+@feature.on_install
+def _offer_money(world) -> None:
+    """Other features read and move money through
+    ``world.services["economy"]`` (``get_credits``, ``transfer_credits``,
+    ``currency_name``) when ``economy`` is in the world."""
+    from realm.std.economy import credits
+    world.services["economy"] = credits

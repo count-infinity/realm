@@ -7,14 +7,18 @@ Hiding, searching and lockpicking.
 from __future__ import annotations
 
 from realm.features import Feature
+from realm.std.stealth.behaviors import WatchfulBehavior
 from realm.std.stealth.commands import cmd_hide, cmd_pick, cmd_search
-from realm.std.stealth.hiding import hidden_from_sight, hidden_marker, stealth_observer
+from realm.std.stealth.stealth import hidden_from_sight, hidden_marker, stealth_observer
 
 feature = Feature(
     'stealth',
     requires=['rules', 'items'],
     doc='Hiding, searching and lockpicking.',
 )
+
+# Watchful observers challenge arrivals and contest the hidden.
+feature.behavior(WatchfulBehavior)
 
 feature.command('hide', cmd_hide, category='items', help_text='Hide (Stealth check)', usage='hide')
 feature.command(

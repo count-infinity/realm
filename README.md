@@ -66,6 +66,12 @@ does not want. See [Features](docs/guides/features.md).
 | rooms, items, NPCs, scripts | the game itself | `@dig`, `@create`, `@set`, softcode |
 | reusable content | a pack | `realm pack export` / `@pack` |
 
+Inside REALM itself the same rule holds: the kernel (`realm/core`,
+`scripting`, `server`, ...) holds mechanisms and imports no feature; every
+built-in is a feature package in `realm/std/<name>/` (game systems in
+`realm/games/<name>/`). `tests/test_boundaries.py` enforces it; see
+[Contributing](docs/development/contributing.md#where-new-code-goes).
+
 ## The example game
 
 A GURPS-flavored space station with an infiltration scenario, combat, and

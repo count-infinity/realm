@@ -40,6 +40,14 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from realm.core.defs import all_defs
+from realm.core.pools import (
+    damage_pool,
+    has_pool,
+    mend,
+    pool_max,
+    settle,
+    spend,
+)
 from realm.core.propagation import Action, deliver_messages, gate_action
 from realm.core.world import get_world
 from realm.std.combat.damage import apply_resisted, deal_damage, typed_damage_result
@@ -130,10 +138,14 @@ async def apply_typed_damage(target: GameObject, amount: int, dtype_name: str,
     manager = get_world().services.get("combat")
     if manager is not None:
         result = typed_damage_result(amount, dtype_name, magical=magical)
-        dealt, _action = await deal_damage(
+        dealt, _action, changes = await deal_damage(
             attacker, target, result, manager.combat_system.ruleset)
+        for change in changes:
+            await settle(change, source=attacker)
         return dealt
-    return apply_resisted(target, amount, dtype_name, magical=magical)
+    change = apply_resisted(target, amount, dtype_name, magical=magical)
+    await settle(change, source=attacker)
+    return change.total_applied
 
 
 # --- ability model (normalization) ------------------------------------------
@@ -287,7 +299,7 @@ async def _apply_ability(action: Action, actor: GameObject, adef: GameObject,
                          targets: list, cost: dict | None,
                          effects: list[dict]) -> bool:
     """Apply step: pay the (final) cost, then each effect to each target."""
-    if not _pay_cost(actor, cost, action):
+    if not await _pay_cost(actor, cost, action):
         return False
 
     system = _game_system()
@@ -306,8 +318,10 @@ async def _apply_ability(action: Action, actor: GameObject, adef: GameObject,
     return True
 
 
-def _pay_cost(actor: GameObject, cost: dict | None, action: Action) -> bool:
-    """Charge the ability's cost, or block the action like a ward veto."""
+async def _pay_cost(actor: GameObject, cost: dict | None, action: Action) -> bool:
+    """Charge the ability's cost, or block the action like a ward veto. A
+    ``pool`` cost is a ``realm.core.pools.spend``: it lowers a down pool
+    (mana) or raises an up pool (heat), all or nothing."""
     if not cost:
         return True
     if cost.get("pool"):
@@ -316,16 +330,16 @@ def _pay_cost(actor: GameObject, cost: dict | None, action: Action) -> bool:
         # (per-pool key first, e.g. mana_cost, then the generic cost).
         n = max(0, int(action.extra.get(
             f"{pool}_cost", action.extra.get("cost", cost.get("n") or 0))))
-        have = actor.db.get(pool)
-        if have is None:
+        if not has_pool(actor, pool):
             if not actor.is_npc and n > 0:
                 action.block(f"You have no {pool} to spend.")
                 return False
-        elif int(have) < n:
+            return True
+        change = spend(actor, pool, n)
+        if change is None:
             action.block(f"You don't have the {pool}.")
             return False
-        else:
-            actor.db.set(pool, int(have) - n)
+        await settle(change, source=actor)
         return True
     if cost.get("per_day"):
         # A counter toward a daily cap; reset is rest-driven (see BACKLOG —
@@ -373,13 +387,12 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
             target, amount, str(eff.get("damage_type") or "magical"),
             attacker=actor, magical=bool(eff.get("magical", True)))
         action.add_data("dealt", dealt)
-        await _death_check(target, killer=actor)
 
     elif etype == "heal":
-        hp, max_hp = target.db.get("hp"), target.db.get("max_hp")
-        if hp is not None and max_hp is not None:
+        pool = damage_pool(target)
+        if pool is not None and pool_max(target, pool) is not None:
             healed = roll_dice(eff.get("dice", "0"))
-            target.db.hp = min(int(max_hp), int(hp) + healed)
+            await settle(mend(target, pool, healed), source=actor)
             action.add_data("healed", healed)
 
     elif etype == "behavior":
@@ -403,12 +416,6 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
 
 def _game_system():
     return get_world().rules
-
-
-async def _death_check(target: GameObject, killer: GameObject) -> None:
-    manager = get_world().services.get("combat")
-    if manager is not None and int(target.db.get("hp") or 0) <= 0:
-        await manager.handle_death(target, killer=killer)
 
 
 __all__ = [

@@ -17,7 +17,7 @@ from realm.core.objects import GameObject
 from realm.core.world import get_world
 from realm.games.merc.ruleset import MercRuleset
 from realm.games.merc.system import MercSystem
-from realm.std.abilities.invoke import (
+from realm.std.abilities.abilities import (
     can_invoke,
     find_ability_def,
     invoke_ability,
@@ -173,7 +173,7 @@ class TestDamageIsInterceptable:
                      level=20)
         target = sim.obj("dummy", location=room)
         target.db.set("hp", 100)
-        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
+        monkeypatch.setattr("realm.std.abilities.abilities.random.randint",
                             lambda a, b: 4)               # 6d6 -> 24
         action = await invoke_ability(mage, fireball, target, verb="cast",
                                       domain="spell")

@@ -15,8 +15,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.std.instances import instancing as instances
-from realm.std.wilderness import cells as wilderness
+from realm.std.instances import instances as instances
+from realm.std.wilderness import wilderness as wilderness
 from realm.testing import Simulator
 
 IS_VALID = "result = 0 <= x <= 6 and 0 <= y <= 6"

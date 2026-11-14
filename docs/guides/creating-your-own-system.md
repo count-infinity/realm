@@ -186,13 +186,12 @@ class PercentileRuleset(Ruleset):
         self.scale_resistances(target, damage)   # the target's `resistances` map first
         dr = self._armor_dr(target)
         dealt = max(0, damage.total - dr)
-        target.set_stat("hp", target.get_stat("hp") - dealt)
         damage.resisted += damage.total - dealt
-        return dealt
+        return self.write_damage(target, dealt)   # into the target's damage pool
 
-    # 4) When is someone out of the fight?
-    def is_defeated(self, combatant):
-        return combatant.get_stat("hp", 0) <= 0
+    # 4) Out of the fight: the base class says "the vital pool is spent"
+    #    (hp at 0), the same moment combat's death observer runs. To fall
+    #    later, give the hp pool a lower spent_at in GameSystem.pools().
 
     # --- helpers ---------------------------------------------------------
     def _band(self, obj, prefix, default):
@@ -234,10 +233,14 @@ class PercentileRuleset(Ruleset):
   means the same thing in every game. Then it subtracts armor's
   **`DR × condition`** and adds the absorbed part to `damage.resisted` (for
   the "…but the mail turns most of it" message). So dodge avoids the hit; armor
-  softens the ones that land.
-- The combatant wrapper gives you `get_stat(name, default)` / `set_stat(...)` —
-  reads/writes straight to `obj.db`, so `hp`, `power`, `speed`, and your bands
-  are ordinary attributes.
+  softens the ones that land. It ends with `self.write_damage(target, dealt)`,
+  which lands the damage in the target's **damage pool** (`hp`, unless the
+  target names another: a ship's `shields`), soaked and spilling into the next
+  pool as [Pools](pools.md) describes. Don't write `hp` yourself: a ship or a
+  door in your game has no `hp`.
+- The combatant wrapper gives you `get_stat(name, default)` — reads straight
+  from `obj.db`, so `power`, `speed` and your bands are ordinary attributes —
+  and `vital`, `vital_max` and `vital_percent`, the target's vital pool.
 
 The **data** these read is plain attributes on ordinary objects:
 

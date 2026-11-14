@@ -49,13 +49,15 @@ def build_test_world(names: list[str], settings=None):
 
 
 @pytest.fixture
-def _bare_world():
-    yield from build_test_world([])
+def _bare_world(request):
+    marker = request.node.get_closest_marker("features")
+    yield from build_test_world(list(marker.args) if marker else [])
 
 
 @pytest.fixture
 def world(_bare_world):
-    """A built, installed world with no features (the bare kernel)."""
+    """A built, installed world with no features (the bare kernel), or the
+    features a ``@pytest.mark.features("look", ...)`` marker names."""
     return _bare_world
 
 

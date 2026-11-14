@@ -180,11 +180,14 @@ class TestLoad:
 
 
 @pytest.mark.asyncio
+@pytest.mark.features("combat")
 async def test_hitprcnt_fires_once_on_threshold_cross(world):
     """HP falling through db.hitprcnt fires event:on_hitprcnt exactly once —
-    the low-HP AI seam. Driven through the real combat system; the event is
+    the low-HP AI seam. Driven through the real combat system; settling the
+    blow runs combat's vital-pool observer (KERNEL_PLAN 8.3). The event is
     captured with a propagation observer (no softcode engine here)."""
     from realm.core.objects import GameObject
+    from realm.core.pools import settle
     from realm.core.world import get_world
     from realm.games.d20.ruleset import D20Ruleset
     from realm.std.combat.combatant import clear_combatant_cache
@@ -211,7 +214,9 @@ async def test_hitprcnt_fires_once_on_threshold_cross(world):
 
         combat = CombatSystem(ruleset=D20Ruleset())
         for _ in range(20):
-            await combat.attack(attacker, goblin)
+            result = await combat.attack(attacker, goblin)
+            for change in result.changes:
+                await settle(change, source=attacker)
             if fired:
                 break
 

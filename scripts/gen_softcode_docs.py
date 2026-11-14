@@ -22,6 +22,7 @@ GROUPS: list[str] = [
     "Money",
     "Messaging & prompts",
     "Dice & skill checks",
+    "Pools",
     "Combat & effects",
     "NPCs & behaviors",
     "Movement & travel",

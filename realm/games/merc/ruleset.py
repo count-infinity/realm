@@ -123,17 +123,10 @@ class MercRuleset(Ruleset):
     def apply_damage(self, target: Combatant, damage: DamageResult) -> int:
         # Diku armor does not mitigate damage (that was the to-hit roll), but
         # a creature's damage-type resistances do: scale each typed component
-        # by the target's ``resistances`` multipliers, then HP simply drops.
+        # by the target's ``resistances`` multipliers, then the damage pool
+        # simply drops.
         # Broad family keys (physical/magical) apply by DELIVERY — an
         # enchanted blade bypasses weapon immunity (ROM's magic weapons).
         # Softcode on_check wards already ran before this.
         self.scale_resistances(target, damage)
-        hp = target.get_stat("hp", 0)
-        dealt = max(0, damage.total)
-        target.set_stat("hp", hp - dealt)
-        return dealt
-
-    def is_defeated(self, combatant: Combatant) -> bool:
-        """Defeated at 0 HP (Diku goes to negatives before true death, but
-        0 ends the fight)."""
-        return combatant.get_stat("hp", 0) <= 0
+        return self.write_damage(target, max(0, damage.total))

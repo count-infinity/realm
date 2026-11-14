@@ -17,7 +17,7 @@ from realm.core.propagation import (
 )
 from realm.core.search import match_one
 from realm.std.economy.actions import EconomyAction
-from realm.std.economy.money import (
+from realm.std.economy.credits import (
     currency_name,
     get_credits,
     transfer_credits,

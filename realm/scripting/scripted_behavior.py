@@ -44,7 +44,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.behaviors import Behavior
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -179,8 +179,8 @@ class ScriptedBehavior(Behavior):
             await engine.run_behavior_script(obj, code, params=self._params)
 
 
-def _scripted_factory(behavior_id: str, params: dict[str, Any],
-                      strict: bool) -> ScriptedBehavior | None:
+def scripted_factory(behavior_id: str, params: dict[str, Any],
+                     strict: bool) -> ScriptedBehavior | None:
     """The registry's fallback for ids with no Python class.
 
     ``strict`` (attach time) requires the def to exist so a typo errors at
@@ -191,8 +191,6 @@ def _scripted_factory(behavior_id: str, params: dict[str, Any],
         return None
     return ScriptedBehavior(behavior_id, **params)
 
-
-BehaviorRegistry.set_scripted_factory(_scripted_factory)
 
 
 def report_unresolved(objects) -> list[str]:

@@ -58,6 +58,11 @@ ADDED = {'skill', 'check'}
 TO_DICT |= ADDED | {'use_ability', 'clone_obj', 'set_name', 'set_desc'}  # 3.5, 5.2
 READONLY |= ADDED
 HARM |= {'use_ability'}
+# The kernel's pool functions (KERNEL_PLAN 8.1).
+POOL_READS = {'pool', 'pool_max', 'has_pool', 'spent'}
+TO_DICT |= POOL_READS | {'harm_pool', 'mend_pool', 'spend_pool'}
+READONLY |= POOL_READS
+HARM |= {'harm_pool'}
 
 
 class TestParityWithTheOldLists:

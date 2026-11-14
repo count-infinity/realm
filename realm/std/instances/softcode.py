@@ -52,7 +52,7 @@ def enter_instance(
                        return_room='The Rusty Anchor', idle_ttl=600)
     """
     from realm.permissions.locks import LockType, check_lock
-    from realm.std.instances.instancing import ENTRY_TAG, TEMPLATE_TAG
+    from realm.std.instances.instances import ENTRY_TAG, TEMPLATE_TAG
 
     target = frame.resolve(player)
     if target is None:

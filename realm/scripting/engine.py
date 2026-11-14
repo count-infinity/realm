@@ -784,6 +784,10 @@ class ScriptEngine:
                 except ops.OpError as refused:
                     logger.info(f"Softcode destroy of {obj.name} ({obj.id}) refused: "
                                 f"{refused.reason}")
+            elif kind == 'pool_settle':
+                from realm.core.pools import settle
+                change, source = message
+                await settle(change, source=source)
             elif kind == 'wait':
                 seconds, command, wait_id = message
                 self.waits.schedule(obj, seconds, command, wait_id=wait_id)

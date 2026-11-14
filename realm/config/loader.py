@@ -85,6 +85,10 @@ class Settings:
         "Dotted import path to the GameSystem subclass that holds the rules "
         "(chargen, checks, advancement, combat pairing, currency). Choose it "
         "once, before the first character is created.")
+    damage_pool: str = setting(
+        "hp", "DAMAGE_POOL",
+        "The pool harm lands in first, for an object that does not set its "
+        "own `damage_pool` attribute (docs/guides/pools.md).", check=_non_empty)
     encoding: str = setting(
         "utf-8", "ENCODING",
         "Text encoding for telnet input and output (`latin-1` or `cp437` "
@@ -163,11 +167,11 @@ class Settings:
         30.0, "FLUSH_INTERVAL", "Seconds between saves of changed objects to the database.")
 
     # --- Features ---
-    features: list[str] | None = setting(
-        None, "FEATURES",
-        "The features this game is made of, by name or module path. Unset, every "
-        "built-in feature (`realm.std.CLASSIC`). A game lists its own module too: "
-        "`FEATURES = [*CLASSIC, \"game\"]`.")
+    features: list[str] | str = setting(
+        "realm.std.CLASSIC", "FEATURES",
+        "The features this game is made of, by name or module path, or a dotted "
+        "path to such a list. Unset, every built-in feature (`realm.std.CLASSIC`). "
+        "A game lists its own module too: `FEATURES = [*CLASSIC, \"game\"]`.")
 
     # --- Callbacks: functions of the same name in config.py ---
     init_world: Callable[[GameServer], Awaitable[None]] | None = callback(
@@ -208,10 +212,9 @@ KNOWN_CONFIG_KEYS = frozenset(
 
 def known_config_keys(feature_names=None) -> frozenset[str]:
     """The kernel keys plus every key the named features declare
-    (default: ``realm.std.CLASSIC``)."""
+    (default: the ``FEATURES`` default, ``realm.std.CLASSIC``)."""
     from realm.features import load
-    from realm.std import CLASSIC
-    return KNOWN_CONFIG_KEYS | frozenset(load(feature_names or CLASSIC).settings)
+    return KNOWN_CONFIG_KEYS | frozenset(load(feature_names).settings)
 
 
 def _warn_near_miss_keys(user_config: dict[str, Any],

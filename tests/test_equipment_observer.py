@@ -19,7 +19,7 @@ from realm.core.world import get_world
 from realm.games.gurps.system import GurpsSystem
 from realm.games.merc.system import MercSystem
 from realm.gateway.session import Session
-from realm.std.items.manipulation import cmd_unwear, cmd_wear
+from realm.std.items.commands import cmd_unwear, cmd_wear
 from realm.std.rules.system import equipment_observer
 
 

@@ -12,7 +12,7 @@ from __future__ import annotations
 import pytest
 
 from realm.core.world import get_world
-from realm.std.npc.behaviors import StealBehavior
+from realm.std.crime.behaviors import StealBehavior
 from realm.std.spawning.spawner import PopulationBehavior
 from realm.testing import Simulator
 
@@ -137,15 +137,15 @@ class TestSteal:
             thief = sim.obj("a cutpurse", location=room, tags=["npc"])
             mark = sim.player("Mark", location=room)
             mark.db.set("credits", 100)
-            monkeypatch.setattr("realm.std.npc.behaviors.random.random",
+            monkeypatch.setattr("realm.std.crime.behaviors.random.random",
                                 lambda: 0.0)            # always try
-            monkeypatch.setattr("realm.std.npc.behaviors.random.randint",
+            monkeypatch.setattr("realm.std.crime.behaviors.random.randint",
                                 lambda a, b: b)          # take the max
-            monkeypatch.setattr("realm.std.npc.behaviors.contest",
+            monkeypatch.setattr("realm.std.crime.behaviors.contest",
                                 lambda *a, **k: True)    # the thief wins
             beh = StealBehavior(max_take=30, flee=True)
             await beh.tick(thief, 4.0)
-            from realm.std.economy.money import get_credits
+            from realm.std.economy.credits import get_credits
             assert get_credits(mark) == 70               # 30 lifted
             assert get_credits(thief) == 30
             assert thief.location is exit_room           # slipped away
@@ -159,12 +159,12 @@ class TestSteal:
             thief = sim.obj("a cutpurse", location=room, tags=["npc"])
             mark = sim.player("Mark", location=room)
             mark.db.set("credits", 100)
-            monkeypatch.setattr("realm.std.npc.behaviors.random.random",
+            monkeypatch.setattr("realm.std.crime.behaviors.random.random",
                                 lambda: 0.0)
-            monkeypatch.setattr("realm.std.npc.behaviors.contest",
+            monkeypatch.setattr("realm.std.crime.behaviors.contest",
                                 lambda *a, **k: False)   # caught
             await StealBehavior().tick(thief, 4.0)
-            from realm.std.economy.money import get_credits
+            from realm.std.economy.credits import get_credits
             assert get_credits(mark) == 100              # nothing taken
             assert any("pick your pocket" in m for m in sim.seen(mark))
         finally:
@@ -178,13 +178,13 @@ class TestSteal:
             admin = sim.player("Wiz", location=room)
             admin.add_tag("admin")
             admin.db.set("credits", 100)
-            monkeypatch.setattr("realm.std.npc.behaviors.random.random",
+            monkeypatch.setattr("realm.std.crime.behaviors.random.random",
                                 lambda: 0.0)
             called = []
-            monkeypatch.setattr("realm.std.npc.behaviors.contest",
+            monkeypatch.setattr("realm.std.crime.behaviors.contest",
                                 lambda *a, **k: called.append(1) or True)
             await StealBehavior().tick(thief, 4.0)
-            from realm.std.economy.money import get_credits
+            from realm.std.economy.credits import get_credits
             assert get_credits(admin) == 100 and not called  # never tried
         finally:
             sim.close()

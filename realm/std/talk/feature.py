@@ -145,3 +145,13 @@ feature.event(TalkAction.SEMIPOSE, doc="semipose", payload={"pose": "the pose te
               speech=True, target_lock=("speech", "You can't emote here."))
 feature.event(TalkAction.EMIT, doc="emit", payload={"message": "the emitted text"},
               listen=True, target_lock=("speech", "You can't emit here."))
+
+
+@feature.on_install
+def _offer_speech(world) -> None:
+    """Other features make an NPC speak through ``world.services["talk"]``
+    (``npc_say``) when ``talk`` is in the world."""
+    from types import SimpleNamespace
+
+    from realm.std.talk.verbs import npc_say
+    world.services["talk"] = SimpleNamespace(npc_say=npc_say)

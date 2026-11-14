@@ -17,10 +17,17 @@ from realm.core.movement import (
     resolve_exit_destination,
 )
 from realm.core.search import AmbiguousMatchError, match_one
-from realm.std.look.render import render_room
+from realm.core.world import get_world
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
+
+
+async def _show_room(ctx: CommandContext) -> None:
+    """Show the room the walker arrived in, when the world has ``look``."""
+    look = get_world().services.get("look")
+    if look is not None:
+        await ctx.session.send(look.render_room(ctx.player.location, ctx.player))
 
 
 async def walk(ctx: CommandContext, exit_obj: GameObject, direction: str) -> None:
@@ -33,7 +40,7 @@ async def walk(ctx: CommandContext, exit_obj: GameObject, direction: str) -> Non
         moved = await fire_exit_fail(
             ctx.player, exit_obj, 'no_destination', direction=direction)
         if moved:
-            await ctx.session.send(render_room(ctx.player.location, ctx.player))
+            await _show_room(ctx)
         else:
             await ctx.session.send(
                 exit_obj.db.get('fail_msg')
@@ -47,7 +54,7 @@ async def walk(ctx: CommandContext, exit_obj: GameObject, direction: str) -> Non
         return
 
     # Show the new room (resolved by the traversal for a deferred exit).
-    await ctx.session.send(render_room(ctx.player.location, ctx.player))
+    await _show_room(ctx)
 
 
 def exit_by_name(room: GameObject, name: str) -> GameObject | None:

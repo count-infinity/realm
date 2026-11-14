@@ -53,6 +53,11 @@ the next. A test that needs a world takes a fixture:
 | `classic_world_unscripted` | every built-in feature, scripting off: the test wires its own `ScriptEngine` |
 | `configure` | `configure(emote_sigil="@")` changes the bare world's settings |
 
+`@pytest.mark.features("rules", "effects", "social")` on a test or class
+makes `world` (and `configure`) a world of exactly those features instead
+of a bare one: the way to test one feature's integration with another
+(a shop's prices reading `social`'s dispositions) without the whole set.
+
 To hand-wire a service, set it on the world. There is nothing to restore;
 the world closes after the test:
 

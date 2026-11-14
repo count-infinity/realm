@@ -3,8 +3,8 @@ Features: how code joins a REALM world.
 
 A *feature* is a named bundle of declarations: commands, behaviors,
 softcode functions, propagation observers, combat rulesets, destination
-resolvers, reapers, softcode queue kinds, check modifiers, protocols and
-config settings. A game is a list of features (``FEATURES`` in
+resolvers, reapers, softcode queue kinds, check modifiers, protocols,
+pool definitions and config settings. A game is a list of features (``FEATURES`` in
 ``config.py``); the built-in ones live in ``realm/std/`` and
 ``realm/games/`` and use exactly this API.
 
@@ -33,6 +33,7 @@ every built-in.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import logging
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -105,6 +106,7 @@ class Feature:
         self.speech_renderers: list[Callable] = []
         self.group_formatters: list[tuple[Callable, bool]] = []
         self.protocols: list[tuple[str, type, dict[str, Any]]] = []
+        self.pools: list[tuple[Any, bool]] = []
         self.settings: dict[str, tuple[Any, str]] = {}
         self.script_verbs: list[Any] = []
         self.events: list[Any] = []
@@ -113,6 +115,7 @@ class Feature:
         self.audiences: dict[str, Callable] = {}
         self.def_kinds: list[Any] = []
         self.install_hooks: list[Callable] = []
+        self.reload_hooks: list[Callable] = []
         self.boot_hooks: list[Callable] = []
         self.close_hooks: list[Callable] = []
 
@@ -287,9 +290,9 @@ class Feature:
 
     def traversal_gate(self, fn: Callable | None = None, *, reason: str = "gate",
                        attrs: Sequence[str] = ()):
-        """Declare an ``async (actor, exit_obj, direction) -> str | None``
-        asked before anyone walks through an exit. A string blocks the move
-        with that message; ``event:on_fail`` fires with ``reason``. ``attrs``
+        """Declare an ``async (actor, exit_obj, direction, *, fleeing) ->
+        str | None`` asked before anyone walks (``exit_obj`` may be None). A
+        string blocks the move with that message; ``event:on_fail`` fires with ``reason``. ``attrs``
         names the exit attributes the gate reads, so ``@examine`` can say
         they do nothing in a world without this feature."""
         def declare(f: Callable) -> Callable:
@@ -362,6 +365,13 @@ class Feature:
         """Declare a protocol server, started with ``(session_manager, on_command, **kwargs)``."""
         self.protocols.append((name, cls, kwargs))
 
+    def pool(self, pool: Any, *, replace: bool = False) -> None:
+        """Declare a world-default pool definition (``realm.core.pools.Pool``):
+        how ``shields`` or ``hull`` behaves on every object that has one and
+        does not define it in its own ``pools`` attribute."""
+        from dataclasses import replace as with_fields
+        self.pools.append((with_fields(pool, owner=self.name), replace))
+
     def setting(self, key: str, default: Any, doc: str = "") -> None:
         """Declare a ``config.py`` key this feature reads (``world.setting(key)``)."""
         self.settings[key] = (default, doc)
@@ -369,6 +379,13 @@ class Feature:
     def on_install(self, fn: Callable) -> Callable:
         """``(world) -> None``, run synchronously by ``install_runtime``."""
         self.install_hooks.append(fn)
+        return fn
+
+    def on_reload(self, fn: Callable) -> Callable:
+        """Declare a ``(world) -> None`` run when the world's data is reloaded
+        (``@reload``, an area or pack import): ``rules`` re-reads its skill
+        table."""
+        self.reload_hooks.append(fn)
         return fn
 
     def on_boot(self, fn: Callable) -> Callable:
@@ -384,9 +401,43 @@ class Feature:
 
 # --- loading -----------------------------------------------------------------
 
+#: Where a built-in feature named ``x`` is declared, first match wins.
+BUILTIN_ROOTS = ("realm.std", "realm.games")
+
+
+def default_features() -> list[str]:
+    """The ``FEATURES`` default (``Settings``), as a list of names."""
+    from realm.config.loader import Settings
+    return feature_names(Settings().features)
+
+
+def feature_names(spec: Sequence[str] | str | None) -> list[str]:
+    """``spec`` as a list of feature names: a list as is, a dotted path to a
+    list (``"realm.std.CLASSIC"``) imported, None the default."""
+    if spec is None:
+        return default_features()
+    if isinstance(spec, str):
+        module_path, _, attr = spec.rpartition(".")
+        try:
+            return list(getattr(importlib.import_module(module_path), attr))
+        except (ImportError, AttributeError, ValueError) as exc:
+            raise FeatureError(f"FEATURES = {spec!r}: not a dotted path to a list of "
+                               f"feature names ({exc})") from exc
+    return list(spec)
+
+
+def _module_path(name: str) -> str:
+    """A built-in name (``talk``) by convention, else the name as a module
+    path (``game`` is the game's ``game.py``)."""
+    if "." not in name:
+        for root in BUILTIN_ROOTS:
+            if importlib.util.find_spec(f"{root}.{name}") is not None:
+                return f"{root}.{name}.feature"
+    return name
+
+
 def _resolve(name: str, required_by: str | None) -> Feature:
-    from realm.std import BUILTIN
-    path = BUILTIN.get(name, name)
+    path = _module_path(name)
     who = f" (required by {required_by!r})" if required_by else ""
     try:
         module = importlib.import_module(path)
@@ -394,8 +445,8 @@ def _resolve(name: str, required_by: str | None) -> Feature:
         if exc.name and path.startswith(exc.name):
             raise FeatureError(
                 f"feature {name!r}{who}: no module {path!r}. A built-in name is one of "
-                f"{sorted(BUILTIN)}; anything else is a module path on sys.path "
-                f"(the game directory is on it).") from exc
+                f"{sorted(default_features())}; anything else is a module path on "
+                f"sys.path (the game directory is on it).") from exc
         raise
     feature = getattr(module, "feature", None)
     if not isinstance(feature, Feature):
@@ -404,11 +455,12 @@ def _resolve(name: str, required_by: str | None) -> Feature:
     return feature
 
 
-def load(names: Sequence[str]) -> FeatureSet:
-    """Resolve, check and order the named features."""
+def load(names: Sequence[str] | str | None = None) -> FeatureSet:
+    """Resolve, check and order the named features (a list, a dotted path
+    to one, or None for the ``FEATURES`` default)."""
     features: list[Feature] = []
     seen: dict[str, Feature] = {}
-    for name in names:
+    for name in feature_names(names):
         if name in seen:
             continue
         feature = _resolve(name, None)
@@ -493,6 +545,7 @@ class FeatureSet:
         kind_names = _Claims("definition kind")
         formatters = _Claims("group formatter")
         logins = _Claims("login handler")
+        pool_names = _Claims("pool")
         from realm.core.defs import kernel_kinds
         for dk in kernel_kinds():
             kind_names.claim(dk.name, dk.tag, "kernel", False)
@@ -536,6 +589,8 @@ class FeatureSet:
                 formatters.claim("group_formatter", fn, f.name, replace)
             for fn in f.logins:
                 logins.claim("login", fn, f.name, False)
+            for pool, replace in f.pools:
+                pool_names.claim(pool.name, pool, f.name, replace)
             for dk in f.def_kinds:
                 kind_names.claim(dk.name, dk, f.name, False)
             for aname, resolver in f.audiences.items():
@@ -563,7 +618,6 @@ class FeatureSet:
         global _installed
         from realm.core.behaviors import BehaviorRegistry
         from realm.scripting import registry
-        from realm.std.combat.system import RulesetRegistry
 
         behaviors: dict[str, type] = {cls.behavior_id: cls for cls in _kernel_behaviors()}
         rulesets: dict[str, type] = {}
@@ -579,7 +633,8 @@ class FeatureSet:
                     fn.name, fn.fn, fn.group, fn.readonly, fn.harm,
                     fn.takes_frame, fn.subject, owner=f.name))
         BehaviorRegistry._behaviors = behaviors
-        RulesetRegistry._rulesets = rulesets
+        _RULESETS.clear()
+        _RULESETS.update(rulesets)
         registry.activate({"kernel", *self.names}, functions)
         from realm.scripting import verbs as verb_registry
         verb_registry.install([pair for f in self.features for pair in f.script_verbs])
@@ -618,6 +673,7 @@ class FeatureSet:
             for fn in f.fallbacks:
                 world.dispatcher.add_fallback(fn)
             world.input_interceptors.extend(f.input_interceptors)
+            world.reload_hooks.extend(f.reload_hooks)
             for fn in f.logins:
                 world.dispatcher.set_login_handler(fn)
             world.traversal_gates.extend(f.traversal_gates)
@@ -632,6 +688,8 @@ class FeatureSet:
                 world.scripts.queue_kinds.update(f.queue_kinds)
             world.reapers.extend(f.reapers)
             world.protocols.extend(f.protocols)
+            for pool, _replace in f.pools:
+                world.pools[pool.name] = pool
         world.input_interceptors.sort(key=lambda pair: pair[0])
         for f in self.features:
             for hook in f.install_hooks:
@@ -657,7 +715,6 @@ class FeatureSet:
 
 def _kernel_behaviors() -> list[type]:
     """Behaviors of the kernel's scripting runtime: always installed."""
-    import realm.scripting.scripted_behavior  # noqa: F401  (installs the behavior_def fallback)
     from realm.scripting.ticker import ScriptTickerBehavior
     return [ScriptTickerBehavior]
 
@@ -669,14 +726,14 @@ _installing_default = False
 
 
 def install_default() -> None:
-    """Install the ``CLASSIC`` registries (the state with no live world)."""
+    """Install the default features' registries (``CLASSIC``: the state
+    with no live world)."""
     global _installing_default
     if _installing_default:
         return
     _installing_default = True
     try:
-        from realm.std import CLASSIC
-        load(CLASSIC).install_registries()
+        load().install_registries()
     finally:
         _installing_default = False
 
@@ -685,6 +742,18 @@ def ensure_registries() -> None:
     """Install the default registries on first use."""
     if _installed is None:
         install_default()
+
+
+#: The installed features' combat rulesets, by name (``feature.ruleset``);
+#: the ``combat`` feature's ``RulesetRegistry`` reads it.
+_RULESETS: dict[str, type] = {}
+
+
+def ruleset_table() -> dict[str, type]:
+    """The installed rulesets by name (the CLASSIC set when no world is live).
+    Mutable: ``RulesetRegistry.register`` adds to it (tests)."""
+    ensure_registries()
+    return _RULESETS
 
 
 def installed() -> FeatureSet | None:
@@ -697,10 +766,9 @@ def unloaded_attribute_owners(attrs: Iterable[str], loaded: Iterable[str]) -> di
     feature is not among ``loaded``: attribute -> feature name. ``@examine``
     uses it to say a ``check_skill`` does nothing in a world without
     ``rules``."""
-    from realm.std import BUILTIN
     wanted, have = set(attrs), set(loaded)
     out: dict[str, str] = {}
-    for name in BUILTIN:
+    for name in default_features():
         if name in have or not wanted:
             continue
         for attr in _resolve(name, None).attributes:
@@ -709,5 +777,6 @@ def unloaded_attribute_owners(attrs: Iterable[str], loaded: Iterable[str]) -> di
     return out
 
 
-__all__ = ["Feature", "FeatureError", "FeatureSet", "load", "install_default",
+__all__ = ["Feature", "FeatureError", "FeatureSet", "load", "feature_names",
+           "default_features", "install_default",
            "ensure_registries", "installed", "unloaded_attribute_owners"]

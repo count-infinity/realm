@@ -18,17 +18,18 @@ from realm.core.objects import GameObject
 from realm.core.perception import can_see, can_see_room
 from realm.core.world import get_world
 from realm.gateway.session import Session
-from realm.std.items.inventory import cmd_get
-from realm.std.items.manipulation import (
+from realm.std.items.commands import (
     cmd_open,
     cmd_unwear,
     cmd_use,
     cmd_wear,
 )
-from realm.std.npc.behaviors import PatrolBehavior, WatchfulBehavior
+from realm.std.items.inventory import cmd_get
+from realm.std.npc.behaviors import PatrolBehavior
 from realm.std.rules.checks import CheckResult, check, checks, contest, skill_level
+from realm.std.stealth.behaviors import WatchfulBehavior
 from realm.std.stealth.commands import cmd_hide, cmd_pick, cmd_search
-from realm.std.stealth.hiding import hidden_from_sight, hidden_marker, stealth_observer
+from realm.std.stealth.stealth import hidden_from_sight, hidden_marker, stealth_observer
 from realm.std.talk.commands import cmd_say
 
 
@@ -180,7 +181,7 @@ class TestDoors:
         key = GameObject("brass key", location=raven, tags=["thing"])
         key.db.unlocks = "vault"
 
-        from realm.std.items.manipulation import cmd_unlock_item
+        from realm.std.items.commands import cmd_unlock_item
         await cmd_unlock_item(make_ctx(sess, "door"))
 
         assert not door.has_tag("locked")
@@ -405,6 +406,7 @@ class TestStealth:
 
 
 @pytest.mark.asyncio
+@pytest.mark.features("talk")
 class TestNPCBehaviors:
 
     async def test_watchful_spots_weak_sneak(self):

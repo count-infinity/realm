@@ -114,6 +114,10 @@ _EXIT = {"exit": "the exit object", "direction": "the exit's name",
          "destination": "the room beyond"}
 
 
+_POOL = {"pool": "the pool's name", "old": "its value before", "new": "its value after",
+         "applied": "how much this pool took", "source": "who caused it, or None"}
+
+
 def kernel_events() -> list[EventDef]:
     """Movement, perception, session and object-lifecycle events."""
     return [
@@ -140,6 +144,12 @@ def kernel_events() -> list[EventDef]:
         EventDef(ActionType.ON_RESET, "RESET",
                  "this zone master resets (empty + due) — repop, re-lock doors"),
         EventDef(None, "TICK", "periodic timer (on_tick behavior)"),
+        EventDef(ActionType.POOL_CHANGE, "POOL",
+                 "one of this object's pools changed (damage, healing, a cost)",
+                 payload=dict(_POOL)),
+        EventDef(ActionType.POOL_SPENT, "SPENT",
+                 "one of this object's pools was just used up (the change that "
+                 "crossed into spent)", payload=dict(_POOL)),
     ]
 
 

@@ -32,6 +32,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from realm.core.pools import Pool
 from realm.std.items.actions import ItemAction
 
 if TYPE_CHECKING:
@@ -106,6 +107,13 @@ class GameSystem(ABC):
     ruleset_name: str = "d20"
     #: what money is called in this rules package
     currency_name: str = "credits"
+
+    # --- Pools ---
+
+    def pools(self) -> list[Pool]:
+        """World-default pool definitions (``realm.core.pools``): how this
+        game's health and resources behave on any object that has them."""
+        return [Pool("hp")]
 
     # --- Skills & checks ---
 

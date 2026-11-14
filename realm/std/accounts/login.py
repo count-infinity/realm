@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 from realm.core.action_types import ActionType
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 from realm.std.accounts.auth import AuthService
-from realm.std.look.render import render_room
 
 if TYPE_CHECKING:
     from realm.commands.dispatcher import CommandContext
@@ -98,7 +97,7 @@ class Accounts:
             return
 
         await self.announce_connect(player, returning=True)
-        await session.send(render_room(player.location, player))
+        await self.show_room(session, player)
 
     async def create(self, session: Session, name: str, password: str) -> None:
         """``create <name> <password>``."""
@@ -183,7 +182,7 @@ class Accounts:
         await self.world.store.save(player)
         await session.send(f"\nWelcome to the world, {player.name}!\n")
         await self.announce_connect(player, returning=False)
-        await session.send(render_room(player.location, player))
+        await self.show_room(session, player)
 
     async def announce_connect(self, player: GameObject, *, returning: bool) -> None:
         """Tell the player and bystanders that the player has connected."""
@@ -202,6 +201,12 @@ class Accounts:
             action.add_message("actor", f"\nWelcome back, {player.name}!\n")
         action.add_message("room", f"{{actor}} {verb}.")
         await propagate(action)
+
+    async def show_room(self, session: Session, player: GameObject) -> None:
+        """Show the player's room, when the world has ``look``."""
+        look = self.world.services.get("look")
+        if look is not None:
+            await session.send(look.render_room(player.location, player))
 
     async def who(self, session: Session) -> None:
         """``who`` at the login prompt: who is online."""

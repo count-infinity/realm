@@ -43,12 +43,12 @@ class TestDefault:
 class TestFeatureDeclarations:
 
     def test_redeclaring_a_shipped_name_is_a_collision(self):
-        shipped = load(["rules", "gurps"]).features
+        shipped = load(["rules", "items", "combat", "gurps"]).features
         with pytest.raises(FeatureError, match="'gurps'.*'house'"):
             FeatureSet([*shipped, _house(replace=False)])
 
     def test_replace_overrides_and_keeps_the_others(self):
-        shipped = load(["rules", "gurps", "d20", "merc"]).features
+        shipped = load(["rules", "items", "combat", "gurps", "d20", "merc"]).features
         FeatureSet([*shipped, _house(replace=True)]).install_registries()
         assert RulesetRegistry.get("gurps") is HouseGurps
         assert RulesetRegistry.get("d20") is D20Ruleset

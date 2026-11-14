@@ -12,6 +12,17 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from realm.core.pools import (
+    PoolChange,
+    damage_pool,
+    harm,
+    mend,
+    pool_get,
+    pool_max,
+    pool_percent,
+    vital_pool,
+)
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -46,6 +57,8 @@ class Combatant:
         self._state = CombatState.IDLE
         self._combat_modifiers: dict[str, int] = {}
         self._target: Combatant | None = None
+        #: pool changes made through this wrapper, not yet settled
+        self.changes: list[PoolChange] = []
 
     @property
     def obj(self) -> GameObject:
@@ -148,77 +161,69 @@ class Combatant:
         """Clear all temporary modifiers."""
         self._combat_modifiers.clear()
 
-    # --- HP Management ---
+    # --- Pools (realm.core.pools) ---
 
     @property
-    def hp(self) -> int:
-        """Current hit points."""
-        return self.get_stat('hp', 0)
-
-    @hp.setter
-    def hp(self, value: int) -> None:
-        self.set_stat('hp', value)
+    def vital(self) -> int:
+        """The vital pool's value (``hp`` for a character, ``hull`` for a
+        ship whose shields take damage first); 0 without one."""
+        name = vital_pool(self._obj)
+        return 0 if name is None else int(pool_get(self._obj, name) or 0)
 
     @property
-    def max_hp(self) -> int:
-        """Maximum hit points."""
-        return self.get_stat('max_hp', self.get_stat('hp', 10))
-
-    @property
-    def hp_percent(self) -> float:
-        """HP as a percentage of max."""
-        max_hp = self.max_hp
-        if max_hp <= 0:
-            return 0.0
-        return self.hp / max_hp
-
-    def take_damage(self, amount: int) -> int:
-        """
-        Take damage, reducing HP.
-
-        Args:
-            amount: Damage to take (positive)
-
-        Returns:
-            Actual damage taken
-        """
-        if amount <= 0:
+    def vital_max(self) -> int:
+        """The vital pool's maximum, or its value when unbounded."""
+        name = vital_pool(self._obj)
+        if name is None:
             return 0
+        maximum = pool_max(self._obj, name)
+        return self.vital if maximum is None else maximum
 
-        old_hp = self.hp
-        new_hp = max(0, old_hp - amount)
-        self.hp = new_hp
+    @property
+    def vital_percent(self) -> float:
+        """How much of the vital pool is left before it is spent, as a
+        fraction (1.0 fresh, 0.0 spent; an up pool counts what remains below
+        its max). An unbounded pool with something in it is 1.0."""
+        name = vital_pool(self._obj)
+        if name is None:
+            return 0.0
+        percent = pool_percent(self._obj, name)
+        if percent is None:
+            return 1.0 if self.vital > 0 else 0.0
+        return percent / 100
 
-        actual_damage = old_hp - new_hp
-        return actual_damage
+    def take_damage(self, amount: int, *, soak: bool = False) -> int:
+        """Harm the damage pool (spilling down its overflow chain). The
+        change waits in ``changes`` until the caller settles it. Returns the
+        total the pools took."""
+        name = damage_pool(self._obj)
+        if amount <= 0 or name is None:
+            return 0
+        change = harm(self._obj, name, amount, soak=soak)
+        self.changes.append(change)
+        return change.total_applied
 
     def heal(self, amount: int) -> int:
-        """
-        Heal, restoring HP.
-
-        Args:
-            amount: Amount to heal (positive)
-
-        Returns:
-            Actual amount healed
-        """
-        if amount <= 0:
+        """Mend the damage pool. Returns the amount mended."""
+        name = damage_pool(self._obj)
+        if amount <= 0 or name is None:
             return 0
+        change = mend(self._obj, name, amount)
+        self.changes.append(change)
+        return change.applied
 
-        old_hp = self.hp
-        max_hp = self.max_hp
-        new_hp = min(max_hp, old_hp + amount)
-        self.hp = new_hp
-
-        actual_healing = new_hp - old_hp
-        return actual_healing
+    def drain_changes(self) -> list[PoolChange]:
+        """The unsettled pool changes, oldest first; clears them."""
+        out, self.changes = self.changes, []
+        return out
 
     # --- Equipment ---
 
     # --- Utility ---
 
     def __repr__(self) -> str:
-        return f"<Combatant {self.name} HP:{self.hp}/{self.max_hp} state:{self.state.name}>"
+        return (f"<Combatant {self.name} vital:{self.vital}/{self.vital_max} "
+                f"state:{self.state.name}>")
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Combatant):

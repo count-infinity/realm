@@ -7,8 +7,8 @@ Disposition, persuasion, following and parties.
 from __future__ import annotations
 
 from realm.features import Feature
-from realm.std.effects.behaviors import DispositionBoostBehavior
 from realm.std.social import softcode
+from realm.std.social.behaviors import DispositionBoostBehavior
 from realm.std.social.commands import (
     cmd_fasttalk,
     cmd_follow,
@@ -20,7 +20,7 @@ from realm.std.social.commands import (
 
 feature = Feature(
     'social',
-    requires=['rules'],
+    requires=['rules', 'effects'],
     doc='Disposition, persuasion, following and parties.',
 )
 
@@ -89,3 +89,17 @@ async def bring_followers(actor, origin, destination, exit_obj, *, fleeing):
 feature.softfn(softcode.disposition, group='NPCs & behaviors', readonly=True)
 feature.softfn(softcode.adjust_disposition, group='NPCs & behaviors')
 feature.softfn(softcode.reaction_roll, group='NPCs & behaviors')
+
+
+@feature.on_install
+def _offer_social(world) -> None:
+    """Other features ask ``world.services["social"]`` how an NPC feels
+    (``get_disposition``, ``adjust_disposition``) and who travels together
+    (``party_members``) when ``social`` is in the world."""
+    from types import SimpleNamespace
+
+    from realm.std.social.disposition import adjust_disposition, get_disposition
+    from realm.std.social.party import party_members
+    world.services["social"] = SimpleNamespace(
+        get_disposition=get_disposition, adjust_disposition=adjust_disposition,
+        party_members=party_members)

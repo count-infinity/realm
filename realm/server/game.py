@@ -66,7 +66,7 @@ class GameServer:
         self.settings = replace(settings or Settings(), **overrides)
         cfg = self.settings
         # Built by start() (build_world); dispatcher, script_engine,
-        # combat_manager and game_system read it.
+        # game_system reads it.
         self.world: World | None = None
 
         # Core components
@@ -166,11 +166,6 @@ class GameServer:
         return self.world.scripts if self.world is not None else None
 
     @property
-    def combat_manager(self) -> Any:
-        """The combat feature's manager (``world.services['combat']``), if installed."""
-        return self.world.services.get("combat") if self.world is not None else None
-
-    @property
     def game_system(self) -> Any | None:
         return self.world.rules if self.world is not None else None
 
@@ -182,8 +177,7 @@ class GameServer:
         # destination resolvers, softcode functions) install BEFORE the world
         # loads, so a saved behavior always finds its class.
         from realm.features import load
-        from realm.std import CLASSIC
-        features = load(self.settings.features or CLASSIC)
+        features = load(self.settings.features)
         features.install_registries()
 
         # Initialize persistence

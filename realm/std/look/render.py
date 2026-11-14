@@ -18,7 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from realm.core.language import numbered_name
+from realm.core.language import group_contents, numbered_name
 from realm.core.markup import wrap
 from realm.core.perception import can_see, can_see_room, display_markers
 from realm.core.world import find_world
@@ -44,34 +44,6 @@ def group_formatter() -> GroupFormatter:
     if world is not None and world.group_formatter is not None:
         return world.group_formatter
     return default_group_formatter
-
-
-def group_contents(objects: list[GameObject]) -> list[tuple[GameObject, int]]:
-    """
-    Group visually identical objects for display.
-
-    Groups by lowercased name, preserving first-seen order; objects
-    tagged ``no_group`` stand alone. Returns (representative, count)
-    pairs. O(n) — a hash pass, safe for very full rooms.
-    """
-    groups: dict[str, tuple[GameObject, int]] = {}
-    order: list[str] = []
-    solo_key = 0
-
-    for obj in objects:
-        if obj.has_tag('no_group'):
-            solo_key += 1
-            key = f"\x00solo{solo_key}"
-        else:
-            key = obj.name.lower()
-        if key in groups:
-            rep, count = groups[key]
-            groups[key] = (rep, count + 1)
-        else:
-            groups[key] = (obj, 1)
-            order.append(key)
-
-    return [groups[key] for key in order]
 
 
 def room_description(room: GameObject) -> str:

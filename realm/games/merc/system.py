@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any
 
 from realm.core.defs import all_defs
 from realm.core.objects import GameObject
+from realm.core.pools import pool_get, pool_max, set_pool
 from realm.std.rules.checks import CheckResult, skill_level
 from realm.std.rules.definitions import apply_class
 from realm.std.rules.system import ChoiceStep, GameSystem
@@ -153,8 +154,7 @@ class MercSystem(GameSystem):
         spec = self._classes().get(cls, self._classes()["warrior"])
         # Level 1: full hit die + con bonus (Diku gives max HP at first level).
         hp = spec["hit_die"] + _con_bonus(player)
-        player.db.hp = hp
-        player.db.max_hp = hp
+        set_pool(player, 'hp', hp, max=hp)
         player.db.thac0 = 20
         player.db.max_mana = 100 + spec["mana_per_level"]
         player.db.mana = player.db.max_mana
@@ -283,8 +283,8 @@ class MercSystem(GameSystem):
             player.db.xp = xp - need
             player.db.level = level + 1
             gain = max(1, _hit_die_expected(spec["hit_die"]) + _con_bonus(player))
-            player.db.max_hp = int(player.db.get("max_hp") or 0) + gain
-            player.db.hp = int(player.db.get("hp") or 0) + gain
+            set_pool(player, 'hp', int(pool_get(player, 'hp') or 0) + gain,
+                     max=int(pool_max(player, 'hp') or 0) + gain)
             if spec["mana_per_level"]:
                 player.db.max_mana = int(player.db.get("max_mana") or 0) \
                     + spec["mana_per_level"]

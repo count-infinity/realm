@@ -27,8 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from realm.std.instances import instancing as instances
-from realm.std.wilderness import cells as wilderness
+from realm.std.instances import instances as instances
+from realm.std.wilderness import wilderness as wilderness
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"

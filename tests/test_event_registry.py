@@ -44,7 +44,8 @@ def restore_default():
 
 
 def test_classic_hooks_equal_the_old_table():
-    assert set(installed().hooks()) == STANDARD_HOOKS
+    # Step 8 added the kernel's pool hooks after the freeze.
+    assert set(installed().hooks()) == STANDARD_HOOKS | {'POOL', 'SPENT'}
 
 
 def test_lock_rows_equal_the_old_tables():
@@ -72,7 +73,7 @@ async def test_a_feature_event_fires_its_hook_locks_and_lists(tmp_path, monkeypa
     name = f"kp_heist_{uuid.uuid4().hex[:8]}"
     (tmp_path / f"{name}.py").write_text(textwrap.dedent(HEIST.format(name=name)))
     monkeypatch.syspath_prepend(str(tmp_path))
-    sim = Simulator(features=["basics", "talk", "building", name])
+    sim = Simulator(features=["basics", "talk", "look", "building", name])
     try:
         room = sim.room("Vault")
         thief = sim.player("Thief", location=room)

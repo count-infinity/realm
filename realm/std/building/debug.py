@@ -17,7 +17,6 @@ from realm.core.eventdefs import installed
 from realm.core.query import find_objects
 from realm.core.world import get_world
 from realm.permissions.entitlements import reload_role_defs
-from realm.std.rules.system import reload_rules
 
 
 async def cmd_eval(ctx: CommandContext) -> None:
@@ -59,7 +58,9 @@ async def cmd_reload(ctx: CommandContext) -> None:
     Usage: @reload
     """
     invalidate()                    # every in-world definition is re-read
-    reload_rules()
+    world = get_world()
+    for hook in world.reload_hooks:     # the features' own tables (rules' skills)
+        hook(world)
     problems = reload_role_defs()   # custom role_def ranks take effect immediately
     counts = ", ".join(f"{len(all_defs(kind))} {kind}" for kind in sorted(def_kinds()))
     await ctx.session.send("Rules reloaded from the world.")

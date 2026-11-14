@@ -1,20 +1,19 @@
 """
 The ``crime`` feature.
 
-Wanted flags for assaulting players, and the guards who act on them.
+Wanted flags for assaulting players, the guards who act on them, and
+thieves.
 """
 
 from __future__ import annotations
 
 from realm.features import Feature
-from realm.std.combat.behaviors import PeacekeeperBehavior
-from realm.std.crime.wanted import crime_observer
-from realm.std.effects.behaviors import WantedBehavior
-from realm.std.npc.behaviors import StealBehavior
+from realm.std.crime.behaviors import PeacekeeperBehavior, StealBehavior, WantedBehavior
+from realm.std.crime.crime import crime_observer
 
 feature = Feature(
     'crime',
-    requires=['combat', 'economy'],
+    requires=['rules', 'combat', 'economy', 'effects'],
     doc='Wanted flags for assaulting players, and the guards who act on them.',
 )
 

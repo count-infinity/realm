@@ -104,5 +104,5 @@ class TestMercDeliveryWiring:
     def test_apply_resisted_poison_regression(self):
         # The venom path: poison exact key still governs, unchanged.
         mob = self._mob({'poison': 0.0})
-        assert apply_resisted(mob, 5, 'poison') == 0
+        assert apply_resisted(mob, 5, 'poison').total_applied == 0
         assert int(mob.db.get('hp')) == 50

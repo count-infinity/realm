@@ -8,14 +8,7 @@ from __future__ import annotations
 
 from realm.features import Feature
 from realm.std.items.actions import ItemAction
-from realm.std.items.inventory import (
-    cmd_drop,
-    cmd_get,
-    cmd_give,
-    cmd_inventory,
-    cmd_put,
-)
-from realm.std.items.manipulation import (
+from realm.std.items.commands import (
     cmd_close,
     cmd_lock_item,
     cmd_open,
@@ -25,6 +18,13 @@ from realm.std.items.manipulation import (
     cmd_use,
     cmd_wear,
     cmd_wield,
+)
+from realm.std.items.inventory import (
+    cmd_drop,
+    cmd_get,
+    cmd_give,
+    cmd_inventory,
+    cmd_put,
 )
 
 feature = Feature(

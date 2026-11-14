@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from realm.core.attrflags import mark_system
 from realm.core.defs import all_defs
 from realm.core.dice import margin_under, roll
+from realm.core.pools import set_pool
 from realm.std.rules.checks import skill_level
 from realm.std.rules.definitions import apply_class
 from realm.std.rules.system import ChoiceStep, GameSystem
@@ -160,8 +161,7 @@ class GurpsSystem(GameSystem):
         strength = int(player.db.get('strength') or 10)
         dexterity = int(player.db.get('dexterity') or 10)
         health = int(player.db.get('health') or 10)
-        player.db.hp = strength
-        player.db.max_hp = strength
+        set_pool(player, 'hp', strength, max=strength)
         player.db.dodge = 7 + (dexterity + health) // 8
         # Lock the characteristics and their derived stats as system-owned.
         # (apply_class already stamped the four when a template was chosen;

@@ -166,7 +166,36 @@ def numbered_name(obj: GameObject, count: int) -> str:
     return f"{count} {plural_name(obj)}"
 
 
+def group_contents(objects: list[GameObject]) -> list[tuple[GameObject, int]]:
+    """
+    Group visually identical objects for display.
+
+    Groups by lowercased name, preserving first-seen order; objects
+    tagged ``no_group`` stand alone. Returns (representative, count)
+    pairs. O(n) — a hash pass, safe for very full rooms.
+    """
+    groups: dict[str, tuple[GameObject, int]] = {}
+    order: list[str] = []
+    solo_key = 0
+
+    for obj in objects:
+        if obj.has_tag('no_group'):
+            solo_key += 1
+            key = f"\x00solo{solo_key}"
+        else:
+            key = obj.name.lower()
+        if key in groups:
+            rep, count = groups[key]
+            groups[key] = (rep, count + 1)
+        else:
+            groups[key] = (obj, 1)
+            order.append(key)
+
+    return [groups[key] for key in order]
+
+
 __all__ = [
+    "group_contents",
     "IRREGULAR_PLURALS",
     "is_proper_noun",
     "leading_article",

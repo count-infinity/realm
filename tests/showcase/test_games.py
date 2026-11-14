@@ -28,7 +28,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.std.economy.money import get_credits
+from realm.std.economy.credits import get_credits
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"

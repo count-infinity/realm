@@ -758,7 +758,7 @@ class TestCombatChannels:
         engine = ScriptEngine()
         await engine.run_object_script(trap, "on_spring")
 
-        assert rat.db.get("hp") == -1
+        assert rat.db.get("hp") == 0          # the hp pool's floor (step 8)
         assert fake_combat.deaths == [(rat, trap)]
 
     async def test_damage_out_of_reach_fails(self, fake_combat):
@@ -1152,18 +1152,18 @@ class TestConditionModifiers:
         """A refresh restarts the countdown from full duration rather than
         inheriting the replaced effect's remaining beats."""
         from realm.scripting.functions import ScriptFrame
-        from realm.std.effects.behaviors import _state_key
+        from realm.std.effects.behaviors import state_key
 
         room = GameObject("Bar", tags=["room"])
         bex = GameObject("Bex", tags=["player"], location=room)
         funcs = ScriptFrame(executor=bex, enactor=bex)
 
         funcs.apply_effect(bex, "modifier_effect", kind="drunk", duration=12)
-        bex.db.set(_state_key("drunk", "left"), 3)         # several beats elapsed
+        bex.db.set(state_key("drunk", "left"), 3)         # several beats elapsed
         funcs.apply_effect(bex, "modifier_effect", kind="drunk", duration=12)
 
         # Timer wiped → next beat re-initialises to full duration, not 3.
-        assert bex.db.get(_state_key("drunk", "left")) is None
+        assert bex.db.get(state_key("drunk", "left")) is None
 
     async def test_apply_effect_different_kinds_coexist(self):
         """Refresh only collapses same-kind — distinct kinds stay independent."""
@@ -1337,7 +1337,7 @@ class TestForce:
         GameObject("imp", tags=["npc"], location=room)
 
         d = self._dispatcher()
-        load(["building"]).install_commands(d)
+        load(["look", "building"]).install_commands(d)
         ctx = make_context(bob, left_args="imp",
                            right_args="@set Bob/hacked = true")
         ctx.dispatcher = d

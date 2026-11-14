@@ -169,9 +169,7 @@ class GURPSRuleset(Ruleset):
             messages = dict(result.messages)
             if messages.get('attacker_msg'):
                 messages['attacker_msg'] = "[All-Out] " + messages['attacker_msg']
-            deliver_combat_messages(obj, target.obj, messages)
-            if result.target_defeated:
-                await encounter.manager.handle_defeat(encounter, target, killer=actor)
+            await encounter.land(actor, target, result, messages)
             return True
 
         if key == "all_out_defense":
@@ -413,7 +411,7 @@ class GURPSRuleset(Ruleset):
            vulnerability)
         2. Subtract DR from damage
         3. Apply damage type multiplier (cutting x1.5, impaling x2)
-        4. Reduce HP
+        4. Write it to the damage pool
         """
         self.scale_resistances(target, damage)
         dr = target.get_stat('damage_resistance', 0)
@@ -429,17 +427,7 @@ class GURPSRuleset(Ruleset):
 
             total_applied += final_damage
 
-        # Apply to HP
-        actual = target.take_damage(total_applied)
-        return actual
-
-    def is_defeated(self, combatant: Combatant) -> bool:
-        """
-        Check if combatant is incapacitated.
-
-        In GURPS, you're incapacitated at 0 HP but not dead until -HP.
-        """
-        return combatant.hp <= 0
+        return self.write_damage(target, total_applied)
 
     def roll_initiative(
         self,

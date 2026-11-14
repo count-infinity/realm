@@ -323,7 +323,8 @@ async def move_through_exit(
     Returns ``True`` if the actor moved, ``False`` if blocked.
 
     Deliberate asymmetries with ``move_to`` (traversal vs direct placement):
-    the in_combat/unconscious gates and after-traverse hooks (followers) apply only here —
+    the traversal gates (combat's, a skill-gated exit) and after-traverse
+    hooks (followers) apply only here —
     walking is embodied travel; a teleport is the spell's problem — and the
     TELEPORT lock applies only to ``move_to`` (walking in isn't teleporting).
 
@@ -339,15 +340,6 @@ async def move_through_exit(
     direction = direction or "away"
 
     origin = actor.location
-
-    # Mid-combat, leaving the room requires a flee attempt (which sets
-    # ``fleeing=True``); everything else stays free.
-    if actor.has_tag('in_combat') and not fleeing:
-        actor.msg("You're in the middle of combat — flee to escape!")
-        return False
-    if actor.has_tag('unconscious'):
-        actor.msg("You are unconscious.")
-        return False
 
     # Phase 0: locks gate the move before any events fire. The exit's
     # 'basic' lock controls traversal; the destination's 'enter' lock
@@ -372,9 +364,9 @@ async def move_through_exit(
     # ``rules`` feature's skill-gated exits). A message blocks the move.
     from realm.core.world import find_world
     world = find_world()
-    if exit_obj is not None and world is not None:
+    if world is not None:
         for gate, reason in world.traversal_gates:
-            refusal = await gate(actor, exit_obj, direction)
+            refusal = await gate(actor, exit_obj, direction, fleeing=fleeing)
             if refusal:
                 actor.msg(refusal)
                 if origin is not None:

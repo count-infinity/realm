@@ -51,10 +51,11 @@ not the feature.
 | `realm/server/world.py` | `build_world()` — wires the kernel, then the loaded features; the server and the Simulator both call it |
 | `realm/core/world.py` | `World`, the one handle to the running world: `get_world().store` / `.engine` / `.scripts` / `.rules` / `.services`, and `setting(key)` for config |
 | `realm/features.py` | `Feature`, `FeatureSet`, `load()`: how commands, behaviors, softcode functions and observers join a world |
-| `realm/std/` | The built-in features (`BUILTIN`, `CLASSIC`): one package each, `feature.py` declares it, the rest are its parts |
+| `realm/std/` | The built-in features (`CLASSIC` lists them): one package each, `feature.py` declares it, the rest are its parts |
 | `realm/config/loader.py` | `Settings` (every config key, its default and doc) and `load_config` |
 | `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, kind predicates |
 | `realm/core/propagation.py` | Two-pass check/react action pipeline |
+| `realm/core/pools.py` | Pools: bounded numbers on objects (hp, shields, stress); `harm`/`mend`/`spend`, then `settle` fires `ON_POOL`/`ON_SPENT`; combat's `std/combat/vitals.py` turns a spent vital pool into death and a fall through `hitprcnt` into `ON_HITPRCNT` |
 | `realm/std/rules/checks.py` | Skill checks, contests; the `rules` feature's `Checks` service (resolver, skill table, modifier providers) |
 | `realm/core/perception.py` | Visibility & naming choke points |
 | `realm/std/rules/system.py` | `GameSystem`, the swappable rules package; `GAME_SYSTEM` names one |
@@ -87,6 +88,14 @@ a game declares its own in `game.py`; `FEATURES` in config lists them
 (default `realm.std.CLASSIC`). Do not register at import time
 (`@BehaviorRegistry.register`, `dispatcher.register`) in engine code: declare on a
 feature. Collisions raise `FeatureError`. Guide: `docs/guides/features.md`.
+
+`tests/test_boundaries.py` is the rule for where code goes: the kernel
+(`realm/core`, `scripting`, `commands`, `permissions`, `persistence`,
+`gateway`, `server`, `config`, `packs`, `realm/features.py`) imports nothing
+from `realm/std` or `realm/games`; a feature imports another feature's parts
+only when it `requires` it (otherwise it asks for that feature's service,
+`world.services.get("look")`, and copes with None). Details:
+`docs/development/contributing.md`.
 
 Engine code reaches the running world through `realm.core.world`
 (`get_world()`, or `find_world()` where no world is legitimate) and reads

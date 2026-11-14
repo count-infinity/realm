@@ -15,7 +15,7 @@ its own and leaves the suite green.
 | 4 | Features: built-ins use the front door | M–L | [x] |
 | 5 | One service function per world operation | M | [x] |
 | 6 | One softcode dialect, open vocabularies | M | [x] |
-| 7 | Move the files, replace the global setters, add boundary tests | L | [ ] |
+| 7 | Move the files, replace the global setters, add boundary tests | L | [x] |
 | 8 | Pools: entity-agnostic health and resources | M–L | [ ] |
 | 9 | A public face: imports, add-ons, packaging, scaffold | S–M | [ ] |
 
@@ -1810,7 +1810,7 @@ engine code plus tests.
 Create `tests/test_boundaries.py`. These three tests are the definition of
 "kernel" from here on.
 
-- [ ] `test_kernel_imports_nothing_above_it`. Parse every `.py` file under
+- [x] `test_kernel_imports_nothing_above_it`. Parse every `.py` file under
       `realm/core`, `scripting`, `commands`, `permissions`, `persistence`,
       `gateway`, `server`, `config`, `packs` and `realm/features.py` with
       `ast`. Collect every `Import` and `ImportFrom`, including those inside
@@ -1818,51 +1818,51 @@ Create `tests/test_boundaries.py`. These three tests are the definition of
       with `realm.std` or `realm.games`. One allowed exception, named in the
       test: `realm/config/loader.py` may name `realm.std.CLASSIC` as the
       default value of `FEATURES`, as a string.
-- [ ] `test_std_features_do_not_import_games`. The same scan over
+- [x] `test_std_features_do_not_import_games`. The same scan over
       `realm/std`: no import of `realm.games`.
-- [ ] `test_feature_requires_match_imports`. For each feature package,
+- [x] `test_feature_requires_match_imports`. For each feature package,
       every import of another `realm.std.<x>` package must be listed in that
       feature's `requires`.
-- [ ] `test_bare_kernel_boots`. `Simulator(features=[])`: create two
+- [x] `test_bare_kernel_boots`. `Simulator(features=[])`: create two
       objects and a room through ops, set an attribute, run a softcode
       attribute that calls `pemit`, propagate a custom `act()` and observe
       an `ON_<HOOK>` fire, save to SQLite and load in a second world. No
       command other than the dispatcher's unknown-command reply exists.
-- [ ] `test_stock_game_is_only_a_feature_list`. `sys.modules` after
+- [x] `test_stock_game_is_only_a_feature_list`. `sys.modules` after
       `Simulator(features=[])` contains no `realm.std.*` and no
       `realm.games.*` module. After `Simulator()` with defaults it contains
       exactly the packages named by `CLASSIC` and the configured game.
-- [ ] Name the file in `docs/development/contributing.md` as the rule for
+- [x] Name the file in `docs/development/contributing.md` as the rule for
       where new code goes. The repository has no CI workflow; the tests run
       with the suite.
 
 ### Acceptance
 
-- [ ] `tests/test_boundaries.py` passes.
-- [ ] `realm/commands/` contains `base.py` and `dispatcher.py` only.
+- [x] `tests/test_boundaries.py` passes.
+- [x] `realm/commands/` contains `base.py` and `dispatcher.py` only.
       `realm/core/` contains no module named in the right column of
       Appendix B.
-- [ ] `git grep -n "def set_[a-z_]*(" realm/core realm/scripting realm/persistence realm/gateway`
+- [x] `git grep -n "def set_[a-z_]*(" realm/core realm/scripting realm/persistence realm/gateway`
       lists only object-level operations (`set_lock`, `set_attr_flags`) and
       `set_world`.
-- [ ] Record `wc -l` over the kernel packages in the Decision log. Before
+- [x] Record `wc -l` over the kernel packages in the Decision log. Before
       the plan the kernel was about 10,500 lines plus about 4,800 in the
       five mixed files. Expect 11,000 to 13,000. A larger number means
       feature code stayed behind; find it before ticking this box.
-- [ ] The suite is green with the same test count as at the end of step 6
+- [x] The suite is green with the same test count as at the end of step 6
       plus the boundary tests.
 
 ### Docs
 
-- [ ] `docs/architecture/overview.md`: rewrite around the three rings with
+- [x] `docs/architecture/overview.md`: rewrite around the three rings with
       the layout of 7.1.
-- [ ] `CLAUDE.md` and `README.md`: the module map and "where does new code
+- [x] `CLAUDE.md` and `README.md`: the module map and "where does new code
       go".
-- [ ] `docs/development/contributing.md`: the boundary tests.
-- [ ] `docs/development/testing.md`: the `world` and `classic_world`
+- [x] `docs/development/contributing.md`: the boundary tests.
+- [x] `docs/development/testing.md`: the `world` and `classic_world`
       fixtures replace hand-wiring.
-- [ ] `docs/api/*.md`: module paths.
-- [ ] `VISION.md`: mark the microkernel thesis as enforced by test, with the
+- [x] `docs/api/*.md`: module paths.
+- [x] `VISION.md`: mark the microkernel thesis as enforced by test, with the
       test names.
 
 ### Closes
@@ -1984,22 +1984,22 @@ name, n)` is harm-gated. `mend_pool(obj, name, n)` and `spend_pool(name, n)`
 
 Tasks:
 
-- [ ] Write `tests/test_pools.py` first, in a bare world (`features=[]`):
-  - [ ] `harm` clamps a down pool at `floor`; with `floor=None` it goes
+- [x] Write `tests/test_pools.py` first, in a bare world (`features=[]`):
+  - [x] `harm` clamps a down pool at `floor`; with `floor=None` it goes
         negative; `mend` caps at max and is unbounded without one.
-  - [ ] An up pool: `harm` raises it and caps at max; it is spent at max;
+  - [x] An up pool: `harm` raises it and caps at max; it is spent at max;
         `mend` lowers it and stops at zero.
-  - [ ] Overflow: 10 harm into shields holding 4 leaves shields at 0 and
+  - [x] Overflow: 10 harm into shields holding 4 leaves shields at 0 and
         puts 6 into the hull; `total_applied` is 10; the hull's `soak_attr`
         of 2 makes it 4 when `soak=True`.
-  - [ ] Definition lookup order 1 to 4, including a parent.
-  - [ ] `spend` returns `None` and changes nothing when short.
-  - [ ] An object with no pool: `pool_get` is `None`, `harm` returns a
+  - [x] Definition lookup order 1 to 4, including a parent.
+  - [x] `spend` returns `None` and changes nothing when short.
+  - [x] An object with no pool: `pool_get` is `None`, `harm` returns a
         change with `applied == 0`.
-  - [ ] `settle` fires `ON_POOL` then `ON_SPENT`, once each, and `ON_SPENT`
+  - [x] `settle` fires `ON_POOL` then `ON_SPENT`, once each, and `ON_SPENT`
         only on the crossing.
-  - [ ] An overflow cycle (`a -> b -> a`) raises `ValueError` naming both.
-- [ ] Add `realm/core/pools.py`, `Feature.pool`, the two events through
+  - [x] An overflow cycle (`a -> b -> a`) raises `ValueError` naming both.
+- [x] Add `realm/core/pools.py`, `Feature.pool`, the two events through
       `eventdefs`, the softcode functions and the `pool_settle` queue kind.
 
 ### 8.2 Convert the write sites
@@ -2028,15 +2028,15 @@ amount, then calls the ruleset, which calls `write_damage`. Softcode
 
 Tasks:
 
-- [ ] Before touching a site, add a characterization test for any site the
+- [x] Before touching a site, add a characterization test for any site the
       suite does not already pin. To find out, change that line to `raise`
       and run the suite; a green suite means the site is unpinned.
-- [ ] Add `Ruleset.write_damage` and convert the three rulesets.
-- [ ] Convert the remaining rows, one commit per row.
-- [ ] `Ruleset.is_defeated` gets a default in the base class:
+- [x] Add `Ruleset.write_damage` and convert the three rulesets.
+- [x] Convert the remaining rows, one commit per row.
+- [x] `Ruleset.is_defeated` gets a default in the base class:
       `is_spent(obj, vital_pool(obj))`. Delete the three identical
       overrides. A ruleset may still override (a GURPS death check).
-- [ ] Readers: `combat/manager.py:39`, `combat/encounter.py:561`,
+- [x] Readers: `combat/manager.py:39`, `combat/encounter.py:561`,
       `combat/system.py:276,306,365,466`, `combat/strategy.py::CombatView`,
       `commands/builtin/combat.py:190,308,327`, `systems/abilities.py:412`
       read through `pool_get`, `pool_max` or the `vital*` views.
@@ -2045,17 +2045,17 @@ Tasks:
 
 ### 8.3 One death observer, one threshold observer
 
-- [ ] In the combat feature, register an observer for `pool:on_spent`: when
+- [x] In the combat feature, register an observer for `pool:on_spent`: when
       the pool is the object's vital pool, call
       `CombatManager.handle_death(obj, killer=source)`. Delete the
       `death_check` queue kind (`engine.py:1119`) and every direct
       `is_defeated` then `handle_death` pair outside the encounter loop.
-- [ ] Move the `ON_HITPRCNT` check from `combat/system.py:300` to an
+- [x] Move the `ON_HITPRCNT` check from `combat/system.py:300` to an
       observer on `pool:on_change` for the vital pool. It now fires for
       poison, traps and softcode damage too. Add a test for a poison tick.
       This is a deliberate behavior change; note it in the changelog section
       of `docs/design/combat.md`.
-- [ ] `handle_death` tags a player `unconscious` and turns an NPC into a
+- [x] `handle_death` tags a player `unconscious` and turns an NPC into a
       corpse. Make the branch data-driven: `obj.db.on_spent` may be
       `"unconscious"`, `"corpse"`, `"destroy"` or `"none"`; the default is
       today's rule by kind. A ship sets `"none"` and handles `ON_SPENT` in
@@ -2686,3 +2686,24 @@ entry closed.
 | 2026-11-13 | 7.5 | Batch D finished the plan's 7.2 intent: `checks` is the `rules` feature's service. `build_world` makes no `Checks`; `feature.check_modifier` fills `World.check_modifiers`; the `rules` feature's `on_install` builds `services["checks"]` with them and the game system. A world without `rules` gets neutral Checks of its own on first `checks()`. The `skill` and `class` definition kinds are `rules` declarations now (the kernel declares `role` and `behavior`), reversing the 6.6 decision; a game system reading skills therefore needs `rules`, which every built-in one requires. | Kernel never calls the rules. |
 | 2026-11-13 | 7.5 | Batch G had nothing left: 7.4 already put its splits in their final packages. | |
 | 2026-11-13 | 7.5 | Deferred imports: 43 moved files had function-level `realm` imports hoisted to module level by a script that skipped any that would shadow a module name or import a `feature` module, and checked after each file that every one of the 204 `realm` modules still imports in a fresh interpreter (none had to be reverted). Imports still deferred are the cycles. Redundant nested re-imports were dropped (one had made `get_world` a local in `CombatManager._npc_death`). Five tests now patch a name where it is looked up (`realm.std.npc.behaviors.contest`, `realm.std.abilities.caster.cast_spell`, `realm.std.look.render.can_see_room`, `realm.games.gurps.system.roll`). Unused imports in `tests/` removed. | Plan: hoist what no longer needs deferring. |
+| 2026-11-14 | 7.5/7.6 | I had missed Appendix B's destination names in 7.4 and 7.5. Renamed to them: `std/instances/instances`, `std/wilderness/wilderness`, `std/crime/crime`, `std/economy/credits`, `std/abilities/abilities`, `std/items/commands` (was `manipulation`), `std/stealth/stealth` (was `hiding`). Kept, with the reasons logged above: declarations in `feature.py` rather than the package `__init__` (import cycles), `std/building/scripting.py` (not `softcode.py`), `core/pairing.py` in the kernel, `AuthService` in `std/accounts/`. | Appendix B. |
+| 2026-11-14 | 7.6 | `tests/test_boundaries.py` has the five planned tests plus `test_every_import_resolves` (every `from realm... import name` anywhere in `realm/`, deferred ones included, names something real: a moved module otherwise breaks a deferred import only when it runs, which happened once in 7.6). The kernel scan also checks non-docstring string constants: the kernel names built-ins only in `KERNEL_STRINGS` (the `FEATURES` and `GAME_SYSTEM` defaults in `config/loader.py`, and `realm.features.BUILTIN_ROOTS`). | Plan named one exception; GAME_SYSTEM's default is the same kind. |
+| 2026-11-14 | 7.6 | No kernel import of `realm.std`/`realm.games`: `FEATURES` defaults to the string `"realm.std.CLASSIC"` and `load()` takes a list, a dotted path to one, or None; a built-in name resolves by convention (`realm.std.<name>.feature`, then `realm.games.<name>.feature`), so `BUILTIN` is gone and `CLASSIC` is a tuple of names. The combat ruleset table moved into `realm/features.py` (`ruleset_table()`), which `RulesetRegistry` reads. `BehaviorRegistry.set_scripted_factory` (an import-time setter) became a direct call to `scripting.scripted_behavior.scripted_factory`. | Kernel imports nothing above it. |
+| 2026-11-14 | 7.6 | `test_feature_requires_match_imports` allows importing another feature's `actions` module without requiring it (deviation): a feature naming another's action types (stealth's loud-action set names `CombatAction.ON_ATTACK`) only compares strings that never occur in a world without it. | Requiring combat for stealth would be wrong. |
+| 2026-11-14 | 7.6 | Cross-feature imports resolved three ways. Moved to the declaring feature: `PeacekeeperBehavior`, `WantedBehavior`, `StealBehavior` -> `std/crime/behaviors.py`; `GuardBehavior`, `WanderingBehavior` -> `std/npc/behaviors.py`; `WatchfulBehavior` -> `std/stealth/behaviors.py` (now declared by `stealth`); `DispositionBoostBehavior` -> `std/social/behaviors.py`; `wield`/`unwield` -> `items`; `group_contents` -> `core/language.py`. Added to `requires`: `abilities` (combat), `building` (look), `social` (effects), `crime` (rules, effects), `gurps`/`d20`/`merc` (combat). Optional integrations use services a feature offers from `on_install`: `look` (render_room: movement, accounts, party), `economy` (inventory's purse), `social` (combat's spare-the-devoted, guards, shop prices, party award), `talk` (`npc_say`: taunts, yells, watchful challenges), `damage` (DoT resistances; untyped without combat). Corpse decay attaches the `decay` behavior by id when registered. `rules`' `@reload` refresh became `feature.on_reload` (`World.reload_hooks`). Unit tests of an integration declare their world with the new `@pytest.mark.features(...)` marker. | Requirements cannot be circular; most cross imports were optional. |
+| 2026-11-14 | 7.6 | Combat's movement refusals (`in_combat` unless fleeing; `unconscious`) left `core/movement.py` for a `combat` traversal gate; gates now take `fleeing` and run for every traversal (the exit may be None). A blocked fighter now also gets the room line and `event:on_fail` (reason `combat`). `GameServer.combat_manager` was removed. | Feature vocabulary left in the kernel, found in the line-count review. |
+| 2026-11-14 | 7.6 | `wc -l`: kernel (`core`, `scripting`, `commands`, `permissions`, `persistence`, `gateway`, `server`, `config`, `packs`, `features.py`) 17,331 lines; `realm/std` 15,515; `realm/games` 1,497; `testing` 180. The same kernel set at the plan's baseline commit (8f155ad, excluding `commands/builtin` and `commands/olc`) was 17,814, so the kernel shrank while gaining steps 3-6's ops, inflate, defs, eventdefs, verb and function registries, world, waits and `features.py`. The plan's 11,000-13,000 estimate cannot be reproduced from its 10,500 + 4,800 baseline under any directory set I tried; a scan of kernel code (not docstrings) for feature vocabulary found only the combat movement gate above, now moved. Ticked on that basis; re-measure if the estimate's basis is known. | Plan said: find leftover feature code before ticking. |
+| 2026-11-14 | 7.6 | Suite: 2612 = 2577 at the end of step 6 + 29 tests added in 7.2-7.5 (fixtures, seams, accounts, presentation hooks, dispatch order) + 6 boundary tests. `realm/commands/` holds `base.py`, `dispatcher.py` (and `__init__.py`). The `def set_` grep lists object-level operations (`set_attr`, `set_lock`, `set_keyid`, `set_attr_flags`, softcode `set_name`/`set_desc`, session/object `set_writer` etc.), `set_world`, and `set_interpreter_recursion_limit` (interpreter state; see 7.2). | |
+| 2026-11-14 | 7 Closes | The review findings "12 of 30 `core` modules are features", "91 of 119 modules load for any world" (a world of no features now loads no feature module; `test_stock_game_is_only_a_feature_list`), "17 module-global setters" and "two composition roots" are closed. | |
+| 2026-11-14 | 8.1 | Definition lookup: a match is used whole (unset keys take `Pool` defaults, nothing is merged with a lower source). Source 2 walks the whole `@parent` chain (depth 8), not one level. A partial spec with an unknown key, a bad `direction`, or a `pools` attribute that is not a dict raises `ValueError` naming the object. `pool_def` returns a declared definition even when the object lacks the attribute; `has_pool` is the presence test, so a world default `Pool("hp")` does not give a rock hit points. Added `AttributeProxy.own(name)` (own value, never inherited) for the per-level `pools` lookup. | First match wins, per the plan; merging would make a parent's spec leak into a child that redefines the pool. |
+| 2026-11-14 | 8.1 | `floor` bounds up pools too (`mend` stops at it, default 0); the plan's comment scoped it to down pools. `became_spent` is a field computed when the change is made rather than a property, because the max it depends on can change before `settle` runs. `PoolChange.links()` lists the change and its spills. A negative amount raises `ValueError`. `settle` skips a link that moved nothing, so a blow to the already-spent fires neither `ON_POOL` nor a second `ON_SPENT`. | A no-op change is not an event. |
+| 2026-11-14 | 8.1 | World defaults live on `World.pools`. `feature.pool(Pool, replace=)` claims the name like other declarations (collision -> `FeatureError`). `GameSystem.pools()` was added now (returning `[Pool("hp")]`, the neutral default 8.4 names) because lookup source 3 reads it; the `rules` feature's `on_install` registers it with `pools.add_default`, which raises `FeatureError` when a feature already defined that name differently. `DAMAGE_POOL` is a kernel setting (default `"hp"`). | `pools.py` is kernel and may not import `rules`. |
+| 2026-11-14 | 8.1 | Kernel `ActionType` gains `POOL_CHANGE` (`pool:on_change`) and `POOL_SPENT` (`pool:on_spent`); both are kernel events with hooks `POOL`/`SPENT`. Softcode (group `Pools`, kernel-owned): `harm_pool` and `mend_pool` require reach like `damage()`/`heal()` and return the amount taken; reads check `readable_attr` on the storage attribute. `pool_settle` is a kernel queue kind in `ScriptEngine._deliver_queued`; `death_check` stays until 8.3 replaces it. Snapshot tests (`test_softcode_registry`, `test_features` frozen state, `test_event_registry` hooks) list the new names as added after the freeze. Suite: 2637. | |
+| 2026-11-14 | 8.2 | Pin check (each site replaced by `raise`, suite run with `-x`): all sites were pinned except the healer behavior's heal and the typed damage-over-time fallback with no `combat`. `tests/test_pool_sites.py` characterizes both. Rows landed in one change, not one commit per row (the maintainer commits per step). | |
+| 2026-11-14 | 8.2 | Settling: `Combatant.take_damage`/`heal` record their `PoolChange` in `Combatant.changes`; `deal_damage` and `CombatSystem.heal` drain and settle them (source: the attacker or healer), so swings fire `ON_POOL`/`ON_SPENT` too. `apply_resisted` now returns the `PoolChange` (callers settle or queue it; `requested` is the amount after resistances). `_pay_cost` became async to settle its `spend`. `settle` does nothing when no world is installed (a unit test pulsing a bare effect). Healing (`Combatant.heal`, `heal()`, `firstaid`, healer, regeneration, ability `heal`) mends the damage pool, as the plan says for `Combatant.heal`; revival tests 'vital pool not spent'. | For a character both pools are `hp`; for a ship, mending restores shields. |
+| 2026-11-14 | 8.2 | Deliberate behavior change: damage stops at the pool floor (0) on every path. Softcode `damage()`, typed DoT without `combat`, `apply_resisted` and the Merc ruleset used to drive `hp` negative; two tests asserted that (`test_trap_damages_and_death_routes_to_manager` now expects 0; `test_apply_resisted_poison_regression` reads `.total_applied`). A game wanting negatives sets `floor=None` on its `hp` pool. `Combatant.hp`/`max_hp`/`hp_percent` renamed `vital`/`vital_max`/`vital_percent` with no setter; `tests/test_combat.py` reads `vital` (its `combatant.hp = 40` setter test became a `vital` view test). Recorded in docs/design/combat.md's new Changelog. | The plan names the sites' disagreement as the defect. |
+| 2026-11-14 | 8.2 | Left for the step's acceptance grep: the unused `required_stats` lists naming `hp` in the three rulesets, Merc's `score_lines` (8.4), GURPS's `mark_system(... 'hp', 'max_hp' ...)`, the `baseline_stats` defaults and the `Char.Vitals` OOB keys `hp`/`max_hp` (a client protocol; values now come from the vital pool). `combat/feature.py::_death_check` reads `hp` until 8.3 deletes it. Suite: 2639. | |
+| 2026-11-14 | 8.3 | The data-driven rule is `obj.db.when_spent`, not `obj.db.on_spent` (deviation): hook attributes match case-insensitively (`TriggerManager`), so `on_spent = "none"` would be read as the `ON_SPENT` softcode hook and run. 8.5's ship and door set `when_spent`. A player may only be `unconscious` or `none` (`corpse`/`destroy` raise `ValueError`, as does an unknown value), so damage cannot delete a character. `destroy` goes through `ops.objects.destroy` (the one destroy path: exits unpair, players inside are evacuated, unowned contents go with it, `safe` refuses). Only `corpse` gives the kill award. `ON_DEATH` still fires for every rule; `fatal` is True for `corpse`/`destroy`. | A ship with `when_spent=none` is still "down" to an arena recorder. |
+| 2026-11-14 | 8.3 | The swing path settles after its messages: `deal_damage` returns `(dealt, action, changes)` unsettled; `apply_typed_damage` settles at once; `CombatSystem.attack` puts them on `CombatResult.changes`; the new `CombatEncounter.land` (used by melee, `shoot` and GURPS all-out attack) delivers the messages, removes a defeated target from the encounter, then settles, which runs the death observer. `CombatManager.handle_defeat` is deleted. Settling inside `attack` would have printed "falls dead!" before "You hit". | One death call for every route; no double death on swings. |
+| 2026-11-14 | 8.3 | Death follows `pool:on_spent`, which fires only on the crossing: damage to an object already spent no longer runs the death path again (softcode `damage()` on an unconscious player used to announce a second `ON_DEATH`). `Ruleset.is_defeated` now only decides who leaves an encounter; a ruleset overriding it to a rule other than "vital pool spent" would disagree with the observer, so the system guide now says to lower the pool's `spent_at` instead. None of the three rulesets overrides it. | Flag for 8.4/acceptance: drop `is_defeated` as an override point? |
+| 2026-11-14 | 8.3 | Added kernel `pools.pool_percent(obj, name, value=None)` (how much is left before spent, as a percent; an up pool counts what is left below its max). `ON_HITPRCNT` and `Combatant.vital_percent` use it, so a harm clock at 4 of 6 is 33%, not 67%. The damage-over-time tick now narrates, expires itself if the pool is spent, then settles, so "You are wracked" comes before "Everything goes black". `tests/test_event_hooks.py::test_hitprcnt_fires_once_on_threshold_cross` now runs with `combat` and settles the blow; `test_features` frozen state lists the two observers as added after the freeze. Suite: 2657. | |

@@ -28,24 +28,25 @@ module path on `sys.path` (your game directory is on it, so `"game"` is
 | `movement` | go and the directions, in, out | |
 | `look` | look, examine | |
 | `items` | get, drop, give, put, inventory, open, close, lock, unlock, use, wear, remove, wield, unwield | |
-| `building` | every `@` command, quell, unquell | |
+| `building` | every `@` command, quell, unquell | look |
 | `rules` | points, improve; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
-| `stealth` | hide, search, pick; loud actions break stealth | rules, items |
+| `stealth` | hide, search, pick; loud actions break stealth; the watchful behavior | rules, items |
 | `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS` | rules, items |
 | `effects` | timed effect behaviors; softcode `apply_effect`, `remove_effect` | rules |
-| `abilities` | cast, spells; the caster behavior; softcode `cast`, `use_ability` | rules |
+| `abilities` | cast, spells; the caster behavior; softcode `cast`, `use_ability` | rules, combat |
 | `economy` | buy, sell, list, pay, credits; shopkeepers; softcode `credits`, `adjust_credits`, `transfer_credits` | items |
-| `social` | consider, persuade, fasttalk, follow, unfollow, party; softcode `disposition`, `adjust_disposition`, `reaction_roll` | rules |
-| `crime` | wanted flags for assaulting players, peacekeeper guards, thieves | combat, economy |
-| `npc` | watchful, patrol, scavenger, wandering, guard, decay behaviors | |
+| `social` | consider, persuade, fasttalk, follow, unfollow, party; the disposition boost; softcode `disposition`, `adjust_disposition`, `reaction_roll` | rules, effects |
+| `crime` | wanted flags for assaulting players, peacekeeper guards, thieves | rules, combat, economy, effects |
+| `npc` | patrol, scavenger, wandering, guard, decay behaviors | |
 | `spawning` | spawner, restock, population, zone_reset behaviors | |
 | `instances` | instanced copies of template areas; softcode `enter_instance` | |
 | `wilderness` | procedural wilderness cells; softcode `enter_wilderness` | spawning |
-| `gurps`, `d20`, `merc` | the combat ruleset of each rules system | rules |
+| `gurps`, `d20`, `merc` | the combat ruleset of each rules system | rules, combat |
 
 The kernel is always there: the script engine and every other softcode
-function, `script_ticker`, `behavior_def` behaviors, expiry reaping, the
-game system's check resolution.
+function, `script_ticker`, `behavior_def` behaviors, expiry reaping. The
+game system (`GAME_SYSTEM`) and its check resolution are the `rules`
+feature's; without it, checks roll a neutral 3d6 roll-under.
 
 A smaller game lists what it wants. This social game has no combat and no
 money; `attack`, `buy` and `damage()` are unknown there, and no NPC turns
@@ -91,7 +92,7 @@ Everything a feature can declare:
 | `feature.login(fn)` | the `async (ctx)` that handles input from a session with no player (one per game; `accounts` declares it). Without one the server answers "This world has no login feature installed." |
 | `feature.input_interceptor(fn, order=)` | an `async (world, session, line) -> bool` that sees input before the dispatcher, lowest `order` first; True consumes the line (`accounts` routes chargen) |
 | `feature.fallback(fn)` | an `async (ctx) -> bool` tried when no command matches, before softcode `$`-commands (`movement` walks a typed exit name) |
-| `feature.traversal_gate(fn, reason=, attrs=)` | an `async (actor, exit_obj, direction) -> str \| None` asked before a walk through an exit; a string refuses with that line and fires `event:on_fail` with `reason`. `attrs` are the exit attributes it reads (`@examine` warns about them in a world without the feature) |
+| `feature.traversal_gate(fn, reason=, attrs=)` | an `async (actor, exit_obj, direction, *, fleeing) -> str \| None` asked before a walk (`exit_obj` may be None; `combat` holds a fighter who is not fleeing); a string refuses with that line and fires `event:on_fail` with `reason`. `attrs` are the exit attributes it reads (`@examine` warns about them in a world without the feature) |
 | `feature.after_traverse(fn)` | an `async (actor, origin, destination, exit_obj, *, fleeing)` run after a walk (`social` brings followers) |
 | `feature.behavior(cls)` | a behavior class, by its `behavior_id` (class decorator) |
 | `feature.function(fn, name=, group=, readonly=, harm=)` | a native softcode function |
@@ -108,6 +109,7 @@ Everything a feature can declare:
 | `feature.speech_renderer(fn)` | `(body, action, looker) -> body`: a spoken line per listener (languages, slurring) |
 | `feature.group_formatter(fn, replace=)` | `(obj, count) -> str`: how a grouped contents line reads (one per game) |
 | `feature.protocol(name, cls, **kwargs)` | a protocol server (see [Adding a Protocol](../protocols/adding-protocol.md)) |
+| `feature.pool(Pool(...), replace=)` | a world-default pool definition (`realm.core.pools`): how `shields` or `hull` behaves on any object without its own (see [Pools](pools.md)) |
 | `feature.setting(key, default, doc)` | a `config.py` key; read it with `world.setting(key)` |
 | `feature.script_verb(name, aliases=, token=, sugar=, doc=)` | a script command line (decorator) |
 | `feature.event(action_type, hook=, doc=, payload=, target_lock=, tool_lock=, speech=, listen=)` | an action type and its `ON_<HOOK>`; `listen=True` lets `^listen` triggers overhear its message |
@@ -116,6 +118,7 @@ Everything a feature can declare:
 | `feature.audience(name)` | a message audience (decorator on its resolver) |
 | `feature.def_kind(name, tag, parse=)` | an in-world definition kind |
 | `feature.on_install(fn)` | `(world)`, run while the world is wired |
+| `feature.on_reload(fn)` | `(world)`, when a builder reloads the world's data (`@reload`, an area or pack import) |
 | `feature.on_boot(fn)` | `async (world)`, after the world is loaded and wired |
 | `feature.on_close(fn)` | `(world)`, when the world closes |
 
@@ -202,6 +205,26 @@ that should win.
 
 To replace a built-in on purpose, say so: `feature.ruleset("gurps", MyGurps,
 replace=True)`, `@feature.command("look", replace=True)`.
+
+## Services: using a feature you don't require
+
+A feature that only *enhances* another (a shop that reads dispositions, a
+walk that shows the room) asks for that feature's service instead of
+importing it, and does without it when it is absent:
+
+```python
+look = get_world().services.get("look")      # None in a world without look
+if look is not None:
+    await ctx.session.send(look.render_room(room, player))
+```
+
+The built-ins offer `look` (`render_room`), `economy` (`get_credits`,
+`transfer_credits`, `currency_name`), `social` (`get_disposition`,
+`adjust_disposition`, `party_members`), `talk` (`npc_say`), `damage`
+(`apply_resisted`, `deal_damage`) and `combat` (the manager). A feature
+offers one from `on_install`: `world.services["mine"] = ...`. Importing
+another feature's code is allowed only when you `requires` it
+(`tests/test_boundaries.py` checks).
 
 ## Requirements
 

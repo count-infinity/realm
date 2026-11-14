@@ -4,10 +4,10 @@ The interceptable damage chokepoint.
 Combat swings, spells, traps and scripted abilities funnel through
 :func:`deal_damage`, so one ``combat:on_damage`` event is where wards,
 shields, a room's "sanctuary" rule, and armor all hook, uniformly,
-regardless of what dealt the blow. Not yet every source: softcode
-``damage()`` (via :func:`apply_resisted`, a deliberate bypass) and the
-timed effects (``behaviors/effects.py``) write ``hp`` directly. KERNEL_PLAN
-step 8 (pools) routes them through one write path. The event's check pass
+regardless of what dealt the blow. Softcode ``damage()`` and the timed
+effects take the deliberate bypass, :func:`apply_resisted` (resistances, no
+event). Either way the damage lands in the target's damage pool
+(``realm.core.pools``) through one write path. The event's check pass
 may ``block`` the damage outright or reduce it (``mod`` / ``set_adata(
 'damage', ...)``) BEFORE the ruleset's own DR/resistances run in
 ``apply_damage`` — the two compose.
@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.action_tags import HOSTILE
+from realm.core.pools import PoolChange, damage_pool, harm
 from realm.core.propagation import Action, propagate
 from realm.std.combat.actions import CombatAction
 from realm.std.combat.combatant import Combatant
@@ -41,12 +42,15 @@ async def deal_damage(
     ruleset: Ruleset,
     *,
     tags: set[str] | None = None,
-) -> tuple[int, Action]:
+) -> tuple[int, Action, list[PoolChange]]:
     """Fire the interceptable damage event, honor any reduction, then apply.
 
-    Returns ``(dealt, action)``. ``action.blocked`` is True if a ward vetoed
-    the damage (dealt 0). ``damage`` is mutated in place to the final,
-    post-reduction values so the caller can read totals/types for messaging.
+    Returns ``(dealt, action, changes)``. ``action.blocked`` is True if a
+    ward vetoed the damage (dealt 0, no changes). ``damage`` is mutated in
+    place to the final, post-reduction values so the caller can read
+    totals/types for messaging. The caller settles ``changes``
+    (``pools.settle``), which is where a death or ``ON_HITPRCNT`` happens:
+    a swing settles after its hit message is shown.
     """
     defender = target if isinstance(target, Combatant) else Combatant(target)
     action = Action(
@@ -64,7 +68,7 @@ async def deal_damage(
     )
     await propagate(action, deliver=False)
     if action.blocked:
-        return 0, action
+        return 0, action, []
 
     # Honor a reduced payload: extra['damage'] (mutated by a ward) + any
     # modifiers, applied to the raw damage BEFORE the ruleset's own
@@ -81,7 +85,7 @@ async def deal_damage(
         damage.total = sum(damage.damage_by_type.values())
 
     dealt = ruleset.apply_damage(defender, damage)
-    return dealt, action
+    return dealt, action, defender.drain_changes()
 
 
 def typed_damage_result(amount: int, dtype_name: str, *,
@@ -100,11 +104,13 @@ def typed_damage_result(amount: int, dtype_name: str, *,
 
 
 def apply_resisted(target: GameObject, amount: int, dtype_name: str, *,
-                   magical: bool = False) -> int:
-    """Apply typed damage to ``target`` synchronously, honoring its
-    ``resistances`` map but WITHOUT firing the damage event. The deliberate
-    bypass path: softcode ``damage()`` (a builder who calls it means it), and
-    the no-combat-manager fallback in tools/tests. Returns HP dealt."""
+                   magical: bool = False) -> PoolChange:
+    """Harm ``target``'s damage pool synchronously, honoring its
+    ``resistances`` map and soak but WITHOUT firing the damage event. The
+    deliberate bypass path: softcode ``damage()`` (a builder who calls it
+    means it), timed effects, and the no-combat-manager fallback. The caller
+    settles the returned change; ``requested`` is the amount after
+    resistances. An object without a damage pool takes nothing."""
 
     result = typed_damage_result(amount, dtype_name, magical=magical)
     resist = target.db.get("resistances")
@@ -112,8 +118,7 @@ def apply_resisted(target: GameObject, amount: int, dtype_name: str, *,
         result.damage_by_type, resist if isinstance(resist, dict) else None,
         magical=magical)
     dealt = sum(scaled.values())
-    hp = target.db.get("hp")
-    if hp is None:
-        return 0
-    target.db.hp = int(hp) - dealt
-    return dealt
+    name = damage_pool(target)
+    if name is None:
+        return PoolChange(target, "", 0, 0, dealt, 0)
+    return harm(target, name, dealt, soak=True)

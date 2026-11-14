@@ -30,3 +30,11 @@ feature.command(
     help_text='Examine an object in detail',
     usage='examine <target>',
 )
+
+
+@feature.on_install
+def _offer_rendering(world) -> None:
+    """Other features show a room through ``world.services["look"]``
+    (``render_room``) when ``look`` is in the world."""
+    from realm.std.look import render
+    world.services["look"] = render

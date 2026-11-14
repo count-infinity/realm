@@ -44,16 +44,16 @@ class TestCombatant:
 
         combatant = Combatant(obj)
         assert combatant.get_stat('strength') == 16
-        assert combatant.hp == 50
+        assert combatant.vital == 50
 
-    def test_stat_modification(self):
-        """Can modify stats through combatant."""
+    def test_vital_reads_the_vital_pool(self):
+        """The vital view tracks the stored pool (it has no setter)."""
         obj = GameObject("Fighter")
         obj.db.hp = 50
 
         combatant = Combatant(obj)
-        combatant.hp = 40
-        assert obj.db.hp == 40
+        obj.db.hp = 40
+        assert combatant.vital == 40 and combatant.vital_max == 40
 
     def test_take_damage(self):
         """take_damage reduces HP."""
@@ -65,7 +65,7 @@ class TestCombatant:
         actual = combatant.take_damage(15)
 
         assert actual == 15
-        assert combatant.hp == 35
+        assert combatant.vital == 35
 
     def test_take_damage_cannot_go_negative(self):
         """HP cannot go below 0."""
@@ -76,7 +76,7 @@ class TestCombatant:
         actual = combatant.take_damage(100)
 
         assert actual == 10  # Only lost 10
-        assert combatant.hp == 0
+        assert combatant.vital == 0
 
     def test_heal(self):
         """heal restores HP."""
@@ -88,7 +88,7 @@ class TestCombatant:
         actual = combatant.heal(15)
 
         assert actual == 15
-        assert combatant.hp == 45
+        assert combatant.vital == 45
 
     def test_heal_cannot_exceed_max(self):
         """Healing cannot exceed max HP."""
@@ -100,7 +100,7 @@ class TestCombatant:
         actual = combatant.heal(20)
 
         assert actual == 5  # Only healed 5
-        assert combatant.hp == 50
+        assert combatant.vital == 50
 
 
     def test_resistance(self):
@@ -229,7 +229,7 @@ class TestD20Ruleset:
         actual = self.ruleset.apply_damage(defender, damage)
 
         assert actual == 5  # Half damage from resistance
-        assert defender.hp == 45
+        assert defender.vital == 45
 
     def test_is_defeated_at_zero_hp(self):
         """Combatant is defeated at 0 HP."""
@@ -378,7 +378,7 @@ class TestCombatSystem:
 
         combatant = get_combatant(defender)
         # At least some damage should have been dealt
-        assert combatant.hp <= initial_hp
+        assert combatant.vital <= initial_hp
 
     @pytest.mark.asyncio
     async def test_heal_restores_hp(self):
@@ -391,7 +391,7 @@ class TestCombatSystem:
 
         assert healed == 15
         combatant = get_combatant(target)
-        assert combatant.hp == 35
+        assert combatant.vital == 35
 
     def test_roll_initiative(self):
         """roll_initiative returns sorted order."""

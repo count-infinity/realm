@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.behaviors import Behavior
-from realm.std.social.disposition import get_disposition
+from realm.core.world import get_world
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -46,7 +46,9 @@ class ShopkeeperBehavior(Behavior):
     def _disposition_factor(self, keeper: GameObject, customer: GameObject,
                             *, selling: bool) -> float:
 
-        disp = max(-3, min(3, get_disposition(keeper, customer)))
+        social = get_world().services.get("social")
+        disp = (max(-3, min(3, social.get_disposition(keeper, customer)))
+                if social is not None else 0)
         # Friendly keepers charge less and pay more.
         swing = 0.05 * disp
         return (1.0 - swing) if selling else (1.0 + swing)

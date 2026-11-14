@@ -43,6 +43,19 @@ The kernel staying code is the *point*: a fixed traversal a bad definition
 can't break, sandboxed formulas, one fast path. The discipline is keeping
 the kernel small and abstract so the game surface stays large.
 
+**Enforced by test.** The boundary is not a convention: in the code, the
+kernel is `realm/core`, `scripting`, `commands`, `permissions`,
+`persistence`, `gateway`, `server`, `config`, `packs` and
+`realm/features.py`; every built-in game feature is a package in
+`realm/std/` and every game system one in `realm/games/`.
+`tests/test_boundaries.py` fails the suite when the line moves:
+`test_kernel_imports_nothing_above_it`,
+`test_std_features_do_not_import_games`,
+`test_feature_requires_match_imports`, `test_bare_kernel_boots` (a world
+of no features creates, scripts, propagates, saves and loads) and
+`test_stock_game_is_only_a_feature_list` (a stock game is exactly its
+`FEATURES` list).
+
 ## Invariants (the testable yardstick)
 
 1. **Engine, not game (mechanism vs policy).** No kernel code encodes a

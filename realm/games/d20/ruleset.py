@@ -225,11 +225,7 @@ class D20Ruleset(Ruleset):
         resistance, vulnerability); D20 has no further mitigation here.
         """
         self.scale_resistances(target, damage)
-        return target.take_damage(sum(damage.damage_by_type.values()))
-
-    def is_defeated(self, combatant: Combatant) -> bool:
-        """Check if combatant is at 0 HP."""
-        return combatant.hp <= 0
+        return self.write_damage(target, sum(damage.damage_by_type.values()))
 
     def roll_initiative(
         self,

@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from realm.core.pools import is_spent, vital_pool
 from realm.std.combat.maneuver import BASE_MANEUVERS
 
 if TYPE_CHECKING:
@@ -371,7 +372,7 @@ class Ruleset(ABC):
         Apply damage to a combatant.
 
         Call ``self.scale_resistances(target, damage)`` first, then apply
-        the ruleset's own mitigation and reduce HP.
+        the ruleset's own mitigation, then ``self.write_damage``.
 
         Args:
             target: The combatant taking damage
@@ -382,18 +383,17 @@ class Ruleset(ABC):
         """
         pass
 
-    @abstractmethod
+    def write_damage(self, target: Combatant, amount: int) -> int:
+        """Land ``amount`` (after this ruleset's mitigation) in the target's
+        damage pool, soaked and spilling down its overflow chain
+        (``realm.core.pools``). Every ruleset's ``apply_damage`` ends here.
+        Returns what the pools took."""
+        return target.take_damage(amount, soak=True)
+
     def is_defeated(self, combatant: Combatant) -> bool:
-        """
-        Check if a combatant is defeated (dead, unconscious, etc.).
-
-        Args:
-            combatant: The combatant to check
-
-        Returns:
-            True if combatant can no longer fight
-        """
-        pass
+        """Defeated when the vital pool is spent. A ruleset may override
+        (a death check)."""
+        return is_spent(combatant.obj, vital_pool(combatant.obj))
 
     # --- Shared steps ---
 

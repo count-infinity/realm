@@ -122,6 +122,7 @@ class TestFindExit:
 
 
 @pytest.mark.usefixtures("world")
+@pytest.mark.features("items", "economy")
 class TestBuiltinCommands:
     """Test suite for built-in commands."""
 
@@ -222,7 +223,7 @@ class TestBuiltinCommands:
     @pytest.mark.asyncio
     async def test_inventory_shows_money(self):
         """Inventory reports the purse alongside the items."""
-        from realm.std.economy.money import adjust_credits
+        from realm.std.economy.credits import adjust_credits
         GameObject("sword", tags=['thing'], location=self.player)
         adjust_credits(self.player, 250)
 
@@ -239,7 +240,7 @@ class TestBuiltinCommands:
     @pytest.mark.asyncio
     async def test_inventory_shows_money_when_empty_handed(self):
         """Even with nothing carried, you still see your balance."""
-        from realm.std.economy.money import adjust_credits
+        from realm.std.economy.credits import adjust_credits
         adjust_credits(self.player, 7)
 
         await self.dispatcher.dispatch(self.session, "inventory")

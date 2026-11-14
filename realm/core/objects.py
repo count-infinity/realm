@@ -128,6 +128,10 @@ class AttributeProxy:
             return default
         return self._inherited(name, default)
 
+    def own(self, name: str, default: Any = None) -> Any:
+        """This object's own value for ``name``, never an inherited one."""
+        return object.__getattribute__(self, '_attrs').get(name, default)
+
     def set(self, name: str, value: Any) -> None:
         """Set an attribute (alternative to dot notation)."""
         self.__setattr__(name, value)

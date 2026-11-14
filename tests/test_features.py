@@ -57,9 +57,9 @@ SOFTCODE_NAMES = [
 OBSERVERS = [
     'realm.scripting.engine.ScriptEngine.handle_action',
     'realm.std.combat.manager.CombatManager.hostile_observer',
-    'realm.std.crime.wanted.crime_observer',
+    'realm.std.crime.crime.crime_observer',
     'realm.std.rules.system.equipment_observer',
-    'realm.std.stealth.hiding.stealth_observer',
+    'realm.std.stealth.stealth.stealth_observer',
 ]
 BEHAVIOR_IDS = [
     'aggressive', 'caster', 'combatant', 'damage_over_time', 'decay', 'defensive',
@@ -91,9 +91,16 @@ class TestDefaultEqualsToday:
             # Step 6 added @events after the freeze.
             assert sorted(set(sim.dispatcher._commands) - {"@events"}) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
-            # Step 5 added clone_obj, set_name and set_desc after the freeze.
-            assert sorted(names - {"clone_obj", "set_name", "set_desc"}) == SOFTCODE_NAMES
-            assert sorted(_qualname(o) for o in get_world().engine._observers) == OBSERVERS
+            # Step 5 added clone_obj, set_name and set_desc after the freeze;
+            # step 8 the pool functions.
+            added = {"clone_obj", "set_name", "set_desc", "pool", "pool_max", "has_pool",
+                     "spent", "harm_pool", "mend_pool", "spend_pool"}
+            assert sorted(names - added) == SOFTCODE_NAMES
+            # Step 8 added combat's two vital-pool observers.
+            observers = {_qualname(o) for o in get_world().engine._observers} - {
+                "realm.std.combat.vitals.death_observer",
+                "realm.std.combat.vitals.threshold_observer"}
+            assert sorted(observers) == OBSERVERS
             assert sorted(BehaviorRegistry.list_all()) == BEHAVIOR_IDS
         finally:
             sim.close()
@@ -454,8 +461,8 @@ async def knock(ctx):
 
 
 @feature.traversal_gate(reason="toll", attrs=["toll"])
-async def toll(actor, exit_obj, direction):
-    if exit_obj.db.get("toll") and not actor.db.get("paid"):
+async def toll(actor, exit_obj, direction, *, fleeing):
+    if exit_obj is not None and exit_obj.db.get("toll") and not actor.db.get("paid"):
         return "Pay the toll first."
     return None
 

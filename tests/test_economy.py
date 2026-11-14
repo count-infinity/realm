@@ -10,7 +10,7 @@ import pytest
 from realm.core.objects import GameObject
 from realm.core.world import get_world
 from realm.gateway.session import Session
-from realm.std.economy.money import adjust_credits, get_credits, transfer_credits
+from realm.std.economy.credits import adjust_credits, get_credits, transfer_credits
 from realm.std.economy.shop import ShopkeeperBehavior, find_shopkeeper
 from realm.std.social.disposition import set_disposition
 from tests.test_olc import MockPersistence, make_context, use_persistence
@@ -40,6 +40,8 @@ class TestEconomyCore:
         assert transfer_credits(bob, merchant, -5) is False
 
 
+@pytest.mark.usefixtures("world")
+@pytest.mark.features("rules", "effects", "social")
 class TestShopPricing:
 
     def _shop(self):

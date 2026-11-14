@@ -7,8 +7,8 @@ Procedural wilderness cells behind map-provider regions.
 from __future__ import annotations
 
 from realm.features import Feature
-from realm.std.wilderness import cells as wilderness
 from realm.std.wilderness import softcode
+from realm.std.wilderness import wilderness as wilderness
 
 feature = Feature(
     'wilderness',

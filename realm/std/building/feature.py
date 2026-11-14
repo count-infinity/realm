@@ -63,6 +63,7 @@ from realm.std.building.scripting import (
 
 feature = Feature(
     'building',
+    requires=['look'],
     doc='The @-commands for building and administering the world.',
 )
 

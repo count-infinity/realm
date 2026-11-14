@@ -322,6 +322,32 @@ probabilistic flavor inside the strategy system if wanted.
 5. **Heist integration** — Nexagen guards fight back; failure path
    playthrough added to the e2e (spotted → combat → flee → re-hide).
 
+## Changelog
+
+- **2026-11-14 (KERNEL_PLAN 8.2).** Damage, healing and costs go through
+  `realm/core/pools.py`. Every ruleset's `apply_damage` ends in
+  `Ruleset.write_damage`, which harms the target's damage pool with soak;
+  `is_defeated` defaults to "the vital pool is spent". Damage now stops at
+  the pool's floor (0) for every source: softcode `damage()`, typed
+  damage over time and the Merc ruleset used to drive `hp` negative.
+  `Combatant.hp`/`max_hp`/`hp_percent` are `vital`/`vital_max`/`vital_percent`
+  (read-only); strategy conditions keep `hp` and `hp_percent`.
+- **2026-11-14 (KERNEL_PLAN 8.3).** Death and `ON_HITPRCNT` are observers on
+  the vital pool (`realm/std/combat/vitals.py`). `pool:on_spent` for the
+  vital pool runs `CombatManager.handle_death`. The softcode `death_check`
+  queue kind, `CombatManager.handle_defeat` and the ability and
+  damage-over-time death calls are gone. A swing returns its unsettled
+  pool changes; `CombatEncounter.land` shows the hit, takes a defeated
+  target out of the fight, then settles them, so the hit message still
+  comes before the fall. **Behavior changes:** `ON_HITPRCNT` now fires for
+  poison, traps, softcode and spells, not only swings, and for an up vital
+  pool counts what is left below its max. Damage to an object whose vital
+  pool was already spent no longer runs the death path again. What death
+  does to the body is data: `obj.db.when_spent` is `unconscious`,
+  `corpse`, `destroy` or `none`, defaulting to unconscious for a player
+  and a corpse for anything else; `ON_DEATH`'s `fatal` is True when the
+  body is gone.
+
 ## Open Questions (answers shape Phase 1)
 
 1. **Whose beat wins in a shared encounter?** Options: (a) slowest

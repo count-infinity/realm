@@ -15,17 +15,21 @@ from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
-from realm.core.movement import move_through_exit, resolve_exit_destination
 from realm.core.perception import can_see
+from realm.core.pools import damage_pool, mend, pool_get, pool_max, settle
 from realm.core.world import get_world
 from realm.std.combat.actions import CombatAction
-from realm.std.combat.manager import is_combat_capable
-from realm.std.crime.wanted import is_wanted, wanted_heat
-from realm.std.social.disposition import get_disposition
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
     from realm.core.propagation import Action
+
+
+async def _say(npc: GameObject, text: str) -> None:
+    """The NPC speaks, when the world has ``talk`` (``services["talk"]``)."""
+    talk = get_world().services.get("talk")
+    if talk is not None:
+        await talk.npc_say(npc, text)
 
 
 def _combat_manager():
@@ -80,7 +84,8 @@ class AggressiveBehavior(Behavior):
         # Even a monster spares those it's devoted to (spare_at=None disables).
         spare_at = self.get_param('spare_at', 2)
         if spare_at is not None:
-            if get_disposition(obj, target) >= int(spare_at):
+            social = get_world().services.get("social")
+            if social is not None and social.get_disposition(obj, target) >= int(spare_at):
                 return
         if not can_see(obj, target):
             return
@@ -93,8 +98,7 @@ class AggressiveBehavior(Behavior):
 
         taunt = self.get_param('taunt')
         if taunt:
-            from realm.std.npc.behaviors import _npc_say
-            await _npc_say(obj, str(taunt))
+            await _say(obj, str(taunt))
 
         await manager.initiate(obj, target)
 
@@ -139,47 +143,6 @@ class FleeingBehavior(Behavior):
         _ensure_strategy_rule(obj, f"!me.hp_percent < {flee_percent}", "flee")
 
 
-class GuardBehavior(Behavior):
-    """
-    Blocks movement for those without permission.
-
-    Parameters:
-        guard_tags: tags marking who to block (default ['player'])
-        allow_tags: tags marking who passes (default ['guard', 'admin'])
-        challenge_message: the block reason shown
-    """
-
-    behavior_id = "guard"
-    param_spec = {
-        'guard_tags': (['player'], 'tags marking who to block'),
-        'allow_tags': (['guard', 'admin'], 'tags marking who passes'),
-        'allow_disposition': (2, 'disposition at or above which one passes'),
-        'challenge_message': ('Halt! You shall not pass!',
-                              'the block reason shown'),
-    }
-
-    async def on_check(self, obj: GameObject, action: Action) -> None:
-        if action.action_type not in (ActionType.ON_ENTER, ActionType.ON_LEAVE):
-            return
-
-        mover = action.actor
-        if not mover or mover == obj:
-            return
-
-        allow_tags = self.get_param('allow_tags', ['guard', 'admin'])
-        if any(mover.has_tag(tag) for tag in allow_tags):
-            return
-
-        # Friends (and the successfully fast-talked) get waved through.
-        if get_disposition(obj, mover) >= int(self.get_param('allow_disposition', 2)):
-            return
-
-        guard_tags = self.get_param('guard_tags', ['player'])
-        if not any(mover.has_tag(tag) for tag in guard_tags):
-            return
-
-        challenge = self.get_param('challenge_message', "Halt! You shall not pass!")
-        action.block(challenge)
 
 
 class HealerBehavior(Behavior):
@@ -222,15 +185,16 @@ class HealerBehavior(Behavior):
                 continue
             if not any(other.has_tag(tag) for tag in ally_tags):
                 continue
-            hp = other.db.get('hp')
-            max_hp = other.db.get('max_hp')
-            if hp is None or max_hp is None or int(max_hp) <= 0:
+            pool = damage_pool(other)
+            hp = pool_get(other, pool) if pool else None
+            max_hp = pool_max(other, pool) if pool else None
+            if hp is None or max_hp is None or max_hp <= 0:
                 continue
-            if 100 * int(hp) / int(max_hp) >= threshold:
+            if 100 * hp / max_hp >= threshold:
                 continue
 
             heal = int(self.get_param('heal_amount', 5))
-            other.db.hp = min(int(max_hp), int(hp) + heal)
+            await settle(mend(other, pool, heal), source=obj)
             other.msg(f"{obj.name} tends your wounds (+{heal} HP).")
             if obj.location:
                 obj.location.msg_contents(
@@ -262,67 +226,6 @@ class CombatantBehavior(Behavior):
             obj.location.msg_contents(str(death_msg))
 
 
-class WanderingBehavior(Behavior):
-    """
-    Roams through random open exits.
-
-    Parameters:
-        wander_chance: probability of moving on each check (default 0.25)
-        pause: ticks between wander checks (default 7 ≈ 30s at 4s ticks)
-        avoid_tags: destination-room tags never entered (default
-            ['no_wander']); wanderers also never leave their zone if
-            stay_in_zone is set.
-        stay_in_zone: keep to rooms sharing the owner's zone: tag
-            (default True).
-    """
-
-    behavior_id = "wandering"
-    param_spec = {
-        'pause': (7, 'world beats between wander attempts'),
-        'wander_chance': (0.25, 'probability per attempt that it moves'),
-        'avoid_tags': (['no_wander'], 'exit tags never taken'),
-        'stay_in_zone': (True, 'keep to rooms sharing a zone tag'),
-    }
-
-    @property
-    def should_tick(self) -> bool:
-        return True
-
-    async def tick(self, obj: GameObject, delta: float) -> None:
-        if obj.has_tag('in_combat') or obj.location is None:
-            return
-
-        if not self.countdown(obj, 'wander_wait', int(self.get_param('pause', 7)) + 1):
-            return
-
-        if random.random() > float(self.get_param('wander_chance', 0.25)):
-            return
-
-
-        avoid = set(self.get_param('avoid_tags', ['no_wander']))
-        my_zones = {t for t in obj.location.tags.to_list() if t.startswith('zone:')}
-        stay_in_zone = bool(self.get_param('stay_in_zone', True))
-
-        candidates = []
-        for exit_obj in obj.location.contents:
-            if not exit_obj.is_exit or exit_obj.has_tag('closed'):
-                continue
-            destination = resolve_exit_destination(exit_obj)
-            if destination is None:
-                continue
-            if any(destination.has_tag(tag) for tag in avoid):
-                continue
-            if stay_in_zone and my_zones:
-                dest_zones = {t for t in destination.tags.to_list()
-                              if t.startswith('zone:')}
-                if not (my_zones & dest_zones):
-                    continue
-            candidates.append((exit_obj, destination))
-
-        if not candidates:
-            return
-        exit_obj, destination = random.choice(candidates)
-        await move_through_exit(obj, destination, exit_obj=exit_obj)
 
 
 class VenomousBehavior(Behavior):
@@ -386,44 +289,3 @@ class VenomousBehavior(Behavior):
             target.add_behavior(poison)
             target.msg("You are poisoned!")
 
-
-class PeacekeeperBehavior(Behavior):
-    """
-    Attacks WANTED criminals in its room (ROM spec_guard, done right).
-
-    Unlike the `guard` behavior — which blocks *movement* — a peacekeeper
-    enforces the law: each tick it scans its room for players carrying a
-    ``wanted:*`` tag (see systems/crime.py) and engages the highest-heat one.
-    The importer maps `spec_guard` to this.
-
-    Params:
-        yell (str): line shouted when it moves to arrest (optional).
-    """
-
-    behavior_id = "peacekeeper"
-    param_spec = {
-        'yell': ("HALT! You are under arrest!",
-                 'line shouted when it engages a criminal'),
-    }
-
-    @property
-    def should_tick(self) -> bool:
-        return True
-
-    async def tick(self, obj: GameObject, delta: float) -> None:
-        if obj.location is None or obj.has_tag('in_combat'):
-            return
-        manager = get_world().services.get("combat")
-        if manager is None:
-            return
-        criminals = [c for c in obj.location.contents
-                     if c.is_player and is_wanted(c)
-                     and is_combat_capable(c)]
-        if not criminals:
-            return
-        target = max(criminals, key=wanted_heat)
-        yell = self.get_param('yell')
-        if yell:
-            from realm.std.npc.behaviors import _npc_say
-            await _npc_say(obj, str(yell))
-        await manager.initiate(obj, target)

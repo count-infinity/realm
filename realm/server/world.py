@@ -41,7 +41,7 @@ def build_world(store, settings: Settings | None = None, *,
 
     ``features`` must already have run ``install_registries`` (the server
     does that before loading the world). Without it, the set named by
-    ``settings.features`` (default ``CLASSIC``) is loaded and installed here.
+    ``settings.features`` (default ``realm.std.CLASSIC``) is loaded and installed here.
 
     ``defer_timers`` makes softcode ``wait()`` fire only when a test pumps
     ``engine.waits.tick()`` (the Simulator's virtual clock).
@@ -54,8 +54,7 @@ def build_world(store, settings: Settings | None = None, *,
     cfg = settings or Settings()
     if features is None:
         from realm.features import load
-        from realm.std import CLASSIC
-        features = load(cfg.features or CLASSIC)
+        features = load(cfg.features)
         features.install_registries()
 
     engine = PropagationEngine()        # a new world has a new engine

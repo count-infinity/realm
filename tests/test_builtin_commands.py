@@ -195,6 +195,7 @@ class TestCommunicationCommands:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("world")
+@pytest.mark.features("look")
 class TestMovementCommand:
 
     async def _setup_two_rooms(self):

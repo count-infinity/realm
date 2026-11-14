@@ -21,8 +21,8 @@ from realm.gateway.session import Session
 from realm.std.combat.manager import CombatManager
 from realm.std.combat.maneuver import QueuedAction
 from realm.std.combat.system import CombatSystem
-from realm.std.npc.behaviors import WatchfulBehavior
 from realm.std.rules.checks import CheckResult, checks, skill_level
+from realm.std.stealth.behaviors import WatchfulBehavior
 
 
 class FixedRuleset(GURPSRuleset):
@@ -276,7 +276,7 @@ class TestFlee:
         """A portal resolves to PRIVATE per-walker space — fleeing through
         one is an unpursuable teleport into a fresh dungeon import, so it
         is excluded from flee entirely (registered shared_destination=False)."""
-        import realm.std.instances.instancing  # noqa: F401 — registers the resolver
+        import realm.std.instances.instances  # noqa: F401 — registers the resolver
 
         room = GameObject("Shrine", tags=["room"])
         portal = GameObject("out", location=room, tags=["exit"])
@@ -788,7 +788,7 @@ class TestDestubbedBrains:
         assert ["!me.hp_percent < 30", "flee"] in rules
 
     async def test_wandering_moves_within_zone(self, manager):
-        from realm.std.combat.behaviors import WanderingBehavior
+        from realm.std.npc.behaviors import WanderingBehavior
         here = GameObject("Market", tags=["room", "zone:town"])
         there = GameObject("Square", tags=["room", "zone:town"])
         beyond = GameObject("Wilds", tags=["room", "zone:wild"])

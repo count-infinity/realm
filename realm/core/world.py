@@ -71,6 +71,9 @@ class World:
     #: (obj, skill) -> int condition modifiers (``feature.check_modifier``);
     #: the ``rules`` feature folds them into every check.
     check_modifiers: list[Callable] = field(default_factory=list)
+    #: (world) -> None, run when a builder reloads the world's data
+    #: (``@reload``, an area import): ``feature.on_reload``.
+    reload_hooks: list[Callable] = field(default_factory=list)
     #: (async (actor, exit_obj, direction) -> str | None, on_fail reason)
     traversal_gates: list[tuple[Callable, str]] = field(default_factory=list)
     #: async (actor, origin, destination, exit_obj, *, fleeing)
@@ -80,6 +83,9 @@ class World:
     name_resolvers: list[Callable] = field(default_factory=list)      # perception
     speech_renderers: list[Callable] = field(default_factory=list)    # per listener
     group_formatter: Callable | None = None                           # contents lines
+    #: pool name -> Pool: world defaults from the rules system and
+    #: ``feature.pool`` (realm.core.pools, definition source 3).
+    pools: dict[str, Any] = field(default_factory=dict)
     _closers: list[Callable[[], None]] = field(default_factory=list, repr=False)
 
     def add_closer(self, undo: Callable[[], None]) -> None:

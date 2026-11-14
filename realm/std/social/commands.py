@@ -143,7 +143,7 @@ async def cmd_fasttalk(ctx: CommandContext) -> None:
     won = contest(ctx.player, 'fast_talk', target, 'detect_lies')
 
     if won:
-        from realm.std.effects.behaviors import DispositionBoostBehavior
+        from realm.std.social.behaviors import DispositionBoostBehavior
         target.add_behavior(DispositionBoostBehavior(
             target_id=ctx.player.id, delta=2, duration=30))
         value = get_disposition(target, ctx.player)

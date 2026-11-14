@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.std.economy.money import adjust_credits, get_credits
+from realm.std.economy.credits import adjust_credits, get_credits
 from realm.testing import Simulator
 
 

@@ -35,12 +35,13 @@ from realm.core.movement import (
     move_through_exit,
     resolve_exit_destination,
 )
+from realm.core.pools import settle
 from realm.core.propagation import Action, deliver_messages
 from realm.core.search import match_objects
 from realm.std.combat.actions import CombatAction
 from realm.std.combat.combatant import Combatant, CombatState, get_combatant
 from realm.std.combat.maneuver import QueuedAction
-from realm.std.combat.system import find_wielded
+from realm.std.combat.system import CombatResult, find_wielded
 from realm.std.rules.checks import check
 
 if TYPE_CHECKING:
@@ -349,9 +350,7 @@ class CombatEncounter:
                 weapon = None  # you don't club people with your rifle
             result = await self.combat_system.attack(obj, target.obj,
                                                      weapon=weapon)
-            deliver_combat_messages(obj, target.obj, result.messages)
-            if result.target_defeated:
-                await self.manager.handle_defeat(self, target, killer=participant)
+            await self.land(participant, target, result)
             return
 
         if key == 'shoot':
@@ -425,6 +424,20 @@ class CombatEncounter:
         if not handled:
             obj.msg(f"You don't know how to {key}.")
 
+    async def land(self, participant: Participant, target: Participant,
+                   result: CombatResult, messages: dict[str, str] | None = None) -> None:
+        """Finish a swing or a shot: show its messages (``messages``, else
+        the result's), take a defeated target out of the fight, then settle
+        the blow's pool changes. Settling is where the target dies or
+        reaches its ``hitprcnt`` (the vital-pool observers), so the room
+        hears the hit before the fall."""
+        deliver_combat_messages(participant.obj, target.obj,
+                                result.messages if messages is None else messages)
+        if result.target_defeated:
+            self.remove(target.obj.id, make_peace=False)
+        for change in result.changes:
+            await settle(change, source=participant.obj)
+
     async def _resolve_shoot(self, participant: Participant,
                              action: QueuedAction) -> None:
         """Ranged attack: works at any band; aim bonus consumed, close
@@ -453,9 +466,7 @@ class CombatEncounter:
 
         result = await self.combat_system.attack(
             obj, target.obj, weapon=weapon, modifiers=modifiers)
-        deliver_combat_messages(obj, target.obj, result.messages)
-        if result.target_defeated:
-            await self.manager.handle_defeat(self, target, killer=participant)
+        await self.land(participant, target, result)
 
     def _resolve_aim(self, participant: Participant,
                      action: QueuedAction) -> None:
@@ -556,7 +567,7 @@ class CombatEncounter:
                 continue
             combatant = participant.combatant
             participant.obj.msg_oob("Char.Vitals", {
-                "hp": combatant.hp, "max_hp": combatant.max_hp,
+                "hp": combatant.vital, "max_hp": combatant.vital_max,
                 "round": self.round_number,
             })
             planned = self._select_action(participant)

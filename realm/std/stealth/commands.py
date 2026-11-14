@@ -2,7 +2,7 @@
 The ``stealth`` feature's commands: hide, search, pick.
 
 - ``hidden`` tag — granted by the ``hide`` skill check, broken by loud
-  actions or a winning ``search``/Watchful contest (``hiding.py``).
+  actions or a winning ``search``/Watchful contest (``stealth.py``).
 - ``invisible`` + ``db.conceal_difficulty`` — concealed scenery
   (a safe behind a painting) revealed by ``search``.
 - ``locked`` tag — ``pick`` defeats it with a skill check
@@ -17,7 +17,7 @@ from realm.core.perception import room_is_lit
 from realm.std.items.actions import ItemAction
 from realm.std.items.verbs import gate_item_action
 from realm.std.rules.checks import check, contest
-from realm.std.stealth.hiding import HIDDEN_TAG
+from realm.std.stealth.stealth import HIDDEN_TAG
 
 
 async def cmd_pick(ctx: CommandContext) -> None:

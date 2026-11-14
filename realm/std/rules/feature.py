@@ -6,6 +6,9 @@ The game system's checks and advancement in softcode and commands.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+from realm.core.pools import add_default
 from realm.features import Feature
 from realm.std.rules import softcode
 from realm.std.rules.checks import Checks
@@ -17,6 +20,12 @@ feature = Feature(
     'rules',
     doc="The game system's checks and advancement in softcode and commands.",
 )
+
+
+@feature.on_reload
+def _reload(world) -> None:
+    """``@reload`` and imports pick up edited skill_def objects."""
+    reload_rules()
 
 
 # The rules data every game system reads: skill_def and class_def objects.
@@ -34,6 +43,8 @@ def _install_game_system(world) -> None:
     checks.modifier_providers.extend(world.check_modifiers)
     world.services["checks"] = checks
     world.rules = resolve_game_system(world.settings.game_system)
+    for pool in world.rules.pools():
+        add_default(world, replace(pool, owner=f"rules ({world.rules.system_id})"))
     reload_rules()
 
 feature.command(
@@ -58,11 +69,11 @@ feature.observer(equipment_observer)
 
 @feature.traversal_gate(reason="skill",
                         attrs=["check_skill", "check_difficulty", "check_fail_msg"])
-async def skill_gate(actor, exit_obj, direction):
+async def skill_gate(actor, exit_obj, direction, *, fleeing):
     """Skill-gated exits (fire escapes, ledges): ``db.check_skill`` names
     the skill, ``db.check_difficulty`` subtracts, ``db.check_fail_msg``
     replaces the failure line."""
-    skill = exit_obj.db.get('check_skill')
+    skill = exit_obj.db.get('check_skill') if exit_obj is not None else None
     if not skill:
         return None
     from realm.std.rules.checks import check

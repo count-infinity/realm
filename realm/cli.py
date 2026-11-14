@@ -186,10 +186,9 @@ async def _offline_world() -> AsyncIterator[Any]:
     from realm.features import load
     from realm.persistence.manager import PersistenceManager
     from realm.server.world import build_world
-    from realm.std import CLASSIC
 
     settings = load_config()
-    features = load(settings.features or CLASSIC)
+    features = load(settings.features)
     features.install_registries()
     persistence = PersistenceManager(settings.db_path)
     await persistence.initialize()

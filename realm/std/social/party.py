@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.movement import has_dest_resolver, move_through_exit, resolve_exit_destination
-from realm.std.look.render import render_room
+from realm.core.world import get_world
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -109,7 +109,9 @@ async def bring_followers(
         if moved:
             obj.msg(f"You follow {leader.name}.")
             if obj.is_player:
-                obj.msg(render_room(obj.location, obj))
+                look = get_world().services.get("look")
+                if look is not None:
+                    obj.msg(look.render_room(obj.location, obj))
 
 
 __all__ = [

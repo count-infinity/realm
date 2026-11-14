@@ -61,3 +61,6 @@ class ActionType(StrEnum):
     ON_RESET = "event:on_reset"
     ON_LOAD = "event:on_load"
     ON_EXPIRE = "event:on_expire"
+    # -- pools (realm.core.pools.settle) ---------------------------------------
+    POOL_CHANGE = "pool:on_change"
+    POOL_SPENT = "pool:on_spent"

@@ -8,13 +8,12 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object, find_player, format_list
-from realm.core.language import numbered_name
+from realm.core.language import group_contents, numbered_name
 from realm.core.objects import GameObject
 from realm.core.propagation import deliver_messages
-from realm.std.economy.money import currency_name, get_credits
+from realm.core.world import get_world
 from realm.std.items.actions import ItemAction
 from realm.std.items.verbs import do_drop, do_get, do_give, gate_item_action
-from realm.std.look.render import group_contents
 
 
 def _summarize(items: list[GameObject]) -> str:
@@ -34,13 +33,17 @@ async def cmd_inventory(ctx: CommandContext) -> None:
            inv
     """
     items = [obj for obj in ctx.player.contents if not obj.is_exit]
-    # Money is a balance, not an object — the active GameSystem names it
-    # (credits / gold / shillings), so shops and inventory always agree.
-    purse = f"You have {get_credits(ctx.player)} {currency_name()}."
+    # Money is a balance, not an object — the economy feature keeps it and
+    # the active GameSystem names it (credits / gold / shillings), so shops
+    # and inventory always agree. No economy, no purse line.
+    economy = get_world().services.get("economy")
+    purse = (f"You have {economy.get_credits(ctx.player)} {economy.currency_name()}."
+             if economy is not None else None)
 
     if not items:
         await ctx.session.send("You aren't carrying anything.")
-        await ctx.session.send(purse)
+        if purse:
+            await ctx.session.send(purse)
         return
 
     await ctx.session.send("\nYou are carrying:")
@@ -54,7 +57,8 @@ async def cmd_inventory(ctx: CommandContext) -> None:
         else:
             mark = ""
         await ctx.session.send(f"  {item.name}{mark}")
-    await ctx.session.send(purse)
+    if purse:
+        await ctx.session.send(purse)
     await ctx.session.send("")
 
 

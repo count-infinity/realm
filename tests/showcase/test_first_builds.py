@@ -18,8 +18,7 @@ resolver.
 
 from __future__ import annotations
 
-
-from realm.std.economy.money import get_credits
+from realm.std.economy.credits import get_credits
 from tests.showcase.harness import (  # noqa: F401 — shared doc-driven harness
     build,
     build_lines,

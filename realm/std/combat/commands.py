@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object
+from realm.core.pools import damage_pool, is_spent, mend, pool_get, pool_max, settle, vital_pool
 from realm.core.world import get_world
 from realm.std.combat.manager import is_combat_capable
 from realm.std.combat.maneuver import QueuedAction
@@ -192,8 +193,8 @@ async def cmd_combat_status(ctx: CommandContext) -> None:
         marker = "*" if participant.obj is ctx.player else " "
         lines.append(
             f" {marker}{participant.obj.name:20} "
-            f"{_bar(combatant.hp, combatant.max_hp)} "
-            f"{combatant.hp}/{combatant.max_hp}{target_note}"
+            f"{_bar(combatant.vital, combatant.vital_max)} "
+            f"{combatant.vital}/{combatant.vital_max}{target_note}"
         )
     if me is not None and me.queued is not None:
         maneuver = encounter.combat_system.ruleset.get_maneuver(me.queued.maneuver)
@@ -310,12 +311,12 @@ async def cmd_firstaid(ctx: CommandContext) -> None:
         await ctx.session.send(f"You don't see '{name}' here.")
         return
 
-    hp = int(target.db.get('hp') or 0)
-    max_hp = int(target.db.get('max_hp') or 0)
+    pool = damage_pool(target)
+    max_hp = int((pool_max(target, pool) if pool else None) or 0)
     if max_hp <= 0:
         await ctx.session.send(f"{target.name} doesn't need first aid.")
         return
-    if hp >= max_hp:
+    if int(pool_get(target, pool) or 0) >= max_hp:
         await ctx.session.send(f"{target.name} is unhurt.")
         return
 
@@ -324,12 +325,12 @@ async def cmd_firstaid(ctx: CommandContext) -> None:
         await ctx.session.send("You fumble with the dressings to no effect.")
         return
     healed = max(1, result.margin // 2 + 1)
-    target.db.hp = min(max_hp, hp + healed)
+    await settle(mend(target, pool, healed), source=ctx.player)
     who = "your" if target is ctx.player else f"{target.name}'s"
     ctx.player.msg(f"You dress {who} wounds ({healed} HP).")
     if target is not ctx.player:
         target.msg(f"{ctx.player.name} dresses your wounds ({healed} HP).")
-    if target.has_tag('unconscious') and int(target.db.get('hp') or 0) > 0:
+    if target.has_tag('unconscious') and not is_spent(target, vital_pool(target)):
         target.remove_tag('unconscious')
         target.msg("You come to, aching all over.")
         if target.location:

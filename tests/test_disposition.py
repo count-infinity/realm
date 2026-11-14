@@ -11,9 +11,10 @@ import pytest
 from realm.core.objects import GameObject
 from realm.core.propagation import Action
 from realm.core.world import get_world
-from realm.std.combat.behaviors import AggressiveBehavior, GuardBehavior
-from realm.std.effects.behaviors import DispositionBoostBehavior
+from realm.std.combat.behaviors import AggressiveBehavior
+from realm.std.npc.behaviors import GuardBehavior
 from realm.std.rules.checks import checks
+from realm.std.social.behaviors import DispositionBoostBehavior
 from realm.std.social.disposition import (
     adjust_disposition,
     disposition_band,
@@ -82,6 +83,7 @@ class TestDispositionCore:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("world")
+@pytest.mark.features("rules", "effects", "social")
 class TestDispositionConsumers:
 
     async def test_guard_waves_friends_through(self):

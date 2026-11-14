@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.defs import find_def
-from realm.std.abilities.invoke import (
+from realm.std.abilities.abilities import (
     SPELL_DEF_TAG,
     apply_typed_damage,
     can_invoke,

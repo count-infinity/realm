@@ -16,14 +16,15 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from realm.core.behaviors import BehaviorRegistry
 from realm.core.objects import GameObject as GameObjectCls
+from realm.core.pools import damage_pool
 from realm.core.propagation import Action, propagate
 from realm.core.world import get_world
 from realm.std.combat.actions import CombatAction
 from realm.std.combat.encounter import CombatEncounter, deliver_combat_messages
 from realm.std.combat.maneuver import QueuedAction
 from realm.std.combat.strategy import select_strategy_action
-from realm.std.npc.decay import DecayBehavior
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -34,13 +35,34 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+#: What ``handle_death`` does to a body, by ``obj.db.when_spent``.
+WHEN_SPENT = ('unconscious', 'corpse', 'destroy', 'none')
+
+
+def when_spent(obj: GameObject) -> str:
+    """``obj.db.when_spent``, else today's rule by kind: a player falls
+    unconscious, anything else leaves a corpse. Raises ValueError for an
+    unknown rule, or for a player set to ``corpse`` or ``destroy``."""
+    rule = obj.db.when_spent
+    if rule is None:
+        return 'unconscious' if obj.is_player else 'corpse'
+    rule = str(rule).strip().lower()
+    if rule not in WHEN_SPENT:
+        raise ValueError(f"{obj.name}: when_spent must be one of "
+                         f"{', '.join(WHEN_SPENT)}, not {obj.db.when_spent!r}")
+    if obj.is_player and rule in ('corpse', 'destroy'):
+        raise ValueError(f"{obj.name}: a player's when_spent may be unconscious "
+                         f"or none, not {rule!r}")
+    return rule
+
+
 def is_combat_capable(obj: GameObject) -> bool:
-    """Things with hit points can fight: players and statted NPCs."""
+    """Players and NPCs with a damage pool (hit points, by default) can fight."""
     if not (obj.is_player or obj.is_npc):
         return False
     if obj.has_tag('unconscious'):
         return False
-    return obj.db.get('max_hp') is not None or obj.db.get('hp') is not None
+    return damage_pool(obj) is not None
 
 
 class CombatManager:
@@ -152,16 +174,10 @@ class CombatManager:
             return  # already fighting
         await self.initiate(attacker, defender, already_acted=True)
 
-    # --- Defeat ---
-
-    async def handle_defeat(self, encounter, participant, killer=None) -> None:
-        """Defeat inside an encounter: remove, then the shared death path."""
-        obj = participant.obj
-        encounter.remove(obj.id, make_peace=False)
-        await self.handle_death(obj, killer.obj if killer else None)
+    # --- Death ---
 
     async def _propagate_death(self, victim: GameObject,
-                               killer: GameObject | None) -> None:
+                               killer: GameObject | None, *, fatal: bool) -> None:
         """Announce a death to the world — the ONE place that happens.
 
         Fired *before* the body is transformed, because witnesses inspect
@@ -172,8 +188,8 @@ class CombatManager:
 
         ``extra['killer']`` stays a NAME for compatibility with scripts
         written against the old swing-path event; the killer *object* is
-        bound as ``actor``, and ``fatal`` distinguishes a real death (an
-        NPC, now a corpse) from a player knocked unconscious in place.
+        bound as ``actor``, and ``fatal`` says whether the body is gone (a
+        corpse, or destroyed) or stays (unconscious, or ``none``).
         """
 
         action = Action(
@@ -182,7 +198,7 @@ class CombatManager:
             action_type=CombatAction.ON_DEATH,
             extra={
                 'killer': killer.name if killer is not None else None,
-                'fatal': not victim.is_player,
+                'fatal': fatal,
             },
         )
         await propagate(action, deliver=False)
@@ -191,19 +207,22 @@ class CombatManager:
                            killer: GameObject | None = None) -> None:
         """
         The one death path, whatever the cause (a swing, poison, a trap):
-        players fall unconscious in place, revivable; NPCs die into
-        lootable corpses.
+        combat's observer on ``pool:on_spent`` calls it when an object's
+        vital pool is spent (``realm.std.combat.vitals``).
 
-        It is also the one place ``combat:on_death`` is announced. It used
-        not to be: the event fired inside ``CombatSystem.attack`` — the
-        *swing* path only — so an NPC killed by softcode ``damage()``, a
-        poison tick or a trap died in silence, and a player going down
-        emitted nothing at all. Bounty boards, arena recorders and clone
-        bays had to poll. Every route into death comes through here, so
-        this is where the world gets told.
+        ``obj.db.when_spent`` says what happens to the body (WHEN_SPENT):
+        ``"unconscious"`` (tagged, in place, revivable; a player's
+        default), ``"corpse"`` (a lootable corpse and a character-point
+        award; an NPC's default), ``"destroy"`` (gone, its contents left
+        in the room) or ``"none"`` (nothing: the object's own ``ON_SPENT``
+        softcode decides). A player is never made a corpse or destroyed.
+
+        It is also the one place ``combat:on_death`` is announced, before
+        the body changes, for every rule.
         """
-        await self._propagate_death(obj, killer)
-        if obj.is_player:
+        rule = when_spent(obj)
+        await self._propagate_death(obj, killer, fatal=rule in ('corpse', 'destroy'))
+        if rule == 'unconscious':
             if not obj.has_tag('unconscious'):
                 obj.add_tag('unconscious')
             obj.msg("Everything goes black...")
@@ -211,8 +230,20 @@ class CombatManager:
                 obj.location.msg_contents(
                     f"{obj.name} collapses, unconscious!", exclude=[obj],
                 )
-        else:
+        elif rule == 'corpse':
             await self._npc_death(obj, killer)
+        elif rule == 'destroy':
+            await self._destroy(obj)
+
+    async def _destroy(self, obj: GameObject) -> None:
+        """The one destroy path (``ops.objects.destroy``): an exit unpairs,
+        a player inside is evacuated, its other contents go with it. A
+        ``safe`` object refuses (``Refused``)."""
+        from realm.core.ops.objects import destroy
+        room = obj.location
+        if room is not None:
+            room.msg_contents(f"{obj.name} is destroyed!", exclude=[obj])
+        await destroy(None, obj, get_world().store)
 
     async def _npc_death(self, npc: GameObject, killer: GameObject | None) -> None:
 
@@ -224,14 +255,16 @@ class CombatManager:
         # scaled down, split across the killer's party members present
         # (solo killers keep the whole award).
         if killer is not None and killer.is_player:
-            from realm.std.social.party import party_members
             system = get_world().rules
             award = (system.death_award(npc, killer) if system
                      else max(1, int(npc.db.get('points') or 10) // 10))
             from realm.core.zones import zone_property
             multiplier = zone_property(room, 'xp_multiplier', 1.0)
             award = max(1, round(award * float(multiplier)))
-            sharers = [m for m in party_members(killer)
+            # The party shares it when the world has ``social``.
+            social = get_world().services.get("social")
+            party = social.party_members(killer) if social is not None else [killer]
+            sharers = [m for m in party
                        if m.is_player and not m.has_tag('unconscious')]
             if not sharers:
                 sharers = [killer]
@@ -256,7 +289,9 @@ class CombatManager:
             item.location = corpse
         corpse.location = room
 
-        corpse.add_behavior(DecayBehavior(ticks=150))
+        # It rots away when the world has a ``decay`` behavior (``npc``).
+        if BehaviorRegistry.get("decay") is not None:
+            corpse.add_behavior(BehaviorRegistry.create("decay", ticks=150))
 
         persistence = get_world().store
         if persistence is not None:
@@ -276,7 +311,9 @@ class CombatManager:
 
 # Ambient accessor (set by GameServer, same pattern as persistence).
 __all__ = [
+    "WHEN_SPENT",
     "CombatManager",
     "deliver_combat_messages",
     "is_combat_capable",
+    "when_spent",
 ]

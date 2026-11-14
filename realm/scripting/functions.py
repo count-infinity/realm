@@ -66,7 +66,7 @@ class ScriptFrame:
         # worker thread, so functions must never touch sessions directly —
         # the engine drains this queue on the event loop after execution.
         # Entries: (kind, obj, payload). Message kinds (pemit/remit/oemit)
-        # carry a string; world-op kinds (save/destroy/death_check/combat/
+        # carry a string; world-op kinds (save/destroy/pool_settle/combat/
         # wait) carry op-specific payloads. Drained by ScriptEngine.
         self.command_queue: list[tuple[str, GameObject, Any]] = []
 

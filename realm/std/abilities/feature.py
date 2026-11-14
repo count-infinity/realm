@@ -14,7 +14,7 @@ from realm.std.abilities.commands import cmd_cast, cmd_spells
 
 feature = Feature(
     'abilities',
-    requires=['rules'],
+    requires=['rules', 'combat'],
     doc='Abilities and spells as data (ability_def / spell_def).',
 )
 
@@ -38,7 +38,7 @@ feature.behavior(CasterBehavior)
 
 async def _use_ability(engine, frame, obj, payload) -> None:
     """Queued by softcode use_ability(): run the definition on the loop."""
-    from realm.std.abilities.invoke import SPELL_DEF_TAG, invoke_ability
+    from realm.std.abilities.abilities import SPELL_DEF_TAG, invoke_ability
     adef, target = payload
     if adef.has_tag(SPELL_DEF_TAG):
         await invoke_ability(obj, adef, target, verb="cast", domain="spell")
