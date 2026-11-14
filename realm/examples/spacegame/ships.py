@@ -7,44 +7,23 @@ Ships are special GameObjects that can:
 - Engage in ship-to-ship combat
 - Be upgraded with components
 
-Why this one subsystem is Python (the drop-to-native example)
--------------------------------------------------------------
-Most of what a ship "is" needs no code and is already covered in-game:
+Ships are pools
+---------------
+A ship's layered health is data: two pools on the ship object
+(``realm.pools``; docs/guides/pools.md). ``shields`` take a hit first and
+overflow into ``hull``, which soaks ``armor`` off whatever reaches it, and
+the ship is down when the hull is spent::
 
-- **Templates** (the five ``SHIP_TEMPLATES`` below) are pure data — tags
-  plus attributes. They belong in a content pack or the prototype library
-  (showcase item 165), the same as any weapon or class.
-- **Enter/crew/travel/docking** — a ship you board, fly between bays, and
-  dock with its crew aboard — is a *vehicle-as-room*, built entirely in
-  softcode in showcase item 164 (composing 155 drive + 032 airlock + 163
-  fuel + 033 exit-relink). No Python.
-- **Status readout** (``get_status_string``) is a ``$status`` command with
-  an f-string and hull-percent bands, exactly like the score screen (190)
-  or character sheet (141).
-- **repair / recharge** are ``set_attr`` with a ``min()`` clamp.
+    pools       = {"shields": {"overflow": "hull"}, "hull": {"soak_attr": "armor"}}
+    damage_pool = "shields"
+    when_spent  = "none"      # a wrecked ship stays (it may have crew aboard)
 
-The single thing that does NOT map cleanly onto the engine is
-``take_damage``: a ship has a **layered health model** — shields absorb
-first, armor mitigates the overflow, hull takes the remainder — whereas
-the combat engine speaks one ``hp`` track plus damage-resistance. To make
-ship-to-ship combat run through the *real* combat loop in-game you would
-need either:
-
-  (a) alias ``hull`` to ``hp`` (so defeat/destruction and the death path
-      work) and model shields as a depleting **absorb** effect via an
-      ``on_check`` ward that soaks incoming ``combat:on_damage`` into the
-      shield pool before it reaches hull (see docs/guides/interception.md);
-      the awkward part is a *pool that overflows* rather than a flat
-      ``mod``/``set_adata``, which one check pass does not express neatly; or
-  (b) run ship combat as a parallel softcode loop (a ``$fire`` command that
-      computes shields→armor→hull itself), which works but sits beside the
-      engine rather than inside it.
-
-Neither is clean today, so ships keep their damage model in Python. If a
-future engine affordance lands — an alternate health track, or a
-first-class depleting-absorb effect — ships could become data like
-everything else. Until then this file is the honest "when to write Python"
-specimen: reach for it when the data model genuinely does not fit.
+So every stock source of harm, a swing, a spell, softcode ``damage()``,
+``harm_pool()``, works on a ship with no ship code, ``ON_SPENT`` fires when
+the hull gives out, and an ability can cost ``power`` from the same kind of
+pool. What is left here is convenience: the template table (which a content
+pack could carry as prototypes) and a wrapper whose damage, repair and
+recharge are one pool call each.
 """
 
 from __future__ import annotations
@@ -53,8 +32,13 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from realm import pools
+
 if TYPE_CHECKING:
     from realm import GameObject, Store
+
+#: The pool definitions every ship carries (its ``pools`` attribute).
+SHIP_POOLS = {"shields": {"overflow": "hull"}, "hull": {"soak_attr": "armor"}}
 
 
 class ShipClass(Enum):
@@ -252,14 +236,13 @@ class Spaceship:
         ship.db.ship_type = template.name
         ship.db.description = template.description
 
-        # Hull
-        ship.db.hull = template.hull_points
-        ship.db.max_hull = template.max_hull
+        # Health: shields over an armored hull (see the module docstring).
+        ship.db.pools = dict(SHIP_POOLS)
+        ship.db.damage_pool = "shields"
+        ship.db.when_spent = "none"
+        pools.set_pool(ship, "hull", template.hull_points, max=template.max_hull)
+        pools.set_pool(ship, "shields", template.shields, max=template.max_shields)
         ship.db.armor = template.armor
-
-        # Shields
-        ship.db.shields = template.shields
-        ship.db.max_shields = template.max_shields
 
         # Power
         ship.db.power = template.power_output
@@ -290,19 +273,19 @@ class Spaceship:
 
     @property
     def hull(self) -> int:
-        return self.obj.db.get("hull", 0)
+        return pools.pool_get(self.obj, "hull") or 0
 
     @property
     def max_hull(self) -> int:
-        return self.obj.db.get("max_hull", 0)
+        return pools.pool_max(self.obj, "hull") or 0
 
     @property
     def shields(self) -> int:
-        return self.obj.db.get("shields", 0)
+        return pools.pool_get(self.obj, "shields") or 0
 
     @property
     def max_shields(self) -> int:
-        return self.obj.db.get("max_shields", 0)
+        return pools.pool_max(self.obj, "shields") or 0
 
     @property
     def armor(self) -> int:
@@ -318,69 +301,30 @@ class Spaceship:
 
     @property
     def is_operational(self) -> bool:
-        """Check if ship can operate (has hull integrity)."""
-        return self.hull > 0
+        """The hull is not spent."""
+        return not pools.is_spent(self.obj, "hull")
 
-    def take_damage(self, amount: int) -> dict[str, int]:
-        """
-        Apply damage to the ship.
-
-        Damage is applied to shields first, then hull (reduced by armor).
-
-        Returns dict with 'shields_damage', 'hull_damage', 'absorbed'.
-        """
-        result = {"shields_damage": 0, "hull_damage": 0, "absorbed": 0}
-
-        remaining = amount
-
-        # Shields absorb damage first
-        shields = self.shields
-        if shields > 0:
-            shield_damage = min(shields, remaining)
-            self.obj.db.shields = shields - shield_damage
-            remaining -= shield_damage
-            result["shields_damage"] = shield_damage
-
-        # Armor reduces remaining damage
-        if remaining > 0:
-            armor = self.armor
-            absorbed = min(armor, remaining)
-            remaining -= absorbed
-            result["absorbed"] = absorbed
-
-        # Hull takes remaining damage
-        if remaining > 0:
-            hull = self.hull
-            hull_damage = min(hull, remaining)
-            self.obj.db.hull = hull - hull_damage
-            result["hull_damage"] = hull_damage
-
-        return result
+    def take_damage(self, amount: int) -> pools.PoolChange:
+        """Harm the shields, with soak; what they cannot hold spills into
+        the hull less its armor. Memory only: ``await settle(change)`` to
+        fire ``ON_POOL``/``ON_SPENT`` (and the death path when the hull is
+        spent)."""
+        return pools.harm(self.obj, "shields", amount, soak=True)
 
     def repair_hull(self, amount: int) -> int:
-        """Repair hull damage. Returns actual amount repaired."""
-        current = self.hull
-        max_hull = self.max_hull
-        new_hull = min(max_hull, current + amount)
-        repaired = new_hull - current
-        self.obj.db.hull = new_hull
-        return repaired
+        """Mend the hull, up to its max. Returns the amount repaired."""
+        return pools.mend(self.obj, "hull", amount).applied
 
     def recharge_shields(self, amount: int) -> int:
-        """Recharge shields. Returns actual amount recharged."""
-        current = self.shields
-        max_shields = self.max_shields
-        new_shields = min(max_shields, current + amount)
-        recharged = new_shields - current
-        self.obj.db.shields = new_shields
-        return recharged
+        """Mend the shields, up to their max. Returns the amount recharged."""
+        return pools.mend(self.obj, "shields", amount).applied
 
     def get_status_string(self) -> str:
         """Get a status display for the ship."""
         ship_type = self.obj.db.get("ship_type", "Unknown")
         status = "Docked" if self.is_docked else "In Flight"
 
-        hull_pct = (self.hull / self.max_hull * 100) if self.max_hull > 0 else 0
+        hull_pct = pools.pool_percent(self.obj, "hull") or 0
         if hull_pct >= 75:
             hull_status = "Operational"
         elif hull_pct >= 50:

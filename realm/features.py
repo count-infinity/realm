@@ -311,15 +311,17 @@ class Feature:
 
     def sight_rule(self, fn: Callable) -> Callable:
         """Declare a ``(viewer, obj) -> bool | None`` rule of sight, asked
-        after the kernel's (yourself, SEE_ALL, invisibility, darkness):
+        after the kernel's (you see yourself; SEE_ALL sees everything):
         False hides ``obj`` from ``viewer``, None has no opinion. The
-        ``stealth`` feature hides a ``hidden`` character this way."""
+        ``sight`` feature's darkness and invisibility, and ``stealth``'s
+        ``hidden``, are rules like this."""
         self.sight_rules.append(fn)
         return fn
 
     def marker(self, fn: Callable) -> Callable:
         """Declare a ``(obj, looker) -> str | None`` parenthetical marker on
-        a name in room listings (``a key (hidden)``), after the kernel's."""
+        a name in room listings (``a key (hidden)``, ``a torch (glowing)``),
+        in feature order."""
         self.markers.append(fn)
         return fn
 

@@ -98,6 +98,18 @@ configuration. Tests take a `Simulator` or the `world` fixtures
 - **Damage stops at a pool's floor** (0) on every path; softcode
   `damage()`, damage over time and the Merc ruleset used to drive `hp`
   negative. A game that wants negatives gives its `hp` pool `floor=None`.
+- **Darkness and invisibility are a feature, `sight`.** It is in
+  `CLASSIC`, so a game using `CLASSIC` sees no change. A game with its own
+  `FEATURES` list adds `"sight"` to keep `dark` rooms, `light` sources,
+  `nightvision`, `invisible`/`see_invisible` and the `glowing`/`magic`/
+  `invisible` markers; without it those tags do nothing. (The `social` and
+  `bare` scaffold presets leave it out.) `realm.core.perception` no longer
+  has `room_is_lit`, `can_see_room` or the tag constants: they are in
+  `realm.std.sight`.
+- **Soak applies to every kind of damage**, typed or not: softcode
+  `damage()` and damage over time subtract a pool's `soak_attr` like a
+  swing does. `harm_pool()` stays raw. (Stock `hp` defines no soak, so
+  characters are unaffected.)
 - **Advancement is opt-in.** `GameSystem` alone has no character-point
   economy (`improve_cost` is `None`, kills award nothing, `score` lists
   pools); GURPS and D20 use `PointBuyMixin`. A custom system that relied
@@ -132,3 +144,7 @@ configuration. Tests take a `Simulator` or the `world` fixtures
   `tests/test_game.py` and a README; `Simulator.from_game(dir)` and
   `Simulator.start()`.
 - `realm import-rom`.
+- The `sight` feature (above).
+- The spacegame example's ships are pools (shields overflowing into an
+  armored hull), so stock damage reaches them; `Spaceship.take_damage`
+  returns the `PoolChange`.

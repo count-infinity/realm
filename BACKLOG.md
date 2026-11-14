@@ -26,6 +26,9 @@ REALM must be usable as a library, not an application to fork.
   - Creates project structure with `config.py` and `data/` directory
   - Generates `config.py` with sensible defaults (Python-based config)
   - Generates starter `data/welcome.txt`
+  - *(2026-11-14, KERNEL_PLAN 9.4)* also `game.py` (the game's feature),
+    `rules.py`, `tests/test_game.py` (passes out of the box) and a README;
+    `--features classic|social|bare`; `--template` works from a wheel (9.3).
 
 - [ ] Implement `realm migrate` command
   - Creates/updates database schema
@@ -33,7 +36,10 @@ REALM must be usable as a library, not an application to fork.
 
 - [x] Implement `realm start` that loads from config
   - Reads `config.py` for ports, protocols, database
-  - Supports callbacks: `init_world`, `register_commands`, `register_protocols`
+  - Supports callbacks: `init_world`, `on_start`, `on_stop`. *(The
+    `register_commands` and `register_protocols` callbacks were removed
+    2026-11-13, KERNEL_PLAN 4.3: a game declares commands and protocols on
+    its feature in `game.py`.)*
 
 ### Protocol Registration System
 - [x] Implement `GameServer.register_protocol(name, class, **kwargs)`
@@ -207,18 +213,36 @@ seams — three of four exist; **visibility is the missing one**
 module activated at boot via `PACKS`, registering only through public
 seams (the dogfood test). Supersedes the skill-roles kernel table (roles
 become per-pack config; only `flee` stays engine-floor). Build order:
-- [ ] `register_visibility_resolver` + reimplement the five stock tags
+- [x] ~~`register_visibility_resolver` + reimplement the five stock tags
   (dark/light/nightvision/invisible/hidden) as pre-registered resolvers
-  through the public seam — pure refactor, dogfood proof
-- [ ] `PACKS` config + native pack side (manifest `modules:`, boot
+  through the public seam — pure refactor, dogfood proof~~ Done
+  2026-11-14: the seam is `feature.sight_rule` (KERNEL_PLAN 7.x); `hidden`
+  is the `stealth` feature's rule, and `dark`/`light`/`nightvision`/
+  `invisible`/`see_invisible` plus the `glowing`/`magic`/`invisible`
+  markers are the new `sight` feature's (`realm/std/sight/`, in
+  `CLASSIC`). The kernel's `can_see` knows only yourself and SEE_ALL
+  (`tests/test_perception.py::TestSightIsAFeature`).
+- [x] ~~`PACKS` config + native pack side (manifest `modules:`, boot
   activation, entry-point discovery); split `register_all_commands` into
   kernel-set + per-pack, with an explicit command collision policy
   (single priority int: kernel 0, packs 10, same-priority collision
   warns at boot; `$command` softcode stays the fallback tier — the
-  useful slice of Evennia's CmdSet without its merge algebra)
-- [ ] Extract stock packs: light, stealth, locksmith (pick), adventure
+  useful slice of Evennia's CmdSet without its merge algebra)~~ Done
+  differently 2026-11-14 (KERNEL_PLAN steps 4, 7 and 9.2): `FEATURES` in
+  config lists feature modules (`docs/guides/features.md`); an installed
+  package declares one in the `realm.features` entry-point group;
+  `register_all_commands` is gone (each feature declares its commands).
+  The collision policy is stricter than priorities: a second declaration
+  of a name is a `FeatureError` at load unless it says `replace=True`.
+- [x] ~~Extract stock packs: light, stealth, locksmith (pick), adventure
   (persuade/fasttalk/consider), combat, crime — `realm init` default-
-  enables them (tests stay green); `realm init --social` = bare kernel
+  enables them (tests stay green); `realm init --social` = bare kernel~~
+  Done 2026-11-14 (KERNEL_PLAN steps 4, 7 and 9.4): every built-in is a
+  feature package in `realm/std/` (stealth includes `pick`; social holds
+  persuade/fasttalk/consider; combat and crime are their own); `realm
+  init` enables `CLASSIC`, and `--features social` / `--features bare`
+  scaffold the smaller games. `light`/`dark` stay in the kernel's sight
+  rules until the visibility-resolver item above.
 - [ ] Softcode twins for pull seams: `sight_def`/`visibility_rule` data
   objects + softcode-subscribed global observers (wraith-world with zero
   Python)

@@ -47,6 +47,7 @@ FEATURE_ALL = {
     "npc": [],
     "rules": ["ChargenStep", "CheckResult", "ChoiceStep", "GameSystem", "PointBuyMixin",
               "check", "default_resolver", "define_class", "define_skill"],
+    "sight": ["can_see_room", "room_is_lit"],
     "social": [],
     "spawning": [],
     "stealth": [],

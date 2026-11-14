@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object
-from realm.core.perception import room_is_lit
+from realm.core.world import get_world
 from realm.std.items.actions import ItemAction
 from realm.std.items.verbs import gate_item_action
 from realm.std.rules.checks import check, contest
@@ -81,7 +81,10 @@ async def cmd_hide(ctx: CommandContext) -> None:
         await ctx.session.send("You are already hidden.")
         return
     room = ctx.player.location
-    modifier = 3 if (room is not None and not room_is_lit(room)) else 0
+    # +3 in the dark, when the world has darkness (the ``sight`` feature).
+    sight = get_world().services.get("sight")
+    modifier = 3 if (room is not None and sight is not None
+                     and not sight.room_is_lit(room)) else 0
 
     result = check(ctx.player, 'stealth', modifier)
     if result.success:

@@ -95,8 +95,8 @@ module, so it works on whatever pool an object names:
 | Source | What it does |
 |---|---|
 | a swing, a damaging ability (`combat:on_damage`) | the ruleset's `apply_damage` ends in `Ruleset.write_damage`: `harm` on the damage pool with soak, settled once the blow lands |
-| softcode `damage()`, a typed damage-over-time effect | resistances, then `harm` with soak; no damage event (the deliberate bypass) |
-| an untyped damage-over-time effect | `harm` on the damage pool |
+| softcode `damage()`, a damage-over-time effect | resistances when typed, then `harm` on the damage pool with soak; no damage event (the deliberate bypass) |
+| softcode `harm_pool()` | `harm` on the named pool, no soak: the raw pool change |
 | `heal()`, `firstaid`, a healer NPC, regeneration, a `heal` ability effect | `mend` on the damage pool |
 | an ability cost `{"pool": "mana", "n": 15}` | `spend`: blocked with "You don't have the mana." when short |
 | chargen, a level gain | `set_pool` |

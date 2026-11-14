@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from realm.core.language import group_contents, numbered_name
 from realm.core.markup import wrap
-from realm.core.perception import can_see, can_see_room, display_markers
+from realm.core.perception import can_see, display_markers
 from realm.core.world import find_world
 from realm.std.look.describe import detail_lines
 
@@ -57,6 +57,14 @@ def room_description(room: GameObject) -> str:
     return room.description or room.db.get('description') or ""
 
 
+def can_see_room(viewer: GameObject | None, room: GameObject) -> bool:
+    """Whether the viewer can see inside ``room``: the ``sight`` feature's
+    answer (darkness, light, nightvision), else always."""
+    world = find_world()
+    sight = world.services.get("sight") if world is not None else None
+    return sight is None or sight.can_see_room(viewer, room)
+
+
 def render_room(room: GameObject | None, viewer: GameObject | None = None) -> str:
     """
     Render a room as the text a player sees on ``look`` or arrival.
@@ -74,8 +82,9 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
 
 
     if not can_see_room(viewer, room):
-        # A room may override the default with its own db.dark_msg — set it
-        # to theme the darkness ("The mine shaft swallows all light.").
+        # Pitch black (the ``sight`` feature). A room may override the
+        # default with its own db.dark_msg to theme the darkness ("The mine
+        # shaft swallows all light.").
         return room.db.get(
             'dark_msg', "It is pitch black here. You can't see a thing."
         )

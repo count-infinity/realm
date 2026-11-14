@@ -18,7 +18,8 @@ def damage(frame, obj: GameObject | str | None, amount: int,
            dtype: str | None = None) -> bool:
     """
     Deal damage to something in the executor's room: it lands in the
-    target's damage pool (``hp`` unless it says otherwise). After the
+    target's damage pool (``hp`` unless it says otherwise), with soak (each
+    pool's ``soak_attr``, a ship's armor). After the
     script finishes the change settles: damage that spends the target's
     vital pool runs the combat manager's death path (corpses, CP awards,
     unconsciousness), and falling through ``hitprcnt`` fires
@@ -42,7 +43,7 @@ def damage(frame, obj: GameObject | str | None, amount: int,
         from realm.std.combat.damage import apply_resisted
         change = apply_resisted(target, int(amount), str(dtype))
     else:
-        change = harm(target, pool, int(amount))
+        change = harm(target, pool, int(amount), soak=True)
     frame.command_queue.append(('pool_settle', target, (change, frame.executor)))
     frame.command_queue.append(('save', target, ''))
     return True

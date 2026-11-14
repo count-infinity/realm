@@ -47,3 +47,26 @@ def test_the_package_alone_runs_the_cli(tmp_path):
     check = _run(["-m", "realm.cli", "features", "--check"], work / "demo", site)
     assert check.returncode == 0, check.stdout + check.stderr
     assert check.stdout.startswith("OK:")
+
+
+def test_a_fresh_game_passes_its_own_tests(tmp_path):
+    """KERNEL_PLAN step 9 acceptance: from an empty directory, with only the
+    package on the path, ``realm init demo && cd demo && pytest -q && realm
+    features --check`` succeeds."""
+    site = tmp_path / "site"
+    shutil.copytree(ROOT / "realm", site / "realm",
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    work = tmp_path / "empty"
+    work.mkdir()
+
+    init = _run(["-m", "realm.cli", "init", "demo"], work, site)
+    assert init.returncode == 0, init.stdout + init.stderr
+
+    tests = _run(["-m", "pytest", "-q", "-p", "no:randomly", "-p", "no:cacheprovider"],
+                 work / "demo", site)
+    assert tests.returncode == 0, tests.stdout + tests.stderr
+    assert "1 passed" in tests.stdout
+
+    check = _run(["-m", "realm.cli", "features", "--check"], work / "demo", site)
+    assert check.returncode == 0, check.stdout + check.stderr
+    assert check.stdout.startswith("OK:")

@@ -55,6 +55,7 @@ load them.
 | `realm.std.abilities` | `invoke_ability`, `AbilityAction` |
 | `realm.std.items` | `gate_item_action`, `ItemAction` |
 | `realm.std.talk` | `TalkAction` |
+| `realm.std.sight` | `room_is_lit`, `can_see_room` |
 | `realm.std.economy` | `EconomyAction` |
 | `realm.games.gurps` | `GurpsSystem`, `GURPSRuleset`, `TEMPLATES` |
 | `realm.games.d20` | `D20System`, `D20Ruleset`, `CLASSES` |

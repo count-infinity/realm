@@ -15,7 +15,7 @@ import pytest
 from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
-from realm.core.perception import can_see, can_see_room
+from realm.core.perception import can_see
 from realm.core.world import get_world
 from realm.gateway.session import Session
 from realm.std.items.commands import (
@@ -27,10 +27,14 @@ from realm.std.items.commands import (
 from realm.std.items.inventory import cmd_get
 from realm.std.npc.behaviors import PatrolBehavior
 from realm.std.rules.checks import CheckResult, check, checks, contest, skill_level
+from realm.std.sight import can_see_room
 from realm.std.stealth.behaviors import WatchfulBehavior
 from realm.std.stealth.commands import cmd_hide, cmd_pick, cmd_search
 from realm.std.stealth.stealth import hidden_from_sight, hidden_marker, stealth_observer
 from realm.std.talk.commands import cmd_say
+
+# Darkness and invisibility are the ``sight`` feature's.
+pytestmark = pytest.mark.features("sight")
 
 
 def level_resolver(obj, skill, modifier):
@@ -406,7 +410,7 @@ class TestStealth:
 
 
 @pytest.mark.asyncio
-@pytest.mark.features("talk")
+@pytest.mark.features("talk", "sight")
 class TestNPCBehaviors:
 
     async def test_watchful_spots_weak_sneak(self):

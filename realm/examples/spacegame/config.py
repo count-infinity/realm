@@ -40,9 +40,10 @@ async def init_world(server):
       ``data/areas/station.json`` (imported like ``@import``).
     - **Classes, skills, and gear**: the built-in ``gurps-scifi`` content
       pack (imported like ``@pack import gurps-scifi``).
-    - **Ships**: ``ships.py`` — the one subsystem kept in Python, because
-      its layered shields/armor/hull damage model does not map onto the
-      character ``hp`` track (see the note in that file).
+    - **Ships**: ``ships.py`` — ship templates and a small wrapper. A
+      ship's shields, armor and hull are pools (shields overflow into an
+      armored hull), so stock combat, spells and softcode ``damage()`` work
+      on ships with no ship code (see the note in that file).
 
     The area file is generated from world.py/nexagen.py by
     ``scripts/build_spacegame_area.py``; those generators live in the engine
@@ -71,7 +72,7 @@ async def init_world(server):
     # truth, importable into any REALM game.
     pack = await import_pack("gurps-scifi", server.persistence)
 
-    # Ship prototypes: the deliberate drop-to-Python example.
+    # Ship prototypes, one per template (their health is pools).
     await create_ship_prototypes(server.persistence)
 
     print(f"Imported {len(created)} world objects from station.json, "

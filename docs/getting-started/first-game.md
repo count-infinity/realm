@@ -40,9 +40,10 @@ from realm import CLASSIC
 FEATURES = [*CLASSIC, "game"]
 ```
 
-`CLASSIC` is talk, movement, items, building, rules, combat, abilities,
-economy, social, crime, NPC behaviors, spawning, instances, wilderness and
-the GURPS, D20 and Merc rulesets. A game that does not want some of them
+`CLASSIC` is talk, movement, looking, sight (darkness and invisibility),
+items, building, rules, stealth, combat, effects, abilities, economy,
+social, crime, NPC behaviors, spawning, instances, wilderness and the
+GURPS, D20 and Merc rulesets. A game that does not want some of them
 lists what it does want instead; this one has no combat and no money:
 
 ```python

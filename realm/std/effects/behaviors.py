@@ -218,7 +218,7 @@ class DamageOverTimeBehavior(TimedEffectBehavior):
             if damage <= 0:
                 return                      # fully resisted: nothing to narrate
         else:
-            change = harm(obj, pool, damage)
+            change = harm(obj, pool, damage, soak=True)
 
         obj.msg(self.get_param(
             'tick_msg', f"You are wracked by {self.kind} ({damage} damage)!",

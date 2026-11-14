@@ -181,3 +181,40 @@ def test_an_unknown_preset_is_refused(tmp_path, monkeypatch, capsys):
     assert cmd_init(_Args("questcove", features="huge")) == 1
     assert "classic, social, bare" in capsys.readouterr().out
     assert not (tmp_path / "questcove").exists()
+
+
+@pytest.mark.parametrize("preset", sorted(PRESETS))
+def test_the_scaffold_imports_only_public_names(preset, tmp_path, monkeypatch):
+    """KERNEL_PLAN step 9 acceptance: every file the scaffold writes imports
+    from ``realm``, ``realm.std.<x>``, ``realm.games.<x>`` and
+    ``realm.testing`` only, and only names in their ``__all__``; the
+    commented examples too (they are what an author uncomments)."""
+    import ast
+    import importlib
+    import re
+
+    monkeypatch.chdir(tmp_path)
+    assert cmd_init(_Args("questcove", features=preset)) == 0
+    public = re.compile(r"^realm(\.testing|\.std\.\w+|\.games\.\w+)?$")
+    commented = re.compile(r"^\s*#\s*((?:from|import) realm\S*.*)$", re.M)
+    problems = []
+    for path in sorted((tmp_path / "questcove").rglob("*.py")):
+        text = path.read_text()
+        sources = [text] + commented.findall(text)
+        for source in sources:
+            for node in ast.walk(ast.parse(source)):
+                if isinstance(node, ast.Import):
+                    pairs = [(a.name, None) for a in node.names]
+                elif isinstance(node, ast.ImportFrom) and node.module:
+                    pairs = [(node.module, a.name) for a in node.names]
+                else:
+                    continue
+                for module, name in pairs:
+                    if module.split(".")[0] != "realm":
+                        continue
+                    where = f"{path.name}: {module}" + (f".{name}" if name else "")
+                    if not public.match(module):
+                        problems.append(f"{where} (not a public home)")
+                    elif name and name not in importlib.import_module(module).__all__:
+                        problems.append(f"{where} (not in __all__)")
+    assert problems == []

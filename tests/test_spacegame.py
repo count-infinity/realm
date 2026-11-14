@@ -105,19 +105,43 @@ class TestSpaceships:
         armor = ship.armor
 
         # Damage absorbed by shields first
-        result = ship.take_damage(10)
-        assert result["shields_damage"] == 10
-        assert result["hull_damage"] == 0
+        change = ship.take_damage(10)
+        assert change.pool == "shields" and change.applied == 10
+        assert change.spilled is None
         assert ship.shields == initial_shields - 10
 
-        # Deplete shields
+        # Deplete shields: the rest spills into the hull, less its armor
         ship.obj.db.shields = 5
-        result = ship.take_damage(20)
-        assert result["shields_damage"] == 5
-        # Remaining 15 - armor goes to hull
+        change = ship.take_damage(20)
+        assert change.applied == 5
+        hull = change.spilled
+        assert hull.pool == "hull" and hull.soaked == min(armor, 15)
         expected_hull_damage = max(0, 15 - armor)
-        assert result["hull_damage"] == expected_hull_damage
+        assert hull.applied == expected_hull_damage
         assert ship.hull == initial_hull - expected_hull_damage
+
+    @pytest.mark.asyncio
+    async def test_stock_damage_reaches_a_ship(self):
+        """A ship's health is pools, so softcode damage() (and every other
+        stock source of harm) needs no ship code; a spent hull fires its
+        ON_SPENT and leaves the wreck in place (when_spent none)."""
+        from realm.examples.spacegame.ships import ShipClass, Spaceship
+        from realm.testing import Simulator
+
+        with Simulator() as sim:
+            bay = sim.room("Docking Bay")
+            ship = await Spaceship.create(sim.store, ShipClass.FIGHTER, "Red Five")
+            ship.obj.location = bay
+            ship.obj.db.on_spent = "if adata('pool') == 'hull': set_attr(me, 'wrecked', 1)"
+            mine = sim.obj("mine", location=bay)
+            await sim.eval(mine, "damage(get('Red Five'), 30)")
+            assert ship.shields == 0 and ship.hull == 30 - (10 - 2)
+            assert ship.is_operational
+            await sim.eval(mine, "damage(get('Red Five'), 99)")
+            assert ship.hull == 0 and not ship.is_operational
+            assert ship.obj.db.wrecked == 1
+            assert ship.obj.location is bay
+            assert "hp" not in ship.obj.db.all()
 
     @pytest.mark.asyncio
     async def test_ship_repair(self):

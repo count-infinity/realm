@@ -14,16 +14,16 @@ import pytest
 from realm.commands.base import find_object, find_player
 from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.objects import GameObject
-from realm.core.perception import can_see, can_see_room, perceived_name, room_is_lit
+from realm.core.perception import can_see, perceived_name
 from realm.gateway.session import Session
 from realm.std.items.inventory import cmd_get
 from realm.std.look.render import render_room
+from realm.std.sight import can_see_room, room_is_lit
 from realm.std.talk.commands import cmd_say
 
-
-@pytest.fixture(autouse=True)
-def fresh_propagation_engine():
-    yield
+# Darkness, light and invisibility are the ``sight`` feature's: the
+# ``world`` fixture here is a world of it.
+pytestmark = pytest.mark.features("sight")
 
 
 def make_player(name: str, location: GameObject | None = None) -> tuple[GameObject, Session]:
@@ -56,6 +56,7 @@ def make_ctx(sess: Session, args: str = "") -> CommandContext:
 # --- Rules ---------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("world")
 class TestPerceptionRules:
 
     def test_normal_room_is_lit(self):
@@ -183,6 +184,7 @@ class TestPerLookerMessages:
 # --- Rendering -------------------------------------------------------------------
 
 
+@pytest.mark.usefixtures("world")
 class TestDarknessRendering:
 
     def test_pitch_black_room(self):
@@ -291,12 +293,14 @@ class TestSightGatedTargeting:
 class TestDisplayMarkers:
     """CoffeeMud-style (glowing)/(magic)/(hidden) markers in room listings."""
 
+    @pytest.mark.usefixtures("world")
     def test_glowing_shown_to_all(self):
         from realm.core.perception import display_markers
         torch = GameObject("torch", tags=["thing", "glowing"])
         bob = GameObject("Bob", tags=["player"])
         assert display_markers(torch, bob) == " (glowing)"
 
+    @pytest.mark.usefixtures("world")
     def test_magic_only_with_detection(self):
         from realm.core.perception import display_markers
         wand = GameObject("wand", tags=["thing", "magic"])
@@ -321,8 +325,37 @@ class TestDisplayMarkers:
         assert can_see(bob, key)
         assert display_markers(key, GameObject("Ada", tags=["player", "admin"])) == ""
 
+    @pytest.mark.usefixtures("world")
     def test_room_render_shows_markers(self):
         room = GameObject("Cave", tags=["room"])
         GameObject("crystal", location=room, tags=["thing", "glowing"])
         bob = GameObject("Bob", tags=["player"], location=room)
         assert "(glowing)" in render_room(room, bob)
+
+
+class TestSightIsAFeature:
+    """Darkness, light and invisibility are the ``sight`` feature's, declared
+    through the public seams (``feature.sight_rule``, ``feature.marker``):
+    without it the tags are just tags."""
+
+    @pytest.mark.features()
+    def test_without_sight_dark_and_invisible_are_just_tags(self, world):
+        from realm.core.perception import display_markers
+        cellar = GameObject("Cellar", tags=["room", "dark"])
+        bob, _ = make_player("Bob", location=cellar)
+        coin = GameObject("coin", location=cellar, tags=["thing"])
+        ghost = GameObject("ghost", tags=["thing", "invisible", "glowing"])
+        assert can_see(bob, coin) and can_see(bob, ghost)
+        assert display_markers(ghost, bob) == ""
+        assert "pitch black" not in render_room(cellar, bob)
+
+    def test_the_kernel_names_no_sight_tag(self):
+        from pathlib import Path
+
+        import realm.core.perception as perception
+        code = Path(perception.__file__).read_text()
+        body = code.split('"""', 2)[2]                 # past the module docstring
+        for tag in ("'dark'", '"dark"', "nightvision", "see_invisible",
+                    "detect_magic", "'light'", '"light"'):
+            assert tag not in body, tag
+

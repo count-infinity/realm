@@ -51,6 +51,7 @@ everything available. The built-in features:
 | `talk` | say, pose, semipose, emit, ooc, shout, whisper | |
 | `movement` | go and the directions, in, out | |
 | `look` | look, examine | |
+| `sight` | darkness and light (`dark`, `light`, `nightvision`), invisibility (`invisible`, `see_invisible`), the `glowing`, `magic` and `invisible` markers | |
 | `items` | get, drop, give, put, inventory, open, close, lock, unlock, use, wear, remove, wield, unwield | |
 | `building` | every `@` command, quell, unquell | look |
 | `rules` | points, improve; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
@@ -68,7 +69,10 @@ everything available. The built-in features:
 | `gurps`, `d20`, `merc` | the combat ruleset of each rules system | rules, combat |
 
 The kernel is always there: the script engine and every other softcode
-function, `script_ticker`, `behavior_def` behaviors, expiry reaping. The
+function, `script_ticker`, `behavior_def` behaviors, expiry reaping. Its
+sight knows only that you see yourself and that admins see everything;
+darkness and invisibility are the `sight` feature's, and without it the
+`dark` and `invisible` tags are just tags. The
 game system (`GAME_SYSTEM`) and its check resolution are the `rules`
 feature's; without it, checks roll a neutral 3d6 roll-under.
 
