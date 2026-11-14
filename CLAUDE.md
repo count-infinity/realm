@@ -75,38 +75,60 @@ not the feature.
 ## Where code joins a world
 
 Everything optional is a **feature** (`realm/features.py`): a named set of
-declarations (`feature.command`, `.behavior`, `.function`/`.softfn`,
-`.observer`, `.ruleset`, `.dest_resolver`, `.reaper`, `.queue_kind`,
-`.check_modifier`, `.name_resolver`, `.speech_renderer`, `.group_formatter`,
-`.fallback`, `.traversal_gate`, `.after_traverse`, `.sight_rule`, `.marker`,
-`.input_interceptor`, `.login`, `.protocol`, `.setting`,
-`.on_install`/`.on_boot`/`.on_close`; `.command(token=)` for `:pose`-style
-prefixes). A built-in feature is a package `realm/std/<name>/`: `feature.py`
-declares it; `actions.py` (its action-type enum), `verbs.py`, `softcode.py`
-and the rest are its parts, importable without loading the feature. The
-kernel's `ActionType` holds only kernel events; `world.rules` (the game
-system) is set by the `rules` feature and the kernel never calls it. The dispatcher and `core/movement.py` know no command, token,
-direction, exit or follower by name.
-Built-ins are declared in `realm/std/<feature>/feature.py` and `realm/games/<system>/feature.py`;
-a game declares its own in `game.py`; `FEATURES` in config lists them
-(default `realm.std.CLASSIC`). Do not register at import time
-(`@BehaviorRegistry.register`, `dispatcher.register`) in engine code: declare on a
-feature. Collisions raise `FeatureError`. Guide: `docs/guides/features.md`.
+declarations. A game declares its own in `game.py`; the built-ins in
+`realm/std/<feature>/feature.py` and `realm/games/<system>/feature.py`;
+`FEATURES` in config lists them (default `realm.std.CLASSIC`). Where each
+kind of code goes (the table that opens `docs/guides/features.md`, every
+row with a running example in `tests/test_where_things_go.py`):
 
-`tests/test_boundaries.py` is the rule for where code goes: the kernel
-(`realm/core`, `scripting`, `commands`, `permissions`, `persistence`,
-`gateway`, `server`, `config`, `packs`, `realm/features.py`) imports nothing
-from `realm/std` or `realm/games`; a feature imports another feature's parts
-only when it `requires` it (otherwise it asks for that feature's service,
-`world.services.get("look")`, and copes with None). Details:
-`docs/development/contributing.md`.
+| I want to add | Declare it with |
+|---|---|
+| a command | `feature.command` |
+| a behavior for NPCs and objects | `feature.behavior` |
+| a softcode function | `feature.softfn`, `feature.function` |
+| a line scripts can emit | `feature.script_verb` |
+| an event and its `ON_` hook | `feature.event` |
+| a lock type, an entitlement | `feature.lock_type`, `feature.entitlement` |
+| a resource on objects | `feature.pool` or a `pools` attribute |
+| a kind of data definition | `feature.def_kind` |
+| a rules system | `feature.ruleset`, `GameSystem` |
+| a network protocol | `feature.protocol` |
+| a setting in `config.py` | `feature.setting` |
+| a reaction to every action | `feature.observer` |
+
+The rest (`.dest_resolver`, `.reaper`, `.queue_kind`, `.check_modifier`,
+`.name_resolver`, `.speech_renderer`, `.group_formatter`, `.fallback`,
+`.traversal_gate`, `.after_traverse`, `.sight_rule`, `.marker`,
+`.input_interceptor`, `.login`, `.audience`, `.on_install`/`.on_reload`/
+`.on_boot`/`.on_close`) is listed in the same guide. A built-in feature is a
+package: `feature.py` declares it; `actions.py`, `verbs.py`, `softcode.py`
+and the rest are its parts, importable without loading the feature, and
+its `__init__.py` lists its public names. The kernel's `ActionType` holds
+only kernel events; `world.rules` (the game system) is set by the `rules`
+feature and the kernel never calls it. Do not register at import time
+(`@BehaviorRegistry.register`, `dispatcher.register`) in engine code:
+declare on a feature. Collisions raise `FeatureError`.
+
+Three tests in `tests/test_boundaries.py` are the rule for where code goes:
+
+- `test_kernel_imports_nothing_above_it`: the kernel (`realm/core`,
+  `scripting`, `commands`, `permissions`, `persistence`, `gateway`,
+  `server`, `config`, `packs`, `realm/features.py`) imports nothing from
+  `realm/std` or `realm/games`, and names no module there.
+- `test_feature_requires_match_imports`: a feature imports another
+  feature's parts only when it `requires` it; otherwise it asks for that
+  feature's service (`world.services.get("look")`) and copes with None.
+- `test_stock_game_is_only_a_feature_list`: a world of no features loads no
+  feature module, and the default world loads exactly `CLASSIC`'s packages.
+
+Details: `docs/development/contributing.md`.
 
 Engine code reaches the running world through `realm.core.world`
 (`get_world()`, or `find_world()` where no world is legitimate) and reads
 config with `setting("KEY")`. Do not add module-global setters
 (`set_x()` / `get_x()` pairs wired at boot): put the value on `World`, its
 `services`, or a `Settings` key. Tests start with no world; they take the
-`world` / `classic_world` fixtures (`tests/conftest.py`) or a `Simulator`.
+`world` / `classic_world` fixtures (the `realm.testing.fixtures` plugin) or a `Simulator`.
 
 ## Development environment
 

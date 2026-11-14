@@ -73,6 +73,16 @@ def test_every_public_name_resolves():
         assert getattr(realm, name) is not None, name
 
 
+def test_one_version():
+    """``realm.__version__``, pyproject.toml and ``realm version`` agree."""
+    import tomllib
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    assert realm.__version__ == project["version"] == "0.2.0"
+    out = subprocess.run([sys.executable, "-m", "realm.cli", "version"], cwd=ROOT,
+                         capture_output=True, text=True, check=True).stdout
+    assert "v0.2.0" in out
+
+
 def test_pools_and_ops_are_the_modules():
     from realm.core import ops, pools
     assert realm.pools is pools and realm.ops is ops

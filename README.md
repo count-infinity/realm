@@ -8,15 +8,6 @@ from inside the game.
 Async (asyncio) with SQLite persistence — a single process, with no
 external services to stand up. Python 3.12+.
 
-```text
-# The whole stack in five in-game lines — no world files, no restart:
-@dig The Garden = north
-@desc here = Roses climb a broken trellis. [[result = ansi('rh', 'Thorns') if skill('observation') >= 12 else '']]
-@create parrot
-@behavior parrot = script_ticker, interval:8
-@set parrot/on_tick = say Pieces of eight!
-```
-
 ## Install & run
 
 ```bash
@@ -48,29 +39,34 @@ help                              # every command, grouped and searchable
 
 ## Where your code goes
 
-A game is a list of **features** (`FEATURES` in `config.py`). The built-in
-ones (talk, movement, building, combat, economy, ...) and your own
-`game.py` use the same declarations, so a game can leave out anything it
-does not want. See [Features](docs/guides/features.md).
+Your game is a directory: `config.py` (settings, and `FEATURES`, the list
+of features it is made of), `game.py` (your own feature), `rules.py` (your
+game system) and `tests/`. What to declare for each thing you add, from a
+command to a resource pool to a network protocol, is one table:
+**[Where things go](docs/guides/features.md#where-things-go)**. Rooms,
+items and NPCs are built in the game itself (`@dig`, `@create`, softcode),
+and reusable content ships as [content packs](docs/guides/content-packs.md).
 
-| You want to add | Write it in | With |
-|---|---|---|
-| a command | `game.py` | `@feature.command("wave")` |
-| an NPC or object behavior | `game.py` | `@feature.behavior` on a `Behavior` subclass |
-| a native softcode function | `game.py` | `@feature.function(readonly=True)` |
-| a reaction to every action | `game.py` | `@feature.observer` |
-| a combat ruleset | `game.py` | `feature.ruleset("mine", MyRuleset)` |
-| a network protocol | `game.py` | `feature.protocol("godot", GodotServer, port=4002)` |
-| a config setting | `game.py` | `feature.setting("MY_KEY", default, doc)` |
-| your rules (chargen, skills, advancement) | `rules.py` | a `GameSystem` subclass, selected by `GAME_SYSTEM` |
-| rooms, items, NPCs, scripts | the game itself | `@dig`, `@create`, `@set`, softcode |
-| reusable content | a pack | `realm pack export` / `@pack` |
+## Built live, in softcode
 
-Inside REALM itself the same rule holds: the kernel (`realm/core`,
-`scripting`, `server`, ...) holds mechanisms and imports no feature; every
-built-in is a feature package in `realm/std/<name>/` (game systems in
-`realm/games/<name>/`). `tests/test_boundaries.py` enforces it; see
-[Contributing](docs/development/contributing.md#where-new-code-goes).
+```text
+# The whole stack in five in-game lines — no world files, no restart:
+@dig The Garden = north
+@desc here = Roses climb a broken trellis. [[result = ansi('rh', 'Thorns') if skill('observation') >= 12 else '']]
+@create parrot
+@behavior parrot = script_ticker, interval:8
+@set parrot/on_tick = say Pieces of eight!
+```
+
+## Inside REALM
+
+The kernel (`realm/core`, `scripting`, `server`, ...) holds mechanisms and
+imports no feature; every built-in is a feature package in
+`realm/std/<name>/` (game systems in `realm/games/<name>/`), declared with
+the same API your `game.py` uses. `tests/test_boundaries.py` enforces it;
+see [Contributing](docs/development/contributing.md#where-new-code-goes).
+The names a game may import are listed in
+[Public API](docs/reference/public-api.md).
 
 ## The example game
 

@@ -26,18 +26,21 @@ Then build from inside the game:
 ```
 
 New here? Read **[Installation](getting-started/installation.md)** →
-**[Quick Start](getting-started/quickstart.md)**, then build a full
-adventure in **[the tutorial](tutorial/index.md)**.
+**[Your First Game](getting-started/first-game.md)**, then build a full
+adventure in **[the tutorial](tutorial/index.md)**. To add code to your
+game, start at **[Where things go](guides/features.md#where-things-go)**.
 
 ## Finding your way around
 
-| If you want to… | Go to |
+The sections, in order:
+
+| Section | For |
 |---|---|
-| **Follow a worked example** end to end | [Tutorials](tutorial/index.md) — the Abandoned Lighthouse |
-| **Do a specific task** ("add a class", "manage a world") | [How-To Guides](guides/game-systems.md) |
-| **Understand how something works** and why | [Concepts](concepts/character-creation.md) & [Architecture](architecture/overview.md) |
-| **Look up a function, trigger, or API** | [Reference](reference/softcode.md) |
-| **Hack on REALM itself** | [Contributing](development/contributing.md) |
+| **Getting Started** | installing, `realm init`, your first game, and [the tutorial](tutorial/index.md) (the Abandoned Lighthouse) |
+| **Build your game** | [features](guides/features.md) (where every kind of code goes), [pools](guides/pools.md), [rules](guides/game-systems.md) and [content packs](guides/content-packs.md) |
+| **Softcode** | the [function and trigger reference](reference/softcode.md), and the [showcase](showcase/index.md) of 250 worked builds |
+| **Reference** | the [public API](reference/public-api.md), [configuration](reference/config.md), the architecture, and [contributing](development/contributing.md) |
+| **Design notes** | why REALM is built the way it is: the [engine vision](design/engine_vision.md) and the comparisons with other MU*s |
 
 ## What you get out of the box
 

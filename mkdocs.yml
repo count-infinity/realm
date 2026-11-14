@@ -57,58 +57,72 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Your First Game: getting-started/first-game.md
-  - Tutorials:
-    - The Abandoned Lighthouse: tutorial/index.md
-    - 1. The Island: tutorial/01-the-island.md
-    - 2. Keys and Doors: tutorial/02-keys-and-doors.md
-    - 3. Living Things: tutorial/03-living-things.md
-    - 4. Softcode: tutorial/04-softcode.md
-    - 5. The Banshee: tutorial/05-the-banshee.md
-    - 6. The Gullwater: tutorial/06-the-gullwater.md
-    - 7. The Ferry: tutorial/07-the-ferry.md
-    - 8. Overboard: tutorial/08-overboard.md
-    - 9. The Wreck: tutorial/09-the-wreck.md
-    - 10. The Crossing: tutorial/10-the-crossing.md
-    - 11. Market Day: tutorial/11-market-day.md
-    - 12. The Cutpurse: tutorial/12-the-cutpurse.md
-    - 13. The Enthrall Spell: tutorial/13-the-enthrall-spell.md
-    - 14. The Reading of the Will: tutorial/14-the-reading-of-the-will.md
-  - How-To Guides:
-    - Features: guides/features.md
-    - Game Systems: guides/game-systems.md
-    - Add a Character Class: guides/add-a-class.md
-    - Customize Character Creation: guides/custom-chargen.md
-    - Skills & Classes as Data: guides/data-driven-rules.md
+    - "Tutorial: The Abandoned Lighthouse":
+      - The Abandoned Lighthouse: tutorial/index.md
+      - 1. The Island: tutorial/01-the-island.md
+      - 2. Keys and Doors: tutorial/02-keys-and-doors.md
+      - 3. Living Things: tutorial/03-living-things.md
+      - 4. Softcode: tutorial/04-softcode.md
+      - 5. The Banshee: tutorial/05-the-banshee.md
+      - 6. The Gullwater: tutorial/06-the-gullwater.md
+      - 7. The Ferry: tutorial/07-the-ferry.md
+      - 8. Overboard: tutorial/08-overboard.md
+      - 9. The Wreck: tutorial/09-the-wreck.md
+      - 10. The Crossing: tutorial/10-the-crossing.md
+      - 11. Market Day: tutorial/11-market-day.md
+      - 12. The Cutpurse: tutorial/12-the-cutpurse.md
+      - 13. The Enthrall Spell: tutorial/13-the-enthrall-spell.md
+      - 14. The Reading of the Will: tutorial/14-the-reading-of-the-will.md
+  - Build your game:
+    - Features (where things go): guides/features.md
     - Pools (Health & Resources): guides/pools.md
-    - Abilities as Data: guides/abilities.md
-    - Spells as Data: guides/spells.md
-    - Resolution & Native Bindings: guides/resolution-and-bindings.md
-    - Multiroom Actions: guides/multiroom-actions.md
-    - Wards, Resistance & Armor: guides/interception.md
-    - Crime & Justice: guides/crime.md
+    - Rules:
+      - Game Systems: guides/game-systems.md
+      - Creating Your Own System: guides/creating-your-own-system.md
+      - How a Character Is Born: concepts/character-creation.md
+      - Add a Character Class: guides/add-a-class.md
+      - Customize Character Creation: guides/custom-chargen.md
+      - Skills & Classes as Data: guides/data-driven-rules.md
+      - Resolution & Native Bindings: guides/resolution-and-bindings.md
+      - Abilities as Data: guides/abilities.md
+      - Spells as Data: guides/spells.md
+      - Wards, Resistance & Armor: guides/interception.md
+      - Crime & Justice: guides/crime.md
     - Content Packs: guides/content-packs.md
     - World Management: guides/world-management.md
+    - Importing ROM areas: development/rom-import.md
+    - Protocols:
+      - Overview: protocols/overview.md
+      - Adding a Protocol: protocols/adding-protocol.md
+  - Softcode:
+    - Softcode Reference: reference/softcode.md
+    - Multiroom Actions: guides/multiroom-actions.md
     - Interactive Prompts (Wizards): guides/wizards.md
     - Color: guides/color.md
-  - Concepts:
-    - How a Character Is Born: concepts/character-creation.md
-    - Architecture Overview: architecture/overview.md
-    - Session Lifecycle: architecture/sessions.md
-    - Action Propagation: architecture/events.md
-    - Command Dispatch: architecture/commands.md
-    - Protocols: protocols/overview.md
+    - Showcase:
+      - Overview: showcase/index.md
+      - Checklist (250 builds): showcase/checklist.md
+      - Capability Audit: showcase/capability_audit.md
+      - Conventions: showcase/CONVENTIONS.md
+      - "Arc: First Builds": showcase/arc_first_builds.md
+      - "Arc: The Heist": showcase/arc_heist.md
+      - "Arc: Living NPCs": showcase/arc_living_npcs.md
+      - "Arc: Working Economy": showcase/arc_economy.md
+      - "Arc: Softcode for Builders": showcase/arc_softcode.md
   - Reference:
-    - Softcode: reference/softcode.md
-    - Configuration: reference/config.md
     - Public API: reference/public-api.md
+    - Configuration: reference/config.md
     - "API: Core Objects": api/objects.md
     - "API: Sessions": api/sessions.md
     - "API: Propagation": api/events.md
-  - Contributing:
-    - Contributing: development/contributing.md
-    - Testing: development/testing.md
-    - Importing ROM areas: development/rom-import.md
-    - Adding a Protocol: protocols/adding-protocol.md
+    - Architecture:
+      - Overview: architecture/overview.md
+      - Session Lifecycle: architecture/sessions.md
+      - Action Propagation: architecture/events.md
+      - Command Dispatch: architecture/commands.md
+    - Contributing:
+      - Contributing: development/contributing.md
+      - Testing: development/testing.md
   - Design Notes:
     - Engine Vision: design/engine_vision.md
     - Adventure Coverage: design/adventure_coverage.md
@@ -136,16 +150,6 @@ nav:
     - Simplicity Review: design/simplicity_review.md
     - Original Plan (historical): design/original_plan.md
     - Import/Export Architecture (historical): design/import-export-architecture.md
-  - Showcase:
-    - Overview: showcase/index.md
-    - Checklist (250 builds): showcase/checklist.md
-    - Capability Audit: showcase/capability_audit.md
-    - Conventions: showcase/CONVENTIONS.md
-    - "Arc: First Builds": showcase/arc_first_builds.md
-    - "Arc: The Heist": showcase/arc_heist.md
-    - "Arc: Living NPCs": showcase/arc_living_npcs.md
-    - "Arc: Working Economy": showcase/arc_economy.md
-    - "Arc: Softcode for Builders": showcase/arc_softcode.md
 
 extra:
   social:

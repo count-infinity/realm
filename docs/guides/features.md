@@ -7,6 +7,28 @@ observers, combat rulesets, settings and a few more. The built-in ones
 game uses, so anything they do, your game can do, and anything your game
 leaves out simply does not exist in its world.
 
+## Where things go
+
+Everything your game adds is declared on its feature, in `game.py`
+(`feature = Feature("mygame")`). Each row links to a short example.
+
+| I want to add | Declare it with |
+|---|---|
+| [a command](#add-a-command) | `feature.command` |
+| [a behavior for NPCs and objects](#add-a-behavior) | `feature.behavior` |
+| [a softcode function](#add-a-softcode-function) | `feature.softfn`, `feature.function` |
+| [a line scripts can emit](#add-a-script-verb) | `feature.script_verb` |
+| [an event and its `ON_` hook](#add-an-event) | `feature.event` |
+| [a lock type, an entitlement](#add-a-lock-type-or-an-entitlement) | `feature.lock_type`, `feature.entitlement` |
+| [a resource on objects](#add-a-resource-pool) | `feature.pool` or a `pools` attribute |
+| [a kind of data definition](#add-a-definition-kind) | `feature.def_kind` |
+| [a rules system](#add-a-rules-system) | `feature.ruleset`, `GameSystem` |
+| [a network protocol](#add-a-protocol) | `feature.protocol` |
+| [a setting in `config.py`](#add-a-setting) | `feature.setting` |
+| [a reaction to every action](#add-an-observer) | `feature.observer` |
+
+The [full list of declarations](#writing-a-feature) is below.
+
 ## Choosing features
 
 `config.py` lists them:
@@ -126,6 +148,131 @@ Everything a feature can declare:
 Behaviors, rulesets, destination resolvers and softcode functions are
 installed **before the world loads**, so a saved behavior always finds its
 class, with no import in `config.py`.
+
+## Where things go: examples
+
+Each example goes in `game.py`, after this preamble. They all run in
+`tests/test_where_things_go.py`.
+
+```python
+from realm import Behavior, Feature, Pool
+
+feature = Feature("mygame")
+```
+
+### Add a command
+
+```python
+@feature.command("wave", help_text="Wave hello")
+async def cmd_wave(ctx):
+    await ctx.session.send("You wave.")
+```
+
+### Add a behavior
+
+```python
+@feature.behavior
+class Chime(Behavior):
+    behavior_id = "mygame_chime"          # attach with @behavior obj = mygame_chime
+
+    async def tick(self, obj, delta):
+        obj.location.msg_contents("Ding.")
+```
+
+### Add a softcode function
+
+```python
+@feature.function(readonly=True)          # double(4) in softcode
+def double(n):
+    return 2 * n
+
+@feature.softfn(readonly=True)            # gets the run's frame first
+def whoami(frame):
+    return frame.executor.name
+```
+
+### Add a script verb
+
+```python
+@feature.script_verb("chant")             # a script line: chant Om
+async def chant(engine, executor, text):
+    if executor.location is not None:
+        executor.location.msg_contents(f"{executor.name} chants: {text}")
+```
+
+### Add an event
+
+```python
+feature.event("weather:on_rain", hook="RAIN", doc="rain falls here",
+              payload={"strength": "how hard it rains"})
+# fire it: await fire_event(None, room, "weather:on_rain", extra={"strength": 3})
+# react:   @set room/on_rain = remit(here, 'Puddles form.')
+```
+
+### Add a lock type or an entitlement
+
+```python
+feature.lock_type("ride", doc="who may ride this mount")   # @lock horse/ride = ...
+feature.entitlement("summon_storms", "may call the weather down")
+# check them: check_lock(horse, rider, "ride"); has_entitlement(caller, "summon_storms")
+```
+
+### Add a resource pool
+
+```python
+feature.pool(Pool("shields", overflow="hull"))   # how shields behave on any object
+# or one object at a time: @set ship/pools = {"shields": {"overflow": "hull"}}
+```
+
+See [Pools](pools.md).
+
+### Add a definition kind
+
+```python
+feature.def_kind("recipe", "recipe_def", parse=lambda obj: obj.db.get("needs"))
+# objects tagged recipe_def are data: realm.defs.find_def("recipe", "stew")
+```
+
+### Add a rules system
+
+```python
+from realm.std.combat import Ruleset
+
+class PercentileRuleset(Ruleset):         # roll_attack, roll_damage, apply_damage, ...
+    name = "Percentile"
+
+feature.ruleset("percentile", PercentileRuleset)
+# and the game system in rules.py: class PercentileSystem(GameSystem), ruleset_name = "percentile"
+```
+
+[Creating your own system](creating-your-own-system.md) builds both.
+
+### Add a protocol
+
+```python
+# doctest: skip
+from mygame.protocols import GodotServer   # an asyncio server you write
+
+feature.protocol("godot", GodotServer, port=4002)
+```
+
+[Adding a protocol](../protocols/adding-protocol.md) writes the server.
+
+### Add a setting
+
+```python
+feature.setting("WEATHER_SEED", 1, "Seed for the weather.")
+# config.py: WEATHER_SEED = 7       read it: get_world().setting("WEATHER_SEED")
+```
+
+### Add an observer
+
+```python
+@feature.observer                         # runs after every propagated action
+async def count_actions(action):
+    if action.actor is not None and not action.blocked:
+        action.actor.db.actions = (action.actor.db.actions or 0) + 1
+```
 
 Read the built-in features in `realm/std/` for worked examples (each is a
 package; `feature.py` holds its declarations): `combat/feature.py`

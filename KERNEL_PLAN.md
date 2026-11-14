@@ -2269,7 +2269,7 @@ mygame/
 
 ### 9.5 One page that says where things go
 
-- [ ] `docs/guides/features.md` opens with this table, each row linking to
+- [x] `docs/guides/features.md` opens with this table, each row linking to
       a five-line example further down:
 
       | I want to add | Declare it with |
@@ -2287,18 +2287,18 @@ mygame/
       | a setting in `config.py` | `feature.setting` |
       | a reaction to every action | `feature.observer` |
 
-- [ ] `README.md`: the first screen is install, `realm init`, `realm start`
+- [x] `README.md`: the first screen is install, `realm init`, `realm start`
       and that table's link. Move the architecture description below it.
-- [ ] `docs/index.md` and the `mkdocs.yml` nav: "Getting Started" then
+- [x] `docs/index.md` and the `mkdocs.yml` nav: "Getting Started" then
       "Build your game" (features, pools, rules, content packs) then
       "Softcode" then "Reference" then "Design notes".
-- [ ] `CLAUDE.md`: replace the extension-point list with the same table and
+- [x] `CLAUDE.md`: replace the extension-point list with the same table and
       the three boundary tests.
-- [ ] Add `CHANGELOG.md` with one entry for this plan: the module moves of
+- [x] Add `CHANGELOG.md` with one entry for this plan: the module moves of
       Appendix B, the removed config callbacks, the `GAME_SYSTEM` paths, the
       `ON_HITPRCNT` change. State what did not change: saved worlds, action
       type strings, softcode function names, content packs.
-- [ ] Bump `__version__` and `pyproject.toml` to `0.2.0`.
+- [x] Bump `__version__` and `pyproject.toml` to `0.2.0`.
 
 ### Acceptance
 
@@ -2727,3 +2727,6 @@ entry closed.
 | 2026-11-14 | 9.4 | The `bare` preset is `["accounts", "look", "building", "game"]` (deviation: the plan's list omits `look`, which `building` requires since 7.6 and which the scaffold's own test runs). `social` and `bare` omit `rules.py` and the `GAME_SYSTEM` line: `realm init` cuts those blocks out of `config.py.template` (anchored on their first and last lines, so the template stays the one source and stays valid Python for `test_config`/`test_public_api`). `--features` is an argparse choice and `cmd_init` refuses an unknown preset too. | |
 | 2026-11-14 | 9.4 | "Boot a Simulator from the game's own config.py" needed two additions: `Simulator.from_game(dir)` (`load_config(dir)` into the Simulator) and `await sim.start()`, the server's first-boot step: `init_world` on an empty store, role ranks, a default start room, then feature `on_boot`. That step is now one function, `realm.server.world.prepare_world(world, host, empty=...)`, which `GameServer.start` calls instead of its inline code and `_ensure_startup_room` (deleted). `init_world(server)` only ever uses `server.persistence` and `server.startup_room`, so the Simulator offers both and hosts it. The scaffold test is synchronous (`asyncio.run`) so a game needs only `pytest`, not `pytest-asyncio`. | |
 | 2026-11-14 | 9.4 | The scaffold `README.md` (eight lines) links to the docs site's `getting-started/first-game/` and names `docs/getting-started/first-game.md` in the source; that page now covers the presets, `tests/test_game.py` and how to run it. `tests/test_init_scaffold.py` scaffolds each preset into `tmp_path` and runs its `pytest` in a subprocess (one test passes in each). Suite: 2706. | |
+| 2026-11-14 | 9.5 | `docs/guides/features.md` opens with "Where things go" (the plan's twelve rows, each linking to a `### Add ...` example under "Where things go: examples"). `tests/test_where_things_go.py` checks the table is first and every link has its heading, then executes every example into one `Feature` and loads it into a Simulator world: the command answers, the event fires its `ON_RAIN` hook, the observer counts, the softcode function, pool default and setting are installed. The protocol example is `# doctest: skip` (it imports the game's own server class). | Examples that cannot rot. |
+| 2026-11-14 | 9.5 | README: install, `realm init`, `realm start`, then "Where your code goes" linking to the table; its own copy of the table was dropped (one table), and the in-game demo and the architecture note moved below. The nav is Getting Started (with the tutorial), Build your game (features, pools, rules, content packs, world management, ROM import, protocols), Softcode (reference, multiroom, prompts, color, showcase), Reference (public API, config, API pages, architecture, contributing), Design notes; the plan's five groups did not name the tutorial, concepts, contributing or showcase sections, placed as listed. `creating-your-own-system.md`, missing from the old nav, is in Rules; no page left the nav. CLAUDE.md names three boundary tests: `test_kernel_imports_nothing_above_it`, `test_feature_requires_match_imports`, `test_stock_game_is_only_a_feature_list`. | |
+| 2026-11-14 | 9.5 | `CHANGELOG.md` 0.2.0 has the plan's four items (Appendix B moves, by old path; the removed `register_commands`/`register_protocols` callbacks; `realm.systems.GurpsSystem` -> `realm.games.gurps.system.GurpsSystem`; `ON_HITPRCNT`) and what did not change, plus what a 0.1.0 game also has to know: the removed setters (Appendix C), death as an observer and `when_spent`, damage floors, the neutral `GameSystem`, and the combat API renames. Version 0.2.0 in `realm.__version__` and `pyproject.toml`; `realm version` reads `__version__` (it printed a hard-coded 0.1.0), and `test_one_version` checks all three. Suite: 2709. | |

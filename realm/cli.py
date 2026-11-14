@@ -468,7 +468,8 @@ def cmd_import_rom(args: argparse.Namespace) -> int:
 
 def cmd_version(args: argparse.Namespace) -> int:
     """Show version info."""
-    print("REALM Framework v0.1.0")
+    from realm import __version__
+    print(f"REALM Framework v{__version__}")
     print("Real-time Event-Action Layered MUD")
     return 0
 
