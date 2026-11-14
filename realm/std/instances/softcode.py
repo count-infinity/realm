@@ -51,8 +51,8 @@ def enter_instance(
         enter_instance(enactor, 'crypt', mode='shared',
                        return_room='The Rusty Anchor', idle_ttl=600)
     """
-    from realm.core.instances import ENTRY_TAG, TEMPLATE_TAG
     from realm.permissions.locks import LockType, check_lock
+    from realm.std.instances.instancing import ENTRY_TAG, TEMPLATE_TAG
 
     target = frame.resolve(player)
     if target is None:

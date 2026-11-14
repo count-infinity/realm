@@ -187,7 +187,6 @@ class TestMirrorHearsEveryPath:
             "on_unlock",
             "if target is me: (remove_tag(V('partner'), 'locked'), "
             "set_attr(me, 'heard_picked', adata('picked')))")
-        from realm.core import checks
 
         class _Pass:
             success = True

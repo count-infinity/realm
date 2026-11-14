@@ -26,7 +26,7 @@ class TestDigDuplicateExit:
         use_persistence(self.persistence)
 
     async def test_second_up_exit_refused(self):
-        from realm.commands.olc.create import cmd_dig
+        from realm.std.building.create import cmd_dig
 
         room = GameObject("Hub", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -53,7 +53,7 @@ class TestBehaviorCommaParse:
         use_persistence(self.persistence)
 
     async def test_comma_in_taunt_value(self):
-        from realm.commands.olc.softcode import cmd_behavior
+        from realm.std.building.scripting import cmd_behavior
 
         room = GameObject("Lair", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -68,7 +68,7 @@ class TestBehaviorCommaParse:
 
     async def test_behavior_set_edits_interval(self):
         from realm.scripting.ticker import ScriptTickerBehavior
-        from realm.commands.olc.softcode import cmd_behavior
+        from realm.std.building.scripting import cmd_behavior
 
         room = GameObject("Lair", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -91,8 +91,8 @@ class TestEvalForeach:
         world.store = self.persistence
 
     async def test_eval_reports_result(self):
-        from realm.commands.olc.debug import cmd_eval
         from realm.scripting.engine import ScriptEngine
+        from realm.std.building.debug import cmd_eval
 
         room = GameObject("Study", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -102,7 +102,7 @@ class TestEvalForeach:
         assert any("42" in m for m in ctx.session.messages)
 
     async def test_foreach_runs_per_match(self):
-        from realm.commands.olc.debug import cmd_foreach
+        from realm.std.building.debug import cmd_foreach
 
         room = GameObject("Cave", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -130,8 +130,8 @@ class TestEvalForeach:
 class TestQuell:
 
     async def test_quell_drops_to_mortal(self):
-        from realm.commands.olc.debug import cmd_quell
         from realm.permissions.locks import controls
+        from realm.std.building.debug import cmd_quell
 
         room = GameObject("Vault", tags=["room"])
         god = GameObject("Founder", tags=["player", "god"], location=room)
@@ -159,7 +159,7 @@ class TestDetailRemove:
         use_persistence(self.persistence)
 
     async def test_remove_one_by_index(self):
-        from realm.commands.olc.modify import cmd_detail
+        from realm.std.building.modify import cmd_detail
 
         room = GameObject("Cellar", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -174,7 +174,7 @@ class TestDetailRemove:
 class TestExitPrefix:
 
     def test_prefix_matches_exit(self):
-        from realm.commands.builtin.movement import exit_by_name
+        from realm.std.movement.commands import exit_by_name
 
         room = GameObject("Steps", tags=["room"])
         GameObject("trapdoor", tags=["exit"], location=room)
@@ -187,7 +187,7 @@ class TestExitPrefix:
 class TestRollVisibility:
 
     def test_show_rolls_echoes(self):
-        from realm.core.checks import check
+        from realm.std.rules.checks import check
 
         seen = []
         bob = GameObject("Bob", tags=["player"])
@@ -206,8 +206,8 @@ class TestHiddenObjectSearch:
         use_persistence(self.persistence)
 
     async def test_concealed_object_found_by_flat_check(self, world):
+        from realm.std.rules.checks import CheckResult, checks
         from realm.std.stealth.commands import cmd_search
-        from realm.core.checks import CheckResult, checks
 
         room = GameObject("Steps", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)

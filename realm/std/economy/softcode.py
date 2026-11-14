@@ -17,7 +17,7 @@ def credits(frame, obj: GameObject | str | None) -> int:
 
     Example: credits(enactor) >= 10
     """
-    from realm.core.economy import get_credits
+    from realm.std.economy.money import get_credits
     target = frame.resolve(obj)
     return get_credits(target) if target is not None else 0
 
@@ -26,7 +26,7 @@ def adjust_credits(frame, obj: GameObject | str | None, delta: int) -> bool:
 
     Example: adjust_credits(me, 100)
     """
-    from realm.core.economy import adjust_credits as _adjust
+    from realm.std.economy.money import adjust_credits as _adjust
     target = frame.resolve(obj)
     if target is None or not frame.may_mutate(target):
         return False
@@ -45,7 +45,7 @@ def transfer_credits(
 
     Example: transfer_credits(me, enactor, 25)
     """
-    from realm.core.economy import transfer_credits as _transfer
+    from realm.std.economy.money import transfer_credits as _transfer
     src = frame.resolve(source)
     dst = frame.resolve(dest)
     if src is None or dst is None or not frame.may_mutate(src):

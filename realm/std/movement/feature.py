@@ -7,8 +7,8 @@ typed exit name.
 
 from __future__ import annotations
 
-from realm.commands.builtin.movement import cmd_direction, cmd_go, walk_typed_exit
 from realm.features import Feature
+from realm.std.movement.commands import cmd_direction, cmd_go, walk_typed_exit
 
 feature = Feature(
     'movement',

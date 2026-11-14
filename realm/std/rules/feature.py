@@ -6,9 +6,11 @@ The game system's checks and advancement in softcode and commands.
 
 from __future__ import annotations
 
-from realm.commands.builtin.combat import cmd_improve, cmd_points
 from realm.features import Feature
 from realm.std.rules import softcode
+from realm.std.rules.checks import Checks
+from realm.std.rules.commands import cmd_improve, cmd_points
+from realm.std.rules.definitions import parse_class_def, parse_skill_def
 from realm.std.rules.system import equipment_observer, reload_rules, resolve_game_system
 
 feature = Feature(
@@ -17,10 +19,20 @@ feature = Feature(
 )
 
 
+# The rules data every game system reads: skill_def and class_def objects.
+feature.def_kind("skill", "skill_def", parse=parse_skill_def)
+feature.def_kind("class", "class_def", parse=parse_class_def)
+
+
 @feature.on_install
 def _install_game_system(world) -> None:
-    """GAME_SYSTEM becomes ``world.rules``; the world's checks resolve and
-    default skills through it. A bad path raises here, at boot."""
+    """GAME_SYSTEM becomes ``world.rules``, and the world gets its checks
+    (``services["checks"]``): resolved and defaulted through the game
+    system, with every feature's ``check_modifier`` folded in. A bad path
+    raises here, at boot."""
+    checks = Checks()
+    checks.modifier_providers.extend(world.check_modifiers)
+    world.services["checks"] = checks
     world.rules = resolve_game_system(world.settings.game_system)
     reload_rules()
 
@@ -53,7 +65,7 @@ async def skill_gate(actor, exit_obj, direction):
     skill = exit_obj.db.get('check_skill')
     if not skill:
         return None
-    from realm.core.checks import check
+    from realm.std.rules.checks import check
     difficulty = int(exit_obj.db.get('check_difficulty') or 0)
     if check(actor, str(skill), -difficulty).success:
         return None

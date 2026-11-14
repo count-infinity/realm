@@ -218,8 +218,8 @@ from lifting the combination.
 ## Engine gaps
 
 - The `secret` flag is enforced on softcode reads only. Both `examine` (the
-  player command, `cmd_examine` in `realm/commands/builtin/look.py`) and
-  `@examine` (`cmd_examine_full` in `realm/commands/olc/admin.py`) print
+  player command, `cmd_examine` in `realm/std/look/commands.py`) and
+  `@examine` (`cmd_examine_full` in `realm/std/building/admin.py`) print
   `db.all()` without consulting `readable_attr()`, so `examine keypad` shows
   `code: 4815` to anyone who types it. The puzzle holds against scripts and
   gadgets today; it holds against a curious player once those two listings

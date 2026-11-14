@@ -232,8 +232,7 @@ class TestBehaviorRegistry:
         # Every registered behavior must offer a blurb (declared or from
         # its docstring); this is what keeps @behavior/info and a future
         # builder palette from showing blank cards.
-        import realm.behaviors    # noqa: F401 — registers the kit
-        import realm.combat.behaviors    # noqa: F401
+        import realm.std.combat.behaviors  # noqa: F401
         for entry in BehaviorRegistry.describe_all():
             assert entry['blurb'], f"{entry['id']} has no blurb"
 

@@ -17,7 +17,7 @@ def disposition(frame, npc, other=None) -> int:
 
     Example: disposition(me, enactor) >= 2
     """
-    from realm.core.disposition import get_disposition
+    from realm.std.social.disposition import get_disposition
     npc_obj = frame.resolve(npc)
     other_obj = frame.resolve(other) if other is not None else frame.enactor
     if npc_obj is None or other_obj is None:
@@ -32,7 +32,7 @@ def adjust_disposition(frame, npc, other, delta: int) -> bool:
 
     Example: adjust_disposition(me, enactor, 1)
     """
-    from realm.core.disposition import adjust_disposition as _adjust
+    from realm.std.social.disposition import adjust_disposition as _adjust
     npc_obj = frame.resolve(npc)
     other_obj = frame.resolve(other)
     if npc_obj is None or other_obj is None:
@@ -48,7 +48,7 @@ def reaction_roll(frame, npc, other=None, modifier: int = 0) -> int:
 
     Example: reaction_roll(me)
     """
-    from realm.core.disposition import reaction_roll as _roll
+    from realm.std.social.disposition import reaction_roll as _roll
     npc_obj = frame.resolve(npc)
     other_obj = frame.resolve(other) if other is not None else frame.enactor
     if npc_obj is None or other_obj is None or not frame.in_reach(npc_obj):

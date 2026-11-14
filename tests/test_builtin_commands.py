@@ -1,5 +1,5 @@
 """
-End-to-end tests for the migrated realm/commands/builtin/* commands.
+End-to-end tests for the built-in features' commands (realm/std/<feature>/).
 
 Each test sets up a minimal world (room + actor + bystander, items as needed),
 drives the command via its CommandContext, and asserts on what landed in the
@@ -13,7 +13,15 @@ from __future__ import annotations
 import pytest
 
 from realm.commands.base import find_object  # noqa: F401  # ensure the module imports cleanly
-from realm.commands.builtin.communication import (
+from realm.commands.dispatcher import CommandContext
+from realm.core.behaviors import Behavior
+from realm.core.objects import GameObject
+from realm.gateway.session import Session, SessionState
+from realm.std.basics.commands import cmd_logout
+from realm.std.items.inventory import cmd_drop, cmd_get, cmd_give, cmd_put
+from realm.std.look.commands import cmd_look
+from realm.std.movement.commands import cmd_go
+from realm.std.talk.commands import (
     cmd_emit,
     cmd_ooc,
     cmd_pose,
@@ -22,14 +30,6 @@ from realm.commands.builtin.communication import (
     cmd_shout,
     cmd_whisper,
 )
-from realm.commands.builtin.inventory import cmd_drop, cmd_get, cmd_give, cmd_put
-from realm.commands.builtin.look import cmd_look
-from realm.commands.builtin.movement import cmd_go
-from realm.commands.builtin.utility import cmd_logout
-from realm.commands.dispatcher import CommandContext
-from realm.core.behaviors import Behavior
-from realm.core.objects import GameObject
-from realm.gateway.session import Session, SessionState
 
 # --- Helpers --------------------------------------------------------------
 
@@ -263,8 +263,8 @@ class TestMovementCommand:
 
     async def test_dispatcher_exit_name_fires_movement_events(self):
         """Typing a bare exit name (default-game path) fires on_enter to bystanders."""
-        from realm.commands.builtin.movement import walk_typed_exit
         from realm.commands.dispatcher import CommandDispatcher
+        from realm.std.movement.commands import walk_typed_exit
 
         room_a, room_b, _ = await self._setup_two_rooms()
         alice, sess_a = make_player("Alice", location=room_a)
@@ -279,8 +279,8 @@ class TestMovementCommand:
 
     async def test_dispatcher_exit_name_honors_block(self):
         """A behavior blocking on_leave stops movement via the dispatcher path too."""
-        from realm.commands.builtin.movement import walk_typed_exit
         from realm.commands.dispatcher import CommandDispatcher
+        from realm.std.movement.commands import walk_typed_exit
 
         room_a, room_b, _ = await self._setup_two_rooms()
         alice, sess = make_player("Alice", location=room_a)

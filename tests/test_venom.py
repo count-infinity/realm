@@ -11,11 +11,11 @@ from __future__ import annotations
 
 import pytest
 
-from realm.behaviors.effects import DamageOverTimeBehavior
-from realm.combat.behaviors import VenomousBehavior
 from realm.core.propagation import Action
 from realm.core.world import get_world
-from realm.systems import MercSystem
+from realm.games.merc.system import MercSystem
+from realm.std.combat.behaviors import VenomousBehavior
+from realm.std.effects.behaviors import DamageOverTimeBehavior
 from realm.testing import Simulator
 
 
@@ -91,7 +91,7 @@ class TestVenomous:
             snake.db.set("level", 5)
             victim = sim.player("Grog", location=room)
             victim.db.set("hp", 30)
-            monkeypatch.setattr("realm.combat.behaviors.random.random",
+            monkeypatch.setattr("realm.std.combat.behaviors.random.random",
                                 lambda: 0.0)                # always envenom
             monkeypatch.setattr(MercSystem, "saving_throw",
                                 lambda self, t, level: False)  # no save
@@ -111,7 +111,7 @@ class TestVenomous:
             room = sim.room("Nest")
             snake = sim.obj("a viper", location=room, tags=["npc"])
             victim = sim.player("Grog", location=room)
-            monkeypatch.setattr("realm.combat.behaviors.random.random",
+            monkeypatch.setattr("realm.std.combat.behaviors.random.random",
                                 lambda: 0.0)
             monkeypatch.setattr(MercSystem, "saving_throw",
                                 lambda self, t, level: True)   # saved
@@ -130,7 +130,7 @@ class TestVenomous:
             snake = sim.obj("a viper", location=room, tags=["npc"])
             golem = sim.obj("iron golem", location=room, tags=["npc"])
             golem.db.set("resistances", {"poison": 0.0})
-            monkeypatch.setattr("realm.combat.behaviors.random.random",
+            monkeypatch.setattr("realm.std.combat.behaviors.random.random",
                                 lambda: 0.0)
             await VenomousBehavior().on_react(snake, _hit(snake, golem))
             assert not any(getattr(b, "kind", None) == "poisoned"
@@ -144,7 +144,7 @@ class TestVenomous:
             room = sim.room("Nest")
             snake = sim.obj("a viper", location=room, tags=["npc"])
             victim = sim.player("Grog", location=room)
-            monkeypatch.setattr("realm.combat.behaviors.random.random",
+            monkeypatch.setattr("realm.std.combat.behaviors.random.random",
                                 lambda: 0.0)
             # damage 0 = no blow landed.
             await VenomousBehavior().on_react(snake, _hit(snake, victim, 0))

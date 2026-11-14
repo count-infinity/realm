@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import pytest
 
-from realm.core.checks import skill_level
 from realm.core.world import find_world
+from realm.games.gurps.system import GurpsSystem
+from realm.std.rules.checks import skill_level
+from realm.std.rules.definitions import define_class, define_skill
 from realm.std.rules.system import reload_rules
-from realm.systems import GurpsSystem
-from realm.systems.definitions import define_class, define_skill
 from realm.testing import Simulator
 
 

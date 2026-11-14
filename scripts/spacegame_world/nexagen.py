@@ -18,8 +18,8 @@ Route in from Space Station Alpha: a tram at the Station Promenade.
 
 from __future__ import annotations
 
-from realm.behaviors import SpawnerBehavior
 from realm.core.objects import GameObject
+from realm.std.spawning.spawner import SpawnerBehavior
 
 
 async def _link(repo, name, room_a, room_b, *, back_name=None,

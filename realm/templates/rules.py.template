@@ -10,7 +10,7 @@ package itself, so upgrading REALM can't clobber your game.
 `config.py` selects this class with `GAME_SYSTEM = "rules.GameRules"` (a
 dotted import path), so THIS file is the single place your rules are
 decided. The base class GameRules subclasses is the choice: `GurpsSystem`
-here for GURPS, or `D20System` (from realm.systems.d20) for D20.
+here for GURPS, or `D20System` (from realm.games.d20.system) for D20.
 
 Learn the model:
   - Concepts → "How a Character Is Born"
@@ -18,19 +18,19 @@ Learn the model:
   - How-To   → "Customize Character Creation"
 
 Prefer a built-in with no changes? Delete this file and set
-`GAME_SYSTEM = "realm.systems.GurpsSystem"` (or `".D20System"`) in
+`GAME_SYSTEM = "realm.games.gurps.system.GurpsSystem"` (or `".D20System"`) in
 config.py.
 """
 
 from __future__ import annotations
 
-from realm.systems.gurps import GurpsSystem
+from realm.games.gurps.system import GurpsSystem
 
 
 class GameRules(GurpsSystem):
     """Your game's rules. Inherits GURPS; override the hooks to customize.
 
-    Swap the base to `D20System` (from realm.systems.d20) to build on D20
+    Swap the base to `D20System` (from realm.games.d20.system) to build on D20
     instead — that one word is the whole choice."""
 
     system_id = "__GAME_ID__"        # labels characters' saved sheets
@@ -41,7 +41,7 @@ class GameRules(GurpsSystem):
     # Uncomment to offer your own alongside (or instead of) the built-ins:
     #
     # from realm.std.rules.system import ChoiceStep
-    # from realm.systems.gurps import TEMPLATES
+    # from realm.games.gurps.system import TEMPLATES
     #
     # MY_TEMPLATES = {
     #     **TEMPLATES,                       # keep the stock classes (optional)

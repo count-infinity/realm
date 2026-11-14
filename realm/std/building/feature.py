@@ -6,7 +6,8 @@ The @-commands for building and administering the world.
 
 from __future__ import annotations
 
-from realm.commands.olc.admin import (
+from realm.features import Feature
+from realm.std.building.admin import (
     cmd_boot,
     cmd_chown,
     cmd_destroy,
@@ -15,13 +16,13 @@ from realm.commands.olc.admin import (
     cmd_nuke,
     cmd_teleport,
 )
-from realm.commands.olc.area import (
+from realm.std.building.area import (
     cmd_areas,
     cmd_export,
     cmd_import,
     cmd_pack,
 )
-from realm.commands.olc.create import (
+from realm.std.building.create import (
     cmd_create,
     cmd_dig,
     cmd_link,
@@ -29,7 +30,7 @@ from realm.commands.olc.create import (
     cmd_pair,
     cmd_unlink,
 )
-from realm.commands.olc.debug import (
+from realm.std.building.debug import (
     cmd_eval,
     cmd_events,
     cmd_foreach,
@@ -38,7 +39,7 @@ from realm.commands.olc.debug import (
     cmd_rolls,
     cmd_stats,
 )
-from realm.commands.olc.modify import (
+from realm.std.building.modify import (
     cmd_attr,
     cmd_desc,
     cmd_detail,
@@ -52,14 +53,13 @@ from realm.commands.olc.modify import (
     cmd_untag,
     cmd_wipe,
 )
-from realm.commands.olc.softcode import (
+from realm.std.building.scripting import (
     cmd_behavior,
     cmd_clone,
     cmd_force,
     cmd_trigger,
     cmd_zone,
 )
-from realm.features import Feature
 
 feature = Feature(
     'building',

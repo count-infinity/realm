@@ -12,12 +12,12 @@ from __future__ import annotations
 import pytest
 
 from realm.commands import CommandDispatcher
-from realm.core.describe import may_examine
 from realm.core.objects import GameObject
 from realm.features import load
 from realm.gateway.session import Session
 from realm.permissions.locks import LockType, set_lock
 from realm.std import CLASSIC
+from realm.std.look.describe import may_examine
 
 
 def _drain(session) -> str:

@@ -6,7 +6,9 @@ Speech: say, pose, emit, shout, whisper.
 
 from __future__ import annotations
 
-from realm.commands.builtin.communication import (
+from realm.features import Feature
+from realm.std.talk.actions import TalkAction
+from realm.std.talk.commands import (
     cmd_emit,
     cmd_ooc,
     cmd_pose,
@@ -15,8 +17,6 @@ from realm.commands.builtin.communication import (
     cmd_shout,
     cmd_whisper,
 )
-from realm.features import Feature
-from realm.std.talk.actions import TalkAction
 
 feature = Feature(
     'talk',

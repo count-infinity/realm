@@ -29,8 +29,8 @@ def enter_wilderness(frame, player: GameObject | str | None,
 
     Example: enter_wilderness(enactor, 'wilds', 10, 10)
     """
-    from realm.core.wilderness import get_region
     from realm.permissions.locks import LockType, check_lock
+    from realm.std.wilderness.cells import get_region
 
     target = frame.resolve(player)
     if target is None:

@@ -24,7 +24,7 @@ as the in-box `TEMPLATES`. In your `rules.py`:
 
 ```python
 # rules.py  (created by `realm init` — already selected by config.py)
-from realm.systems.gurps import GurpsSystem, TEMPLATES
+from realm.games.gurps.system import GurpsSystem, TEMPLATES
 from realm.std.rules.system import ChoiceStep
 
 MY_TEMPLATES = {
@@ -93,7 +93,7 @@ Identical shape — D20 classes are `CLASSES` entries. Subclass
 `D20System`, spread `CLASSES`, add your own, and override `chargen_steps()`
 the same way.
 
-## Why not just edit `realm/systems/gurps.py`?
+## Why not just edit `realm/games/gurps/system.py`?
 
 Because REALM is a library you build *on*, not an application you fork.
 Editing the in-box dict works until you `pip install -U realm` and your

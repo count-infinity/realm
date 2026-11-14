@@ -19,7 +19,6 @@ import pytest
 from realm.core.objects import GameObject
 from realm.scripting.functions import ScriptFrame
 from realm.scripting.sandbox import ScriptContext, ScriptSandbox
-
 from tests.test_olc import MockPersistence
 
 
@@ -157,16 +156,16 @@ class TestIncrDecr:
 
 class TestDarkMessageOverride:
     def test_default_when_unset(self, monkeypatch):
-        import realm.core.perception as perception
-        monkeypatch.setattr(perception, 'can_see_room', lambda v, r: False)
-        from realm.core.render import render_room
+        import realm.std.look.render as render
+        monkeypatch.setattr(render, 'can_see_room', lambda v, r: False)
+        from realm.std.look.render import render_room
         room = GameObject("Cave", tags=['room'])
         assert "pitch black" in render_room(room, None)
 
     def test_custom_dark_msg_used(self, monkeypatch):
-        import realm.core.perception as perception
-        monkeypatch.setattr(perception, 'can_see_room', lambda v, r: False)
-        from realm.core.render import render_room
+        import realm.std.look.render as render
+        monkeypatch.setattr(render, 'can_see_room', lambda v, r: False)
+        from realm.std.look.render import render_room
         room = GameObject("Mine", tags=['room'])
         room.db.set('dark_msg', "The mine shaft swallows all light.")
         assert render_room(room, None) == "The mine shaft swallows all light."
@@ -186,12 +185,14 @@ class TestInterpreterRecursionLimit:
 
     def test_sets_the_limit(self):
         import sys
+
         from realm.scripting.sandbox import set_interpreter_recursion_limit
         set_interpreter_recursion_limit(1234)
         assert sys.getrecursionlimit() == 1234
 
     def test_default_matches_cpython_default(self):
         import sys
+
         from realm.scripting.sandbox import (
             DEFAULT_RECURSION_LIMIT,
             set_interpreter_recursion_limit,

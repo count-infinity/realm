@@ -18,11 +18,8 @@ resolver.
 
 from __future__ import annotations
 
-import re
 
-
-from realm.core.economy import get_credits
-
+from realm.std.economy.money import get_credits
 from tests.showcase.harness import (  # noqa: F401 — shared doc-driven harness
     build,
     build_lines,
@@ -32,7 +29,6 @@ from tests.showcase.harness import (  # noqa: F401 — shared doc-driven harness
     lines_in,
     workshop_and_builder,
 )
-
 
 # =========================================================================
 # 005. Magic 8-ball — docs/showcase/005_magic_8ball.md

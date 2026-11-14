@@ -28,8 +28,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import realm.behaviors  # noqa: F401 — registers script_ticker
-from realm.core.economy import get_credits
+from realm.std.economy.money import get_credits
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -816,7 +815,7 @@ class TestArmWrestling:
     async def test_skill_def_bridges_strength_into_contests(self, sim):
         room, vala, kess, bob = parlor_and_staff(sim)
         await build(sim, vala, WRESTLE_BUILD)
-        from realm.core.checks import checks
+        from realm.std.rules.checks import checks
         assert checks().skill_defaults.get("brawn") == ("strength", 0)
 
     async def test_wagered_bout_with_crowd_call(self, sim, pinned_dice):

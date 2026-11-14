@@ -349,11 +349,11 @@ class TestNpcSchedule:
 class TestGuardResponse:
 
     async def test_crime_summons_the_watch(self, town):
-        from realm.combat.manager import CombatManager
-        from realm.combat.rulesets.gurps import GURPSRuleset
-        from realm.combat.system import CombatSystem
-        from realm.core.disposition import get_disposition
         from realm.core.world import get_world
+        from realm.games.gurps.ruleset import GURPSRuleset
+        from realm.std.combat.manager import CombatManager
+        from realm.std.combat.system import CombatSystem
+        from realm.std.social.disposition import get_disposition
 
         class SteadyRuleset(GURPSRuleset):
             """GURPS with the dice removed: 3d6 always 10, damage flat 2."""
@@ -363,7 +363,7 @@ class TestGuardResponse:
 
             def roll_damage(self, attacker, defender, attack_result,
                             weapon=None):
-                from realm.combat.ruleset import DamageResult, DamageType
+                from realm.std.combat.ruleset import DamageResult, DamageType
                 return DamageResult(total=2,
                                     damage_by_type={DamageType.PHYSICAL: 2})
 

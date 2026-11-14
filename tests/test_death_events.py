@@ -20,10 +20,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.combat.manager import CombatManager
-from realm.combat.rulesets.d20 import D20Ruleset
-from realm.combat.system import CombatSystem
 from realm.core.world import get_world
+from realm.games.d20.ruleset import D20Ruleset
+from realm.std.combat.manager import CombatManager
+from realm.std.combat.system import CombatSystem
 from realm.testing import Simulator
 
 WITNESS = (
@@ -191,8 +191,8 @@ class TestRealSwingStillFires:
     """
 
     async def test_a_real_swing_kill_announces_once(self):
-        from realm.combat.rulesets.gurps import GURPSRuleset
-        from realm.core.checks import checks
+        from realm.games.gurps.ruleset import GURPSRuleset
+        from realm.std.rules.checks import checks
 
         sim = Simulator()
         # Diceless: every 3d6 is a 10, so swings land deterministically.

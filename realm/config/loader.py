@@ -81,7 +81,7 @@ class Settings:
     debug: bool = setting(
         False, "DEBUG", "Log at DEBUG level (same as `realm start --debug`).")
     game_system: Any = setting(
-        "realm.systems.GurpsSystem", "GAME_SYSTEM",
+        "realm.games.gurps.system.GurpsSystem", "GAME_SYSTEM",
         "Dotted import path to the GameSystem subclass that holds the rules "
         "(chargen, checks, advancement, combat pairing, currency). Choose it "
         "once, before the first character is created.")

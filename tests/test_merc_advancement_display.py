@@ -18,9 +18,10 @@ import pytest
 from realm.commands import CommandDispatcher
 from realm.core.objects import GameObject
 from realm.features import load
+from realm.games.gurps.system import GurpsSystem
+from realm.games.merc.system import MercSystem
 from realm.gateway.session import Session
 from realm.std import CLASSIC
-from realm.systems import GurpsSystem, MercSystem
 from realm.testing import Simulator
 
 

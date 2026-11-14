@@ -47,7 +47,6 @@ def build_world(store, settings: Settings | None = None, *,
     ``engine.waits.tick()`` (the Simulator's virtual clock).
     """
     from realm.commands.dispatcher import CommandDispatcher
-    from realm.core.checks import Checks
     from realm.core.propagation import PropagationEngine
     from realm.scripting.engine import ScriptEngine
     from realm.scripting.sandbox import set_interpreter_recursion_limit
@@ -78,12 +77,10 @@ def build_world(store, settings: Settings | None = None, *,
     # 3. The world. Install it now: everything below (a feature's
     # on_install, a game system reading its skill_def objects) reaches the
     # store through it. Closing it (the first closer, so it runs last)
-    # restores the world that was current before. Checks start neutral; the
-    # ``rules`` feature resolves GAME_SYSTEM into ``world.rules`` and gives
-    # them its resolver and skill table.
+    # restores the world that was current before. The ``rules`` feature
+    # resolves GAME_SYSTEM into ``world.rules`` and installs the checks.
     world = World(settings=cfg, store=store, engine=engine, dispatcher=dispatcher,
-                  rules=None, scripts=None, sessions=sessions, _closers=closers,
-                  services={"checks": Checks()})
+                  rules=None, scripts=None, sessions=sessions, _closers=closers)
     previous = set_world(world)
     closers.insert(0, lambda: set_world(previous) if find_world() is world else None)
 

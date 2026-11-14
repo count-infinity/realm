@@ -110,7 +110,7 @@ def text(sim, player):
 async def announce_death(victim, killer=None):
     """Announce a death exactly as the engine's one death path does.
 
-    Mirrors realm.combat.manager._propagate_death: the *killer* is the
+    Mirrors realm.std.combat.manager._propagate_death: the *killer* is the
     actor (None for a poison tick, a trap, a long fall), the victim is the
     target, ``killer`` is a NAME, and ``fatal`` is False for a player, who
     is knocked unconscious rather than killed.

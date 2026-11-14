@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import pytest
 
-from realm.commands.builtin.communication import cmd_say
-from realm.commands.builtin.inventory import cmd_drop, cmd_get, cmd_give, cmd_put
 from realm.commands.dispatcher import CommandContext
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
 from realm.gateway.session import Session
+from realm.std.items.inventory import cmd_drop, cmd_get, cmd_give, cmd_put
+from realm.std.talk.commands import cmd_say
 
 
 @pytest.fixture(autouse=True)
@@ -296,7 +296,7 @@ class TestLockCommand:
         return make_context(self.builder, **kwargs)
 
     async def test_bare_lock_sets_basic(self):
-        from realm.commands.olc.modify import cmd_lock
+        from realm.std.building.modify import cmd_lock
         ctx = self._builder_ctx(
             args="box = caller.has_tag('vip')",
             left_args="box",
@@ -308,7 +308,7 @@ class TestLockCommand:
         assert "Lock/basic set on box." in ctx.session.messages
 
     async def test_invalid_expression_rejected_not_stored(self):
-        from realm.commands.olc.modify import cmd_lock
+        from realm.std.building.modify import cmd_lock
         ctx = self._builder_ctx(
             args="box = import os",
             left_args="box",
@@ -320,7 +320,7 @@ class TestLockCommand:
         assert any("Invalid lock expression" in m for m in ctx.session.messages)
 
     async def _lock(self, lock_type):
-        from realm.commands.olc.modify import cmd_lock
+        from realm.std.building.modify import cmd_lock
         ctx = self._builder_ctx(args="box = True", left_args="box", right_args="True")
         ctx.switches = [lock_type]
         await cmd_lock(ctx)
@@ -345,7 +345,7 @@ class TestLockCommand:
 
     async def test_lock_set_then_enforced_end_to_end(self):
         """A lock set via @lock actually stops the action."""
-        from realm.commands.olc.modify import cmd_lock
+        from realm.std.building.modify import cmd_lock
         ctx = self._builder_ctx(
             args="box = False",
             left_args="box",

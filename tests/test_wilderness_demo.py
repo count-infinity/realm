@@ -13,7 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core import wilderness
+from realm.std.wilderness import cells as wilderness
 from realm.testing import Simulator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent

@@ -20,11 +20,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core import wilderness
 from realm.core.beats import deliver_beat
-from realm.core.checks import skill_level
-from realm.core.disposition import adjust_disposition, get_disposition
-from realm.core.party import leader_id
+from realm.std.rules.checks import skill_level
+from realm.std.social.disposition import adjust_disposition, get_disposition
+from realm.std.social.party import leader_id
+from realm.std.wilderness import cells as wilderness
 from realm.testing import Simulator
 
 W = 0   # the tutorial types 4 (and 3 for the bequest); see module docstring
@@ -186,7 +186,7 @@ def cell_exits_code(jetty_id: str, harbor_id: str) -> str:
 
 @pytest.fixture
 def world():
-    from realm.behaviors.shop import ShopkeeperBehavior
+    from realm.std.economy.shop import ShopkeeperBehavior
     from realm.std.rules.system import reload_rules
 
     sim = Simulator()

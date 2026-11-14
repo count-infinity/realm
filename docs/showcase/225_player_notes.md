@@ -300,7 +300,7 @@ previously.
 - The `secret` flag is honored by the softcode readers
   (`get_attr`/`V`/`eval_attr`) but **not** by the player-facing `examine`
   command, which prints `target.db.all()` for any object in reach with no
-  flag filter at all (`realm/commands/builtin/look.py`). The builder tool
+  flag filter at all (`realm/std/look/commands.py`). The builder tool
   `@examine` does the same. Both `realm/core/attrflags.py` and the world
   management guide describe `secret` as covering `@examine`, so the intended
   behavior is clear and the filter is simply absent. Until it lands, a

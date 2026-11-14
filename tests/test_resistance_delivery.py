@@ -15,11 +15,11 @@ immunity.
 
 from __future__ import annotations
 
-from realm.combat.combatant import Combatant
-from realm.combat.damage import apply_resisted
-from realm.combat.ruleset import DamageResult, DamageType, apply_type_resistance
-from realm.combat.rulesets.merc import MercRuleset
 from realm.core.objects import GameObject
+from realm.games.merc.ruleset import MercRuleset
+from realm.std.combat.combatant import Combatant
+from realm.std.combat.damage import apply_resisted
+from realm.std.combat.ruleset import DamageResult, DamageType, apply_type_resistance
 
 
 def _scaled(dmg, resist, **kw):

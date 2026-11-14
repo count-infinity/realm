@@ -460,7 +460,7 @@ def _mobiles(r: Reader, area: Area) -> None:
         # keeps it in its zone), so towns feel alive. Keepers get this
         # stripped in _shops (a shopkeeper who walks off has no shop).
         # ACT flags -> the shipped NPC-AI behaviors (wandering/aggressive in
-        # realm/combat/behaviors.py; scavenger in realm/behaviors/npc.py).
+        # realm/std/combat/behaviors.py; scavenger in realm/std/npc/behaviors.py).
         act_letters = flag_letters(act)
         if "B" not in act_letters:                       # not ACT_SENTINEL
             proto["behaviors"].append(

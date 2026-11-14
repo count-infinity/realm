@@ -12,24 +12,24 @@ from __future__ import annotations
 
 import pytest
 
-from realm.behaviors import PatrolBehavior, WatchfulBehavior
-from realm.commands.builtin.communication import cmd_say
-from realm.commands.builtin.inventory import cmd_get
-from realm.commands.builtin.manipulation import (
+from realm.commands.dispatcher import CommandContext, CommandDispatcher
+from realm.core.movement import move_through_exit
+from realm.core.objects import GameObject
+from realm.core.perception import can_see, can_see_room
+from realm.core.world import get_world
+from realm.gateway.session import Session
+from realm.std.items.inventory import cmd_get
+from realm.std.items.manipulation import (
     cmd_open,
     cmd_unwear,
     cmd_use,
     cmd_wear,
 )
-from realm.commands.dispatcher import CommandContext, CommandDispatcher
-from realm.core.checks import CheckResult, check, checks, contest, skill_level
-from realm.core.movement import move_through_exit
-from realm.core.objects import GameObject
+from realm.std.npc.behaviors import PatrolBehavior, WatchfulBehavior
+from realm.std.rules.checks import CheckResult, check, checks, contest, skill_level
 from realm.std.stealth.commands import cmd_hide, cmd_pick, cmd_search
 from realm.std.stealth.hiding import hidden_from_sight, hidden_marker, stealth_observer
-from realm.core.perception import can_see, can_see_room
-from realm.core.world import get_world
-from realm.gateway.session import Session
+from realm.std.talk.commands import cmd_say
 
 
 def level_resolver(obj, skill, modifier):
@@ -45,7 +45,7 @@ def level_resolver(obj, skill, modifier):
 
 @pytest.fixture(autouse=True)
 def deterministic_checks(world):
-    world.services["checks"].resolver = level_resolver
+    checks().resolver = level_resolver
     # The stealth feature's sight rule and marker, on this bare world.
     world.sight_rules.append(hidden_from_sight)
     world.markers.append(hidden_marker)
@@ -90,11 +90,11 @@ class TestChecks:
         obj.db.skill_stealth = 14
         assert skill_level(obj, "stealth") == 14
 
-    def test_attribute_default(self):
+    def test_attribute_default(self, classic_world):
         # The active GameSystem owns the defaults table (as on a live
         # server); the engine seed is just the flee floor.
-        from realm.core.checks import skill_table
-        from realm.systems import GurpsSystem
+        from realm.games.gurps.system import GurpsSystem
+        from realm.std.rules.checks import skill_table
         checks().skill_defaults = skill_table(GurpsSystem().skill_defaults())
         obj = GameObject("Rube")
         obj.db.dexterity = 12
@@ -180,7 +180,7 @@ class TestDoors:
         key = GameObject("brass key", location=raven, tags=["thing"])
         key.db.unlocks = "vault"
 
-        from realm.commands.builtin.manipulation import cmd_unlock_item
+        from realm.std.items.manipulation import cmd_unlock_item
         await cmd_unlock_item(make_ctx(sess, "door"))
 
         assert not door.has_tag("locked")
@@ -491,7 +491,7 @@ class TestMultiWordExits:
         sess = RealSession(protocol="test", address="127.0.0.1")
         sess.link_player(raven)
 
-        from realm.commands.builtin.movement import walk_typed_exit
+        from realm.std.movement.commands import walk_typed_exit
         dispatcher = CommandDispatcher()
         dispatcher.add_fallback(walk_typed_exit)      # the movement feature's
         await dispatcher.dispatch(sess, "fire escape")

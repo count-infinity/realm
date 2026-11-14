@@ -34,9 +34,9 @@ BUILTIN: dict[str, str] = {
     "spawning": "realm.std.spawning.feature",
     "instances": "realm.std.instances.feature",
     "wilderness": "realm.std.wilderness.feature",
-    "gurps": "realm.games.gurps",
-    "d20": "realm.games.d20",
-    "merc": "realm.games.merc",
+    "gurps": "realm.games.gurps.feature",
+    "d20": "realm.games.d20.feature",
+    "merc": "realm.games.merc.feature",
 }
 
 CLASSIC: tuple[str, ...] = tuple(BUILTIN)

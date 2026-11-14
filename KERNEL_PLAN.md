@@ -1764,7 +1764,7 @@ reaper loop, start and stop. Login, character creation and `who` are policy.
 
 Mechanics:
 
-- [ ] Write `scripts/dev/move_modules.py`. Input: a JSON map of old dotted
+- [x] Write `scripts/dev/move_modules.py`. Input: a JSON map of old dotted
       module path to new dotted module path. It runs `git mv`, creates
       missing `__init__.py` files, and rewrites `from X import`, `import X`,
       `import X as`, string literals that are dotted paths (`GAME_SYSTEM`
@@ -1772,7 +1772,7 @@ Mechanics:
       paths in `docs/**/*.md`, across `realm/`, `tests/`, `docs/`,
       `examples/`, `scripts/` and `realm/templates/`. It prints every file it
       changed and every occurrence of an old path it could not rewrite.
-- [ ] After each batch: `ruff check realm/ tests/`, `pytest -q`, then
+- [x] After each batch: `ruff check realm/ tests/`, `pytest -q`, then
       `git grep` for each old path. No shim modules, no re-exports.
 
 Batches, smallest blast radius first. Counts are import statements in
@@ -1788,20 +1788,20 @@ engine code plus tests.
 | F | `commands/builtin/*`, `commands/olc/*` | 21 + 79 |
 | G | the splits of 7.4 | |
 
-- [ ] Batch A. `GAME_SYSTEM` values become `realm.games.gurps.GurpsSystem`,
+- [x] Batch A. `GAME_SYSTEM` values become `realm.games.gurps.GurpsSystem`,
       `realm.games.d20.D20System`, `realm.games.merc.MercSystem`. Update
       `realm/config/loader.py`'s default, the templates, the examples and
       the docs. Short names (`"gurps"`) resolve through the `ruleset` and
       feature registries, not through a hardcoded dict.
-- [ ] Batch B.
-- [ ] Batch C.
-- [ ] Batch D.
-- [ ] Batch E.
-- [ ] Batch F. Delete the empty `realm/commands/builtin/`,
+- [x] Batch B.
+- [x] Batch C.
+- [x] Batch D.
+- [x] Batch E.
+- [x] Batch F. Delete the empty `realm/commands/builtin/`,
       `realm/commands/olc/`, `realm/behaviors/`, `realm/systems/` and
       `realm/combat/` packages.
-- [ ] Batch G.
-- [ ] Remove every import that has become unused, and every deferred import
+- [x] Batch G.
+- [x] Remove every import that has become unused, and every deferred import
       that no longer needs deferring (ruff `F401`, then a manual pass over
       function-level imports in the moved files).
 
@@ -2679,3 +2679,10 @@ entry closed.
 | 2026-11-13 | 7.4 | `build_world` no longer resolves `GAME_SYSTEM`: `world.rules` starts None and `world.services["checks"]` neutral; the `rules` feature's `on_install` resolves the game system and calls `reload_rules()`, which fills the checks. This undoes the 7.2 choice that the kernel builds checks from the rules. `GameSystem`, `ChargenStep`, `ChoiceStep`, `resolve_game_system`, `equipment_observer`, `reload_rules` live in `realm.std.rules.system`; `realm.systems` exports only the three concrete systems (batch A moves them). | Plan: the kernel never calls `world.rules`. |
 | 2026-11-13 | 7.4 | Kernel imports of feature code left for 7.5/7.6: `core/defs.py` → `systems.definitions` (batch D), `core/wilderness.py` → `behaviors.spawner` (batch B), `features.py` → `combat.system.RulesetRegistry`, `commands/olc` → `std.rules.system.reload_rules` (batch F), `core/economy.py` reads `world.rules.currency_name` (batch C). `scripting/engine.py` imports nothing from `realm.std` or `realm.games`. | |
 | 2026-11-13 | 7.4 | `test_softcode_builders::TestWaits::test_real_timer_wait_fires_exactly` failed about one full run in three (a 20 ms timer checked after a fixed 60 ms sleep; it passes alone and in every subset). It now polls for up to a second, still with nothing pumping the wait. | Flaky under load, not a regression. |
+| 2026-11-13 | 7.5 | `scripts/dev/move_modules.py` as specified, plus: a slash-path form (`realm/systems/gurps.py`), `from <parent> import <module>` rewrites, an old package left with only `__init__.py` (and caches) is removed, a new path that extends its old one (`realm.games.gurps` -> `realm.games.gurps.feature`) is not reported, and `docs/design/` (historical record) is counted, not rewritten. Package-level symbol imports (`from realm.systems import GurpsSystem`, `realm.systems.GurpsSystem`, `from realm.behaviors import X`) were first rewritten onto their defining modules by a pre-pass, so no package kept a re-export. | No shims, no re-exports. |
+| 2026-11-13 | 7.5 | Batch A: each game is a package `realm/games/<name>/` with `system.py`, `ruleset.py`, `feature.py`. `GAME_SYSTEM` values are `realm.games.gurps.system.GurpsSystem` (not the plan's `realm.games.gurps.GurpsSystem`, which would need a re-export from the package). Short names already resolved through the feature and ruleset registries; no dict existed. `realm.combat` stopped re-exporting the rulesets. | No re-exports. |
+| 2026-11-13 | 7.5 | Destinations the plan left open. B: `core/instances` -> `std/instances/instancing`, `core/wilderness` -> `std/wilderness/cells`, `systems/crime` -> `std/crime/wanted`, `behaviors/{npc,decay}` -> `std/npc/{behaviors,decay}`, `behaviors/{spawner,zone_reset}` -> `std/spawning/`, `behaviors/shop` -> `std/economy/shop`, `behaviors/caster` -> `std/abilities/caster`, `behaviors/effects` -> `std/effects/behaviors`. C: `core/economy` -> `std/economy/money`, `core/{disposition,party}` -> `std/social/`, `core/{describe,render}` -> `std/look/`. D: `core/checks` and `systems/definitions` -> `std/rules/`, `systems/{abilities,spells}` -> `std/abilities/{invoke,spells}`. E: `combat/*` -> `std/combat/*`. F: `commands/builtin/<x>` -> the declaring feature (`talk.commands`, `items.{inventory,manipulation}`, ...), `commands/olc/*` -> `std/building/*` (`softcode` -> `building.scripting`, not to be confused with a feature's `softcode.py`); `combat.py`'s `wield`/`unwield` went to `items.manipulation` and `points`/`improve` to `rules.commands`. Dead `import realm.behaviors  # registers` lines in tests and a script were deleted. | |
+| 2026-11-13 | 7.5 | `core/pairing.py` stays kernel (deviation from batch C): the kernel's own `core/teardown.py` and `core/ops/exits.py` dissolve exit pairings. | Kernel must not import a feature. |
+| 2026-11-13 | 7.5 | Batch D finished the plan's 7.2 intent: `checks` is the `rules` feature's service. `build_world` makes no `Checks`; `feature.check_modifier` fills `World.check_modifiers`; the `rules` feature's `on_install` builds `services["checks"]` with them and the game system. A world without `rules` gets neutral Checks of its own on first `checks()`. The `skill` and `class` definition kinds are `rules` declarations now (the kernel declares `role` and `behavior`), reversing the 6.6 decision; a game system reading skills therefore needs `rules`, which every built-in one requires. | Kernel never calls the rules. |
+| 2026-11-13 | 7.5 | Batch G had nothing left: 7.4 already put its splits in their final packages. | |
+| 2026-11-13 | 7.5 | Deferred imports: 43 moved files had function-level `realm` imports hoisted to module level by a script that skipped any that would shadow a module name or import a `feature` module, and checked after each file that every one of the 204 `realm` modules still imports in a fresh interpreter (none had to be reverted). Imports still deferred are the cycles. Redundant nested re-imports were dropped (one had made `get_world` a local in `CombatManager._npc_death`). Five tests now patch a name where it is looked up (`realm.std.npc.behaviors.contest`, `realm.std.abilities.caster.cast_spell`, `realm.std.look.render.can_see_room`, `realm.games.gurps.system.roll`). Unused imports in `tests/` removed. | Plan: hoist what no longer needs deferring. |

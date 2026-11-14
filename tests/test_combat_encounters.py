@@ -12,17 +12,17 @@ from __future__ import annotations
 
 import pytest
 
-from realm.behaviors import WatchfulBehavior
-from realm.combat.manager import CombatManager
-from realm.combat.maneuver import QueuedAction
-from realm.combat.rulesets.gurps import GURPSRuleset
-from realm.combat.system import CombatSystem
-from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 from realm.core.world import get_world
+from realm.games.gurps.ruleset import GURPSRuleset
 from realm.gateway.session import Session
+from realm.std.combat.manager import CombatManager
+from realm.std.combat.maneuver import QueuedAction
+from realm.std.combat.system import CombatSystem
+from realm.std.npc.behaviors import WatchfulBehavior
+from realm.std.rules.checks import CheckResult, checks, skill_level
 
 
 class FixedRuleset(GURPSRuleset):
@@ -32,7 +32,7 @@ class FixedRuleset(GURPSRuleset):
         return 10, [3, 3, 4]
 
     def roll_damage(self, attacker, defender, attack_result, weapon=None):
-        from realm.combat.ruleset import DamageResult, DamageType
+        from realm.std.combat.ruleset import DamageResult, DamageType
         return DamageResult(
             total=3,
             damage_by_type={DamageType.PHYSICAL: 3},
@@ -276,7 +276,7 @@ class TestFlee:
         """A portal resolves to PRIVATE per-walker space — fleeing through
         one is an unpursuable teleport into a fresh dungeon import, so it
         is excluded from flee entirely (registered shared_destination=False)."""
-        import realm.core.instances  # noqa: F401 — registers the resolver
+        import realm.std.instances.instancing  # noqa: F401 — registers the resolver
 
         room = GameObject("Shrine", tags=["room"])
         portal = GameObject("out", location=room, tags=["exit"])
@@ -359,8 +359,8 @@ class TestDefeat:
         assert thug.location is None
 
     async def test_firstaid_revives_unconscious(self, manager):
-        from realm.commands.builtin.combat import cmd_firstaid
         from realm.commands.dispatcher import CommandContext, CommandDispatcher
+        from realm.std.combat.commands import cmd_firstaid
 
         room = GameObject("Arena", tags=["room"])
         alice, _ = make_fighter("Alice", room)
@@ -489,7 +489,7 @@ class TestGURPSManeuvers:
         assert target.combatant.get_stat('dodge') == 2  # the opening
 
     async def test_d20_lacks_gurps_maneuvers(self, manager):
-        from realm.combat.rulesets.d20 import D20Ruleset
+        from realm.games.d20.ruleset import D20Ruleset
         keys = {m.key for m in D20Ruleset().maneuvers()}
         assert "attack" in keys and "all_out_attack" not in keys
 
@@ -542,7 +542,7 @@ class TestEscalation:
 class TestTimedEffects:
 
     async def test_bleeding_ticks_damage_and_expires(self, manager):
-        from realm.behaviors import DamageOverTimeBehavior
+        from realm.std.effects.behaviors import DamageOverTimeBehavior
 
         room = GameObject("Arena", tags=["room"])
         alice, sess = make_fighter("Alice", room, hp=10)
@@ -564,7 +564,7 @@ class TestTimedEffects:
         assert any("bleeding stops" in line for line in drain(sess))
 
     async def test_poison_kills_through_shared_death_path(self, manager):
-        from realm.behaviors import DamageOverTimeBehavior
+        from realm.std.effects.behaviors import DamageOverTimeBehavior
 
         room = GameObject("Arena", tags=["room"])
         thug, _ = make_fighter("Thug", room, player=False, hp=2)
@@ -578,7 +578,7 @@ class TestTimedEffects:
         assert len(corpses) == 1 and loot.location is corpses[0]
 
     async def test_poisoned_player_falls_unconscious(self, manager):
-        from realm.behaviors import DamageOverTimeBehavior
+        from realm.std.effects.behaviors import DamageOverTimeBehavior
 
         room = GameObject("Arena", tags=["room"])
         alice, _ = make_fighter("Alice", room, hp=1)
@@ -591,7 +591,7 @@ class TestTimedEffects:
         assert alice.location is room
 
     async def test_regeneration_heals_and_caps(self, manager):
-        from realm.behaviors import RegenerationBehavior
+        from realm.std.effects.behaviors import RegenerationBehavior
 
         room = GameObject("Arena", tags=["room"])
         troll, _ = make_fighter("Troll", room, player=False, hp=10)
@@ -607,8 +607,8 @@ class TestTimedEffects:
         assert regen in troll.get_behaviors()  # permanent
 
     async def test_effect_survives_serialization(self, manager):
-        from realm.behaviors import DamageOverTimeBehavior
         from realm.core.behaviors import BehaviorRegistry
+        from realm.std.effects.behaviors import DamageOverTimeBehavior
 
         alice = GameObject("Alice", tags=["player"])
         alice.add_behavior(DamageOverTimeBehavior(kind="poisoned", damage=1,
@@ -621,8 +621,8 @@ class TestTimedEffects:
         assert revived.get_param('duration') == 20
 
     async def test_registry_tracks_behavior_owners(self, manager):
-        from realm.behaviors import RegenerationBehavior
         from realm.core.behaviors import behavior_owners
+        from realm.std.effects.behaviors import RegenerationBehavior
 
         obj = GameObject("thing", tags=["thing"])
         regen = RegenerationBehavior()
@@ -640,7 +640,7 @@ class TestTimedEffects:
 class TestSpawner:
 
     def _spawner(self, room, **over):
-        from realm.behaviors import SpawnerBehavior
+        from realm.std.spawning.spawner import SpawnerBehavior
         params = dict(
             key="thug",
             respawn_ticks=3,
@@ -717,8 +717,8 @@ class TestProgression:
         assert any("character points" in line for line in drain(sess))
 
     async def test_improve_spends_points(self, manager):
-        from realm.commands.builtin.combat import cmd_improve
         from realm.commands.dispatcher import CommandContext, CommandDispatcher
+        from realm.std.rules.commands import cmd_improve
 
         room = GameObject("Arena", tags=["room"])
         alice, sess = make_fighter("Alice", room)
@@ -741,10 +741,10 @@ class TestProgression:
         assert any("costs 4 points" in line for line in drain(sess))
 
     async def test_improve_from_untrained_default(self, manager):
-        from realm.commands.builtin.combat import cmd_improve
         from realm.commands.dispatcher import CommandContext, CommandDispatcher
-        from realm.core.checks import skill_table
-        from realm.systems import GurpsSystem
+        from realm.games.gurps.system import GurpsSystem
+        from realm.std.rules.checks import skill_table
+        from realm.std.rules.commands import cmd_improve
 
         checks().skill_defaults = skill_table(GurpsSystem().skill_defaults())
 
@@ -767,7 +767,7 @@ class TestDestubbedBrains:
     async def test_aggressive_engages_through_manager(self, manager):
         lair = GameObject("Lair", tags=["room"])
         outside = GameObject("Cave Mouth", tags=["room"])
-        from realm.combat.behaviors import AggressiveBehavior
+        from realm.std.combat.behaviors import AggressiveBehavior
         beast, _ = make_fighter("beast", lair, player=False)
         beast.add_behavior(AggressiveBehavior(taunt="Fresh meat!"))
 
@@ -780,7 +780,7 @@ class TestDestubbedBrains:
         assert any('"Fresh meat!"' in line for line in drain(sess))
 
     async def test_defensive_writes_flee_reflex(self, manager):
-        from realm.combat.behaviors import DefensiveBehavior
+        from realm.std.combat.behaviors import DefensiveBehavior
         npc = GameObject("merchant", tags=["npc"])
         npc.add_behavior(DefensiveBehavior(flee_percent=30))
 
@@ -788,7 +788,7 @@ class TestDestubbedBrains:
         assert ["!me.hp_percent < 30", "flee"] in rules
 
     async def test_wandering_moves_within_zone(self, manager):
-        from realm.combat.behaviors import WanderingBehavior
+        from realm.std.combat.behaviors import WanderingBehavior
         here = GameObject("Market", tags=["room", "zone:town"])
         there = GameObject("Square", tags=["room", "zone:town"])
         beyond = GameObject("Wilds", tags=["room", "zone:wild"])
@@ -808,7 +808,7 @@ class TestDestubbedBrains:
         assert drifter.location in (here, there)
 
     async def test_combatant_death_message(self, manager):
-        from realm.combat.behaviors import CombatantBehavior
+        from realm.std.combat.behaviors import CombatantBehavior
         room = GameObject("Arena", tags=["room"])
         alice, sess = make_fighter("Alice", room, skill=18)
         thug, _ = make_fighter("Thug", room, player=False, hp=3, dodge=0)

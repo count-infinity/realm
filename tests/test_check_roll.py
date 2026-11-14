@@ -18,8 +18,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.checks import checks
 from realm.core.dice import CheckResult
+from realm.std.rules.checks import checks
 from realm.testing import Simulator
 
 

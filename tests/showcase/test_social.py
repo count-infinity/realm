@@ -29,9 +29,8 @@ from pathlib import Path
 
 import pytest
 
-import realm.behaviors  # noqa: F401 — registers script_ticker
-from realm.core.economy import get_credits
 from realm.core.events import fire_event
+from realm.std.economy.money import get_credits
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"

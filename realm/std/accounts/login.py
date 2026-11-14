@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
-from realm.core.render import render_room
 from realm.std.accounts.auth import AuthService
+from realm.std.look.render import render_room
 
 if TYPE_CHECKING:
     from realm.commands.dispatcher import CommandContext

@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import pytest
 
-from realm.combat.combatant import Combatant
-from realm.combat.rulesets.merc import MercRuleset
-from realm.combat.system import (
+from realm.core.objects import GameObject
+from realm.games.merc.ruleset import MercRuleset
+from realm.std.combat.combatant import Combatant
+from realm.std.combat.system import (
     CombatSystem,
     append_roll_notes,
     shows_rolls,
 )
-from realm.core.objects import GameObject
 from tests.conftest import reconfigure
 
 

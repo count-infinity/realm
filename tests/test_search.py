@@ -216,7 +216,7 @@ class TestHelperIntegration:
         sess.link_player(alice)
         dispatcher = CommandDispatcher()
 
-        from realm.commands.builtin.look import cmd_look
+        from realm.std.look.commands import cmd_look
         dispatcher.register("look", cmd_look)
 
         await dispatcher.dispatch(sess, "look red")
@@ -231,7 +231,7 @@ class TestHelperIntegration:
 
     @pytest.mark.asyncio
     async def test_pick_syntax_resolves_ambiguity(self):
-        from realm.commands.builtin.inventory import cmd_get
+        from realm.std.items.inventory import cmd_get
 
         room = GameObject("Room", tags=["room"])
         gem1 = GameObject("gem", location=room, tags=["thing"])

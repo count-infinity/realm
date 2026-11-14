@@ -169,7 +169,7 @@ class TestAreaCommands:
 
 
     async def test_export_then_plan_roundtrip(self, tmp_path):
-        from realm.commands.olc.area import cmd_export, cmd_import
+        from realm.std.building.area import cmd_export, cmd_import
 
         # Point the sandbox at a temp dir via the manager's db_path.
         self.persistence.db_path = tmp_path / "game.db"
@@ -191,7 +191,7 @@ class TestAreaCommands:
                    for m in ctx2.session.messages)
 
     async def test_path_escape_rejected(self, tmp_path):
-        from realm.commands.olc.area import _area_path, cmd_import
+        from realm.std.building.area import _area_path, cmd_import
 
         self.persistence.db_path = tmp_path / "game.db"
         assert _area_path("../../etc/passwd") is None

@@ -8,10 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from realm.behaviors.effects import DispositionBoostBehavior
-from realm.combat.behaviors import AggressiveBehavior, GuardBehavior
-from realm.core.checks import checks
-from realm.core.disposition import (
+from realm.core.objects import GameObject
+from realm.core.propagation import Action
+from realm.core.world import get_world
+from realm.std.combat.behaviors import AggressiveBehavior, GuardBehavior
+from realm.std.effects.behaviors import DispositionBoostBehavior
+from realm.std.rules.checks import checks
+from realm.std.social.disposition import (
     adjust_disposition,
     disposition_band,
     get_disposition,
@@ -19,9 +22,6 @@ from realm.core.disposition import (
     reaction_roll,
     set_disposition,
 )
-from realm.core.objects import GameObject
-from realm.core.propagation import Action
-from realm.core.world import get_world
 
 
 @pytest.fixture(autouse=True)
@@ -158,7 +158,7 @@ class TestSocialCommands:
         return room, npc, bob
 
     async def test_consider_shows_band(self):
-        from realm.commands.builtin.social import cmd_greet
+        from realm.std.social.commands import cmd_greet
         from tests.test_olc import make_context
 
         _room, npc, bob = self._scene()
@@ -168,8 +168,8 @@ class TestSocialCommands:
         assert any("suspicion" in m for m in ctx.session.messages)
 
     async def test_persuade_success_sticks_and_cools_down(self):
-        from realm.commands.builtin.social import cmd_persuade
-        from realm.core.checks import CheckResult
+        from realm.std.rules.checks import CheckResult
+        from realm.std.social.commands import cmd_persuade
         from tests.test_olc import make_context
 
         _room, npc, bob = self._scene()
@@ -192,8 +192,8 @@ class TestSocialCommands:
         assert get_disposition(npc, bob) == 1  # unchanged
 
     async def test_fasttalk_failure_costs_standing(self):
-        from realm.commands.builtin.social import cmd_fasttalk
-        from realm.core.checks import CheckResult
+        from realm.std.rules.checks import CheckResult
+        from realm.std.social.commands import cmd_fasttalk
         from tests.test_olc import make_context
 
         _room, npc, bob = self._scene()

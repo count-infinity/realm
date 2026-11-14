@@ -62,11 +62,11 @@ def test_init_creates_prewired_rules(tmp_path, monkeypatch, clean_import_state):
 
 
 def test_resolve_game_system_accepts_path_class_and_instance():
-    from realm.systems.gurps import GurpsSystem
+    from realm.games.gurps.system import GurpsSystem
 
     # a dotted import path -> imported and instantiated
-    assert isinstance(resolve_game_system("realm.systems.GurpsSystem"), GurpsSystem)
-    assert type(resolve_game_system("realm.systems.D20System")).__name__ == "D20System"
+    assert isinstance(resolve_game_system("realm.games.gurps.system.GurpsSystem"), GurpsSystem)
+    assert type(resolve_game_system("realm.games.d20.system.D20System")).__name__ == "D20System"
     # an already-resolved class -> instantiated
     assert isinstance(resolve_game_system(GurpsSystem), GurpsSystem)
     # an instance -> passed through
@@ -78,7 +78,7 @@ def test_resolve_game_system_bad_path_fails_loudly():
     # A typo'd path (or a bare id that isn't a dotted path) must raise,
     # not silently fall back to some default.
     with pytest.raises(ValueError):
-        resolve_game_system("realm.systems.NoSuchSystem")
+        resolve_game_system("realm.games.NoSuchSystem")
     with pytest.raises(ValueError):
         resolve_game_system("gurps")           # not a dotted path
 

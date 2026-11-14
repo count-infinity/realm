@@ -30,8 +30,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.events import reap_expired
+from realm.std.rules.checks import CheckResult, checks, skill_level
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -430,7 +430,7 @@ class TestGroupTravel:
         assert wend.db.get("following") is None
 
         # A mutual follow loop resolves in one pass instead of recursing.
-        from realm.core.party import set_following
+        from realm.std.social.party import set_following
         bobby = sim.player("Bobby", location=camp)
         set_following(bobby, alice)
         set_following(alice, bobby)

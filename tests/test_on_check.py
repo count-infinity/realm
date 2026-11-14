@@ -13,8 +13,8 @@ import random
 
 import pytest
 
-from realm.combat.system import create_combat_system
 from realm.core.propagation import Action, propagate
+from realm.std.combat.system import create_combat_system
 from realm.testing import Simulator
 
 

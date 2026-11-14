@@ -6,8 +6,10 @@ Disposition, persuasion, following and parties.
 
 from __future__ import annotations
 
-from realm.behaviors.effects import DispositionBoostBehavior
-from realm.commands.builtin.social import (
+from realm.features import Feature
+from realm.std.effects.behaviors import DispositionBoostBehavior
+from realm.std.social import softcode
+from realm.std.social.commands import (
     cmd_fasttalk,
     cmd_follow,
     cmd_greet,
@@ -15,8 +17,6 @@ from realm.commands.builtin.social import (
     cmd_persuade,
     cmd_unfollow,
 )
-from realm.features import Feature
-from realm.std.social import softcode
 
 feature = Feature(
     'social',
@@ -80,7 +80,7 @@ async def bring_followers(actor, origin, destination, exit_obj, *, fleeing):
     room being scanned). Fleeing breaks the chain: you escape alone."""
     if fleeing:
         return
-    from realm.core.party import bring_followers as _bring
+    from realm.std.social.party import bring_followers as _bring
     await _bring(actor, origin, destination, exit_obj)
 
 

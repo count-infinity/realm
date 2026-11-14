@@ -23,12 +23,8 @@ and economy arc tests use.
 
 from __future__ import annotations
 
-import re
 
-
-import realm.behaviors  # noqa: F401 — registers script_ticker
-from realm.core.economy import get_credits
-
+from realm.std.economy.money import get_credits
 from tests.showcase.harness import (  # noqa: F401 — shared doc-driven harness
     answer,
     build,
@@ -37,7 +33,6 @@ from tests.showcase.harness import (  # noqa: F401 — shared doc-driven harness
     find_one,
     workshop_and_builder,
 )
-
 
 # =========================================================================
 # 003. Jukebox — docs/showcase/003_jukebox.md

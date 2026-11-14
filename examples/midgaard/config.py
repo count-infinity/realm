@@ -25,8 +25,8 @@ ENABLE_TELNET = True
 ENABLE_WEBSOCKET = False
 
 # The rules package. This is the one line that makes it a Diku: swap it for
-# realm.systems.GurpsSystem or .D20System and the same world runs those rules.
-GAME_SYSTEM = "realm.systems.MercSystem"
+# realm.games.gurps.system.GurpsSystem or .D20System and the same world runs those rules.
+GAME_SYSTEM = "realm.games.merc.system.MercSystem"
 
 # Show the dice: every combat line carries its roll arithmetic
 # (players can turn theirs off with `showrolls off`).

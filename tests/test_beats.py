@@ -105,7 +105,7 @@ class TestBulletTime:
     poison slows exactly as the fighter does."""
 
     async def test_effects_dilate_uniformly_under_slow(self):
-        from realm.behaviors import DamageOverTimeBehavior
+        from realm.std.effects.behaviors import DamageOverTimeBehavior
 
         fast = GameObject("fast", tags=["creature"])
         fast.db.hp = 100
@@ -136,7 +136,7 @@ class TestMultiplierEdges:
         # would call it AGAIN on beat 2 — reading left=None, re-initializing to
         # the full duration (9 left), re-arming AND pulsing damage. The fresh
         # re-read must skip the already-detached effect.
-        from realm.behaviors import DamageOverTimeBehavior
+        from realm.std.effects.behaviors import DamageOverTimeBehavior
 
         mob = GameObject("mook", tags=["creature"])
         mob.db.hp = 100

@@ -13,7 +13,6 @@ from types import SimpleNamespace
 
 import pytest
 
-import realm.behaviors  # noqa: F401  (registers ZoneResetBehavior)
 from realm.core.behaviors import BehaviorRegistry
 from realm.testing import Simulator
 

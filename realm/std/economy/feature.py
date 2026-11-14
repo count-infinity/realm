@@ -6,17 +6,17 @@ Money, shops and payment.
 
 from __future__ import annotations
 
-from realm.behaviors.shop import ShopkeeperBehavior
-from realm.commands.builtin.economy import (
+from realm.features import Feature
+from realm.std.economy import softcode
+from realm.std.economy.actions import EconomyAction
+from realm.std.economy.commands import (
     cmd_buy,
     cmd_credits,
     cmd_list,
     cmd_pay,
     cmd_sell,
 )
-from realm.features import Feature
-from realm.std.economy import softcode
-from realm.std.economy.actions import EconomyAction
+from realm.std.economy.shop import ShopkeeperBehavior
 
 feature = Feature(
     'economy',

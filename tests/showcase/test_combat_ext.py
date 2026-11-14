@@ -29,12 +29,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.combat.manager import CombatManager
-from realm.combat.rulesets.gurps import GURPSRuleset
-from realm.combat.system import CombatSystem
 from realm.core.beats import deliver_beat
-from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.world import get_world
+from realm.games.gurps.ruleset import GURPSRuleset
+from realm.std.combat.manager import CombatManager
+from realm.std.combat.system import CombatSystem
+from realm.std.rules.checks import CheckResult, checks, skill_level
 from realm.testing import Simulator
 
 
@@ -62,7 +62,7 @@ class SteadyRuleset(GURPSRuleset):
         return 10, [3, 3, 4]
 
     def roll_damage(self, attacker, defender, attack_result, weapon=None):
-        from realm.combat.ruleset import DamageResult, DamageType
+        from realm.std.combat.ruleset import DamageResult, DamageType
         return DamageResult(
             total=self.per_hit,
             damage_by_type={DamageType.PHYSICAL: self.per_hit})
@@ -120,7 +120,7 @@ def sim():
 @pytest.fixture
 def combat():
     """A live CombatManager on a diceless ruleset; beats fired by hand."""
-    from realm.combat.combatant import clear_combatant_cache
+    from realm.std.combat.combatant import clear_combatant_cache
     clear_combatant_cache()
     manager = CombatManager(
         CombatSystem(ruleset=SteadyRuleset()),
@@ -870,7 +870,7 @@ class TestBleedingFirstAid:
 class TestNPCMorale:
 
     async def test_broken_nerve_surrenders_and_warms_to_the_victor(self, sim, combat):
-        from realm.core.disposition import get_disposition
+        from realm.std.social.disposition import get_disposition
 
         builder = await build(sim, BUILD_119)
         lair = room(sim, "Raider Lair")

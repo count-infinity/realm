@@ -27,7 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from realm.core import instances, wilderness
+from realm.std.instances import instancing as instances
+from realm.std.wilderness import cells as wilderness
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -83,7 +84,7 @@ def leveled(sim):
     @reload line re-installs the game system's dice resolver, so the
     deterministic one must go in last.
     """
-    from realm.core.checks import CheckResult, checks, skill_level
+    from realm.std.rules.checks import CheckResult, checks, skill_level
 
     def level_resolver(obj, skill, modifier):
         effective = skill_level(obj, skill) + modifier

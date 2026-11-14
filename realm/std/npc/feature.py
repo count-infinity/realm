@@ -6,10 +6,10 @@ NPC behaviors: watchful, patrol, scavenger, wandering, guard, decay.
 
 from __future__ import annotations
 
-from realm.behaviors.decay import DecayBehavior
-from realm.behaviors.npc import PatrolBehavior, ScavengerBehavior, WatchfulBehavior
-from realm.combat.behaviors import GuardBehavior, WanderingBehavior
 from realm.features import Feature
+from realm.std.combat.behaviors import GuardBehavior, WanderingBehavior
+from realm.std.npc.behaviors import PatrolBehavior, ScavengerBehavior, WatchfulBehavior
+from realm.std.npc.decay import DecayBehavior
 
 feature = Feature(
     'npc',

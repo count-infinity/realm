@@ -162,7 +162,7 @@ def test_is_halted_is_single_level():
 class TestListenTriggers:
 
     async def test_speech_triggers_listen(self):
-        from realm.commands.builtin.communication import cmd_say
+        from realm.std.talk.commands import cmd_say
 
         room = GameObject("Cantina", tags=["room"])
         npc = GameObject("Zeke", location=room)
@@ -183,7 +183,7 @@ class TestListenTriggers:
         assert 'Zeke says, "We don\'t want any trouble here."' in b_out
 
     async def test_speaker_does_not_trigger_own_listen(self):
-        from realm.commands.builtin.communication import cmd_say
+        from realm.std.talk.commands import cmd_say
 
         room = GameObject("Cantina", tags=["room"])
         alice, sess = make_player("Alice", location=room)
@@ -196,7 +196,7 @@ class TestListenTriggers:
         assert out == ['You say, "hello there"']
 
     async def test_whisper_is_not_overheard(self):
-        from realm.commands.builtin.communication import cmd_whisper
+        from realm.std.talk.commands import cmd_whisper
 
         room = GameObject("Cantina", tags=["room"])
         npc = GameObject("Zeke", location=room)
@@ -251,7 +251,7 @@ class TestListenTriggers:
 
     async def test_listen_recursion_is_depth_limited(self):
         """Two NPCs whose listens answer each other must not loop forever."""
-        from realm.commands.builtin.communication import cmd_say
+        from realm.std.talk.commands import cmd_say
 
         room = GameObject("Cantina", tags=["room"])
         npc_a = GameObject("Alpha", location=room)

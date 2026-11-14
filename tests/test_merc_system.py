@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import pytest
 
-from realm.combat.combatant import Combatant
-from realm.combat.system import RulesetRegistry
-from realm.systems.definitions import apply_class
-from realm.systems.merc import MercSystem
+from realm.games.merc.system import MercSystem
+from realm.std.combat.combatant import Combatant
+from realm.std.combat.system import RulesetRegistry
+from realm.std.rules.definitions import apply_class
 from realm.testing import Simulator
 
 
@@ -59,7 +59,7 @@ class TestMercRuleset:
         hard.db.set("armor_class", 2)
         hard.db.set("hp", 20)
         # Force a mid d20 so the need formula decides, not a nat 1/20.
-        monkeypatch.setattr("realm.combat.rulesets.merc.random.randint",
+        monkeypatch.setattr("realm.games.merc.ruleset.random.randint",
                             lambda a, b: 12)
         # need = thac0(20) - ac. Soft: 10 -> hit on 12>=10. Hard: 18 -> 12<18 miss.
         assert atk_hits(atk, soft) is True
@@ -71,13 +71,13 @@ class TestMercRuleset:
         wall = sim.obj("wall", location=room)
         wall.db.set("armor_class", -50)      # unhittable
         wall.db.set("hp", 20)
-        monkeypatch.setattr("realm.combat.rulesets.merc.random.randint",
+        monkeypatch.setattr("realm.games.merc.ruleset.random.randint",
                             lambda a, b: 20)
         assert atk_hits(atk, wall) is True
         weak = sim.obj("weak", location=room)
         weak.db.set("armor_class", 50)       # trivially hit
         weak.db.set("hp", 20)
-        monkeypatch.setattr("realm.combat.rulesets.merc.random.randint",
+        monkeypatch.setattr("realm.games.merc.ruleset.random.randint",
                             lambda a, b: 1)
         assert atk_hits(atk, weak) is False
 
@@ -91,7 +91,7 @@ class TestMercRuleset:
         target.db.set("armor_class", -30)
         weapon = sim.obj("axe", location=room)
         weapon.db.set("damage_dice", "2d6")
-        monkeypatch.setattr("realm.combat.rulesets.merc.random.randint",
+        monkeypatch.setattr("realm.games.merc.ruleset.random.randint",
                             lambda a, b: 4)                     # each die -> 4
         ruleset = _merc_ruleset()
         atkres = ruleset.roll_attack(atk, Combatant(target), weapon)
@@ -136,17 +136,17 @@ class TestMercSystem:
     def test_percentile_skill_check(self, arena, monkeypatch):
         sim, room, system = arena
         hero = _make(system, sim, room, "Conan", "warrior")   # melee 40
-        monkeypatch.setattr("realm.systems.merc.random.randint",
+        monkeypatch.setattr("realm.games.merc.system.random.randint",
                             lambda a, b: 35)
         assert system.resolve_check(hero, "melee", 0).success       # 35 <= 40
-        monkeypatch.setattr("realm.systems.merc.random.randint",
+        monkeypatch.setattr("realm.games.merc.system.random.randint",
                             lambda a, b: 55)
         assert not system.resolve_check(hero, "melee", 0).success   # 55 > 40
 
     def test_untrained_skill_almost_always_fails(self, arena, monkeypatch):
         sim, room, system = arena
         hero = _make(system, sim, room, "Conan", "warrior")   # no lockpicking
-        monkeypatch.setattr("realm.systems.merc.random.randint",
+        monkeypatch.setattr("realm.games.merc.system.random.randint",
                             lambda a, b: 10)
         # dexterity 13 - 80 penalty, clamped to 0 -> nothing beats it
         assert not system.resolve_check(hero, "lockpicking", 0).success
@@ -186,7 +186,7 @@ class TestAdvancement:
         """The ABC default (point-buy) is untouched: a GURPS-style system's
         kill reward is still character points, not XP."""
         sim, room, system = arena
-        from realm.systems.gurps import GurpsSystem
+        from realm.games.gurps.system import GurpsSystem
         mage = sim.player("Merlin", location=room)
         GurpsSystem().grant_award(mage, 7)
         assert mage.db.get("character_points") == 7

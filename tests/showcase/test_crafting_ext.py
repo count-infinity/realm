@@ -30,7 +30,6 @@ from types import SimpleNamespace
 
 import pytest
 
-import realm.behaviors  # noqa: F401 — registers script_ticker + effects
 from realm.core.beats import deliver_beat
 from realm.testing import Simulator
 

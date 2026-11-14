@@ -128,7 +128,7 @@ class TestProtocolEdges:
 
     async def test_room_render_carries_markup(self):
         from realm.core.objects import GameObject
-        from realm.core.render import render_room
+        from realm.std.look.render import render_room
 
         room = GameObject("Keep", tags=["room"])
         GameObject("gate", tags=["exit"], location=room)

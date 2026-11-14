@@ -17,7 +17,7 @@ def skill_check(frame, obj, skill: str, modifier: int = 0) -> bool:
 
     Example: skill_check(enactor, 'stealth', -2)
     """
-    from realm.core.checks import check as _check
+    from realm.std.rules.checks import check as _check
     target = frame.resolve(obj)
     if target is None:
         return False
@@ -39,8 +39,8 @@ def check_roll(frame, obj, skill: str, modifier: int = 0):
 
     Example: r = check_roll(enactor, 'cooking'); quality = r.margin // 2
     """
-    from realm.core.checks import check as _check
     from realm.core.dice import CheckResult
+    from realm.std.rules.checks import check as _check
     target = frame.resolve(obj)
     if target is None:
         return CheckResult(False, 0, 0, 0, str(skill))
@@ -51,7 +51,7 @@ def contest(frame, actor, actor_skill: str, opponent, opponent_skill: str) -> bo
 
     Example: contest(enactor, 'fast_talk', me, 'detect_lies')
     """
-    from realm.core.checks import contest as _contest
+    from realm.std.rules.checks import contest as _contest
     a = frame.resolve(actor)
     b = frame.resolve(opponent)
     if a is None or b is None:
@@ -66,7 +66,7 @@ def skill(frame, name: str) -> int:
 
     Example: [[result = 'You read the runes.' if skill('runes') >= 12 else '']]
     """
-    from realm.core.checks import skill_level
+    from realm.std.rules.checks import skill_level
     if frame.subject is None:
         return 0
     return skill_level(frame.subject, str(name))
@@ -80,7 +80,7 @@ def check(frame, name: str, mod: int = 0) -> bool:
 
     Example: [[result = ' A loose flagstone.' if check('observation') else '']]
     """
-    from realm.core.checks import check as _check
+    from realm.std.rules.checks import check as _check
     if frame.subject is None:
         return False
     return bool(_check(frame.subject, str(name), int(mod)))

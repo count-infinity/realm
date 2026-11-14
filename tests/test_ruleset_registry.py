@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import pytest
 
-from realm.combat.ruleset import Ruleset
-from realm.combat.rulesets.d20 import D20Ruleset
-from realm.combat.system import RulesetRegistry
 from realm.features import Feature, FeatureError, FeatureSet, install_default, load
+from realm.games.d20.ruleset import D20Ruleset
+from realm.std.combat.ruleset import Ruleset
+from realm.std.combat.system import RulesetRegistry
 
 
 class HouseGurps(Ruleset):

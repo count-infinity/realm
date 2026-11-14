@@ -12,13 +12,13 @@ from __future__ import annotations
 import pytest
 
 from realm.commands.base import find_object, find_player
-from realm.commands.builtin.communication import cmd_say
-from realm.commands.builtin.inventory import cmd_get
 from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.objects import GameObject
 from realm.core.perception import can_see, can_see_room, perceived_name, room_is_lit
-from realm.core.render import render_room
 from realm.gateway.session import Session
+from realm.std.items.inventory import cmd_get
+from realm.std.look.render import render_room
+from realm.std.talk.commands import cmd_say
 
 
 @pytest.fixture(autouse=True)

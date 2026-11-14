@@ -34,7 +34,7 @@ def damage(frame, obj: GameObject | str | None, amount: int,
     if hp is None:
         return False
     if dtype:
-        from realm.combat.damage import apply_resisted
+        from realm.std.combat.damage import apply_resisted
         apply_resisted(target, int(amount), str(dtype))
     else:
         target.db.hp = int(hp) - int(amount)

@@ -20,9 +20,8 @@ from pathlib import Path
 
 import pytest
 
-import realm.behaviors  # noqa: F401 — registers script_ticker etc.
-from realm.core.economy import get_credits
 from realm.core.events import reap_expired
+from realm.std.economy.money import get_credits
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -635,17 +634,17 @@ class TestJobBoard:
 def combat():
     """A deterministic combat manager wired into the Simulator's world:
     3d6 always rolls 10 (skill 12 hits, dodge 0 fails), damage is flat 1."""
-    from realm.combat.manager import CombatManager
-    from realm.combat.rulesets.gurps import GURPSRuleset
-    from realm.combat.system import CombatSystem
     from realm.core.world import get_world
+    from realm.games.gurps.ruleset import GURPSRuleset
+    from realm.std.combat.manager import CombatManager
+    from realm.std.combat.system import CombatSystem
 
     class FixedRuleset(GURPSRuleset):
         def roll_3d6(self):
             return 10, [3, 3, 4]
 
         def roll_damage(self, attacker, defender, attack_result, weapon=None):
-            from realm.combat.ruleset import DamageResult, DamageType
+            from realm.std.combat.ruleset import DamageResult, DamageType
             return DamageResult(total=1,
                                 damage_by_type={DamageType.PHYSICAL: 1})
 

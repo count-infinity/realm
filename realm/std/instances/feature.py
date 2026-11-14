@@ -6,8 +6,8 @@ Instanced copies of template areas.
 
 from __future__ import annotations
 
-from realm.core import instances
 from realm.features import Feature
+from realm.std.instances import instancing as instances
 from realm.std.instances import softcode
 
 feature = Feature(

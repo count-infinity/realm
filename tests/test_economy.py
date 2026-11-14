@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import pytest
 
-from realm.behaviors.shop import ShopkeeperBehavior, find_shopkeeper
-from realm.core.disposition import set_disposition
-from realm.core.economy import adjust_credits, get_credits, transfer_credits
 from realm.core.objects import GameObject
 from realm.core.world import get_world
 from realm.gateway.session import Session
+from realm.std.economy.money import adjust_credits, get_credits, transfer_credits
+from realm.std.economy.shop import ShopkeeperBehavior, find_shopkeeper
+from realm.std.social.disposition import set_disposition
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 
@@ -97,14 +97,14 @@ class TestShopCommands:
         return room, keeper, medkit, bob
 
     async def test_list_shows_wares_and_prices(self):
-        from realm.commands.builtin.economy import cmd_list
+        from realm.std.economy.commands import cmd_list
         _room, _keeper, _medkit, bob = self._shop()
         ctx = make_context(bob)
         await cmd_list(ctx)
         assert any("medkit — 60 credits" in m for m in ctx.session.messages)
 
     async def test_buy_moves_item_and_money(self):
-        from realm.commands.builtin.economy import cmd_buy
+        from realm.std.economy.commands import cmd_buy
         _room, keeper, medkit, bob = self._shop()
         adjust_credits(bob, 100)
 
@@ -115,7 +115,7 @@ class TestShopCommands:
         assert get_credits(bob) == 40 and get_credits(keeper) == 60
 
     async def test_buy_refused_when_broke(self):
-        from realm.commands.builtin.economy import cmd_buy
+        from realm.std.economy.commands import cmd_buy
         _room, _keeper, medkit, bob = self._shop()
         ctx = make_context(bob, args="medkit")
         await cmd_buy(ctx)
@@ -123,7 +123,7 @@ class TestShopCommands:
         assert any("can't afford" in m for m in ctx.session.messages)
 
     async def test_sell_pays_out(self):
-        from realm.commands.builtin.economy import cmd_sell
+        from realm.std.economy.commands import cmd_sell
         _room, keeper, _medkit, bob = self._shop()
         adjust_credits(keeper, 100)
         loot = GameObject("scrap", tags=["thing"], location=bob)
@@ -145,7 +145,7 @@ class TestPayAndBribes:
         use_persistence(self.persistence)
 
     async def test_pay_transfers_and_messages(self):
-        from realm.commands.builtin.economy import cmd_pay
+        from realm.std.economy.commands import cmd_pay
         room = GameObject("Bridge", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
         troll = GameObject("troll", tags=["npc"], location=room)
@@ -158,8 +158,8 @@ class TestPayAndBribes:
 
     async def test_bribed_ogre_softcode_reacts(self):
         """The B2 classic: ON_PAYMENT softcode judges the bribe."""
-        from realm.commands.builtin.economy import cmd_pay
         from realm.scripting.engine import ScriptEngine
+        from realm.std.economy.commands import cmd_pay
 
         room = GameObject("Cave", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
@@ -186,7 +186,7 @@ class TestPayAndBribes:
         assert not ogre.has_tag('hostile')
 
     async def test_insufficient_bribe(self):
-        from realm.commands.builtin.economy import cmd_pay
+        from realm.std.economy.commands import cmd_pay
         room = GameObject("Cave", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
         troll = GameObject("troll", location=room, tags=["npc"])

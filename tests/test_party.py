@@ -9,7 +9,7 @@ import pytest
 
 from realm.core.movement import move_through_exit
 from realm.core.objects import GameObject
-from realm.core.party import (
+from realm.std.social.party import (
     followers_of,
     party_members,
     set_following,
@@ -152,7 +152,7 @@ class TestFollowCommands:
         use_persistence(self.persistence)
 
     async def test_follow_and_unfollow(self):
-        from realm.commands.builtin.social import cmd_follow, cmd_unfollow
+        from realm.std.social.commands import cmd_follow, cmd_unfollow
 
         room = GameObject("Camp", tags=["room"])
         alice = GameObject("Alice", tags=["player"], location=room)
@@ -167,7 +167,7 @@ class TestFollowCommands:
         assert bob.db.get("following") is None
 
     async def test_party_listing(self):
-        from realm.commands.builtin.social import cmd_party
+        from realm.std.social.commands import cmd_party
 
         room = GameObject("Camp", tags=["room"])
         alice = GameObject("Alice", tags=["player"], location=room)
@@ -185,9 +185,9 @@ class TestPartyCpSplit:
 
     async def test_kill_award_splits_across_party(self, world):
         # ruff: noqa: F811
-        from realm.combat.manager import CombatManager
-        from realm.combat.system import CombatSystem
         from realm.core.world import get_world
+        from realm.std.combat.manager import CombatManager
+        from realm.std.combat.system import CombatSystem
         from tests.test_combat_encounters import FixedRuleset, make_fighter  # noqa: F401
 
         mgr = CombatManager(CombatSystem(ruleset=FixedRuleset()),
@@ -209,9 +209,9 @@ class TestPartyCpSplit:
             mgr.stop_all()
 
     async def test_solo_killer_keeps_it_all(self, world):
-        from realm.combat.manager import CombatManager
-        from realm.combat.system import CombatSystem
         from realm.core.world import get_world
+        from realm.std.combat.manager import CombatManager
+        from realm.std.combat.system import CombatSystem
         from tests.test_combat_encounters import FixedRuleset
 
         mgr = CombatManager(CombatSystem(ruleset=FixedRuleset()),

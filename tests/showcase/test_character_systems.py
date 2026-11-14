@@ -29,7 +29,7 @@ from types import SimpleNamespace
 import pytest
 
 from realm.core.beats import deliver_beat
-from realm.core.checks import CheckResult, checks, skill_level
+from realm.std.rules.checks import CheckResult, checks, skill_level
 from realm.testing import Simulator
 
 # Output that must never appear while running a "Build it" transcript.
@@ -95,18 +95,18 @@ def sim():
 @pytest.fixture
 def combat():
     """A live CombatManager on a diceless ruleset; beats fired by hand."""
-    from realm.combat.combatant import clear_combatant_cache
-    from realm.combat.manager import CombatManager
-    from realm.combat.rulesets.gurps import GURPSRuleset
-    from realm.combat.system import CombatSystem
     from realm.core.world import get_world
+    from realm.games.gurps.ruleset import GURPSRuleset
+    from realm.std.combat.combatant import clear_combatant_cache
+    from realm.std.combat.manager import CombatManager
+    from realm.std.combat.system import CombatSystem
 
     class SteadyRuleset(GURPSRuleset):
         def roll_3d6(self):
             return 10, [3, 3, 4]
 
         def roll_damage(self, attacker, defender, attack_result, weapon=None):
-            from realm.combat.ruleset import DamageResult, DamageType
+            from realm.std.combat.ruleset import DamageResult, DamageType
             return DamageResult(total=3, damage_by_type={DamageType.PHYSICAL: 3})
 
     clear_combatant_cache()

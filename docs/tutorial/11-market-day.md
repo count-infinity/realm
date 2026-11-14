@@ -100,5 +100,5 @@ deflects you forever after.
     `shopkeeper` behavior. The currency's *name* comes from the game
     system (`credits` by default — a fantasy ruleset can call them
     florins without touching the economy). Disposition bands and the
-    ±15% cap live in `realm/behaviors/shop.py`; the social commands'
+    ±15% cap live in `realm/std/economy/shop.py`; the social commands'
     exact contests are in part 3 and `help persuade`.

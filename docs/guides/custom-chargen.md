@@ -23,7 +23,7 @@ to return the sequence you want:
 
 ```python
 # rules.py  (created by `realm init`)
-from realm.systems.gurps import GurpsSystem
+from realm.games.gurps.system import GurpsSystem
 from realm.std.rules.system import ChoiceStep
 
 class GameRules(GurpsSystem):

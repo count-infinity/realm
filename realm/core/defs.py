@@ -148,14 +148,11 @@ def touched(obj: GameObject, tag: str | None = None) -> None:
 
 
 def kernel_kinds() -> list[DefKind]:
-    """``role`` (role_def ranks), ``behavior`` (scripted behaviors), and the
-    rules data every game system reads: ``skill`` and ``class``."""
-    from realm.systems.definitions import parse_class_def, parse_skill_def
+    """``role`` (role_def ranks) and ``behavior`` (scripted behaviors). The
+    ``rules`` feature declares ``skill`` and ``class``."""
     return [
         DefKind("role", "role_def"),
         DefKind("behavior", "behavior_def"),
-        DefKind("skill", "skill_def", parse=parse_skill_def),
-        DefKind("class", "class_def", parse=parse_class_def),
     ]
 
 

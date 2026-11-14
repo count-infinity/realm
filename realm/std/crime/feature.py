@@ -6,11 +6,11 @@ Wanted flags for assaulting players, and the guards who act on them.
 
 from __future__ import annotations
 
-from realm.behaviors.effects import WantedBehavior
-from realm.behaviors.npc import StealBehavior
-from realm.combat.behaviors import PeacekeeperBehavior
 from realm.features import Feature
-from realm.systems.crime import crime_observer
+from realm.std.combat.behaviors import PeacekeeperBehavior
+from realm.std.crime.wanted import crime_observer
+from realm.std.effects.behaviors import WantedBehavior
+from realm.std.npc.behaviors import StealBehavior
 
 feature = Feature(
     'crime',

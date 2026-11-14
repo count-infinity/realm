@@ -6,7 +6,10 @@ Beat-driven combat encounters, combat AI and damage.
 
 from __future__ import annotations
 
-from realm.combat.behaviors import (
+from realm.features import Feature
+from realm.std.combat import softcode
+from realm.std.combat.actions import CombatAction
+from realm.std.combat.behaviors import (
     AggressiveBehavior,
     CombatantBehavior,
     DefensiveBehavior,
@@ -14,7 +17,7 @@ from realm.combat.behaviors import (
     HealerBehavior,
     VenomousBehavior,
 )
-from realm.commands.builtin.combat import (
+from realm.std.combat.commands import (
     cmd_attack,
     cmd_combat_default,
     cmd_combat_status,
@@ -26,9 +29,6 @@ from realm.commands.builtin.combat import (
     cmd_rolls,
     cmd_wimpy,
 )
-from realm.features import Feature
-from realm.std.combat import softcode
-from realm.std.combat.actions import CombatAction
 
 feature = Feature(
     'combat',
@@ -125,8 +125,8 @@ def _start_combat(world) -> None:
     """Create the CombatManager. The ruleset is COMBAT_RULESET, else the
     game system's own pairing; hostile actions between combat-capable
     parties then start a fight (the fireball WAS your turn)."""
-    from realm.combat.manager import CombatManager
-    from realm.combat.system import create_combat_system
+    from realm.std.combat.manager import CombatManager
+    from realm.std.combat.system import create_combat_system
 
     manager = CombatManager(
         create_combat_system(world.setting("COMBAT_RULESET") or world.rules.ruleset_name),

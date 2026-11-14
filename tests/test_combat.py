@@ -2,22 +2,22 @@
 
 import pytest
 
-from realm.combat.combatant import (
+from realm.core.objects import GameObject
+from realm.games.d20.ruleset import D20Ruleset
+from realm.games.gurps.ruleset import GURPSRuleset
+from realm.std.combat.combatant import (
     Combatant,
     CombatState,
     clear_combatant_cache,
     get_combatant,
 )
-from realm.combat.ruleset import (
+from realm.std.combat.ruleset import (
     AttackResult,
     DamageResult,
     DamageType,
     RollResult,
 )
-from realm.combat.rulesets.d20 import D20Ruleset
-from realm.combat.rulesets.gurps import GURPSRuleset
-from realm.combat.system import CombatSystem, create_combat_system
-from realm.core.objects import GameObject
+from realm.std.combat.system import CombatSystem, create_combat_system
 
 
 class TestCombatant:

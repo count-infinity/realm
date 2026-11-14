@@ -184,11 +184,11 @@ async def test_hitprcnt_fires_once_on_threshold_cross(world):
     """HP falling through db.hitprcnt fires event:on_hitprcnt exactly once —
     the low-HP AI seam. Driven through the real combat system; the event is
     captured with a propagation observer (no softcode engine here)."""
-    from realm.combat.combatant import clear_combatant_cache
-    from realm.combat.rulesets.d20 import D20Ruleset
-    from realm.combat.system import CombatSystem
     from realm.core.objects import GameObject
     from realm.core.world import get_world
+    from realm.games.d20.ruleset import D20Ruleset
+    from realm.std.combat.combatant import clear_combatant_cache
+    from realm.std.combat.system import CombatSystem
 
     clear_combatant_cache()
     fired = []

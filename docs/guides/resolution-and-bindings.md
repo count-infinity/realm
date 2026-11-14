@@ -104,7 +104,7 @@ real checks:
 
 ```python
 from realm.testing import Simulator
-from realm.core.checks import check
+from realm.std.rules.checks import check
 
 sim = Simulator(game_system="mygame.rules.MyRules")
 hacker = sim.obj("Hacker", pool=10)

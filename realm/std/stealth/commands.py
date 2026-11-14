@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object
-from realm.core.checks import check, contest
 from realm.core.perception import room_is_lit
 from realm.std.items.actions import ItemAction
 from realm.std.items.verbs import gate_item_action
+from realm.std.rules.checks import check, contest
 from realm.std.stealth.hiding import HIDDEN_TAG
 
 

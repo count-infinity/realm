@@ -117,8 +117,8 @@ class TestZoneSeams:
         assert master.db.get("stirred") is True
 
     async def test_zone_xp_multiplier_applies(self, world):
-        from realm.combat.manager import CombatManager
-        from realm.combat.system import CombatSystem
+        from realm.std.combat.manager import CombatManager
+        from realm.std.combat.system import CombatSystem
         from tests.test_combat_encounters import FixedRuleset
 
         pers = MockPersistence()
@@ -178,7 +178,7 @@ class TestZoneCommand:
         use_persistence(self.persistence)
 
     async def test_zone_add_master_and_rooms(self):
-        from realm.commands.olc.softcode import cmd_zone
+        from realm.std.building.scripting import cmd_zone
 
         get_world().store = self.persistence
         room = GameObject("Keep", tags=["room"])

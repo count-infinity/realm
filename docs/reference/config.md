@@ -14,7 +14,7 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 |---|---|---|
 | `GAME_NAME` | `'REALM'` | Name shown on the welcome screen and in logs. |
 | `DEBUG` | `False` | Log at DEBUG level (same as `realm start --debug`). |
-| `GAME_SYSTEM` | `'realm.systems.GurpsSystem'` | Dotted import path to the GameSystem subclass that holds the rules (chargen, checks, advancement, combat pairing, currency). Choose it once, before the first character is created. |
+| `GAME_SYSTEM` | `'realm.games.gurps.system.GurpsSystem'` | Dotted import path to the GameSystem subclass that holds the rules (chargen, checks, advancement, combat pairing, currency). Choose it once, before the first character is created. |
 | `ENCODING` | `'utf-8'` | Text encoding for telnet input and output (`latin-1` or `cp437` only for legacy clients). |
 | `TELNET_HOST` | `'0.0.0.0'` | Telnet listen address. |
 | `TELNET_PORT` | `4000` | Telnet listen port. |

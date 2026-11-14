@@ -20,7 +20,7 @@ import ast
 import logging
 import pathlib
 
-from realm.config.loader import KNOWN_CONFIG_KEYS, load_config
+from realm.config.loader import load_config
 
 LOADER_SRC = pathlib.Path(load_config.__code__.co_filename)
 

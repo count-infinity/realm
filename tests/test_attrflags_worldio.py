@@ -95,7 +95,7 @@ class TestAttrCommand:
         use_persistence(self.persistence)
 
     async def test_flag_set_remove_list(self):
-        from realm.commands.olc.modify import cmd_attr
+        from realm.std.building.modify import cmd_attr
 
         room = GameObject("Vault", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -115,7 +115,7 @@ class TestAttrCommand:
         assert any("gm_notes: secret" in m for m in ctx.session.messages)
 
     async def test_wipe_spares_safe(self):
-        from realm.commands.olc.modify import cmd_wipe
+        from realm.std.building.modify import cmd_wipe
 
         room = GameObject("Vault", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)

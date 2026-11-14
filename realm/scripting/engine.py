@@ -270,7 +270,6 @@ class ScriptEngine:
         if obj.is_halted:
             return
         from realm.scripting.namespace import build_namespace
-        from realm.scripting.sandbox import ScriptContext
 
         ctx = ScriptContext(enactor=action.actor, executor=obj,
                             location=obj.location)
@@ -454,7 +453,6 @@ class ScriptEngine:
         (pemit/say/move/force...) and queued world ops are delivered like
         any script. Depth- and halt-guarded.
         """
-        from realm.scripting.sandbox import ScriptContext
 
         if executor.is_halted or self._depth >= self.MAX_SCRIPT_DEPTH:
             return None, "halted or too deep"

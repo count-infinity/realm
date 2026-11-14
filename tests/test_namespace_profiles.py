@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import pytest
 
-from realm.core.checks import resolve_with_rule
-from realm.core.describe import DETAILS_ATTR, detail_lines
 from realm.core.propagation import Action
 from realm.permissions.locks import LockType, check_lock, set_lock
 from realm.scripting.inline import eval_inline
 from realm.scripting.registry import softcode_function, unregister
 from realm.std.items.actions import ItemAction
+from realm.std.look.describe import DETAILS_ATTR, detail_lines
+from realm.std.rules.checks import resolve_with_rule
 from realm.testing import Simulator
 
 

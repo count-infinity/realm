@@ -12,14 +12,15 @@ from __future__ import annotations
 
 import pytest
 
-from realm.commands.builtin.manipulation import cmd_unwear, cmd_wear
 from realm.commands.dispatcher import CommandContext, CommandDispatcher
 from realm.core.objects import GameObject
 from realm.core.propagation import Action
 from realm.core.world import get_world
+from realm.games.gurps.system import GurpsSystem
+from realm.games.merc.system import MercSystem
 from realm.gateway.session import Session
+from realm.std.items.manipulation import cmd_unwear, cmd_wear
 from realm.std.rules.system import equipment_observer
-from realm.systems import GurpsSystem, MercSystem
 
 
 def _player(name, location):

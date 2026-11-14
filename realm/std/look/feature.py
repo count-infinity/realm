@@ -6,8 +6,8 @@ Looking at rooms and objects.
 
 from __future__ import annotations
 
-from realm.commands.builtin.look import cmd_examine, cmd_look
 from realm.features import Feature
+from realm.std.look.commands import cmd_examine, cmd_look
 
 feature = Feature(
     'look',

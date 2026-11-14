@@ -1,6 +1,6 @@
 """
 Tests for display-time articles/plurals (realm.core.language), room
-display grouping (realm.core.render), and their matcher integration.
+display grouping (realm.std.look.render), and their matcher integration.
 
 Contract: names are bare nouns; articles and plurals are computed at
 render/match time (never stored), with db.article / db.plural overrides
@@ -8,7 +8,6 @@ for English's exceptions. Grouping is presentation-only and O(n).
 """
 
 from __future__ import annotations
-
 
 from realm.core.language import (
     article_for,
@@ -20,13 +19,12 @@ from realm.core.language import (
     singular_name,
 )
 from realm.core.objects import GameObject
-from realm.core.render import (
+from realm.core.search import match_objects, match_one
+from realm.std.look.render import (
     default_group_formatter,
     group_contents,
     render_room,
 )
-from realm.core.search import match_objects, match_one
-
 
 # --- Articles ----------------------------------------------------------------
 

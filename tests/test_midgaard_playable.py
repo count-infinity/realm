@@ -14,15 +14,15 @@ from pathlib import Path
 
 import pytest
 
-from realm.combat.manager import CombatManager
-from realm.combat.maneuver import QueuedAction
-from realm.combat.rulesets.merc import MercRuleset
-from realm.combat.system import CombatSystem
 from realm.core.world import get_world
+from realm.games.merc.ruleset import MercRuleset
+from realm.games.merc.system import MercSystem
 from realm.persistence.worldio import import_objects
+from realm.std.combat.manager import CombatManager
+from realm.std.combat.maneuver import QueuedAction
+from realm.std.combat.system import CombatSystem
+from realm.std.rules.definitions import apply_class
 from realm.std.rules.system import reload_rules
-from realm.systems import MercSystem
-from realm.systems.definitions import apply_class
 from realm.testing import Simulator
 
 AREA = Path(__file__).resolve().parents[1] / "examples" / "midgaard" / \
@@ -58,7 +58,7 @@ async def _barbarian(sim, system, name="Grog"):
 
 
 def _teardown(sim):
-    from realm.combat.combatant import clear_combatant_cache
+    from realm.std.combat.combatant import clear_combatant_cache
     # These tests import with preserve_ids, so the same mob id recurs across
     # sims; drop the id-keyed combatant cache so a later test never wraps a
     # stale, closed-sim object.
@@ -106,9 +106,9 @@ class TestMidgaardPlayable:
                            if b.behavior_id == "wandering"), None)
             assert wander is not None, "the beastly fido should wander"
             # Force a step every tick, first exit each time.
-            monkeypatch.setattr("realm.combat.behaviors.random.random",
+            monkeypatch.setattr("realm.std.combat.behaviors.random.random",
                                 lambda: 0.0)
-            monkeypatch.setattr("realm.combat.behaviors.random.choice",
+            monkeypatch.setattr("realm.std.combat.behaviors.random.choice",
                                 lambda seq: seq[0])
             start = fido.location.id
             moved = False
@@ -169,7 +169,7 @@ class TestMidgaardPlayable:
         # A bought ware comes back: the keeper's restock re-mints it.
         sim, system, mgr = await _world()
         try:
-            from realm.behaviors.shop import find_shopkeeper
+            from realm.std.economy.shop import find_shopkeeper
             keeper = None
             for room in sim.store.all_cached():
                 found = room.has_tag("room") and find_shopkeeper(room)
@@ -201,7 +201,7 @@ class TestMidgaardPlayable:
                     if "npc" in o.tags and "fido" in o.name][0]
             # Deterministic: every die rolls maximum, so the club connects
             # and the fido (hp 8) drops in the first round.
-            monkeypatch.setattr("realm.combat.rulesets.merc.random.randint",
+            monkeypatch.setattr("realm.games.merc.ruleset.random.randint",
                                 lambda a, b: b)
             encounter = await mgr.initiate(grog, fido)
             encounter.queue(grog, QueuedAction("attack", target_id=fido.id))
@@ -244,7 +244,7 @@ class TestMidgaardPlayable:
         try:
             grog = await _barbarian(sim, system)
             # Find a stocked keeper and step into their shop.
-            from realm.behaviors.shop import find_shopkeeper
+            from realm.std.economy.shop import find_shopkeeper
             shop_room = keeper = None
             for room in sim.store.all_cached():
                 if not room.has_tag("room"):
@@ -270,7 +270,7 @@ class TestMidgaardPlayable:
         sim, system, mgr = await _world()
         try:
             from realm.packs import import_pack
-            from realm.systems.spells import cast_spell, find_spell_def
+            from realm.std.abilities.spells import cast_spell, find_spell_def
             await import_pack("merc-classic", sim.store)
             square = sim.store.get_cached(COMMON_SQUARE)
             merlin = sim.player("Merlin", location=square)
@@ -280,7 +280,7 @@ class TestMidgaardPlayable:
             merlin.db.mana = 100
             fido = [o for o in square.contents
                     if "npc" in o.tags and "fido" in o.name][0]
-            monkeypatch.setattr("realm.systems.abilities.random.randint",
+            monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                                 lambda a, b: b)
             fireball = find_spell_def("fireball")
             action = await cast_spell(merlin, fireball, fido)
@@ -292,5 +292,5 @@ class TestMidgaardPlayable:
 
 
 def get_credits_of(obj):
-    from realm.core.economy import get_credits
+    from realm.std.economy.money import get_credits
     return get_credits(obj)

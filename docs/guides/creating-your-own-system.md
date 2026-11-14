@@ -27,7 +27,7 @@ up front:
 | Surface | Class | What it owns |
 |---|---|---|
 | **`GameSystem`** (`realm.std.rules.system`) | you subclass it | *everything non-combat*: skill-check resolution, chargen, advancement, derived stats, currency |
-| **Combat `Ruleset`** (`realm.combat.ruleset`) | you subclass it | *combat only*: attack, damage, armor, defeat |
+| **Combat `Ruleset`** (`realm.std.combat.ruleset`) | you subclass it | *combat only*: attack, damage, armor, defeat |
 
 They're wired together by one line: your `GameSystem` sets
 `ruleset_name = "..."`, and the engine looks that name up in the combat
@@ -154,7 +154,7 @@ landed hit *gets through* (in `apply_damage`).
 ```python
 # rules.py (continued)
 import random
-from realm.combat.ruleset import (
+from realm.std.combat.ruleset import (
     Ruleset, AttackResult, DamageResult, RollResult, DamageType,
 )
 

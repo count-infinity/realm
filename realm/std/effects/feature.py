@@ -6,13 +6,13 @@ Timed effects: damage over time, modifiers, regeneration.
 
 from __future__ import annotations
 
-from realm.behaviors.effects import (
+from realm.features import Feature
+from realm.std.effects import softcode
+from realm.std.effects.behaviors import (
     DamageOverTimeBehavior,
     ModifierEffectBehavior,
     RegenerationBehavior,
 )
-from realm.features import Feature
-from realm.std.effects import softcode
 
 feature = Feature(
     'effects',

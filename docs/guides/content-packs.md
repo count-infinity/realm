@@ -61,7 +61,7 @@ Each `.json` is ordinary worldio export data (`{"realm_format": 1,
 
 Make a directory with a `pack.json` and one or more worldio files. The
 easy way to produce the data is to build it in-game or in Python and
-`@export` / `realm export` it, or use the `realm.systems.definitions`
+`@export` / `realm export` it, or use the `realm.std.rules.definitions`
 builders (`define_skill`, `define_class`) with the exporter — see
 `scripts/build_scifi_pack.py`, which generates the sci-fi pack. Then it
 imports like any other pack. A third-party pack is just a directory a game

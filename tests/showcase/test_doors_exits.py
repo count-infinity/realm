@@ -25,8 +25,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.events import reap_expired
+from realm.std.rules.checks import CheckResult, checks, skill_level
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"

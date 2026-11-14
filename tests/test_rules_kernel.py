@@ -10,19 +10,18 @@ from __future__ import annotations
 import pytest
 
 from realm.core import dice
-from realm.core.checks import checks, resolve_with_rule, skill_level, skill_table
 from realm.core.objects import GameObject
+from realm.games.gurps.system import BUILTIN_SKILL_DEFAULTS, GurpsSystem
 from realm.scripting import softcode_function
 from realm.scripting.registry import unregister
-from realm.systems import GurpsSystem
+from realm.std.rules.checks import checks, resolve_with_rule, skill_level, skill_table
 from realm.std.rules.system import GameSystem
-from realm.systems.gurps import BUILTIN_SKILL_DEFAULTS
 from realm.testing import Simulator
 
 
 @pytest.fixture(autouse=True)
 def gurps_skills(world):
-    world.services["checks"].skill_defaults = skill_table(BUILTIN_SKILL_DEFAULTS)
+    checks().skill_defaults = skill_table(BUILTIN_SKILL_DEFAULTS)
     yield
 
 
@@ -222,7 +221,7 @@ class TestBindings:
 async def test_pool_system_live_through_check():
     """A data-defined system installed as the Simulator's game system
     resolves real in-game checks through its softcode rule."""
-    from realm.core.checks import check
+    from realm.std.rules.checks import check
     sim = Simulator(game_system=PoolSystem)
     try:
         hacker = sim.obj("Hacker", pool=10)

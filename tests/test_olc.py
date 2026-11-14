@@ -4,12 +4,13 @@ import pytest
 
 from realm.commands import CommandContext, CommandDispatcher
 from realm.commands.base import find_object_global
-from realm.commands.builtin.utility import (
+from realm.core.objects import GameObject
+from realm.std.basics.commands import (
     _format_duration,
     cmd_recall,
     cmd_uptime,
 )
-from realm.commands.olc.admin import (
+from realm.std.building.admin import (
     cmd_boot,
     cmd_chown,
     cmd_destroy,
@@ -18,14 +19,14 @@ from realm.commands.olc.admin import (
     cmd_nuke,
     cmd_teleport,
 )
-from realm.commands.olc.create import (
+from realm.std.building.create import (
     cmd_create,
     cmd_dig,
     cmd_link,
     cmd_open,
     cmd_unlink,
 )
-from realm.commands.olc.modify import (
+from realm.std.building.modify import (
     cmd_desc,
     cmd_lock,
     cmd_name,
@@ -36,7 +37,6 @@ from realm.commands.olc.modify import (
     cmd_untag,
     cmd_wipe,
 )
-from realm.core.objects import GameObject
 
 
 class MockPersistence:

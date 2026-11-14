@@ -16,12 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from realm.behaviors.caster import CasterBehavior
 from realm.core.behaviors import Behavior
 from realm.core.objects import GameObject
 from realm.core.world import get_world
-from realm.systems import GurpsSystem, MercSystem
-from realm.systems.spells import (
+from realm.games.gurps.system import GurpsSystem
+from realm.games.merc.system import MercSystem
+from realm.std.abilities.caster import CasterBehavior
+from realm.std.abilities.spells import (
     cast_spell,
     find_spell_def,
     knows_spell,
@@ -106,7 +107,7 @@ class TestCasting:
                        damage_dice="6d6", damage_type="fire", save="half")
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 4)             # 6d6 all 4s = 24
         action = await cast_spell(mage, spell, target)
         assert action is not None and action.applied
@@ -142,8 +143,8 @@ class TestCasting:
                                                     ruleset_name):
         """``resistances`` is honored by every ruleset, not only by the
         no-combat-manager fallback (KERNEL_PLAN 1.8)."""
-        from realm.combat.manager import CombatManager
-        from realm.combat.system import CombatSystem, RulesetRegistry
+        from realm.std.combat.manager import CombatManager
+        from realm.std.combat.system import CombatSystem, RulesetRegistry
 
         sim, room = world
         if ruleset_name is None:
@@ -156,7 +157,7 @@ class TestCasting:
                        damage_type="fire")
         mage = _mage(sim, room)
         target = _dummy(sim, room, resistances={"fire": 0.0})
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 4)
         action = await cast_spell(mage, spell, target)
         assert action.extra["dealt"] == 0
@@ -169,7 +170,7 @@ class TestCasting:
                        damage_dice="6d6", damage_type="fire", save="half")
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 4)             # 24 rolled
         monkeypatch.setattr(MercSystem, "saving_throw",
                             lambda self, t, level: True)
@@ -185,7 +186,7 @@ class TestCasting:
                        damage_type="fire", save="half")
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 4)
         action = await cast_spell(mage, spell, target)
         assert action.extra["dealt"] == 24              # full: no save concept
@@ -238,7 +239,7 @@ class TestCasting:
         wounded = sim.player("Conan", location=room)
         wounded.db.hp = 95
         wounded.db.max_hp = 100
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 8)             # 8+2 = 10 healed
         action = await cast_spell(cleric, spell, wounded)
         assert wounded.db.get("hp") == 100              # capped at max
@@ -304,7 +305,7 @@ class TestCastCommand:
                damage_dice="1d4+1", damage_type="force")
         mage = _mage(sim, room, level=5)
         _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 3)
         await sim.do(mage, "cast 'magic missile' dummy")
         out = "\n".join(sim.seen(mage))
@@ -377,8 +378,8 @@ class TestCasterBehavior:
             casts.append((caster.name, spell.name,
                           target.name if target else None))
 
-        monkeypatch.setattr("realm.systems.spells.cast_spell", fake_cast)
-        monkeypatch.setattr("realm.behaviors.caster.random.random",
+        monkeypatch.setattr("realm.std.abilities.caster.cast_spell", fake_cast)
+        monkeypatch.setattr("realm.std.abilities.caster.random.random",
                             lambda: 0.0, raising=False)
         behavior = CasterBehavior(spells=["fireball", "undefined spell"],
                                   chance=1.0)
@@ -405,7 +406,7 @@ class TestCasterBehavior:
         async def fake_cast(caster, spell, target=None):
             casts.append(spell.name)
 
-        monkeypatch.setattr("realm.systems.spells.cast_spell", fake_cast)
+        monkeypatch.setattr("realm.std.abilities.caster.cast_spell", fake_cast)
         enc = _FakeEncounter(_FakePart(mob, target_id=hero.id),
                              _FakePart(hero))
         monkeypatch.setitem(sim.world.services, "combat", _FakeManager(enc))
@@ -498,7 +499,7 @@ class TestMercClassicPack:
         assert fireball.db.get("damage_type") == "fire"
         mage = _mage(sim, room)
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 4)
         action = await cast_spell(mage, fireball, target)
         assert action is not None and action.applied
@@ -528,7 +529,7 @@ class TestUseAbilityFromSoftcode:
         _spell(sim, "fireball", mana=15, damage_dice="6d6", damage_type="fire")
         dragon = sim.obj("dragon", location=room, tags=["npc"])
         target = _dummy(sim, room)
-        monkeypatch.setattr("realm.systems.abilities.random.randint",
+        monkeypatch.setattr("realm.std.abilities.invoke.random.randint",
                             lambda a, b: 4)
 
         result, err = await sim.eval(

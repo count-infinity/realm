@@ -26,8 +26,8 @@ registry lookup to reverse-engineer. The base class you pick in
 separate id to fall out of sync with it. Out of the box `GameRules` *is*
 GURPS (it subclasses it); `rules.py` is simply the blessed place to
 change the rules without touching the engine. (Want a built-in with no
-`rules.py`? Point straight at it: `GAME_SYSTEM = "realm.systems.GurpsSystem"`
-or `"realm.systems.D20System"`.)
+`rules.py`? Point straight at it: `GAME_SYSTEM = "realm.games.gurps.system.GurpsSystem"`
+or `"realm.games.d20.system.D20System"`.)
 
 The GameSystem answers a small, fixed set of questions:
 
@@ -84,7 +84,7 @@ Two things worth pinning down:
 
 There is no class *system* — a "class" is just an entry a chargen step
 offers. In GURPS it's the `TEMPLATES` dict at the top of
-`realm/systems/gurps.py`:
+`realm/games/gurps/system.py`:
 
 ```python
 TEMPLATES = {

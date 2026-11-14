@@ -57,7 +57,7 @@ def apply_effect(
     # expire would strip the shared tag/mods out from under the other. Drop
     # any live same-kind effect and clear its timer so the new one starts
     # from full duration (side-effect flags like `applied` are preserved).
-    from realm.behaviors.effects import TimedEffectBehavior
+    from realm.std.effects.behaviors import TimedEffectBehavior
     if isinstance(behavior, TimedEffectBehavior):
         for existing in list(target.get_behaviors()):
             if (isinstance(existing, TimedEffectBehavior)
@@ -76,7 +76,7 @@ def remove_effect(frame, obj: GameObject | str | None, kind: str) -> bool:
     target = frame.resolve(obj)
     if not frame.in_reach(target):
         return False
-    from realm.behaviors.effects import TimedEffectBehavior
+    from realm.std.effects.behaviors import TimedEffectBehavior
     for behavior in target.get_behaviors():
         if isinstance(behavior, TimedEffectBehavior) and behavior.kind == str(kind):
             target.remove_behavior(behavior)

@@ -68,6 +68,9 @@ class World:
     protocols: list[tuple[str, type, dict[str, Any]]] = field(default_factory=list)
     #: exit destination resolvers by name: (async fn, shared_destination)
     dest_resolvers: dict[str, tuple[Callable, bool]] = field(default_factory=dict)
+    #: (obj, skill) -> int condition modifiers (``feature.check_modifier``);
+    #: the ``rules`` feature folds them into every check.
+    check_modifiers: list[Callable] = field(default_factory=list)
     #: (async (actor, exit_obj, direction) -> str | None, on_fail reason)
     traversal_gates: list[tuple[Callable, str]] = field(default_factory=list)
     #: async (actor, origin, destination, exit_obj, *, fleeing)

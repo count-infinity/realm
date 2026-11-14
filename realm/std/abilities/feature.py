@@ -6,11 +6,11 @@ Abilities and spells as data (ability_def / spell_def).
 
 from __future__ import annotations
 
-from realm.behaviors.caster import CasterBehavior
-from realm.commands.builtin.magic import cmd_cast, cmd_spells
 from realm.features import Feature
 from realm.std.abilities import softcode
 from realm.std.abilities.actions import AbilityAction
+from realm.std.abilities.caster import CasterBehavior
+from realm.std.abilities.commands import cmd_cast, cmd_spells
 
 feature = Feature(
     'abilities',
@@ -38,7 +38,7 @@ feature.behavior(CasterBehavior)
 
 async def _use_ability(engine, frame, obj, payload) -> None:
     """Queued by softcode use_ability(): run the definition on the loop."""
-    from realm.systems.abilities import SPELL_DEF_TAG, invoke_ability
+    from realm.std.abilities.invoke import SPELL_DEF_TAG, invoke_ability
     adef, target = payload
     if adef.has_tag(SPELL_DEF_TAG):
         await invoke_ability(obj, adef, target, verb="cast", domain="spell")

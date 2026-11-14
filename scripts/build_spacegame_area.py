@@ -44,8 +44,7 @@ async def build() -> None:
     from nexagen import create_nexagen
     from world import create_world
 
-    import realm.behaviors  # noqa: F401
-    import realm.combat.behaviors  # noqa: F401
+    import realm.std.combat.behaviors  # noqa: F401
     from realm.persistence.worldio import export_objects
 
     repo = _Collect()

@@ -55,9 +55,10 @@ not the feature.
 | `realm/config/loader.py` | `Settings` (every config key, its default and doc) and `load_config` |
 | `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, kind predicates |
 | `realm/core/propagation.py` | Two-pass check/react action pipeline |
-| `realm/core/checks.py` | Skill checks, contests; the world's `Checks` service (resolver, skill table, modifier providers) |
+| `realm/std/rules/checks.py` | Skill checks, contests; the `rules` feature's `Checks` service (resolver, skill table, modifier providers) |
 | `realm/core/perception.py` | Visibility & naming choke points |
-| `realm/systems/` | Swappable GameSystem rules packages (GURPS/D20/Merc) |
+| `realm/std/rules/system.py` | `GameSystem`, the swappable rules package; `GAME_SYSTEM` names one |
+| `realm/games/<name>/` | The built-in game systems (GURPS/D20/Merc): `system.py`, `ruleset.py` (combat), `feature.py` |
 | `realm/scripting/` | Sandboxed softcode: `$commands`, `^listens`, `ON_<EVENT>` |
 | `realm/scripting/registry.py` | The softcode function registry: `softfn` / `softcode_function` with `group`, `readonly`, `harm` flags |
 | `realm/scripting/namespace.py` | `build_namespace(profile, ...)`: the one builder for script, check, inline, lock, detail and rule contexts |
@@ -81,7 +82,7 @@ and the rest are its parts, importable without loading the feature. The
 kernel's `ActionType` holds only kernel events; `world.rules` (the game
 system) is set by the `rules` feature and the kernel never calls it. The dispatcher and `core/movement.py` know no command, token,
 direction, exit or follower by name.
-Built-ins are declared in `realm/std/<feature>/feature.py` and `realm/games/<system>.py`;
+Built-ins are declared in `realm/std/<feature>/feature.py` and `realm/games/<system>/feature.py`;
 a game declares its own in `game.py`; `FEATURES` in config lists them
 (default `realm.std.CLASSIC`). Do not register at import time
 (`@BehaviorRegistry.register`, `dispatcher.register`) in engine code: declare on a

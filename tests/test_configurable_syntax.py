@@ -103,7 +103,7 @@ class TestMarkupMarker:
         """render_room and friends emit via wrap(), so a remapped
         marker never leaks stale '|c' literals to players."""
         from realm.core.objects import GameObject
-        from realm.core.render import render_room
+        from realm.std.look.render import render_room
 
         configure(markup_marker='~')
         room = GameObject("Vault", tags=["room"])

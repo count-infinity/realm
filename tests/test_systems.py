@@ -8,8 +8,9 @@ from __future__ import annotations
 import pytest
 
 from realm.core.objects import GameObject
+from realm.games.d20.system import D20System
+from realm.games.gurps.system import GurpsSystem
 from realm.std.accounts.auth import hash_password, verify_password
-from realm.systems import D20System, GurpsSystem
 from realm.std.rules.system import ChoiceStep, resolve_game_system
 
 
@@ -18,13 +19,13 @@ class TestResolveGameSystem:
 
     def test_resolve_builtin_paths(self):
         assert isinstance(
-            resolve_game_system("realm.systems.GurpsSystem"), GurpsSystem)
+            resolve_game_system("realm.games.gurps.system.GurpsSystem"), GurpsSystem)
         assert isinstance(
-            resolve_game_system("realm.systems.D20System"), D20System)
+            resolve_game_system("realm.games.d20.system.D20System"), D20System)
 
     def test_bad_path_raises(self):
         with pytest.raises(ValueError):
-            resolve_game_system("realm.systems.FateSystem")   # no such class
+            resolve_game_system("realm.games.FateSystem")   # no such class
         with pytest.raises(ValueError):
             resolve_game_system("gurps")                      # not dotted
 
@@ -112,7 +113,7 @@ class TestSkillDefaultsSwap:
 
     def test_system_owns_the_table(self):
         # build_world installs the selected system's table on the world.
-        from realm.core.checks import checks
+        from realm.std.rules.checks import checks
         from realm.testing import Simulator
 
         with Simulator(game_system=D20System):
@@ -248,7 +249,7 @@ class TestCheckResolution:
     def test_server_installs_system_resolver(self, world):
         # Selecting d20 makes check() itself roll d20 (roll-high), proving
         # the resolver is wired to the GameSystem not just combat.
-        from realm.core.checks import check, checks
+        from realm.std.rules.checks import check, checks
         checks().resolver = D20System().resolve_check
         hero = GameObject("Hero")
         hero.db.skill_stealth = 30  # auto-clears DC

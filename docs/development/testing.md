@@ -154,7 +154,7 @@ async def test_npc_greets(sim):
 - `await sim.do(player, "command")` runs a real command through the
   dispatcher.
 - `sim.seen(player)` drains and returns that player's messages.
-- Choose the ruleset with `Simulator(game_system="realm.systems.D20System")`.
+- Choose the ruleset with `Simulator(game_system="realm.games.d20.system.D20System")`.
 - Configure it the way a game's `config.py` would with
   `Simulator(settings=Settings(command_sigil="!"))`
   (`from realm.config.loader import Settings`).

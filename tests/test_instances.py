@@ -5,7 +5,7 @@ materialized on demand, reaped when idle. See docs/design/ephemeral-rooms.md.
 Instances and wilderness collapse into one primitive: materialize a real
 room copy on demand (``import_objects``), tag it ``ephemeral`` so it never
 persists, drop the owner in, and reap it once it's sat empty. These tests
-drive the Python API (``realm.core.instances``), the softcode surface
+drive the Python API (``realm.std.instances.instancing``), the softcode surface
 (``enter_instance``), and the persistence exclusion end-to-end.
 """
 
@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core import instances
+from realm.std.instances import instancing as instances
 from realm.testing import Simulator
 
 

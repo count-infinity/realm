@@ -73,10 +73,10 @@ def _text(messages):
 
 def _steady_manager():
     """A combat manager with the dice removed: 3d6 always 10, damage 2."""
-    from realm.combat.manager import CombatManager
-    from realm.combat.ruleset import DamageResult, DamageType
-    from realm.combat.rulesets.gurps import GURPSRuleset
-    from realm.combat.system import CombatSystem
+    from realm.games.gurps.ruleset import GURPSRuleset
+    from realm.std.combat.manager import CombatManager
+    from realm.std.combat.ruleset import DamageResult, DamageType
+    from realm.std.combat.system import CombatSystem
 
     class SteadyRuleset(GURPSRuleset):
         def roll_3d6(self):
@@ -252,7 +252,7 @@ async def warren():
 class TestAggressiveMob:
 
     async def test_attack_on_sight_then_tribute_buys_standing(self, warren):
-        from realm.core.disposition import get_disposition
+        from realm.std.social.disposition import get_disposition
 
         sim, tam, manager = warren.sim, warren.staff, warren.manager
         rat = _find(sim, "warren rat")
@@ -500,12 +500,12 @@ class TestTrainerNpc:
 
 @pytest.fixture
 async def bazaar():
-    from realm.core.checks import (
+    from realm.core.world import get_world
+    from realm.std.rules.checks import (
         CheckResult,
         checks,
         skill_level,
     )
-    from realm.core.world import get_world
 
     # Deterministic contests: success iff effective level >= 10, margin by
     # level (the engine's own combat-test resolver).
@@ -530,7 +530,7 @@ async def bazaar():
 class TestPickpocketNpc:
 
     async def test_theft_capture_and_crime_response(self, bazaar):
-        from realm.core.disposition import get_disposition
+        from realm.std.social.disposition import get_disposition
 
         sim, marla, manager = bazaar.sim, bazaar.staff, bazaar.manager
         fenn = _find(sim, "Fenn")
@@ -626,7 +626,7 @@ class TestNpcReactions:
         assert "raised eyebrow" in out
 
     async def test_weapon_draw_reaction_and_disposition_price(self, taproom):
-        from realm.core.disposition import get_disposition
+        from realm.std.social.disposition import get_disposition
 
         nerissa = _find(taproom.sim, "Nerissa")
         await _do(taproom, "@create rusty cutlass")

@@ -62,10 +62,10 @@ checks pick it up. (Classes need no reload.)
 
 ## Add one from Python
 
-For seeding or tests, `realm.systems.definitions` has builders:
+For seeding or tests, `realm.std.rules.definitions` has builders:
 
 ```python
-from realm.systems.definitions import define_skill, define_class
+from realm.std.rules.definitions import define_skill, define_class
 
 await persistence.save(define_skill("piloting", "dexterity", -4))
 await persistence.save(define_class(
@@ -137,7 +137,7 @@ would render.
 ## Where the built-ins live
 
 The default tables are `BUILTIN_SKILL_DEFAULTS` and `TEMPLATES` (GURPS) /
-`CLASSES` (D20) in `realm/systems/`. They're the fallback and the seed to
+`CLASSES` (D20) in `realm/games/<name>/system.py`. They're the fallback and the seed to
 mirror — not files to patch (see [Add a Character Class](add-a-class.md)
 for customizing in your own `rules.py`). Defining `skill_def`/`class_def`
 objects is the *content* path; a `rules.py` subclass is the *mechanics*

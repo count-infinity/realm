@@ -16,7 +16,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from realm.core import wilderness
+from realm.std.wilderness import cells as wilderness
 from realm.testing import Simulator
 
 IS_VALID = "result = 0 <= x <= 4 and 0 <= y <= 4"

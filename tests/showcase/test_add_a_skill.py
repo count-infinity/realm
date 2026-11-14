@@ -19,8 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from realm.core.checks import checks
 from realm.core.dice import CheckResult
+from realm.std.rules.checks import checks
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"
@@ -88,7 +88,7 @@ class TestAddASkill:
         await run_build(sim, builder)
         vex, doss = crew(sim, builder.location)
 
-        from realm.core.checks import skill_level
+        from realm.std.rules.checks import skill_level
         assert skill_level(vex, "diagnostics") == 14      # trained
         assert skill_level(doss, "diagnostics") == 8      # 12 int, -4 penalty
         assert skill_level(doss, "zzz_undefined") == 5    # the flat floor

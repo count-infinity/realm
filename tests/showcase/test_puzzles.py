@@ -38,9 +38,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import realm.behaviors  # noqa: F401 — registers script_ticker / zone_reset
-from realm.core.checks import CheckResult, checks, skill_level
 from realm.core.events import fire_event
+from realm.std.rules.checks import CheckResult, checks, skill_level
 from realm.testing import Simulator
 
 DOCS = Path(__file__).resolve().parents[2] / "docs" / "showcase"

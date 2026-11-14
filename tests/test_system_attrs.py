@@ -137,7 +137,7 @@ class TestCommandPaths:
 class TestChargenStamping:
 
     def test_finish_chargen_locks_the_characteristics(self):
-        from realm.systems.gurps import GurpsSystem
+        from realm.games.gurps.system import GurpsSystem
         sim = Simulator()
         zed = sim.player("Zed", location=sim.room("Bay"))
         for stat in ("strength", "dexterity", "intelligence", "health"):
@@ -149,7 +149,7 @@ class TestChargenStamping:
         sim.close()
 
     def test_apply_class_locks_stats_but_not_skills(self):
-        from realm.systems.definitions import apply_class
+        from realm.std.rules.definitions import apply_class
         sim = Simulator()
         zed = sim.player("Zed", location=sim.room("Bay"))
         apply_class(zed, ("a pilot", {"dexterity": 13}, {"piloting": 14}),

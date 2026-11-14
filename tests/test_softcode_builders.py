@@ -17,13 +17,13 @@ import asyncio
 
 import pytest
 
-from realm.scripting.ticker import ScriptTickerBehavior
-from realm.commands.olc.softcode import cmd_behavior, cmd_clone, cmd_trigger
 from realm.core.objects import GameObject
 from realm.core.safe_eval import eval_bool, eval_expression, validate_code
 from realm.core.world import get_world
 from realm.gateway.session import Session
 from realm.scripting.engine import ScriptEngine
+from realm.scripting.ticker import ScriptTickerBehavior
+from realm.std.building.scripting import cmd_behavior, cmd_clone, cmd_trigger
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 # --- Helpers -----------------------------------------------------------------
@@ -106,7 +106,7 @@ class TestSafeEval:
         assert check_lock(room, "enter", alice) is True
 
     def test_strategy_condition_uses_unified_engine(self):
-        from realm.combat.strategy import _evaluate_condition
+        from realm.std.combat.strategy import _evaluate_condition
 
         assert _evaluate_condition("hp < 5", {"hp": 3}) is True
         assert _evaluate_condition("__import__('os')", {"hp": 3}) is False
@@ -519,7 +519,7 @@ class TestCommandAuthority:
         use_persistence(self.persistence)
 
     async def test_plain_player_cannot_set_others(self):
-        from realm.commands.olc.modify import cmd_set
+        from realm.std.building.modify import cmd_set
 
         room = GameObject("Plaza", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
@@ -532,7 +532,7 @@ class TestCommandAuthority:
         assert any("don't control" in m for m in ctx.session.messages)
 
     async def test_owner_can_set_their_own(self):
-        from realm.commands.olc.modify import cmd_set
+        from realm.std.building.modify import cmd_set
 
         room = GameObject("Plaza", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
@@ -1007,7 +1007,7 @@ class TestWaits:
 class TestConditionModifiers:
 
     async def test_attr_provider_sums_shapes(self):
-        from realm.core.checks import condition_modifier
+        from realm.std.rules.checks import condition_modifier
 
         bob = GameObject("Bob")
         bob.db.check_mods = {
@@ -1019,13 +1019,13 @@ class TestConditionModifiers:
         assert condition_modifier(bob, "observation") == -7  # -2 -6 +1
 
     async def test_check_folds_modifiers_before_resolver(self, world):
-        from realm.core.checks import check, checks
+        from realm.std.rules.checks import check, checks
 
         seen = {}
 
         def recorder(obj, skill, modifier):
             seen["modifier"] = modifier
-            from realm.core.checks import CheckResult
+            from realm.std.rules.checks import CheckResult
             return CheckResult(True, 0, 10, 10, skill)
 
         bob = GameObject("Bob")
@@ -1035,8 +1035,8 @@ class TestConditionModifiers:
         assert seen["modifier"] == -1  # explicit +1, fear -2
 
     async def test_modifier_effect_lifecycle(self):
-        from realm.behaviors.effects import ModifierEffectBehavior
-        from realm.core.checks import condition_modifier
+        from realm.std.effects.behaviors import ModifierEffectBehavior
+        from realm.std.rules.checks import condition_modifier
 
         bob = GameObject("Bob", tags=["player"])
         effect = ModifierEffectBehavior(kind="fear", duration=2,
@@ -1053,8 +1053,8 @@ class TestConditionModifiers:
         assert bob.get_behaviors() == []
 
     async def test_blinding_poison_composes(self):
-        from realm.behaviors.effects import DamageOverTimeBehavior
-        from realm.core.checks import condition_modifier
+        from realm.std.effects.behaviors import DamageOverTimeBehavior
+        from realm.std.rules.checks import condition_modifier
 
         bob = GameObject("Bob")
         bob.db.hp = 10
@@ -1065,7 +1065,7 @@ class TestConditionModifiers:
         assert condition_modifier(bob, "melee") == 0
 
     async def test_banshee_wail_end_to_end(self):
-        from realm.core.checks import condition_modifier
+        from realm.std.rules.checks import condition_modifier
 
         crypt = GameObject("Crypt", tags=["room"])
         banshee = GameObject("banshee", location=crypt)
@@ -1094,8 +1094,8 @@ class TestConditionModifiers:
         assert not alice.has_tag("fear")
 
     async def test_remove_effect_cures(self):
-        from realm.behaviors.effects import ModifierEffectBehavior
-        from realm.core.checks import condition_modifier
+        from realm.std.effects.behaviors import ModifierEffectBehavior
+        from realm.std.rules.checks import condition_modifier
 
         chapel = GameObject("Chapel", tags=["room"])
         cleric = GameObject("cleric", location=chapel)
@@ -1110,9 +1110,9 @@ class TestConditionModifiers:
         assert condition_modifier(bob, "anything") == 0
 
     async def test_effect_survives_reboot_via_serialization(self):
-        from realm.behaviors.effects import ModifierEffectBehavior
         from realm.core.behaviors import BehaviorRegistry
-        from realm.core.checks import condition_modifier
+        from realm.std.effects.behaviors import ModifierEffectBehavior
+        from realm.std.rules.checks import condition_modifier
 
         bob = GameObject("Bob")
         bob.add_behavior(ModifierEffectBehavior(kind="fear", duration=8,
@@ -1129,9 +1129,9 @@ class TestConditionModifiers:
     async def test_apply_effect_refreshes_same_kind_not_stack(self):
         """Re-applying the same kind refreshes (deepens/renews), never stacks —
         effect state is keyed by kind, so a second copy would corrupt both."""
-        from realm.behaviors.effects import TimedEffectBehavior
-        from realm.core.checks import condition_modifier
         from realm.scripting.functions import ScriptFrame
+        from realm.std.effects.behaviors import TimedEffectBehavior
+        from realm.std.rules.checks import condition_modifier
 
         room = GameObject("Bar", tags=["room"])
         bex = GameObject("Bex", tags=["player"], location=room)
@@ -1151,8 +1151,8 @@ class TestConditionModifiers:
     async def test_apply_effect_refresh_resets_timer(self):
         """A refresh restarts the countdown from full duration rather than
         inheriting the replaced effect's remaining beats."""
-        from realm.behaviors.effects import _state_key
         from realm.scripting.functions import ScriptFrame
+        from realm.std.effects.behaviors import _state_key
 
         room = GameObject("Bar", tags=["room"])
         bex = GameObject("Bex", tags=["player"], location=room)
@@ -1167,8 +1167,8 @@ class TestConditionModifiers:
 
     async def test_apply_effect_different_kinds_coexist(self):
         """Refresh only collapses same-kind — distinct kinds stay independent."""
-        from realm.behaviors.effects import TimedEffectBehavior
         from realm.scripting.functions import ScriptFrame
+        from realm.std.effects.behaviors import TimedEffectBehavior
 
         room = GameObject("Field", tags=["room"])
         vic = GameObject("Vic", tags=["player"], location=room)
@@ -1193,7 +1193,7 @@ class TestTier1AuthorityFixes:
         use_persistence(self.persistence)
 
     async def test_teleport_other_needs_control(self):
-        from realm.commands.olc.admin import cmd_teleport
+        from realm.std.building.admin import cmd_teleport
 
         room = GameObject("Plaza", tags=["room"])
         vault = GameObject("Vault", tags=["room"])
@@ -1209,7 +1209,7 @@ class TestTier1AuthorityFixes:
         assert any("denied" in m.lower() for m in ctx.session.messages)
 
     async def test_destroy_needs_control(self):
-        from realm.commands.olc.admin import cmd_destroy
+        from realm.std.building.admin import cmd_destroy
 
         room = GameObject("Plaza", tags=["room"])
         bob = GameObject("Bob", tags=["player", "builder"], location=room)
@@ -1266,7 +1266,7 @@ class TestTier1AuthorityFixes:
         assert stocked.db.get("hp") == 5
 
     async def test_engine_floor_survives_system_swap(self):
-        from realm.core.checks import skill_table
+        from realm.std.rules.checks import skill_table
         table = skill_table({"stealth": ("dexterity", -4)})
         assert table["flee"] == ("dexterity", -2)  # floor kept
 
@@ -1289,7 +1289,7 @@ class TestForce:
         return d
 
     async def test_force_npc_through_real_dispatcher(self):
-        from realm.commands.olc.softcode import cmd_force
+        from realm.std.building.scripting import cmd_force
 
         room = GameObject("Stage", tags=["room"])
         bob, sess = make_player("Bob", room)
@@ -1301,7 +1301,7 @@ class TestForce:
         assert any('imp says, "Obey!"' in m for m in drain(sess))
 
     async def test_force_player_needs_control(self):
-        from realm.commands.olc.softcode import cmd_force
+        from realm.std.building.scripting import cmd_force
 
         room = GameObject("Stage", tags=["room"])
         bob, _ = make_player("Bob", room)
@@ -1313,7 +1313,7 @@ class TestForce:
         assert any("don't control" in m for m in ctx.session.messages)
 
     async def test_possession_opt_in_via_control_lock(self):
-        from realm.commands.olc.softcode import cmd_force
+        from realm.std.building.scripting import cmd_force
 
         room = GameObject("Crypt", tags=["room"])
         ghost, sess = make_player("Ghost", room)
@@ -1329,8 +1329,8 @@ class TestForce:
                    for m in drain(sess))
 
     async def test_forced_npc_cannot_run_builder_commands(self):
-        from realm.commands.olc.softcode import cmd_force
         from realm.features import load
+        from realm.std.building.scripting import cmd_force
 
         room = GameObject("Stage", tags=["room"])
         bob, _ = make_player("Bob", room)

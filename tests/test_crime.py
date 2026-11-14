@@ -10,14 +10,14 @@ from __future__ import annotations
 
 import pytest
 
-from realm.combat.behaviors import PeacekeeperBehavior
-from realm.combat.manager import CombatManager
-from realm.combat.rulesets.merc import MercRuleset
-from realm.combat.system import CombatSystem
 from realm.core.propagation import Action
 from realm.core.world import get_world
-from realm.systems import MercSystem
-from realm.systems.crime import (
+from realm.games.merc.ruleset import MercRuleset
+from realm.games.merc.system import MercSystem
+from realm.std.combat.behaviors import PeacekeeperBehavior
+from realm.std.combat.manager import CombatManager
+from realm.std.combat.system import CombatSystem
+from realm.std.crime.wanted import (
     clear_wanted,
     crime_observer,
     flag_wanted,

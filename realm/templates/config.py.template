@@ -28,7 +28,7 @@ ENCODING = "utf-8"
 # GameSystem subclass; it points at the GameRules class in rules.py, so
 # rules.py is the ONE place the rules are decided (what it subclasses is
 # the choice). To use a built-in directly with no customization, set this
-# to "realm.systems.GurpsSystem" (or ".D20System") and delete rules.py.
+# to "realm.games.gurps.system.GurpsSystem" (or ".D20System") and delete rules.py.
 #
 # IMPORTANT: choose this ONCE, before the first character is created.
 # It is a deployment choice, not a live toggle — characters are stamped

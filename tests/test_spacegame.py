@@ -7,9 +7,7 @@ from pathlib import Path
 
 import pytest
 
-import realm.behaviors  # noqa: F401  (register the behavior kit for from_dict)
-import realm.combat.behaviors  # noqa: F401
-from realm.core.objects import GameObject
+import realm.std.combat.behaviors  # noqa: F401
 from realm.persistence.memory import MemoryStore
 from realm.persistence.worldio import import_objects
 from realm.testing import Simulator
@@ -160,7 +158,7 @@ class TestCombatIntegration:
     @pytest.mark.asyncio
     async def test_gurps_combat_setup(self):
         """GURPS combat system should be configurable."""
-        from realm.combat.system import create_combat_system
+        from realm.std.combat.system import create_combat_system
 
         combat = create_combat_system(
             ruleset_name="gurps",

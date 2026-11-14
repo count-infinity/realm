@@ -13,7 +13,7 @@ value a developer can follow straight to the source:
 
 ```python
 GAME_SYSTEM = "rules.GameRules"            # your own system — the scaffolded default
-GAME_SYSTEM = "realm.systems.GurpsSystem"  # a built-in, unmodified (or ".D20System")
+GAME_SYSTEM = "realm.games.gurps.system.GurpsSystem"  # a built-in, unmodified (or ".D20System")
 ```
 
 `realm init` writes the first form: the path points at your `GameRules`
@@ -37,7 +37,7 @@ Three systems ship in-box:
 | Currency | credits | gold | gold |
 | Derived | HP from ST | HP from HT, AC 10 + DEX | HP by class hit die; AC from worn armor |
 
-`merc` is the Diku/Merc/ROM-lineage package (`realm.systems.MercSystem`) —
+`merc` is the Diku/Merc/ROM-lineage package (`realm.games.merc.system.MercSystem`) —
 the rules a converted ROM area wants ([Importing ROM
 areas](../development/rom-import.md)). Convert Midgaard, run it on `merc`,
 and it plays like a real Diku. `examples/midgaard` is exactly that, ready to
@@ -143,7 +143,7 @@ class SavageSystem(GameSystem):
 
     def resolve_check(self, obj, skill, modifier):
         # your dice here — return a CheckResult
-        from realm.core.checks import default_resolver
+        from realm.std.rules.checks import default_resolver
         return default_resolver(obj, skill, modifier)
 
     def improve_cost(self, skill, current_level):

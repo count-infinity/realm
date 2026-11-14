@@ -145,7 +145,7 @@ class TestDisguises:
         # Deterministic dice: a fixed mid roll of 10. Against the wardrobe's
         # -4 quality, a keen eye (16 -> effective 12) clears it; a dull one
         # (10 -> effective 6) does not.
-        monkeypatch.setattr("realm.core.dice.roll", lambda expr: 10)
+        monkeypatch.setattr("realm.games.gurps.system.roll", lambda expr: 10)
         wynn.db.set('skill_perception', 16)
         sable.db.set('skill_perception', 10)
 

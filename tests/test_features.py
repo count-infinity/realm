@@ -55,11 +55,11 @@ SOFTCODE_NAMES = [
     'ucfirst', 'use_ability', 'wait', 'words', 'zone_rooms', 'zones_of',
 ]
 OBSERVERS = [
-    'realm.combat.manager.CombatManager.hostile_observer',
     'realm.scripting.engine.ScriptEngine.handle_action',
+    'realm.std.combat.manager.CombatManager.hostile_observer',
+    'realm.std.crime.wanted.crime_observer',
     'realm.std.rules.system.equipment_observer',
     'realm.std.stealth.hiding.stealth_observer',
-    'realm.systems.crime.crime_observer',
 ]
 BEHAVIOR_IDS = [
     'aggressive', 'caster', 'combatant', 'damage_over_time', 'decay', 'defensive',
@@ -418,7 +418,7 @@ class TestMovementSeams:
             assert "has no effect" not in "\n".join(sim.seen(ada))
 
     async def test_without_social_nobody_follows(self):
-        from realm.core.party import set_following
+        from realm.std.social.party import set_following
         with Simulator(features=SOCIAL_GAME) as sim:
             hall, vault, _door = self._two_rooms(sim)
             alice = sim.player("Alice", location=hall)
@@ -428,7 +428,7 @@ class TestMovementSeams:
             assert alice.location is vault and bob.location is hall
 
     async def test_with_social_followers_follow(self):
-        from realm.core.party import set_following
+        from realm.std.social.party import set_following
         with Simulator() as sim:
             hall, vault, _door = self._two_rooms(sim)
             alice = sim.player("Alice", location=hall)

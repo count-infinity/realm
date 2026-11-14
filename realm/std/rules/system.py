@@ -14,7 +14,7 @@ Patterns, deliberately:
 - **Abstract Factory / Strategy**: GameSystem supplies the parts; the
   engine never branches on "is this GURPS?".
 - **Dotted-path selection**: ``GAME_SYSTEM`` is an import path to a
-  GameSystem subclass (``"rules.GameRules"``, ``"realm.systems.GurpsSystem"``),
+  GameSystem subclass (``"rules.GameRules"``, ``"realm.games.gurps.system.GurpsSystem"``),
   resolved by ``resolve_game_system`` — one greppable value that leads
   straight to the source, no registry indirection.
 - **Template Method**: the chargen *flow* (prompt → answer → advance →
@@ -183,7 +183,7 @@ class GameSystem(ABC):
         """Return a CheckResult for one skill check. If ``resolve_rule`` is
         set, the rule (softcode) resolves it; otherwise the reference
         default. Override in Python for a hand-tuned resolver."""
-        from realm.core.checks import default_resolver, resolve_with_rule
+        from realm.std.rules.checks import default_resolver, resolve_with_rule
         if self.resolve_rule:
             return resolve_with_rule(obj, skill, modifier, self.resolve_rule)
         return default_resolver(obj, skill, modifier)
@@ -248,7 +248,7 @@ def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem
     lookup to reverse-engineer:
 
         GAME_SYSTEM = "rules.GameRules"            # your scaffolded rules.py
-        GAME_SYSTEM = "realm.systems.GurpsSystem"  # a built-in, unmodified
+        GAME_SYSTEM = "realm.games.gurps.system.GurpsSystem"  # a built-in, unmodified
 
     The path is imported and instantiated. A bad path raises rather than
     falling back, so a typo fails loudly instead of quietly running the
@@ -265,7 +265,7 @@ def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem
             raise ValueError(
                 f"GAME_SYSTEM = {spec!r} must be a dotted import path to a "
                 "GameSystem subclass, e.g. 'rules.GameRules' or "
-                "'realm.systems.GurpsSystem'."
+                "'realm.games.gurps.system.GurpsSystem'."
             )
         try:
             module = importlib.import_module(module_path)
@@ -274,7 +274,7 @@ def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem
             raise ValueError(
                 f"GAME_SYSTEM = {spec!r} could not be imported ({exc}). Use a "
                 "dotted path to a GameSystem subclass, e.g. 'rules.GameRules' "
-                "or 'realm.systems.GurpsSystem'."
+                "or 'realm.games.gurps.system.GurpsSystem'."
             ) from exc
         if not (isinstance(cls, type) and issubclass(cls, GameSystem)):
             raise TypeError(
@@ -322,7 +322,7 @@ def reload_rules() -> None:
     system = world.rules
     if system is None:
         return
-    from realm.core.checks import Checks, skill_table
+    from realm.std.rules.checks import Checks, skill_table
     checks = world.services.setdefault("checks", Checks())
     checks.skill_defaults = skill_table(system.skill_defaults())
     checks.resolver = system.resolve_check

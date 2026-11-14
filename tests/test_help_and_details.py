@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import pytest
 
-from realm.core.checks import checks
-from realm.core.describe import detail_lines
 from realm.core.objects import GameObject
-from realm.core.render import render_room
+from realm.std.look.describe import detail_lines
+from realm.std.look.render import render_room
+from realm.std.rules.checks import checks
 from tests.test_olc import MockPersistence, make_context, use_persistence
 
 
@@ -20,7 +20,7 @@ def fresh(classic_world):
 
 
 def level_resolver(obj, skill, modifier):
-    from realm.core.checks import CheckResult, skill_level
+    from realm.std.rules.checks import CheckResult, skill_level
     effective = skill_level(obj, skill) + modifier
     return CheckResult(effective >= 10, effective - 10, 10, effective, skill)
 
@@ -84,7 +84,7 @@ class TestDetailCommand:
         use_persistence(self.persistence)
 
     async def test_detail_add_and_clear(self):
-        from realm.commands.olc.modify import cmd_detail
+        from realm.std.building.modify import cmd_detail
 
         room = GameObject("Cellar", tags=["room"])
         bob = GameObject("Bob", tags=["player", "builder"], location=room)
@@ -100,7 +100,7 @@ class TestDetailCommand:
         assert room.db.get("desc_extras") is None
 
     async def test_bad_condition_rejected(self):
-        from realm.commands.olc.modify import cmd_detail
+        from realm.std.building.modify import cmd_detail
 
         room = GameObject("Cellar", tags=["room"])
         bob = GameObject("Bob", tags=["player", "builder"], location=room)
@@ -126,7 +126,7 @@ class TestHelp:
         return ctx
 
     async def test_help_lists_by_category(self):
-        from realm.commands.builtin.utility import cmd_help
+        from realm.std.basics.commands import cmd_help
 
         room = GameObject("Plaza", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
@@ -137,7 +137,7 @@ class TestHelp:
         assert "@set" not in text  # builder commands hidden from players
 
     async def test_builders_see_building_category(self):
-        from realm.commands.builtin.utility import cmd_help
+        from realm.std.basics.commands import cmd_help
 
         room = GameObject("Plaza", tags=["room"])
         bea = GameObject("Bea", tags=["player", "builder"], location=room)
@@ -147,7 +147,7 @@ class TestHelp:
         assert "Building:" in text and "@detail" in text
 
     async def test_help_command_detail_via_alias(self):
-        from realm.commands.builtin.utility import cmd_help
+        from realm.std.basics.commands import cmd_help
 
         room = GameObject("Plaza", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
@@ -157,7 +157,7 @@ class TestHelp:
         assert "usage: fasttalk <npc>" in text
 
     async def test_help_search_fallback(self):
-        from realm.commands.builtin.utility import cmd_help
+        from realm.std.basics.commands import cmd_help
 
         room = GameObject("Plaza", tags=["room"])
         bob = GameObject("Bob", tags=["player"], location=room)
@@ -405,7 +405,7 @@ class TestOwnerDelegation:
 class TestChownHalts:
 
     async def test_chown_halts_scripted_objects(self):
-        from realm.commands.olc.admin import cmd_chown
+        from realm.std.building.admin import cmd_chown
 
         pers = MockPersistence()
         use_persistence(pers)

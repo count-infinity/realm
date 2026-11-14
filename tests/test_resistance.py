@@ -9,9 +9,9 @@ ruleset-agnostic; MERC consults it because Diku has no flat DR.
 
 from __future__ import annotations
 
-from realm.combat.combatant import Combatant
-from realm.combat.ruleset import DamageType, apply_type_resistance
-from realm.combat.system import RulesetRegistry
+from realm.std.combat.combatant import Combatant
+from realm.std.combat.ruleset import DamageType, apply_type_resistance
+from realm.std.combat.system import RulesetRegistry
 from realm.testing import Simulator
 
 
@@ -83,7 +83,7 @@ class TestMercApplyDamage:
         return Combatant(obj)
 
     def _hit(self, dtype, amount):
-        from realm.combat.ruleset import DamageResult
+        from realm.std.combat.ruleset import DamageResult
         return DamageResult(total=amount, damage_by_type={dtype: amount})
 
     def test_no_resistances_is_full_damage(self):

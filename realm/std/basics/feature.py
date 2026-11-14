@@ -6,7 +6,8 @@ Session and utility commands: help, who, quit, time.
 
 from __future__ import annotations
 
-from realm.commands.builtin.utility import (
+from realm.features import Feature
+from realm.std.basics.commands import (
     cmd_color,
     cmd_commands,
     cmd_help,
@@ -18,7 +19,6 @@ from realm.commands.builtin.utility import (
     cmd_uptime,
     cmd_who,
 )
-from realm.features import Feature
 
 feature = Feature(
     'basics',

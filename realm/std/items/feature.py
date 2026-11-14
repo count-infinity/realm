@@ -6,25 +6,26 @@ Carrying, giving, wearing and using objects; doors and locks.
 
 from __future__ import annotations
 
-from realm.commands.builtin.combat import cmd_unwield, cmd_wield
-from realm.commands.builtin.inventory import (
+from realm.features import Feature
+from realm.std.items.actions import ItemAction
+from realm.std.items.inventory import (
     cmd_drop,
     cmd_get,
     cmd_give,
     cmd_inventory,
     cmd_put,
 )
-from realm.commands.builtin.manipulation import (
+from realm.std.items.manipulation import (
     cmd_close,
     cmd_lock_item,
     cmd_open,
     cmd_unlock_item,
     cmd_unwear,
+    cmd_unwield,
     cmd_use,
     cmd_wear,
+    cmd_wield,
 )
-from realm.features import Feature
-from realm.std.items.actions import ItemAction
 
 feature = Feature(
     'items',

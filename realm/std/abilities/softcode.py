@@ -61,7 +61,7 @@ def use_ability(frame, name: str, target: GameObject | str | None = None) -> boo
 
     Example: use_ability('fireball', enactor)
     """
-    from realm.systems.abilities import can_invoke, find_ability_def
+    from realm.std.abilities.invoke import can_invoke, find_ability_def
     executor = frame.executor
     adef = find_ability_def(str(name))
     if executor is None or adef is None or not can_invoke(executor, adef):

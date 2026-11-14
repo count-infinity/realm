@@ -15,7 +15,7 @@ from pathlib import Path
 
 from realm.core.objects import GameObject
 from realm.persistence.worldio import export_objects
-from realm.systems.definitions import define_class, define_skill
+from realm.std.rules.definitions import define_class, define_skill
 
 PACK = Path(__file__).resolve().parent.parent / "realm" / "packs" / "gurps-scifi"
 

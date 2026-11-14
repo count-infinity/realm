@@ -29,10 +29,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import realm.behaviors  # noqa: F401  (registers zone_reset / script_ticker)
 from realm.core.events import reap_expired
 from realm.testing import Simulator
-
 
 # --- Build transcripts: read straight out of the tutorials ----------------------
 

@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-from realm.core import checks as checks_module
 from realm.core.world import set_world
+from realm.std.rules import checks as checks_module
 
 
 @pytest.fixture(autouse=True)

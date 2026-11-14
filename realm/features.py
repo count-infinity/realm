@@ -561,9 +561,9 @@ class FeatureSet:
     def install_registries(self) -> None:
         """Reset the global registries to exactly this set's declarations."""
         global _installed
-        from realm.combat.system import RulesetRegistry
         from realm.core.behaviors import BehaviorRegistry
         from realm.scripting import registry
+        from realm.std.combat.system import RulesetRegistry
 
         behaviors: dict[str, type] = {cls.behavior_id: cls for cls in _kernel_behaviors()}
         rulesets: dict[str, type] = {}
@@ -606,15 +606,13 @@ class FeatureSet:
 
     def install_runtime(self, world: World) -> None:
         """Wire the runtime declarations onto ``world``."""
-        from realm.core.checks import Checks
 
         world.features = self
-        checks = world.services.setdefault("checks", Checks())
         self.install_commands(world.dispatcher)
         for f in self.features:
             for fn in f.observers:
                 world.observe(fn)
-            checks.modifier_providers.extend(f.check_modifiers)
+            world.check_modifiers.extend(f.check_modifiers)
             for name, fn, shared, _replace in f.dest_resolvers:
                 world.dest_resolvers[name] = (fn, shared)
             for fn in f.fallbacks:
