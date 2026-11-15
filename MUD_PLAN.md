@@ -24,9 +24,9 @@ on its own and leaves the suite green.
 | 9 | Operating a live game: sessions, throttling, shutdown, backup, migrate | M | [ ] |
 | 10 | Comfort: pager, editor, aliases | M | [ ] |
 | 11 | Merc parity: the remaining Diku pieces | M | [ ] |
-| 12 | Hunger and thirst | S–M | [ ] |
+| 12 | Hunger, thirst and fatigue, after CoffeeMud | M | [ ] |
 | 13 | Pets, charmed followers and mounts | M–L | [ ] |
-| 14 | Clans | M | [ ] |
+| 14 | Clans with governments, after CoffeeMud | L | [ ] |
 | 15 | Quests | M | [ ] |
 | 16 | A browser client (optional, see Decision D3) | M | [ ] |
 | 17 | Proof: the first hour, the guide, 0.3.0 | S | [ ] |
@@ -60,7 +60,8 @@ install, and a test proves each line (step 17):
 8. Grow hungry, eat, and stop being hungry.
 9. Buy a pet that follows and fights for the character, and ride a horse
    that pays the movement cost.
-10. Join a clan, speak on its channel, and pass a door locked to it.
+10. Found a clan under a chosen government, accept a member, speak on
+    its channel, and pass a door locked to it.
 11. Take a quest from an NPC, see it in the journal, finish it and be
     paid.
 12. Build onto the world in softcode with no restart, as today.
@@ -72,9 +73,16 @@ nobody builds them by accident.
 
 - **A MOBprog transpiler.** ROM mob programs stay unconverted on import.
   They are a language port, not a mapping, and softcode replaces them.
-- **Clan wars, player-killing ladders and arenas.** Clans (step 14) are
-  membership, rank, talk, purse and locks. Who may attack whom stays the
-  `crime` feature's and the zone's business.
+- **Clan conquest, trophies, clan items and the rest of CoffeeMud's clan
+  extras.** Step 14 takes its governments, positions, powers, votes,
+  treasury, tax, levels and declared relations. It leaves out conquering
+  areas, trophies, enchanted clan items, ordering underlings about, the
+  morgue, clan journals, calendars and web pages. A declared war is a
+  fact softcode can read; who may attack whom stays the `crime` feature's
+  and the zone's business.
+- **Deities and kinship.** CoffeeMud's theocracy and family governments
+  need them. The guide shows how a game builds either with position
+  locks.
 - **Drunkenness, encumbrance, elections, branching-quest tooling.** These
   stay softcode builds in `docs/showcase/` (139, 136, 223, 201), on top of
   the engine systems this plan adds.
@@ -104,15 +112,19 @@ Decision log.
 - **D5. Where learn-by-use applies by default.** Default: Merc uses it for
   every skill (the SMAUG hybrid: practice to a floor, use to the cap);
   GURPS and D20 stay point-buy. Per-skill `progression` overrides either.
-- **D6. Which games have hunger and thirst.** Default: Merc only. The
-  `needs` feature acts on whoever has the `food` and `water` pools, and
-  only `MercSystem` gives them to its characters. Starvation does no
-  damage unless `STARVATION_DAMAGE` is set; it only stops regeneration.
-- **D7. Who may found a clan.** Default: administrators only
-  (`CLAN_FOUNDING_COST = None`). Setting a price lets players found one.
-- **D8. How many companions a character may have.** Default: two, of any
-  kind (pets, charmed creatures, a mount), from the neutral
-  `GameSystem.companion_limit`. A game system may change it.
+- **D6. Which games have hunger and thirst.** *Decided 2026-11-14:* Merc
+  only, with CoffeeMud's mechanics (step 12): the `needs` feature acts on
+  whoever has the `food` and `water` pools, and only `MercSystem` gives
+  them to its characters.
+- **D7. Who may found a clan.** *Decided 2026-11-14:* a clan system like
+  CoffeeMud's, with different forms of leadership (step 14). Following
+  CoffeeMud, a player founds a clan for `CLAN_COST` and chooses its
+  government; setting `CLAN_COST = None` leaves founding to
+  administrators.
+- **D8. How many companions a character may have.** *Decided 2026-11-14:*
+  configurable, by a formula a game writes in `config.py`
+  (`COMPANION_LIMIT_RULE`), as CoffeeMud derives it from charisma; else
+  the game system's hook; else two (step 13.1).
 
 ---
 
@@ -1227,67 +1239,158 @@ first; it ranks what is left from a run over 189 real area files.
 
 ## Step 12 — Hunger and thirst
 
-**Goal.** A game that wants survival needs has them as a stock system:
-characters grow hungry and thirsty over time, food and drink answer it,
-and going without has a cost.
+**Goal.** A game that wants survival needs has them as a stock system,
+modeled on CoffeeMud's: a stomach that empties with time and exertion,
+food eaten a bite at a time, thirst that depends on the climate, slower
+recovery while hungry or thirsty, and death only after a long time
+ignored.
 
-**Depends on.** Steps 2 (regeneration) and 3 (`eat`, `drink`).
+**Depends on.** Steps 2 (regeneration, sleep) and 3 (`eat`, `drink`).
 
 Today this exists only as a softcode build (showcase 137), which each game
 must copy and maintain.
 
+**The CoffeeMud model this follows** (`~/CoffeeMud`: `coffeemud.ini`
+`HUNGER`, `THIRST` and the `FORMULA_*RECOVER` entries;
+`Libraries/MUDFight.java::expendEnergy`; `Common/DefaultCharState.java`;
+`Locales/StdRoom.java::thirstPerRound`). Read those before starting.
+
+- A stomach holds 500 units of food and 1000 of drink by default, scaled
+  by body weight.
+- Every tick an awake, mortal character loses food in proportion to its
+  weight, and water in proportion to its weight times the room's thirst
+  rate: one, plus one each for a hot, dry or windy climate, minus one for
+  a wet one. Walking spends the same again.
+- At zero the character is told so at intervals, in rising alarm (hungry,
+  famished, starved, near death), and dies after twelve real hours hungry
+  or six thirsty.
+- Being hungry removes half of each recovery (hit points, mana, movement)
+  and being thirsty removes the other half. Fatigue, a third need, builds
+  while awake, falls while asleep, and halves mana and movement recovery.
+
 Create `realm/std/needs/` (no `requires`).
 
-- [ ] **Design.** Hunger and thirst are two pools, `food` and `water`
-      (down pools: full at max, spent at 0), so everything that works on
+### 12.1 The pools
+
+- [ ] Hunger and thirst are two pools, `food` and `water` (down pools:
+      full at max, spent at 0, `regen=False`), so everything that works on
       pools works on them: the prompt can show them, softcode can read
-      them, an item's `restores` (3.4) fills them. A character has needs
-      exactly when it has the pools. The game system decides who does:
-      `MercSystem.pools()` adds `Pool("food", regen=False)` and
-      `Pool("water", regen=False)` and its baseline sets both to 48 of 48
-      (Decision D6); GURPS and D20 do not. NPCs are never given them.
-- [ ] A `feature.reaper` lowers both pools by 1 every `NEEDS_INTERVAL`
-      seconds (a setting, default 120) for every online player that has
-      them, with `pools.harm` and `settle`. Offline time does not count.
-      A character with the `no_needs` tag, and any admin, is skipped.
-- [ ] Crossing a threshold tells the player once: at a quarter left
-      "You are getting hungry.", when spent "You are starving." (and the
-      thirst equivalents). While either pool is spent the player is
-      reminded on each interval.
-- [ ] The cost of going without. `needs` appends a multiplier to the
-      `vitals` service's list (2.1) that returns `HUNGRY_REGEN` (a
-      setting, default 0.0) while `food` or `water` is spent; without
-      `vitals` there is nothing to slow and this part is skipped. A second setting, `STARVATION_DAMAGE` (default 0), harms the
-      damage pool by that much per interval while spent; left at 0 nobody
-      dies of hunger.
-- [ ] `eat` and `drink` (3.4) need no change: food with
-      `restores = {"food": 12}` fills the pool. Add to `drink`: an object
-      tagged `fountain` is never used up, and a drink container holds
-      `charges` of a `liquid`; `fill <container> <fountain>` refills it.
+      them, an item can fill them. Fatigue is a third, `fatigue` (an up
+      pool, `regen=False`). A character has a need exactly when it has
+      that pool.
+- [ ] The game system decides who has them (Decision D6):
+      `MercSystem.pools()` adds `food` and `water`, and its baseline gives
+      a new character full ones. GURPS and D20 do not. No stock system
+      declares `fatigue`; a game adds it in its own `pools()`. NPCs are
+      never given any of them.
+- [ ] Capacity. Settings `FOOD_FULL` (default 500) and `WATER_FULL`
+      (default 1000) are the base maximums. `GameSystem.stomach(obj) ->
+      tuple[int, int]` returns the character's two maximums; the neutral
+      answer scales the settings by `weight / NEEDS_BASE_WEIGHT` (a
+      setting, default 150) when the character has a `weight` attribute
+      and returns them unscaled when it does not.
+
+### 12.2 Losing them
+
+- [ ] A `feature.reaper` runs every `NEEDS_INTERVAL` seconds (a setting,
+      default 4, CoffeeMud's tick) over online players who have the pools.
+      It skips a sleeping character (2.2), an admin, a character tagged
+      `no_needs`, and a room whose zone sets `no_needs`. For the rest it
+      harms `food` by the weight factor and `water` by the weight factor
+      times the room's thirst rate, both scaled by the `FOOD_LOSS` and
+      `WATER_LOSS` settings (percentages, default 100), and settles.
+      Fractions accumulate on the character (`food_debt`, `water_debt`) so
+      a light character still gets hungry.
+- [ ] The thirst rate of a room is 1, plus 1 for each of the tags
+      `climate:hot`, `climate:dry` and `climate:windy`, minus 1 for
+      `climate:wet`, never below 0. The tags are read from the room, else
+      from its zone masters (`zone_property`).
+- [ ] Exertion: an `after_traverse` hook charges one more interval's loss
+      for each room walked.
+- [ ] `fatigue` rises by 1 per interval while awake and falls by
+      `FATIGUE_SLEEP_RECOVERY` (default 3) per interval while asleep.
+- [ ] Offline time does not count for any of them.
+
+### 12.3 Going without
+
+- [ ] While `food` or `water` is spent the character accumulates
+      `hungry_ticks` / `thirsty_ticks` (reset to 0 the moment the pool is
+      above 0). Every `NEEDS_REMINDER_TICKS` (default 60) the player is
+      told, by how far along they are toward the death limit: "You are
+      hungry." in the first half, "You are famished! Eat something!" past
+      half, "You are starved! Eat something!" past three quarters, and
+      "You are starved, and near death. EAT SOMETHING!" on each of the last
+      30 ticks; the thirst lines are thirsty, parched, dehydrated.
+- [ ] Death. Settings `HUNGER_DEATH_HOURS` (default 12) and
+      `THIRST_DEATH_HOURS` (default 6) of online time. Past the limit the
+      character is told "YOU ARE DYING OF HUNGER!" and its vital pool is
+      spent through `pools.harm` and `settle`, so the ordinary death path
+      of 2.4 runs, with no killer. 0 disables death from that need.
+- [ ] Slower recovery. `needs` appends a multiplier to the `vitals`
+      service's list (2.1): 1.0, less 0.5 while hungry, less 0.5 while
+      thirsty, so a character that is both recovers nothing; and, for the
+      `mana` and `move` pools only, half again while `fatigue` is spent.
+      Without `vitals` this part is skipped.
+- [ ] `HUNGRY_AWARD` (default 1.0): a factor on experience and character
+      point awards while hungry or thirsty. 1.0 changes nothing; a game
+      that wants CoffeeMud's "no experience while hungry" sets 0. To apply
+      it, give the `rules` feature one small seam: `award(player, amount)`
+      in `realm/std/rules/system.py`, which passes the amount through
+      `award_filters` (a list of `(player, amount) -> int` on the `rules`
+      service) and then calls `GameSystem.grant_award`. The death path and
+      quest rewards call `award`, never `grant_award` directly. `needs`
+      appends a filter; clan tax (14.4) appends another.
+- [ ] When `fatigue` is spent the player is told "You are exhausted." at
+      the reminder interval. Nothing else happens; sleep cures it.
+
+### 12.4 Eating and drinking
+
+- [ ] Food carries `nourishment` (how much it holds in all) and `bite`
+      (how much one `eat` takes; default: all of it). `eat` moves one bite
+      into `food`, scaled by the `FOOD_GAIN` setting (a percentage,
+      default 100), and destroys the item when its nourishment is gone.
       Eating when full is refused ("You are too full to eat more.").
-- [ ] A zone can switch needs off: `zone_property(room, "no_needs")` true
-      skips characters there (the showcase build's policy toggle).
-- [ ] The ROM importer writes `restores` for food from its value and for
-      drink containers from the liquid table, tags fountains, and sets
-      `charges`. Regenerate Midgaard.
+      This replaces the `restores = {"food": n}` form for food in 3.4;
+      `restores` stays for other pools (a potion that restores `hp`).
+- [ ] A drink container carries `liquid`, `liquid_held` and
+      `liquid_remaining`, and `sip` (default 50). `drink` moves one sip
+      into `water`, scaled by `WATER_GAIN`, and lowers what remains. An
+      object tagged `fountain` never runs dry. `fill <container>
+      <fountain>` refills. A room tagged `water_source` (a river, a
+      well) can be drunk from with `drink` alone.
+- [ ] The ROM importer writes `nourishment` for food from its value,
+      `liquid`, `liquid_held` and `liquid_remaining` for drink containers
+      from the liquid table, and tags fountains. Regenerate Midgaard.
+
+### 12.5 Showing it
+
 - [ ] `score` under Merc says "You are hungry." and "You are thirsty."
       the Diku way when a pool is at a quarter or less, and does not list
-      `food` and `water` as numbers beside hit points. `MercSystem.score_lines`
-      does this itself; `pool_lines` gains an `exclude` argument so it can
-      leave the two pools out. The neutral sheet lists them like any pool.
+      `food` and `water` as numbers beside hit points.
+      `MercSystem.score_lines` does this itself; `pool_lines` gains an
+      `exclude` argument so it can leave the pools out. The neutral sheet
+      lists them like any pool.
+- [ ] Softcode, read-only: `hungry(obj)` and `thirsty(obj)`.
 - [ ] Rewrite showcase 137 to configure this feature instead of building
       the meters by hand.
 - [ ] Tests (`tests/test_needs.py`, with an injected clock): the pools
-      fall over time and only for online players who have them; the
-      threshold messages fire once; a spent pool stops regeneration;
-      eating restores; a fountain is not consumed; a GURPS character is
+      fall over time, faster for a heavy character, and only for online,
+      awake players who have them; a hot dry room doubles thirst and a wet
+      one removes it; walking costs extra; the reminder lines escalate;
+      death arrives at the limit through the normal death path and not at
+      all when the setting is 0; hunger and thirst each halve
+      regeneration; a bite at a time empties a loaf; a fountain is not
+      consumed; fatigue rises awake and falls asleep; a GURPS character is
       never hungry; a `no_needs` zone is exempt.
 
 ### Docs
 
-- [ ] A "Hunger and thirst" section in `docs/guides/life-and-death.md`.
+- [ ] A "Hunger, thirst and fatigue" section in
+      `docs/guides/life-and-death.md`, with the settings and the climate
+      tags, and a note on where the numbers come from.
 - [ ] `docs/guides/features.md`: the `needs` row.
 - [ ] `docs/development/rom-import.md`: food, drink and fountains.
+- [ ] Regenerate the softcode and config references.
 
 ---
 
@@ -1315,9 +1418,27 @@ Create `realm/std/companions/` (`requires=["social"]`).
       it).
 - [ ] `master_of(obj)`, `companions_of(character)`,
       `set_master(npc, character | None)` in `companions.py`; public names
-      of the package. `set_master` refuses when the character is at
-      `GameSystem.companion_limit(character)` (a new hook; neutral 2;
-      Decision D8).
+      of the package.
+- [ ] The limit (Decision D8), after CoffeeMud's `FORMULA_MAXFOLLOW`
+      (`1 + (charisma - 6) / 3` in its `coffeemud.ini`, evaluated in
+      `Libraries/CharCreation.java::getMaxFollowers`). Three layers, first
+      one that answers wins:
+  1. the setting `COMPANION_LIMIT_RULE`, a rule expression (the softcode
+     `rule` profile, like `resolve_rule`) with `me` bound to the
+     character and `level` to its level, so a game writes
+     `"1 + (get_attr(me, 'charisma', 10) - 6) // 3"` in `config.py`;
+  2. `GameSystem.companion_limit(character) -> int`, for a system that
+     wants code;
+  3. the neutral answer, 2.
+
+      `MercSystem.companion_limit` is `1 + level // 10` (Diku has no
+      charisma). The count is CoffeeMud's `totalFollowers`: each companion
+      plus that companion's own companions. `set_master`, buying a pet
+      (13.2) and a charm that lands all refuse past the limit, with a
+      line saying so. `companions` ends with "You have 1 of 3 followers."
+- [ ] `COMPANION_LEVEL_DIFF` (a setting, default 0, off), after
+      CoffeeMud's `FOLLOWLEVELDIFF`: a creature more than that many levels
+      above the character cannot be bonded.
 - [ ] Commands: `companions` (list, with condition), `order <name|all>
       <command>`, `dismiss <name>`. `order` runs the command as the
       companion through the real dispatcher (the mechanism `@force` uses),
@@ -1342,8 +1463,10 @@ Create `realm/std/companions/` (`requires=["social"]`).
       `set_master(obj, master)` and `release(obj)` for builders. Events
       `companion:on_bond` and `companion:on_release` (hooks `BOND`,
       `RELEASE`).
-- [ ] Tests (`tests/test_companions.py`): bonding and the limit; `order`
-      runs a command and refuses an admin one; a companion follows through
+- [ ] Tests (`tests/test_companions.py`): bonding and the limit from
+      each of its three layers, including a charisma rule and a companion
+      that has companions of its own; the level difference; `order` runs a
+      command and refuses an admin one; a companion follows through
       an exit, joins its master's fight, and its kill pays the master; it
       leaves and returns with the master across logout.
 
@@ -1419,67 +1542,259 @@ Create `realm/std/companions/` (`requires=["social"]`).
 
 ## Step 14 — Clans
 
-**Goal.** Players can belong to an organization with ranks, a roster, a
-private channel, a shared purse and doors that only members pass.
+**Goal.** Players can found and run organizations the way CoffeeMud lets
+them: a clan chooses a form of government, the government says which
+positions exist and what each may do, and some decisions are taken by
+vote.
 
-**Depends on.** Step 7 (channels), and the `economy` feature through its
-service.
+**Depends on.** Steps 6 (accounts, for last-login times), 7 (channels)
+and 8 (the game calendar, for vote and upkeep periods), and the `economy`
+feature through its service.
 
-Today this is two softcode builds (showcase 221 and 222).
+Today this is two softcode builds (showcase 221 and 222) with fixed ranks.
 
-Create `realm/std/clans/` (no `requires`; `economy` and `basics` are
-reached through services).
+**The CoffeeMud model this follows** (`~/CoffeeMud`:
+`resources/clangovernments.xml`, the `Clan.Function` enum and the
+relation constants in `Common/interfaces/Clan.java`, and the `CLAN*`,
+`MINCLAN*`, `MAXCLAN*` and `DAYSCLAN*` entries of `coffeemud.ini`). Read
+`clangovernments.xml` before starting; the stock governments below are a
+translation of it.
 
-- [ ] **Design.** A clan is an object tagged `clan`, with no location:
-      `name`, a short `tag` shown beside names, `ranks` (an ordered list,
-      lowest first, default recruit, member, officer, leader), `powers`
-      (which rank may invite, expel, promote, withdraw, set the message;
-      default officer for the first two, leader for the rest), `members`
-      (character id to rank index), `motd`, `treasury`, and an optional
-      `hall` (a room id). A character has a `clan` attribute naming its
-      clan's id. One clan per character.
-- [ ] Commands, all under `clan`: `clan` (your clan: message, rank,
-      treasury), `clan who` (the roster, online first), `clan invite
-      <player>`, `clan accept` / `clan decline`, `clan leave`, `clan
-      promote <member>` / `clan demote <member>`, `clan expel <member>`,
-      `clan motd = <text>`, `clan deposit <amount>` / `clan withdraw
-      <amount>`, and `clans` (every clan with its member count). A leader
-      cannot leave without promoting a successor or disbanding
-      (`clan disband`, which asks for confirmation).
-- [ ] Clan talk: `clantalk <message>` (alias `ct`), one propagated action
-      (`clan:on_talk`, hook `CLANTALK`) delivered to online members, with
-      history like a channel. Build it on the channel delivery code of
-      7.2 through the `channels` service when present; without `channels`
-      the command says clan talk is unavailable.
-- [ ] Founding. `@clan create <name> = <leader>` and `@clan delete
-      <name>`, `@clan set <name>/<field> = <value>` for admins. With the
-      setting `CLAN_FOUNDING_COST` set to a number (Decision D7; default
-      None), `clan found <name>` lets a player found one for that price,
-      subject to `CLAN_MIN_LEVEL`.
-- [ ] Locks and softcode. Read-only functions `clan(obj)` (the clan's name
-      or None), `clan_rank(obj)` (the rank index or None) and
-      `clan_members(name)`; they are available in lock expressions, so a
-      hall door is `@lock door = clan(enactor) == 'Ravens'` and an armory
-      is `clan_rank(enactor) >= 2`. Builder-gated `clan_add(obj, name,
-      rank=0)` and `clan_remove(obj)`. Events `clan:on_join`,
-      `clan:on_leave`, `clan:on_rank` (hooks `CLANJOIN`, `CLANLEAVE`,
-      `CLANRANK`).
-- [ ] `who` shows the clan tag: `clans` appends an entry to the `who`
-      service's `fields` list (step 9).
+- A government is data: an ordered list of positions, each with a name, a
+  rank, a limit on how many may hold it, a mask saying who qualifies, and
+  the powers it grants.
+- Eleven governments ship: a gang ruled by one boss, a guild with several
+  masters, a union with elected leaders, a fellowship where everything is
+  voted on, a theocracy, a family, an anarchy, a profession, a co-op, a
+  meritocracy ruled by whoever has given the clan the most experience,
+  and a plutocracy ruled by whoever has given it the most money.
+- The top position can be filled by appointment, by rank, by level, by
+  experience donated or by money donated.
+- Clans have a treasury, a tax on members' experience, their own
+  experience and levels with benefits at each level, declared relations
+  with other clans, and upkeep rules that dissolve dead clans and replace
+  absent leaders.
+
+Create `realm/std/clans/` (no `requires`; `economy`, `basics`, `channels`,
+`accounts` and `clock` are reached through services).
+
+### 14.1 Governments as data
+
+- [ ] A government is a definition object tagged `clan_government_def`
+      (`feature.def_kind("clan_government", "clan_government_def")`):
+
+      | Attribute | Meaning |
+      |---|---|
+      | `description` | one line, shown when a founder chooses |
+      | `positions` | an ordered list, highest rank first (below) |
+      | `accept_position` | where an accepted applicant lands |
+      | `applicant_position` | where someone who has applied waits; None means anyone who applies is in at once |
+      | `required_lock` | a lock expression: who may apply at all |
+      | `auto_promote` | how the top position is filled: `none`, `rank`, `level`, `xp` or `gold` (below) |
+      | `category` | a character may belong to one clan per category; default `""` |
+      | `rivalrous` | whether clans of this kind may declare relations |
+      | `vote_days`, `vote_quorum` | how long a vote stays open, in game days, and the percentage of eligible voters needed |
+      | `xp_per_level` | a rule expression over `level` giving the clan experience for the next clan level |
+      | `benefits` | a list of `{level, tags, check_mods, pool_max}` granted to members once the clan reaches that level |
+      | `on_join`, `on_leave` | softcode run for a member joining or leaving |
+
+- [ ] A position is a dict: `id`, `name`, `plural`, `rank` (0 is highest;
+      two positions may share a rank), `max` (holders allowed; None for no
+      limit), `lock` (a lock expression a holder must pass, for example a
+      class), `public` (whether outsiders see who holds it) and `powers`.
+- [ ] The powers, each a string: `accept`, `reject`, `assign` (promote and
+      demote), `exile`, `set_home`, `set_donate`, `premise`, `motd_write`,
+      `motd_read`, `withdraw`, `deposit`, `deposit_list`, `tax`,
+      `declare` (relations), `channel`, `list_members`, `home_privs`,
+      `benefits`, `titles`, `vote_assign` and `vote_other`. A definition
+      naming any other power is refused when definitions load.
+- [ ] A power no position holds outright is decided by vote (14.3):
+      assignments among holders of `vote_assign`, everything else among
+      holders of `vote_other`. A power that nobody holds and nobody can
+      vote on cannot be used in that government, and the command says so.
+- [ ] `auto_promote`: `none` leaves the top position to appointment or
+      vote. `rank` fills a vacant top position with the longest-serving
+      member of the next rank down. `level` gives it to the highest-level
+      qualifying member, `xp` to whoever has donated the most experience
+      and `gold` to whoever has donated the most money, re-evaluated
+      whenever those change, displacing the holder.
+- [ ] Ship the governments as a pack, `realm/packs/clan-governments/`,
+      imported by the scaffold's `init_world`: `gang`, `guild`, `union`,
+      `fellowship`, `anarchy`, `co-op`, `meritocracy` and `plutocracy`,
+      with the positions, limits and powers of the CoffeeMud file.
+      `theocracy`, `family` and `profession` depend on deities, kinship
+      and class grants that REALM does not have; describe in the guide how
+      a game builds them with position locks, and do not ship them.
+- [ ] Tests: each shipped government loads and validates; a malformed one
+      (unknown power, no positions, an `accept_position` that does not
+      exist) is refused with its name.
+
+### 14.2 The clan and its members
+
+- [ ] A clan is an object tagged `clan`, with no location: `name`,
+      `government` (the definition's name), `members` (character id to
+      `{position, joined, donated_xp, donated_gold}`), `premise`, `motd`,
+      `treasury`, `home` and `donate_room` (room ids), `tax` (a
+      percentage), `xp`, `level`, `relations` (clan name to relation),
+      `status` (`pending` or `active`) and `founded`. A character has a
+      `clans` attribute mapping category to clan id.
+- [ ] Founding (Decision D7). `clan found <name> = <government>`: costs
+      `CLAN_COST` (a setting, default 10000) through the `economy`
+      service, needs `CLAN_MIN_LEVEL` (default 1), and makes the founder
+      the holder of the top position. With `CLAN_COST = None` only
+      `@clan create <name> = <government>, <leader>` (admin) founds one. A
+      clan is `pending` until it has `CLAN_MIN_MEMBERS` (default 1)
+      members; a pending clan cannot declare relations or levy a tax.
+- [ ] Joining: `clan apply <clan>` (refused by `required_lock`, by
+      `CLAN_MAX_MEMBERS` when not 0, and when the character already has a
+      clan in that category), `clan accept <player>` and `clan reject
+      <player>` for holders of those powers, `clan leave`.
+- [ ] Positions: `clan assign <member> = <position>` (the `assign` power,
+      or a vote), refused when the position is full or the member fails
+      its lock; nobody assigns a position at or above their own rank
+      unless they hold the top one. `clan exile <member>`.
+- [ ] Information: `clan` (your clans), `clan info <clan>` (premise,
+      government, level, public position holders), `clan who` (roster by
+      position, online first; needs `list_members`), `clans` (every active
+      clan with its government and size), `clan governments` (what a
+      founder may choose, with descriptions).
+- [ ] Text and places: `clan premise = <text>`, `clan motd = <text>`
+      (shown to members at login to those with `motd_read`), `clan home`
+      and `clan donate` set from the room the holder stands in, and `clan
+      recall` takes a member with `home_privs` to the clan home under the
+      same rules as `recall`.
+- [ ] `clan disband` by the top position, after confirmation; the treasury
+      returns to the holder.
+- [ ] Tests: founding with and without the cost; the whole life of a
+      member in a `gang` (apply, accept, assign, exile) and each command
+      refused without its power; a full position refused; a position lock
+      refusing an unqualified member; two categories at once and a second
+      clan in one category refused.
+
+### 14.3 Voting
+
+- [ ] An action that must be voted on opens a vote stored on the clan:
+      what is proposed, by whom, when it closes (`vote_days` game days
+      from now), and the ballots. `clan votes` lists open votes; `clan
+      vote <n> yes|no` casts or changes a ballot; the proposer may
+      withdraw one.
+- [ ] A vote passes as soon as more than half of all eligible voters have
+      said yes, and fails as soon as that is impossible. Otherwise it is
+      counted when it closes: it passes with a majority of ballots cast if
+      at least `vote_quorum` percent of eligible voters voted. A passed
+      vote carries out its action as if a holder of the power had typed
+      it; either outcome is announced on clan talk and to the proposer.
+- [ ] A `feature.reaper` closes votes that have run out. Game days come
+      from the `clock` service (step 8); in a game without `clock`, one
+      game day is counted as one real hour, and the guide says so.
+- [ ] Tests with an injected clock: a `fellowship` assigns its leader by
+      vote; early pass, early fail, quorum failure at the deadline; a
+      member without `vote_assign` cannot vote on an assignment; a `gang`
+      never opens a vote.
+
+### 14.4 Treasury, tax, levels and benefits
+
+- [ ] `clan deposit <amount>` and `clan withdraw <amount>` against the
+      `economy` service, by power; without `economy` the commands say the
+      treasury is unavailable. Each deposit adds to the member's
+      `donated_gold`. `clan deposits` (the `deposit_list` power) shows who
+      has given what.
+- [ ] `clan tax <percent>` (the `tax` power; at most `CLAN_MAX_TAX`,
+      default 25). While set, that share of every experience or
+      character-point award a member earns goes to the clan's `xp` and to
+      the member's `donated_xp` instead of to the member. `clans` appends
+      a filter to the `rules` service's `award_filters` (12.3).
+      `clan donate xp <amount>` gives directly, where the rules system has
+      spendable experience or points.
+- [ ] Clan levels: when `xp` reaches the government's `xp_per_level` for
+      the next level, the clan's `level` rises and members are told.
+- [ ] Benefits: each `benefits` entry at or below the clan's level grants
+      its tags, check modifiers and pool-maximum bonuses to members whose
+      position has the `benefits` power. Apply them the way achievements
+      are applied (6.5): tags at login and when the level or membership
+      changes, check modifiers through a `feature.check_modifier` with a
+      cache dropped on those same changes. Removing a member removes the
+      tags.
+- [ ] `auto_promote` of `xp` and `gold` is re-evaluated after every
+      donation and tax payment.
+- [ ] Tests: deposit and withdraw by power; tax diverting a share of a
+      kill award; a clan reaching level 2 and its members gaining the
+      benefit, and losing it on exile; a `plutocracy` changing leader when
+      someone out-donates the holder.
+
+### 14.5 Relations
+
+- [ ] `clan declare <clan> = war|hostile|neutral|friendly|ally` (the
+      `declare` power, or a vote; both clans must be `rivalrous` and
+      active). The relation is one-sided as declared; `clan relations`
+      shows both sides. An alliance holds only when both have declared it.
+- [ ] Read-only softcode `clan_relation(a, b)` returns the relation of
+      clan `a` toward `b`, and `clans_at_war(a, b)` is true when either
+      has declared war. These are for builders and for a game's own
+      player-killing rules; the engine attaches no combat consequence
+      (see Non-goals).
+- [ ] Tests: declaring, the alliance needing both sides, a pending clan
+      refused, softcode reading it.
+
+### 14.6 Upkeep
+
+- [ ] A `feature.reaper`, on a slow cadence, using members' last login
+      from their accounts:
+  - dissolves a clan when fewer than `CLAN_MIN_MEMBERS` of its members
+    have logged in within `CLAN_DEATH_DAYS` (a setting in game days,
+    default 2160; 0 disables), returning nothing and announcing it;
+  - replaces the holders of the top position when every one of them has
+    been absent for `CLAN_OVERTHROW_DAYS` (default 952; 0 disables), with
+    the highest-ranking qualifying member who has logged in recently.
 - [ ] The roster prunes itself: a member id that no longer resolves to a
       character is dropped the next time the roster is read, so deleting a
       character (6.3) needs no call into `clans`.
-- [ ] Rewrite showcase 221 and 222 to use the feature; 223 (elections)
-      stays softcode on top of it.
-- [ ] Tests (`tests/test_clans.py`): the whole membership life cycle;
-      each power refused below its rank; the treasury against the
-      `economy` service and unavailable without it; clan talk reaching
-      only members; a door locked by clan and by rank; founding with and
-      without the setting; the roster pruning a deleted character.
+- [ ] Tests with an injected clock for both rules and for pruning.
+
+### 14.7 Talk, who, locks and softcode
+
+- [ ] Clan talk: `clantalk <message>` (alias `ct`) for members whose
+      position has the `channel` power: one propagated action
+      (`clan:on_talk`, hook `CLANTALK`) delivered to online members, with
+      history. Build it on the channel delivery code of 7.2 through the
+      `channels` service; without it the command says clan talk is
+      unavailable. A member of clans in two categories names the clan:
+      `ct <clan> <message>`.
+- [ ] `who` shows the clan name and, for a public position, its title:
+      `clans` appends an entry to the `who` service's `fields` list
+      (step 9).
+- [ ] Read-only softcode, also available in lock expressions: `clan(obj,
+      category='')` (the clan's name or None), `clan_position(obj)` (the
+      position id), `clan_rank(obj)` (the rank number, 0 highest),
+      `clan_has_power(obj, power)`, `clan_level(name)` and
+      `clan_members(name)`. A hall door is
+      `@lock door = clan(enactor) == 'Ravens'`; an armory is
+      `clan_has_power(enactor, 'home_privs')`.
+- [ ] Builder-gated softcode `clan_add(obj, name, position=None)` and
+      `clan_remove(obj, name)`. Events `clan:on_join`, `clan:on_leave`,
+      `clan:on_assign`, `clan:on_level` (hooks `CLANJOIN`, `CLANLEAVE`,
+      `CLANASSIGN`, `CLANLEVEL`).
+- [ ] Admin: `@clan create`, `@clan delete <name>`, `@clan set
+      <name>/<field> = <value>`, `@clan xp <name> = <amount>`.
+- [ ] Rewrite showcase 221 and 222 to use the feature. Showcase 223
+      (elections) becomes an example of choosing the `union` government.
+- [ ] Tests: clan talk reaching only members with the power; a door
+      locked by clan, by rank and by power; the softcode functions.
+
+### Acceptance
+
+- [ ] `tests/test_clans.py` passes, and one test founds a clan under each
+      shipped government and checks who can and cannot do each of:
+      accept a member, assign a position, withdraw from the treasury.
 
 ### Docs
 
-- [ ] New guide `docs/guides/clans.md`. Add to `mkdocs.yml`.
+- [ ] New guide `docs/guides/clans.md`: founding, the shipped governments
+      in a table (who rules, how the top position is filled, what is
+      voted on), positions and powers, voting, the treasury and tax,
+      levels and benefits, relations, upkeep, the settings, the softcode
+      functions, and how to write a government of your own, with a
+      theocracy as the worked example. Add to `mkdocs.yml`.
 - [ ] `docs/guides/features.md`: the `clans` row.
 - [ ] Regenerate the softcode and config references.
 
@@ -1566,8 +1881,9 @@ achievements are reached through `world.rules` and services).
       builder-gated `quest_offer`, `quest_advance(obj, quest, key, by=1)`,
       `quest_complete` and `quest_fail`. `quest_state` is available in
       lock expressions, so a door can open to those who finished a quest.
-- [ ] Rewards are paid through what exists: `world.rules.grant_award`,
-      the `economy` service, `ops.clone` for items, the `achievements`
+- [ ] Rewards are paid through what exists: the `award` function of the
+      `rules` feature (12.3; so hunger and clan tax apply to quest
+      experience too), the `economy` service, `ops.clone` for items, the `achievements`
       service. A reward whose feature is absent is skipped with a WARNING
       naming the quest.
 - [ ] Ship one quest in the Midgaard template (kill five fidos for the
@@ -1670,3 +1986,6 @@ the step, what was decided and why.
 
 | Date | Step | Decision | Reason |
 |---|---|---|---|
+| 2026-11-14 | Decisions | D6: hunger and thirst for Merc only, built on CoffeeMud's mechanics (stomach capacity by weight, loss by tick, exertion and climate, bite-sized eating, escalating reminders, death after 12 hours hungry or 6 thirsty, each need halving recovery, fatigue as an optional third). | The maintainer's answer. |
+| 2026-11-14 | Decisions | D7: clans follow CoffeeMud: governments as data (positions, limits, locks, powers), votes, treasury, tax, clan levels and benefits, relations, upkeep; players found clans for `CLAN_COST`. Conquest, trophies, clan items, ordering underlings, theocracy and family are left out (Non-goals). | The maintainer's answer; the left-out parts need systems REALM lacks. |
+| 2026-11-14 | Decisions | D8: the companion limit is a configurable rule expression (`COMPANION_LIMIT_RULE`), then `GameSystem.companion_limit`, then 2; companions of companions count; `COMPANION_LEVEL_DIFF` as in CoffeeMud. | The maintainer's answer. |
