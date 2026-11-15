@@ -13,7 +13,7 @@ on its own and leaves the suite green.
 
 | # | Step | Size | Status |
 |---|------|------|--------|
-| 1 | Starting points: `--system`, and templates that are full scaffolds | S | [ ] |
+| 1 | Starting points: `--system`, and templates that are full scaffolds | S | [x] |
 | 2 | The solo loop: regeneration, rest, recovery, death, movement cost | M | [ ] |
 | 3 | The character sheet: equipment, skills, prompt, consumables | M | [ ] |
 | 4 | Skills you can use: ability commands and the Merc class skills | M | [ ] |
@@ -221,60 +221,60 @@ class of its own to change.
 
 ### 1.1 `--system`
 
-- [ ] Add `--system gurps|d20|merc` to `realm init` (default `gurps`). It
+- [x] Add `--system gurps|d20|merc` to `realm init` (default `gurps`). It
       selects the class `rules.py` inherits and the import line above it.
       Keep `rules.py.template` valid Python: rewrite the two lines in
       `cmd_init` the way `_rewrite` already edits `config.py.template`.
-- [ ] The commented examples in `rules.py.template` name GURPS's
+- [x] The commented examples in `rules.py.template` name GURPS's
       `TEMPLATES`. Give each system its own example block (GURPS
       `TEMPLATES`, D20 `CLASSES`, Merc `MERC_CLASSES`), selected by
       `--system`.
-- [ ] `--system` with `--features social` or `--features bare` is an error
+- [x] `--system` with `--features social` or `--features bare` is an error
       that says those presets have no rules.
 - [ ] With `--system merc`, `config.py` also gets
       `PLAYER_DEATH = "respawn"` once step 2 adds that setting (leave a
       note in the Decision log if step 1 lands first; add the line in 2.4).
-- [ ] Tests in `tests/test_init_scaffold.py`: for each system, scaffold
+- [x] Tests in `tests/test_init_scaffold.py`: for each system, scaffold
       into `tmp_path`, check `resolve_game_system` returns a `GameRules`
       whose base is that system, and run the scaffold's own `pytest` in a
       subprocess.
 
 ### 1.2 Templates are scaffolds
 
-- [ ] Give `realm/examples/midgaard/` and `realm/examples/spacegame/` their
+- [x] Give `realm/examples/midgaard/` and `realm/examples/spacegame/` their
       own `rules.py` (a `GameRules` subclass of `MercSystem` / `GurpsSystem`)
       and `game.py` (`feature = Feature("<name>")`, the three commented
       examples). Their `config.py` sets `GAME_SYSTEM = "rules.GameRules"`
       and `FEATURES = [*CLASSIC, "game"]`. The spacegame's `ships.py` stays.
-- [ ] `_init_from_template` copies the example, then writes
+- [x] `_init_from_template` copies the example, then writes
       `tests/test_game.py` and `README.md` from the scaffold templates when
       the example does not carry them.
-- [ ] `--template` and `--system` together are an error (the template
+- [x] `--template` and `--system` together are an error (the template
       decides).
-- [ ] `tests/test_midgaard_playable.py` and `tests/test_spacegame.py` load
+- [x] `tests/test_midgaard_playable.py` and `tests/test_spacegame.py` load
       the examples; two games now define top-level modules named `rules`
       and `game`, so use the `clean_import_state` pattern from
       `tests/test_init_scaffold.py` wherever an example's `config.py` is
       loaded.
-- [ ] Extend the scaffold tests: each template scaffolds, its own `pytest`
+- [x] Extend the scaffold tests: each template scaffolds, its own `pytest`
       passes in a subprocess, and its start room is the example's (the
       Common Square, the docking bay).
-- [ ] `tests/test_packaging.py`: the wheel-only run uses
+- [x] `tests/test_packaging.py`: the wheel-only run uses
       `--template midgaard` as well as `spacegame`.
 
 ### Acceptance
 
-- [ ] `realm init a --system merc && cd a && pytest -q && realm features --check`
+- [x] `realm init a --system merc && cd a && pytest -q && realm features --check`
       succeeds, and `score` in that game speaks Merc.
-- [ ] `realm init b --template midgaard && cd b && pytest -q` succeeds and
+- [x] `realm init b --template midgaard && cd b && pytest -q` succeeds and
       `b/` contains `game.py`, `rules.py`, `tests/test_game.py`, `README.md`.
 
 ### Docs
 
-- [ ] `README.md` "Pick a starting point": replace the hand-edit of
+- [x] `README.md` "Pick a starting point": replace the hand-edit of
       `rules.py` with `--system merc`, and drop the sentence saying the
       template has no `game.py`.
-- [ ] `docs/getting-started/first-game.md`: `--system`.
+- [x] `docs/getting-started/first-game.md`: `--system`.
 
 ---
 
@@ -1989,3 +1989,7 @@ the step, what was decided and why.
 | 2026-11-14 | Decisions | D6: hunger and thirst for Merc only, built on CoffeeMud's mechanics (stomach capacity by weight, loss by tick, exertion and climate, bite-sized eating, escalating reminders, death after 12 hours hungry or 6 thirsty, each need halving recovery, fatigue as an optional third). | The maintainer's answer. |
 | 2026-11-14 | Decisions | D7: clans follow CoffeeMud: governments as data (positions, limits, locks, powers), votes, treasury, tax, clan levels and benefits, relations, upkeep; players found clans for `CLAN_COST`. Conquest, trophies, clan items, ordering underlings, theocracy and family are left out (Non-goals). | The maintainer's answer; the left-out parts need systems REALM lacks. |
 | 2026-11-14 | Decisions | D8: the companion limit is a configurable rule expression (`COMPANION_LIMIT_RULE`), then `GameSystem.companion_limit`, then 2; companions of companions count; `COMPANION_LEVEL_DIFF` as in CoffeeMud. | The maintainer's answer. |
+| 2026-11-14 | 1.1 | Step 1 landed before step 2, so `realm init --system merc` does not yet write `PLAYER_DEATH = "respawn"`; step 2.4 adds the setting and the line in the scaffold's `config.py` (and in the Midgaard template, per D1). | The plan's own instruction for this order. |
+| 2026-11-14 | 1.1 | The per-system examples are three snippet files, `realm/templates/rules_examples_<system>.template`, put in place of a marker line in `rules.py.template` (which stays valid Python and names GURPS in its two rewritten lines). The Merc example overrides `MercSystem._classes()` and the D20 one `D20System._class_options()`, since chargen, first-level hit points and the starting weapon all read the class table from there; neither is renamed to a public hook in this step. | One place per system's example text; no rename outside the step's scope. |
+| 2026-11-14 | 1.2 | The examples' `GameRules` do not set `system_id`; they keep `merc` and `gurps`. The scaffold's own `rules.py` still sets the game's id. | Characters are stamped with `system_id`; a new id would make every character in an existing Midgaard or station database log in under the "made under different rules" warning (rule 9). |
+| 2026-11-14 | 1.2 | `test_midgaard_playable.py` and `test_spacegame.py` are unchanged: neither loads an example's `config.py` (they import the area JSON and `ships.py` directly). The new tests that do load one use `clean_import_state`. | Nothing to isolate there. |

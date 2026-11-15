@@ -2,6 +2,8 @@
 Space Game - A GURPS-based space exploration game built on REALM.
 
 This config file is loaded by `realm start` when run from this directory.
+The rules are ``rules.py`` (GURPS, subclassed); the game's own commands,
+behaviors and softcode functions go in ``game.py``.
 """
 
 # Game identity
@@ -9,6 +11,14 @@ GAME_NAME = "Space Station Alpha"
 
 # Database
 DB_PATH = "spacegame.db"
+
+# The rules: GameRules in rules.py, a subclass of the built-in GURPS system.
+GAME_SYSTEM = "rules.GameRules"
+
+# Every built-in feature, and this game's own game.py.
+from realm import CLASSIC  # noqa: E402
+
+FEATURES = [*CLASSIC, "game"]
 
 # Network
 TELNET_PORT = 4000

@@ -3,6 +3,7 @@ REALM CLI - Command line interface for running REALM-based games.
 
 Usage:
     realm init <gamename>    Create a new game project
+    realm init <gamename> --system merc        ... on the Merc rules (gurps, d20)
     realm init <gamename> --template midgaard   ... from a shipped example
     realm start              Start the game server from current directory
     realm start --reset-db   Reset database and start
@@ -65,6 +66,40 @@ PRESETS: dict[str, tuple[list[str] | None, bool]] = {
 }
 
 
+#: ``realm init --system``: the stock rules system a scaffold's rules.py
+#: subclasses, as (module, class, label).
+SYSTEMS: dict[str, tuple[str, str, str]] = {
+    "gurps": ("realm.games.gurps", "GurpsSystem", "GURPS"),
+    "d20": ("realm.games.d20", "D20System", "D20"),
+    "merc": ("realm.games.merc", "MercSystem", "Merc"),
+}
+DEFAULT_SYSTEM = "gurps"
+
+#: The two lines of rules.py.template that name its base system (GURPS, so
+#: the template stays valid Python), and the marker its examples replace.
+_RULES_IMPORT = "from realm.games.gurps import GurpsSystem\n"
+_RULES_CLASS = "class GameRules(GurpsSystem):\n"
+_RULES_EXAMPLES = "    # __SYSTEM_EXAMPLES__\n"
+
+
+def _replace_once(text: str, old: str, new: str) -> str:
+    """``text`` with its one ``old`` replaced; raises if the template lost it."""
+    if text.count(old) != 1:
+        raise ValueError(f"template drifted: expected {old!r} exactly once")
+    return text.replace(old, new)
+
+
+def _rules_for(system: str, text: str) -> str:
+    """rules.py.template, rendered for the rules system ``system``."""
+    module, cls, label = SYSTEMS[system]
+    text = _replace_once(text, _RULES_IMPORT, f"from {module} import {cls}\n")
+    text = _replace_once(text, _RULES_CLASS, f"class GameRules({cls}):\n")
+    text = _replace_once(text, _RULES_EXAMPLES,
+                         get_template(f"rules_examples_{system}.template"))
+    return (text.replace("__SYSTEM_LABEL__", label)
+            .replace("__SYSTEM_PATH__", f"{module}.system.{cls}"))
+
+
 def _features_settings(names: list[str]) -> str:
     listed = ", ".join(f'"{n}"' for n in names)
     return ("# The features your game is made of: built-in features by name, and\n"
@@ -88,9 +123,10 @@ def cmd_init(args: argparse.Namespace) -> int:
     - tests/test_game.py: a smoke test (``pytest``)
     - README.md: how to start, test, and where code goes
 
-    ``--features`` picks the preset: ``classic`` (every built-in, and
-    rules.py), ``social`` (no rules, combat or money) or ``bare``
-    (accounts, look, building and the game).
+    ``--system`` picks the rules system rules.py subclasses (``gurps``,
+    the default, ``d20`` or ``merc``). ``--features`` picks the preset:
+    ``classic`` (every built-in, and rules.py), ``social`` (no rules,
+    combat or money) or ``bare`` (accounts, look, building and the game).
 
     With --template, copies the shipped example ``realm/examples/<template>/``.
     """
@@ -103,6 +139,21 @@ def cmd_init(args: argparse.Namespace) -> int:
               f"Choose one of: {', '.join(PRESETS)}.")
         return 1
     feature_list, with_rules = PRESETS[preset]
+
+    system = args.system
+    if system is not None:
+        if args.template:
+            print(f"Error: --system and --template together: the template decides "
+                  f"its rules (drop --system {system}).")
+            return 1
+        if system not in SYSTEMS:
+            print(f"Error: unknown --system '{system}'. "
+                  f"Choose one of: {', '.join(SYSTEMS)}.")
+            return 1
+        if not with_rules:
+            print(f"Error: --system {system} with --features {preset}: that preset "
+                  f"has no rules (no rules.py or game system). Use --features classic.")
+            return 1
 
     # Validate name
     if not game_name.isidentifier():
@@ -144,17 +195,20 @@ def cmd_init(args: argparse.Namespace) -> int:
     (project_dir / "config.py").write_text(config_content)
     print("  Created config.py")
 
-    def from_template(name: str, **extra: str) -> str:
-        text = (get_template(name).replace("__GAME_NAME__", display_name)
-                .replace("__GAME_ID__", system_id))
+    def from_template_text(text: str, **extra: str) -> str:
+        text = text.replace("__GAME_NAME__", display_name).replace("__GAME_ID__", system_id)
         for key, value in extra.items():
             text = text.replace(key, value)
         return text
 
+    def from_template(name: str, **extra: str) -> str:
+        return from_template_text(get_template(name), **extra)
+
     if with_rules:
         # rules.py — the game's own GameSystem subclass, pre-wired and
         # selected by config.py. This is where the user shapes chargen/skills.
-        (project_dir / "rules.py").write_text(from_template("rules.py.template"))
+        rules = _rules_for(system or DEFAULT_SYSTEM, get_template("rules.py.template"))
+        (project_dir / "rules.py").write_text(from_template_text(rules))
         print("  Created rules.py")
 
     # Create game.py — the game's own feature (commands, behaviors, softcode
@@ -217,10 +271,9 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
     print(f"Creating REALM project: {game_name} (from template: {template})")
 
     # Copy the template directory. __init__.py makes the example an
-    # importable package; a scaffolded game dir isn't one, and its imports
-    # are repo-relative, so skip it. (The template folder itself carries
-    # only the runnable game — config.py, ships.py, data/ — so there is no
-    # build-time or pack-redundant Python left to exclude.)
+    # importable package inside realm; a scaffolded game dir isn't one (its
+    # config.py imports rules.py, game.py and the rest as top-level modules),
+    # so skip it.
     with importlib.resources.as_file(source) as template_dir:
         shutil.copytree(
             template_dir,
@@ -228,6 +281,21 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
             ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.db",
                                           "*.sqlite*", "__init__.py"),
         )
+
+    # Every game gets the scaffold's smoke test and README; an example that
+    # carries its own keeps them.
+    display_name = game_name.replace("_", " ").title()
+    scaffold = {"tests/test_game.py": "test_game.py.template",
+                "README.md": "README.md.template"}
+    for rel, template_name in scaffold.items():
+        target = project_dir / rel
+        if target.exists():
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        rules_line = " **Your rules:** `rules.py`." if (project_dir / "rules.py").exists() else ""
+        target.write_text(get_template(template_name)
+                          .replace("__GAME_NAME__", display_name)
+                          .replace("__RULES_LINE__", rules_line))
 
     # List what was created
     for item in sorted(project_dir.rglob("*")):
@@ -240,7 +308,8 @@ def _init_from_template(game_name: str, project_dir: Path, template: str) -> int
     print(f"  cd {game_name}")
     print("  realm start")
     print()
-    print("This template includes example game code - explore and modify!")
+    print("Add commands and behaviors in game.py; customize your rules in rules.py; "
+          "other settings are in config.py. Run the tests with pytest.")
 
     return 0
 
@@ -501,6 +570,9 @@ def main() -> int:
         "--template", "-t",
         help="Use an example template (e.g., spacegame)",
     )
+    init_parser.add_argument(
+        "--system", choices=list(SYSTEMS),
+        help="the rules system rules.py builds on: gurps (default), d20 or merc")
     init_parser.add_argument(
         "--features", default="classic", choices=list(PRESETS),
         help="classic: every built-in feature and a rules.py (default); "

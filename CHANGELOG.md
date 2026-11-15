@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0 — the MUD plan (in progress)
+
+The steps of `MUD_PLAN.md`, recorded as they land.
+
+### Starting points (step 1)
+
+- `realm init --system gurps|d20|merc` picks the rules system the
+  scaffold's `rules.py` inherits (GURPS by default), and its commented
+  examples are written for that system (GURPS `TEMPLATES`, D20 `CLASSES`,
+  Merc `MERC_CLASSES`). `--system` with `--features social` or `bare`, or
+  with `--template`, is refused.
+- The `midgaard` and `spacegame` templates are full scaffolds: each has its
+  own `rules.py` (a `GameRules` subclass of `MercSystem` / `GurpsSystem`),
+  `game.py`, and `config.py` with `GAME_SYSTEM = "rules.GameRules"` and
+  `FEATURES = [*CLASSIC, "game"]`. `realm init --template` also writes
+  `tests/test_game.py` and `README.md` when the example has none.
+- The GURPS class example in the scaffold's `rules.py` imported
+  `ChoiceStep` in the class body, where its method could not see it;
+  uncommented, it raised `NameError`. The import is now inside the method.
+- Saved worlds: unchanged. The examples' `GameRules` keep the stock
+  `system_id` (`merc`, `gurps`), so characters in an existing Midgaard or
+  station database still match their rules. A game scaffolded from a
+  template before 0.3.0 keeps working as it was.
+
 ## 0.2.0 — the kernel plan
 
 The engine was split into a small kernel and features

@@ -1,0 +1,92 @@
+"""
+Space Station Alpha — your game's rules package.
+
+This is YOUR copy of the game system, and the blessed place to shape how
+characters are made and how skills work. Out of the box it behaves
+*exactly* like the built-in GURPS rules — it just subclasses them. You
+customize by uncommenting the hooks below; you never edit the `realm`
+package itself, so upgrading REALM can't clobber your game.
+
+`config.py` selects this class with `GAME_SYSTEM = "rules.GameRules"` (a
+dotted import path), so THIS file is the single place your rules are
+decided. The base class GameRules subclasses is the choice: swap it
+for another built-in system (GurpsSystem, D20System, MercSystem) and the
+same world runs those rules.
+
+Learn the model:
+  - Concepts → "How a Character Is Born"
+  - How-To   → "Add a Character Class"
+  - How-To   → "Customize Character Creation"
+
+Prefer a built-in with no changes? Delete this file and set
+`GAME_SYSTEM = "realm.games.gurps.system.GurpsSystem"` in config.py.
+"""
+
+from __future__ import annotations
+
+from realm.games.gurps import GurpsSystem
+
+
+class GameRules(GurpsSystem):
+    """Your game's rules. Inherits GURPS; override the hooks to customize."""
+
+    # system_id stays "gurps": characters are stamped with it, and a
+    # station database made before this file existed keeps matching.
+
+    # --- Add or change character classes -----------------------------------
+    #
+    # A "class" is a (blurb, stats, skills) entry offered at creation.
+    # Uncomment to offer your own alongside (or instead of) the built-ins:
+    #
+    # from realm.games.gurps import TEMPLATES
+    #
+    # MY_TEMPLATES = {
+    #     **TEMPLATES,                       # keep the stock classes (optional)
+    #     "pilot": (
+    #         "sharp reflexes, ice nerves (DX 12; piloting, gunnery)",
+    #         {"strength": 10, "dexterity": 12, "intelligence": 11, "health": 10},
+    #         {"piloting": 13, "gunnery": 12},
+    #     ),
+    # }
+    #
+    # def chargen_steps(self):
+    #     from realm.std.rules import ChoiceStep
+    #
+    #     steps = super().chargen_steps()
+    #     steps[0] = ChoiceStep(
+    #         "template", "Pick your background:",
+    #         {n: b for n, (b, _s, _k) in self.MY_TEMPLATES.items()},
+    #         self._apply_template,
+    #     )
+    #     return steps
+    #
+    # def _apply_template(self, player, name):
+    #     _blurb, stats, skills = self.MY_TEMPLATES[name]
+    #     for stat, value in stats.items():
+    #         player.db.set(stat, value)
+    #     for skill, level in skills.items():
+    #         player.db.set(f"skill_{skill}", level)
+    #     player.db.template = name
+
+    # --- Skills your classes reference -------------------------------------
+    #
+    # Give any new skill an untrained default: (attribute, penalty).
+    #
+    # def skill_defaults(self):
+    #     return {**super().skill_defaults(),
+    #             "piloting": ("dexterity", -4),
+    #             "gunnery":  ("dexterity", -4)}
+
+    # --- Advancement cost (character points per +1 skill level) ------------
+    #
+    # def improve_cost(self, skill, current_level):
+    #     return 4
+
+    # --- No creation menu: instant characters ------------------------------
+    #
+    # Return [] to skip chargen entirely (e.g. drop players into an in-world
+    # training school instead). See the "Customize Character Creation"
+    # how-to.
+    #
+    # def chargen_steps(self):
+    #     return []

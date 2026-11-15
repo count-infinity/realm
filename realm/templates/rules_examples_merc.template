@@ -1,0 +1,34 @@
+    # --- Add or change character classes -----------------------------------
+    #
+    # A Merc class is a dict: its blurb, hit die (hit points gained per
+    # level), thac0_rate (levels per point of THAC0; lower fights better),
+    # mana per level, starting stats, starting skill percentages and the
+    # weapon it starts with. Uncomment to offer your own alongside (or
+    # instead of) the built-ins:
+    #
+    # from realm.games.merc import MERC_CLASSES
+    #
+    # MY_CLASSES = {
+    #     **MERC_CLASSES,                    # keep the stock classes (optional)
+    #     "ranger": {
+    #         "blurb": "a woodland scout: a good hit die, stealth and tracking",
+    #         "hit_die": 8, "thac0_rate": 1, "mana_per_level": 2,
+    #         "stats": {"dexterity": 16, "wisdom": 14},
+    #         "skills": {"melee": 35, "stealth": 30, "tracking": 40},
+    #         "starting_weapon": {"name": "a hunting knife", "damage_dice": "1d4"},
+    #     },
+    # }
+    #
+    # def _classes(self):
+    #     # Chargen, the first-level hit points and the starting weapon all
+    #     # read the class from here.
+    #     return self.MY_CLASSES
+
+    # --- Skills your classes reference -------------------------------------
+    #
+    # Skills are percentages. Give any new skill an untrained default:
+    # (attribute, penalty), so an untaught character rolls near zero.
+    #
+    # def skill_defaults(self):
+    #     return {**super().skill_defaults(),
+    #             "tracking": ("wisdom", -50)}

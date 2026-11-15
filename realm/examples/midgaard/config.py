@@ -8,12 +8,14 @@ imported the way a builder would:
   from its ROM ``.are`` with ``realm import-rom --repop`` so its mobs
   (the beastly fido, beggars, cityguards) respawn on death. Import any other
   converted ROM area alongside it the same way.
-- **Rules**: the ``merc`` game system (``GAME_SYSTEM`` below) - THAC0
+- **Rules**: ``rules.py``, a subclass of the ``merc`` game system - THAC0
   combat, percentile skills, XP-and-level advancement. Pick a class at
   character creation; a level-1 barbarian starts kitted with a club in the
   Common Square, ready to thrash fidos and trade at the shops next door.
 - **Spells**: the built-in ``merc-classic`` content pack (the mage/cleric
   lines plus the breaths), imported at boot the way ``@pack import`` would.
+- **Code**: ``game.py``, the game's own feature (commands, behaviors,
+  softcode functions).
 """
 
 GAME_NAME = "Midgaard"
@@ -24,9 +26,14 @@ TELNET_HOST = "0.0.0.0"
 ENABLE_TELNET = True
 ENABLE_WEBSOCKET = False
 
-# The rules package. This is the one line that makes it a Diku: swap it for
-# realm.games.gurps.system.GurpsSystem or .D20System and the same world runs those rules.
-GAME_SYSTEM = "realm.games.merc.system.MercSystem"
+# The rules: GameRules in rules.py, which subclasses the built-in Merc
+# system. Its base class is what makes this a Diku; change the hooks there.
+GAME_SYSTEM = "rules.GameRules"
+
+# Every built-in feature, and this game's own game.py.
+from realm import CLASSIC  # noqa: E402
+
+FEATURES = [*CLASSIC, "game"]
 
 # Show the dice: every combat line carries its roll arithmetic
 # (players can turn theirs off with `showrolls off`).

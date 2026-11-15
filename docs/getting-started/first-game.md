@@ -15,7 +15,8 @@ This scaffolds a small project:
 - `config.py` holds your settings (ports, game name, tick rate) and
   `FEATURES`, the list of features your game is made of.
 - **`rules.py`** is your own game system (character creation, skills,
-  advancement), pre-wired and ready to customize.
+  advancement), pre-wired and ready to customize. It inherits GURPS
+  unless you pick another system (below).
 - **`game.py`** is your game's own feature: the place for your commands,
   behaviors and softcode functions. It has a commented example of each.
 - `data/` holds the SQLite database and welcome screen.
@@ -26,10 +27,18 @@ This scaffolds a small project:
 
 The server is now listening on telnet port 4000.
 
+To build on different rules, pick the system `rules.py` inherits:
+`realm init mygame --system d20` or `--system merc` (Diku-style: classes,
+THAC0, experience and levels). The default is `gurps`. The commented
+examples in `rules.py` are written for the system you pick. Choose before
+the first character is created: characters record the system they were
+made under.
+
 To start smaller, pick a preset: `realm init mygame --features social`
 (no rules, combat or money, and no `rules.py`) or `--features bare`
 (only logging in, looking and building). `classic`, every built-in
-feature, is the default.
+feature, is the default. The smaller presets have no rules, so they do not
+take `--system`.
 
 ## Choose your features
 
@@ -68,8 +77,8 @@ create Keeper mypassword
 
 **The first character created on a fresh database is the superuser** —
 you'll be told so at creation. You'll then pick a character background
-and a bonus skill (your `rules.py` builds on GURPS by default; to build
-on D20 instead, change the base class in `rules.py` — see
+and a bonus skill (your `rules.py` builds on GURPS by default; with
+`--system d20` or `--system merc` you would pick a class instead — see
 [Game Systems](../guides/game-systems.md)) and arrive in **The Void**,
 REALM's Limbo. You have every builder and admin command;
 characters created after you are ordinary players (promote them with
@@ -97,6 +106,12 @@ realm init spacestation --template spacegame
 cd spacestation
 realm start
 ```
+
+A template is a full project: it has its own `rules.py`, `game.py`,
+smoke test and README, like `realm init` without one, and its rules system
+is the template's choice (so `--template` does not take `--system`).
+`realm init mytown --template midgaard` is the other example, a Diku town
+on the Merc rules.
 
 Connect, create a character, and you'll be walked through **character
 generation** — pick a background (soldier, infiltrator, face,

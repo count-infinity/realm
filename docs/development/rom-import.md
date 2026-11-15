@@ -36,7 +36,8 @@ area failed to parse. The converter itself is `realm.tools.rom_import`
 
 > **Playable example.** `realm/examples/midgaard` is a complete, runnable game
 > built from this pipeline: the ROM Midgaard converted with `--repop`, the
-> `merc` game system, and the `merc-classic` spell pack. `realm init
+> `merc` game system (subclassed in its own `rules.py`), and the
+> `merc-classic` spell pack. `realm init
 > --template midgaard`, connect, make a level-1 **barbarian**, and you wake
 > in the Common Square with a club to thrash respawning fidos and shops to
 > trade at. `tests/test_midgaard_playable.py` walks that whole loop

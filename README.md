@@ -62,9 +62,9 @@ character and you can play at once, or start building new areas onto the
 town. Other ROM areas can be converted and loaded beside it with
 `realm import-rom` ([Importing ROM areas](docs/development/rom-import.md)).
 
-The template contains only `config.py` and the area file. When you want
-Python code of your own, create a `game.py` next to it and list it in
-`config.py`, as [Features](docs/guides/features.md) describes.
+The template is a full project like any other: `config.py`, `rules.py`
+(a class that inherits the Merc rules), `game.py` (your own commands and
+behaviors), a smoke test and a short README, plus the area file.
 
 ### An empty world with a rules system you can change
 
@@ -77,17 +77,16 @@ This writes `config.py` (settings), `rules.py` (your rules), `game.py`
 world is empty, which is what you want if you plan to build your own.
 
 `rules.py` holds a class that inherits a stock rules system, GURPS by
-default, and you change the game by overriding parts of it. To start from
-Diku-style rules instead, inherit the Merc system:
+default, and you change the game by overriding parts of it. `--system`
+picks the system it inherits: `gurps`, `d20` or `merc` (Diku-style rules
+on an empty world):
 
-```python
-# rules.py
-from realm.games.merc import MercSystem
-
-
-class GameRules(MercSystem):
-    system_id = "mygame"
+```bash
+realm init mygame --system merc
 ```
+
+The commented examples in `rules.py` (adding a class, a skill) are written
+for the system you picked.
 
 Choose the rules system before the first character is created. Characters
 record the system they were made under, and there is no migration between

@@ -40,6 +40,15 @@ def test_the_package_alone_runs_the_cli(tmp_path):
     assert (work / "demo" / "ships.py").is_file()
     assert (work / "demo" / "data" / "areas" / "station.json").is_file()
 
+    init = _run(["-m", "realm.cli", "init", "town", "--template", "midgaard"], work, site)
+    assert init.returncode == 0, init.stdout + init.stderr
+    for name in ("config.py", "game.py", "rules.py", "tests/test_game.py", "README.md",
+                 "data/areas/midgaard.json"):
+        assert (work / "town" / name).is_file(), name
+    tests = _run(["-m", "pytest", "-q", "-p", "no:randomly", "-p", "no:cacheprovider"],
+                 work / "town", site)
+    assert tests.returncode == 0, tests.stdout + tests.stderr
+
     features = _run(["-m", "realm.cli", "features"], work / "demo", site)
     assert features.returncode == 0, features.stdout + features.stderr
     assert "combat" in features.stdout

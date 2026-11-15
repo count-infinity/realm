@@ -19,6 +19,8 @@ GAME_SYSTEM = "realm.games.gurps.system.GurpsSystem"  # a built-in, unmodified (
 `realm init` writes the first form: the path points at your `GameRules`
 class in `rules.py`, so what it subclasses is the *only* place the rules
 are decided — there's no id string to fall out of sync with it.
+`realm init --system gurps|d20|merc` picks that base class (GURPS by
+default), and the commented examples in `rules.py` are written for it.
 
 The `rules` feature (in `CLASSIC`) resolves it when the world is built and
 installs it as `world.rules`, with the world's skill checks resolving and

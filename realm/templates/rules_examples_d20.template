@@ -1,0 +1,37 @@
+    # --- Add or change character classes -----------------------------------
+    #
+    # A class is a (blurb, stats, skills) entry offered at creation. Under
+    # D20 a skill level is a bonus: a check rolls d20 + skill against DC 15.
+    # Uncomment to offer your own alongside (or instead of) the built-ins:
+    #
+    # from realm.games.d20 import CLASSES
+    #
+    # MY_CLASSES = {
+    #     **CLASSES,                         # keep the stock classes (optional)
+    #     "ranger": (
+    #         "woodland scout, at home in the wild",
+    #         {"strength": 12, "dexterity": 15, "intelligence": 11, "health": 12},
+    #         {"stealth": 12, "observation": 12, "tracking": 14},
+    #     ),
+    # }
+    #
+    # def _class_options(self):
+    #     # The classes chargen offers. This replaces the stock list and any
+    #     # class_def objects built in the world; merge in
+    #     # super()._class_options() to keep the world's.
+    #     return self.MY_CLASSES
+
+    # --- Skills your classes reference -------------------------------------
+    #
+    # Give any new skill an untrained default: (attribute, penalty).
+    #
+    # def skill_defaults(self):
+    #     return {**super().skill_defaults(),
+    #             "tracking": ("intelligence", -4)}
+
+    # --- Advancement cost (character points per +1 skill level) ------------
+    #
+    # Stock D20 escalates: max(2, (level - 8) // 2). A flat price instead:
+    #
+    # def improve_cost(self, skill, current_level):
+    #     return 3
