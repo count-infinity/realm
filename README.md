@@ -1,56 +1,119 @@
 # REALM
 
-**Real-time Event-Action Layered MUD framework** — a modern Python engine
-for building text-based multiplayer games (MUDs, MUSHes), with the
-complexity of a MU* wrapped up so games are written in *softcode*, live,
-from inside the game.
+REALM is a Python engine for text-based multiplayer games: MUDs, MUSHes and
+their relatives. It runs as a single asyncio process with a SQLite
+database, so there is nothing else to install or operate. It needs Python
+3.12 or newer, and it is pre-alpha: the API changed a great deal in 0.2.0
+(see the [changelog](CHANGELOG.md)).
 
-Async (asyncio) with SQLite persistence — a single process, with no
-external services to stand up. Python 3.12+.
+A REALM game is made in two places. Rules that need real code, such as how
+characters are created, how skills improve and how combat resolves, are
+written in Python in your game's own directory. The world itself (rooms,
+objects, NPCs and the scripts that make them react) is built from inside
+the running game, in a sandboxed scripting language called softcode, with
+no restart. The two are independent. You can run a stock rules system and
+only build, or write your own rules and leave the building to others.
 
-## Install & run
+## Install and run
 
 ```bash
 git clone https://github.com/count-infinity/realm.git
 python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -e realm              # install the cloned engine (stay in the parent dir)
 
-realm init mygame && cd mygame    # your game — a sibling of the engine clone, not inside it
+realm init mygame && cd mygame    # your game is a sibling of the engine clone, not inside it
 realm start                       # telnet server on port 4000
 ```
 
-Then connect with any MUD client (Mudlet, TinTin++) or plain telnet:
+Connect with any MUD client (Mudlet, TinTin++) or plain telnet:
 
 ```bash
 telnet localhost 4000
 ```
 
 ```text
-create Keeper mypassword          # the first character is the SUPERUSER
-look                              # you start in The Void, an empty Limbo
+create Keeper mypassword          # the first character is the superuser
+look                              # you start in The Void, an empty room
 help                              # every command, grouped and searchable
 ```
 
-`Ctrl+C` stops the server; everything lives in the SQLite database, so
+`Ctrl+C` stops the server. Everything lives in the SQLite database, so
 `realm start` resumes exactly where you left off.
 
-> `pip install -e realm` (editable) is the install for now; once published
-> it becomes `pip install realm`.
+`pip install -e realm` (an editable install of the clone) is the only
+install for now. Once REALM is published it becomes `pip install realm`.
 
-## Where your code goes
+## Pick a starting point
 
-Your game is a directory: `config.py` (settings, and `FEATURES`, the list
-of features it is made of), `game.py` (your own feature), `rules.py` (your
-game system) and `tests/`. What to declare for each thing you add, from a
-command to a resource pool to a network protocol, is one table:
-**[Where things go](docs/guides/features.md#where-things-go)**. Rooms,
-items and NPCs are built in the game itself (`@dig`, `@create`, softcode),
-and reusable content ships as [content packs](docs/guides/content-packs.md).
+`realm init` can start you in three different places, depending on how
+much of a game you want on the first day.
 
-## Built live, in softcode
+### A complete Diku-style game
+
+```bash
+realm init mygame --template midgaard
+cd mygame && realm start
+```
+
+This gives you the classic town of Midgaard (143 rooms, with shops, guards
+and monsters that respawn) running on the Merc rules: five classes, THAC0
+combat, experience and levels, and a pack of 23 spells. Create a
+character and you can play at once, or start building new areas onto the
+town. Other ROM areas can be converted and loaded beside it with
+`realm import-rom` ([Importing ROM areas](docs/development/rom-import.md)).
+
+The template contains only `config.py` and the area file. When you want
+Python code of your own, create a `game.py` next to it and list it in
+`config.py`, as [Features](docs/guides/features.md) describes.
+
+### An empty world with a rules system you can change
+
+```bash
+realm init mygame
+```
+
+This writes `config.py` (settings), `rules.py` (your rules), `game.py`
+(your own commands and behaviors), a smoke test and a short README. The
+world is empty, which is what you want if you plan to build your own.
+
+`rules.py` holds a class that inherits a stock rules system, GURPS by
+default, and you change the game by overriding parts of it. To start from
+Diku-style rules instead, inherit the Merc system:
+
+```python
+# rules.py
+from realm.games.merc import MercSystem
+
+
+class GameRules(MercSystem):
+    system_id = "mygame"
+```
+
+Choose the rules system before the first character is created. Characters
+record the system they were made under, and there is no migration between
+systems.
+
+### A smaller game
+
+`realm init mygame --features social` leaves out rules, combat and money,
+for a game that is about talking and building. `--features bare` keeps
+only logging in, looking and building. Either can grow later by adding
+features to the list in `config.py`.
+
+There is also a second example game, a GURPS-based space station with an
+infiltration scenario: `realm init mygame --template spacegame`.
+
+## Building: work done inside the game
+
+The first character created on a server is the superuser and has every
+building command. To let another player build, give them the builder tag:
+`@tag <name> = builder`.
+
+Building is done live. These five lines make a room, give it a description
+that shows an extra word to observant characters, and add a parrot that
+speaks every eight seconds:
 
 ```text
-# The whole stack in five in-game lines — no world files, no restart:
 @dig The Garden = north
 @desc here = Roses climb a broken trellis. [[result = ansi('rh', 'Thorns') if skill('observation') >= 12 else '']]
 @create parrot
@@ -58,101 +121,136 @@ and reusable content ships as [content packs](docs/guides/content-packs.md).
 @set parrot/on_tick = say Pieces of eight!
 ```
 
-## Inside REALM
+Three documents teach it, in this order:
 
-The kernel (`realm/core`, `scripting`, `server`, ...) holds mechanisms and
-imports no feature; every built-in is a feature package in
-`realm/std/<name>/` (game systems in `realm/games/<name>/`), declared with
-the same API your `game.py` uses. `tests/test_boundaries.py` enforces it;
-see [Contributing](docs/development/contributing.md#where-new-code-goes).
-The names a game may import are listed in
-[Public API](docs/reference/public-api.md).
+1. [The tutorial](docs/tutorial/index.md) builds a complete adventure, The
+   Abandoned Lighthouse, from an empty database over fourteen chapters. It
+   starts with rooms and doors and ends with shops, crime and magic.
+2. [The showcase](docs/showcase/index.md) is 231 worked builds, each one a
+   thing a builder might want and the softcode that makes it: a trainer
+   NPC, recipe crafting, achievements, a bank, a boss with phases.
+3. [The softcode reference](docs/reference/softcode.md) lists every
+   function, trigger and event.
 
-## The example game
+[World Management](docs/guides/world-management.md) covers exporting and
+importing areas and the tools for running a live world.
 
-A GURPS-flavored space station with an infiltration scenario, combat, and
-shops — and it's built the way REALM wants games built: its classes,
-skills, and gear are an importable **content pack** (`gurps-scifi`), and
-its world (Space Station Alpha + Nexagen Tower) is an importable **area
-file** — data, not hardcoded Python.
+## Programming: work done in Python
 
-```bash
-realm init spacestation --template spacegame
-cd spacestation && realm start
-```
+Your game is a directory, and REALM is a library it uses. You never edit
+the engine to change your game.
 
-## What's in the box
+`rules.py` is the game system. It decides how a character is created, how
+a skill check is rolled, what a kill awards and how that award turns into
+advancement, what the `score` command shows, and which resource pools
+(hit points, mana, anything else) characters have. A Diku-like game with
+a few changes usually starts as a subclass of `MercSystem` that overrides
+the parts that differ. [Game Systems](docs/guides/game-systems.md)
+explains each of those decisions, and
+[Creating Your Own System](docs/guides/creating-your-own-system.md) builds
+a new one from nothing, including its combat rules.
 
-- **Action propagation** — every game action flows through one two-pass
-  (check/react), vetoable pipeline; per-looker perception applies.
-- **Softcode** — a sandboxed, Turing-complete scripting layer builders
-  use *in-game*: `$`-commands, `^listen`, `ON_<EVENT>` triggers, `on_tick`
-  behaviors, inline `[[...]]` in descriptions, and a Penn-style function
-  library — all under an ownership/authority model (`controls()`).
-- **Data-driven rules** — skills, classes, and even a game system's
-  *resolution rule* are data, editable in-game and shipped as importable
-  **content packs** (`@pack`, `realm pack import`). Resolution composes
-  from neutral dice primitives (`margin_under`, `net_successes`, `band`…)
-  so GURPS, a Shadowrun-style dice pool, and a starship's attack all run
-  through one entity-agnostic resolver; drop to native Python with
-  `@softcode_function` when you need to.
-- **Swappable game systems** — GURPS and D20 ship in-box and swap the
-  *whole* rules package (chargen, skill dice, advancement, combat,
-  currency) from one config line — a dotted import path to your own
-  subclass in `rules.py`.
-- **Multiroom actions** — actions can reach beyond the room (scry, remote
-  cast, zone alarm) while still running the two-pass engine, so wards at
-  either end veto and occupants react; gated by a `reach` lock.
-- **Combat** — beat-driven encounters, melee + ranged (aim/cover/range
-  bands), maneuvers, strategies as NPC AI, effects, loot.
-- **Living worlds** — NPCs with behaviors (wander, guard, patrol,
-  shopkeeper, spawners), dispositions NPCs remember, followers & parties,
-  zones with zone-wide softcode and policy.
-- **Systems** — economy & shops, skill checks & contests, perception
-  (light/dark/invisibility), locks, per-viewer descriptions, condition
-  effects, character progression.
-- **Color & clients** — pipe-code markup rendered once at the protocol
-  edge (efficient ANSI, no string-splitting breakage); telnet with GMCP,
-  WebSocket, and custom protocols.
-- **Building & operations** — rich OLC (`@dig`, `@create`, `@set`,
-  `@lock`, `@behavior`, `@zone`, `@attr`, …), a searchable help system,
-  world search (`@find`, `search_world`), attribute flags
-  (secret/visual/safe), and Terraform-style area import/export
-  (`@export` / `@import` with a plan → apply diff).
+`game.py` is your game's feature: the place for new commands, NPC
+behaviors, softcode functions for your builders, reactions to events,
+settings and the rest. One table says what to declare for each of them,
+with a short example of every row:
+[Where things go](docs/guides/features.md#where-things-go).
+
+The names a game may import are listed in the
+[Public API](docs/reference/public-api.md), and they are the only ones
+that will not move between releases without notice. The scaffold includes
+a test that boots your game in memory; run it with `pytest`, and add your
+own beside it.
+
+## What is not built yet
+
+It is better to know these before you plan a game around them.
+
+- **Accounts.** A login is one character with its own password. There is
+  no account that owns several characters, so nothing (achievements,
+  unlocks, a shared bank) can apply across a player's characters. Login is
+  itself a feature, so a game can replace it with its own, but that is a
+  substantial piece of work and no guide covers it yet.
+- **How skills improve.** Two models are implemented: spending character
+  points (GURPS, D20) and gaining levels (Merc). Skills that improve
+  through use, and training that takes real time, are designed
+  ([Skills Inventory](docs/design/skills-inventory.md)) but not
+  implemented. A game can build either from existing parts, for example an
+  observer that watches attacks land or a timed softcode `wait`, and the
+  showcase has softcode versions of a trainer and of achievements for a
+  single character.
+- **Merc is not all of Diku.** Characters earn practices when they gain a
+  level, but there is no `practice` command to spend them. Walking does
+  not cost movement points. ROM mob programs are not converted on import.
+  The [import guide](docs/development/rom-import.md#merc-parity-the-punch-list)
+  lists what converts and what does not.
+
+## What is there
+
+Underneath everything is one mechanism. Every action in the game, whether
+a spoken line, a sword blow or a step through a door, passes through a
+single pipeline in which nearby objects may first refuse or alter it and
+then react to it. Softcode triggers, locks, wards and NPC behaviors all
+attach to that pipeline, which is why a builder can make a door that
+refuses thieves or a room that punishes spellcasting without anyone
+writing Python.
+
+On top of it, the built-in features provide combat in timed rounds with
+melee and ranged attacks, NPC behaviors (wandering, guarding, patrolling,
+shopkeeping, respawning), money and shops, opinions that NPCs hold about
+individual characters, parties and followers, stealth, darkness and
+invisibility, timed effects such as poison, spells and abilities defined
+as data, health and resources on anything (a ship's shields and hull work
+like a character's hit points), instanced areas, procedural wilderness,
+the building commands, a searchable help system, and area import and
+export. Three rules systems are included: GURPS, D20 and Merc. Players
+connect by telnet (with GMCP) or WebSocket.
+
+Each of these is a feature, and a game lists the ones it wants. A feature
+that is left out does not exist in that game: its commands are unknown and
+its softcode functions are undefined. `realm features` shows what is
+available, including features installed from other packages.
 
 ## Documentation
 
-Plain Markdown in [`docs/`](docs/) (readable on GitHub); `mkdocs serve`
-builds a searchable HTML site.
+The documentation is plain Markdown in [`docs/`](docs/) and reads well on
+GitHub. `mkdocs serve` builds a searchable site from it.
 
-- **[Getting Started](docs/getting-started/installation.md)** — install,
-  first game, the superuser.
-- **[Tutorial: The Abandoned Lighthouse](docs/tutorial/index.md)** — a
-  complete adventure built live, from empty database to opening night.
-- **[Game Systems](docs/guides/game-systems.md)** · **[Skills & Classes
-  as Data](docs/guides/data-driven-rules.md)** · **[Resolution &
-  Bindings](docs/guides/resolution-and-bindings.md)** · **[Content
-  Packs](docs/guides/content-packs.md)** · **[Multiroom
-  Actions](docs/guides/multiroom-actions.md)**.
-- **[World Management](docs/guides/world-management.md)** · **[Softcode
-  Reference](docs/reference/softcode.md)** (auto-generated from the API).
-- **[VISION.md](VISION.md)** — the durable architectural invariants ·
-  **[Rules Kernel](docs/design/rules-kernel.md)** — the data-driven
-  microkernel design.
+- Getting started: [installation](docs/getting-started/installation.md)
+  and [your first game](docs/getting-started/first-game.md).
+- For builders: [the tutorial](docs/tutorial/index.md),
+  [the showcase](docs/showcase/index.md),
+  [the softcode reference](docs/reference/softcode.md) and
+  [world management](docs/guides/world-management.md).
+- For programmers: [features](docs/guides/features.md),
+  [game systems](docs/guides/game-systems.md),
+  [creating your own system](docs/guides/creating-your-own-system.md),
+  [pools](docs/guides/pools.md),
+  [content packs](docs/guides/content-packs.md) and the
+  [public API](docs/reference/public-api.md).
+- Design: [VISION.md](VISION.md) states the rules the engine is held to,
+  and the [design notes](docs/design/engine_vision.md) explain why it is
+  built the way it is.
 
-## Development
+## Working on the engine
 
-Working on the engine itself? Do it from inside the clone:
+To change REALM itself, work inside the clone:
 
 ```bash
 cd realm
 pip install -e ".[dev]"
-pytest                # ~1100 tests, a couple of seconds
+pytest                # about 2,700 tests, half a minute
 ruff check realm/
 mkdocs serve          # docs at http://127.0.0.1:8000
 ```
 
-REALM draws on three battle-tested lineages — **CoffeeMud** (action
-propagation, combat), **PennMUSH** (softcode, locks, attribute model),
-and **Evennia** (command/typeclass patterns) — aiming for the best ideas
-of each behind a clean, modern Python API.
+The kernel (`realm/core`, `scripting`, `server` and their neighbors) holds
+mechanisms and imports no feature. Every built-in is a feature package in
+`realm/std/<name>/`, and each rules system is one in `realm/games/<name>/`,
+declared with the same API your `game.py` uses.
+[Contributing](docs/development/contributing.md#where-new-code-goes)
+explains the rule and the tests that enforce it.
+
+REALM borrows from three older engines: CoffeeMud for action propagation
+and combat, PennMUSH for softcode, locks and the attribute model, and
+Evennia for its command and object patterns.
