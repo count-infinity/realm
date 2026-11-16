@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from realm.core.action_types import ActionType
 from realm.core.objects import GameObject
 from realm.core.world import find_world, get_world
+from realm.gateway.editor import open_editor
 from realm.std.accounts.account import account_of, characters_of
 
 if TYPE_CHECKING:
@@ -109,7 +110,8 @@ async def cmd_mail(ctx: CommandContext) -> None:
            mail <n>                      read one
            mail <player> = <subject>/<body>
                                          send
-           mail/reply <n> = <body>       answer one
+           mail <player> = <subject>     write the body in the line editor
+           mail/reply <n> [= <body>]     answer one
            mail/delete <n>               delete one
     """
     player = ctx.player
@@ -152,7 +154,7 @@ async def cmd_mail(ctx: CommandContext) -> None:
             await ctx.session.send(f"You have no message {left}.")
             return
         letter.db.read = True
-        await ctx.session.send("\n".join([
+        ctx.session.send_paged("\n".join([
             f"From: {letter.db.sender}", f"To: {letter.db.to}",
             f"Subject: {letter.db.subject}", f"Date: {_when(letter.db.sent)}", "",
             str(letter.db.body or "")]))
@@ -169,16 +171,34 @@ async def cmd_mail(ctx: CommandContext) -> None:
         lines.append(f"  {n:>3} {mark} {str(letter.db.sender):14} {str(letter.db.subject):30} "
                      f"{_when(letter.db.sent)}")
     lines.append("(* unread)  mail <n> reads one.")
-    await ctx.session.send("\n".join(lines))
+    ctx.session.send_paged("\n".join(lines))
 
 
 async def _send(ctx: CommandContext, to: str, subject: str, body: str) -> None:
+    """Send the letter; with no body, write it in the line editor first."""
     _account, why = recipient_problem(to)
     if why:
         await ctx.session.send(why)
         return
-    letter = await deliver(ctx.player.name, to, subject, body)
-    await ctx.session.send(f"Mail sent to {letter.db.to}.")
+    if body:
+        letter = await deliver(ctx.player.name, to, subject, body)
+        await ctx.session.send(f"Mail sent to {letter.db.to}.")
+        return
+
+    async def send(text: str) -> bool | None:
+        if not text.strip():
+            await ctx.session.send("The letter is empty. Write something, or .q to "
+                                   "throw it away.")
+            return None
+        _account, why = recipient_problem(to)
+        if why:
+            await ctx.session.send(why)
+            return None
+        letter = await deliver(ctx.player.name, to, subject, text.rstrip("\n"))
+        await ctx.session.send(f"Mail sent to {letter.db.to}.")
+        return True
+
+    open_editor(ctx.session, "", title=f"a letter to {to}: {subject}", on_save=send)
 
 
 __all__ = ["MAIL_TAG", "mailbox", "recipient_problem", "deliver", "unread", "login_observer",

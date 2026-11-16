@@ -5,6 +5,7 @@ Usage:
     realm init <gamename>    Create a new game project
     realm init <gamename> --system merc        ... on the Merc rules (gurps, d20)
     realm init <gamename> --template midgaard   ... from a shipped example
+                                                (--system merc may say so)
     realm start              Start the game server from current directory
     realm start --reset-db   Reset database and start
     realm features [--check] List the available features / check FEATURES
@@ -151,15 +152,22 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     system = args.system
     if system is not None:
-        if args.template:
-            print(f"Error: --system and --template together: the template decides "
-                  f"its rules (drop --system {system}).")
-            return 1
         if system not in SYSTEMS:
             print(f"Error: unknown --system '{system}'. "
                   f"Choose one of: {', '.join(SYSTEMS)}.")
             return 1
-        if not with_rules:
+        if args.template and (_examples() / args.template).is_dir():
+            # The template decides its rules; --system may only name them.
+            own = _template_system(args.template)
+            if own is None:
+                print(f"Error: the {args.template} template has no rules system "
+                      f"(drop --system {system}).")
+                return 1
+            if own != system:
+                print(f"Error: the {args.template} template is a {own} game: use "
+                      f"--system {own}, or drop --system.")
+                return 1
+        elif not with_rules:
             print(f"Error: --system {system} with --features {preset}: that preset "
                   f"has no rules (no rules.py or game system). Use --features classic.")
             return 1
@@ -267,6 +275,20 @@ def _sanitize_system_id(game_name: str) -> str:
     if cleaned[0].isdigit():
         cleaned = f"g_{cleaned}"
     return cleaned
+
+
+def _template_system(template: str) -> str | None:
+    """The ``SYSTEMS`` key whose class the template's ``rules.py`` imports:
+    ``merc`` for midgaard. None when it has no rules.py, names none of
+    them."""
+    rules = _examples() / template / "rules.py"
+    if not rules.is_file():
+        return None
+    text = rules.read_text()
+    for key, (module, cls, _label) in SYSTEMS.items():
+        if f"from {module} import {cls}\n" in text:
+            return key
+    return None
 
 
 def _init_from_template(game_name: str, project_dir: Path, template: str) -> int:

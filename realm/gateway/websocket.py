@@ -1,15 +1,22 @@
 """
 WebSocket protocol handler for REALM.
 
-Provides a WebSocket interface for web clients using aiohttp.
+Provides a WebSocket interface for web clients using aiohttp, and, with
+``WEB_CLIENT``, serves the browser client (``realm/web/index.html``) at ``/``.
 """
 
 from __future__ import annotations
 
 import asyncio
+import html
+import importlib.resources
 import json
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
+
+from realm.core.markup import marker, parse, recolor, strip, undecorate
+from realm.core.options import display_for
 
 try:
     from aiohttp import WSMsgType, web
@@ -20,33 +27,61 @@ except ImportError:
     WSMsgType = None  # type: ignore
 
 if TYPE_CHECKING:
+    from realm.core.objects import GameObject
     from realm.gateway.session import Session, SessionManager
 
 logger = logging.getLogger(__name__)
 
+#: Where the browser client's page is kept inside the ``realm`` package.
+CLIENT_PAGE = ("web", "index.html")
 
-def make_ws_writer(ws: Any) -> callable:
+#: The placeholder in the page that ``WebSocketServer`` fills with GAME_NAME.
+GAME_NAME_MARK = "{{GAME_NAME}}"
+
+
+def client_page() -> str:
+    """The browser client: one HTML page, its CSS and JavaScript inline."""
+    return importlib.resources.files("realm").joinpath(*CLIENT_PAGE).read_text(encoding="utf-8")
+
+
+def styled_for(player: GameObject | None, message: str) -> tuple[str, list[list[str]] | None]:
+    """``message`` as one player's web client gets it, by their display
+    options (``realm.core.options.display_for``): the plain text, and the
+    styled segments ``[[style key, text], ...]`` for the client to draw, or
+    None when the text is to be shown plain (no markup, ``color`` off, or
+    ``screenreader``, which also drops lines drawn only for looks)."""
+    display = display_for(player)
+    if display.undecorate:
+        message = undecorate(message)
+    if display.plain or marker() not in message:
+        return strip(message), None
+    segments = [[recolor(style, display.palette).key(), seg] for style, seg in parse(message)]
+    return "".join(seg for _key, seg in segments), segments
+
+
+def make_ws_writer(ws: Any, player: Callable[[], GameObject | None]) -> callable:
     """The one text writer for a WebSocket client, used from the very
     first byte (the welcome screen included). Markup ships as structured
     segments — the client styles them (no ANSI-to-HTML archaeology);
-    plain text stays plain."""
+    plain text stays plain (a ``{'type': 'text'}`` frame when it starts
+    with ``{``, which only JSON frames do). ``player()`` is whoever the connection is
+    playing now (None before login), whose display options apply."""
 
     async def write_to_client(message: str) -> None:
         if ws.closed:
             return
-        from realm.core.markup import marker, parse, strip
         try:
-            if marker() in message:
-                try:
-                    segments = [[style.key(), seg]
-                                for style, seg in parse(message)]
-                    await ws.send_json({'type': 'text',
-                                        'text': strip(message),
-                                        'segments': segments})
-                    return
-                except Exception:
-                    message = strip(message)
-            await ws.send_str(message)
+            text, segments = styled_for(player(), message)
+            if message and not text:
+                return                      # nothing left once decoration went
+            if segments is None and not text.startswith('{'):
+                await ws.send_str(text)
+            elif segments is None:
+                # A string frame starting with '{' is always JSON, so text
+                # cannot pass for a frame (a prompt, vitals) in the client.
+                await ws.send_json({'type': 'text', 'text': text})
+            else:
+                await ws.send_json({'type': 'text', 'text': text, 'segments': segments})
         except Exception as e:
             logger.error(f"Error writing to WebSocket: {e}")
 
@@ -104,13 +139,11 @@ class WebSocketHandler:
             await self.session_manager.connection_lost(self.session)
 
     async def _handle_text(self, text: str) -> None:
-        """Handle a text message from the client."""
-        text = text.strip()
-        if not text:
-            return
-
+        """Handle a text message from the client. The line goes to the
+        session as typed: a blank one turns the pager's page, and the line
+        editor keeps leading spaces (``submit_input`` trims the rest)."""
         # Try to parse as JSON first
-        if text.startswith('{'):
+        if text.strip().startswith('{'):
             try:
                 data = json.loads(text)
                 await self._handle_json(data)
@@ -144,10 +177,15 @@ class WebSocketHandler:
             self.session.set_data('terminal_height', data.get('height', 24))
 
     def _send_prompt(self, text: str) -> None:
-        """The game's prompt as a ``{'type': 'prompt'}`` frame (scheduled)."""
+        """The game's prompt as a ``{'type': 'prompt'}`` frame (scheduled),
+        styled like text: ``text`` plain, plus ``segments`` when colored."""
         if self.ws.closed:
             return
-        task = asyncio.create_task(self._send_json({'type': 'prompt', 'text': text}))
+        plain, segments = styled_for(self.session.player, text)
+        frame: dict[str, Any] = {'type': 'prompt', 'text': plain}
+        if segments is not None:
+            frame['segments'] = segments
+        task = asyncio.create_task(self._send_json(frame))
         self._oob_tasks.add(task)
         task.add_done_callback(self._oob_tasks.discard)
 
@@ -180,6 +218,7 @@ class WebSocketServer:
     Provides a REST-like endpoint structure:
     - /ws - Main game WebSocket
     - /health - Health check endpoint
+    - / - the browser client, when ``web_client`` (the WEB_CLIENT setting)
     """
 
     def __init__(
@@ -188,6 +227,9 @@ class WebSocketServer:
         on_command: callable,
         host: str = "0.0.0.0",
         port: int = 4001,
+        *,
+        web_client: bool = False,
+        game_name: str = "REALM",
     ):
         if not HAS_AIOHTTP:
             raise RuntimeError(
@@ -199,16 +241,27 @@ class WebSocketServer:
         self.on_command = on_command
         self.host = host
         self.port = port
+        # The page is read once, here: a missing file fails at boot.
+        self._page: str | None = (
+            client_page().replace(GAME_NAME_MARK, html.escape(game_name))
+            if web_client else None)
 
         self._app: web.Application | None = None
         self._runner: web.AppRunner | None = None
         self._site: web.TCPSite | None = None
 
+    def make_app(self) -> web.Application:
+        """The aiohttp application: its routes, ready to run."""
+        app = web.Application()
+        app.router.add_get('/ws', self._handle_websocket)
+        app.router.add_get('/health', self._handle_health)
+        if self._page is not None:
+            app.router.add_get('/', self._handle_page)
+        return app
+
     async def start(self) -> None:
         """Start the WebSocket server."""
-        self._app = web.Application()
-        self._app.router.add_get('/ws', self._handle_websocket)
-        self._app.router.add_get('/health', self._handle_health)
+        self._app = self.make_app()
 
         self._runner = web.AppRunner(self._app)
         await self._runner.setup()
@@ -217,6 +270,8 @@ class WebSocketServer:
         await self._site.start()
 
         logger.info(f"WebSocket server listening on {self.host}:{self.port}")
+        if self._page is not None:
+            logger.info(f"Browser client at http://{self.host}:{self.port}/")
 
     async def stop(self) -> None:
         """Stop the WebSocket server."""
@@ -239,21 +294,28 @@ class WebSocketServer:
 
         # The shared connect ritual: the one writer installed before the
         # session exists (welcome-screen flush depends on it) — with the
-        # same markup rendering every later message gets.
+        # same markup rendering every later message gets, by the display
+        # options of whoever the session is playing once it plays.
         # ws.close() returns an awaitable; close_connection awaits it.
+        connected: list[Session] = []
         session = await connect_session(
             self.session_manager,
             protocol="websocket",
             address=address,
-            writer=make_ws_writer(ws),
+            writer=make_ws_writer(ws, lambda: connected[0].player if connected else None),
             closer=ws.close,
         )
+        connected.append(session)
 
         # Run the handler
         handler = WebSocketHandler(ws, session, self.session_manager, self.on_command)
         await handler.run()
 
         return ws
+
+    async def _handle_page(self, request: web.Request) -> web.Response:
+        """The browser client (WEB_CLIENT)."""
+        return web.Response(text=self._page, content_type='text/html', charset='utf-8')
 
     async def _handle_health(self, request: web.Request) -> web.Response:
         """Health check endpoint."""

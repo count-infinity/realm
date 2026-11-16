@@ -132,4 +132,38 @@ async def prepare_world(world: World, host, *, empty: bool) -> None:
         logger.info("Created default startup room")
 
 
-__all__ = ["build_world", "prepare_world"]
+#: What became of a line of input (``route_input``).
+CAPTURED = "captured"           # a prompt, wizard or the line editor took it
+INTERCEPTED = "intercepted"     # the pager or a feature's interceptor took it
+DISPATCHED = "dispatched"       # it ran as a command
+
+
+async def route_input(world: World, session, line: str) -> str:
+    """One line of a session's input, the way every connection takes it:
+    held pages first (enter, ``b``, ``q``), then the session's own input
+    handler (a prompt, a wizard, the line editor), then the features'
+    input interceptors in order, then the dispatcher. An interceptor that
+    returns a string replaces the line for those after it and the
+    dispatcher (``alias`` expands that way); True consumes it. Returns
+    ``CAPTURED``, ``INTERCEPTED`` or ``DISPATCHED``; the server flushes
+    everyone after a dispatch, else only this session (with its prompt
+    unless a handler is asking its own question)."""
+    if session.paging and session.page_input(line):
+        return INTERCEPTED
+    if session.input_handler is not None:
+        if await session.input_handler(session, line):
+            return CAPTURED
+    if not line.strip():
+        return INTERCEPTED              # a bare enter: just the prompt again
+    for _order, interceptor in world.input_interceptors:
+        verdict = await interceptor(world, session, line)
+        if verdict is True:
+            return INTERCEPTED
+        if isinstance(verdict, str):
+            line = verdict
+    await world.dispatcher.dispatch(session, line)
+    return DISPATCHED
+
+
+__all__ = ["build_world", "prepare_world", "route_input", "CAPTURED", "INTERCEPTED",
+           "DISPATCHED"]

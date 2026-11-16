@@ -24,6 +24,7 @@ from realm.core.action_tags import HOSTILE
 from realm.core.markup import wrap
 from realm.core.pools import PoolChange, settle
 from realm.core.propagation import Action, propagate
+from realm.core.world import find_world
 from realm.features import ruleset_table
 from realm.std.combat.actions import CombatAction
 from realm.std.combat.combatant import Combatant, CombatState, get_combatant
@@ -224,7 +225,8 @@ class CombatSystem:
                 },
             )
 
-        # Roll attack
+        # Roll attack (riding changes it when the game system says so)
+        modifiers = {**(modifiers or {}), **_mounted(atk.obj, dfn.obj)}
         attack_result = self.ruleset.roll_attack(atk, dfn, weapon, modifiers)
         self._report_skill_use(atk, weapon, attack_result)
 
@@ -449,6 +451,28 @@ class CombatSystem:
 
 
 
+
+
+def _mounted(attacker: Any, defender: Any) -> dict[str, int]:
+    """The situational modifiers riding gives (MUD_PLAN 13.3): the game
+    system's ``mounted_modifiers`` for whichever side is riding, through
+    the ``companions`` service (none without it)."""
+    world = find_world()
+    companions = world.services.get("companions") if world is not None else None
+    if companions is None:
+        return {}
+    found: dict[str, int] = {}
+    mount = companions.mount_of(attacker)
+    if mount is not None:
+        bonus = int(world.rules.mounted_modifiers(attacker, mount).get("attack") or 0)
+        if bonus:
+            found["mounted"] = bonus
+    mount = companions.mount_of(defender)
+    if mount is not None:
+        guard = int(world.rules.mounted_modifiers(defender, mount).get("defense") or 0)
+        if guard:
+            found["target_mounted"] = -guard
+    return found
 
 
 def create_combat_system(

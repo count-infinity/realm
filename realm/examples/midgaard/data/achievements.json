@@ -1,0 +1,15 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "midgaard_achievement_baker",
+   "name": "Friend of the Baker",
+   "description": "Rid the baker's flour sacks of the beastly fidos.",
+   "tags": ["achievement_def"],
+   "attrs": {
+    "description": "Rid the baker's flour sacks of the beastly fidos.",
+    "grants": {"tags": ["baker_friend"]}
+   }
+  }
+ ]
+}

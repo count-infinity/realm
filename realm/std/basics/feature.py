@@ -2,12 +2,16 @@
 The ``basics`` feature.
 
 Session and utility commands: help, who, quit, time; who is on
-(``world.services["who"]``, ``online_players()``, ``idle_seconds()``).
+(``world.services["who"]``, ``online_players()``, ``idle_seconds()``);
+player settings (``config``, ``world.services["options"]``) and aliases.
 """
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from realm.features import Feature
+from realm.std.basics.aliases import alias_interceptor, cmd_alias, cmd_unalias
 from realm.std.basics.commands import (
     cmd_color,
     cmd_commands,
@@ -18,7 +22,9 @@ from realm.std.basics.commands import (
     cmd_think,
     cmd_time,
     cmd_uptime,
+    recall_to,
 )
+from realm.std.basics.options import cmd_config, offer_options
 from realm.std.basics.presence import (
     WhoService,
     cmd_who,
@@ -70,8 +76,27 @@ feature.softfn(idle_seconds, group='Objects & attributes', readonly=True)
 
 @feature.on_install
 def _offer_who(world) -> None:
-    """``world.services["who"]``: other features add to its ``fields``."""
+    """``world.services["who"]``: other features add to its ``fields``;
+    ``world.services["recall"]``: ``to(player, room, session)`` recalls
+    under ``recall``'s rules (``clans`` sends a member to the clan home)."""
     world.services["who"] = WhoService()
+    world.services["recall"] = SimpleNamespace(to=recall_to)
+
+
+# Player settings (MUD_PLAN 10.4) and aliases (10.3).
+feature.on_install(offer_options)
+feature.command('config', cmd_config, category='utility',
+                help_text='Show or change your settings',
+                usage='config [<option> [<value>|default]]')
+feature.setting("ALIAS_LIMIT", 50, "How many aliases one character may keep.")
+feature.command('alias', cmd_alias, category='utility',
+                help_text='Make a short word stand for a command line',
+                usage='alias [<word> [= <command>]]', parse_equals=True)
+feature.command('unalias', cmd_unalias, category='utility',
+                help_text='Remove one of your aliases', usage='unalias <word>')
+# After accounts' character creation (0) and a freeze (1), before sleep
+# (10): a sleeper's aliased "wake" is still "wake".
+feature.input_interceptor(alias_interceptor, order=5)
 feature.command(
     'quit',
     cmd_quit,

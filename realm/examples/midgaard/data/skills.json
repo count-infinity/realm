@@ -1,0 +1,18 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "midgaard_skill_lore",
+   "name": "lore",
+   "description": "What you know of the old tales: who made a thing, and what it was for. Studied, not practised: it improves while you are away.",
+   "tags": ["skill_def"],
+   "attrs": {
+    "stat": "intelligence",
+    "penalty": -50,
+    "group": "knowledge",
+    "progression": "idle",
+    "attributes": ["intelligence", "wisdom"]
+   }
+  }
+ ]
+}

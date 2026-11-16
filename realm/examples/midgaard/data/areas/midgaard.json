@@ -92,32 +92,12 @@
      "A"
     ],
     "prototype_vnum": 3100,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 2
+    "liquid": "tea",
+    "liquid_held": 180,
+    "liquid_remaining": 180
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.1,
-      "buyback": 0.9
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": null,
    "owner": null,
    "parent": null
@@ -149,10 +129,9 @@
      "A"
     ],
     "prototype_vnum": 3101,
-    "restores": {
-     "water": 4
-    },
-    "charges": 2
+    "liquid": "coffee",
+    "liquid_held": 180,
+    "liquid_remaining": 180
    },
    "locks": {},
    "behaviors": [],
@@ -187,10 +166,9 @@
      "A"
     ],
     "prototype_vnum": 3102,
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "water",
+    "liquid_held": 300,
+    "liquid_remaining": 300
    },
    "locks": {},
    "behaviors": [],
@@ -215,7 +193,6 @@
     "level": 3,
     "alignment": 800,
     "sex": "male",
-    "gold": 75,
     "points": 300,
     "max_hp": 42,
     "hp": 42,
@@ -237,7 +214,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3120
+    "prototype_vnum": 3120,
+    "rom_wealth": 75,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -341,7 +320,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -372,7 +350,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -384,11 +364,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3109",
@@ -615,7 +600,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -646,7 +630,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -658,11 +644,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3111",
@@ -884,7 +875,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -915,7 +905,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -927,11 +919,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3111",
@@ -1157,7 +1154,6 @@
     "level": 1,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 12,
     "hp": 12,
@@ -1187,7 +1183,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3124
+    "prototype_vnum": 3124,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -1218,7 +1216,6 @@
     "level": 1,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -1249,7 +1246,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3121
+    "prototype_vnum": 3121,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -1273,7 +1272,6 @@
     "level": 0,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 2,
     "hp": 2,
@@ -1303,7 +1301,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3122
+    "prototype_vnum": 3122,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -1327,7 +1327,6 @@
     "level": 1,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 12,
     "hp": 12,
@@ -1357,7 +1356,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3124
+    "prototype_vnum": 3124,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -1389,7 +1390,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -1420,7 +1420,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -1432,11 +1434,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3117",
@@ -1624,7 +1631,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -1655,7 +1661,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -1667,11 +1675,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3120",
@@ -1858,7 +1871,6 @@
     "level": 1,
     "alignment": 900,
     "sex": "male",
-    "gold": 14,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -1881,7 +1893,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3144
+    "prototype_vnum": 3144,
+    "rom_wealth": 14,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -1913,7 +1927,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -1944,7 +1957,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -1956,11 +1971,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3125",
@@ -2148,7 +2168,6 @@
     "level": 8,
     "alignment": -100,
     "sex": "either",
-    "gold": 100,
     "points": 800,
     "max_hp": 107,
     "hp": 107,
@@ -2171,7 +2190,9 @@
      "J",
      "N"
     ],
-    "prototype_vnum": 3005
+    "prototype_vnum": 3005,
+    "rom_wealth": 100,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -2183,7 +2204,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "steal",
@@ -2253,7 +2277,6 @@
     "level": 12,
     "alignment": 900,
     "sex": "female",
-    "gold": 100,
     "points": 1200,
     "max_hp": 174,
     "hp": 174,
@@ -2270,7 +2293,9 @@
      "H",
      "I"
     ],
-    "prototype_vnum": 3142
+    "prototype_vnum": 3142,
+    "rom_wealth": 100,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -2295,7 +2320,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 1000,
     "points": 2300,
     "max_hp": 533,
     "hp": 533,
@@ -2328,7 +2352,9 @@
      "D"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3143
+    "prototype_vnum": 3143,
+    "rom_wealth": 1000,
+    "credits": 10
    },
    "locks": {},
    "behaviors": [],
@@ -2393,7 +2419,6 @@
     "level": 20,
     "alignment": 1000,
     "sex": "either",
-    "gold": 500,
     "points": 2000,
     "max_hp": 410,
     "hp": 410,
@@ -2427,13 +2452,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3069
+    "prototype_vnum": 3069,
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3138",
@@ -2582,7 +2611,6 @@
     "level": 20,
     "alignment": 1000,
     "sex": "either",
-    "gold": 500,
     "points": 2000,
     "max_hp": 410,
     "hp": 410,
@@ -2616,13 +2644,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3069
+    "prototype_vnum": 3069,
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3138",
@@ -2771,7 +2803,6 @@
     "level": 20,
     "alignment": 1000,
     "sex": "either",
-    "gold": 500,
     "points": 2000,
     "max_hp": 410,
     "hp": 410,
@@ -2805,13 +2836,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3069
+    "prototype_vnum": 3069,
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3138",
@@ -2960,7 +2995,6 @@
     "level": 20,
     "alignment": 1000,
     "sex": "either",
-    "gold": 500,
     "points": 2000,
     "max_hp": 410,
     "hp": 410,
@@ -2994,13 +3028,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3069
+    "prototype_vnum": 3069,
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3138",
@@ -3158,9 +3196,7 @@
     "rom_extra": [],
     "rom_wear": [],
     "prototype_vnum": 3135,
-    "restores": {
-     "water": 4
-    }
+    "liquid": "water"
    },
    "locks": {},
    "behaviors": [],
@@ -3184,7 +3220,6 @@
     "level": 17,
     "alignment": 1000,
     "sex": "male",
-    "gold": 500,
     "points": 1700,
     "max_hp": 310,
     "hp": 310,
@@ -3218,7 +3253,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3140
+    "prototype_vnum": 3140,
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
@@ -3228,7 +3265,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": "rom_3142",
@@ -3362,7 +3402,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 130,
     "hp": 130,
@@ -3394,7 +3433,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3141
+    "prototype_vnum": 3141,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -3404,7 +3445,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": "rom_3142",
@@ -3470,7 +3514,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 130,
     "hp": 130,
@@ -3502,7 +3545,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3141
+    "prototype_vnum": 3141,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -3512,7 +3557,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": "rom_3142",
@@ -3578,7 +3626,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 130,
     "hp": 130,
@@ -3610,7 +3657,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3141
+    "prototype_vnum": 3141,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -3620,7 +3669,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": "rom_3142",
@@ -3686,7 +3738,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 130,
     "hp": 130,
@@ -3718,7 +3769,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3141
+    "prototype_vnum": 3141,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -3728,7 +3781,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": "rom_3142",
@@ -3857,7 +3913,6 @@
     "level": 25,
     "alignment": 900,
     "sex": "male",
-    "gold": 1000,
     "points": 2500,
     "max_hp": 1000,
     "hp": 1000,
@@ -3893,7 +3948,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 1000,
+    "credits": 10
    },
    "locks": {},
    "behaviors": [
@@ -3940,10 +3997,9 @@
      "A"
     ],
     "prototype_vnum": 3154,
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "beer",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
    "behaviors": [],
@@ -3978,9 +4034,7 @@
      "A"
     ],
     "prototype_vnum": 3152,
-    "restores": {
-     "food": 25
-    }
+    "nourishment": 500
    },
    "locks": {},
    "behaviors": [],
@@ -4015,9 +4069,7 @@
      "A"
     ],
     "prototype_vnum": 3153,
-    "restores": {
-     "food": 4
-    }
+    "nourishment": 80
    },
    "locks": {},
    "behaviors": [],
@@ -4052,9 +4104,7 @@
      "A"
     ],
     "prototype_vnum": 3151,
-    "restores": {
-     "food": 4
-    }
+    "nourishment": 80
    },
    "locks": {},
    "behaviors": [],
@@ -4089,32 +4139,12 @@
      "A"
     ],
     "prototype_vnum": 3150,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 2
+    "liquid": "coffee",
+    "liquid_held": 180,
+    "liquid_remaining": 180
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.0,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3150_83",
    "owner": null,
    "parent": null
@@ -4146,32 +4176,12 @@
      "A"
     ],
     "prototype_vnum": 3100,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 2
+    "liquid": "tea",
+    "liquid_held": 180,
+    "liquid_remaining": 180
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.1,
-      "buyback": 0.9
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3150_83",
    "owner": null,
    "parent": null
@@ -4462,7 +4472,6 @@
     "level": 15,
     "alignment": 200,
     "sex": "male",
-    "gold": 0,
     "points": 1500,
     "max_hp": 260,
     "hp": 260,
@@ -4496,7 +4505,9 @@
     "rom_vuln": [
      "I"
     ],
-    "prototype_vnum": 3161
+    "prototype_vnum": 3161,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -4520,7 +4531,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -4550,7 +4560,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3071
+    "prototype_vnum": 3071,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -4777,7 +4789,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -4807,7 +4818,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3071
+    "prototype_vnum": 3071,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -5034,7 +5047,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -5064,7 +5076,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3072
+    "prototype_vnum": 3072,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -5291,7 +5305,6 @@
     "level": 25,
     "alignment": 900,
     "sex": "male",
-    "gold": 1000,
     "points": 2500,
     "max_hp": 1000,
     "hp": 1000,
@@ -5324,7 +5337,9 @@
     ],
     "rom_res": [],
     "rom_vuln": [],
-    "prototype_vnum": 3162
+    "prototype_vnum": 3162,
+    "rom_wealth": 1000,
+    "credits": 10
    },
    "locks": {},
    "behaviors": [],
@@ -5456,7 +5471,6 @@
     "level": 36,
     "alignment": 1000,
     "sex": "male",
-    "gold": 0,
     "points": 3600,
     "max_hp": 2000,
     "hp": 2000,
@@ -5498,7 +5512,9 @@
     ],
     "rom_res": [],
     "rom_vuln": [],
-    "prototype_vnum": 3021
+    "prototype_vnum": 3021,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -5542,7 +5558,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -5582,7 +5597,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -5641,32 +5658,12 @@
      "A"
     ],
     "prototype_vnum": 3002,
-    "rom_shop_buys": [
-     1,
-     8,
-     13,
-     15,
-     19
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "ale",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.5,
-      "buyback": 0.4
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3043_122",
    "owner": null,
    "parent": null
@@ -5698,32 +5695,12 @@
      "A"
     ],
     "prototype_vnum": 3004,
-    "rom_shop_buys": [
-     9,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "local specialty",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.0,
-      "buyback": 0.5
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3043_122",
    "owner": null,
    "parent": null
@@ -5817,7 +5794,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -5848,7 +5824,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -5860,11 +5838,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3004",
@@ -6100,9 +6083,7 @@
     "rom_extra": [],
     "rom_wear": [],
     "prototype_vnum": 3135,
-    "restores": {
-     "water": 4
-    }
+    "liquid": "water"
    },
    "locks": {},
    "behaviors": [],
@@ -6125,7 +6106,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -6164,7 +6144,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -6211,32 +6193,12 @@
      "A"
     ],
     "prototype_vnum": 3000,
-    "rom_shop_buys": [
-     2,
-     3,
-     4,
-     10,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 75
+    "liquid": "beer",
+    "liquid_held": 9000,
+    "liquid_remaining": 9000
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.05,
-      "buyback": 0.15
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3040_134",
    "owner": null,
    "parent": null
@@ -6268,32 +6230,12 @@
      "A"
     ],
     "prototype_vnum": 3001,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "beer",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.1,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3040_134",
    "owner": null,
    "parent": null
@@ -6354,7 +6296,6 @@
     "level": 2,
     "alignment": 400,
     "sex": "male",
-    "gold": 65,
     "points": 200,
     "max_hp": 29,
     "hp": 29,
@@ -6377,7 +6318,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3064
+    "prototype_vnum": 3064,
+    "rom_wealth": 65,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -6483,31 +6426,10 @@
      "A"
     ],
     "prototype_vnum": 3009,
-    "rom_shop_buys": [
-     8,
-     30,
-     32,
-     33,
-     0
-    ],
-    "restores": {
-     "food": 20
-    }
+    "nourishment": 400
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.1,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3064_138",
    "owner": null,
    "parent": null
@@ -6539,9 +6461,7 @@
      "A"
     ],
     "prototype_vnum": 3011,
-    "restores": {
-     "food": 18
-    }
+    "nourishment": 360
    },
    "locks": {},
    "behaviors": [],
@@ -6576,9 +6496,7 @@
      "A"
     ],
     "prototype_vnum": 3012,
-    "restores": {
-     "food": 4
-    }
+    "nourishment": 80
    },
    "locks": {},
    "behaviors": [],
@@ -6613,9 +6531,7 @@
      "A"
     ],
     "prototype_vnum": 3013,
-    "restores": {
-     "food": 8
-    }
+    "nourishment": 160
    },
    "locks": {},
    "behaviors": [],
@@ -6650,9 +6566,7 @@
      "A"
     ],
     "prototype_vnum": 3014,
-    "restores": {
-     "food": 8
-    }
+    "nourishment": 160
    },
    "locks": {},
    "behaviors": [],
@@ -6715,7 +6629,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 1300,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -6752,7 +6665,9 @@
      13,
      15,
      19
-    ]
+    ],
+    "rom_wealth": 1300,
+    "credits": 13
    },
    "locks": {},
    "behaviors": [
@@ -6871,10 +6786,9 @@
      "A"
     ],
     "prototype_vnum": 3138,
-    "restores": {
-     "water": 4
-    },
-    "charges": 16
+    "liquid": "water",
+    "liquid_held": 1920,
+    "liquid_remaining": 1920
    },
    "locks": {},
    "behaviors": [],
@@ -7005,7 +6919,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 25000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -7044,7 +6957,9 @@
      7,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 25000,
+    "credits": 250
    },
    "locks": {},
    "behaviors": [
@@ -7511,7 +7426,6 @@
     "level": 5,
     "alignment": -200,
     "sex": "either",
-    "gold": 0,
     "points": 500,
     "max_hp": 8,
     "hp": 8,
@@ -7538,7 +7452,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3062
+    "prototype_vnum": 3062,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -7581,7 +7497,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -7612,7 +7527,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -7624,11 +7541,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3014",
@@ -7855,7 +7777,6 @@
     "level": 5,
     "alignment": -200,
     "sex": "either",
-    "gold": 0,
     "points": 500,
     "max_hp": 8,
     "hp": 8,
@@ -7882,7 +7803,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3062
+    "prototype_vnum": 3062,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -7925,7 +7848,6 @@
     "level": 30,
     "alignment": 800,
     "sex": "male",
-    "gold": 2000,
     "points": 3000,
     "max_hp": 1000,
     "hp": 1000,
@@ -7965,7 +7887,9 @@
     "rom_vuln": [
      "Z"
     ],
-    "prototype_vnum": 3024
+    "prototype_vnum": 3024,
+    "rom_wealth": 2000,
+    "credits": 20
    },
    "locks": {},
    "behaviors": [
@@ -8004,7 +7928,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -8035,7 +7958,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -8047,11 +7972,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3017",
@@ -8277,7 +8207,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -8318,7 +8247,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -8378,32 +8309,12 @@
      "A"
     ],
     "prototype_vnum": 3002,
-    "rom_shop_buys": [
-     1,
-     8,
-     13,
-     15,
-     19
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "ale",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.5,
-      "buyback": 0.4
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3042_181",
    "owner": null,
    "parent": null
@@ -8435,32 +8346,12 @@
      "A"
     ],
     "prototype_vnum": 3003,
-    "rom_shop_buys": [
-     5,
-     6,
-     7,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "firebreather",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.2,
-      "buyback": 0.4
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3042_181",
    "owner": null,
    "parent": null
@@ -8552,7 +8443,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 200000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -8592,7 +8482,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 200000,
+    "credits": 2000
    },
    "locks": {},
    "behaviors": [
@@ -9238,7 +9130,6 @@
     "level": 30,
     "alignment": 800,
     "sex": "male",
-    "gold": 2000,
     "points": 3000,
     "max_hp": 1000,
     "hp": 1000,
@@ -9277,7 +9168,9 @@
      "D"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3027
+    "prototype_vnum": 3027,
+    "rom_wealth": 2000,
+    "credits": 20
    },
    "locks": {},
    "behaviors": [],
@@ -9342,7 +9235,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -9373,7 +9265,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -9385,11 +9279,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3021",
@@ -9614,7 +9513,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -9655,7 +9553,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -9702,32 +9602,12 @@
      "A"
     ],
     "prototype_vnum": 3002,
-    "rom_shop_buys": [
-     1,
-     8,
-     13,
-     15,
-     19
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "ale",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.5,
-      "buyback": 0.4
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3045_211",
    "owner": null,
    "parent": null
@@ -9759,32 +9639,12 @@
      "A"
     ],
     "prototype_vnum": 3003,
-    "rom_shop_buys": [
-     5,
-     6,
-     7,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "firebreather",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.2,
-      "buyback": 0.4
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3045_211",
    "owner": null,
    "parent": null
@@ -9816,32 +9676,12 @@
      "A"
     ],
     "prototype_vnum": 3004,
-    "rom_shop_buys": [
-     9,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "local specialty",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.0,
-      "buyback": 0.5
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3045_211",
    "owner": null,
    "parent": null
@@ -9935,7 +9775,6 @@
     "level": 5,
     "alignment": -200,
     "sex": "either",
-    "gold": 0,
     "points": 500,
     "max_hp": 8,
     "hp": 8,
@@ -9962,7 +9801,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3062
+    "prototype_vnum": 3062,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -10005,7 +9846,6 @@
     "level": 5,
     "alignment": -200,
     "sex": "either",
-    "gold": 0,
     "points": 500,
     "max_hp": 8,
     "hp": 8,
@@ -10032,7 +9872,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3062
+    "prototype_vnum": 3062,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -10074,7 +9916,6 @@
     "level": 5,
     "alignment": -200,
     "sex": "male",
-    "gold": 18,
     "points": 500,
     "max_hp": 67,
     "hp": 67,
@@ -10101,7 +9942,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3063
+    "prototype_vnum": 3063,
+    "rom_wealth": 18,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -10113,7 +9956,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": "rom_3026",
@@ -10254,7 +10100,6 @@
     "level": 0,
     "alignment": -200,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 8,
     "hp": 8,
@@ -10285,7 +10130,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3066
+    "prototype_vnum": 3066,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -10320,7 +10167,6 @@
     "level": 30,
     "alignment": 800,
     "sex": "male",
-    "gold": 2000,
     "points": 3000,
     "max_hp": 1000,
     "hp": 1000,
@@ -10360,7 +10206,9 @@
      "D"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3026
+    "prototype_vnum": 3026,
+    "rom_wealth": 2000,
+    "credits": 20
    },
    "locks": {},
    "behaviors": [],
@@ -10425,7 +10273,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -10456,7 +10303,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3060
+    "prototype_vnum": 3060,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -10468,11 +10317,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3027",
@@ -10699,7 +10553,6 @@
     "level": 8,
     "alignment": -100,
     "sex": "either",
-    "gold": 100,
     "points": 800,
     "max_hp": 107,
     "hp": 107,
@@ -10722,7 +10575,9 @@
      "J",
      "N"
     ],
-    "prototype_vnum": 3005
+    "prototype_vnum": 3005,
+    "rom_wealth": 100,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -10734,7 +10589,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "steal",
@@ -10803,7 +10661,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -10843,7 +10700,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -10890,32 +10749,12 @@
      "A"
     ],
     "prototype_vnum": 3003,
-    "rom_shop_buys": [
-     5,
-     6,
-     7,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "firebreather",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.2,
-      "buyback": 0.4
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3044_234",
    "owner": null,
    "parent": null
@@ -10947,32 +10786,12 @@
      "A"
     ],
     "prototype_vnum": 3004,
-    "rom_shop_buys": [
-     9,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "local specialty",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.0,
-      "buyback": 0.5
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3044_234",
    "owner": null,
    "parent": null
@@ -11064,7 +10883,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 4000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -11097,7 +10915,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 4000,
+    "credits": 40
    },
    "locks": {},
    "behaviors": [
@@ -11105,7 +10925,15 @@
      "behavior_id": "shopkeeper",
      "params": {
       "markup": 1.0,
-      "buyback": 1.0
+      "buyback": 1.0,
+      "sells_pets": true,
+      "pet_stock": [
+       "rom_mob_3090",
+       "rom_mob_3091",
+       "rom_mob_3092",
+       "rom_mob_3093",
+       "rom_mob_3094"
+      ]
      }
     },
     {
@@ -11133,7 +10961,6 @@
     "level": 1,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 18,
     "hp": 18,
@@ -11160,7 +10987,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3090
+    "prototype_vnum": 3090,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -11184,7 +11013,6 @@
     "level": 3,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 300,
     "max_hp": 39,
     "hp": 39,
@@ -11211,7 +11039,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3091
+    "prototype_vnum": 3091,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -11235,7 +11065,6 @@
     "level": 5,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 500,
     "max_hp": 70,
     "hp": 70,
@@ -11262,7 +11091,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3092
+    "prototype_vnum": 3092,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -11286,7 +11117,6 @@
     "level": 7,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 700,
     "max_hp": 93,
     "hp": 93,
@@ -11315,7 +11145,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3093
+    "prototype_vnum": 3093,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -11339,7 +11171,6 @@
     "level": 9,
     "alignment": 0,
     "sex": "either",
-    "gold": 0,
     "points": 900,
     "max_hp": 113,
     "hp": 113,
@@ -11368,7 +11199,9 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3094
+    "prototype_vnum": 3094,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -11392,7 +11225,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 15000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -11430,7 +11262,9 @@
      4,
      10,
      0
-    ]
+    ],
+    "rom_wealth": 15000,
+    "credits": 150
    },
    "locks": {},
    "behaviors": [
@@ -11495,13 +11329,6 @@
      "O"
     ],
     "prototype_vnum": 3040,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ],
     "slot": "held",
     "spells": [
      "identify"
@@ -11509,19 +11336,7 @@
     "spell_level": 12
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.1,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3000_245",
    "owner": null,
    "parent": null
@@ -11644,13 +11459,6 @@
      "O"
     ],
     "prototype_vnum": 3042,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ],
     "slot": "held",
     "spells": [
      "word of recall"
@@ -11658,19 +11466,7 @@
     "spell_level": 20
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.0,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3000_245",
    "owner": null,
    "parent": null
@@ -11707,29 +11503,10 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3043,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ]
+    "prototype_vnum": 3043
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.1,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3000_245",
    "owner": null,
    "parent": null
@@ -11766,13 +11543,6 @@
      "O"
     ],
     "prototype_vnum": 3044,
-    "rom_shop_buys": [
-     0,
-     0,
-     0,
-     0,
-     0
-    ],
     "slot": "held",
     "spells": [
      "magic missile"
@@ -11781,19 +11551,7 @@
     "charges": 10
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.7,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3000_245",
    "owner": null,
    "parent": null
@@ -11813,7 +11571,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 58000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -11849,7 +11606,9 @@
      32,
      33,
      0
-    ]
+    ],
+    "rom_wealth": 58000,
+    "credits": 580
    },
    "locks": {},
    "behaviors": [
@@ -12118,7 +11877,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "female",
-    "gold": 4500,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -12155,7 +11913,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 4500,
+    "credits": 45
    },
    "locks": {},
    "behaviors": [
@@ -12585,29 +12345,10 @@
     ],
     "slot": "hands",
     "ac_apply": 1,
-    "prototype_vnum": 3070,
-    "rom_shop_buys": [
-     10,
-     0,
-     0,
-     0,
-     0
-    ]
+    "prototype_vnum": 3070
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 10.0,
-      "buyback": 1.0
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3010_259",
    "owner": null,
    "parent": null
@@ -12781,7 +12522,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -12811,13 +12551,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3068
+    "prototype_vnum": 3068,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3040",
@@ -13044,7 +12788,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -13074,13 +12817,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3068
+    "prototype_vnum": 3068,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3040",
@@ -13307,7 +13054,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -13337,13 +13083,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3067
+    "prototype_vnum": 3067,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3041",
@@ -13570,7 +13320,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -13600,13 +13349,17 @@
      "C"
     ],
     "rom_vuln": [],
-    "prototype_vnum": 3067
+    "prototype_vnum": 3067,
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": "rom_3041",
@@ -13832,7 +13585,6 @@
     "level": 1,
     "alignment": 400,
     "sex": "female",
-    "gold": 0,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -13858,7 +13610,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3065
+    "prototype_vnum": 3065,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -13881,7 +13635,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 200,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -13922,7 +13675,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 200,
+    "credits": 2
    },
    "locks": {},
    "behaviors": [
@@ -13969,32 +13724,12 @@
      "A"
     ],
     "prototype_vnum": 3003,
-    "rom_shop_buys": [
-     5,
-     6,
-     7,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "firebreather",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.2,
-      "buyback": 0.4
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3046_300",
    "owner": null,
    "parent": null
@@ -14026,32 +13761,12 @@
      "A"
     ],
     "prototype_vnum": 3004,
-    "rom_shop_buys": [
-     9,
-     0,
-     0,
-     0,
-     0
-    ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "local specialty",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
-   "behaviors": [
-    {
-     "behavior_id": "shopkeeper",
-     "params": {
-      "markup": 1.0,
-      "buyback": 0.5
-     }
-    },
-    {
-     "behavior_id": "restock",
-     "params": {}
-    }
-   ],
+   "behaviors": [],
    "location": "rom_i_mob_3046_300",
    "owner": null,
    "parent": null
@@ -14113,7 +13828,6 @@
     "level": 30,
     "alignment": -100,
     "sex": "either",
-    "gold": 100,
     "points": 3000,
     "max_hp": 427,
     "hp": 427,
@@ -14136,7 +13850,9 @@
      "J",
      "N"
     ],
-    "prototype_vnum": 3163
+    "prototype_vnum": 3163,
+    "rom_wealth": 100,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -14148,7 +13864,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": "rom_3048",
@@ -14171,7 +13890,6 @@
     "level": 1,
     "alignment": 400,
     "sex": "female",
-    "gold": 0,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -14197,7 +13915,9 @@
     "rom_vuln": [
      "C"
     ],
-    "prototype_vnum": 3065
+    "prototype_vnum": 3065,
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -14220,7 +13940,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 1300,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -14258,7 +13977,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 1300,
+    "credits": 13
    },
    "locks": {},
    "behaviors": [
@@ -14362,7 +14083,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 58,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -14395,7 +14115,9 @@
     ],
     "rom_res": [],
     "rom_vuln": [],
-    "prototype_vnum": 3007
+    "prototype_vnum": 3007,
+    "rom_wealth": 58,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -14460,7 +14182,6 @@
     "level": 100,
     "alignment": 1000,
     "sex": "male",
-    "gold": 5000,
     "points": 10000,
     "max_hp": 1000,
     "hp": 1000,
@@ -14497,7 +14218,9 @@
     ],
     "rom_res": [],
     "rom_vuln": [],
-    "prototype_vnum": 3012
+    "prototype_vnum": 3012,
+    "rom_wealth": 5000,
+    "credits": 50
    },
    "locks": {},
    "behaviors": [
@@ -14531,7 +14254,6 @@
     "level": 32,
     "alignment": 1000,
     "sex": "male",
-    "gold": 5000,
     "points": 3200,
     "max_hp": 1000,
     "hp": 1000,
@@ -14574,7 +14296,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 5000,
+    "credits": 50
    },
    "locks": {},
    "behaviors": [
@@ -15736,7 +15460,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3120
        },
        "behaviors": [
         {
@@ -15979,7 +15704,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -15990,7 +15716,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -16171,7 +15900,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -16182,7 +15912,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -16390,7 +16123,8 @@
         ],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3124
        },
        "behaviors": [
         {
@@ -16533,7 +16267,8 @@
         ],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3121
        },
        "behaviors": []
       },
@@ -16588,7 +16323,8 @@
         ],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3122
        },
        "behaviors": []
       },
@@ -16686,7 +16422,8 @@
         ],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3124
        },
        "behaviors": [
         {
@@ -16879,7 +16616,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -16890,7 +16628,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -17171,7 +16912,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -17182,7 +16924,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -17234,7 +16979,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3144
        },
        "behaviors": [
         {
@@ -17677,7 +17423,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -17688,7 +17435,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -17908,7 +17658,8 @@
          "F",
          "J",
          "N"
-        ]
+        ],
+        "prototype_vnum": 3005
        },
        "behaviors": [
         {
@@ -17919,7 +17670,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "steal",
@@ -18505,7 +18259,8 @@
          "F",
          "H",
          "I"
-        ]
+        ],
+        "prototype_vnum": 3142
        },
        "behaviors": []
       },
@@ -18630,7 +18385,8 @@
          "C",
          "D"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3143
        },
        "behaviors": []
       },
@@ -18690,7 +18446,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3069
        },
        "behaviors": [
         {
@@ -18971,7 +18728,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3140
        },
        "behaviors": [
         {
@@ -18980,7 +18738,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         }
        ]
       },
@@ -19037,7 +18798,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3141
        },
        "behaviors": [
         {
@@ -19046,7 +18808,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         }
        ]
       },
@@ -19349,7 +19114,8 @@
         ],
         "rom_vuln": [
          "I"
-        ]
+        ],
+        "prototype_vnum": 3161
        },
        "behaviors": []
       },
@@ -20245,7 +20011,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3071
        },
        "behaviors": []
       },
@@ -20733,7 +20500,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3072
        },
        "behaviors": []
       },
@@ -21850,7 +21618,8 @@
          "D"
         ],
         "rom_res": [],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3162
        },
        "behaviors": []
       },
@@ -22331,7 +22100,8 @@
          "D"
         ],
         "rom_res": [],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3021
        },
        "behaviors": [
         {
@@ -22518,7 +22288,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -22529,7 +22300,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -22823,7 +22597,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3064
        },
        "behaviors": [
         {
@@ -23084,7 +22859,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3062
        },
        "behaviors": [
         {
@@ -23344,7 +23120,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -23355,7 +23132,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -23597,7 +23377,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3062
        },
        "behaviors": [
         {
@@ -23778,7 +23559,8 @@
         ],
         "rom_vuln": [
          "Z"
-        ]
+        ],
+        "prototype_vnum": 3024
        },
        "behaviors": [
         {
@@ -23849,7 +23631,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -23860,7 +23643,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -24140,7 +23926,8 @@
          "C",
          "D"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3027
        },
        "behaviors": []
       },
@@ -24197,7 +23984,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -24208,7 +23996,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -24438,7 +24229,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3062
        },
        "behaviors": [
         {
@@ -24604,7 +24396,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3062
        },
        "behaviors": [
         {
@@ -24773,7 +24566,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3063
        },
        "behaviors": [
         {
@@ -24784,7 +24578,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         }
        ]
       },
@@ -24840,7 +24637,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3066
        },
        "behaviors": [
         {
@@ -25017,7 +24815,8 @@
          "C",
          "D"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3026
        },
        "behaviors": []
       },
@@ -25074,7 +24873,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3060
        },
        "behaviors": [
         {
@@ -25085,7 +24885,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "peacekeeper",
@@ -25138,7 +24941,8 @@
          "F",
          "J",
          "N"
-        ]
+        ],
+        "prototype_vnum": 3005
        },
        "behaviors": [
         {
@@ -25149,7 +24953,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         },
         {
          "behavior_id": "steal",
@@ -25410,7 +25217,9 @@
    "attrs": {
     "rom_vnum": 3031,
     "sector": "inside",
-    "rom_room_flags": []
+    "rom_room_flags": [
+     "M"
+    ]
    },
    "locks": {},
    "behaviors": [],
@@ -25515,7 +25324,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3090
        },
        "behaviors": []
       },
@@ -25567,7 +25377,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3091
        },
        "behaviors": []
       },
@@ -25619,7 +25430,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3092
        },
        "behaviors": []
       },
@@ -25673,7 +25485,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3093
        },
        "behaviors": []
       },
@@ -25727,7 +25540,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3094
        },
        "behaviors": []
       },
@@ -25922,7 +25736,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3068
        },
        "behaviors": [
         {
@@ -26082,7 +25897,8 @@
         "rom_res": [
          "C"
         ],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3067
        },
        "behaviors": [
         {
@@ -26365,7 +26181,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3065
        },
        "behaviors": []
       },
@@ -26780,7 +26597,8 @@
          "F",
          "J",
          "N"
-        ]
+        ],
+        "prototype_vnum": 3163
        },
        "behaviors": [
         {
@@ -26791,7 +26609,10 @@
         },
         {
          "behavior_id": "scavenger",
-         "params": {}
+         "params": {
+          "eat_corpses": false,
+          "pick_up": true
+         }
         }
        ]
       },
@@ -26842,7 +26663,8 @@
         "rom_res": [],
         "rom_vuln": [
          "C"
-        ]
+        ],
+        "prototype_vnum": 3065
        },
        "behaviors": []
       },
@@ -26998,7 +26820,8 @@
          "D"
         ],
         "rom_res": [],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3007
        },
        "behaviors": []
       },
@@ -27292,7 +27115,8 @@
          "D"
         ],
         "rom_res": [],
-        "rom_vuln": []
+        "rom_vuln": [],
+        "prototype_vnum": 3012
        },
        "behaviors": [
         {
@@ -27495,7 +27319,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 15000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -27532,7 +27355,9 @@
      4,
      10,
      0
-    ]
+    ],
+    "rom_wealth": 15000,
+    "credits": 150
    },
    "locks": {},
    "behaviors": [
@@ -27581,7 +27406,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 500,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -27617,7 +27441,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
@@ -27653,7 +27479,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 1300,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -27689,7 +27514,9 @@
      13,
      15,
      19
-    ]
+    ],
+    "rom_wealth": 1300,
+    "credits": 13
    },
    "locks": {},
    "behaviors": [
@@ -27725,7 +27552,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 25000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -27763,7 +27589,9 @@
      7,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 25000,
+    "credits": 250
    },
    "locks": {},
    "behaviors": [
@@ -27799,7 +27627,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 200000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -27838,7 +27665,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 200000,
+    "credits": 2000
    },
    "locks": {},
    "behaviors": [
@@ -27875,7 +27704,6 @@
     "level": 8,
     "alignment": -100,
     "sex": "either",
-    "gold": 100,
     "points": 800,
     "max_hp": 107,
     "hp": 107,
@@ -27897,7 +27725,9 @@
      "F",
      "J",
      "N"
-    ]
+    ],
+    "rom_wealth": 100,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -27909,7 +27739,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "steal",
@@ -27936,7 +27769,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 1300,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -27973,7 +27805,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 1300,
+    "credits": 13
    },
    "locks": {},
    "behaviors": [
@@ -28009,7 +27843,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 58,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -28041,7 +27874,9 @@
      "D"
     ],
     "rom_res": [],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 58,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -28073,7 +27908,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 4000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -28105,7 +27939,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 4000,
+    "credits": 40
    },
    "locks": {},
    "behaviors": [
@@ -28113,7 +27949,15 @@
      "behavior_id": "shopkeeper",
      "params": {
       "markup": 1.0,
-      "buyback": 1.0
+      "buyback": 1.0,
+      "sells_pets": true,
+      "pet_stock": [
+       "rom_mob_3090",
+       "rom_mob_3091",
+       "rom_mob_3092",
+       "rom_mob_3093",
+       "rom_mob_3094"
+      ]
      }
     },
     {
@@ -28141,7 +27985,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 58000,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -28176,7 +28019,9 @@
      32,
      33,
      0
-    ]
+    ],
+    "rom_wealth": 58000,
+    "credits": 580
    },
    "locks": {},
    "behaviors": [
@@ -28212,7 +28057,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "female",
-    "gold": 4500,
     "points": 2300,
     "max_hp": 1000,
     "hp": 1000,
@@ -28248,7 +28092,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 4500,
+    "credits": 45
    },
    "locks": {},
    "behaviors": [
@@ -28285,7 +28131,6 @@
     "level": 45,
     "alignment": 1000,
     "sex": "male",
-    "gold": 0,
     "points": 4500,
     "max_hp": 4000,
     "hp": 4000,
@@ -28342,7 +28187,9 @@
     "rom_vuln": [
      "J",
      "P"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -28372,7 +28219,6 @@
     "level": 100,
     "alignment": 1000,
     "sex": "male",
-    "gold": 5000,
     "points": 10000,
     "max_hp": 1000,
     "hp": 1000,
@@ -28408,7 +28254,9 @@
      "D"
     ],
     "rom_res": [],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 5000,
+    "credits": 50
    },
    "locks": {},
    "behaviors": [
@@ -28444,7 +28292,6 @@
     "level": 36,
     "alignment": 1000,
     "sex": "female",
-    "gold": 0,
     "points": 3600,
     "max_hp": 2000,
     "hp": 2000,
@@ -28485,7 +28332,9 @@
     ],
     "rom_vuln": [
      "Z"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -28531,7 +28380,6 @@
     "level": 36,
     "alignment": 1000,
     "sex": "male",
-    "gold": 0,
     "points": 3600,
     "max_hp": 2000,
     "hp": 2000,
@@ -28572,7 +28420,9 @@
      "D"
     ],
     "rom_res": [],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -28616,7 +28466,6 @@
     "level": 36,
     "alignment": 1000,
     "sex": "female",
-    "gold": 0,
     "points": 3600,
     "max_hp": 2000,
     "hp": 2000,
@@ -28655,7 +28504,9 @@
      "D"
     ],
     "rom_res": [],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -28687,7 +28538,6 @@
     "level": 36,
     "alignment": 1000,
     "sex": "male",
-    "gold": 0,
     "points": 3600,
     "max_hp": 2000,
     "hp": 2000,
@@ -28732,7 +28582,9 @@
     ],
     "rom_vuln": [
      "R"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -28765,7 +28617,6 @@
     "level": 30,
     "alignment": 800,
     "sex": "male",
-    "gold": 2000,
     "points": 3000,
     "max_hp": 1000,
     "hp": 1000,
@@ -28804,7 +28655,9 @@
     ],
     "rom_vuln": [
      "Z"
-    ]
+    ],
+    "rom_wealth": 2000,
+    "credits": 20
    },
    "locks": {},
    "behaviors": [
@@ -28842,7 +28695,6 @@
     "level": 30,
     "alignment": 800,
     "sex": "male",
-    "gold": 2000,
     "points": 3000,
     "max_hp": 1000,
     "hp": 1000,
@@ -28878,7 +28730,9 @@
      "C",
      "D"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 2000,
+    "credits": 20
    },
    "locks": {},
    "behaviors": [],
@@ -28902,7 +28756,6 @@
     "level": 30,
     "alignment": 800,
     "sex": "male",
-    "gold": 2000,
     "points": 3000,
     "max_hp": 1000,
     "hp": 1000,
@@ -28941,7 +28794,9 @@
      "C",
      "D"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 2000,
+    "credits": 20
    },
    "locks": {},
    "behaviors": [],
@@ -28965,7 +28820,6 @@
     "level": 30,
     "alignment": 800,
     "sex": "male",
-    "gold": 2000,
     "points": 3000,
     "max_hp": 1000,
     "hp": 1000,
@@ -29003,7 +28857,9 @@
      "C",
      "D"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 2000,
+    "credits": 20
    },
    "locks": {},
    "behaviors": [],
@@ -29027,7 +28883,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -29065,7 +28920,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -29101,7 +28958,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -29132,7 +28988,9 @@
      "C",
      "D"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -29157,7 +29015,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -29197,7 +29054,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -29247,7 +29106,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -29286,7 +29144,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -29334,7 +29194,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -29373,7 +29232,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -29409,7 +29270,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 150,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -29449,7 +29309,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -29485,7 +29347,6 @@
     "level": 23,
     "alignment": 600,
     "sex": "male",
-    "gold": 200,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -29525,7 +29386,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 200,
+    "credits": 2
    },
    "locks": {},
    "behaviors": [
@@ -29562,7 +29425,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -29592,7 +29454,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -29604,11 +29468,16 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     },
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": null,
@@ -29632,7 +29501,6 @@
     "level": 1,
     "alignment": 900,
     "sex": "either",
-    "gold": 10,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -29656,7 +29524,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 10,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -29695,7 +29565,6 @@
     "level": 5,
     "alignment": -200,
     "sex": "either",
-    "gold": 0,
     "points": 500,
     "max_hp": 8,
     "hp": 8,
@@ -29721,7 +29590,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -29763,7 +29634,6 @@
     "level": 5,
     "alignment": -200,
     "sex": "male",
-    "gold": 18,
     "points": 500,
     "max_hp": 67,
     "hp": 67,
@@ -29789,7 +29659,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 18,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -29801,7 +29673,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": null,
@@ -29824,7 +29699,6 @@
     "level": 2,
     "alignment": 400,
     "sex": "male",
-    "gold": 65,
     "points": 200,
     "max_hp": 29,
     "hp": 29,
@@ -29846,7 +29720,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 65,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -29877,7 +29753,6 @@
     "level": 1,
     "alignment": 400,
     "sex": "female",
-    "gold": 0,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -29902,7 +29777,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -29926,7 +29803,6 @@
     "level": 0,
     "alignment": -200,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 8,
     "hp": 8,
@@ -29956,7 +29832,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -29992,7 +29870,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -30021,13 +29898,17 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": null,
@@ -30051,7 +29932,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -30080,13 +29960,17 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": null,
@@ -30110,7 +29994,6 @@
     "level": 20,
     "alignment": 1000,
     "sex": "either",
-    "gold": 500,
     "points": 2000,
     "max_hp": 410,
     "hp": 410,
@@ -30143,13 +30026,17 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
     {
      "behavior_id": "peacekeeper",
-     "params": {}
+     "params": {
+      "protect": "evil"
+     }
     }
    ],
    "location": null,
@@ -30172,7 +30059,6 @@
     "level": 32,
     "alignment": 1000,
     "sex": "male",
-    "gold": 5000,
     "points": 3200,
     "max_hp": 1000,
     "hp": 1000,
@@ -30214,7 +30100,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 5000,
+    "credits": 50
    },
    "locks": {},
    "behaviors": [
@@ -30250,7 +30138,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -30279,7 +30166,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -30303,7 +30192,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 280,
     "hp": 280,
@@ -30332,7 +30220,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -30356,7 +30246,6 @@
     "level": 1,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 18,
     "hp": 18,
@@ -30382,7 +30271,10 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0,
+    "value": 1
    },
    "locks": {},
    "behaviors": [],
@@ -30406,7 +30298,6 @@
     "level": 3,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 300,
     "max_hp": 39,
     "hp": 39,
@@ -30432,7 +30323,10 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0,
+    "value": 1
    },
    "locks": {},
    "behaviors": [],
@@ -30456,7 +30350,6 @@
     "level": 5,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 500,
     "max_hp": 70,
     "hp": 70,
@@ -30482,7 +30375,10 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0,
+    "value": 2
    },
    "locks": {},
    "behaviors": [],
@@ -30506,7 +30402,6 @@
     "level": 7,
     "alignment": 400,
     "sex": "either",
-    "gold": 0,
     "points": 700,
     "max_hp": 93,
     "hp": 93,
@@ -30534,7 +30429,10 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0,
+    "value": 4
    },
    "locks": {},
    "behaviors": [],
@@ -30558,7 +30456,6 @@
     "level": 9,
     "alignment": 0,
     "sex": "either",
-    "gold": 0,
     "points": 900,
     "max_hp": 113,
     "hp": 113,
@@ -30586,7 +30483,10 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0,
+    "value": 8
    },
    "locks": {},
    "behaviors": [],
@@ -30610,7 +30510,6 @@
     "level": 12,
     "alignment": 0,
     "sex": "either",
-    "gold": 0,
     "points": 1200,
     "max_hp": 163,
     "hp": 163,
@@ -30640,7 +30539,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -30664,7 +30565,6 @@
     "level": 15,
     "alignment": 0,
     "sex": "either",
-    "gold": 0,
     "points": 1500,
     "max_hp": 225,
     "hp": 225,
@@ -30693,7 +30593,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -30717,7 +30619,6 @@
     "level": 20,
     "alignment": 0,
     "sex": "either",
-    "gold": 0,
     "points": 2000,
     "max_hp": 345,
     "hp": 345,
@@ -30748,7 +30649,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -30773,7 +30676,6 @@
     "level": 23,
     "alignment": 1000,
     "sex": "female",
-    "gold": 180,
     "points": 2300,
     "max_hp": 500,
     "hp": 500,
@@ -30809,7 +30711,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 180,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -30858,7 +30762,6 @@
     "level": 3,
     "alignment": 800,
     "sex": "male",
-    "gold": 75,
     "points": 300,
     "max_hp": 42,
     "hp": 42,
@@ -30879,7 +30782,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 75,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -30916,7 +30821,6 @@
     "level": 1,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -30946,7 +30850,9 @@
     ],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -30970,7 +30876,6 @@
     "level": 0,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 2,
     "hp": 2,
@@ -30999,7 +30904,9 @@
     ],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -31023,7 +30930,6 @@
     "level": 0,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 7,
     "hp": 7,
@@ -31051,7 +30957,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -31082,7 +30990,6 @@
     "level": 1,
     "alignment": 1000,
     "sex": "either",
-    "gold": 0,
     "points": 100,
     "max_hp": 12,
     "hp": 12,
@@ -31111,7 +31018,9 @@
     ],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -31142,7 +31051,6 @@
     "level": 17,
     "alignment": 1000,
     "sex": "male",
-    "gold": 500,
     "points": 1700,
     "max_hp": 310,
     "hp": 310,
@@ -31175,7 +31083,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 500,
+    "credits": 5
    },
    "locks": {},
    "behaviors": [
@@ -31185,7 +31095,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": null,
@@ -31208,7 +31121,6 @@
     "level": 15,
     "alignment": 1000,
     "sex": "either",
-    "gold": 150,
     "points": 1500,
     "max_hp": 130,
     "hp": 130,
@@ -31239,7 +31151,9 @@
     "rom_res": [
      "C"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 150,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -31249,7 +31163,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": null,
@@ -31272,7 +31189,6 @@
     "level": 12,
     "alignment": 900,
     "sex": "female",
-    "gold": 100,
     "points": 1200,
     "max_hp": 174,
     "hp": 174,
@@ -31288,7 +31204,9 @@
      "F",
      "H",
      "I"
-    ]
+    ],
+    "rom_wealth": 100,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [],
@@ -31313,7 +31231,6 @@
     "level": 23,
     "alignment": 900,
     "sex": "male",
-    "gold": 1000,
     "points": 2300,
     "max_hp": 533,
     "hp": 533,
@@ -31345,7 +31262,9 @@
      "C",
      "D"
     ],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 1000,
+    "credits": 10
    },
    "locks": {},
    "behaviors": [],
@@ -31369,7 +31288,6 @@
     "level": 1,
     "alignment": 900,
     "sex": "male",
-    "gold": 14,
     "points": 100,
     "max_hp": 17,
     "hp": 17,
@@ -31391,7 +31309,9 @@
     "rom_res": [],
     "rom_vuln": [
      "C"
-    ]
+    ],
+    "rom_wealth": 14,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [
@@ -31422,7 +31342,6 @@
     "level": 25,
     "alignment": 900,
     "sex": "male",
-    "gold": 1000,
     "points": 2500,
     "max_hp": 1000,
     "hp": 1000,
@@ -31457,7 +31376,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 1000,
+    "credits": 10
    },
    "locks": {},
    "behaviors": [
@@ -31493,7 +31414,6 @@
     "level": 25,
     "alignment": 900,
     "sex": "male",
-    "gold": 1000,
     "points": 2500,
     "max_hp": 1000,
     "hp": 1000,
@@ -31528,7 +31448,9 @@
      0,
      0,
      0
-    ]
+    ],
+    "rom_wealth": 1000,
+    "credits": 10
    },
    "locks": {},
    "behaviors": [
@@ -31564,7 +31486,6 @@
     "level": 15,
     "alignment": 200,
     "sex": "male",
-    "gold": 0,
     "points": 1500,
     "max_hp": 260,
     "hp": 260,
@@ -31597,7 +31518,9 @@
     ],
     "rom_vuln": [
      "I"
-    ]
+    ],
+    "rom_wealth": 0,
+    "credits": 0
    },
    "locks": {},
    "behaviors": [],
@@ -31621,7 +31544,6 @@
     "level": 25,
     "alignment": 900,
     "sex": "male",
-    "gold": 1000,
     "points": 2500,
     "max_hp": 1000,
     "hp": 1000,
@@ -31653,7 +31575,9 @@
      "D"
     ],
     "rom_res": [],
-    "rom_vuln": []
+    "rom_vuln": [],
+    "rom_wealth": 1000,
+    "credits": 10
    },
    "locks": {},
    "behaviors": [],
@@ -31678,7 +31602,6 @@
     "level": 30,
     "alignment": -100,
     "sex": "either",
-    "gold": 100,
     "points": 3000,
     "max_hp": 427,
     "hp": 427,
@@ -31700,7 +31623,9 @@
      "F",
      "J",
      "N"
-    ]
+    ],
+    "rom_wealth": 100,
+    "credits": 1
    },
    "locks": {},
    "behaviors": [
@@ -31712,7 +31637,10 @@
     },
     {
      "behavior_id": "scavenger",
-     "params": {}
+     "params": {
+      "eat_corpses": false,
+      "pick_up": true
+     }
     }
    ],
    "location": null,
@@ -31746,10 +31674,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 75
+    "liquid": "beer",
+    "liquid_held": 9000,
+    "liquid_remaining": 9000
    },
    "locks": {},
    "behaviors": [],
@@ -31784,10 +31711,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "beer",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
    "behaviors": [],
@@ -31822,10 +31748,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "ale",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
    "behaviors": [],
@@ -31860,10 +31785,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "firebreather",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
    "behaviors": [],
@@ -31898,10 +31822,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "local specialty",
+    "liquid_held": 360,
+    "liquid_remaining": 360
    },
    "locks": {},
    "behaviors": [],
@@ -31978,9 +31901,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 45
-    }
+    "nourishment": 900
    },
    "locks": {},
    "behaviors": [],
@@ -32015,9 +31936,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 20
-    }
+    "nourishment": 400
    },
    "locks": {},
    "behaviors": [],
@@ -32086,9 +32005,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 18
-    }
+    "nourishment": 360
    },
    "locks": {},
    "behaviors": [],
@@ -32123,9 +32040,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 4
-    }
+    "nourishment": 80
    },
    "locks": {},
    "behaviors": [],
@@ -32160,9 +32075,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 8
-    }
+    "nourishment": 160
    },
    "locks": {},
    "behaviors": [],
@@ -32197,9 +32110,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 8
-    }
+    "nourishment": 160
    },
    "locks": {},
    "behaviors": [],
@@ -34656,10 +34567,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 2
+    "liquid": "tea",
+    "liquid_held": 180,
+    "liquid_remaining": 180
    },
    "locks": {},
    "behaviors": [],
@@ -34694,10 +34604,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 2
+    "liquid": "coffee",
+    "liquid_held": 180,
+    "liquid_remaining": 180
    },
    "locks": {},
    "behaviors": [],
@@ -34732,10 +34641,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 3
+    "liquid": "water",
+    "liquid_held": 300,
+    "liquid_remaining": 300
    },
    "locks": {},
    "behaviors": [],
@@ -35525,9 +35433,7 @@
     ],
     "rom_extra": [],
     "rom_wear": [],
-    "restores": {
-     "water": 4
-    }
+    "liquid": "water"
    },
    "locks": {},
    "behaviors": [],
@@ -35630,10 +35536,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 16
+    "liquid": "water",
+    "liquid_held": 1920,
+    "liquid_remaining": 1920
    },
    "locks": {},
    "behaviors": [],
@@ -35732,10 +35637,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 2
+    "liquid": "coffee",
+    "liquid_held": 180,
+    "liquid_remaining": 180
    },
    "locks": {},
    "behaviors": [],
@@ -35770,9 +35674,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 4
-    }
+    "nourishment": 80
    },
    "locks": {},
    "behaviors": [],
@@ -35807,9 +35709,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 25
-    }
+    "nourishment": 500
    },
    "locks": {},
    "behaviors": [],
@@ -35844,9 +35744,7 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "food": 4
-    }
+    "nourishment": 80
    },
    "locks": {},
    "behaviors": [],
@@ -35881,10 +35779,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 4
+    "liquid": "beer",
+    "liquid_held": 480,
+    "liquid_remaining": 480
    },
    "locks": {},
    "behaviors": [],
@@ -36260,10 +36157,9 @@
     "rom_wear": [
      "A"
     ],
-    "restores": {
-     "water": 4
-    },
-    "charges": 16
+    "liquid": "water",
+    "liquid_held": 1920,
+    "liquid_remaining": 1920
    },
    "locks": {},
    "behaviors": [],

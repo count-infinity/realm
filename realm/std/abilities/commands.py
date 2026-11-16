@@ -15,8 +15,9 @@ after wards have had their say), and fires.
 from __future__ import annotations
 
 from realm.commands import CommandContext
-from realm.commands.base import find_object
+from realm.commands.base import find_object, find_victim
 from realm.core.defs import all_defs
+from realm.std.abilities.abilities import target_kind
 from realm.std.abilities.spells import (
     cast_spell,
     find_spell_def,
@@ -71,8 +72,9 @@ async def cmd_cast(ctx: CommandContext) -> None:
         return
     target = None
     if target_words:
-        target = find_object(ctx, target_words,
-                             search_room=True, search_inventory=False)
+        target = find_victim(ctx, target_words) \
+            if target_kind(spell) in ("victim", "ally") \
+            else find_object(ctx, target_words, search_room=True, search_inventory=False)
         if target is None:
             await ctx.session.send(f"You don't see '{target_words}' here.")
             return

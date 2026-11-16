@@ -16,12 +16,12 @@ foreman's funded purse; the push-back pattern for wrong deliveries.
 
 ## How it works
 
-A job board in REALM is not an engine subsystem, because there is no native
-quest framework: the engine's own coverage matrix
-(`docs/design/adventure_coverage.md`) grades quest tracking as softcode
-territory, "quest XP = softcode `set_attr`". So a job board is what quests
-*are* in a softcode-first world, namely rows in an attribute ledger plus hooks
-that verify and pay. This section walks the two objects that share the work and
+A job board in REALM is not an engine subsystem. The engine does have
+[quests](../guides/quests.md) (0.3.0): fixed errands written as `quest_def`
+objects, offered by an NPC and tracked for each player. A job board is the
+other kind of work, postings that players and staff open and close at run
+time, each with its own payer; so it stays softcode, namely rows in an
+attribute ledger plus hooks that verify and pay. This section walks the two objects that share the work and
 says why each takes the shape it does.
 
 ### Where the postings live

@@ -250,11 +250,15 @@ def get_combatant(obj: GameObject) -> Combatant:
     """
     Get or create a Combatant wrapper for a GameObject.
 
-    Caches combatants by object ID for consistency.
+    Caches combatants by object ID for consistency. A cached wrapper is
+    for that very object: a world loaded again (a restored backup, another
+    server in the same process) brings new objects with the old ids, and
+    each gets a wrapper of its own.
     """
-    if obj.id not in _combatant_cache:
-        _combatant_cache[obj.id] = Combatant(obj)
-    return _combatant_cache[obj.id]
+    cached = _combatant_cache.get(obj.id)
+    if cached is None or cached.obj is not obj:
+        cached = _combatant_cache[obj.id] = Combatant(obj)
+    return cached
 
 
 def clear_combatant_cache() -> None:

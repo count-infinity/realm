@@ -102,6 +102,10 @@ class Settings:
     enable_telnet: bool = setting(True, "ENABLE_TELNET", "Run the telnet server.")
     enable_websocket: bool = setting(
         False, "ENABLE_WEBSOCKET", "Run the WebSocket server (needs aiohttp).")
+    web_client: bool = setting(
+        False, "WEB_CLIENT",
+        "Serve the browser client at `/` on the WebSocket port (needs "
+        "ENABLE_WEBSOCKET): open `http://<host>:<WEBSOCKET_PORT>/` to play.")
 
     # --- Softcode ---
     enable_scripting: bool = setting(
@@ -188,6 +192,12 @@ class Settings:
         30, "FLOOD_DISCONNECT_SECONDS",
         "Seconds a connection may stay over COMMAND_RATE before it is closed "
         "and logged (0: never closed).", check=_at_least(0))
+    page_length: int = setting(
+        24, "PAGE_LENGTH",
+        "Lines on one screen when the client has not reported its height "
+        "(NAWS): longer output from `help`, `who`, `@examine` and the like "
+        "is shown a page at a time (0: never held). A player's own "
+        "`pagelength` option wins.", check=_at_least(0))
 
     # --- Operations ---
     backup_interval_hours: float = setting(

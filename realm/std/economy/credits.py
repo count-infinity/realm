@@ -2,11 +2,12 @@
 Money, lean: one integer attribute and three functions.
 
 ``db.credits`` is the balance; the active GameSystem names the currency
-("credits" in the space game, "gold" under D20). No wallets, no coin
+("credits" in the space game, "gold" under D20 and Merc). No wallets, no coin
 objects — money items are a game-design choice softcode can layer on.
 
 Balances never go negative; transfers are atomic-enough (single
-process, single loop).
+process, single loop). ``split_money`` shares a sum with the party in the
+room (``split``, and ``autosplit`` after a kill).
 """
 
 from __future__ import annotations
@@ -55,7 +56,38 @@ def transfer_credits(source: GameObject, dest: GameObject, amount: int) -> bool:
     return True
 
 
+def split_money(player: GameObject, amount: int) -> str | None:
+    """Share ``amount`` of ``player``'s money with their party in the room
+    (ROM's ``split``): an equal share each, the remainder kept by the
+    splitter. Returns why it cannot, or None when it was shared. The party
+    is the ``social`` feature's (``services["social"]``); without it there
+    is nobody to share with."""
+    amount = int(amount)
+    if amount <= 0:
+        return "Split how much?"
+    if get_credits(player) < amount:
+        return "You don't have that much to split."
+    social = get_world().services.get("social")
+    party = social.party_members(player) if social is not None else [player]
+    members = [m for m in party if m.is_player]
+    if len(members) < 2:
+        return "Just keep it all."
+    share, extra = divmod(amount, len(members))
+    if share < 1:
+        return "Don't even bother, cheapskate."
+    money = currency_name()
+    for member in members:
+        if member is player:
+            continue
+        transfer_credits(player, member, share)
+        member.msg(f"{player.name} splits {amount} {money}. "
+                   f"Your share is {share} {money}.")
+    player.msg(f"You split {amount} {money}. Your share is {share + extra} {money}.")
+    return None
+
+
 __all__ = [
+    "split_money",
     "CREDITS_ATTR",
     "currency_name",
     "get_credits",

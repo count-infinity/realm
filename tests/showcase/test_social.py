@@ -229,72 +229,63 @@ class TestTitles:
 
 
 # --- 221. Player organizations --------------------------------------------------
+# Rebuilt on the engine's clans (MUD_PLAN step 14).
 
 
 @pytest.mark.asyncio
 class TestOrganizations:
 
-    async def _founded(self, w):
+    async def _joined(self, w):
         await w.build("221_organizations.md")
-        await w.sim.do(w.vala, "org found")
-        await w.sim.do(w.vala, "org invite Bob")
-        await w.sim.do(w.bob, "org join")
+        await w.sim.do(w.bob, "clan apply Void Runners")
+        await w.sim.do(w.vala, "clan accept Bob")
         for p in (w.vala, w.bob, w.cass):
             w.sim.seen(p)
+        from realm.std.clans import find_clan
+        return find_clan("Void Runners")
 
-    async def test_found_invite_join_and_roster(self, world):
+    async def test_apply_accept_and_roster(self, world):
         w = world
         await w.build("221_organizations.md")
-        org = w.find("the Void Runners")
+        from realm.std.clans import clan_of, find_clan
+        crew = find_clan("Void Runners")
+        assert clan_of(w.vala) is crew
+        assert crew.db.get("premise") == "We run the void and we pay our debts."
 
-        await w.sim.do(w.vala, "org found")
-        assert "Vala founds the Void Runners" in w.text(w.vala)
-        assert org.db.get("leader") == w.vala.id
-        await w.sim.do(w.vala, "org found")              # already led
-        assert "already have a leader" in w.text(w.vala)
+        await w.sim.do(w.bob, "clan apply Void Runners")
+        assert "You apply to join Void Runners." in w.text(w.bob)
+        assert "Bob applies to join" in w.text(w.vala)
+        await w.sim.do(w.vala, "clan accept Bob")
+        assert "Bob is accepted." in w.text(w.vala)
+        assert clan_of(w.bob) is crew
 
-        await w.sim.do(w.vala, "org invite Bob")
-        assert "Invitation sent to Bob." in w.text(w.vala)
-        assert "invites you to join" in w.text(w.bob)
-        await w.sim.do(w.bob, "org join")
-        assert "Bob joins the Void Runners as a Recruit." in w.text(w.bob)
-
-        await w.sim.do(w.bob, "org")
+        await w.sim.do(w.bob, "clan who")
         out = w.text(w.bob)
-        assert "Vala - Commander" in out and "Bob - Recruit" in out
+        assert "Vala" in out and "Boss" in out and "Member" in out
 
-    async def test_rank_authority(self, world):
+    async def test_positions_carry_the_powers(self, world):
         w = world
-        await self._founded(w)
-        org = w.find("the Void Runners")
+        await self._joined(w)
+        await w.sim.do(w.cass, "clan apply Void Runners")
+        await w.sim.do(w.bob, "clan accept Cass")
+        assert "As Member of Void Runners you cannot accept members." in w.text(w.bob)
+        await w.sim.do(w.vala, "clan assign Bob = lieutenant")
+        assert "Bob is now Lieutenant." in w.text(w.vala)
+        await w.sim.do(w.bob, "clan exile Vala")
+        assert "you cannot exile members" in w.text(w.bob)
+        await w.sim.do(w.bob, "clan accept Cass")
+        assert "Cass is accepted." in w.text(w.bob)
 
-        # Non-officer cannot invite.
-        await w.sim.do(w.bob, "org invite Cass")
-        assert "Only officers invite" in w.text(w.bob)
-
-        # Commander promotes Bob; Bob still cannot touch the Commander.
-        await w.sim.do(w.vala, "org promote Bob")
-        assert "promotes Bob to Officer" in w.text(w.vala)
-        assert org.db.get("rank_" + w.bob.id) == 2
-        await w.sim.do(w.bob, "org kick Vala")
-        assert "must outrank a fellow member" in w.text(w.bob)
-        assert org.db.get("leader") == w.vala.id
-
-        # Now an officer, Bob may invite Cass.
-        await w.sim.do(w.bob, "org invite Cass")
-        assert "Invitation sent to Cass." in w.text(w.bob)
-        await w.sim.do(w.cass, "org join")
-        await w.sim.do(w.vala, "org kick Cass")
-        assert "expels Cass" in w.text(w.vala)
-        assert w.cass.id not in org.db.get("roster")
-
-    async def test_leader_cannot_leave_with_members(self, world):
+    async def test_the_back_room_lets_in_members(self, world):
         w = world
-        await self._founded(w)
-        await w.sim.do(w.vala, "org leave")
-        assert "must promote a successor" in w.text(w.vala)
-        await w.sim.do(w.bob, "org leave")
-        assert "Bob leaves the Void Runners." in w.text(w.bob)
+        await self._joined(w)
+        clubhouse = w.vala.location
+        await w.sim.do(w.cass, "clan apply Void Runners")
+        await w.sim.do(w.cass, "back room")
+        assert "locked" in w.text(w.cass) and w.cass.location is clubhouse
+        await w.sim.do(w.vala, "clan accept Cass")
+        await w.sim.do(w.cass, "back room")
+        assert w.cass.location.name == "The Back Room"
 
 
 # --- 222. Org treasury & storage ------------------------------------------------
@@ -305,116 +296,102 @@ class TestTreasury:
 
     async def _crew(self, w):
         await w.build("221_organizations.md", "222_org_treasury.md")
-        await w.sim.do(w.vala, "org found")
-        await w.sim.do(w.vala, "org invite Bob")
-        await w.sim.do(w.bob, "org join")
+        await w.sim.do(w.bob, "clan apply Void Runners")
+        await w.sim.do(w.vala, "clan accept Bob")
         for p in (w.vala, w.bob, w.cass):
             w.sim.seen(p)
-        return w.find("the Void Runners")
+        from realm.std.clans import find_clan
+        return find_clan("Void Runners")
 
-    async def test_deposit_open_withdraw_officer_gated(self, world):
+    async def test_deposit_open_withdraw_by_power(self, world):
         w = world
-        org = await self._crew(w)
+        crew = await self._crew(w)
         await w.fund(w.bob, 100)
 
-        await w.sim.do(w.bob, "treasury deposit 40")
-        assert "Deposited 40 credits." in w.text(w.bob)
-        assert get_credits(org) == 40
-        assert get_credits(w.bob) == 60
+        await w.sim.do(w.bob, "clan deposit 40")
+        assert "You deposit 40 credits; the treasury holds 40." in w.text(w.bob)
+        assert crew.db.get("treasury") == 40 and get_credits(w.bob) == 60
 
-        await w.sim.do(w.bob, "treasury withdraw 10")    # recruit blocked
-        assert "Officers only" in w.text(w.bob)
-        assert get_credits(org) == 40
+        await w.sim.do(w.bob, "clan withdraw 10")
+        assert "you cannot withdraw from its treasury" in w.text(w.bob)
+        assert crew.db.get("treasury") == 40
 
-        await w.sim.do(w.vala, "treasury withdraw 10")
-        assert "Withdrew 10 credits." in w.text(w.vala)
-        assert get_credits(org) == 30
+        await w.sim.do(w.vala, "clan withdraw 10")
+        assert "You withdraw 10 credits; the treasury holds 30." in w.text(w.vala)
 
-        await w.sim.do(w.vala, "treasury")
+        await w.sim.do(w.vala, "clan deposits")
         out = w.text(w.vala)
-        assert "Void Runners treasury: 30 credits." in out
-        assert "Bob deposited 40" in out and "Vala withdrew 10" in out
+        assert "The treasury of Void Runners holds 30 credits." in out
+        assert "Bob" in out and "40 credits" in out
 
-    async def test_lockers_are_rank_sealed(self, world):
+    async def test_lockers_open_by_clan_and_power(self, world):
         w = world
-        org = await self._crew(w)
-
-        # Cass, no rank at all, cannot even open the common locker.
+        crew = await self._crew(w)
         await w.sim.do(w.cass, "open the crew footlocker")
         assert "sealed to Void Runners members" in w.text(w.cass)
 
-        # Officers' safe (min_rank 2): the recruit bounces.
         await w.sim.do(w.bob, "open the officers safe")
-        assert "Officers only" in w.text(w.bob)
-
-        # Common footlocker (min_rank 1): the member opens it.
+        assert "opens only for those who keep the treasury" in w.text(w.bob)
         await w.sim.do(w.bob, "open the crew footlocker")
         out = w.text(w.bob)
         assert "You open" in out and "crew footlocker" in out
 
-        # Promote Bob; the safe now reads his new rank and opens.
-        await w.sim.do(w.vala, "org promote Bob")
+        await w.fund(w.vala, 30)
+        await w.sim.do(w.vala, "clan deposit 30")
+        await w.sim.do(w.vala, "clan assign Bob = treasurer")
         await w.sim.do(w.bob, "open the officers safe")
         out = w.text(w.bob)
         assert "You open" in out and "officers safe" in out
+        await w.sim.do(w.bob, "clan withdraw 5")
+        assert "You withdraw 5 credits" in w.text(w.bob)
+        assert crew.db.get("treasury") == 25
 
 
 # --- 223. Elections -------------------------------------------------------------
+# The union government (MUD_PLAN step 14).
 
 
 @pytest.mark.asyncio
 class TestElections:
 
-    async def _crew(self, w):
-        await w.build("221_organizations.md", "223_elections.md")
-        await w.sim.do(w.vala, "org found")
-        await w.sim.do(w.vala, "org invite Bob")
-        await w.sim.do(w.bob, "org join")
+    async def _union(self, w):
+        await w.build("223_elections.md")
+        for p in (w.bob, w.cass):
+            await w.sim.do(p, "clan apply Free Traders")
+            await w.sim.do(w.vala, f"clan accept {p.name}")
+        assert "decided at once" in w.text(w.vala)
         for p in (w.vala, w.bob, w.cass):
             w.sim.seen(p)
-        return w.find("the Void Runners")
+        from realm.std.clans import find_clan
+        return find_clan("Free Traders")
 
-    async def test_ballot_dedupes_and_tally_installs_leader(self, world):
+    async def test_members_elect_a_senator(self, world):
+        from realm.std.clans.clans import position_of
         w = world
-        org = await self._crew(w)
+        union = await self._union(w)
+        assert position_of(union, w.bob).id == "citizen"
+        await w.sim.do(w.cass, "clan assign Bob = senator")
+        assert "Vote 3 is open: make Bob Senator." in w.text(w.cass)
+        await w.sim.do(w.bob, "clan votes")
+        assert "1 yes, 0 no of 3" in w.text(w.bob)
+        await w.sim.do(w.bob, "clan vote 3 yes")
+        assert "vote 3 is decided" in w.text(w.bob)
+        assert "Vote 3 (make Bob Senator) passes, 2 to 0." in w.text(w.vala)
+        assert position_of(union, w.bob).id == "senator"
 
-        await w.sim.do(w.vala, "election start 60")
-        assert "calls an election for Commander" in w.text(w.vala)
-        await w.sim.do(w.bob, "nominate Bob")
-        assert "Bob is nominated" in w.text(w.bob)
-        await w.sim.do(w.vala, "nominate Vala")
-
-        await w.sim.do(w.bob, "vote Bob")
-        await w.sim.do(w.vala, "vote Vala")
-        assert len(org.db.get("ballots")) == 2
-        # Vala changes her mind — her single slot moves, no new ballot.
-        await w.sim.do(w.vala, "vote Bob")
-        assert len(org.db.get("ballots")) == 2
-
-        await w.sim.do(w.bob, "poll")
-        assert "Bob - 2 vote(s)" in w.text(w.bob)
-
-        # Close the term and beat the ticker.
-        await w.sim.do(
-            w.vala, "@eval set_attr(get('the Void Runners'), 'close_at', now() - 1)")
-        await w.sim.do(w.vala, "@tr the Void Runners/on_tick")
-        assert "Bob is elected Commander with 2 vote(s)." in w.text(w.vala)
-        assert org.db.get("leader") == w.bob.id
-        assert org.db.get("rank_" + w.bob.id) == 3
-        assert org.db.get("rank_" + w.vala.id) == 2
-        assert not org.db.get("poll_open")
-
-    async def test_only_leader_starts_and_members_only_vote(self, world):
+    async def test_only_senators_vote_on_exile(self, world):
+        from realm.std.clans.clans import record_of
         w = world
-        org = await self._crew(w)
-        await w.sim.do(w.bob, "election start 60")       # not the leader
-        assert "Only the leader calls an election" in w.text(w.bob)
-        assert not org.db.get("poll_open")
-
-        await w.sim.do(w.vala, "election start 60")
-        await w.sim.do(w.vala, "nominate Vala")
-        await w.sim.do(w.cass, "vote Vala")              # not a member
-        assert "you are not a member" in w.text(w.cass)
+        union = await self._union(w)
+        await w.sim.do(w.cass, "clan assign Bob = senator")
+        await w.sim.do(w.bob, "clan vote 3 yes")
+        await w.sim.do(w.cass, "clan exile Bob")
+        assert "As Citizen of Free Traders you cannot exile members." in w.text(w.cass)
+        await w.sim.do(w.vala, "clan exile Cass")
+        assert "Vote 4 is open: exile Cass." in w.text(w.vala)
+        await w.sim.do(w.bob, "clan vote 4 no")
+        assert "Vote 4 (exile Cass) fails, 1 to 1." in w.text(w.bob)
+        assert record_of(union, w.cass) is not None
 
 
 # --- 224. Petition / ticket system ----------------------------------------------

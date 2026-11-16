@@ -74,7 +74,7 @@ async def import_file(path: Path, persistence) -> list:
     return await import_objects(data, persistence)
 
 
-_DEF_TAGS = ("class_def", "skill_def")
+_DEF_TAGS = ("class_def", "skill_def", "clan_government_def")
 
 
 async def import_pack(name: str, persistence) -> list:
@@ -82,7 +82,8 @@ async def import_pack(name: str, persistence) -> list:
     Import every data file in a pack. Returns all newly-created objects.
 
     Idempotent for *definitions*: re-importing a pack skips any
-    ``class_def`` / ``skill_def`` whose name already exists, so you don't
+    ``class_def`` / ``skill_def`` / ``clan_government_def`` whose name
+    already exists, so you don't
     accumulate duplicate class/skill objects (whose name-keyed readers
     would otherwise collide). Other content (equipment, areas) imports as
     fresh copies, like any worldio import.

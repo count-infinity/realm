@@ -101,46 +101,61 @@ class TestQuestFramework:
         raven = sim.player("Raven", location=hub)
 
         await sim.do(raven, "quests")
-        assert "Your journal is empty." in sim.seen(raven)
+        assert "Your journal is empty." in joined(sim.seen(raven))
+        await sim.do(raven, "look")
+        assert "Quest Warden (!)" in joined(sim.seen(raven))
 
-        await sim.do(raven, "accept quest cinders")
-        assert any("Quest accepted -- The Cinder Road" in m for m in sim.seen(raven))
-        assert raven.db.get("q_cinders") == 1
+        await sim.do(raven, "quest list")
+        assert "Quest Warden offers:" in joined(sim.seen(raven))
+        await sim.do(raven, "quest accept cinder")
+        assert "Quest accepted: The Cinder Road." in joined(sim.seen(raven))
+        assert raven.db.quests["the cinder road"]["stage"] == 1
 
         await sim.do(raven, "quests")
-        assert "The Cinder Road [1/3]" in joined(sim.seen(raven))
+        assert "The Cinder Road (stage 1 of 2)" in joined(sim.seen(raven))
 
-        # Completion hook #1: the waystation relic advances stage 1 -> 2.
+        # Stage 1: using the ledger where it lies.
         await sim.do(raven, "use toll ledger")
-        assert any("Quest updated" in m for m in sim.seen(raven))
-        assert raven.db.get("q_cinders") == 2
+        assert "[The Cinder Road] Stage 2:" in joined(sim.seen(raven))
 
-        # Completion hook #2: reporting in at the final stage pays out.
-        await sim.do(raven, "report")
+        # Stage 2: carrying it home makes the quest ready, not done.
+        await sim.do(raven, "get toll ledger")
+        assert "Return to Quest Warden" in joined(sim.seen(raven))
+        await sim.do(raven, "gate")
+        assert "The Toll Road" not in joined(sim.seen(raven))
+
+        # The hand-in pays, consumes the ledger, and the Warden's hook speaks.
+        await sim.do(raven, "quest complete")
         out = joined(sim.seen(raven))
-        assert "Quest complete: The Cinder Road" in out
-        assert raven.db.get("q_cinders") == 3
+        assert "Quest complete: The Cinder Road!" in out
+        assert "The Cinder Road is open again. Well done." in out
         assert (raven.db.get("credits") or 0) == 50
+        assert not [o for o in raven.contents if o.name == "toll ledger"]
+        assert "the cinder road" in raven.db.quests_done
+
+        # The quest lock: the gate now lets Raven through.
+        await sim.do(raven, "gate")
+        assert raven.location is one(sim, "The Toll Road")
 
     async def test_unknown_and_duplicate_accepts_are_refused(self, world):
         sim, bela, hub = world
         await build(sim, bela, "198_quest_framework.md")
         raven = sim.player("Raven", location=hub)
 
-        await sim.do(raven, "accept quest dragons")
-        assert "No such quest." in sim.seen(raven)
+        await sim.do(raven, "quest accept dragons")
+        assert "Nobody here offers that quest. (quest list)" in sim.seen(raven)
 
-        await sim.do(raven, "accept quest cinders")
+        await sim.do(raven, "quest accept cinder")
         sim.seen(raven)
-        await sim.do(raven, "accept quest cinders")
-        assert "You are already on that quest." in sim.seen(raven)
+        await sim.do(raven, "quest accept cinder")
+        assert "You are already on The Cinder Road." in sim.seen(raven)
 
-    async def test_report_with_nothing_due(self, world):
+    async def test_complete_with_nothing_due(self, world):
         sim, bela, hub = world
         await build(sim, bela, "198_quest_framework.md")
         raven = sim.player("Raven", location=hub)
-        await sim.do(raven, "report")
-        assert "You have nothing to report." in sim.seen(raven)
+        await sim.do(raven, "quest complete")
+        assert "You have no quest ready to hand in." in sim.seen(raven)
 
 
 # =========================================================================
@@ -155,30 +170,37 @@ class TestDeliveryQuest:
         await build(sim, bela, "199_delivery_quest.md")
         raven = sim.player("Raven", location=hub)
 
-        await sim.do(raven, "courier job")
+        await sim.do(raven, "quest accept courier")
         orders = [o for o in raven.contents if o.name == "sealed orders"]
-        assert orders, "Vane should have handed over sealed orders"
-        assert raven.db.get("deliver_by") > 0
+        assert orders, "on_accept should have handed over sealed orders"
+        assert raven.db.quests["courier run"]["deadline"] is not None
 
-        # Already carrying: refused.
-        await sim.do(raven, "courier job")
-        assert "You already carry sealed orders." in sim.seen(raven)
+        # Already on it: refused.
+        await sim.do(raven, "quest accept courier")
+        assert "You are already on Courier run." in sim.seen(raven)
 
         await sim.do(bela, "@teleport Raven = The Harbor Office")
         sim.seen(raven)
         await sim.do(raven, "give sealed orders to Harbor Agent")
-        assert any("Sixty credits" in m for m in sim.seen(raven))
+        out = joined(sim.seen(raven))
+        assert "Quest complete: Courier run!" in out and "Sixty credits" in out
         assert (raven.db.get("credits") or 0) == 60
         assert not [o for o in raven.contents if o.name == "sealed orders"]
-        assert raven.db.get("deliver_by") == 0
+        assert raven.db.get("quests") is None
 
     async def test_stale_orders_are_refused_and_pushed_back(self, world):
+        from realm.std.quests.quests import expire_all
         sim, bela, hub = world
         await build(sim, bela, "199_delivery_quest.md")
         raven = sim.player("Raven", location=hub)
-        await sim.do(raven, "courier job")
-        # Simulate the deadline lapsing (a live world would let the clock run).
-        raven.db.set("deliver_by", 1)
+        await sim.do(raven, "quest accept courier")
+        # The deadline lapses (a live world lets the clock run; the reaper
+        # fails the quest).
+        held = raven.db.quests
+        held["courier run"]["deadline"] = 1
+        raven.db.quests = held
+        assert await expire_all() == 1
+        assert any("run out of time" in m for m in sim.seen(raven))
 
         await sim.do(bela, "@teleport Raven = The Harbor Office")
         sim.seen(raven)
@@ -187,36 +209,31 @@ class TestDeliveryQuest:
         assert [o for o in raven.contents if o.name == "sealed orders"], "pushed back"
         assert (raven.db.get("credits") or 0) == 0
 
-    async def test_agent_ignores_a_handover_to_someone_else(self, world):
-        """ON_RECEIVE reaches every witness in the room, not just the
-        recipient -- so the Agent's verifier MUST gate on `target is me`.
-        Without that guard he pays out (and destroys the orders) when the
-        courier hands them to a bystander standing in his office."""
+    async def test_a_handover_to_someone_else_counts_nothing(self, world):
+        """The objective names the Harbor Agent: orders given to a
+        bystander in his office complete nothing, and the Agent's own
+        ON_RECEIVE (gated on `target is me`) takes nothing."""
         sim, bela, hub = world
         await build(sim, bela, "199_delivery_quest.md")
         raven = sim.player("Raven", location=hub)
-        await sim.do(raven, "courier job")
+        await sim.do(raven, "quest accept courier")
 
         await sim.do(bela, "@teleport Raven = The Harbor Office")
         mook = sim.player("Mook", location=one(sim, "The Harbor Office"))
         sim.seen(raven)
 
-        # The orders go to Mook -- NOT to the Agent standing right there.
         await sim.do(raven, "give sealed orders to Mook")
         out = joined(sim.seen(raven))
-        assert "Sixty credits" not in out, "the Agent paid for a delivery he never received"
+        assert "Sixty credits" not in out and "Quest complete" not in out
         assert (raven.db.get("credits") or 0) == 0
-        assert raven.db.get("deliver_by") > 0, "the quest must stay open"
-        # The orders are really Mook's; nobody destroyed or rerouted them.
+        assert raven.db.quests["courier run"]["stage"] == 1, "the quest stays open"
         assert [o for o in mook.contents if o.name == "sealed orders"]
 
     async def test_agent_still_pays_with_a_bystander_present(self, world):
-        """The guard must reject the wrong recipient without breaking the
-        right one -- a bystander in the room changes nothing."""
         sim, bela, hub = world
         await build(sim, bela, "199_delivery_quest.md")
         raven = sim.player("Raven", location=hub)
-        await sim.do(raven, "courier job")
+        await sim.do(raven, "quest accept courier")
 
         await sim.do(bela, "@teleport Raven = The Harbor Office")
         sim.player("Mook", location=one(sim, "The Harbor Office"))
@@ -238,39 +255,42 @@ class TestCollectionCounters:
         sim, bela, hub = world
         await build(sim, bela, "200_collection_counters.md")
         raven = sim.player("Raven", location=hub)
+        await sim.do(raven, "quest accept salvage")
+        sim.seen(raven)
 
         # A non-objective pickup does not move the counter.
         await sim.do(raven, "get rusty wrench")
-        await sim.engine.waits.tick()
-        assert raven.db.get("salvage_count") in (None, 0)
+        assert sim.seen(raven) == ["You pick up a rusty wrench."]
 
         for i in range(1, 6):
             await sim.do(raven, "get salvage relay")
-            await sim.engine.waits.tick()
-            assert raven.db.get("salvage_count") == i, f"after relay {i}"
+            assert f"[Salvage] salvage relays recovered: {i}/5" in sim.seen(raven), i
 
-        assert raven.db.get("salvage_done") == 1
+        assert "salvage" in raven.db.quests_done
         assert (raven.db.get("credits") or 0) == 100
 
-    async def test_counted_relays_are_monotonic(self, world):
+    async def test_the_count_is_what_is_held_and_done_stays_done(self, world):
         sim, bela, hub = world
         await build(sim, bela, "200_collection_counters.md")
         raven = sim.player("Raven", location=hub)
-        for _ in range(5):
+        await sim.do(raven, "quest accept salvage")
+        for _ in range(2):
             await sim.do(raven, "get salvage relay")
-            await sim.engine.waits.tick()
-        assert raven.db.get("salvage_count") == 5
-
-        # Dropping a relay never lowers the tally -- progress is monotonic,
-        # tracked by the 'counted' tag stamped on each relay when first seen.
         await sim.do(raven, "drop salvage relay")
-        await sim.engine.waits.tick()
-        assert raven.db.get("salvage_count") == 5
+        sim.seen(raven)
+        await sim.do(raven, "quests")
+        assert "salvage relays recovered: 1/5" in joined(sim.seen(raven))
 
-        # Re-picking that same, already-counted relay does not double-count it.
+        for _ in range(4):
+            await sim.do(raven, "get salvage relay")
+        assert (raven.db.get("credits") or 0) == 100
+        sim.seen(raven)
+
+        # Finished is finished: a relay dropped and picked up again pays nothing.
+        await sim.do(raven, "drop salvage relay")
         await sim.do(raven, "get salvage relay")
-        await sim.engine.waits.tick()
-        assert raven.db.get("salvage_count") == 5
+        assert "recovered" not in joined(sim.seen(raven))
+        assert (raven.db.get("credits") or 0) == 100
 
 
 # =========================================================================

@@ -3,8 +3,13 @@
 REALM is a Python engine for text-based multiplayer games: MUDs, MUSHes and
 their relatives. It runs as a single asyncio process with a SQLite
 database, so there is nothing else to install or operate. It needs Python
-3.12 or newer, and it is pre-alpha: the API changed a great deal in 0.2.0
-(see the [changelog](CHANGELOG.md)).
+3.12 or newer, and it is pre-alpha: the API changed a great deal in 0.2.0,
+and 0.3.0 made it a complete MUD system (see the [changelog](CHANGELOG.md)).
+
+**New here?** [Your First MUD](docs/getting-started/your-first-mud.md)
+walks from `realm init` to a running Diku-style game: an account, the
+first hour of play, a builder, a room, a trainer, a channel, a quest and a
+clan.
 
 A REALM game is made in two places. Rules that need real code, such as how
 characters are created, how skills improve and how combat resolves, are
@@ -52,20 +57,25 @@ much of a game you want on the first day.
 ### A complete Diku-style game
 
 ```bash
-realm init mygame --template midgaard
+realm init mygame --system merc --template midgaard
 cd mygame && realm start
 ```
 
 This gives you the classic town of Midgaard (143 rooms, with shops, guards
 and monsters that respawn) running on the Merc rules: five classes, THAC0
-combat, experience and levels, and a pack of 23 spells. Create a
-character and you can play at once, or start building new areas onto the
-town. Other ROM areas can be converted and loaded beside it with
-`realm import-rom` ([Importing ROM areas](docs/development/rom-import.md)).
+combat, experience and levels, class skills and 24 spells, a pet shop
+that also sells a horse, the baker's quest, and the channels, socials and
+clan governments every new game gets. Create an account and you can play
+at once, or start building new areas onto the town. Other ROM areas can
+be converted and loaded beside it with `realm import-rom`
+([Importing ROM areas](docs/development/rom-import.md)).
+`tests/test_first_hour.py` in the engine plays this game's first hour, so
+everything above is known to work together.
 
 The template is a full project like any other: `config.py`, `rules.py`
 (a class that inherits the Merc rules), `game.py` (your own commands and
-behaviors), a smoke test and a short README, plus the area file.
+behaviors), a smoke test and a short README, plus its data (the area, the
+quest, a horse, a skill to study).
 
 ### An empty world with a rules system you can change
 
@@ -126,7 +136,7 @@ Three documents teach it, in this order:
 1. [The tutorial](docs/tutorial/index.md) builds a complete adventure, The
    Abandoned Lighthouse, from an empty database over fourteen chapters. It
    starts with rooms and doors and ends with shops, crime and magic.
-2. [The showcase](docs/showcase/index.md) is 231 worked builds, each one a
+2. [The showcase](docs/showcase/index.md) is 232 worked builds, each one a
    thing a builder might want and the softcode that makes it: a trainer
    NPC, recipe crafting, achievements, a bank, a boss with phases.
 3. [The softcode reference](docs/reference/softcode.md) lists every
@@ -162,15 +172,6 @@ that will not move between releases without notice. The scaffold includes
 a test that boots your game in memory; run it with `pytest`, and add your
 own beside it.
 
-## What is not built yet
-
-It is better to know these before you plan a game around them.
-
-- **Merc is not all of Diku.** ROM mob programs are not converted on
-  import.
-  The [import guide](docs/development/rom-import.md#merc-parity-the-punch-list)
-  lists what converts and what does not.
-
 ## What is there
 
 Underneath everything is one mechanism. Every action in the game, whether
@@ -181,37 +182,81 @@ attach to that pipeline, which is why a builder can make a door that
 refuses thieves or a room that punishes spellcasting without anyone
 writing Python.
 
-On top of it, the built-in features provide combat in timed rounds with
-melee and ranged attacks, NPC behaviors (wandering, guarding, patrolling,
-shopkeeping, respawning), money and shops, opinions that NPCs hold about
-individual characters, parties and followers, stealth, darkness and
-invisibility, timed effects such as poison, spells and abilities defined
-as data, health and resources on anything (a ship's shields and hull work
-like a character's hit points), regeneration, resting and sleeping, death
-with a corpse and a return home, wear slots and an `equipment` list, a
-configurable prompt, food, drink, potions, scrolls and wands, class skills
-a player types (`kick fido`, `backstab`) with cooldowns, accounts that
-hold several characters and share achievements and data across them, bans
-and sitelocks, tells, channels, socials and mail, a game clock and calendar
-with night and weather, skills that
-improve by points, practice at a trainer, use, or study over real time
-(chosen skill by skill), timed crafting and gathering, instanced areas, procedural wilderness,
-the building commands, a searchable help system, and area import and
-export. Three rules systems are included: GURPS, D20 and Merc. Players
-connect by telnet (with GMCP) or WebSocket.
+On top of it, the built-in features provide:
+
+- **Players and their characters.** Accounts that hold several characters
+  and share achievements and data across them; character creation by the
+  rules system; a `score`, a `skills` list, an `equipment` list of wear
+  slots and a configurable prompt; aliases, a pager, a line editor and
+  per-player options (color, screen reader).
+- **Playing alone.** Combat in timed rounds, melee and ranged; class
+  skills a player types (`kick fido`, `backstab`) with cooldowns; spells
+  and abilities defined as data; regeneration, resting and sleeping; death
+  with a corpse and a return home; loot, money and shops; food and drink,
+  hunger and thirst; potions, scrolls and wands; skills that improve by
+  points, practice at a trainer, use, or study over real time (chosen
+  skill by skill); timed crafting and gathering.
+- **Playing together.** Tells, channels, socials and mail; parties and
+  followers; pets from shops, charmed followers and mounts that obey
+  `order` and fight beside their owner; clans founded under a government
+  of the players' choosing (a gang, a guild, a union that elects its
+  senators) with positions, votes, a treasury and clan talk; quests
+  written as data, offered by NPCs, tracked in a journal and paid out.
+- **The world.** NPC behaviors (wandering, guarding, patrolling,
+  shopkeeping, respawning), opinions NPCs hold about each character,
+  stealth, darkness and invisibility, timed effects such as poison, a game
+  clock and calendar with night and weather, health and resources on
+  anything (a ship's shields and hull work like a character's hit points),
+  instanced areas and procedural wilderness.
+- **Running it.** Bans and sitelocks, link-dead grace, idle timeouts and
+  flood control, an announced shutdown or reboot, `@snoop` and `@freeze`,
+  backups (also automatic), restore and schema migration.
+- **Building it.** The building commands, a searchable help system, area
+  import and export, content packs, and ROM area conversion.
+
+Three rules systems are included: GURPS, D20 and Merc. Players connect by
+telnet (with GMCP), by WebSocket, or from a browser with the built-in
+client (`WEB_CLIENT = True`; it needs `pip install -e "realm[websocket]"`).
 
 Each of these is a feature, and a game lists the ones it wants. A feature
 that is left out does not exist in that game: its commands are unknown and
 its softcode functions are undefined. `realm features` shows what is
 available, including features installed from other packages.
 
+## What is not built yet
+
+It is better to know these before you plan a game around them.
+
+- **ROM mob programs.** A converted area plays as a Diku does, but its
+  MOBprogs are not converted on import; write them in softcode (a
+  [non-goal](MUD_PLAN.md#non-goals): a language port, not a mapping). The
+  [import guide](docs/development/rom-import.md#merc-parity-the-punch-list)
+  lists what converts and what does not.
+- **The shipped Midgaard is an older conversion.** Its ROM source is not
+  in the repository, and it was converted before the importer read reset
+  comments correctly, so the baker and three of the four guildmasters
+  were never placed (the template puts the baker back; the cleric's
+  guildmaster teaches every class), and objects are named by their ROM
+  keywords ("sword long"). Converting your own ROM areas does not have
+  these faults.
+- **Pets and mounts stay behind on `recall`** (ROM brings them along);
+  they follow their master only on foot.
+- **Left out by design** ([Non-goals](MUD_PLAN.md#non-goals)): clan
+  conquest, trophies and clan items; deities and kinship; drunkenness,
+  encumbrance, elections and branching-quest tooling (each is a softcode
+  build in the showcase instead); a web site or REST API, Discord or email
+  bridges; a database other than SQLite.
+
+[BACKLOG.md](BACKLOG.md) has the smaller items.
+
 ## Documentation
 
 The documentation is plain Markdown in [`docs/`](docs/) and reads well on
 GitHub. `mkdocs serve` builds a searchable site from it.
 
-- Getting started: [installation](docs/getting-started/installation.md)
-  and [your first game](docs/getting-started/first-game.md).
+- Getting started: [your first MUD](docs/getting-started/your-first-mud.md),
+  [installation](docs/getting-started/installation.md) and
+  [your first game](docs/getting-started/first-game.md).
 - For builders: [the tutorial](docs/tutorial/index.md),
   [the showcase](docs/showcase/index.md),
   [the softcode reference](docs/reference/softcode.md) and
@@ -233,7 +278,7 @@ To change REALM itself, work inside the clone:
 ```bash
 cd realm
 pip install -e ".[dev]"
-pytest                # about 2,700 tests, half a minute
+pytest                # about 3,300 tests, under a minute
 ruff check realm/
 mkdocs serve          # docs at http://127.0.0.1:8000
 ```

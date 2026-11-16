@@ -21,15 +21,15 @@ on its own and leaves the suite green.
 | 6 | Accounts: one login, many characters, account data, achievements, bans | L | [x] |
 | 7 | Communication: tells, channels, socials, mail | M | [x] |
 | 8 | The world clock: game time, day and night, weather | S–M | [x] |
-| 9 | Operating a live game: sessions, throttling, shutdown, backup, migrate | M | [ ] |
-| 10 | Comfort: pager, editor, aliases | M | [ ] |
-| 11 | Merc parity: the remaining Diku pieces | M | [ ] |
-| 12 | Hunger, thirst and fatigue, after CoffeeMud | M | [ ] |
-| 13 | Pets, charmed followers and mounts | M–L | [ ] |
-| 14 | Clans with governments, after CoffeeMud | L | [ ] |
-| 15 | Quests | M | [ ] |
-| 16 | A browser client (optional, see Decision D3) | M | [ ] |
-| 17 | Proof: the first hour, the guide, 0.3.0 | S | [ ] |
+| 9 | Operating a live game: sessions, throttling, shutdown, backup, migrate | M | [x] |
+| 10 | Comfort: pager, editor, aliases | M | [x] |
+| 11 | Merc parity: the remaining Diku pieces | M | [x] |
+| 12 | Hunger, thirst and fatigue, after CoffeeMud | M | [x] |
+| 13 | Pets, charmed followers and mounts | M–L | [x] |
+| 14 | Clans with governments, after CoffeeMud | L | [x] |
+| 15 | Quests | M | [x] |
+| 16 | A browser client (optional, see Decision D3) | M | [x] |
+| 17 | Proof: the first hour, the guide, 0.3.0 | S | [x] |
 
 Steps 2 to 5 make one character playable alone. Step 6 is independent of
 them and may be done at any point after step 1, but steps 7 and 9 assume
@@ -105,7 +105,8 @@ Decision log.
   `MAX_CHARACTERS = 5`. An account with exactly one character enters play
   straight after `connect`; otherwise the account menu is shown.
 - **D3. Whether to ship a browser client** (step 16). Default: yes, one
-  static page served beside the existing WebSocket protocol.
+  static page served beside the existing WebSocket protocol. *Not answered;
+  the default was taken in step 16 (2026-11-16).*
 - **D4. Whether a sleeping character can hear the room.** Default: no
   speech or room messages reach a sleeper except tells, which wake nobody
   but are delivered.
@@ -231,7 +232,7 @@ class of its own to change.
       `--system`.
 - [x] `--system` with `--features social` or `--features bare` is an error
       that says those presets have no rules.
-- [ ] With `--system merc`, `config.py` also gets
+- [x] With `--system merc`, `config.py` also gets
       `PLAYER_DEATH = "respawn"` once step 2 adds that setting (leave a
       note in the Decision log if step 1 lands first; add the line in 2.4).
 - [x] Tests in `tests/test_init_scaffold.py`: for each system, scaffold
@@ -1155,36 +1156,36 @@ shorten what they type.
 
 **Depends on.** Step 3 (the prompt).
 
-- [ ] **Pager** (BACKLOG "Output pager"). **Kernel seam** on `Session`:
+- [x] **Pager** (BACKLOG "Output pager"). **Kernel seam** on `Session`:
       `send_paged(text)`. Output longer than the client's reported height
       (NAWS when negotiated, else `PAGE_LENGTH`, default 24, per-player
       `pagelength` attribute, 0 off) is held; the prompt becomes
       "[more: enter, b back, q quit]" and the next line of input drives
       it. `help`, `@examine`, `who`, `skills`, `socials`, channel history
       and mail use it.
-- [ ] **Editor** (BACKLOG "In-game multiline text editor"). `@edit
+- [x] **Editor** (BACKLOG "In-game multiline text editor"). `@edit
       <obj>/<attr>` and `@edit <obj>` for the description open a line
       editor as a session input handler: append lines, `.l` list, `.d N`
       delete, `.i N text` insert, `.r N text` replace, `.s` save, `.q`
       quit without saving, `.h` help. Softcode attributes are validated on
       save the way `@set` validates them. `mail` and `@desc` with no text
       open it.
-- [ ] **Aliases.** `alias <word> = <command line>`, `alias` (list),
+- [x] **Aliases.** `alias <word> = <command line>`, `alias` (list),
       `unalias <word>`: stored on the character, expanded by an
       `input_interceptor` before dispatch, with `$1`..`$9` and `$*`, no
       recursion, and never over a word that begins with `@`.
-- [ ] **Per-player display options** (capability audit G7): `config`
+- [x] **Per-player display options** (capability audit G7): `config`
       command listing and setting `color`, `pagelength`, `prompt`,
       `autoloot` and the rest (step 11 adds toggles), stored on the
       account when there is one.
-- [ ] Tests for each, including the pager and editor through
+- [x] Tests for each, including the pager and editor through
       `Simulator.submit_line`.
 
 ### Docs
 
-- [ ] `docs/guides/world-management.md`: `@edit`.
-- [ ] A short "Player settings" section in `docs/guides/character-sheet.md`.
-- [ ] Close the two BACKLOG entries and audit G7.
+- [x] `docs/guides/world-management.md`: `@edit`.
+- [x] A short "Player settings" section in `docs/guides/character-sheet.md`.
+- [x] Close the two BACKLOG entries and audit G7.
 
 ---
 
@@ -1197,7 +1198,7 @@ shorten what they type.
 Read "MERC parity: the punch list" in `docs/development/rom-import.md`
 first; it ranks what is left from a run over 189 real area files.
 
-- [ ] **Special procedures.** Apply the `rom_spec:* -> behavior` table
+- [x] **Special procedures.** Apply the `rom_spec:* -> behavior` table
       under "Behavioral spec_procs" in that guide: `spec_thief` to the
       `steal` behavior, `spec_guard` / `spec_patrolman` /
       `spec_executioner` to `guard`, `spec_poison` to `venomous`,
@@ -1205,34 +1206,34 @@ first; it ranks what is left from a run over 189 real area files.
       parameter for the fido). Anything new and Merc-only goes in
       `realm/games/merc/behaviors.py`. The importer attaches them; the
       faction and bespoke procedures stay in the capability-gap report.
-- [ ] **Player toggles**: `autoloot`, `autogold`, `autosplit`, `autoexit`,
+- [x] **Player toggles**: `autoloot`, `autogold`, `autosplit`, `autoexit`,
       `brief`, read by the death path, the party award and the room
       renderer through attributes, set with `config` (step 10).
-- [ ] **Group play**: experience from a kill is split by level among party
+- [x] **Group play**: experience from a kill is split by level among party
       members in the room (`MercSystem`), `split <amount>` shares coins,
       `group` is an alias of `party`, and `report` says the character's
       pools aloud.
-- [ ] **Looking around**: `scan` (who is one room away in each direction,
+- [x] **Looking around**: `scan` (who is one room away in each direction,
       respecting sight), `exits` (the long form), `where` (players in the
       same zone), `consider` using level difference under Merc.
-- [ ] **Alignment**: an `alignment` attribute moved by kills of good and
+- [x] **Alignment**: an `alignment` attribute moved by kills of good and
       evil mobs (the importer already reads it), shown on `score`, and
       checked by equipment tagged `anti_good` / `anti_evil` /
       `anti_neutral` (the item zaps off when worn).
-- [ ] **Level limits and titles**: `LEVEL_CAP` (default 50), a class title
+- [x] **Level limits and titles**: `LEVEL_CAP` (default 50), a class title
       per level band shown on `who`, item level restrictions on `wear`.
-- [ ] **Recall**: `recall` spends half the `move` pool under Merc and is
+- [x] **Recall**: `recall` spends half the `move` pool under Merc and is
       refused in a room tagged `no_recall` and in combat without a check.
-- [ ] Regenerate the Midgaard area with every importer change in this
+- [x] Regenerate the Midgaard area with every importer change in this
       plan and update `tests/test_midgaard_playable.py`.
-- [ ] Tests for each item on a Merc world.
+- [x] Tests for each item on a Merc world.
 
 ### Docs
 
-- [ ] `docs/development/rom-import.md`: rewrite the punch list as what
+- [x] `docs/development/rom-import.md`: rewrite the punch list as what
       converts now, and what still does not (MOBprogs).
-- [ ] `docs/guides/game-systems.md`: a "What Merc implements" table.
-- [ ] `README.md` "What is not built yet": the Merc bullet shrinks to
+- [x] `docs/guides/game-systems.md`: a "What Merc implements" table.
+- [x] `README.md` "What is not built yet": the Merc bullet shrinks to
       MOBprogs.
 
 ---
@@ -1272,18 +1273,18 @@ Create `realm/std/needs/` (no `requires`).
 
 ### 12.1 The pools
 
-- [ ] Hunger and thirst are two pools, `food` and `water` (down pools:
+- [x] Hunger and thirst are two pools, `food` and `water` (down pools:
       full at max, spent at 0, `regen=False`), so everything that works on
       pools works on them: the prompt can show them, softcode can read
       them, an item can fill them. Fatigue is a third, `fatigue` (an up
       pool, `regen=False`). A character has a need exactly when it has
       that pool.
-- [ ] The game system decides who has them (Decision D6):
+- [x] The game system decides who has them (Decision D6):
       `MercSystem.pools()` adds `food` and `water`, and its baseline gives
       a new character full ones. GURPS and D20 do not. No stock system
       declares `fatigue`; a game adds it in its own `pools()`. NPCs are
       never given any of them.
-- [ ] Capacity. Settings `FOOD_FULL` (default 500) and `WATER_FULL`
+- [x] Capacity. Settings `FOOD_FULL` (default 500) and `WATER_FULL`
       (default 1000) are the base maximums. `GameSystem.stomach(obj) ->
       tuple[int, int]` returns the character's two maximums; the neutral
       answer scales the settings by `weight / NEEDS_BASE_WEIGHT` (a
@@ -1292,7 +1293,7 @@ Create `realm/std/needs/` (no `requires`).
 
 ### 12.2 Losing them
 
-- [ ] A `feature.reaper` runs every `NEEDS_INTERVAL` seconds (a setting,
+- [x] A `feature.reaper` runs every `NEEDS_INTERVAL` seconds (a setting,
       default 4, CoffeeMud's tick) over online players who have the pools.
       It skips a sleeping character (2.2), an admin, a character tagged
       `no_needs`, and a room whose zone sets `no_needs`. For the rest it
@@ -1301,19 +1302,19 @@ Create `realm/std/needs/` (no `requires`).
       `WATER_LOSS` settings (percentages, default 100), and settles.
       Fractions accumulate on the character (`food_debt`, `water_debt`) so
       a light character still gets hungry.
-- [ ] The thirst rate of a room is 1, plus 1 for each of the tags
+- [x] The thirst rate of a room is 1, plus 1 for each of the tags
       `climate:hot`, `climate:dry` and `climate:windy`, minus 1 for
       `climate:wet`, never below 0. The tags are read from the room, else
       from its zone masters (`zone_property`).
-- [ ] Exertion: an `after_traverse` hook charges one more interval's loss
+- [x] Exertion: an `after_traverse` hook charges one more interval's loss
       for each room walked.
-- [ ] `fatigue` rises by 1 per interval while awake and falls by
+- [x] `fatigue` rises by 1 per interval while awake and falls by
       `FATIGUE_SLEEP_RECOVERY` (default 3) per interval while asleep.
-- [ ] Offline time does not count for any of them.
+- [x] Offline time does not count for any of them.
 
 ### 12.3 Going without
 
-- [ ] While `food` or `water` is spent the character accumulates
+- [x] While `food` or `water` is spent the character accumulates
       `hungry_ticks` / `thirsty_ticks` (reset to 0 the moment the pool is
       above 0). Every `NEEDS_REMINDER_TICKS` (default 60) the player is
       told, by how far along they are toward the death limit: "You are
@@ -1321,17 +1322,17 @@ Create `realm/std/needs/` (no `requires`).
       half, "You are starved! Eat something!" past three quarters, and
       "You are starved, and near death. EAT SOMETHING!" on each of the last
       30 ticks; the thirst lines are thirsty, parched, dehydrated.
-- [ ] Death. Settings `HUNGER_DEATH_HOURS` (default 12) and
+- [x] Death. Settings `HUNGER_DEATH_HOURS` (default 12) and
       `THIRST_DEATH_HOURS` (default 6) of online time. Past the limit the
       character is told "YOU ARE DYING OF HUNGER!" and its vital pool is
       spent through `pools.harm` and `settle`, so the ordinary death path
       of 2.4 runs, with no killer. 0 disables death from that need.
-- [ ] Slower recovery. `needs` appends a multiplier to the `vitals`
+- [x] Slower recovery. `needs` appends a multiplier to the `vitals`
       service's list (2.1): 1.0, less 0.5 while hungry, less 0.5 while
       thirsty, so a character that is both recovers nothing; and, for the
       `mana` and `move` pools only, half again while `fatigue` is spent.
       Without `vitals` this part is skipped.
-- [ ] `HUNGRY_AWARD` (default 1.0): a factor on experience and character
+- [x] `HUNGRY_AWARD` (default 1.0): a factor on experience and character
       point awards while hungry or thirsty. 1.0 changes nothing; a game
       that wants CoffeeMud's "no experience while hungry" sets 0. To apply
       it, give the `rules` feature one small seam: `award(player, amount)`
@@ -1340,40 +1341,40 @@ Create `realm/std/needs/` (no `requires`).
       service) and then calls `GameSystem.grant_award`. The death path and
       quest rewards call `award`, never `grant_award` directly. `needs`
       appends a filter; clan tax (14.4) appends another.
-- [ ] When `fatigue` is spent the player is told "You are exhausted." at
+- [x] When `fatigue` is spent the player is told "You are exhausted." at
       the reminder interval. Nothing else happens; sleep cures it.
 
 ### 12.4 Eating and drinking
 
-- [ ] Food carries `nourishment` (how much it holds in all) and `bite`
+- [x] Food carries `nourishment` (how much it holds in all) and `bite`
       (how much one `eat` takes; default: all of it). `eat` moves one bite
       into `food`, scaled by the `FOOD_GAIN` setting (a percentage,
       default 100), and destroys the item when its nourishment is gone.
       Eating when full is refused ("You are too full to eat more.").
       This replaces the `restores = {"food": n}` form for food in 3.4;
       `restores` stays for other pools (a potion that restores `hp`).
-- [ ] A drink container carries `liquid`, `liquid_held` and
+- [x] A drink container carries `liquid`, `liquid_held` and
       `liquid_remaining`, and `sip` (default 50). `drink` moves one sip
       into `water`, scaled by `WATER_GAIN`, and lowers what remains. An
       object tagged `fountain` never runs dry. `fill <container>
       <fountain>` refills. A room tagged `water_source` (a river, a
       well) can be drunk from with `drink` alone.
-- [ ] The ROM importer writes `nourishment` for food from its value,
+- [x] The ROM importer writes `nourishment` for food from its value,
       `liquid`, `liquid_held` and `liquid_remaining` for drink containers
       from the liquid table, and tags fountains. Regenerate Midgaard.
 
 ### 12.5 Showing it
 
-- [ ] `score` under Merc says "You are hungry." and "You are thirsty."
+- [x] `score` under Merc says "You are hungry." and "You are thirsty."
       the Diku way when a pool is at a quarter or less, and does not list
       `food` and `water` as numbers beside hit points.
       `MercSystem.score_lines` does this itself; `pool_lines` gains an
       `exclude` argument so it can leave the pools out. The neutral sheet
       lists them like any pool.
-- [ ] Softcode, read-only: `hungry(obj)` and `thirsty(obj)`.
-- [ ] Rewrite showcase 137 to configure this feature instead of building
+- [x] Softcode, read-only: `hungry(obj)` and `thirsty(obj)`.
+- [x] Rewrite showcase 137 to configure this feature instead of building
       the meters by hand.
-- [ ] Tests (`tests/test_needs.py`, with an injected clock): the pools
+- [x] Tests (`tests/test_needs.py`, with an injected clock): the pools
       fall over time, faster for a heavy character, and only for online,
       awake players who have them; a hot dry room doubles thirst and a wet
       one removes it; walking costs extra; the reminder lines escalate;
@@ -1385,12 +1386,12 @@ Create `realm/std/needs/` (no `requires`).
 
 ### Docs
 
-- [ ] A "Hunger, thirst and fatigue" section in
+- [x] A "Hunger, thirst and fatigue" section in
       `docs/guides/life-and-death.md`, with the settings and the climate
       tags, and a note on where the numbers come from.
-- [ ] `docs/guides/features.md`: the `needs` row.
-- [ ] `docs/development/rom-import.md`: food, drink and fountains.
-- [ ] Regenerate the softcode and config references.
+- [x] `docs/guides/features.md`: the `needs` row.
+- [x] `docs/development/rom-import.md`: food, drink and fountains.
+- [x] Regenerate the softcode and config references.
 
 ---
 
@@ -1411,15 +1412,15 @@ Create `realm/std/companions/` (`requires=["social"]`).
 
 ### 13.1 Companions
 
-- [ ] **Design.** A companion is an NPC with a `master` attribute holding
+- [x] **Design.** A companion is an NPC with a `master` attribute holding
       a character's id. That is the whole relationship: it does not change
       who owns or controls the object for building purposes. A companion
       follows its master (the existing `following` attribute is set with
       it).
-- [ ] `master_of(obj)`, `companions_of(character)`,
+- [x] `master_of(obj)`, `companions_of(character)`,
       `set_master(npc, character | None)` in `companions.py`; public names
       of the package.
-- [ ] The limit (Decision D8), after CoffeeMud's `FORMULA_MAXFOLLOW`
+- [x] The limit (Decision D8), after CoffeeMud's `FORMULA_MAXFOLLOW`
       (`1 + (charisma - 6) / 3` in its `coffeemud.ini`, evaluated in
       `Libraries/CharCreation.java::getMaxFollowers`). Three layers, first
       one that answers wins:
@@ -1436,34 +1437,34 @@ Create `realm/std/companions/` (`requires=["social"]`).
       plus that companion's own companions. `set_master`, buying a pet
       (13.2) and a charm that lands all refuse past the limit, with a
       line saying so. `companions` ends with "You have 1 of 3 followers."
-- [ ] `COMPANION_LEVEL_DIFF` (a setting, default 0, off), after
+- [x] `COMPANION_LEVEL_DIFF` (a setting, default 0, off), after
       CoffeeMud's `FOLLOWLEVELDIFF`: a creature more than that many levels
       above the character cannot be bonded.
-- [ ] Commands: `companions` (list, with condition), `order <name|all>
+- [x] Commands: `companions` (list, with condition), `order <name|all>
       <command>`, `dismiss <name>`. `order` runs the command as the
       companion through the real dispatcher (the mechanism `@force` uses),
       and refuses any command whose permission is above `player`, `order`
       itself, and `quit`; a game narrows it further with the
       `ORDER_REFUSED` setting (a list of command names).
-- [ ] Fighting together. An observer on hostile actions: when a master
+- [x] Fighting together. An observer on hostile actions: when a master
       attacks or is attacked, each of its companions in the room joins
       the encounter on its side, through the `combat` service (do not
       import `combat`; without it companions only follow). A kill by a
       companion is credited to its master: `CombatManager._npc_death`
       asks the `companions` service for the killer's master before paying
       the award, and the death event's killer stays the companion.
-- [ ] Leaving and returning. When the master logs out, companions with a
+- [x] Leaving and returning. When the master logs out, companions with a
       `master` are taken out of the world with it (location None, their
       room remembered) and come back beside the master at login. A
       companion whose master is deleted is released.
-- [ ] A dead companion leaves the list. A companion never attacks its
+- [x] A dead companion leaves the list. A companion never attacks its
       master while the relationship holds (a check ward on hostile
       actions, declared by the feature).
-- [ ] Softcode: `master(obj)` and `companions(obj)` read-only;
+- [x] Softcode: `master(obj)` and `companions(obj)` read-only;
       `set_master(obj, master)` and `release(obj)` for builders. Events
       `companion:on_bond` and `companion:on_release` (hooks `BOND`,
       `RELEASE`).
-- [ ] Tests (`tests/test_companions.py`): bonding and the limit from
+- [x] Tests (`tests/test_companions.py`): bonding and the limit from
       each of its three layers, including a charisma rule and a companion
       that has companions of its own; the level difference; `order` runs a
       command and refuses an admin one; a companion follows through
@@ -1472,39 +1473,39 @@ Create `realm/std/companions/` (`requires=["social"]`).
 
 ### 13.2 Pets from shops, and charm
 
-- [ ] A shopkeeper with `sells_pets = True` (a parameter on the existing
+- [x] A shopkeeper with `sells_pets = True` (a parameter on the existing
       `shopkeeper` behavior in `realm/std/economy/shop.py`, read through a
       service so `economy` does not import `companions`) sells clones of
       the creatures in its `pet_stock` list: `list` shows them, `buy
       <pet>` clones one, bonds it to the buyer and charges the price.
-- [ ] The ROM importer handles `ROOM_PET_SHOP`: the mobs reset into the
+- [x] The ROM importer handles `ROOM_PET_SHOP`: the mobs reset into the
       following room become the shop's `pet_stock`. Midgaard's pet shop
       must sell after regeneration.
-- [ ] A timed effect behavior `charmed` (in `companions`, built on
+- [x] A timed effect behavior `charmed` (in `companions`, built on
       `TimedEffectBehavior` through the `effects` service or by requiring
       `effects`; choose and record): while it lasts the target has the
       caster as master; when it expires the bond is released and, with
       `turns_hostile = True`, the creature attacks its former master.
       Players cannot be charmed unless the zone allows it
       (`zone_property(room, "pvp")`).
-- [ ] `charm person` in `realm/packs/merc-classic/`: an ability whose
+- [x] `charm person` in `realm/packs/merc-classic/`: an ability whose
       effect applies `charmed`, with `save = negates` and a level check.
-- [ ] Tests: buying a pet; the charm lasting and expiring; a saved target;
+- [x] Tests: buying a pet; the charm lasting and expiring; a saved target;
       the limit shared between pets and charmed creatures.
 
 ### 13.3 Mounts
 
-- [ ] A companion tagged `mount` can be ridden. Commands `mount <name>`
+- [x] A companion tagged `mount` can be ridden. Commands `mount <name>`
       (alias `ride`) and `dismount`. Riding is one attribute each way:
       `riding` on the rider, `ridden_by` on the mount. A mount carries one
       rider; a rider rides one mount; nobody mounts in combat; a rider who
       falls unconscious, sleeps or dies is dismounted.
-- [ ] Moving. The mount follows as any companion does. Where a game
+- [x] Moving. The mount follows as any companion does. Where a game
       charges movement (2.5), the cost is paid from the mount's `move`
       pool instead of the rider's: the Merc traversal gate asks the
       `companions` service who pays. A mount with no movement left
       refuses to go ("Your mount is too exhausted.").
-- [ ] **Kernel seam.** Movement lines are fixed strings in
+- [x] **Kernel seam.** Movement lines are fixed strings in
       `realm/core/movement.py` ("{actor} leaves north.", "{actor}
       arrives."). Add `feature.move_describer(fn)`:
       `(actor, direction, phase) -> str | None`, `phase` being `leave` or
@@ -1512,31 +1513,31 @@ Create `realm/std/companions/` (`requires=["social"]`).
       answer replaces the room line. `companions` declares one:
       "{actor} rides north on a grey mare." The actor's own line follows
       the same hook. This seam also serves sneaking and flying later.
-- [ ] A `feature.marker` shows `(riding a grey mare)` on the rider and
+- [x] A `feature.marker` shows `(riding a grey mare)` on the rider and
       hides the mount's own line from room listings while ridden (a sight
       rule is wrong here: the mount is visible; use the room renderer's
       grouping hook or a `ridden` marker and record the choice).
-- [ ] Rooms tagged `no_mount` (and, by default, rooms with the
+- [x] Rooms tagged `no_mount` (and, by default, rooms with the
       `sector:inside` tag when `MOUNTS_INDOORS` is False) refuse a mounted
       traveler through a `feature.traversal_gate`.
-- [ ] `GameSystem.mounted_modifiers(rider, mount) -> dict` (neutral
+- [x] `GameSystem.mounted_modifiers(rider, mount) -> dict` (neutral
       empty): a hook for a ruleset that wants a to-hit or defense change
       while mounted. Merc leaves it empty.
-- [ ] A mount shop is a pet shop whose stock is tagged `mount`.
-- [ ] Rewrite showcase 65 and 158 on top of this feature.
-- [ ] Tests: mounting rules; a ride through two rooms shows the riding
+- [x] A mount shop is a pet shop whose stock is tagged `mount`.
+- [x] Rewrite showcase 65 and 158 on top of this feature.
+- [x] Tests: mounting rules; a ride through two rooms shows the riding
       line and drains the mount's movement, not the rider's; a `no_mount`
       room refuses; being knocked out dismounts.
 
 ### Docs
 
-- [ ] New guide `docs/guides/companions.md`: pets, orders, charm, mounts,
+- [x] New guide `docs/guides/companions.md`: pets, orders, charm, mounts,
       the settings and the softcode functions. Add to `mkdocs.yml`.
-- [ ] `docs/guides/features.md`: the `companions` row and
+- [x] `docs/guides/features.md`: the `companions` row and
       `feature.move_describer`.
-- [ ] `docs/tutorial/13-the-enthrall-spell.md`: a closing note pointing at
+- [x] `docs/tutorial/13-the-enthrall-spell.md`: a closing note pointing at
       the stock `charmed` effect.
-- [ ] Regenerate the softcode and config references.
+- [x] Regenerate the softcode and config references.
 
 ---
 
@@ -1580,7 +1581,7 @@ Create `realm/std/clans/` (no `requires`; `economy`, `basics`, `channels`,
 
 ### 14.1 Governments as data
 
-- [ ] A government is a definition object tagged `clan_government_def`
+- [x] A government is a definition object tagged `clan_government_def`
       (`feature.def_kind("clan_government", "clan_government_def")`):
 
       | Attribute | Meaning |
@@ -1598,74 +1599,74 @@ Create `realm/std/clans/` (no `requires`; `economy`, `basics`, `channels`,
       | `benefits` | a list of `{level, tags, check_mods, pool_max}` granted to members once the clan reaches that level |
       | `on_join`, `on_leave` | softcode run for a member joining or leaving |
 
-- [ ] A position is a dict: `id`, `name`, `plural`, `rank` (0 is highest;
+- [x] A position is a dict: `id`, `name`, `plural`, `rank` (0 is highest;
       two positions may share a rank), `max` (holders allowed; None for no
       limit), `lock` (a lock expression a holder must pass, for example a
       class), `public` (whether outsiders see who holds it) and `powers`.
-- [ ] The powers, each a string: `accept`, `reject`, `assign` (promote and
+- [x] The powers, each a string: `accept`, `reject`, `assign` (promote and
       demote), `exile`, `set_home`, `set_donate`, `premise`, `motd_write`,
       `motd_read`, `withdraw`, `deposit`, `deposit_list`, `tax`,
       `declare` (relations), `channel`, `list_members`, `home_privs`,
       `benefits`, `titles`, `vote_assign` and `vote_other`. A definition
       naming any other power is refused when definitions load.
-- [ ] A power no position holds outright is decided by vote (14.3):
+- [x] A power no position holds outright is decided by vote (14.3):
       assignments among holders of `vote_assign`, everything else among
       holders of `vote_other`. A power that nobody holds and nobody can
       vote on cannot be used in that government, and the command says so.
-- [ ] `auto_promote`: `none` leaves the top position to appointment or
+- [x] `auto_promote`: `none` leaves the top position to appointment or
       vote. `rank` fills a vacant top position with the longest-serving
       member of the next rank down. `level` gives it to the highest-level
       qualifying member, `xp` to whoever has donated the most experience
       and `gold` to whoever has donated the most money, re-evaluated
       whenever those change, displacing the holder.
-- [ ] Ship the governments as a pack, `realm/packs/clan-governments/`,
+- [x] Ship the governments as a pack, `realm/packs/clan-governments/`,
       imported by the scaffold's `init_world`: `gang`, `guild`, `union`,
       `fellowship`, `anarchy`, `co-op`, `meritocracy` and `plutocracy`,
       with the positions, limits and powers of the CoffeeMud file.
       `theocracy`, `family` and `profession` depend on deities, kinship
       and class grants that REALM does not have; describe in the guide how
       a game builds them with position locks, and do not ship them.
-- [ ] Tests: each shipped government loads and validates; a malformed one
+- [x] Tests: each shipped government loads and validates; a malformed one
       (unknown power, no positions, an `accept_position` that does not
       exist) is refused with its name.
 
 ### 14.2 The clan and its members
 
-- [ ] A clan is an object tagged `clan`, with no location: `name`,
+- [x] A clan is an object tagged `clan`, with no location: `name`,
       `government` (the definition's name), `members` (character id to
       `{position, joined, donated_xp, donated_gold}`), `premise`, `motd`,
       `treasury`, `home` and `donate_room` (room ids), `tax` (a
       percentage), `xp`, `level`, `relations` (clan name to relation),
       `status` (`pending` or `active`) and `founded`. A character has a
       `clans` attribute mapping category to clan id.
-- [ ] Founding (Decision D7). `clan found <name> = <government>`: costs
+- [x] Founding (Decision D7). `clan found <name> = <government>`: costs
       `CLAN_COST` (a setting, default 10000) through the `economy`
       service, needs `CLAN_MIN_LEVEL` (default 1), and makes the founder
       the holder of the top position. With `CLAN_COST = None` only
       `@clan create <name> = <government>, <leader>` (admin) founds one. A
       clan is `pending` until it has `CLAN_MIN_MEMBERS` (default 1)
       members; a pending clan cannot declare relations or levy a tax.
-- [ ] Joining: `clan apply <clan>` (refused by `required_lock`, by
+- [x] Joining: `clan apply <clan>` (refused by `required_lock`, by
       `CLAN_MAX_MEMBERS` when not 0, and when the character already has a
       clan in that category), `clan accept <player>` and `clan reject
       <player>` for holders of those powers, `clan leave`.
-- [ ] Positions: `clan assign <member> = <position>` (the `assign` power,
+- [x] Positions: `clan assign <member> = <position>` (the `assign` power,
       or a vote), refused when the position is full or the member fails
       its lock; nobody assigns a position at or above their own rank
       unless they hold the top one. `clan exile <member>`.
-- [ ] Information: `clan` (your clans), `clan info <clan>` (premise,
+- [x] Information: `clan` (your clans), `clan info <clan>` (premise,
       government, level, public position holders), `clan who` (roster by
       position, online first; needs `list_members`), `clans` (every active
       clan with its government and size), `clan governments` (what a
       founder may choose, with descriptions).
-- [ ] Text and places: `clan premise = <text>`, `clan motd = <text>`
+- [x] Text and places: `clan premise = <text>`, `clan motd = <text>`
       (shown to members at login to those with `motd_read`), `clan home`
       and `clan donate` set from the room the holder stands in, and `clan
       recall` takes a member with `home_privs` to the clan home under the
       same rules as `recall`.
-- [ ] `clan disband` by the top position, after confirmation; the treasury
+- [x] `clan disband` by the top position, after confirmation; the treasury
       returns to the holder.
-- [ ] Tests: founding with and without the cost; the whole life of a
+- [x] Tests: founding with and without the cost; the whole life of a
       member in a `gang` (apply, accept, assign, exile) and each command
       refused without its power; a full position refused; a position lock
       refusing an unqualified member; two categories at once and a second
@@ -1673,72 +1674,72 @@ Create `realm/std/clans/` (no `requires`; `economy`, `basics`, `channels`,
 
 ### 14.3 Voting
 
-- [ ] An action that must be voted on opens a vote stored on the clan:
+- [x] An action that must be voted on opens a vote stored on the clan:
       what is proposed, by whom, when it closes (`vote_days` game days
       from now), and the ballots. `clan votes` lists open votes; `clan
       vote <n> yes|no` casts or changes a ballot; the proposer may
       withdraw one.
-- [ ] A vote passes as soon as more than half of all eligible voters have
+- [x] A vote passes as soon as more than half of all eligible voters have
       said yes, and fails as soon as that is impossible. Otherwise it is
       counted when it closes: it passes with a majority of ballots cast if
       at least `vote_quorum` percent of eligible voters voted. A passed
       vote carries out its action as if a holder of the power had typed
       it; either outcome is announced on clan talk and to the proposer.
-- [ ] A `feature.reaper` closes votes that have run out. Game days come
+- [x] A `feature.reaper` closes votes that have run out. Game days come
       from the `clock` service (step 8); in a game without `clock`, one
       game day is counted as one real hour, and the guide says so.
-- [ ] Tests with an injected clock: a `fellowship` assigns its leader by
+- [x] Tests with an injected clock: a `fellowship` assigns its leader by
       vote; early pass, early fail, quorum failure at the deadline; a
       member without `vote_assign` cannot vote on an assignment; a `gang`
       never opens a vote.
 
 ### 14.4 Treasury, tax, levels and benefits
 
-- [ ] `clan deposit <amount>` and `clan withdraw <amount>` against the
+- [x] `clan deposit <amount>` and `clan withdraw <amount>` against the
       `economy` service, by power; without `economy` the commands say the
       treasury is unavailable. Each deposit adds to the member's
       `donated_gold`. `clan deposits` (the `deposit_list` power) shows who
       has given what.
-- [ ] `clan tax <percent>` (the `tax` power; at most `CLAN_MAX_TAX`,
+- [x] `clan tax <percent>` (the `tax` power; at most `CLAN_MAX_TAX`,
       default 25). While set, that share of every experience or
       character-point award a member earns goes to the clan's `xp` and to
       the member's `donated_xp` instead of to the member. `clans` appends
       a filter to the `rules` service's `award_filters` (12.3).
       `clan donate xp <amount>` gives directly, where the rules system has
       spendable experience or points.
-- [ ] Clan levels: when `xp` reaches the government's `xp_per_level` for
+- [x] Clan levels: when `xp` reaches the government's `xp_per_level` for
       the next level, the clan's `level` rises and members are told.
-- [ ] Benefits: each `benefits` entry at or below the clan's level grants
+- [x] Benefits: each `benefits` entry at or below the clan's level grants
       its tags, check modifiers and pool-maximum bonuses to members whose
       position has the `benefits` power. Apply them the way achievements
       are applied (6.5): tags at login and when the level or membership
       changes, check modifiers through a `feature.check_modifier` with a
       cache dropped on those same changes. Removing a member removes the
       tags.
-- [ ] `auto_promote` of `xp` and `gold` is re-evaluated after every
+- [x] `auto_promote` of `xp` and `gold` is re-evaluated after every
       donation and tax payment.
-- [ ] Tests: deposit and withdraw by power; tax diverting a share of a
+- [x] Tests: deposit and withdraw by power; tax diverting a share of a
       kill award; a clan reaching level 2 and its members gaining the
       benefit, and losing it on exile; a `plutocracy` changing leader when
       someone out-donates the holder.
 
 ### 14.5 Relations
 
-- [ ] `clan declare <clan> = war|hostile|neutral|friendly|ally` (the
+- [x] `clan declare <clan> = war|hostile|neutral|friendly|ally` (the
       `declare` power, or a vote; both clans must be `rivalrous` and
       active). The relation is one-sided as declared; `clan relations`
       shows both sides. An alliance holds only when both have declared it.
-- [ ] Read-only softcode `clan_relation(a, b)` returns the relation of
+- [x] Read-only softcode `clan_relation(a, b)` returns the relation of
       clan `a` toward `b`, and `clans_at_war(a, b)` is true when either
       has declared war. These are for builders and for a game's own
       player-killing rules; the engine attaches no combat consequence
       (see Non-goals).
-- [ ] Tests: declaring, the alliance needing both sides, a pending clan
+- [x] Tests: declaring, the alliance needing both sides, a pending clan
       refused, softcode reading it.
 
 ### 14.6 Upkeep
 
-- [ ] A `feature.reaper`, on a slow cadence, using members' last login
+- [x] A `feature.reaper`, on a slow cadence, using members' last login
       from their accounts:
   - dissolves a clan when fewer than `CLAN_MIN_MEMBERS` of its members
     have logged in within `CLAN_DEATH_DAYS` (a setting in game days,
@@ -1746,57 +1747,57 @@ Create `realm/std/clans/` (no `requires`; `economy`, `basics`, `channels`,
   - replaces the holders of the top position when every one of them has
     been absent for `CLAN_OVERTHROW_DAYS` (default 952; 0 disables), with
     the highest-ranking qualifying member who has logged in recently.
-- [ ] The roster prunes itself: a member id that no longer resolves to a
+- [x] The roster prunes itself: a member id that no longer resolves to a
       character is dropped the next time the roster is read, so deleting a
       character (6.3) needs no call into `clans`.
-- [ ] Tests with an injected clock for both rules and for pruning.
+- [x] Tests with an injected clock for both rules and for pruning.
 
 ### 14.7 Talk, who, locks and softcode
 
-- [ ] Clan talk: `clantalk <message>` (alias `ct`) for members whose
+- [x] Clan talk: `clantalk <message>` (alias `ct`) for members whose
       position has the `channel` power: one propagated action
       (`clan:on_talk`, hook `CLANTALK`) delivered to online members, with
       history. Build it on the channel delivery code of 7.2 through the
       `channels` service; without it the command says clan talk is
       unavailable. A member of clans in two categories names the clan:
       `ct <clan> <message>`.
-- [ ] `who` shows the clan name and, for a public position, its title:
+- [x] `who` shows the clan name and, for a public position, its title:
       `clans` appends an entry to the `who` service's `fields` list
       (step 9).
-- [ ] Read-only softcode, also available in lock expressions: `clan(obj,
+- [x] Read-only softcode, also available in lock expressions: `clan(obj,
       category='')` (the clan's name or None), `clan_position(obj)` (the
       position id), `clan_rank(obj)` (the rank number, 0 highest),
       `clan_has_power(obj, power)`, `clan_level(name)` and
       `clan_members(name)`. A hall door is
       `@lock door = clan(enactor) == 'Ravens'`; an armory is
       `clan_has_power(enactor, 'home_privs')`.
-- [ ] Builder-gated softcode `clan_add(obj, name, position=None)` and
+- [x] Builder-gated softcode `clan_add(obj, name, position=None)` and
       `clan_remove(obj, name)`. Events `clan:on_join`, `clan:on_leave`,
       `clan:on_assign`, `clan:on_level` (hooks `CLANJOIN`, `CLANLEAVE`,
       `CLANASSIGN`, `CLANLEVEL`).
-- [ ] Admin: `@clan create`, `@clan delete <name>`, `@clan set
+- [x] Admin: `@clan create`, `@clan delete <name>`, `@clan set
       <name>/<field> = <value>`, `@clan xp <name> = <amount>`.
-- [ ] Rewrite showcase 221 and 222 to use the feature. Showcase 223
+- [x] Rewrite showcase 221 and 222 to use the feature. Showcase 223
       (elections) becomes an example of choosing the `union` government.
-- [ ] Tests: clan talk reaching only members with the power; a door
+- [x] Tests: clan talk reaching only members with the power; a door
       locked by clan, by rank and by power; the softcode functions.
 
 ### Acceptance
 
-- [ ] `tests/test_clans.py` passes, and one test founds a clan under each
+- [x] `tests/test_clans.py` passes, and one test founds a clan under each
       shipped government and checks who can and cannot do each of:
       accept a member, assign a position, withdraw from the treasury.
 
 ### Docs
 
-- [ ] New guide `docs/guides/clans.md`: founding, the shipped governments
+- [x] New guide `docs/guides/clans.md`: founding, the shipped governments
       in a table (who rules, how the top position is filled, what is
       voted on), positions and powers, voting, the treasury and tax,
       levels and benefits, relations, upkeep, the settings, the softcode
       functions, and how to write a government of your own, with a
       theocracy as the worked example. Add to `mkdocs.yml`.
-- [ ] `docs/guides/features.md`: the `clans` row.
-- [ ] Regenerate the softcode and config references.
+- [x] `docs/guides/features.md`: the `clans` row.
+- [x] Regenerate the softcode and config references.
 
 ---
 
@@ -1816,7 +1817,7 @@ achievements are reached through `world.rules` and services).
 
 ### 15.1 The definition
 
-- [ ] A quest is a definition object tagged `quest_def`
+- [x] A quest is a definition object tagged `quest_def`
       (`feature.def_kind("quest", "quest_def")`):
 
       | Attribute | Meaning |
@@ -1831,67 +1832,67 @@ achievements are reached through `world.rules` and services).
       | `scope` | `character` (default) or `account`: done once per account |
       | `on_accept`, `on_stage`, `on_complete`, `on_fail` | softcode run at each point |
 
-- [ ] Objective kinds, each a dict with `kind`, a `count` (default 1) and
+- [x] Objective kinds, each a dict with `kind`, a `count` (default 1) and
       a matcher: `kill` (a name, a tag or a `prototype_vnum`), `collect`
       (items held; `consume = True` takes them at turn-in), `deliver` (an
       item given to an NPC), `visit` (a room id or tag), `talk` (an NPC),
       `use` (an object), and `custom` (a key advanced only from softcode).
-- [ ] A definition is validated when definitions load
+- [x] A definition is validated when definitions load
       (`feature.on_reload` and boot): an unknown objective kind, a stage
       with no objectives or a reward naming a missing prototype is an
       error naming the quest.
 
 ### 15.2 Tracking
 
-- [ ] A character's progress is in two attributes: `quests`
+- [x] A character's progress is in two attributes: `quests`
       (`{quest: {"stage", "counts", "accepted", "deadline"}}`) and
       `quests_done` (`{quest: timestamp}`); for `scope = account` the
       second lives on the account.
-- [ ] One `feature.observer` turns events into progress: `combat:on_death`
+- [x] One `feature.observer` turns events into progress: `combat:on_death`
       for `kill` (credit goes to the killer, to the killer's master when
       it is a companion, and to party members in the room), `item:on_get`
       and `item:on_give` for `collect` and `deliver`, the room-entry event
       for `visit`, `item:on_use` for `use`. Keep an index of which online
       characters have an active objective of each kind, so the observer
       returns at once for an action nobody is waiting on.
-- [ ] `talk <npc>` is a new command in this feature (it fires
+- [x] `talk <npc>` is a new command in this feature (it fires
       `quest:on_talk`, hook `TALK`, which NPC softcode may also answer),
       and it advances `talk` objectives.
-- [ ] Finishing the last objective of a stage moves to the next, shows
+- [x] Finishing the last objective of a stage moves to the next, shows
       its text and runs `on_stage`. Finishing the last stage completes the
       quest at once when it has no giver, else marks it ready to hand in.
-- [ ] A `feature.reaper` fails quests past their deadline and runs
+- [x] A `feature.reaper` fails quests past their deadline and runs
       `on_fail`.
-- [ ] Events `quest:on_accept`, `quest:on_advance`, `quest:on_complete`,
+- [x] Events `quest:on_accept`, `quest:on_advance`, `quest:on_complete`,
       `quest:on_fail` (hooks `QUESTACCEPT`, `QUESTADVANCE`,
       `QUESTCOMPLETE`, `QUESTFAIL`).
 
 ### 15.3 Players and builders
 
-- [ ] Commands: `quests` (alias `journal`: active quests with the current
+- [x] Commands: `quests` (alias `journal`: active quests with the current
       stage and counts; `quests done` for the history), `quest <name>`
       (detail), `quest list` (what the givers in this room offer you),
       `quest accept <name>`, `quest complete <name>` (at the giver),
       `quest abandon <name>`.
-- [ ] The behavior `quest_giver` (parameter `quests`, a list of names). A
+- [x] The behavior `quest_giver` (parameter `quests`, a list of names). A
       `feature.marker` shows `(!)` beside a giver with something to offer
       the looker and `(?)` beside one waiting for a hand-in.
-- [ ] Softcode: read-only `quest_state(obj, quest)` (None, a stage number,
+- [x] Softcode: read-only `quest_state(obj, quest)` (None, a stage number,
       `'ready'` or `'done'`) and `quest_count(obj, quest, key)`;
       builder-gated `quest_offer`, `quest_advance(obj, quest, key, by=1)`,
       `quest_complete` and `quest_fail`. `quest_state` is available in
       lock expressions, so a door can open to those who finished a quest.
-- [ ] Rewards are paid through what exists: the `award` function of the
+- [x] Rewards are paid through what exists: the `award` function of the
       `rules` feature (12.3; so hunger and clan tax apply to quest
       experience too), the `economy` service, `ops.clone` for items, the `achievements`
       service. A reward whose feature is absent is skipped with a WARNING
       naming the quest.
-- [ ] Ship one quest in the Midgaard template (kill five fidos for the
+- [x] Ship one quest in the Midgaard template (kill five fidos for the
       baker, for experience and a loaf) so a fresh game has a working
       example, and import it in the template's `init_world`.
-- [ ] Rewrite showcase 198, 199 and 200 as quest definitions. Branching
+- [x] Rewrite showcase 198, 199 and 200 as quest definitions. Branching
       quests (201) stay softcode, using `custom` objectives and the hooks.
-- [ ] Tests (`tests/test_quests.py`): each objective kind; stages; the
+- [x] Tests (`tests/test_quests.py`): each objective kind; stages; the
       giver's offer, the lock and the hand-in; rewards with and without
       `economy`; party and companion kill credit; repeat cooldown; the
       time limit; account scope across two characters; softcode advance;
@@ -1899,11 +1900,11 @@ achievements are reached through `world.rules` and services).
 
 ### Docs
 
-- [ ] New guide `docs/guides/quests.md`: the definition table, each
+- [x] New guide `docs/guides/quests.md`: the definition table, each
       objective kind with an example, the journal, the softcode functions,
       and one complete quest built in-game. Add to `mkdocs.yml`.
-- [ ] `docs/guides/features.md`: the `quests` row.
-- [ ] Regenerate the softcode reference.
+- [x] `docs/guides/features.md`: the `quests` row.
+- [x] Regenerate the softcode reference.
 
 ---
 
@@ -1913,21 +1914,21 @@ achievements are reached through `world.rules` and services).
 
 **Depends on.** Step 3 (the prompt), step 10 (the pager).
 
-- [ ] One static page (HTML, CSS and plain JavaScript, no build step) in
+- [x] One static page (HTML, CSS and plain JavaScript, no build step) in
       `realm/web/`, served by the existing WebSocket protocol's HTTP
       server at `/` when `ENABLE_WEBSOCKET` and a new `WEB_CLIENT = True`
       are set. It connects to the WebSocket endpoint, renders the
       protocol's color output, keeps input history, shows the prompt in a
       fixed line, and shows the `Char.Vitals` out-of-band data as bars.
-- [ ] It ships inside the wheel (`tests/test_packaging.py` checks the file
+- [x] It ships inside the wheel (`tests/test_packaging.py` checks the file
       is served from a copy of the package alone).
-- [ ] Tests: the page is served; a WebSocket session can log in and
+- [x] Tests: the page is served; a WebSocket session can log in and
       `look` (an integration test with `aiohttp`'s test client, skipped
       when `aiohttp` is not installed).
 
 ### Docs
 
-- [ ] `docs/protocols/overview.md`: the browser client and its settings.
+- [x] `docs/protocols/overview.md`: the browser client and its settings.
 
 ---
 
@@ -1938,43 +1939,43 @@ what a newcomer needs.
 
 **Depends on.** Everything above.
 
-- [ ] `tests/test_first_hour.py`: one scripted session on the Midgaard
+- [x] `tests/test_first_hour.py`: one scripted session on the Midgaard
       template, driven through the Simulator's real input path, that does
       each numbered line of "What 'complete' means here" at the top of
       this plan and asserts what the player sees. It is the acceptance
       test of the whole plan. Keep it deterministic (seed the dice, inject
       the clocks).
-- [ ] Run `tests/showcase/` and fix any build this plan changed (the
+- [x] Run `tests/showcase/` and fix any build this plan changed (the
       login transcripts, achievements, crafting, hunger, the pet and the
       mount, organizations, the quest builds).
-- [ ] New page `docs/getting-started/your-first-mud.md`: the path for a
+- [x] New page `docs/getting-started/your-first-mud.md`: the path for a
       developer who wants a Diku-style game and wants to build. It walks
       from `realm init --system merc --template midgaard` through making
       an account, playing the first hour, granting a builder, adding a
       room, a mob with a `trainer` behavior, a channel, a quest and a
       clan, and where to go next for rules changes. Link it first in the
       README and in `docs/index.md`.
-- [ ] `README.md`: rewrite "What is not built yet" from what is actually
+- [x] `README.md`: rewrite "What is not built yet" from what is actually
       left, and "What is there" from what this plan added.
-- [ ] `docs/reference/public-api.md` and `tests/test_public_api.py`: every
+- [x] `docs/reference/public-api.md` and `tests/test_public_api.py`: every
       feature added by this plan has its row and its frozen `__all__`.
-- [ ] `CHANGELOG.md`: the `0.3.0` entry. State what a 0.2.0 game must
+- [x] `CHANGELOG.md`: the `0.3.0` entry. State what a 0.2.0 game must
       change: logins are accounts (existing characters are converted at
       boot), `firstaid` no longer removes `unconscious` directly, `score`
       and `inventory` no longer list skills and worn items, and the new
       settings. State what did not change.
-- [ ] Bump `realm.__version__` and `pyproject.toml` to `0.3.0`
+- [x] Bump `realm.__version__` and `pyproject.toml` to `0.3.0`
       (`tests/test_public_api.py::test_one_version`).
-- [ ] Update `CLAUDE.md` key files for the new features.
+- [x] Update `CLAUDE.md` key files for the new features.
 
 ### Acceptance
 
-- [ ] `tests/test_first_hour.py` passes. The suite is green in both
+- [x] `tests/test_first_hour.py` passes. The suite is green in both
       orders. `ruff check realm/` reports no more than the baseline.
-- [ ] From an empty directory with only the package on the path:
+- [x] From an empty directory with only the package on the path:
       `realm init demo --system merc --template midgaard && cd demo &&
       pytest -q && realm features --check` succeeds.
-- [ ] Every "What is not built yet" bullet in the README of 2026-11-14 is
+- [x] Every "What is not built yet" bullet in the README of 2026-11-14 is
       either gone or names a listed non-goal.
 
 ---
@@ -2052,3 +2053,86 @@ the step, what was decided and why.
 | 2026-11-16 | 9.5 | A snoop that would loop (the target already sees the admin's output) is refused, and either side's disconnect ends it. A frozen player may still `quit`. | A loop would recurse forever; a frozen player must still be able to leave. |
 | 2026-11-16 | 9.6 | `realm restore` (and `realm migrate`) know the server is running from a pid file beside the database (`game.db.pid`), written at start and removed at stop; a pid file naming a dead process is ignored. Added `BACKUP_KEEP` for the automatic backups. | SQLite gives no reliable "in use" signal; `--keep` needed a setting for the server's own backups. |
 | 2026-11-16 | 9.7 | The schema is now v2: an index on `parent_id`, so the migration path has a real first step. An unstamped database holding the objects table counts as v1. `PersistenceManager._flush_queue` became the public `flush()` (the server flushes before a backup and at the end of a countdown). | A migration framework with nothing to migrate cannot be tested from a version-1 file, as the plan asks. |
+| 2026-11-16 | 10.1 | A screen is the player's `pagelength` option, else the client's reported height (NAWS, a web client's resize), else the new kernel setting `PAGE_LENGTH`; a page holds one line less (the pager's prompt is the last). Enter, `b` and `q` drive it; any other line stops paging and runs as a command; showing the last page ends it. A connection with no prompt line (a test session) gets the pager's prompt as a line of output. A bare enter reaches the input path only while paging, and otherwise shows the prompt again. | The plan named the inputs but not their order, nor what other input does. |
+| 2026-11-16 | 10.1 | The input path is one kernel function, `realm.server.world.route_input` (held pages, a pending prompt or the editor, the interceptors, the dispatcher), used by the server, `Simulator.input` and `Simulator.submit_line`; `submit_line` therefore now runs interceptors and prompts too, not only the dispatcher. | The plan asks for pager and editor tests through `submit_line`; two copies of the routing would drift. |
+| 2026-11-16 | 10.2 | The editor is kernel (`realm.gateway.editor`), because `building` (`@edit`, `@desc`) and `mail` (which does not require `building`) both open it. `.s` closes it, except that a softcode attribute saved with `@set`'s "will not run" warning keeps it open to fix; saving an empty text clears; an attribute holding a non-string is refused. `@desc <obj>` with no `=` now opens the editor (it used to clear the description; `@desc <obj> =` still clears). `mail <player> = <subject>` and `mail/reply <n>` with no body open it. Lines reach it as typed (`Session.raw_lines`), so WebSocket text is no longer stripped before `submit_input`. Undo, search and a softcode way to open it (BACKLOG notes) are not built. | "Validated on save the way `@set` validates them": `@set` warns and stores, so the editor stores and gives the builder the chance to fix. |
+| 2026-11-16 | 10.3 | Aliases live in `basics`. The interceptor contract is extended: an interceptor may return a string, which replaces the line for later interceptors and the dispatcher; the alias interceptor runs at order 5 (after `accounts`' creation at 0 and a freeze at 1, before sleep at 10, so an aliased `wake` wakes). A line with no `$` placeholder gets the typed words appended. An alias is one word (`\w`, up to 20); `alias` and `unalias` cannot be aliased; `ALIAS_LIMIT` (50). No `;` multi-command lines (the dispatcher has none). | An interceptor that dispatched the expansion itself would skip later interceptors and the server's flush of bystanders. |
+| 2026-11-16 | 10.4 | Options are offered by a `basics` service, `world.services["options"]` (as `who` fields are), not a new `Feature` declaration. Where they are kept is kernel (`realm.core.options`): the account named by the character's `account` attribute, else the character; `ACCOUNT_TAG` moved there from `realm.std.accounts.account`. A character's own `color`/`prompt` (and any declared option) move to its account in `accounts`' `play()` the next time it enters play; a value already on the account wins and the character's copy is deleted. | The telnet edge, the pager and the prompt are kernel or `basics` and may not import `accounts`; a login observer would have joined the frozen observer lists of games without accounts. |
+| 2026-11-16 | 10.4 | Audit G7 closed with two options, `screenreader` (color stripped, lines drawn only from `-=_*~+#\|.:` dropped) and `palette` (`r=m b=c`, a per-player swap of color letters, brightness kept), applied at the telnet edge. The WebSocket writer still sends markup segments for the client to style; the step 16 client is where it honours them. | G7 named both; the WebSocket client draws its own colors. |
+| 2026-11-16 | 11.1 | `spec_guard`, `spec_patrolman` and `spec_executioner` map to the `peacekeeper` behavior, not `guard` as the plan says: `guard` blocks movement and would wall off Midgaard's streets, and the importer already mapped the watch to `peacekeeper`. Its new `protect` parameter carries ROM's other duties: `evil` (spec_guard: the lowest alignment below 300 fighting someone else) and `fights` (spec_patrolman: any fight, the higher-level side). It reads `alignment` as a plain attribute, so it stays in `crime`; nothing new is Merc-only and `realm/games/merc/behaviors.py` was not needed. The fido's corpse-eating parameter (`scavenger`'s `eat_corpses`) already existed. | The plan's name for the behavior predates the crime layer. |
+| 2026-11-16 | 11.1 | The `#SPECIALS` reader called `line()` after the spec name, which skips to the next line when the spec has no trailing comment, so every other spec of such a file was lost; it now reads only the rest of the line (`Reader.rest_of_line`). | Found by the step's importer test. |
+| 2026-11-16 | 11.2 | `autoloot`, `autogold` and `autosplit` are declared by `combat` (its death path reads them), `autoexit` and `brief` by `look`. An NPC's money (`credits`) now goes into its corpse; `get all from <corpse>` and `get gold\|coins\|money from <corpse>` take it and `look` shows it. `autoloot` takes the money too and `autogold` applies only without it (ROM). `brief` shortens only rooms one arrives in (`render_room(..., arrival=True)`: walking, following, recall, respawn, login), not `look` (ROM's `do_look "auto"`). `autoexit` defaults on (the room display unchanged), the others off. | Money is a balance, not an object, so a corpse needed somewhere to hold it. |
+| 2026-11-16 | 11.3 | New `GameSystem.share_award(award, members)` (neutral equal shares, Merc ROM's level-weighted `group_gain`) and `on_kill(member, victim)`; `split` is an `economy` command (`split_money` on its service, the party from `social`'s service), `report` a `talk` command built from the kernel's pool functions. `group` was already `party`'s alias. | The party award lived in combat's death path; the system decides the shares. |
+| 2026-11-16 | 11.4 | `scan`, `exits` and `where` are `look` commands. `where` lists visible players sharing a `zone:` tag with the viewer's room; rooms in no zone count as one zone. `scan`, `exits`, `where`, `report` (and `split` when the amount is not a number) offer the line to a world `$`-command first: showcase 193 builds `$scan` and 198 `$report`. `sc` became an explicit alias of `score`, since `scan` made it ambiguous. `consider` asks the new `GameSystem.consider` first (Merc: ROM's seven level lines) and then still shows the attitude. | Built-ins must not shadow world verbs; ROM resolves `sc` to score. |
+| 2026-11-16 | 11.5 | Alignment moves by Merc 2.2's rule (far more evil victim: up by a quarter of the gap past 500; far more good: down; else a quarter toward 0), not ROM's experience-scaled one, and is shown with ROM's nine words. `GameSystem.repels(player, item)` and `zap(player, item)` (no event; the item falls to the floor) run on `wear`, `wield`, and after a kill changes the wearer. | "Merc parity"; the simpler rule needs no experience figure. |
+| 2026-11-16 | 11.6 | `LEVEL_CAP` is the `merc` feature's setting; at the cap experience still accrues. Titles are per class at levels 1, 5, 10, 15, 20, 30, 40 and 50 (`titles` in `MERC_CLASSES`), taken from ROM's title table (the barbarian's are new), shown by `who` through `GameSystem.who_title`. An item's `level` gates `wear` and `wield` (`GameSystem.wear_refusal`), not `quaff` and the rest. | The plan's "a class title per level band"; ROM gates only wearing in `wear_obj`. |
+| 2026-11-16 | 11.7 | "Refused ... in combat without a check" read as ROM's: in a fight recall takes a successful `recall` check (`GameSystem.recall_refusal`; Merc's untrained `recall` is wisdom + 37, 50% at 13) and costs 25 experience, as ROM's does; it leaves the fight (`CombatManager.withdraw`). Recall goes home, else the world's start room (it used to refuse a character with no home, which every new character was), and shows the room. | The two readings differ; ROM's is the Diku player's expectation. |
+| 2026-11-16 | 11.8 | Midgaard was refreshed with `scripts/dev/refresh_rom_items.py` (its `.are` source is not in the repository): mobs' `gold` became `rom_wealth` plus `credits` (wealth / 100, ROM's silver in gold), the watch's peacekeepers got `protect="evil"`. It has no `anti_*` items, and its stored room flags are empty, so no `no_recall` rooms. A database made from the old file is not migrated: it is content, not storage, and keeps loading. `test_character_sheet`'s level-1 warrior is now refused the armoury's scale mail and is raised to its level first. | The plan's "regenerate it", without the source. |
+| 2026-11-16 | 11.4 | `sp` is an alias of `spells` and `rep` of `reply`, as `sc` is of `score`. | `split` and `report` made both prefixes ambiguous; players typed them before step 11 and got `spells` and `reply`. |
+| 2026-11-16 | 12.1 | The stomach settings `FOOD_FULL`, `WATER_FULL` and `NEEDS_BASE_WEIGHT` are declared by `rules` (`GameSystem.stomach` reads them, and Merc's baseline uses it without `needs`), `FOOD_GAIN` and `WATER_GAIN` by `items` (`eat` and `drink` read them); the rest by `needs`. New `GameSystem.fill_stomach(player)`, called by `apply_baseline` and by the `rules` login observer, so a Merc character made before this step gets full pools at its next login. | Each setting belongs to the feature that reads it, so a game without `needs` still configures its stomach and its food; the login call is how a saved world is carried over. |
+| 2026-11-16 | 12.2 | The weight factor is `weight / NEEDS_BASE_WEIGHT` (1 without a weight) for the loss as well as the stomach, so a base character loses 1 food a tick and empties in about 33 minutes; CoffeeMud loses `weight / 500` (its 150-pound human takes about 2 hours; `FOOD_LOSS = WATER_LOSS = 30` reproduces it) and grows the stomach only per whole 250 pounds. | The plan's "the weight factor" read as the one 12.1 defines; Diku's pace by default; documented in the guide. |
+| 2026-11-16 | 12.2 | The reaper runs every `REAP_INTERVAL` (5 s), longer than `NEEDS_INTERVAL` (4 s), so each sweep runs one tick per whole interval passed since the last (at most 10, so a stalled server starves nobody); the clock is `realm.std.needs.needs.now` (monotonic). A sleeping character loses nothing but still counts toward starving, as in CoffeeMud; an exempt one (admin, `no_needs`) neither loses nor counts, but sleep still lowers its fatigue. | A reaper cannot run faster than the reaper loop; CoffeeMud counts hungry ticks outside its sleeping check. |
+| 2026-11-16 | 12.2 | Climate tags are read from the room, else from its zone masters' tags (not `zone_property`, which reads attributes); `no_needs` on a zone is a zone master attribute through `zone_property`. The plan's test "a hot dry room doubles thirst" is tested as hot doubles and hot and dry triples (1 + 1 + 1), which is the plan's own rule. | Tags on a master are the natural way to give a zone a climate; the arithmetic follows the rule as written. |
+| 2026-11-16 | 12.3 | A need counts and reminds as CoffeeMud does: on the first tick and every `NEEDS_REMINDER_TICKS` after, every tick of the last 30; each need on its own (CoffeeMud lets thirst's near-death line hide hunger's). After the death from hunger or thirst, food and water are full again and the counts cleared (CoffeeMud's `resetToMaxState` on death), whatever `PLAYER_DEATH` did. The counts reset through a `needs` observer on `pool:on_change`, so any source that fills the pool (softcode `mend_pool`) resets them. | Without a refill a respawned character would die again on the next tick. |
+| 2026-11-16 | 12.3 | The `rules` service is new: `world.services["rules"]` is a `RulesService` holding `award_filters`; `award(player, amount)` returns what it paid and pays nothing when the filters leave 0. `needs` must come after `rules` and `vitals` in `FEATURES` (its `on_install` appends to their services) and raises a `FeatureError` naming the order otherwise; `CLASSIC` lists it right after `vitals`. | The plan names the service; the order check fails loudly instead of silently skipping the multiplier. |
+| 2026-11-16 | 12.4 | `eat` and `drink` keep `restores` for every pool and `charges` for a drink with no liquid (3.4's potion-like flask), so items converted before this step still work; a food with no `nourishment` is eaten whole. A full stomach refuses only an item that would fill it (food with nourishment, a liquid). Messages: "You take a bite of X." for a partial bite, "You drink water from X." (the liquid's name), "You drink water here." from a `water_source` room, and CoffeeMud's "You are no longer hungry.", "You are full.", "You are no longer thirsty.", "You have drunk all you can.". `drink` alone uses a fountain in the room first, then a `water_source` room; `fill <container>` alone does the same; filling a container that holds another liquid is refused, as ROM does. `fill` fires no gated event. | The plan left the messages and the bare forms open; ROM's `do_drink` and `do_fill` find a fountain themselves. |
+| 2026-11-16 | 12.4 | The importer uses CoffeeMud's importer's scale: food `nourishment` = ROM hours × 20, drink `liquid_held` and `liquid_remaining` = units × 30 (CoffeeMud multiplies the remaining water by only 10, which leaves a full skin a third full; one factor here). Old-format numeric liquids are named from ROM 2.4's `liq_table` (an unknown index is water, reported). The liquid is only a name: ROM's per-liquid thirst, fullness and drunkenness are not modeled. Midgaard was refreshed with `scripts/dev/refresh_rom_items.py`, which now drops `restores` and `charges` from food and drink. | The plan says "from the liquid table" without a scale; CoffeeMud's is the reference. |
+| 2026-11-16 | 12.4 | `fill` made `fi` ambiguous; `fi` is now an alias of `firstaid`, which it reached by prefix before. | Players' short forms keep working (the step 11 lesson). |
+| 2026-11-16 | 12.5 | Merc's score lines "You are hungry." / "You are thirsty." come at the end of the sheet, at a quarter or less of the max; softcode `hungry(obj)` and `thirsty(obj)` are True only when the pool is empty (the state that slows recovery), and read the pool only where `pool()` could. Showcase 137 now uses an admin-owned enlistment terminal to give a GURPS crew the pools, since a GURPS game declares none. | The plan's two thresholds kept as written; the showcase is in-game only. |
+| 2026-11-16 | 12.5 | `report` says only the pools that recover on their own (`regen`), so Merc's report stays ROM's hp, mana and move; food and water are on `score`. | Reporting a stomach aloud was an accident of listing every pool. |
+| 2026-11-16 | 13.1 | Bonding writes four things, all undone by a release: `master`, `following`, the `companion` tag (the index `companions_of` reads through the store's tag index) and the `companion` behavior (the ward on hostile actions). `set_master(npc, master)` is async (it fires `companion:on_bond`/`on_release`, `adata('how')`/`adata('reason')`) and returns the refusal line or None. The third layer of the limit is the neutral `GameSystem.companion_limit` returning 2; the rule layer binds `me` and `level` itself (the `rule` profile binds neither). | The plan's "the neutral answer, 2" needs no separate default once the base hook gives it; events need an await. |
+| 2026-11-16 | 13.1 | `COMPANION_LEVEL_DIFF` refuses only a creature too far above ("is too advanced for you"), as the plan says; CoffeeMud also refuses one too far below, and ROM's pet shop refuses any pet above the buyer's level, which cannot be said with 0 meaning off. | The plan's rule; noted in the guide. |
+| 2026-11-16 | 13.1 | `order` finds the command a line would run with a new kernel method, `CommandDispatcher.resolve(line)` (token, name, alias, unique prefix); a line that resolves to no built-in (an exit name, a softcode `$`-command) is allowed and meets the companion's own permissions. The companion's replies come back through the `@force` puppet session. A character who is itself a companion cannot order (ROM). | `order` must judge a command before running it; the dispatcher's own matching is the only right answer. |
+| 2026-11-16 | 13.1 | Fighting together is an observer registered in `on_install` (after `combat`'s, so the encounter exists) on every hostile action, each round's `combat:on_attack` included; a companion joins through a new `CombatManager.assist(helper, target)`, which changes no one else's target. A master's hostile act on its own companion releases it (CoffeeMud breaks a charm so), so the ward never leaves a companion locked in a fight with its master. The kill award goes to the master's party; autoloot stays the killer's (ROM's pets do not loot). | `initiate` would turn the enemy on the companion; the plan's ward alone would leave an ordered attack blocked every round. |
+| 2026-11-16 | 13.1 | Companions leave on `event:disconnect` (quit, logout, the character menu, a dropped link once `LINKDEAD_SECONDS` pass) and come back on `event:connect`; the room they waited in is `companion_room`. A charmed creature is freed instead (CoffeeMud and ROM end a charm when the charmer quits). A deleted master is found by a reaper sweep (`release_orphans`): nothing announces a deletion. `wandering` and `aggressive` leave an NPC with a `master` alone (ROM skips charmed mobs). | Only these events exist; ROM saves pets with the player but frees charmed mobs. |
+| 2026-11-16 | 13.2 | `charmed` subclasses `TimedEffectBehavior`, so `companions` requires `effects` as well as `social`. It is applied by a new abilities effect type `charm` that calls the `companions` service (as `rescue` and `disarm` call `combat`), not by the generic `behavior` effect: the limit, the level check and the `pvp` zone rule must refuse before anything attaches, and the bond fires `BOND`. On expiry the release fires `RELEASE` (`charm_ended`); removed early (`remove_effect`, a respawn's cleanup) it unbinds without the event. Softcode `apply_effect` does not offer `charmed`. | A behavior's `attach` cannot refuse or await. |
+| 2026-11-16 | 13.2 | `charm person` in `merc-classic`: ROM 2.4's mage spell (level 20, 5 mana), `per_level: 4` beats (ROM's `number_fuzzy(level / 4)` hours at 60 s, against a 4 s beat), `save: negates`, level check (target above the caster fails). It is not `hostile`: ROM's failed charm starts a fight, but a hostile charm that lands would be the master attacking its new companion, which releases it. Also refused: a target that already has a master, a caster that is charmed, the caster themself. | Taken from ROM; the hostility conflicts with 13.1's rule. |
+| 2026-11-16 | 13.2 | `pet_stock` holds object ids. The importer names the prototypes (`rom_mob_<vnum>`) of every mob reset into the next room, without ROM's `ACT_PET` requirement (Midgaard's kitten to wolf do not carry it), and gives each a `value` of ROM's `10 * level * level` silver in gold (`pet_price`). A pet shop room with no shopkeeper sells nothing (ROM needs none). Midgaard's stored room flags are empty (its `.are` is not in the repository), so the refresh script gained `--room-flags VNUM=LETTERS` and Midgaard was refreshed with `--room-flags 3031=M`. | The plan's rule; the source is missing. |
+| 2026-11-16 | 13.3 | Only a mount's master rides it, with no skill roll (SMAUG's `mount` is a skill anyone may try on any mountable mob). A mount with no `move` pool carries its rider free; a rider spends no food or water walking (`needs` asks the service, as CoffeeMud spends only a walker's energy); a fleeing rider's mount bolts with it (CoffeeMud), though `social` brings no followers on a flee. A ridden mount refuses to walk off from under its rider. | The plan names riding a companion; the rest follows CoffeeMud. |
+| 2026-11-16 | 13.3 | The kernel seam has a third phase, `own`, for the walker's own line ("You ride north on a grey mare."); "" means no line (a ridden mount's own steps). Describers are asked for walks (`move_through_exit`), not for `move_to` placements. | "The actor's own line follows the same hook" needs its own phase: the room's template cannot be the walker's. |
+| 2026-11-16 | 13.3 | The mount is left out of room listings by a `ridden` tag the room renderer skips (the plan's "ridden marker"), not a sight rule or the grouping hook; `scan` still names it. Dismounting: `sleep` asks the `companions` service (there is no propagated position event); going down is an observer on `combat:on_death`; being placed elsewhere (recall, a teleport) is an observer on `event:on_enter` without an exit. `mounted_modifiers` returns `{"attack": n, "defense": n}`, added to the rider's attack roll and against attacks on the rider (`CombatSystem.attack` asks through the service). | The plan left the hiding choice and the hook's shape open. |
+| 2026-11-16 | 13.1 | `mount` made `mo` ambiguous; `mo` is now an alias of `credits` (`money`), which it reached by prefix before. No other 1-4 letter prefix of an existing command or showcase `$`-verb changed; showcase 082's suggested `$order` verb is renamed `$backissue`, since the built-in `order` would shadow it. | The step 11 lesson. |
+| 2026-11-16 | 13.3 | Showcase 65 is rebuilt on the feature (heel calls `set_master` and restores `following`; stay deletes only `following`); showcase 158 drops riding by containment for a `$claim rusty` that calls `set_master`, the built-in `mount`/`dismount`, and a `no_mount` stable. | The plan's rewrite; the built-in `mount` shadows the old `$mount`. |
+| 2026-11-16 | 14.1 | Governments keep CoffeeMud's percentage limits (`max: "2%"`, at least 1 holder). Powers map `CREATE_MOTD`/`READ_MOTD`/`CLAN_BENEFITS`/`CLAN_TITLES` to `motd_write`/`motd_read`/`benefits`/`titles`; `PROPERTY_OWNER`, `ORDER_*`, `CREATE_LAW`, `ENCHANT`, `MORGUE`, `JOURNAL` and `CREATE_CALENDAR` are dropped. Only acts are voted on (accept, reject, assign, exile, set_home, set_donate, premise, motd_write, withdraw, tax, declare); privileges never are. The co-op's House Mother and Father carry no gender locks; the plutocracy's lower positions are Tenant and Serf (CoffeeMud reuses Hard Worker and Worker); level benefits are only CoffeeMud's hit point, mana and movement bonuses at its levels. Defaults: `vote_days` 24, `vote_quorum` 50 (a shipped government without `VOTING` data gets 24 and 100). | REALM characters have no sex, no stat, armor or faction adjusters to grant; the plan's rule ("a power no position holds outright is voted on") agrees with CoffeeMud's `VOTING` lists for the eight shipped governments. |
+| 2026-11-16 | 14.1 | `auto_promote: rank`'s "next rank down" is the highest rank anyone below the top holds, and a vacancy is no holder of any top-rank position (the co-op has two). `xp`/`gold`: the first position goes to the leader by that measure (a holder keeps it on a tie; a challenger must have given something), the displaced holder to the accept position; `level` is re-evaluated by the upkeep, since nothing announces a level change. | A gang of a boss and members must still find an heir; a tie should not flip the leader back and forth. |
+| 2026-11-16 | 14.2 | An applicant holds its place in the category but is not in the clan: `clan()`, `who`, clan talk and the member count leave it out, and `clan:on_join` fires on acceptance, not on applying. The founder must pass the top position's lock and `required_lock`. | A door locked by clan must not open for someone who has only applied. |
+| 2026-11-16 | 14.2 | Assigning someone to a full **top** position makes them its holder and the longest holder steps down to the accept position (CoffeeMud's `ClanAssign`); any other full position is refused as planned. The last holder of the top rank cannot be moved off it until replaced. The rank rule also covers the member acted on: nobody assigns or exiles a member at or above their own rank unless they hold the top position. A passed vote is exempt from the rank rule. | Without the displacement a fellowship could never vote in a new First Citizen (max 1) and a boss could never hand over. |
+| 2026-11-16 | 14.2 | `clan disband` asks for `clan disband <name>` as its confirmation instead of a yes/no prompt. A subcommand that needs a power acts in the first of the character's clans whose position holds or may vote on it (the default category first); `leave`, `who`, `info`, `relations` and `vote` take a clan name. | A session prompt holds the command until the next line; the plan does not say how a member of two clans picks one. |
+| 2026-11-16 | 14.3 | The proposer's yes is counted when a vote opens; "fails as soon as impossible" is judged on the ballots cast so far. A vote stores resolved arguments (member id, position, room id, amount, clan and relation); a passed vote re-checks them when it is carried out and announces a refusal. | CoffeeMud skips the vote when one member can vote; counting the yes gives that and needs no special case. |
+| 2026-11-16 | 14.3 | Clan times are wall-clock (`realm.std.clans.clans.now`, which tests patch); a game day is `3600 * HOURS_PER_DAY / GAME_TIME_RATIO` real seconds from the `clock` service's calendar, one real hour without `clock`. The reaper closes expired votes every sweep and runs the upkeep at most once a game hour. | Game time is derived from wall time, so the two count the same; account `last_login` is wall time too. |
+| 2026-11-16 | 14.4 | New `GameSystem.spendable_award(player)` / `spend_award(player, amount)` for `clan donate xp` (neutral None; `PointBuyMixin` unspent `character_points`; Merc experience toward the next level, so giving never costs a level); it needs the `deposit` power. Clan experience is cumulative (CoffeeMud's `setExp`), `xp_per_level` defaulting to its `DEFAULT_XP_FORMULA`. Pool bonuses and tags are remembered on the character (`clan_pool_bonus`, `clan_tags`) so only what clans gave is taken back. Promotions and level events raised by the synchronous tax filter fire as tasks right after it. | The plan names the command but not where the game system's spendable currency lives; `award_filters` are synchronous. |
+| 2026-11-16 | 14.6 | "Played" is: online now, else the account's `last_login`, never earlier than joining the clan. Overthrown leaders step down to the accept position. The last member to leave dissolves the clan at once. | A character without an account (or newly joined) must not count as long gone. |
+| 2026-11-16 | 14.7 | In a lock expression the one trying is `caller` (REALM's lock vocabulary), so the plan's `@lock door = clan(enactor) == 'Ravens'` reads `clan(caller) == 'Ravens'`; the read-only functions take an optional `category`; `clan_has_power` is true only for a power held outright. The clan events target the clan object (as a channel line targets its `channel_def`). `ct` alone shows the recent lines. | `enactor` is not bound in the lock profile. |
+| 2026-11-16 | 14.7 | `channels` offers its delivery path as `world.services["channels"]` (`deliver`, `remember`; `broadcast` now uses it), and `basics` offers `recall`'s rules as `world.services["recall"]` (`to(player, room, session)`, `cmd_recall` split into `recall_to`). | The plan says clan talk and `clan recall` reuse them through services; neither had one. |
+| 2026-11-16 | 14.7 | `cl` is now an alias of `close` and `@cl` of `@clone`, which they reached by prefix before `clan`/`clantalk` and `@clan`. No other 1-4 letter prefix of an existing command changed (scripted against the dispatcher, with and without Merc), and no showcase `$`-verb or exit collides. | The step 11 lesson. |
+| 2026-11-16 | 14.7 | Showcase 221 and 222 are rebuilt on the feature (an admin `@clan create`s the Void Runners, a back room locked with `clan(caller)`, lockers warded by `clan()` and `clan_has_power()`); 223 is the `union` government; each build imports the governments with `@pack clan-governments`, which `import_pack` now skips when present (`clan_government_def` joins its idempotent tags). | The showcase harness has no money and no `init_world`. |
+| 2026-11-16 | 15 | References: tbaMUD's autoquests (`src/quest.c`, `quest.h`) and CoffeeMud's QuestMaker templates (`resources/quests/templates`). Taken: the questmaster's list/accept/abandon/history, objective types (find, kill, return; CoffeeMud's collect, delivery, killer, travel), time limit, repeatable, gold/experience/object rewards, a criteria mask (as `accept_lock`). Left out: quest points, quit penalties, "save a mob", "clear a room", escort/protect/capture/dispel/invasion templates, world-timed auto/competitive/random/holiday quests, faction rewards; one active quest at a time (tbaMUD) is not enforced. Recorded in docs/guides/quests.md. | The maintainer's references; each left-out piece builds on `custom` objectives and the hooks. |
+| 2026-11-16 | 15.1 | `giver` is a name, an `#id` or a matcher dict. A giver is an NPC (tagged `npc`) or anything with the `quest_giver` behavior; the behavior's `quests` lists quests an object offers without being their giver (they are handed in to the giver). A quest with no giver may be taken with `quest accept` anywhere. | The plan names both `giver` and the behavior without saying how they relate; the tag test keeps the `(!)` marker from matching every listed thing. |
+| 2026-11-16 | 15.1 | An objective's matcher is any of `id`, `name` (word-prefix, as players type), `tag`, `prototype_vnum`, all of which must agree; an optional `key` (default: its kind; two in a stage with one key are refused) and `text` (the journal's label); `deliver` names its recipient in `to`; `use` matches the object used or the item used on it. An item reward is a prototype's object id or the name of one `prototype`-tagged object. A malformed definition is reported through the definition loader (WARNING, naming the quest and the fault) and skipped; boot and `@reload` read the definitions so the warning appears then. | The plan leaves the matcher's shape and the error's form open; the loader already logs unreadable definitions by name. |
+| 2026-11-16 | 15.2 | `stage` is 1-based, or `"ready"` once every stage is met and a giver waits. Counts are per stage, cleared when a stage ends (kept at ready, for the hand-in's check). A `collect` objective counts what is held now (live, not stored) and is checked again at the hand-in; `consume` takes the items when their stage ends, at the hand-in for a giver quest's last stage. Kills count on any `combat:on_death` with a killer. `quest:on_advance` fires per stage, not per count. Quest events target the giver when they happen at one (accepting, handing in), else the quest's definition object. The time limit runs until the hand-in. | Details the plan leaves open; a held count needs no "counted" bookkeeping, and the giver as target lets its own `ON_QUESTCOMPLETE` speak. |
+| 2026-11-16 | 15.2 | The index maps each objective kind to the online characters with one in their current stage. It is rebuilt (from the playing sessions) whenever the quest definitions change, at boot and `@reload`; login and logout add and drop a character; accepting, advancing and ending a quest re-index them. The reaper sweeps only indexed characters with a deadline; an absent character's expired quest fails at their next login. | "Online characters", per the plan; a definition edited in play must not leave the index stale. |
+| 2026-11-16 | 15.3 | `quest_offer(obj, quest)` starts the quest for `obj` as if accepted (False when they may not take it) rather than prompting. The four builder functions need HARM and act after the script (queue kinds `quest_offer`, `quest_advance`, `quest_complete`, `quest_fail`). For `scope = account`, `quests_done` lives on the account; another character may take the quest while one is on it. | The plan names `quest_offer` without saying what offering is; a session prompt would hold the player's next line. |
+| 2026-11-16 | 15.3 | New service seams: `RulesService.award(player, amount)` (the module's `award`, filters and all) and `world.services["achievements"]` (`grant`, `has`), offered by `achievements`' `on_install`. | `quests` may not import `rules` or `achievements` (boundary test), and the plan's "achievements service" did not exist. |
+| 2026-11-16 | 15.3 | `talk` with no name, a name nobody here answers to, or a player, is offered to the world's softcode `$`-commands first, so showcase 067's `$talk` still works. `ta` is now an alias of `get`, which it reached by prefix (through `take`) before `talk`; `qu` and `que` were already ambiguous and now also list `quest` and `quests`; no other 1-4 letter prefix changed (scripted against the dispatcher, with and without Merc). Of the showcase's `$`-verbs only 198's `$quests` (rewritten) and 067's `$talk` collide. | The step 11 lesson. |
+| 2026-11-16 | 15.3 | The converted Midgaard area places no baker (and its bottle of beer carries mob 3001's shopkeeper behaviors: a `rom_import` defect, logged in BACKLOG). The template's `init_world` clones the baker from `rom_mob_3001` into the Bakery with a loaf to sell, then imports `data/quests.json`: "Fido trouble", five kills of `prototype_vnum` 3062 for 250 award and a bread (`#rom_obj_3011`), repeatable hourly. An existing Midgaard database does not get it (`init_world` runs once). | The plan's "for the baker" needs a baker; re-converting the area is a separate fix. |
+| 2026-11-16 | 15.3 | Showcase 198 is The Cinder Road (use, then collect with `consume`, a giver, `ON_QUESTCOMPLETE`, a `quest_state` gate); 199 is a giverless `deliver` quest offered through `quest_giver`, with `time_limit`, `on_accept` minting the orders and `on_fail` tagging them stale (the Agent's `ON_RECEIVE` now only answers); 200 is a giverless `collect` by tag, whose count is what is held rather than the old monotonic tally (its Going further shows the `custom` objective for that). 201's build is unchanged; a Going further entry adds a `custom` objective to put the fork in the journal. | "Rewrite 198 to 200 as quest definitions; 201 stays softcode." |
+| 2026-11-16 | Decisions | D3 was not answered; the default holds: one static page (`realm/web/index.html`, HTML, CSS and plain JavaScript in one file, no build step, nothing fetched from elsewhere) served at `/` by the existing WebSocket server when `ENABLE_WEBSOCKET` and the new `WEB_CLIENT` are set. | The plan's default when nobody answers. |
+| 2026-11-16 | 16 | The page is titled with `GAME_NAME` (a `{{GAME_NAME}}` placeholder filled, escaped, when the server reads the page at start) and connects to `ws` relative to its own URL, so it works behind a proxy that serves the game under a path. `WEB_CLIENT` without `ENABLE_WEBSOCKET` logs a WARNING with the fix at start. `WebSocketServer.make_app()` builds the routes without running them, for aiohttp's test client. The wheel needed no `pyproject.toml` change: hatchling ships every file under `realm/` (checked by building one). | The plan named the setting and the route, not how the page finds the socket or names the game. |
+| 2026-11-16 | 16 | The player's `color`, `screenreader` and `palette` options (10.4) are applied on the server, at the WebSocket edge, as at telnet: one `realm.core.options.display_for(player)` (a `Display`) used by both edges, and `realm.core.markup.recolor` for a style. Color off and screenreader send plain text (screenreader also drops decoration lines); a palette swaps the letters in the segments' style keys. The page itself has no settings of its own. | Step 10's log left the honouring to this step; doing it on the server keeps one rule for both protocols and works for any WebSocket client, not only this page. |
+| 2026-11-16 | 16 | The WebSocket prompt frame carried raw markup (`\|r`); it is now styled like text: `text` plain, plus `segments` when colored, with the options applied. The pager's prompt arrives as a prompt frame and the page shows it in the prompt line; a blank enter is sent as an empty line, which turns the page. The page reports its output area in characters as `resize`, so `page_length` is what fits on the screen. | The page has to draw the prompt; raw markup was a defect from step 3. |
+| 2026-11-16 | 16 | **Kernel addition:** `Session.write_prompt` sends `Char.Vitals` (every declared pool plus the damage and vital pools, `name` and `max_name`; `realm.gateway.session.vitals_of`) to any client with an OOB channel whenever it differs from the last one sent. The page draws a bar for each `name` with a `max_name` and merges each `Char.Vitals` it receives (combat's `{hp, max_hp, round}` included). | The engine sent `Char.Vitals` only in combat rounds, so the bars the step asks for would have been empty out of a fight and stale after one. The prompt is the one point every protocol reaches after each batch of output. GMCP clients gain the same. |
+| 2026-11-16 | 16 | A plain-text frame that starts with `{` is sent as `{"type": "text", "text": ...}`, so a string frame starting with `{` is always JSON. Lines that carry a password (`connect`/`create <name> <password>`, any first word containing `password`) are echoed masked in the page and kept out of its input history; the page echoes commands with `aria-hidden` so a screen reader does not read them back. | Without the first, `@emit {"type": "prompt", ...}` could pass for a frame in other players' clients. The login line carries the password in clear, and nothing tells a WebSocket client to hide it. |
+| 2026-11-16 | 17 | `realm init <name> --system merc --template midgaard` is accepted: `--system` with `--template` may name the template's own rules system (read from the `from realm.games.<x> import <X>System` line of its `rules.py`) and is refused, with the one to use, when it names another or the template has no `rules.py` (step 1 refused the pair outright). | The plan's first line, the Acceptance and the new guide use exactly that command. |
+| 2026-11-16 | 17 | `test_first_hour` runs a real `GameServer` on its own database in a `realm init` directory (`tick_interval=0`, no telnet). A line goes in through `Session.submit_input` and on through `GameServer._on_command`, as the input pump would call it (the `Simulator.submit_line` pattern), a second of fake clock per line; time passes by moving one fake clock patched into every call-through clock and calling the server's `_reap`; combat rounds are the encounter's `resolve_round`, fired by hand; spawners are ticked by hand for the fidos to return. Dice are seeded, and loaded (`Fate`: an attacker's dice and the defense against it, or a character's own checks, at best or worst) for the fights the story needs won or lost. Line 11's quest is taken before line 3 so the fidos count; each section names its line. | Login, backup and restore need a real server and a file; the beat loop and the server's heartbeat run on wall-clock timers; seeded dice alone would make the story change with any new roll in the engine. |
+| 2026-11-16 | 17 | The Midgaard template ships three small data files: `achievements.json` (Friend of the Baker, granting the tag `baker_friend`, the reward of "Fido trouble"), `stable.json` (a brown horse, tagged `mount`, added by `init_world` to the pet shop's stock) and `skills.json` (lore, `progression: idle`). The welcome banner now says `create` / `connect <account> <password>`. | On a fresh install lines 4 (no skill could be studied: Merc's are all `use`), 6 (no achievement existed) and 9 (ROM's Midgaard sells no mount) could not be done without a builder; the banner still spoke of creating a character. |
+| 2026-11-16 | 17 | In the test the superuser pays for her clan with `@set me/credits = 10080`; `CLAN_COST` stays 10000. One companion at Merc level 3 (`1 + level // 10`), so the dog is dismissed before the horse is bought. | Nobody earns 10000 gold in a first hour; both are the shipped rules, shown as they are. |
+| 2026-11-16 | 17 | Engine fix: a character out of play (quit, or switched away from with `characters`) is not listed in its room or by `scan`; a link-dead one still is, marked (`realm.std.look.render.out_of_play`: not online and not `linkdead`, in a world with a session manager). Not a `sight_rule`. | Cole stood listed under "Players here" while Bree played (Diku takes a quitter out of the world; Penn leaves a disconnected player out of `look`). A sight rule would hide session-less players in the many tests and tools that make them. |
+| 2026-11-16 | 17 | Engine fix: `realm.commands.base.find_victim(ctx, name)`: `kill`, the combat maneuvers' targets, `firstaid`, a typed ability and `cast` aimed at `victim`/`ally` (`realm.std.abilities.target_kind`) match a player, an NPC or anything with a damage pool. | `kill fido` beside "the corpse of fido dog" was ambiguous, and with only the corpse there `kick fido` kicked the corpse. Things with a damage pool stay targets (a training dummy, a ship). |
+| 2026-11-16 | 17 | Engine fix: a fight continues only while a living participant has another as its target (`CombatEncounter._check_continue`). | Bree killed by the vagabond left it and the alley cat in an encounter with no one to hit, `in_combat` for ever. |
+| 2026-11-16 | 17 | Engine fix: `get_combatant(obj)` rebuilds its cached wrapper when the cached one wraps another object with the same id. | After `realm restore` and a new server in the same process the vagabond was fought through the wrapper of its old object: "defeated" at 67 hp, and the pet never joined. |
+| 2026-11-16 | 17 | Importer fixes (`realm/tools/rom_import.py`): resets read as ROM's `load_resets` (a `*` line is a comment, a reset's trailing comment ends with its line; `O` has three fields after the if-flag, not four); `#SHOPS` patches the keeper mob only and `P` puts into an object only; a spawner's or zone reset's prototype carries `prototype_vnum`; `ACT_SCAVENGER` maps to a scavenger that picks up and eats no corpse (`scavenger_behavior()`). `scripts/dev/refresh_rom_items.py` mends shops on objects, spawner vnums and scavengers, and the shipped Midgaard was refreshed with it (22 objects lost a shop, 50 spawners gave their mob its vnum, 42 scavengers lost their appetite). | The baker's missing and the beer's shop (BACKLOG, step 15) were these; respawned fidos did not count for "Fido trouble", which needs five kills and Midgaard places four; cityguards ate the corpses players had just made. |
+| 2026-11-16 | 17 | Midgaard is not re-converted: its `.are` is not in the repository, so the placements the old reader lost (the baker, the mage, warrior and thief guildmasters) stay lost. The template's `init_world` keeps cloning the baker; the cleric's guildmaster (`teaches: class`) teaches every class. Logged in BACKLOG and the README's "not built yet". | Re-creating them by hand would be guessing at the source; the importer is fixed and tested for the next conversion. |
+| 2026-11-16 | 17 | Engine fixes found running the guide on a real `realm start` over telnet: `quit` (and anything that destroys its own session) through the input pump no longer cancels its own teardown (`Session.stop_input_pump` leaves the running pump alone, which then ends); help and the `channels` footer escape pipes (`on\|off\|history` lost `\|h` to the bold markup); the prompt is not shown under the class menu (`basics`' renderer returns None while `chargen_step` is set). | The session stayed registered with its character and the connection open; the text was garbled; "<20hp 100m 100mv>" appeared before there was a class. The test drives `_on_command` directly, so the pump defect has its own test in `test_session.py`. |
+| 2026-11-16 | 17 | Not fixed, logged in BACKLOG and the README: pets and mounts stay behind on `recall`; `Room.Info` only on movement; ability cooldowns, corpse locks, mail, achievement and channel dates and the combat beat loop read the wall clock directly; a wall prints the typist's prompt twice. aiohttp is not in the dev venv, so the four browser-client tests skip. | None of them is needed by a line of "What 'complete' means here"; each is small and named for whoever takes it. |
+| 2026-11-16 | 17 | `docs/getting-started/your-first-mud.md` was written from a real `realm init` and `realm start` in a scratch directory, played over telnet by a script, two connections at once; the fight, death, shop and practice excerpts are from `test_first_hour`'s run of the same game. Linked first in the README, `docs/index.md` and `mkdocs.yml`. | The plan: run every doc example. |
+| 2026-11-16 | 17 | 0.3.0: the CHANGELOG's 0.3.0 entry is a release entry with "Upgrading from 0.2.0", "What did not change" and "New settings" before the step entries; `docs/reference/public-api.md` gains rows for `accounts`, `companions`, `clans` and `quests` and lists the features with no public names, and `tests/test_public_api.py` checks the page against the frozen lists. | The plan's last tasks; the page had not been updated since 0.2.0. |

@@ -15,7 +15,12 @@ from realm.std.rules.checks import Checks
 from realm.std.rules.commands import cmd_improve, cmd_points, cmd_skills
 from realm.std.rules.definitions import parse_class_def, parse_skill_def
 from realm.std.rules.progression import login_observer, training_sweep
-from realm.std.rules.system import equipment_observer, reload_rules, resolve_game_system
+from realm.std.rules.system import (
+    RulesService,
+    equipment_observer,
+    reload_rules,
+    resolve_game_system,
+)
 from realm.std.rules.training import TrainerBehavior, cmd_practice, cmd_study, cmd_train
 
 feature = Feature(
@@ -39,11 +44,13 @@ feature.def_kind("class", "class_def", parse=parse_class_def)
 def _install_game_system(world) -> None:
     """GAME_SYSTEM becomes ``world.rules``, and the world gets its checks
     (``services["checks"]``): resolved and defaulted through the game
-    system, with every feature's ``check_modifier`` folded in. A bad path
-    raises here, at boot."""
+    system, with every feature's ``check_modifier`` folded in; and
+    ``services["rules"]``, the award filters other features append to. A
+    bad path raises here, at boot."""
     checks = Checks()
     checks.modifier_providers.extend(world.check_modifiers)
     world.services["checks"] = checks
+    world.services["rules"] = RulesService()
     world.rules = resolve_game_system(world.settings.game_system)
     for pool in world.rules.pools():
         add_default(world, replace(pool, owner=f"rules ({world.rules.system_id})"))
@@ -52,7 +59,8 @@ def _install_game_system(world) -> None:
 feature.command(
     'points',
     cmd_points,
-    aliases=['cp', 'score'],
+    # `sc` stays the score now `scan` shares its first letters (ROM's order).
+    aliases=['cp', 'score', 'sc'],
     category='combat',
     help_text='Show your character sheet',
 )
@@ -95,10 +103,24 @@ feature.command(
 )
 feature.behavior(TrainerBehavior)
 feature.setting(
+    "FOOD_FULL", 500,
+    "The food a stomach holds (`GameSystem.stomach`), for a character of "
+    "`NEEDS_BASE_WEIGHT`; CoffeeMud's.")
+feature.setting(
+    "WATER_FULL", 1000,
+    "The water a stomach holds (`GameSystem.stomach`), for a character of "
+    "`NEEDS_BASE_WEIGHT`; CoffeeMud's.")
+feature.setting(
+    "NEEDS_BASE_WEIGHT", 150,
+    "The weight a stomach of `FOOD_FULL` and `WATER_FULL` belongs to: a "
+    "character with a `weight` scales both (and its hunger and thirst) by "
+    "`weight / NEEDS_BASE_WEIGHT`.")
+feature.setting(
     "IDLE_TRAINING_MAX_HOURS", 0,
     "How many hours of time away an idle (`study`) skill banks at once. 0: unlimited.")
 # Idle training catches up while a character plays (the reaper) and when it
-# logs in (the observer).
+# logs in (the observer, which also gives a character made before its game
+# system declared food and water a full stomach).
 feature.reaper(training_sweep)
 feature.observer(login_observer)
 

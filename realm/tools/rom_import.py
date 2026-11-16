@@ -131,9 +131,34 @@ def attack_damage_type(value: Any) -> str | None:
     return ATTACK_TYPES.get(word) if word else None
 
 
-#: One drink's worth of a ROM drink container's units (ROM serves about 4
-#: hours of thirst per sip of water), and what it restores.
-DRINK_UNITS = 4
+#: CoffeeMud's importer (``Commands/Import.java``): a ROM food's hours of
+#: fullness times 20 is its ``nourishment``, and a ROM drink container's
+#: units times 30 its ``liquid_held`` (MUD_PLAN 12.4).
+FOOD_SCALE = 20
+LIQUID_SCALE = 30
+
+#: ROM 2.4's ``liq_table`` by index, for old-format files that store a
+#: drink's liquid as a number (newer ones store its name).
+ROM_LIQUIDS = (
+    "water", "beer", "red wine", "ale", "dark ale", "whisky", "lemonade",
+    "firebreather", "local specialty", "slime mold juice", "milk", "tea", "coffee",
+    "blood", "salt water", "coke", "root beer", "elvish wine", "white wine",
+    "champagne", "mead", "rose wine", "benedictine wine", "vodka", "cranberry juice",
+    "orange juice", "absinthe", "brandy", "aquavit", "schnapps", "icewine",
+    "amontillado", "sherry", "framboise", "rum", "cordial",
+)
+
+
+def liquid_name(value: Any, area: Area) -> str:
+    """A ROM liquid value (its name, or its index in ``liq_table``) as a
+    name; ``water`` for an index ROM does not know (reported)."""
+    if isinstance(value, str) and not value.lstrip("-").isdigit():
+        return value.strip().lower() or "water"
+    index = _int(value, -1)
+    if 0 <= index < len(ROM_LIQUIDS):
+        return ROM_LIQUIDS[index]
+    area.gap(f"drink: unknown ROM liquid {value!r}; written as water")
+    return "water"
 
 # ROM immune/resist/vuln flag letters -> REALM damage-type name. ROM's
 # IMM_/RES_/VULN_ bitvectors share one layout (merc.h); only the
@@ -191,11 +216,26 @@ SPEC_BEHAVIORS = {
                      "params": {"eat_corpses": False, "pick_up": True}},
     "spec_thief": {"behavior_id": "steal", "params": {}},
     "spec_poison": {"behavior_id": "venomous", "params": {}},
-    # spec_guard is a peacekeeper (attacks WANTED criminals), now that the
-    # crime layer exists -- NOT the movement-blocking `guard` behavior.
-    "spec_guard": {"behavior_id": "peacekeeper", "params": {}},
+    # The town watch are peacekeepers (they attack WANTED criminals, ROM's
+    # KILLER and THIEF), NOT the movement-blocking `guard` behavior. ROM's
+    # spec_guard also takes on the most evil fighter in a brawl, and
+    # spec_patrolman breaks up any fight; spec_executioner only arrests.
+    "spec_guard": {"behavior_id": "peacekeeper", "params": {"protect": "evil"}},
+    "spec_patrolman": {"behavior_id": "peacekeeper", "params": {"protect": "fights"}},
     "spec_executioner": {"behavior_id": "peacekeeper", "params": {}},
 }
+
+# ROM extra-flag letters that become tags: ITEM_MAGIC (G) marks enchanted
+# delivery; ITEM_ANTI_GOOD/_EVIL/_NEUTRAL (J/K/L) zap a wearer of that
+# alignment off under Merc.
+ITEM_FLAG_TAGS = {"G": "magic", "J": "anti_good", "K": "anti_evil", "L": "anti_neutral"}
+
+# ROM room-flag letters that become tags: ROOM_NO_RECALL (N).
+ROOM_FLAG_TAGS = {"N": "no_recall"}
+
+# ROM's ROOM_PET_SHOP: the mobs reset into the next room (vnum + 1) are the
+# pets the room's shopkeeper sells (see ``pet_shops``).
+ROOM_PET_SHOP = "M"
 
 # ROM wear *locations* (the enum used by 'E' reset lines and equip slots) —
 # a DIFFERENT numbering from the wear-flag bits above.
@@ -307,6 +347,14 @@ class Reader:
         if tok and (tok.lstrip("-").isdigit()):
             return int(tok)
         return rom_flags(tok)
+
+    def rest_of_line(self) -> str:
+        """The rest of the current line (a trailing comment), which may be
+        empty: unlike ``line`` it never skips to the next one."""
+        start = self.i
+        while self.i < self.n and self.text[self.i] != "\n":
+            self.i += 1
+        return self.text[start:self.i].strip()
 
     def line(self) -> str:
         self._skip_ws()
@@ -497,7 +545,10 @@ def _mobiles(r: Reader, area: Area) -> None:
             "level": level,
             "alignment": align,
             "sex": sex,
-            "gold": wealth,
+            # Money is the economy's one balance (``credits``); the raw
+            # silver figure stays beside it.
+            "credits": mob_money(wealth),
+            "rom_wealth": wealth,
             # ROM does not store a kill's XP (the server derives it); a
             # level-scaled ``points`` gives the death award something to
             # divide (GameSystem.death_award = points // 10).
@@ -539,12 +590,78 @@ def _mobiles(r: Reader, area: Area) -> None:
             proto["behaviors"].append(
                 {"behavior_id": "aggressive", "params": {}})
         if "C" in act_letters:                           # ACT_SCAVENGER
-            proto["behaviors"].append(
-                {"behavior_id": "scavenger", "params": {}})
+            proto["behaviors"].append(scavenger_behavior())
         trainer = trainer_behavior(act_letters)
         if trainer is not None:                          # ACT_PRACTICE / ACT_TRAIN
             proto["behaviors"].append(trainer)
         area.mob_protos[vnum] = proto
+
+
+def item_flag_tags(extra_letters: list[str]) -> list[str]:
+    """The tags an object's ROM extra flags give it (``ITEM_FLAG_TAGS``)."""
+    return [tag for letter, tag in ITEM_FLAG_TAGS.items() if letter in extra_letters]
+
+
+def room_flag_tags(flag_letters_: list[str]) -> list[str]:
+    """The tags a room's ROM flags give it (``ROOM_FLAG_TAGS``)."""
+    return [tag for letter, tag in ROOM_FLAG_TAGS.items() if letter in flag_letters_]
+
+
+def pet_price(level: int) -> int:
+    """ROM's pet price, ``10 * level * level`` silver, in gold (as
+    ``mob_money``): at least 1."""
+    return max(1, 10 * max(0, int(level)) ** 2 // 100)
+
+
+def pet_shops(objects: list[dict]) -> int:
+    """ROM's ``ROOM_PET_SHOP``: in each room flagged ``M``, the shopkeeper
+    (and its prototype) sells pets, ``sells_pets`` with a ``pet_stock`` of
+    the prototypes of the mobs reset into the following room (vnum + 1),
+    each priced at ROM's ``10 * level * level`` silver (``pet_price``)
+    unless it has a ``value``. Works on a converted document's objects, so
+    ``scripts/dev/refresh_rom_items.py`` uses it too. Returns how many
+    objects changed."""
+    by_id = {o.get("id"): o for o in objects}
+    changed = 0
+    for room in objects:
+        attrs = room.get("attrs") or {}
+        if "room" not in room.get("tags", []) or \
+                ROOM_PET_SHOP not in (attrs.get("rom_room_flags") or []):
+            continue
+        store_id = f"rom_{int(attrs['rom_vnum']) + 1}"
+        stock: list[str] = []
+        for mob in objects:
+            vnum = (mob.get("attrs") or {}).get("prototype_vnum")
+            proto_id = f"rom_mob_{vnum}"
+            if (mob.get("location") == store_id and "npc" in mob.get("tags", [])
+                    and vnum is not None and proto_id in by_id and proto_id not in stock):
+                stock.append(proto_id)
+        for proto_id in stock:
+            proto_attrs = by_id[proto_id].setdefault("attrs", {})
+            if "value" not in proto_attrs:
+                proto_attrs["value"] = pet_price(proto_attrs.get("level") or 0)
+                changed += 1
+        keepers = [o for o in objects if o.get("location") == room["id"]
+                   and any(b.get("behavior_id") == "shopkeeper" for b in o.get("behaviors", []))]
+        keepers += [by_id[f"rom_mob_{k['attrs']['prototype_vnum']}"] for k in list(keepers)
+                    if f"rom_mob_{k['attrs'].get('prototype_vnum')}" in by_id]
+        for keeper in keepers:
+            for behavior in keeper.get("behaviors", []):
+                if behavior.get("behavior_id") != "shopkeeper":
+                    continue
+                params = behavior.setdefault("params", {})
+                if params.get("sells_pets") is not True or params.get("pet_stock") != stock:
+                    params["sells_pets"] = True
+                    params["pet_stock"] = list(stock)
+                    changed += 1
+    return changed
+
+
+def mob_money(wealth: int) -> int:
+    """A mob's money in gold. ROM's ``wealth`` is in silver; a mob made from
+    it carries about that much, split into gold and silver (``create_mobile``).
+    REALM has one coin, so: wealth / 100."""
+    return max(0, int(wealth)) // 100
 
 
 def room_light_tags(sector_name: str) -> list[str]:
@@ -552,6 +669,13 @@ def room_light_tags(sector_name: str) -> list[str]:
     lamps), so a city room is ``lamplit``; the clock darkens any other
     outdoor room at night."""
     return ["lamplit"] if sector_name == "city" else []
+
+
+def scavenger_behavior() -> dict:
+    """ROM's ``ACT_SCAVENGER``: it picks up the best thing lying in the room
+    (``mobile_update``); it eats nothing. (``spec_fido`` is the corpse
+    eater, a special procedure.)"""
+    return {"behavior_id": "scavenger", "params": {"eat_corpses": False, "pick_up": True}}
 
 
 def trainer_behavior(act_letters: list[str]) -> dict | None:
@@ -604,9 +728,9 @@ def _objects(r: Reader, area: Area) -> None:
         # ROM ITEM_MAGIC (extra flag G): the enchanted-delivery marker. A
         # magic-tagged weapon's hits count as magical for the resistance
         # family ladder — they bypass IMM_WEAPON ('physical'), the classic
-        # "you need an enchanted blade" gate.
-        if "G" in flag_letters(extra):
-            tags.append("magic")
+        # "you need an enchanted blade" gate. The anti-alignment flags
+        # become anti_good / anti_evil / anti_neutral.
+        tags.extend(item_flag_tags(flag_letters(extra)))
         attrs: dict[str, Any] = {
             "rom_vnum": vnum, "short_desc": short,
             "item_type": type_name, "weight": weight, "value": cost,
@@ -696,8 +820,9 @@ def _spell_name(value: Any, type_name: str, area: Area) -> str | None:
 def item_fields(type_name: str, values: list, area: Area) -> tuple[list[str], dict]:
     """Tags and attributes that make a ROM item work (MUD_PLAN 3.4, 4.2): a
     weapon's ``damage_type``; ``spells``, ``spell_level`` and ``charges``
-    for potions, pills, scrolls, wands and staves; ``restores`` (and a
-    drink's ``charges``) for food, drink and fountains."""
+    for potions, pills, scrolls, wands and staves; ``nourishment`` for food;
+    ``liquid``, ``liquid_held`` and ``liquid_remaining`` for a drink
+    container; ``liquid`` and the ``fountain`` tag for a fountain."""
     values = list(values) + [0] * (5 - len(values))
     attrs: dict[str, Any] = {}
     tags: list[str] = []
@@ -719,15 +844,22 @@ def item_fields(type_name: str, values: list, area: Area) -> tuple[list[str], di
         attrs.update(spells=[spell] if spell else [], spell_level=_int(values[0], 1),
                      charges=_int(values[2]))
     elif type_name == "food":
-        attrs["restores"] = {"food": _int(values[0])}
+        attrs["nourishment"] = max(0, _int(values[0])) * FOOD_SCALE
     elif type_name in ("drink", "drink_container"):
         tags.append("drink")
-        attrs["restores"] = {"water": DRINK_UNITS}
-        attrs["charges"] = -(-_int(values[1]) // DRINK_UNITS)
+        attrs.update(liquid=liquid_name(values[2], area),
+                     liquid_held=max(0, _int(values[0])) * LIQUID_SCALE,
+                     liquid_remaining=max(0, _int(values[1])) * LIQUID_SCALE)
     elif type_name == "fountain":
-        tags.append("drink")
-        attrs["restores"] = {"water": DRINK_UNITS}
+        tags.extend(["drink", "fountain"])
+        attrs["liquid"] = liquid_name(values[2], area)
     return tags, attrs
+
+
+#: What ``item_fields`` wrote for food and drink before MUD_PLAN step 12;
+#: ``scripts/dev/refresh_rom_items.py`` removes them from these types.
+CONSUMABLE_TYPES = ("food", "drink", "drink_container", "fountain")
+RETIRED_CONSUMABLE_FIELDS = ("restores", "charges")
 
 
 def _value_token(r: Reader):
@@ -785,6 +917,7 @@ def _rooms(r: Reader, area: Area) -> None:
         if sector_name != "inside":
             room["tags"].append("outdoor")
         room["tags"].extend(t for t in room_light_tags(sector_name) if t not in room["tags"])
+        room["tags"].extend(room_flag_tags(flag_letters(flags)))
         # sub-records until 'S'
         while True:
             sub = r.word()
@@ -814,6 +947,9 @@ def _rooms(r: Reader, area: Area) -> None:
 
 
 def _resets(r: Reader, area: Area) -> None:
+    """ROM's ``load_resets``: a line starting with ``*`` is a comment, and
+    after a reset's fields the rest of its line is one too (read to the end
+    of that line, never into the next)."""
     last_mob_iid: str | None = None
     while True:
         letter = r.word()
@@ -821,54 +957,59 @@ def _resets(r: Reader, area: Area) -> None:
             if letter.startswith("#") and letter not in ("#0", "#$"):
                 r.i -= len(letter)
             return
-        r.number()                                     # if-flag (unused, 0)
-        if letter == "M":
-            mob_v = r.number()
-            r.number()
-            room_v = r.number()
-            r.number()                        # ROM room limit
-            last_mob_iid = _place_mob(area, mob_v, room_v)
-            if (area.repop or area.zone_reset) and last_mob_iid is not None:
-                # Placed statically (so keepers keep their G/E stock); a
-                # spawner (or zone_reset spec) is built from these at finalize.
-                area.mob_resets.append((mob_v, room_v))
-        elif letter == "O":
-            obj_v = r.number()
-            r.number()
-            room_v = r.number()
-            r.number()
-            _place_obj(area, obj_v, room_v)
-            if area.repop:
-                area.obj_reset_rooms.add(room_v)     # floor loot restocks
-            if area.zone_reset:
-                area.obj_resets.append((obj_v, room_v))
-        elif letter == "P":
-            obj_v = r.number()
-            r.number()
-            into_v = r.number()
-            r.number()
-            _put_in_obj(area, obj_v, into_v)
-        elif letter == "G":
-            obj_v = r.number()
-            r.number()
-            _give_mob(area, obj_v, last_mob_iid)
-        elif letter == "E":
-            obj_v = r.number()
-            r.number()
-            wear = r.number()
-            _equip_mob(area, obj_v, last_mob_iid, wear)
-        elif letter == "D":
-            r.number()
-            r.number()
-            r.number()         # room door state
-            area.gap("reset D (door open/closed/locked state): applied as "
-                     "the exit's initial lock tags where possible")
-        elif letter == "R":
-            r.line()
-            area.gap("reset R (randomize exits) has no static equivalent; "
-                     "the exits are emitted in their authored order")
-        else:
-            r.line()
+        if not letter.startswith("*"):
+            last_mob_iid = _reset(r, area, letter, last_mob_iid)
+        r.rest_of_line()                               # the comment
+
+
+def _reset(r: Reader, area: Area, letter: str, last_mob_iid: str | None) -> str | None:
+    """One reset's fields, after its letter. Returns the mob that ``G`` and
+    ``E`` resets now give to (the one an ``M`` placed)."""
+    if letter not in ("M", "O", "P", "G", "E", "D", "R"):
+        area.gap(f"reset {letter!r} is not a ROM reset; its line was skipped")
+        return last_mob_iid
+    r.number()                                         # if-flag (unused, 0)
+    if letter == "M":
+        mob_v = r.number()
+        r.number()
+        room_v = r.number()
+        r.number()                            # ROM room limit
+        last_mob_iid = _place_mob(area, mob_v, room_v)
+        if (area.repop or area.zone_reset) and last_mob_iid is not None:
+            # Placed statically (so keepers keep their G/E stock); a
+            # spawner (or zone_reset spec) is built from these at finalize.
+            area.mob_resets.append((mob_v, room_v))
+    elif letter == "O":
+        obj_v = r.number()
+        r.number()
+        room_v = r.number()
+        _place_obj(area, obj_v, room_v)
+        if area.repop:
+            area.obj_reset_rooms.add(room_v)         # floor loot restocks
+        if area.zone_reset:
+            area.obj_resets.append((obj_v, room_v))
+    elif letter == "P":
+        obj_v = r.number()
+        r.number()
+        into_v = r.number()
+        r.number()
+        _put_in_obj(area, obj_v, into_v)
+    elif letter == "G":
+        obj_v = r.number()
+        r.number()
+        _give_mob(area, obj_v, last_mob_iid)
+    elif letter == "E":
+        obj_v = r.number()
+        r.number()
+        wear = r.number()
+        _equip_mob(area, obj_v, last_mob_iid, wear)
+    elif letter == "D":
+        area.gap("reset D (door open/closed/locked state): applied as "
+                 "the exit's initial lock tags where possible")
+    else:
+        area.gap("reset R (randomize exits) has no static equivalent; "
+                 "the exits are emitted in their authored order")
+    return last_mob_iid
 
 
 def _clone_proto(area: Area, protos: dict[int, dict], vnum: int,
@@ -906,9 +1047,11 @@ def _put_in_obj(area: Area, obj_v: int, into_iid_or_vnum) -> str | None:
     inst = _clone_proto(area, area.obj_protos, obj_v, "object")
     if inst is None:
         return None
-    # into_v is a vnum in ROM; we target the most-recent instance of it.
+    # into_v is an object vnum in ROM; we target the most-recent instance
+    # of it (a mob may share the number).
     target = next((o for o in reversed(area.objects)
-                   if o["attrs"].get("prototype_vnum") == into_iid_or_vnum),
+                   if o["attrs"].get("prototype_vnum") == into_iid_or_vnum
+                   and "npc" not in o["tags"]),
                   None)
     inst["location"] = target["id"] if target else None
     area.objects.append(inst)
@@ -959,10 +1102,12 @@ def _shops(r: Reader, area: Area) -> None:
                        "buyback": _pct(profit_sell)},
         }
         buys = [int(x) for x in buy_types if x.lstrip("-").isdigit()]
-        # The keeper is every spawned instance of this vnum, not just the
+        # The keeper is every spawned instance of this mob, not just the
         # prototype — resets ran first, so patch the placed instances too.
+        # Objects share the vnum space: object 3000 is not mob 3000.
         for target in [proto, *(o for o in area.objects
-                                if o["attrs"].get("prototype_vnum") == keeper)]:
+                                if o["attrs"].get("prototype_vnum") == keeper
+                                and "npc" in o["tags"])]:
             # A shopkeeper stays at their counter: drop any wander the ACT
             # flags gave them.
             target["behaviors"] = [b for b in target["behaviors"]
@@ -995,7 +1140,7 @@ def _specials(r: Reader, area: Area) -> None:
         if tok == "M":
             vnum = r.number()
             spec = r.word()
-            r.line()
+            r.rest_of_line()                           # a comment, or nothing
             proto = area.mob_protos.get(vnum)
             if proto is not None:
                 proto["tags"].append(f"rom_spec:{spec}")
@@ -1053,13 +1198,7 @@ def _attach_spawners(area: Area) -> None:
         for inst in instances:
             if f"spawned:{key}" not in inst["tags"]:
                 inst["tags"].append(f"spawned:{key}")
-        prototype = {
-            "name": proto["name"],
-            "description": proto["description"],
-            "tags": [t for t in proto["tags"] if t != "prototype"],
-            "attrs": dict(proto["attrs"]),
-            "behaviors": [dict(b) for b in proto["behaviors"]],
-        }
+        prototype = _instance_prototype(proto, mob_v)
         room["behaviors"].append({
             "behavior_id": "spawner",
             "params": {"key": key, "prototype": prototype,
@@ -1087,14 +1226,16 @@ def _attach_restockers(area: Area) -> None:
             room["behaviors"].append({"behavior_id": "restock", "params": {}})
 
 
-def _instance_prototype(proto: dict) -> dict:
+def _instance_prototype(proto: dict, vnum: int) -> dict:
     """A spawn prototype from a #MOBILES/#OBJECTS proto (drop the
-    prototype tag; keep name/desc/tags/attrs/behaviors)."""
+    prototype tag; keep name/desc/tags/attrs/behaviors). What it spawns
+    carries ``prototype_vnum``, as a reset-placed instance does, so a quest
+    or a lock that names the vnum knows a respawn for the same mob."""
     return {
         "name": proto["name"],
         "description": proto["description"],
         "tags": [t for t in proto["tags"] if t != "prototype"],
-        "attrs": dict(proto["attrs"]),
+        "attrs": {**proto["attrs"], "prototype_vnum": vnum},
         "behaviors": [dict(b) for b in proto["behaviors"]],
     }
 
@@ -1117,7 +1258,7 @@ def _attach_zone_reset(area: Area) -> None:
             proto = protos.get(vnum)
             if proto is None or room_v not in area.rooms:
                 continue
-            spec.append({"prototype": _instance_prototype(proto),
+            spec.append({"prototype": _instance_prototype(proto, vnum),
                          "room": f"rom_{room_v}", "count": count})
             for inst in area.objects:
                 if inst["attrs"].get("prototype_vnum") == vnum \
@@ -1176,6 +1317,9 @@ def _finalize(area: Area) -> None:
     for proto in list(area.mob_protos.values()) + list(area.obj_protos.values()):
         if proto not in area.objects:
             area.objects.append(proto)
+    if pet_shops(area.objects):
+        area.gap("ROOM_PET_SHOP: the room's shopkeeper sells the mobs reset into "
+                 "the next room as pets (sells_pets, pet_stock)")
 
 
 # --- summaries ---------------------------------------------------------------

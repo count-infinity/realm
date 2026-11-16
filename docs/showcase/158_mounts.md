@@ -1,69 +1,59 @@
 # 158. Mounts
 
-> Checklist item 158 ([now]): *rider/mount pairing by containment, relayed steering, a view relay, dismount rules*
+> Checklist item 158 ([now]): *the `companions` feature's mounts: a bond, `mount`/`dismount`, riding lines, riding gates*
 
-**What you'll build:** Rusty, a dun mare you can ride. `mount Rusty` puts
-you in the saddle, `ride north` carries you off in the direction you steer
-her, and `dismount` sets you back on your feet. Only one rider sits her at a
-time.
+**What you'll build:** Rusty, a dun mare you can claim and ride. `claim
+rusty` makes her yours, `mount Rusty` puts you in the saddle, every exit
+you take carries you both ("Tam rides trail on Rusty."), and `dismount`
+sets you back on your feet. Only her owner rides her, and only one rider
+sits her at a time.
 
-**Concepts:** riding as **containment**, where the rider enters the mount so
-the mount's own moves carry them; a **consented** [`move_to`](../reference/softcode.md#fn-move_to)
-to seat and unseat; **steering relayed** through the mount's scripted
-[`move`](../reference/softcode.md#script-commands-simple-scripts-cmd-output-lines);
-and an [`ON_ARRIVE`](../reference/softcode.md#lifecycle-hooks) **view relay**
-so the rider sees where they land.
+**Concepts:** a mount is a [companion](../guides/companions.md) tagged
+`mount`; [`set_master`](../reference/softcode.md#fn-set_master) bonds her
+from softcode; the engine's `mount`, `ride` and `dismount` commands do the
+riding; and a `no_mount` tag closes a room to riders.
 
 ## How it works
 
-A mount is a creature you climb inside. Seating a rider puts them in the
-mount's contents, so every room the mount walks takes the rider along, and
-steering is just the mount moving itself while you sit within it. This
-section answers four questions: where the rider actually stands, how one
-command steers the mount, why the mount reaches only itself, and how the
-rider still watches the world go by.
+A mount is a creature that follows you and that you can sit on. The
+`companions` feature (MUD_PLAN step 13) already knows both halves, so the
+build is a mare, one tag and one softcode line that makes her yours. This
+section answers three questions: what makes a creature rideable, how
+riding moves, and where a rider cannot go.
 
-### Where does the rider stand?
+### What makes a creature rideable?
 
-Inside the mount. The engine already carries an object's contents when that
-object moves, so the simplest true carry is to put the rider in the mount's
-contents. `mount Rusty` runs [`move_to`](../reference/softcode.md#fn-move_to)`(enactor, me)`:
-you consented by typing the command, which lets the mount seat you, and now
-you are in Rusty's contents. When Rusty walks a room you ride along, with no
-follow bookkeeping. Compare the [pet](065_pet.md), which *follows* you
-through its `following` attribute; a mount is the inverse, since you ride
-inside it.
+Two things: it is your companion (its `master` attribute holds your id),
+and it carries the `mount` tag. `claim rusty` is a `$`-command on Rusty
+that calls [`set_master`](../reference/softcode.md#fn-set_master)`(me,
+enactor)`: she becomes your companion, which also makes her follow you
+(the `following` attribute) and counts her against your companion limit.
+`mount Rusty` then writes one attribute each way: `riding` on you and
+`ridden_by` on her. Someone else's mare answers "Rusty isn't yours to
+ride.", and a mare with a rider already up answers "Rusty already has a
+rider."
 
-### How does one command steer the mount?
+### How does riding move?
 
-From the saddle, `ride north` runs *as Rusty*: her script calls
-[`move`](../reference/softcode.md#script-commands-simple-scripts-cmd-output-lines)`(way)`,
-so she walks north through the real movement pathway. Locked and guarded
-exits judge the mare, and you travel wherever she goes because you are inside
-her.
+You walk as always. Rusty follows you through the exit because she is
+your companion, and the movement lines say you rode: the room you leave
+sees "Tam rides trail on Rusty.", the room you reach "Tam arrives, riding
+Rusty.", and Rusty's own steps print nothing. In a room, you are listed as
+"Tam (riding Rusty)" and she is not listed on her own. In a game that
+charges movement (Merc), each step is paid from her `move` pool, not
+yours, and an exhausted mare refuses to go on.
 
-### Why does the mount touch only itself?
+### Where can a rider not go?
 
-An NPC has no authority to write a player's attributes or shove a player
-around, so a mount that tried to relocate its rider by force would be
-refused. Containment sidesteps that entirely: the one player-touching
-operation is the *consented* `move_to` the rider authorized by typing
-`mount`. Everything after that, Rusty does to herself.
-
-### How does the rider still see the room?
-
-Tucked inside the mount, the rider misses the room's own arrival lines, so
-Rusty relays them. Her [`ON_ARRIVE`](../reference/softcode.md#lifecycle-hooks)
-hook fires on her when she reaches a new room, and it forwards the arrival
-line to whoever is riding with [`pemit`](../reference/softcode.md#fn-pemit).
-`ON_ARRIVE` is the mover's own hook, firing on the object that moved rather
-than on every object in the destination, so it needs no `target` guard and a
-second mare standing by stays silent.
+Anywhere tagged `no_mount`, and indoors (`sector:inside`) unless the game
+sets `MOUNTS_INDOORS = True`: "You can't ride in there." Dismount and walk
+in, and Rusty follows on foot. Nobody mounts in the middle of a fight, and
+a rider who sleeps, is knocked out or dies comes off.
 
 ## Build it
 
-A paddock and a trail to ride between, then Rusty herself, tagged and
-dropped where a rider will find her:
+A paddock and a trail to ride between, then Rusty herself, tagged as a
+creature and a mount and dropped where a rider will find her:
 
 ```text
 @dig The Paddock = paddock, out
@@ -72,101 +62,67 @@ paddock
 back
 @create Rusty
 @tag Rusty = npc
+@tag Rusty = mount
 @desc Rusty = A patient dun mare, saddled and waiting.
 drop Rusty
 ```
 
-`mount` seats a consenting rider. It rejects a name that is not hers, refuses
-a second rider while one is up, then announces the mount, moves the rider
-inside her, and records who is aboard:
+`claim rusty` makes her yours. It refuses when she already has a master;
+otherwise [`set_master`](../reference/softcode.md#fn-set_master) bonds her
+to whoever typed it (after the script, so the line is shown first):
 
 ```text
-@set Rusty/cmd_mount = '''
-$mount *:
-if trim(arg0).lower() not in name(me).lower():
-    pemit(enactor, 'That is not Rusty.')
-elif V('rider'):
-    pemit(enactor, 'Someone is already astride.')
+@set Rusty/cmd_claim = '''
+$claim rusty:
+if master(me):
+    pemit(enactor, name(me) + ' already answers to ' + name(master(me)) + '.')
+elif set_master(me, enactor):
+    pemit(enactor, name(me) + ' nuzzles your hand. She is yours to ride.')
 else:
-    oemit(enactor, name(enactor) + ' swings up onto ' + name(me) + '.')
-    move_to(enactor, me)                       # consented: the rider typed this command, so the mount may seat them
-    set_attr(me, 'rider', '#' + enactor.id)
-    pemit(enactor, 'You settle into the saddle. RIDE <direction> to go.')
+    pemit(enactor, 'You have too many followers to keep her.')
 '''
 ```
 
-`ride` steers from the saddle. It confirms the enactor is the current rider,
-then poses the mare's stride and walks her the given way, carrying the rider
-inside her:
+A stable door you can lead her through but not ride through:
 
 ```text
-@set Rusty/cmd_ride = '''
-$ride *:
-way = trim(arg0).lower()
-if V('rider') != '#' + enactor.id:
-    pemit(enactor, 'You are not riding ' + name(me) + '.')
-else:
-    pose('bears ' + name(enactor) + ' ' + way + '.')
-    move(way)
-'''
-```
-
-`ON_ARRIVE` is the view relay. It fires on Rusty in each new room and
-forwards the arrival line to her rider, so the person in her contents learns
-where they landed:
-
-```text
-@set Rusty/on_arrive = '''
-if V('rider'):
-    pemit(get(V('rider')), name(me) + ' bears you into ' + name(here) + '.')
-'''
-```
-
-`dismount` unseats the rider. It confirms the enactor is aboard, clears the
-rider mark, sets them down in Rusty's own room with a consented `move_to`,
-and announces the dismount:
-
-```text
-@set Rusty/cmd_dismount = '''
-$dismount:
-if V('rider') != '#' + enactor.id:
-    pemit(enactor, 'You are not mounted.')
-else:
-    del_attr(me, 'rider')
-    move_to(enactor, loc(me))                  # set the rider down in the room Rusty stands in
-    oemit(enactor, name(enactor) + ' swings down off ' + name(me) + '.')
-    pemit(enactor, 'You dismount.')
-'''
+@dig The Stable = stable, yard
+stable
+@tag here = no_mount
+yard
 ```
 
 ## Try it
 
 ```text
-mount Rusty         -> You settle into the saddle. RIDE <direction> to go.
-ride trail          -> "Rusty bears you into The Trail."
-dismount            -> You dismount.   (you are standing on The Trail)
+claim rusty         -> Rusty nuzzles your hand. She is yours to ride.
+mount Rusty         -> You mount Rusty.
+trail               -> You ride trail on Rusty.   (the Paddock sees
+                       "Tam rides trail on Rusty."; Rusty is on the Trail)
+back                -> back in the Paddock, still riding
+stable              -> You can't ride in there.
+dismount            -> You dismount Rusty.
+stable              -> you walk in; Rusty follows you on foot
+companions          -> Rusty (mount)   here
+                       You have 1 of 2 followers.
 ```
 
-`@examine Rusty` shows her `rider` set while you are aboard and gone once you
-drop down. A second person who tries `mount Rusty` while you ride gets
-"Someone is already astride." Onlookers watch her leave and arrive by her
-own name, because she is a mount yet still a creature moving through rooms.
+A second person who tries `mount Rusty` is told "Rusty isn't yours to
+ride.", and their `claim rusty` "Rusty already answers to Tam."
+`@examine Rusty` shows `master` and `following`, and `ridden_by` while you
+are up.
 
 ## Going further
 
-- **Whose horse:** `@lock/use Rusty = caller.id == owner.id` (or a
-  `tamed_by` attribute) so only her handler may `mount`, since the `use`
-  lock gates a `$`-command. This is the [pet](065_pet.md)'s ownership line.
-- **Voice, not verbs:** add `^*whoa*` and `^*walk on*`
-  [listen triggers](065_pet.md) so you rein her with speech as well as
-  `ride`.
-- **A led mount:** for a pack animal that *follows* instead of carrying, set
-  `following` on the mount (the [pet](065_pet.md) pattern). The two models
-  compose into a mule you lead until you climb on.
-- **Fuller vision:** the relay sends one line; to give the rider the whole
-  room, have `ON_ARRIVE` also [`oob`](../reference/softcode.md#fn-oob) the
-  room's exits to their client, or relay the mount's room description.
-- **Mounted combat:** the rider sits inside Rusty, so a foe in the room
-  faces the mount, not the person in the saddle. Compose with
-  [tutorial 073](073_boss_phases.md)'s targeting for a mount that takes the
-  hits.
+- **A paying mount:** under the Merc rules (`--system merc`), give her a
+  `move` pool (`@set Rusty/move = 40`, `@set Rusty/max_move = 40`) and
+  every step is paid from it; she regains it resting like anyone.
+- **A stable that sells them:** a pet shop whose stock is tagged `mount`
+  is a mount shop: put Rusty in a back room and give a shopkeeper
+  `sells_pets` and `pet_stock` ([the guide](../guides/companions.md#pet-shops)).
+- **Voice, not verbs:** a mount is a companion, so `order Rusty pose
+  stamps and snorts.` works from the saddle, and [the pet](065_pet.md)'s
+  `^listen` tricks work on her too.
+- **Mounted combat:** a game system's `mounted_modifiers(rider, mount)`
+  returns `{"attack": n, "defense": n}` to change a rider's rolls; the
+  neutral system and Merc return nothing.

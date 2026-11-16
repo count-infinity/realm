@@ -291,14 +291,31 @@ async def _pre_enter_blocked(actor: GameObject, destination: GameObject,
     return False
 
 
+def move_line(actor: GameObject, direction: str | None, phase: str,
+              default: str) -> str:
+    """The line a walk prints for ``phase`` (``leave``, ``arrive`` or
+    ``own``): the first answer of the world's move describers
+    (``feature.move_describer``), else ``default``. ``""`` means no line."""
+    from realm.core.world import find_world
+    world = find_world()
+    for describe in (world.move_describers if world is not None else ()):
+        line = describe(actor, direction, phase)
+        if line is not None:
+            return str(line)
+    return default
+
+
 async def _fire_arrival(actor: GameObject, destination: GameObject,
-                        tags: set[str], extra: dict) -> None:
-    """The informational ``on_enter`` — the actor has already arrived."""
+                        tags: set[str], extra: dict,
+                        line: str = "{actor} arrives.") -> None:
+    """The informational ``on_enter`` — the actor has already arrived.
+    ``line`` is what the room sees (none when empty)."""
     enter = Action(
         actor=actor, target=destination, action_type=ActionType.ON_ENTER,
         chain=ROOM_TARGET_CHAIN, tags=set(tags), extra=extra,
     )
-    enter.add_message("room", "{actor} arrives.")
+    if line:
+        enter.add_message("room", line)
     await propagate(enter)
 
 
@@ -416,8 +433,14 @@ async def move_through_exit(
             extra={"exit": exit_obj, "destination": destination, "direction": direction},
             tags={MOVEMENT},
         )
-        leave.add_message("actor", f"You leave {direction}.")
-        leave.add_message("room", f"{{actor}} leaves {direction}.")
+        # The lines are the move describers' when one answers (a rider:
+        # "{actor} rides north on a grey mare."; "" is no line at all).
+        own = move_line(actor, direction, "own", f"You leave {direction}.")
+        if own:
+            leave.add_message("actor", own)
+        left = move_line(actor, direction, "leave", f"{{actor}} leaves {direction}.")
+        if left:
+            leave.add_message("room", left)
         await propagate(leave, deliver=False)
         if leave.blocked:
             actor.msg(leave.block_reason or "You can't go that way.")
@@ -446,7 +469,8 @@ async def move_through_exit(
     # Phase 3: on_enter is informational — the actor has already arrived.
     await _fire_arrival(
         actor, destination, {MOVEMENT},
-        extra={"from": origin, "exit": exit_obj, "direction": direction})
+        extra={"from": origin, "exit": exit_obj, "direction": direction},
+        line=move_line(actor, direction, "arrive", "{actor} arrives."))
 
     # Structured client data (GMCP Room.Info) — no-op without a client
     # that negotiated OOB.
@@ -466,5 +490,5 @@ async def move_through_exit(
 
 
 __all__ = ["move_through_exit", "resolve_exit_destination", "fire_exit_fail",
-           "move_to", "has_dest_resolver",
+           "move_to", "move_line", "has_dest_resolver",
            "has_private_dest_resolver", "DestinationUnavailableError"]

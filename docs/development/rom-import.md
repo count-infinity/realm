@@ -72,13 +72,13 @@ shops, and specials follow the ROM 2.4 `db.c` field order.
 
 | ROM | REALM |
 |---|---|
-| room (`#ROOMS`) | object tagged `room`; `sector:<name>` tag + `sector` attr; room-flag letters kept as `rom_room_flags` |
+| room (`#ROOMS`) | object tagged `room`; `sector:<name>` tag + `sector` attr; room-flag letters kept as `rom_room_flags`, and `ROOM_NO_RECALL` (N) tagged `no_recall`; `ROOM_PET_SHOP` (M): the room's shopkeeper sells the mobs reset into the next room (vnum + 1) as pets (`sells_pets`, `pet_stock` naming their prototypes, each priced at ROM's `10 * level * level` silver in gold as `value`) |
 | door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a lockable door adds `door`/`closed` tags, the key vnum as a `key` attr |
-| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `gold`, `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight), ACT_SCAVENGER → `scavenger` (eat corpses / pick up litter). Shopkeepers are stripped of `wandering` and kept at the counter |
+| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `credits` (its money in gold: ROM's `wealth`, which is silver, over 100; the raw figure kept as `rom_wealth`), `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight), ACT_SCAVENGER → `scavenger` that picks up what lies about and eats no corpse (`eat_corpses: false`; only `spec_fido` eats them). Shopkeepers are stripped of `wandering` and kept at the counter |
 | room (`#ROOMS`), continued | also tagged `zone:<area>` (one zone per imported area — bounds STAY_AREA wanderers, and the room-set a `zone_reset` or `population` orchestrator draws on) and `outdoor` for any non-interior sector (so an orchestrator can populate "all outdoor rooms") |
-| object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `weight`, `value` (cost), `slot` for wearables (Merc's slot names: the hold flag is `held`, a light source `light`), `wieldable` for weapons; potions, pills, scrolls, wands and staves get `spells`, `spell_level` and `charges`; food gets `restores` `{"food": hours}`, drink containers `restores` `{"water": 4}` and `charges`, fountains `restores` and the `drink` tag; the five ROM value fields kept raw in `rom_values` |
-| reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script |
-| shop (`#SHOPS`) | the keeper mob gains the `shopkeeper` behavior with `markup`/`buyback` derived from its profit margins; per-item-type buy filters kept as `rom_shop_buys` |
+| object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `ITEM_MAGIC` tagged `magic` and `ITEM_ANTI_GOOD`/`_EVIL`/`_NEUTRAL` tagged `anti_good`/`anti_evil`/`anti_neutral`; `level` (the least level to use it under Merc), `weight`, `value` (cost), `slot` for wearables (Merc's slot names: the hold flag is `held`, a light source `light`), `wieldable` for weapons; potions, pills, scrolls, wands and staves get `spells`, `spell_level` and `charges`; food gets `nourishment` (its hours of fullness times 20), drink containers `liquid` (the liquid's name; an old-format number is looked up in ROM's liquid table), `liquid_held` and `liquid_remaining` (units times 30, CoffeeMud's importer's scale) and the `drink` tag, fountains `liquid` and the `drink` and `fountain` tags (they never run dry); the five ROM value fields kept raw in `rom_values` |
+| reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script. Read as ROM's `load_resets` reads them: a line starting with `*` is a comment, and after a reset's fields the rest of its line is one too. `P` puts into an object, never a mob that shares its vnum |
+| shop (`#SHOPS`) | the keeper mob (never an object with the same vnum) gains the `shopkeeper` behavior with `markup`/`buyback` derived from its profit margins; per-item-type buy filters kept as `rom_shop_buys` |
 
 The prototypes are emitted too (tagged `prototype`), so even a mob or item
 that no reset places can be `@clone`d by a builder later.
@@ -116,10 +116,12 @@ in REALM yet, and a builder can wire it up in softcode.
   `merc-classic` pack does not define, and a slot number it does not know,
   are reported as gaps. It keeps all five values raw in `rom_values`; a
   light's duration, a container's key and the like are not wired to REALM
-  mechanics. Food and drink restore `food` and `water` pools, which no
-  game system has yet (MUD_PLAN step 12). A converted area already on disk
-  is brought up to date with `python scripts/dev/refresh_rom_items.py
-  <area.json>`.
+  mechanics. Food carries `nourishment` and drink containers `liquid`,
+  `liquid_held` and `liquid_remaining`, which fill the Merc `food` and
+  `water` pools (MUD_PLAN step 12); fountains are tagged `fountain`. A
+  converted area already on disk is brought up to date with `python
+  scripts/dev/refresh_rom_items.py <area.json>`, which also drops the
+  `restores` and `charges` an earlier converter wrote on food and drink.
 - **Resets: static by default, respawning with `--repop`.** ROM resets are
   a *repop spec* the server re-runs on a cycle; the converter runs them
   **once** to place the initial population (a static snapshot). Pass
@@ -127,7 +129,9 @@ in REALM yet, and a builder can wire it up in softcode.
   reset into: the spawner **adopts** the statically-placed instances (so no
   duplication) and respawns each on death (`respawn_ticks`, not
   presence-gated — the classic "keep killing them" loop, unlike the
-  whole-zone `zone_reset` which only fires when a zone empties).
+  whole-zone `zone_reset` which only fires when a zone empties). A
+  respawned mob carries `prototype_vnum` as the placed one does, so a
+  quest objective or a lock that names the vnum counts it.
   **Objects restock too**: a room's floor loot (O resets) and a keeper's
   wares get a `restock` behavior that snapshots the canonical objects at
   boot and re-mints any that get taken or sold, so shops never run dry.
@@ -147,21 +151,24 @@ in REALM yet, and a builder can wire it up in softcode.
   pack — see [Spells as Data](../guides/spells.md)), `spec_fido` /
   `spec_janitor` → `scavenger`, `spec_thief` → `steal` (pickpocket),
   `spec_poison` → `venomous` (poisons on a landed hit; the DoT routes through
-  the damage path, so poison resistance/immunity apply), and `spec_guard` /
-  `spec_executioner` → `peacekeeper` (attacks WANTED criminals — see the
-  [crime layer](../guides/crime.md)).
-  `spec_guard` is deliberately left unmapped — ROM's is a peacekeeper that
-  attacks criminals, which needs a crime/aggro-flag system REALM lacks; the
-  shipped `guard` blocks movement (a different concept that would wall off
-  thoroughfares). Unmapped procs stay tagged `rom_spec:<name>`.
+  the damage path, so poison resistance/immunity apply), and the town watch
+  → `peacekeeper` (attacks WANTED criminals — see the
+  [crime layer](../guides/crime.md)): `spec_executioner` only that,
+  `spec_guard` with `protect="evil"` (also the most evil fighter in a
+  brawl), `spec_patrolman` with `protect="fights"` (breaks up any fight,
+  going for the stronger side). The movement-blocking `guard` behavior is
+  a different idea and is not used. The faction and one-off procedures
+  (`spec_*_member`, `spec_mayor`, `spec_nasty`, ...) stay tagged
+  `rom_spec:<name>` and are reported.
 - **`#MOBPROGS` / `#OBJPROGS`.** ROM's trigger-scripting (a MOBprog is the
   Diku-family answer to REALM softcode). Skipped with a warning. These
   *could* be transpiled to `$`-commands / `ON_<EVENT>` hooks — a worthwhile
   future enhancement — but the languages differ enough that it is its own
   project, not a field mapping.
-- **Sector movement cost / terrain effects.** The sector becomes a tag and
-  attr, but ROM's per-sector movement point cost and terrain rules are
-  engine behavior REALM models differently; only the classification carries.
+- **Sector movement cost.** The sector becomes a tag and attr, and the
+  `merc` feature charges ROM's `movement_loss` for it ([Life and
+  Death](../guides/life-and-death.md)). Other terrain rules (swimming,
+  flying) do not carry.
 - **Cross-area exits.** A door leading to a vnum outside the file is emitted
   with a `rom_<vnum>` destination that resolves **only if** that room is
   imported alongside (import all the areas a zone references together, or
@@ -184,123 +191,71 @@ REALM genuinely diverge.
 
 ## MERC parity: the punch list
 
-Running the whole ansalon collection through the converter turns the
-abstract "capability gaps" into a ranked, real punch list. Where a gap is
-already closed, it says so; where it is not, it names the best way to
-reach parity. (Counts are areas-affected out of 189.)
+Running the whole ansalon collection (189 area files) through the
+converter turned the abstract "capability gaps" into a ranked punch list.
+MUD_PLAN step 11 finished it: a converted area plays the way a Diku
+player expects on the [`merc` game system](../guides/game-systems.md#what-merc-implements).
+What is left is one item, mob programs. (Counts are areas affected, out of
+189.)
 
-### Already closed — imported areas are combat-ready on `merc`
+### What converts now
 
-The converter emits MERC-native combat stats, so a converted mob fights
-with no hand-work (verified: an imported Midgaard sexton — hp 42, AC 7,
-THAC0 17 — trades blows with a warrior on the `merc` ruleset):
+| ROM | REALM, on `merc` |
+|---|---|
+| mob armor class, THAC0, natural attack (145) | `armor_class`, a level-derived `thac0`, `damage_dice` |
+| weapon dice and attack word | `damage_dice` (and a `damage` alias), `damage_type` (`slash` → `slashing`; old-format letters read back) |
+| armor value | `ac_apply`, which `MercSystem.recompute_ac` subtracts whenever gear changes (`item:on_wear`/`item:on_remove` reach `on_equipment_change`) |
+| imm/res/vuln (115) | a `resistances` multiplier per damage type (immune 0.0, resist 0.5, vuln 1.5) every shipped ruleset applies; `IMM_WEAPON`/`IMM_MAGIC` become the family keys `physical`/`magical`, decided by delivery (`ITEM_MAGIC` → the `magic` tag on a weapon), so "you need an enchanted blade" holds |
+| wear flags | Merc's 14 places (`equipment`), the hold flag as `held`, a light as `light`; `float` has no place and is reported |
+| object level | the least level to wear or wield it |
+| `ITEM_ANTI_GOOD`/`_EVIL`/`_NEUTRAL` | `anti_good`/`anti_evil`/`anti_neutral`: worn by that alignment, the item zaps off to the floor |
+| potions, pills, scrolls, wands, staves | `quaff`, `recite`, `zap`, `brandish` ([The Character Sheet](../guides/character-sheet.md#consumables)); spells by name or by ROM slot |
+| food, drink containers, fountains | `eat` (`nourishment`), `drink` and `fill` (`liquid`, `liquid_held`, `liquid_remaining`; a fountain never runs dry), feeding the `food` and `water` pools of the `needs` feature ([Life and Death](../guides/life-and-death.md#hunger-thirst-and-fatigue)). The liquid is only a name: a drink's thirst, fullness and drunkenness (ROM's `liq_affect`) and a poisoned food or drink (value 3) are not modeled |
+| shops (`#SHOPS`) | the `shopkeeper` behavior with markup and buyback from the profit margins |
+| mob `wealth` | its money (`credits`), carried to its corpse; `get all from corpse`, `autoloot`, `autogold`, `autosplit` |
+| mob alignment | `alignment`; kills move the killer's (Merc's rule) |
+| ACT flags | `wandering` (`stay_in_zone` for STAY_AREA), `aggressive`, `scavenger`; `ACT_PRACTICE`/`ACT_TRAIN` → `trainer` (guildmasters) |
+| `#SPECIALS`: casters and breathers (86 areas, 649 mobs) | `caster` with the proc's spell list, from the `merc-classic` pack |
+| `spec_thief` (49) | `steal` |
+| `spec_guard`, `spec_patrolman`, `spec_executioner` (32) | `peacekeeper`, with `protect` `evil`, `fights` and none |
+| `spec_poison` (32) | `venomous` |
+| `spec_fido`, `spec_janitor` (30) | `scavenger`, eating corpses (the fido) or picking up litter (the janitor) |
+| resets | the mobs and objects placed at convert time; `--repop` respawns them and restocks shops, `--zone-reset` restores the whole zone |
+| doors, keys | exits with `door`/`closed` tags and a `key` attribute |
+| sectors | `sector:<name>`, `outdoor`, `lamplit` city streets; movement points per sector; night darkens outdoor rooms |
+| `ROOM_NO_RECALL` | `no_recall`: `recall` is refused there |
+| `ROOM_PET_SHOP` | the keeper sells the next room's mobs as pets that follow, obey `order` and fight beside their owner ([Pets, Charm and Mounts](../guides/companions.md#pet-shops)) |
 
-- **Mob armor class** → `armor_class` (ROM's descending AC, straight to
-  MERC's), and **THAC0** derived from level. (Was the #1 gap, 145 areas.)
-- **Mob natural attack** → `damage_dice`; MercRuleset uses it when the mob
-  is unarmed.
-- **Weapon** → `damage_dice` (what MercRuleset reads) + a `damage` alias.
-- **Armor** → `ac_apply`; MERC's `recompute_ac` subtracts it.
-- **Damage-type resistance** (was 115 areas) → a portable `resistances`
-  multiplier map. The converter decodes ROM's imm/res/vuln bits to a
-  per-type damage-taken multiplier (immune 0.0, resist 0.5, vuln 1.5), and
-  every shipped ruleset's `apply_damage` (Merc, GURPS, D20) starts with
-  `Ruleset.scale_resistances`, which scales each typed hit through the
-  neutral `apply_type_resistance` helper. Because the value is a float, not one of
-  three tiers, a builder can author *any* resistance (`0.85` = 15%); Diku's
-  tiers are just three points on it. `DamageType.TRUE` bypasses the map.
-- **Broad immunities compose by a key ladder** (the SMAUG/CoffeeMud
-  synthesis). ROM's `IMM_WEAPON`/`IMM_MAGIC` become the *family* keys
-  `physical`/`magical`. At damage time the exact type key wins
-  (`slashing`); when it misses, the family key applies by **delivery**:
-  `magical` when the hit came from a spell or an enchanted weapon,
-  `physical` for mundane weapon-flavored hits. So a mob with only
-  `{"physical": 0.0}` shrugs off every mundane blow but takes full
-  damage from an enchanted blade — the classic "you need a magic
-  weapon" gate — while a mundane torch's fire is never gated by magic
-  immunity. ROM's `ITEM_MAGIC` extra flag (`G`) imports as the `magic`
-  tag that marks a weapon's hits as magical delivery. Otho the money
-  changer (imm weapon *and* magic) is unkillable, faithfully.
-- **Worn-armor AC for players** (was 101 areas of equip resets) → live.
-  `wear`/`remove` fire `item:on_wear`/`item:on_remove`; the boot-registered
-  `equipment_observer` forwards an applied gear change to the active
-  system's `on_equipment_change` hook, which `MercSystem` overrides to
-  `recompute_ac`. The command stays system-neutral — the rules package is
-  just one more reactor on the event bus, like the stealth and hostile
-  observers. (Mob AC is authored in the file, so this is about players,
-  not imported NPCs.)
-- **Shops** → the `shopkeeper` behavior. **Doors** → initial lock tags.
-- **Wear slots and consumables** → Merc's slots (`equipment` lists them,
-  two rings and two necks), and potions, scrolls, wands, staves, food and
-  drink that do something when used.
-- **Night** → every non-interior room is `outdoor`, which the `clock`
-  feature darkens at night; city streets are also `lamplit` and stay lit,
-  as ROM's `room_is_dark` has it.
-- **Guildmasters** → mobs with ROM's `ACT_PRACTICE` (K) get the `trainer`
-  behavior, teaching their class's skills; `ACT_TRAIN` (J) lets them train
-  characteristics. (The shipped Midgaard places only the cleric's
-  guildmaster: the conversion has no inner rooms or resets for the other
-  three.)
-- **Weapon damage types** → a weapon's ROM attack word (`slash`, `stab`,
-  `pound`, ...) becomes its `damage_type` (`slashing`, `piercing`,
-  `bludgeoning`, ...), so resistances apply and a backstab finds its
-  dagger. Old-format files that wrote the word as flag letters are read
-  back from the letters.
+The Diku player's side (all on `merc`): experience and levels to
+`LEVEL_CAP` with class titles on `who`, practices at a guildmaster, the
+class skills as commands, groups (`follow`, `group`, experience shared by
+level, `split`, `report`), `scan`, `exits`, `where`, `consider` by level,
+`recall` (half your movement), `brief` and `autoexit`, corpses and
+respawn. A converted area already on disk is brought up to date with
+`python scripts/dev/refresh_rom_items.py <area.json>`; the shipped Midgaard
+was refreshed that way (MUD_PLAN step 17 added: shops taken off objects
+that share a keeper's vnum, a spawner's `prototype_vnum`, and
+`ACT_SCAVENGER` mobs that no longer eat corpses). A room flag the stored
+file lost can be given back first, as ROM letters: Midgaard was converted
+with its room flags empty, so its pet shop was restored with `--room-flags
+3031=M`. What the refresh cannot give back is a mob placement the earlier
+converter lost: it read a reset's trailing comment into the next line, and
+Midgaard's `.are` is not at hand to convert again, so its baker and three
+of its four guildmasters are missing (the template's `init_world` places
+the baker; the cleric's guildmaster teaches every class).
 
-### Spells — closed
+### What still does not
 
-Half the ROM special procedures are **spell casters** — `spec_cast_mage`,
-`_cleric`, `_undead`, `_adept`, `_judge`, `_druid`, `_necromancer`, plus
-the `spec_breath_*` family. These are now alive end to end (see [Spells
-as Data](../guides/spells.md)):
-
-- **`spell_def` objects** carry each spell as data (mana, level, target,
-  typed damage, save, heal, timed-effect attachment); casting is one
-  propagated `spell:<name>` action — wards, saves, and the damage-type
-  `resistances` layer all apply.
-- The **`caster` behavior** is the whole spec_cast family as one
-  parameterized behavior; it casts through the same pipeline players use.
-- The **importer attaches it automatically**: `spec_cast_*` /
-  `spec_breath_*` mobs get `caster` with that proc's canonical spell list
-  (ROM `special.c`). Over the ansalon collection this brings **86 areas
-  and 649 caster mob prototypes** to life.
-- The **`merc-classic` pack** (`@pack import merc-classic`) supplies the
-  23 classic spells those lists reference — import it alongside a
-  converted area and its guildmasters cast.
-
-### Behavioral spec_procs — map to existing tools now
-
-The non-casting procedures already have homes; the parity step is a
-`rom_spec:* → behavior` mapping the importer applies:
-
-| spec_proc | areas | maps to |
-|---|---:|---|
-| `spec_thief` | 49 | a steal behavior (showcase 070, pickpocket) |
-| `spec_guard` / `spec_patrolman` / `spec_executioner` | 32 | the shipped `guard` behavior |
-| `spec_poison` | 32 | `damage_over_time` behavior applied on hit |
-| `spec_fido` / `spec_janitor` | 30 | a scavenger `behavior_def` (eat corpses / pick up trash) — a textbook data-defined behavior |
-| `spec_*_member`, `spec_snake_charm`, `spec_mayor` | ~8 | faction / bespoke softcode |
-
-The mobs are already tagged `rom_spec:<name>`, so a lookup table plus
-`@behavior` (or the importer attaching them) is all it takes for the
-behavioral half.
-
-### Lower priority
-
-- **MOBprogs / OBJprogs — 13 areas.** ROM's trigger scripting. Skipped
-  today; transpiling to `$`-commands / `ON_<EVENT>` hooks is its own
-  project (a language port, not a field mapping).
-- **Exotic item types.** `portal` (64) and `warp_stone` (12) → a teleport
-  behavior (showcase 157 / 033); `gem` (39) already works as a valued
-  object; `map` (17) → a readable desc; corpses → containers. All import
-  as objects; only their *behavior* is missing, and it is softcode.
-
-### Summary
-
-Geography, population, gear, shops, basic combat, **damage-type
-resistance**, **live worn-armor AC**, and **spellcasting** are **done** —
-189 areas convert, load, and fight on `merc` with imm/res/vuln honored,
-player armor that matters, and 649 spec_cast/breath mobs casting from the
-`merc-classic` pack. What remains is the behavioral spec-proc→behavior
-map (mechanical) and MOBprogs (a language port). Nothing is blocked;
-each gap has a named path.
+- **MOBprogs / OBJprogs (13 areas).** ROM's trigger scripting. Skipped
+  with a warning; transpiling them to `$`-commands and `ON_<EVENT>` hooks
+  is a language port, not a field mapping, and REALM leaves it to softcode
+  (MUD_PLAN non-goal).
+- **The faction and one-off spec_procs** (`spec_*_member`, `spec_mayor`,
+  `spec_snake_charm`, `spec_nasty`; about 8 areas): tagged
+  `rom_spec:<name>` and reported, for a builder to write in softcode.
+- **Exotic item types.** `portal` (64), `warp_stone` (12) and `map` (17)
+  import as objects without their behavior (a teleport is showcase 157 /
+  033 in softcode); corpses in the file are containers.
+- Smaller losses are listed under [Capability gaps](#capability-gaps-what-does-not-map-and-why):
+  a light's duration, a container's key, reset `R` and `D`, cross-area
+  exits.

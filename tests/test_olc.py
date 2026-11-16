@@ -88,6 +88,10 @@ class MockSession:
     async def send(self, message):
         self.messages.append(message)
 
+    def send_paged(self, text):
+        """No screen to fill: the whole text, as ``Session`` sends short text."""
+        self.messages.append(text)
+
     def link_player(self, player):
         self.player = player
         # Wire player.msg() -> this session, as the real Session does —

@@ -36,7 +36,7 @@ from realm.gateway.session import LINK_LOST, Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager
 from realm.scripting.engine import ScriptEngine
-from realm.server.world import build_world, prepare_world
+from realm.server.world import DISPATCHED, INTERCEPTED, build_world, prepare_world, route_input
 
 logger = logging.getLogger(__name__)
 
@@ -270,10 +270,16 @@ class GameServer:
                     self._on_command,
                     host=self.settings.websocket_host,
                     port=self.settings.websocket_port,
+                    web_client=self.settings.web_client,
+                    game_name=self.settings.game_name,
                 )
                 await self._websocket_server.start()
             except Exception as e:
                 logger.warning(f"Could not start WebSocket server: {e}")
+        elif self.settings.web_client:
+            logger.warning("WEB_CLIENT is set but the WebSocket server is off, so the "
+                           "browser client is not served: set ENABLE_WEBSOCKET = True "
+                           "in config.py.")
 
         # Start custom protocol servers
         for name, (protocol_class, kwargs) in self._custom_protocols.items():
@@ -601,22 +607,12 @@ class GameServer:
 
     async def _on_command(self, session: Session, command: str) -> None:
         """Called when a command is received from a session."""
-        # An active prompt/wizard captures input (unless it passes an
-        # escape command like help/quit through to the dispatcher).
-        if session.input_handler is not None:
-            consumed = await session.input_handler(session, command)
-            if consumed:
-                await session.flush_output()
-                return
-
-        # Then the features' interceptors, in order (``accounts`` routes a
-        # character still in creation to chargen).
-        for _order, interceptor in self.world.input_interceptors:
-            if await interceptor(self.world, session, command):
-                await session.flush_output(prompt=True)
-                return
-
-        await self.dispatcher.dispatch(session, command)
+        outcome = await route_input(self.world, session, command)
+        if outcome != DISPATCHED:
+            # A prompt or the editor asks its own question; the pager and an
+            # interceptor end with the prompt.
+            await session.flush_output(prompt=outcome == INTERCEPTED)
+            return
 
         # Flush every session, not just the actor's — actions propagated by
         # this command can queue messages on bystanders' output queues. If we

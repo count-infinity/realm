@@ -173,26 +173,28 @@ class Simulator:
         await self.dispatcher.dispatch(sess, command)
 
     async def input(self, player: GameObject, line: str) -> None:
-        """Feed one line as a live connection does: the features' input
-        interceptors first (a sleeper's "You are asleep.", a character
-        still in creation), then the dispatcher. ``do`` goes straight to
+        """Feed one line as a live connection does (``route_input``): held
+        pages, then a pending prompt or the line editor, then the features'
+        input interceptors (a sleeper's "You are asleep.", a character still
+        in creation, an alias), then the dispatcher. ``do`` goes straight to
         the dispatcher."""
+        from realm.server.world import route_input
         sess = self._sessions.get(player.id)
         if sess is None:
             raise ValueError(f"{player.name} was not created via .player()")
-        for _order, interceptor in self.world.input_interceptors:
-            if await interceptor(self.world, sess, line):
-                return
-        await self.dispatcher.dispatch(sess, line)
+        await route_input(self.world, sess, line)
 
     async def submit_line(self, player: GameObject, raw: str) -> None:
         """Feed ONE raw client line through the real input path — the same
-        ``submit_input`` a live connection uses, so heredoc (multi-line)
-        blocks accumulate exactly as they would in-game. A line mid-block
-        dispatches nothing; the closing (or an ordinary) line dispatches the
-        reconstructed command(s). Use this for build transcripts that contain
-        multi-line ``'''`` blocks; ``do`` stays the direct single-command path.
+        ``submit_input`` a live connection uses, then ``route_input`` — so
+        heredoc (multi-line) blocks accumulate exactly as they would
+        in-game, a bare enter turns the pager's page, and the line editor
+        gets lines as typed. A line mid-block dispatches nothing; the
+        closing (or an ordinary) line routes the reconstructed command(s).
+        Use this for build transcripts that contain multi-line ``'''``
+        blocks; ``do`` stays the direct single-command path.
         """
+        from realm.server.world import route_input
         sess = self._sessions.get(player.id)
         if sess is None:
             raise ValueError(f"{player.name} was not created via .player()")
@@ -202,7 +204,7 @@ class Simulator:
                 command = sess._input_queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
-            await self.dispatcher.dispatch(sess, command)
+            await route_input(self.world, sess, command)
 
     # --- Observing -----------------------------------------------------------
 
@@ -218,7 +220,12 @@ class Simulator:
 
     def prompt(self, player: GameObject) -> str | None:
         """The prompt ``player`` would see now (prompts are not messages,
-        so ``seen`` never includes them). None when the game shows none."""
+        so ``seen`` never includes them): the pager's while output is held.
+        None when the game shows none."""
+        from realm.gateway.session import PAGER_PROMPT
+        session = self._sessions.get(player.id)
+        if session is not None and session.paging:
+            return PAGER_PROMPT
         renderer = self.world.prompt_renderer
         if renderer is None:
             return None

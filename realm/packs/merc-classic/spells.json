@@ -470,6 +470,34 @@
       "parent": null
     },
     {
+      "id": "spell_charm_person",
+      "name": "charm person",
+      "description": "Bend a creature's will to yours for a while.",
+      "tags": [
+        "spell_def"
+      ],
+      "attrs": {
+        "level": 20,
+        "mana": 5,
+        "classes": [
+          "mage"
+        ],
+        "target": "victim",
+        "effects": [
+          {
+            "type": "charm",
+            "per_level": 4,
+            "save": "negates"
+          }
+        ]
+      },
+      "locks": {},
+      "behaviors": [],
+      "location": null,
+      "owner": null,
+      "parent": null
+    },
+    {
       "id": "spell_fire_breath",
       "name": "fire breath",
       "description": "A torrent of fire washes over your foe.",

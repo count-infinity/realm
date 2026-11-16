@@ -33,7 +33,9 @@ The engine already pushes two packages on its own:
 - **`Room.Info`** on every move, carrying `{id, name, exits}` for the
   room you entered, so a client can keep a live map.
 - **`Char.Vitals`** each combat round, carrying `{hp, max_hp, round}` for
-  a gauge that tracks the fight.
+  a gauge that tracks the fight, and beside the prompt whenever one of the
+  player's pools changed, carrying each pool and its `max_` (`{hp, max_hp,
+  mana, max_mana, ...}`). The browser client draws these as bars.
 
 Your softcode sends its own with
 [`oob(target, package, data)`](../reference/softcode.md#fn-oob): `target`

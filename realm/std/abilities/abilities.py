@@ -30,9 +30,12 @@ An ``ability_def`` (or ``spell_def``) object carries:
                  {'type':'softcode','code':'...'},
                  {'type':'check','skill':'kick','on_fail':'stop'},
                  {'type':'weapon_damage','multiplier':2,'per_level':0.1},
-                 {'type':'tag','tag':'resting'} ]
+                 {'type':'tag','tag':'resting'},
+                 {'type':'charm','per_level':4,'save':'negates'} ]
                A ``check`` rolls the actor's skill once; when it fails the
                effects after it are not applied and ``fail_msg`` is shown.
+               A ``charm`` makes the target the actor's companion for
+               ``duration`` + ``per_level`` x level beats (``companions``).
                Damage ``dice`` may say ``{level}`` (the actor's level).
     requires_weapon : a damage type the actor's wielded weapon must deal
     target_unaware  : True when the target must not be fighting
@@ -201,6 +204,13 @@ def _is_offensive(adef: GameObject, effects: list[dict]) -> bool:
         any(e.get("type") == "damage" for e in effects)
 
 
+def target_kind(adef: GameObject) -> str:
+    """What ``adef`` is aimed at: ``self``, ``ally``, ``victim`` or ``room``
+    (its ``target``, else ``victim`` for an offensive one, else ``self``)."""
+    return str(adef.db.get("target")
+               or ("victim" if _is_offensive(adef, _effects_of(adef)) else "self"))
+
+
 def _resolve_targets(actor: GameObject, want: str,
                      explicit: GameObject | None) -> tuple[list, Any]:
     """Return ``(targets, action_target)``. For a room ability the action's
@@ -267,7 +277,7 @@ async def invoke_ability(
     name = adef.name
     effects = _effects_of(adef)
     offensive = _is_offensive(adef, effects)
-    want = str(adef.db.get("target") or ("victim" if offensive else "self"))
+    want = target_kind(adef)
     targets, action_target = _resolve_targets(actor, want, target)
     if not targets or action_target is None:
         actor.msg(f"{verb.capitalize()} {name} at whom?")
@@ -528,6 +538,22 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
         if manager is not None and not (saved and save == "negates"):
             manager.disarm(target)
 
+    elif etype == "charm":
+        # The target becomes the actor's companion for a while (the
+        # ``companions`` feature's ``charmed`` effect; nothing without it).
+        companions = get_world().services.get("companions")
+        if companions is None or (saved and save == "negates"):
+            return
+        level = int(actor.db.get("level") or 1)
+        refusal = await companions.charm(
+            actor, target,
+            duration=int(eff.get("duration") or 0) + int(eff.get("per_level") or 0) * level,
+            turns_hostile=bool(eff.get("turns_hostile")),
+            level_check=bool(eff.get("level_check", True)))
+        if refusal:
+            actor.msg(refusal)
+        action.add_data("charmed", not refusal)
+
     elif etype == "tag":
         tag = str(eff.get("tag") or "")
         if tag and not (saved and save == "negates"):
@@ -581,5 +607,6 @@ __all__ = [
     "list_ability_defs",
     "ready_at",
     "roll_dice",
+    "target_kind",
     "wielded_weapon",
 ]

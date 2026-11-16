@@ -560,9 +560,12 @@ class CombatEncounter:
                 self.remove(obj_id, make_peace=False)
 
     def _check_continue(self) -> bool:
-        """A fight needs at least two participants with someone to hit."""
-        alive = [p for p in self.participants.values() if p.combatant.is_alive]
-        return len(alive) >= 2
+        """A fight needs at least two living participants, one of them with
+        another as its target (two mobs whose quarry died or fled have no
+        one to hit, and stop)."""
+        alive = {p.obj.id for p in self.participants.values() if p.combatant.is_alive}
+        return len(alive) >= 2 and any(
+            self.participants[obj_id].target_id in alive for obj_id in alive)
 
     def _announce(self, text: str) -> None:
         for participant in self.participants.values():

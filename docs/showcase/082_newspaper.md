@@ -247,7 +247,7 @@ does not update, which is the charm.
 
 ## Going further
 
-- **Back-numbers.** `pay` buys the latest, but a `$order <n>` verb
+- **Back-numbers.** `pay` buys the latest, but a `$backissue <n>` verb
   reading `issue_<n>` sells the archive (charge double, since collectors
   pay).
 - **An editor.** Route `submit` into a `pending` list and give the

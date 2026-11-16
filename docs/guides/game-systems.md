@@ -69,6 +69,34 @@ shifted by level difference; and a warrior's `second_attack` and
 hook). Every one of them is a `check()`, so whatever adjusts a check
 adjusts them.
 
+### What Merc implements
+
+What a Diku player expects, and where it lives:
+
+| Diku | In REALM under `merc` |
+|---|---|
+| THAC0 against descending AC, damroll, natural 20 and 1 | `MercRuleset` |
+| hit points, mana and movement; regeneration by stat and level; resting and sleeping | `MercSystem.pools`, `regen`; the `vitals` feature ([Life and Death](life-and-death.md)) |
+| movement points per sector | the `merc` feature's traversal gate |
+| five classes, a hit die and THAC0 rate each, level-1 kit | `MERC_CLASSES`, `outfit_new_character` |
+| experience, levels to `LEVEL_CAP` (50), practices and trains | `grant_award`, `advance_level`; [Progression](progression.md) |
+| class titles on `who` (`Pat the Swordpupil (1 warrior)`) | each class's `titles`, `who_title` |
+| percentile skills, learned by use after practice | `resolve_check`, `default_progression = "use"` |
+| kick, bash, backstab, rescue, disarm, trip; dodge, parry, shield block, second and third attack | the `merc-classic` pack and `MercRuleset` (above) |
+| spells, potions, scrolls, wands and staves | the `merc-classic` pack ([Spells as Data](spells.md)) |
+| Diku's 14 wear places; an item's `level` is the least level to use it | `wear_slots`, `wear_refusal` |
+| alignment, moved by kills; `anti_good`/`anti_evil`/`anti_neutral` gear zaps off | `on_kill`, `repels`, `alignment` on `score` |
+| experience shared by level in a group; `split`, `autosplit` | `share_award`; the `economy` feature |
+| `consider` by level difference | `consider` |
+| hunger and thirst (CoffeeMud's, Decision D6); "You are hungry." on `score` | `pools` (`food`, `water`), `stomach`; the `needs` feature ([Life and Death](life-and-death.md#hunger-thirst-and-fatigue)) |
+| `recall` costs half your movement (and 25 experience out of a fight) | `after_recall` |
+| pets, charm person, mounts; one follower, one more each ten levels | `companion_limit`; the `companions` feature ([Pets, Charm and Mounts](companions.md)) |
+| corpses, `autoloot`, `autogold`; death costs a quarter level | the `combat` feature, `on_death` |
+| `scan`, `exits`, `where`, `report`, `brief`, `autoexit` | the `look` and `talk` features (any system) |
+| guards, patrolmen, thieves, fidos, janitors, casters | behaviors the ROM importer attaches ([the import guide](../development/rom-import.md)) |
+
+What it leaves out is ROM's mob programs; see the import guide.
+
 The whole package swaps: under `d20`, `stealth` and `persuade` roll a
 d20 too — not just combat. (This wiring was completed 2026-07-07;
 before that, non-combat checks ignored the system.)
@@ -91,8 +119,15 @@ questions neutrally:
 
 A point-buy game lists the mixin first: `class MySystem(PointBuyMixin,
 GameSystem)`. The combat death path calls `system.death_award` and, when it
-is above 0, `system.grant_award(member, share)` for each party member, and
-asks no more. Everything model-specific (the XP curve, the level-up
+is above 0, divides it with `system.share_award(award, members)` (neutral:
+equal shares; Merc: by level) among the killer's party in the room and
+pays each share with `award(member, share)` (`realm.std.rules.system`),
+which runs the `rules` service's `award_filters` (the `needs` feature's
+`HUNGRY_AWARD`, the `clans` feature's tax) and then calls
+`system.grant_award(member, share)`; then
+`system.on_kill(member, victim)` for each (neutral: nothing; Merc moves
+alignment). Quest rewards pay the same way, through the `rules` service's
+`award(player, amount)` ([Quests](quests.md#rewards)). It asks no more. Everything model-specific (the XP curve, the level-up
 routine) lives on the subclass, not on the base, so a point-buy system and
 an XP system coexist by each owning its own advancement and sharing only
 the deposit. An XP system that inherited the character-point
@@ -108,14 +143,33 @@ why the seam exists.
 
 See [The Character Sheet](character-sheet.md).
 
+## The world around the character
+
+Hooks the commands ask, each neutral by default (MUD_PLAN step 11):
+
+| Method | Asked by | Neutral `GameSystem` | `MercSystem` |
+|---|---|---|---|
+| `who_title(player)` | `who`, after the name | none | `the Swordpupil (1 warrior)` |
+| `consider(viewer, target)` | `consider`, before the attitude line | nothing | ROM's level-difference lines |
+| `wear_refusal(player, item)` | `wear`, `wield` | none | "You must be level 10 to use a great helm." |
+| `repels(player, item)` | `wear`, `wield` | never | `anti_good`, `anti_evil`, `anti_neutral` against alignment |
+| `zap(player, item)` | when an item repels | it falls to the floor, "You are zapped by ..." | the same, then AC again |
+| `recall_refusal(player)` | `recall` | in a fight, a `recall` check ("You failed!") | inherits; the check is 50% at wisdom 13 |
+| `after_recall(player, from_combat=)` | `recall`, once moved | nothing | halves `move`; 25 experience out of a fight |
+| `spendable_award(player)`, `spend_award(player, amount)` | `clan donate xp` ([Clans](clans.md#the-treasury-and-the-tax)) | None (nothing to give) | experience toward the next level (`PointBuyMixin`: unspent `character_points`) |
+| `companion_limit(character)` | bonding, buying a pet, a charm, `companions` (unless `COMPANION_LIMIT_RULE` answers) | 2 | `1 + level // 10` |
+| `mounted_modifiers(rider, mount)` | each attack by or on a rider | `{}` | `{}` (a game returns `{"attack": n, "defense": n}`) |
+
 ## Recovery and death
 
-Two more hooks, both neutral by default ([Life and Death](life-and-death.md)):
+More hooks, neutral by default ([Life and Death](life-and-death.md)):
 
 | Method | Neutral `GameSystem` | `MercSystem` |
 |---|---|---|
 | `regen(obj, pool_name)` | a twentieth of the pool's max, at least 1 | `hp` by constitution and level, `mana` by intelligence or wisdom and level, `move` by dexterity and level |
 | `on_death(player, killer)` | nothing | lose a quarter of a level's experience, never a level |
+| `stomach(obj)` | `(FOOD_FULL, WATER_FULL)`, scaled by `weight / NEEDS_BASE_WEIGHT` when `obj` has a weight | inherits |
+| `fill_stomach(player)` | gives full `food` and `water` pools when `pools()` declares them and the player lacks them (creation, and each login) | inherits; Merc declares both |
 
 `regen` is the amount one `REGEN_INTERVAL` restores to a character out of
 combat, standing; the `vitals` feature multiplies it for resting and
@@ -123,15 +177,18 @@ sleeping. `on_death` is called only under `PLAYER_DEATH = "respawn"`,
 after the corpse is left and before the player returns home.
 
 `score` should speak your system's language: override `score_lines`, don't
-teach the command. `pool_lines(player)` (from `realm.std.rules.system`)
-renders the pools line Merc's sheet uses.
+teach the command. `pool_lines(player, exclude=())` (from
+`realm.std.rules.system`) renders the pools line Merc's sheet uses; Merc
+leaves out `food` and `water` and says "You are hungry." instead.
 
 ## Pools
 
 `pools()` returns the world-default pool definitions for this game's
 health and resources ([Pools](pools.md)). The base returns `[Pool("hp")]`;
 `MercSystem` returns `hp`, `mana` and `move`, and its characters start
-with `move` 100/100 as well as `hp` and `mana`.
+with `move` 100/100 as well as `hp` and `mana`; and `food` and `water`
+(`regen=False`), full at `stomach()`, which the `needs` feature empties
+([Life and Death](life-and-death.md#hunger-thirst-and-fatigue)).
 
 ## Equipment-derived stats: an event, not a command hook
 

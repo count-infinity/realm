@@ -289,6 +289,9 @@ async def cmd_wield(ctx: CommandContext) -> None:
     if weapon is None:
         await ctx.session.send(f"You aren't carrying '{ctx.args.strip()}'.")
         return
+    from realm.std.items.equipment import may_use
+    if not weapon.has_tag("wielded") and not may_use(ctx.player, weapon):
+        return
 
     wielding = await fire_event(ctx.player, weapon, ItemAction.ON_WIELD, gated=True)
     if wielding.blocked:

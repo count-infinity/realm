@@ -31,7 +31,8 @@ from typing import TYPE_CHECKING, Any
 
 from realm.core.defs import all_defs
 from realm.core.objects import GameObject
-from realm.core.pools import Pool, pool_get, pool_max, set_pool
+from realm.core.pools import Pool, has_pool, pool_get, pool_max, pool_percent, set_pool
+from realm.core.world import find_world
 from realm.std.rules.checks import CheckResult, skill_level
 from realm.std.rules.definitions import apply_class
 from realm.std.rules.system import ChoiceStep, GameSystem, pool_lines
@@ -51,6 +52,9 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
                    "parry": 30, "shield_block": 25, "dodge": 15, "second_attack": 25},
         "starting_weapon": {"name": "a short sword", "damage_dice": "1d6",
                             "damage_type": "slashing"},
+        "titles": [(1, "Swordpupil"), (5, "Soldier"), (10, "Combatant"),
+                   (15, "Swordmaster"), (20, "Knight"), (30, "Overlord"),
+                   (40, "Warlord"), (50, "Hero")],
     },
     "barbarian": {
         "blurb": "a savage warrior: the biggest hit die, a brutal club, "
@@ -61,6 +65,9 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
                    "second_attack": 20},
         "starting_weapon": {"name": "a heavy wooden club", "damage_dice": "1d8",
                             "damage_type": "bludgeoning"},
+        "titles": [(1, "Brute"), (5, "Raider"), (10, "Marauder"),
+                   (15, "Berserker"), (20, "Reaver"), (30, "Warchief"),
+                   (40, "Destroyer"), (50, "Hero")],
     },
     "thief": {
         "blurb": "a skirmisher: stealth, locks, and a wicked backstab",
@@ -70,6 +77,9 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
                    "disarm": 20, "dodge": 30, "melee": 20},
         "starting_weapon": {"name": "a dagger", "damage_dice": "1d4",
                             "damage_type": "piercing"},
+        "titles": [(1, "Pilferer"), (5, "Sneak"), (10, "Rogue"), (15, "Thief"),
+                   (20, "Cut-Throat"), (30, "Master Thief"), (40, "Assassin"),
+                   (50, "Hero")],
     },
     "cleric": {
         "blurb": "a divine caster: healing and protective prayers",
@@ -78,6 +88,9 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
         "skills": {"heal": 40, "bless": 30, "melee": 15},
         "starting_weapon": {"name": "a wooden mace", "damage_dice": "1d6",
                             "damage_type": "bludgeoning"},
+        "titles": [(1, "Believer"), (5, "Missionary"), (10, "Minister"),
+                   (15, "Healer"), (20, "Patriarch"), (30, "Bishop"),
+                   (40, "High Priest"), (50, "Hero")],
     },
     "mage": {
         "blurb": "an arcane caster: fragile, but the deadliest spells",
@@ -86,6 +99,9 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
         "skills": {"magic_missile": 35, "detect_magic": 40, "stealth": 10},
         "starting_weapon": {"name": "a gnarled dagger", "damage_dice": "1d4",
                             "damage_type": "piercing"},
+        "titles": [(1, "Apprentice of Magic"), (5, "Medium of Magic"),
+                   (10, "Abjurer"), (15, "Creator"), (20, "Sorcerer"),
+                   (30, "Archmage"), (40, "Elemental Master"), (50, "Hero")],
     },
 }
 
@@ -104,7 +120,48 @@ BUILTIN_SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
     "lockpicking": ("dexterity", -80),   # untrainable without practice
     "heal": ("wisdom", -60),
     "observation": ("intelligence", -20),
+    # ROM gives every class recall at 50%: the check a fighter makes to
+    # pray their way out of a fight (MUD_PLAN 11.7).
+    "recall": ("wisdom", 37),
 }
+
+#: Where a character's ``alignment`` stands, ROM's words for it (``score``).
+ALIGNMENT_WORDS: tuple[tuple[int, str], ...] = (
+    (900, "angelic"), (700, "saintly"), (350, "good"), (100, "kind"),
+    (-100, "neutral"), (-350, "mean"), (-700, "evil"), (-900, "demonic"),
+)
+
+#: The pools hunger and thirst live in: not numbers on the sheet (``score``
+#: says "You are hungry." instead).
+NEED_POOLS = ("food", "water")
+
+#: ``consider``: (most levels the target is above you, what is said), ROM's.
+CONSIDER_LINES: tuple[tuple[int, str], ...] = (
+    (-10, "You can kill {name} naked and weaponless."),
+    (-5, "{name} is no match for you."),
+    (-2, "{name} looks like an easy kill."),
+    (1, "The perfect match!"),
+    (4, "{name} says 'Do you feel lucky, punk?'."),
+    (9, "{name} laughs at you mercilessly."),
+)
+
+
+def alignment(obj: GameObject) -> int:
+    """``obj``'s alignment, -1000 (evil) to 1000 (good); 0 when unset."""
+    return max(-1000, min(1000, int(obj.db.get("alignment") or 0)))
+
+
+def alignment_word(value: int) -> str:
+    """ROM's word for an alignment: ``good``, ``neutral``, ``satanic``..."""
+    return next((word for floor, word in ALIGNMENT_WORDS if value > floor), "satanic")
+
+
+def is_good(obj: GameObject) -> bool:
+    return alignment(obj) >= 350
+
+
+def is_evil(obj: GameObject) -> bool:
+    return alignment(obj) <= -350
 
 
 def _hit_die_expected(die: int) -> int:
@@ -183,8 +240,11 @@ class MercSystem(GameSystem):
     # --- baseline & skills ---
 
     def pools(self) -> list[Pool]:
-        """Diku's three: hit points, mana and movement."""
-        return [Pool("hp"), Pool("mana"), Pool("move")]
+        """Diku's three: hit points, mana and movement; and hunger and
+        thirst as ``food`` and ``water`` (Decision D6: CoffeeMud's, run by
+        the ``needs`` feature), which do not refill on their own."""
+        return [Pool("hp"), Pool("mana"), Pool("move"),
+                Pool("food", regen=False), Pool("water", regen=False)]
 
     def baseline_stats(self) -> dict[str, Any]:
         return {
@@ -193,7 +253,7 @@ class MercSystem(GameSystem):
             "level": 1, "xp": 0, "practices": 0,
             "hp": 20, "max_hp": 20, "mana": 100, "max_mana": 100,
             "move": 100, "max_move": 100,
-            "thac0": 20, "armor_class": 10,
+            "thac0": 20, "armor_class": 10, "alignment": 0,
         }
 
     def skill_defaults(self) -> dict[str, tuple[str, int]]:
@@ -314,6 +374,106 @@ class MercSystem(GameSystem):
         player.msg(f"You gain {amount} experience.")
         self.advance_level(player)
 
+    def spendable_award(self, player: GameObject) -> int | None:
+        """Experience toward the next level: giving it away never costs a
+        level (it is kept as progress, as ``on_death`` treats it)."""
+        return int(player.db.get("xp") or 0)
+
+    def spend_award(self, player: GameObject, amount: int) -> None:
+        player.db.xp = max(0, int(player.db.get("xp") or 0) - int(amount))
+
+    def share_award(self, award: int,
+                    members: list[GameObject]) -> list[tuple[GameObject, int]]:
+        """ROM's ``group_gain``: each member's share is the award times their
+        level over the levels of everyone sharing it."""
+        levels = [max(1, int(m.db.get("level") or 1)) for m in members]
+        total = sum(levels)
+        return [(member, max(1, int(award) * level // total))
+                for member, level in zip(members, levels, strict=True)]
+
+    def on_kill(self, member: GameObject, victim: GameObject) -> None:
+        """Merc's alignment shift: killing what is far more evil than you
+        makes you better, far more good makes you worse, anything else
+        draws you a quarter of the way to neutral. Then whatever the new
+        alignment cannot wear zaps off."""
+        if not member.is_player:
+            return
+        mine = alignment(member)
+        gap = mine - alignment(victim)
+        if gap > 500:
+            mine = min(mine + int((gap - 500) / 4), 1000)
+        elif gap < -500:
+            mine = max(mine + int((gap + 500) / 4), -1000)
+        else:
+            mine -= int(mine / 4)
+        member.db.alignment = mine
+        for item in list(member.contents):
+            if (item.has_tag("worn") or item.has_tag("wielded")) \
+                    and self.repels(member, item):
+                self.zap(member, item)
+
+    def repels(self, player: GameObject, item: GameObject) -> bool:
+        """ROM's ``ITEM_ANTI_GOOD``/``_EVIL``/``_NEUTRAL``, as the tags
+        ``anti_good``, ``anti_evil`` and ``anti_neutral``."""
+        if is_good(player):
+            return item.has_tag("anti_good")
+        if is_evil(player):
+            return item.has_tag("anti_evil")
+        return item.has_tag("anti_neutral")
+
+    def zap(self, player: GameObject, item: GameObject) -> None:
+        super().zap(player, item)
+        self.recompute_ac(player)
+
+    def wear_refusal(self, player: GameObject, item: GameObject) -> str | None:
+        """An item's ``level`` is the least a character must be to use it."""
+        need = int(item.db.get("level") or 0)
+        if player.is_player and need > int(player.db.get("level") or 1):
+            return f"You must be level {need} to use {item.name}."
+        return None
+
+    def companion_limit(self, character: GameObject) -> int:
+        """Diku has no charisma: one follower, and one more each ten levels."""
+        return 1 + int(character.db.get("level") or 1) // 10
+
+    def consider(self, viewer: GameObject, target: GameObject) -> str | None:
+        """ROM's ``consider``: how the target's level compares to yours."""
+        diff = int(target.db.get("level") or 1) - int(viewer.db.get("level") or 1)
+        line = next((text for most, text in CONSIDER_LINES if diff <= most),
+                    "Death will thank you for your gift.")
+        line = line.format(name=target.get_display_name(viewer))
+        return line[:1].upper() + line[1:]
+
+    def who_title(self, player: GameObject) -> str | None:
+        """``the Swordpupil (1 warrior)``: the class's title for the
+        character's level band (a class's ``titles``), its level and class."""
+        cls = self._class_name(player)
+        spec = self._classes().get(cls)
+        if spec is None:
+            return None
+        level = int(player.db.get("level") or 1)
+        title = None
+        for floor, name in spec.get("titles") or []:
+            if level >= int(floor):
+                title = name
+        shown = f"({level} {cls})"
+        return f"the {title} {shown}" if title else shown
+
+    def after_recall(self, player: GameObject, *, from_combat: bool) -> None:
+        """Recall spends half the ``move`` pool; out of a fight it also
+        costs 25 experience (ROM)."""
+        if has_pool(player, "move"):
+            set_pool(player, "move", int(pool_get(player, "move") or 0) // 2)
+        if from_combat:
+            lost = min(25, int(player.db.get("xp") or 0))
+            player.db.xp = int(player.db.get("xp") or 0) - lost
+            player.msg(f"You recall from combat! You lose {lost} experience.")
+
+    def level_cap(self) -> int:
+        """``LEVEL_CAP`` (the ``merc`` feature's setting), 50 without it."""
+        world = find_world()
+        return int(world.setting("LEVEL_CAP", 50)) if world is not None else 50
+
     def regen(self, obj: GameObject, pool_name: str) -> int:
         """Diku's gain per tick, standing (ROM ``hit_gain``, ``mana_gain``,
         ``move_gain`` before the position divisor): hit points by
@@ -355,9 +515,10 @@ class MercSystem(GameSystem):
         lines = [
             f"You are {player.name}, a level {level} {cls}.",
             f"Experience: {xp} / {self.xp_to_next(level)} to level {level + 1}",
-            pool_lines(player),
+            pool_lines(player, exclude=NEED_POOLS),
             f"THAC0: {player.db.get('thac0')}   "
             f"AC: {player.db.get('armor_class')}",
+            f"Alignment: {alignment(player)} ({alignment_word(alignment(player))})",
         ]
         wielded = [o for o in player.contents if o.has_tag('wielded')]
         worn = [o for o in player.contents if o.has_tag('worn')]
@@ -368,6 +529,11 @@ class MercSystem(GameSystem):
         practices = int(player.db.get("practices") or 0)
         if practices:
             lines.append(f"Practices: {practices}")
+        # Diku's conditions, said rather than counted: at a quarter or less.
+        for pool, line in (("food", "You are hungry."), ("water", "You are thirsty.")):
+            percent = pool_percent(player, pool)
+            if percent is not None and percent <= 25:
+                lines.append(line)
         return lines
 
     def wear_slots(self) -> list[tuple[str, int]]:
@@ -380,11 +546,12 @@ class MercSystem(GameSystem):
     def advance_level(self, player: GameObject) -> None:
         cls = str(player.db.get("character_class") or "warrior")
         spec = self._classes().get(cls, self._classes()["warrior"])
+        cap = self.level_cap()
         while True:
             level = int(player.db.get("level") or 1)
             xp = int(player.db.get("xp") or 0)
             need = self.xp_to_next(level)
-            if xp < need:
+            if xp < need or level >= cap:
                 break
             player.db.xp = xp - need
             player.db.level = level + 1
@@ -404,4 +571,5 @@ class MercSystem(GameSystem):
             player.msg(f"You advance to level {level + 1}! (+{gain} HP)")
 
 
-__all__ = ["MercSystem", "MERC_CLASSES", "BUILTIN_SKILL_DEFAULTS"]
+__all__ = ["MercSystem", "MERC_CLASSES", "BUILTIN_SKILL_DEFAULTS", "ALIGNMENT_WORDS",
+           "CONSIDER_LINES", "alignment", "alignment_word", "is_good", "is_evil"]

@@ -21,6 +21,8 @@ GROUPS: list[str] = [
     "Locks & permissions",
     "Money",
     "Accounts",
+    "Clans",
+    "Quests",
     "Messaging & prompts",
     "Dice & skill checks",
     "Pools",

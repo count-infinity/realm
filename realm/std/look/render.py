@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING
 
 from realm.core.language import group_contents, numbered_name
 from realm.core.markup import wrap
+from realm.core.options import get_option
 from realm.core.perception import can_see, display_markers
 from realm.core.world import find_world
 from realm.std.look.describe import detail_lines
@@ -65,13 +66,30 @@ def can_see_room(viewer: GameObject | None, room: GameObject) -> bool:
     return sight is None or sight.can_see_room(viewer, room)
 
 
-def render_room(room: GameObject | None, viewer: GameObject | None = None) -> str:
+def out_of_play(player: GameObject) -> bool:
+    """A character nobody is playing: not connected, and not waiting
+    link-dead. In a world with no session manager (a bare test world)
+    nobody is."""
+    world = find_world()
+    sessions = world.sessions if world is not None else None
+    return (sessions is not None and not sessions.is_online(player)
+            and not player.has_tag('linkdead'))
+
+
+def render_room(room: GameObject | None, viewer: GameObject | None = None, *,
+                arrival: bool = False) -> str:
     """
     Render a room as the text a player sees on ``look`` or arrival.
 
     Args:
         room: The room to render. ``None`` renders the "nowhere" message.
         viewer: The looker, excluded from the contents listing.
+        arrival: The viewer has just arrived (walked, followed, recalled,
+            logged in) rather than typed ``look``: their ``brief`` option
+            leaves the description out.
+
+    The viewer's ``autoexit`` option (on unless they turn it off) shows the
+    exits line.
 
     Returns:
         The complete multi-line room display, ready for ``session.send``
@@ -91,7 +109,8 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
 
     lines = ["", wrap('c', room.name), "-" * len(room.name)]
 
-    desc = room_description(room)
+    brief = arrival and viewer is not None and bool(get_option(viewer, "brief"))
+    desc = "" if brief else room_description(room)
     if desc:
         if '[[' in desc:
             from realm.scripting.inline import eval_inline
@@ -100,7 +119,8 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
             lines.append(desc)
 
     # Per-viewer conditional details (skill-gated softcode descriptions).
-    lines.extend(detail_lines(room, viewer))
+    if not brief:
+        lines.extend(detail_lines(room, viewer))
 
     things: list[GameObject] = []
     players: list[GameObject] = []
@@ -110,6 +130,10 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
             continue
         if viewer is not None and not can_see(viewer, obj):
             continue  # invisible to this viewer (secret exits included)
+        if obj.has_tag('ridden'):
+            continue  # a ridden mount is listed on its rider: "(riding a mare)"
+        if obj.is_player and out_of_play(obj):
+            continue  # quit: not in the world (Diku), not in a `look` (Penn)
         if obj.is_exit:
             exits.append(obj)
         elif obj.is_player:
@@ -136,18 +160,20 @@ def render_room(room: GameObject | None, viewer: GameObject | None = None) -> st
                      for obj in players)
 
     lines.append("")
-    if exits:
-        lines.append(
-            f"Exits: {', '.join(wrap('g', e.name) for e in exits)}")
-    else:
-        lines.append("Exits: None")
-    lines.append("")
+    if viewer is None or get_option(viewer, "autoexit", True):
+        if exits:
+            lines.append(
+                f"Exits: {', '.join(wrap('g', e.name) for e in exits)}")
+        else:
+            lines.append("Exits: None")
+        lines.append("")
 
     return "\n".join(lines)
 
 
 __all__ = [
     "render_room",
+    "out_of_play",
     "room_description",
     "group_contents",
     "group_formatter",

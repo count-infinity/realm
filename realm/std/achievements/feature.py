@@ -8,6 +8,8 @@ account (MUD_PLAN 6.5; docs/guides/accounts.md).
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from realm.features import Feature
 from realm.std.achievements import softcode
 from realm.std.achievements.achievements import (
@@ -16,6 +18,7 @@ from realm.std.achievements.achievements import (
     clear_cache,
     cmd_achievements,
     grant,
+    has,
     login_observer,
 )
 
@@ -46,3 +49,11 @@ async def _grant(engine, frame, obj, name) -> None:
 
 
 feature.queue_kind("achievement", _grant)
+
+
+@feature.on_install
+def _offer_achievements(world) -> None:
+    """Other features grant achievements through
+    ``world.services["achievements"]`` (``grant``, ``has``): ``quests``'
+    rewards."""
+    world.services["achievements"] = SimpleNamespace(grant=grant, has=has)

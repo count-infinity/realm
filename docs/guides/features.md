@@ -47,33 +47,37 @@ everything available. The built-in features:
 | Feature | Gives you | Requires |
 |---|---|---|
 | `accounts` | accounts with several characters: the welcome screen (`connect`, `create`, `who`, `quit`), the character menu (`play`, `new`, `delete`, `password`), `characters`, `password`, `@account`, `@sitelock`; character creation from the game system's chargen steps; softcode `account_attr`, `set_account_attr`, `incr_account_attr`, `account_characters`; settings `MAX_CHARACTERS`, `ACCOUNT_MULTIPLAY` ([Accounts](accounts.md)) | |
-| `mail` | mail to characters, kept on their accounts; `mail`; setting `MAIL_LIMIT`; softcode `send_mail` | accounts |
+| `mail` | mail to characters, kept on their accounts; `mail` (with no body, the line editor); setting `MAIL_LIMIT`; softcode `send_mail` | accounts |
 | `achievements` | `achievement_def` data, `achievements`; softcode `grant_achievement`, `has_achievement`; the `ACHIEVEMENT` hook | accounts |
-| `basics` | help, commands, who, quit, logout, color, think, uptime, recall, prompt (and `time`, the server clock, when there is no `clock`); the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)); the `who` service's `fields`, the `linkdead` marker, softcode `online_players`, `idle_seconds` ([Operating a Live Game](operations.md#who-is-on)) | |
-| `talk` | say, pose, semipose, emit, ooc, shout, whisper; socials as data (`social_def`), `socials`, the `SOCIAL` hook ([Communication](communication.md)) | |
+| `basics` | help, commands, who (with the game system's titles), quit, logout, color, think, uptime, recall (home, else the start room; not from a `no_recall` room; in a fight, a check), prompt, config, alias, unalias (and `time`, the server clock, when there is no `clock`); the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)); player settings, the `options` service and aliases (setting `ALIAS_LIMIT`, [The Character Sheet](character-sheet.md#player-settings)); the `who` service's `fields`, the `linkdead` marker, softcode `online_players`, `idle_seconds` ([Operating a Live Game](operations.md#who-is-on)) | |
+| `talk` | say, pose, semipose, emit, ooc, shout, whisper, report; socials as data (`social_def`), `socials`, the `SOCIAL` hook ([Communication](communication.md)) | |
 | `channels` | tell, reply, ignore, unignore, afk; channels as data (`channel_def`), `channels`, `channel`; the `TELL` and `CHANNEL` hooks; softcode `cemit`, `channel_members` | |
 | `movement` | go and the directions, in, out | |
-| `look` | look, examine | |
+| `look` | look, examine, scan, exits, where; the `autoexit` and `brief` settings ([The Character Sheet](character-sheet.md#player-settings)) | |
 | `clock` | game time and calendar (`time`, softcode `game_time`, `time_of_day`), the `HOUR`, `DAWN`, `DAY`, `DUSK` and `NIGHT` hooks, `outdoor` rooms dark at night, weather per zone (`weather`, softcode `weather`); settings `GAME_TIME_RATIO`, `HOURS_PER_DAY`, `DAYS_PER_MONTH`, `MONTH_NAMES`, `DAY_NAMES` ([Time and Weather](time-and-weather.md)) | |
 | `sight` | darkness and light (`dark`, `light`, `nightvision`; another feature's darkness tests, `add_darkness_test`), invisibility (`invisible`, `see_invisible`), the `glowing`, `magic` and `invisible` markers | |
-| `items` | get, drop, give, put, inventory, equipment, open, close, lock, unlock, use, wear, remove, wield, unwield, eat, drink | |
-| `building` | every `@` command, quell, unquell | look |
+| `items` | get (take, ta), drop, give, put, inventory, equipment, open, close (cl), lock, unlock, use, wear, remove, wield, unwield, eat, drink, fill; food a bite at a time, drink a sip at a time, fountains and `water_source` rooms; settings `FOOD_GAIN`, `WATER_GAIN` ([Life and Death](life-and-death.md#eating-and-drinking)) | |
+| `building` | every `@` command, quell, unquell; `@edit` and `@desc` with no text open the line editor ([World Management](world-management.md#the-line-editor-edit)) | look |
 | `operations` | `@wall`, `@shutdown`, `@reboot`, `@snoop`, `@freeze`, `@thaw` ([Operating a Live Game](operations.md)) | |
-| `rules` | points, skills, improve, practice, train, study; the `trainer` behavior; progression ([Progression](progression.md)); setting `IDLE_TRAINING_MAX_HOURS`; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
+| `rules` | points, skills, improve, practice, train, study; the `trainer` behavior; progression ([Progression](progression.md)); setting `IDLE_TRAINING_MAX_HOURS`; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system; awards through `award` and the `rules` service's `award_filters`; the stomach (`GameSystem.stomach`, settings `FOOD_FULL`, `WATER_FULL`, `NEEDS_BASE_WEIGHT`) | |
 | `stealth` | hide, search, pick; loud actions break stealth; the watchful behavior | rules, items |
-| `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; death, coming round and respawn; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS`, `PLAYER_DEATH`, `CORPSE_LOCK_SECONDS` | rules, items |
+| `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; death, coming round and respawn; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS`, `PLAYER_DEATH`, `CORPSE_LOCK_SECONDS`; an NPC's corpse holds its money; the `autoloot`, `autogold` and `autosplit` player settings | rules, items |
 | `effects` | timed effect behaviors; softcode `apply_effect`, `remove_effect`; `services["effects"].clear(obj)` | rules |
 | `vitals` | regeneration out of combat; rest, sleep, stand (wake); a sleeper sees, hears and does nothing; settings `REGEN_INTERVAL`, `REST_REGEN`, `SLEEP_REGEN` ([Life and Death](life-and-death.md)) | |
+| `needs` | hunger, thirst and fatigue after CoffeeMud: the `food`, `water` and `fatigue` pools empty with time, walking and the climate (`climate:hot`, `dry`, `windy`, `wet`), escalating reminders, death after hours ignored, half recovery while hungry or thirsty; `no_needs` characters and zones; softcode `hungry`, `thirsty`; settings `NEEDS_INTERVAL`, `FOOD_LOSS`, `WATER_LOSS`, `NEEDS_REMINDER_TICKS`, `HUNGER_DEATH_HOURS`, `THIRST_DEATH_HOURS`, `HUNGRY_AWARD`, `FATIGUE_SLEEP_RECOVERY` ([Life and Death](life-and-death.md#hunger-thirst-and-fatigue)); listed after `rules` and `vitals` when a game has them | |
 | `abilities` | cast, spells, quaff, recite, zap (brandish); the caster behavior; softcode `cast`, `use_ability` | rules, combat |
-| `economy` | buy, sell, list, pay, credits; shopkeepers; softcode `credits`, `adjust_credits`, `transfer_credits` | items |
-| `social` | consider, persuade, fasttalk, follow, unfollow, party; the disposition boost; softcode `disposition`, `adjust_disposition`, `reaction_roll` | rules, effects |
-| `crime` | wanted flags for assaulting players, peacekeeper guards, thieves | rules, combat, economy, effects |
+| `economy` | buy, sell, list, pay, credits (money, mo), split; shopkeepers (a pet shop sells through `companions`); softcode `credits`, `adjust_credits`, `transfer_credits` | items |
+| `social` | consider (with the game system's `consider` first), persuade, fasttalk, follow, unfollow, party (group); the disposition boost; softcode `disposition`, `adjust_disposition`, `reaction_roll` | rules, effects |
+| `companions` | pets, charmed followers and mounts after CoffeeMud and ROM: a companion is an NPC with a `master` (it follows, obeys `order`, fights beside its master, never attacks it, leaves and returns with it at logout; its kills pay its master); `companions`, `order`, `dismiss`, `mount` (ride), `dismount`; pet shops (the shopkeeper's `sells_pets`, `pet_stock`); the `charmed` effect and the abilities' `charm` effect; riders' lines (a `move_describer`), the `(riding ...)` marker, `no_mount` rooms, the mount pays a rider's step; softcode `master`, `companions`, `set_master`, `release`; the `BOND` and `RELEASE` hooks; settings `COMPANION_LIMIT_RULE`, `COMPANION_LEVEL_DIFF`, `ORDER_REFUSED`, `MOUNTS_INDOORS` ([Pets, Charm and Mounts](companions.md)) | social, effects |
+| `clans` | clans with governments after CoffeeMud: governments as data (`clan_government_def`; the `clan-governments` pack ships gang, guild, union, fellowship, anarchy, co-op, meritocracy, plutocracy) with positions, limits, locks and powers; founding for `CLAN_COST`; votes on what no position holds; a treasury, a tax on experience, clan levels and benefits, relations, upkeep; `clan` (and its subcommands), `clans`, `clantalk` (ct), `@clan`; the clan on `who`; softcode `clan`, `clan_position`, `clan_rank`, `clan_has_power`, `clan_level`, `clan_members`, `clan_relation`, `clans_at_war`, `clan_add`, `clan_remove`; the `CLANJOIN`, `CLANLEAVE`, `CLANASSIGN`, `CLANLEVEL` and `CLANTALK` hooks; settings `CLAN_COST`, `CLAN_MIN_LEVEL`, `CLAN_MIN_MEMBERS`, `CLAN_MAX_MEMBERS`, `CLAN_MAX_TAX`, `CLAN_DEATH_DAYS`, `CLAN_OVERTHROW_DAYS` ([Clans](clans.md)); listed after `basics` and `rules` when a game has them | |
+| `quests` | quests as data (`quest_def`): stages of `kill`, `collect`, `deliver`, `visit`, `talk`, `use` and `custom` objectives tracked by one observer (a companion's and the party's kills count), givers and the `quest_giver` behavior with the `(!)` and `(?)` markers, an accept lock, rewards through the `rules` award, `economy`, prototypes, `achievements` and tags, a repeat cooldown, a time limit, account scope; `quests` (journal), `quest` (list, accept, complete, abandon), `talk`; softcode `quest_state`, `quest_count`, `quest_offer`, `quest_advance`, `quest_complete`, `quest_fail`; the `QUESTACCEPT`, `QUESTADVANCE`, `QUESTCOMPLETE`, `QUESTFAIL` and `TALK` hooks ([Quests](quests.md)) | |
+| `crime` | wanted flags for assaulting players, peacekeeper guards (who may also take on the most evil fighter or break up any fight: `protect`), thieves | rules, combat, economy, effects |
 | `npc` | patrol, scavenger, wandering, guard, decay behaviors | |
 | `spawning` | spawner, restock, population, zone_reset behaviors | |
 | `instances` | instanced copies of template areas; softcode `enter_instance` | |
 | `wilderness` | procedural wilderness cells; softcode `enter_wilderness` | spawning |
 | `tasks` | timed actions: stop; softcode `start_task`, `task_of`, `stop_task`; the `(busy)` marker | |
-| `gurps`, `d20`, `merc` | the combat ruleset of each rules system; `merc` also charges movement points for walking | rules, combat |
+| `gurps`, `d20`, `merc` | the combat ruleset of each rules system; `merc` also charges movement points for walking and declares `LEVEL_CAP` ([Game Systems](game-systems.md#what-merc-implements)) | rules, combat |
 
 The kernel is always there: the script engine and every other softcode
 function, `script_ticker`, `behavior_def` behaviors, expiry reaping. Its
@@ -124,10 +128,11 @@ Everything a feature can declare:
 |---|---|
 | `feature.command(name, handler, aliases=, permission=, category=, help_text=, usage=, parse_equals=, token=)` | a command (decorator when `handler` is omitted); `token=":"` makes `:text` run it |
 | `feature.login(fn)` | the `async (ctx)` that handles input from a session with no player (one per game; `accounts` declares it). Without one the server answers "This world has no login feature installed." |
-| `feature.input_interceptor(fn, order=)` | an `async (world, session, line) -> bool` that sees input before the dispatcher, lowest `order` first; True consumes the line (`accounts` routes chargen) |
+| `feature.input_interceptor(fn, order=)` | an `async (world, session, line) -> bool \| str` that sees input after the pager and a pending prompt and before the dispatcher, lowest `order` first; True consumes the line (`accounts` routes chargen), a string replaces it for the rest (`basics` expands aliases at order 5) |
 | `feature.fallback(fn)` | an `async (ctx) -> bool` tried when no command matches, before softcode `$`-commands (`movement` walks a typed exit name) |
 | `feature.traversal_gate(fn, reason=, attrs=)` | an `async (actor, exit_obj, direction, *, fleeing) -> str \| None` asked before a walk (`exit_obj` may be None; `combat` holds a fighter who is not fleeing); a string refuses with that line and fires `event:on_fail` with `reason`. `attrs` are the exit attributes it reads (`@examine` warns about them in a world without the feature) |
 | `feature.after_traverse(fn)` | an `async (actor, origin, destination, exit_obj, *, fleeing)` run after a walk (`social` brings followers) |
+| `feature.move_describer(fn)` | a `(actor, direction, phase) -> str \| None` asked for a walk's lines: `phase` is `leave` (the room left, normally "{actor} leaves north."), `arrive` ("{actor} arrives.") or `own` (the walker's "You leave north."); the first answer that is not None replaces the line, `""` prints none (`companions`: "{actor} rides north on a grey mare.") |
 | `feature.behavior(cls)` | a behavior class, by its `behavior_id` (class decorator) |
 | `feature.function(fn, name=, group=, readonly=, harm=)` | a native softcode function |
 | `feature.softfn(fn, ...)` | a softcode function whose first parameter is the run's frame |
@@ -382,7 +387,11 @@ if look is not None:
 The built-ins offer `look` (`render_room`), `economy` (`get_credits`,
 `transfer_credits`, `currency_name`), `social` (`get_disposition`,
 `adjust_disposition`, `party_members`), `talk` (`npc_say`), `damage`
-(`apply_resisted`, `deal_damage`) and `combat` (the manager). A feature
+(`apply_resisted`, `deal_damage`), `combat` (the manager), `channels`
+(`deliver`, `remember`: the channel delivery path), `recall` (`to`:
+`recall`'s rules), `who` (`fields`), `rules` (`award_filters`, `award`),
+`achievements` (`grant`, `has`) and `clans` (`clan_of`, `clans_of`,
+`find_clan`, `has_power`). A feature
 offers one from `on_install`: `world.services["mine"] = ...`. Importing
 another feature's code is allowed only when you `requires` it
 (`tests/test_boundaries.py` checks).

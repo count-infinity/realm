@@ -256,6 +256,23 @@ class TestTheMenu:
         assert c.player.name == "Bree"
         assert c.session.id in [s.id for s in server.session_manager.all_sessions()]
 
+    async def test_a_character_out_of_play_is_not_in_the_room(self, server):
+        # MUD_PLAN step 17: Diku takes a character who quits out of the
+        # world, and PennMUSH leaves a disconnected player out of `look`. A
+        # link-dead one is still there, marked.
+        c = await _with_characters(server, "Ann", "correcthorse", "Bree", "Cole")
+        d = await _client(server)
+        await d.send("create Dan correcthorse")
+        await d.send("Eve")
+        assert "Cole" in await d.send("look")
+        await c.send("characters")                       # Cole leaves play
+        out = await d.send("look")
+        assert "Cole" not in out and "Players here" not in out
+        await c.send("play Cole")
+        assert "Cole" in await d.send("look")
+        await server.session_manager.connection_lost(c.session)
+        assert "Cole (linkdead)" in await d.send("look")
+
     async def test_delete_asks_for_the_password(self, server):
         c = await _with_characters(server, "Ann", "correcthorse", "Bree", "Cole")
         await c.send("characters")

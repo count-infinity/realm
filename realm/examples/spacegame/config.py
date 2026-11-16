@@ -84,6 +84,7 @@ async def init_world(server):
     # Talk beyond the room: gossip, newbie, immtalk; and the common socials.
     await import_pack("channels", server.persistence)
     await import_pack("socials-classic", server.persistence)
+    await import_pack("clan-governments", server.persistence)
 
     # Ship prototypes, one per template (their health is pools).
     await create_ship_prototypes(server.persistence)

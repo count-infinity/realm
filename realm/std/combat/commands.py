@@ -11,7 +11,7 @@ player in a fight sets its tempo.
 from __future__ import annotations
 
 from realm.commands import CommandContext
-from realm.commands.base import find_object
+from realm.commands.base import find_victim
 from realm.core.pools import damage_pool, mend, pool_get, pool_max, settle
 from realm.core.world import get_world
 from realm.std.combat.manager import is_combat_capable
@@ -54,8 +54,7 @@ async def cmd_attack(ctx: CommandContext) -> None:
         await ctx.session.send("Combat is not enabled here.")
         return
 
-    target = find_object(ctx, ctx.args.strip(),
-                         search_room=True, search_inventory=False)
+    target = find_victim(ctx, ctx.args.strip())
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
@@ -121,7 +120,7 @@ async def cmd_queue(ctx: CommandContext) -> None:
     target_id = None
     if maneuver.needs_target:
         if rest:
-            target = find_object(ctx, rest, search_room=True, search_inventory=False)
+            target = find_victim(ctx, rest)
             if not target or encounter.get(target.id) is None:
                 await ctx.session.send(f"'{rest}' isn't in this fight.")
                 return
@@ -306,7 +305,7 @@ async def cmd_firstaid(ctx: CommandContext) -> None:
     if name.lower() in ('me', 'self'):
         target = ctx.player
     else:
-        target = find_object(ctx, name, search_room=True, search_inventory=False)
+        target = find_victim(ctx, name)
     if not target:
         await ctx.session.send(f"You don't see '{name}' here.")
         return

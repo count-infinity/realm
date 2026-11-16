@@ -279,71 +279,73 @@ async def cmd_examine_full(ctx: CommandContext) -> None:
         await ctx.session.send(f"Object '{ctx.args}' not found.")
         return
 
-    await ctx.session.send(f"\n{'=' * 50}")
-    await ctx.session.send(f"Name: {target.name}")
-    await ctx.session.send(f"ID: {target.id}")
-    await ctx.session.send(f"{'=' * 50}")
+    out: list[str] = []
+    out.append(f"\n{'=' * 50}")
+    out.append(f"Name: {target.name}")
+    out.append(f"ID: {target.id}")
+    out.append(f"{'=' * 50}")
 
     # Description
     if target.description:
-        await ctx.session.send(f"\nDescription:\n{target.description}")
+        out.append(f"\nDescription:\n{target.description}")
 
     # Location info
-    await ctx.session.send(f"\nLocation: {target.location.name if target.location else 'None'}")
-    await ctx.session.send(f"Owner: {target.owner.name if target.owner else 'None'}")
-    await ctx.session.send(f"Parent: {target.parent.name if target.parent else 'None'}")
+    out.append(f"\nLocation: {target.location.name if target.location else 'None'}")
+    out.append(f"Owner: {target.owner.name if target.owner else 'None'}")
+    out.append(f"Parent: {target.parent.name if target.parent else 'None'}")
 
     # Tags
     if target.tags:
-        await ctx.session.send(f"\nTags: {', '.join(sorted(target.tags.to_list()))}")
+        out.append(f"\nTags: {', '.join(sorted(target.tags.to_list()))}")
 
     # Locks
     if target.locks:
-        await ctx.session.send("\nLocks:")
+        out.append("\nLocks:")
         for lock_type, expr in target.locks.items():
-            await ctx.session.send(f"  {lock_type}: {expr}")
+            out.append(f"  {lock_type}: {expr}")
 
     # Attributes — own first, then anything inherited through @parent
     # (invisible inheritance is a debugging nightmare; show it, marked).
     attrs = target.db.all()
     if attrs:
-        await ctx.session.send("\nAttributes:")
+        out.append("\nAttributes:")
         for key, value in sorted(attrs.items()):
-            await ctx.session.send(f"  {key}: {value!r}")
+            out.append(f"  {key}: {value!r}")
     if target.parent is not None:
         inherited = {k: v for k, v in target.db.merged().items()
                      if k not in attrs}
         if inherited:
-            await ctx.session.send(
+            out.append(
                 f"\nInherited (from {target.parent.name}):")
             for key, value in sorted(inherited.items()):
-                await ctx.session.send(f"  {key}: {value!r}")
+                out.append(f"  {key}: {value!r}")
     # An attribute a feature gives meaning to does nothing in a world
     # without that feature (a check_skill exit without `rules`): say so.
     world = find_world()
     if world is not None and world.features is not None:
         idle = unloaded_attribute_owners(target.db.merged(), world.features.names)
         for key, owner in sorted(idle.items()):
-            await ctx.session.send(
+            out.append(
                 f"  Warning: {key} has no effect: the {owner!r} feature "
                 f"is not loaded.")
 
     # Behaviors
     behaviors = target.get_behaviors()
     if behaviors:
-        await ctx.session.send("\nBehaviors:")
+        out.append("\nBehaviors:")
         for b in behaviors:
-            await ctx.session.send(f"  {b.behavior_id}: {b.params}")
+            out.append(f"  {b.behavior_id}: {b.params}")
 
     # Contents
     if target.contents:
-        await ctx.session.send(f"\nContents ({len(target.contents)}):")
+        out.append(f"\nContents ({len(target.contents)}):")
         for obj in target.contents[:10]:
-            await ctx.session.send(f"  {obj.name} (#{obj.id[:8]})")
+            out.append(f"  {obj.name} (#{obj.id[:8]})")
         if len(target.contents) > 10:
-            await ctx.session.send(f"  ... and {len(target.contents) - 10} more")
+            out.append(f"  ... and {len(target.contents) - 10} more")
 
-    await ctx.session.send("")
+    out.append("")
+    ctx.session.send_paged("\n".join(out))
 
 
 async def cmd_boot(ctx: CommandContext) -> None:

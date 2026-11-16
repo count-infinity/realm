@@ -9,12 +9,19 @@ debuff vetoes speech).
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from realm.commands import CommandContext
-from realm.commands.base import find_player
+from realm.commands.base import find_player, format_list
 from realm.core.action_tags import SOUND
+from realm.core.pools import declared_pools, pool_def, pool_get, pool_max
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.core.world import get_world
 from realm.std.talk.actions import TalkAction
 from realm.std.talk.verbs import do_emit, do_pose, do_say, do_semipose, do_whisper
+
+if TYPE_CHECKING:
+    from realm.core.objects import GameObject
 
 
 async def cmd_say(ctx: CommandContext) -> None:
@@ -35,6 +42,39 @@ async def cmd_say(ctx: CommandContext) -> None:
         return
 
     action = await do_say(ctx.player, ctx.args)
+    if action and action.blocked:
+        ctx.player.msg(action.block_reason or "You can't speak here.")
+
+
+def report_line(player: GameObject) -> str:
+    """"I have 12/20 hp, 50/100 mana and 80/100 move.": every pool the
+    character has that recovers on its own, as ``report`` says it (ROM's
+    hp, mana and move; a stomach is not reported)."""
+    parts = []
+    for name in declared_pools(player):
+        pool = pool_def(player, name)
+        if pool is not None and not pool.regen:
+            continue
+        value, maximum = pool_get(player, name), pool_max(player, name)
+        parts.append(f"{value}/{maximum} {name}" if maximum is not None else f"{value} {name}")
+    if not parts:
+        return "I am well."
+    return f"I have {format_list(parts, conjunction='and')}."
+
+
+async def cmd_report(ctx: CommandContext) -> None:
+    """
+    Tell the room how you are: your hit points and the rest of your pools.
+
+    Usage: report
+    """
+    engine = get_world().scripts
+    if engine is not None and await engine.handle_unknown_command(ctx):
+        return                                  # a world $report comes first
+    if ctx.player.location is None:
+        await ctx.session.send("You have nowhere to speak from.")
+        return
+    action = await do_say(ctx.player, report_line(ctx.player))
     if action and action.blocked:
         ctx.player.msg(action.block_reason or "You can't speak here.")
 

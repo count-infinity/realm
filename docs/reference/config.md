@@ -23,6 +23,7 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `WEBSOCKET_PORT` | `4001` | WebSocket listen port. |
 | `ENABLE_TELNET` | `True` | Run the telnet server. |
 | `ENABLE_WEBSOCKET` | `False` | Run the WebSocket server (needs aiohttp). |
+| `WEB_CLIENT` | `False` | Serve the browser client at `/` on the WebSocket port (needs ENABLE_WEBSOCKET): open `http://<host>:<WEBSOCKET_PORT>/` to play. |
 | `ENABLE_SCRIPTING` | `True` | Run softcode: `$`-commands, `^`-listens, `ON_<EVENT>` hooks, inline blocks. |
 | `INLINE_OPEN` | `'[['` | Opening delimiter of an inline softcode block in text. |
 | `INLINE_CLOSE` | `']]'` | Closing delimiter of an inline softcode block in text. Differs from INLINE_OPEN. |
@@ -46,6 +47,7 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `COMMAND_RATE` | `10` | Lines of input a connection may send per second, sustained (0: no limit). Over it, lines are dropped with one warning. |
 | `COMMAND_BURST` | `30` | Lines a connection may send at once before COMMAND_RATE applies (a speedwalk). At least 1. |
 | `FLOOD_DISCONNECT_SECONDS` | `30` | Seconds a connection may stay over COMMAND_RATE before it is closed and logged (0: never closed). |
+| `PAGE_LENGTH` | `24` | Lines on one screen when the client has not reported its height (NAWS): longer output from `help`, `who`, `@examine` and the like is shown a page at a time (0: never held). A player's own `pagelength` option wins. |
 | `BACKUP_INTERVAL_HOURS` | `0` | Hours between automatic backups of the database to data/backups/ (0: off; `realm backup` by hand). |
 | `BACKUP_KEEP` | `0` | How many automatic backups to keep, newest first (0: all). |
 | `FEATURES` | `'realm.std.CLASSIC'` | The features this game is made of, by name or module path, or a dotted path to such a list. Unset, every built-in feature (`realm.std.CLASSIC`). A game lists its own module too: `FEATURES = [*CLASSIC, "game"]`. |
@@ -60,6 +62,12 @@ A feature can declare its own keys. These exist only when the feature is in
 | `MAX_CHARACTERS` | `accounts` | `5` | How many characters one account may hold. |
 | `ACCOUNT_MULTIPLAY` | `accounts` | `False` | Whether one account may play several of its characters at once (one connection per character). Off: a second login takes over the first. |
 | `PROMPT` | `basics` | `'<{hp}/{max_hp}hp> '` | The prompt shown after each batch of output, unless a player sets their own with `prompt`. Tokens: any pool by name and `max_<name>`, `{name}`, `{room}`, `{combat}`, `{level}`, `{xp}`. Empty for none. |
+| `ALIAS_LIMIT` | `basics` | `50` | How many aliases one character may keep. |
+| `FOOD_GAIN` | `items` | `100` | Percent: how much of a bite of food (its `nourishment`) reaches the eater's `food` pool. |
+| `WATER_GAIN` | `items` | `100` | Percent: how much of a sip (a container's `sip`, default 50) reaches the drinker's `water` pool. |
+| `FOOD_FULL` | `rules` | `500` | The food a stomach holds (`GameSystem.stomach`), for a character of `NEEDS_BASE_WEIGHT`; CoffeeMud's. |
+| `WATER_FULL` | `rules` | `1000` | The water a stomach holds (`GameSystem.stomach`), for a character of `NEEDS_BASE_WEIGHT`; CoffeeMud's. |
+| `NEEDS_BASE_WEIGHT` | `rules` | `150` | The weight a stomach of `FOOD_FULL` and `WATER_FULL` belongs to: a character with a `weight` scales both (and its hunger and thirst) by `weight / NEEDS_BASE_WEIGHT`. |
 | `IDLE_TRAINING_MAX_HOURS` | `rules` | `0` | How many hours of time away an idle (`study`) skill banks at once. 0: unlimited. |
 | `COMBAT_RULESET` | `combat` | `None` | Combat ruleset name. Unset, the game system picks its own; set it only to mix systems on purpose. |
 | `SHOW_ROLLS` | `combat` | `False` | Show dice detail on combat messages. Players override with `showrolls on\|off`. |
@@ -71,12 +79,32 @@ A feature can declare its own keys. These exist only when the feature is in
 | `REGEN_INTERVAL` | `vitals` | `15` | Seconds between regeneration ticks. Each tick a character out of combat regains the game system's `regen` amount of each pool below full. |
 | `REST_REGEN` | `vitals` | `2` | Regeneration multiplier while resting. |
 | `SLEEP_REGEN` | `vitals` | `4` | Regeneration multiplier while asleep. |
+| `NEEDS_INTERVAL` | `needs` | `4` | Seconds between hunger and thirst ticks (CoffeeMud's tick). Each tick an awake, online player loses food and water, and gains fatigue. |
+| `FOOD_LOSS` | `needs` | `100` | Percent: how much food a tick (and each room walked) costs, against 1 for a character of `NEEDS_BASE_WEIGHT`. |
+| `WATER_LOSS` | `needs` | `100` | Percent: how much water a tick (and each room walked) costs, against the room's thirst rate for a character of `NEEDS_BASE_WEIGHT`. |
+| `NEEDS_REMINDER_TICKS` | `needs` | `60` | Ticks between "You are hungry." reminders (and "You are exhausted."). |
+| `HUNGER_DEATH_HOURS` | `needs` | `12` | Hours of online time with an empty `food` pool before the character dies. 0: hunger never kills. |
+| `THIRST_DEATH_HOURS` | `needs` | `6` | Hours of online time with an empty `water` pool before the character dies. 0: thirst never kills. |
+| `HUNGRY_AWARD` | `needs` | `1.0` | A factor on experience and character point awards while hungry or thirsty. 0 is CoffeeMud's "no experience while hungry". |
+| `FATIGUE_SLEEP_RECOVERY` | `needs` | `3` | How much `fatigue` a sleeping character sheds each tick (it gains 1 awake). |
+| `COMPANION_LIMIT_RULE` | `companions` | `None` | How many followers a character may keep, as a rule expression (`me` the character, `level` its level), after CoffeeMud's FORMULA_MAXFOLLOW: `"1 + (get_attr(me, 'charisma', 10) - 6) // 3"`. None asks the game system's `companion_limit` (2; Merc: 1 + level // 10). |
+| `COMPANION_LEVEL_DIFF` | `companions` | `0` | A creature more than this many levels above a character cannot become its companion (CoffeeMud's FOLLOWLEVELDIFF). 0: no limit. |
+| `ORDER_REFUSED` | `companions` | `[]` | Command names `order` never runs as a companion, beyond the ones it always refuses (above `player` permission, `order`, `quit`). |
+| `MOUNTS_INDOORS` | `companions` | `False` | Whether a rider may ride into a `sector:inside` room (a `no_mount` room is refused either way). |
 | `MAIL_LIMIT` | `mail` | `100` | How many messages one account's mailbox holds. |
 | `GAME_TIME_RATIO` | `clock` | `30` | Game seconds per real second (30: a game day is 48 real minutes). |
 | `HOURS_PER_DAY` | `clock` | `24` | Hours in a game day. |
 | `DAYS_PER_MONTH` | `clock` | `30` | Days in a game month. |
 | `MONTH_NAMES` | `clock` | `['Deepwinter', 'Thaw', 'Seedtime', 'Rains', 'Blossom', 'Highsun', 'Midsummer', 'Harvest', 'Leaffall', 'Frost', 'Darkening', 'Longnight']` | The months of the game year, in order. |
 | `DAY_NAMES` | `clock` | `['Moonday', 'Tiwday', 'Wodensday', 'Thunderday', 'Freyday', 'Starday', 'Sunday']` | The days of the game week, in order. |
+| `CLAN_COST` | `clans` | `10000` | What founding a clan costs (CoffeeMud's CLANCOST), through the economy. None: only administrators found clans (`@clan create`). |
+| `CLAN_MIN_LEVEL` | `clans` | `1` | The level a character needs to found a clan (MINCLANLEVEL; a character with no level counts as 1). |
+| `CLAN_MIN_MEMBERS` | `clans` | `1` | Members a clan needs to leave `pending` (and to declare relations or levy a tax), and how many must have played within CLAN_DEATH_DAYS for it to survive (MINCLANMEMBERS). |
+| `CLAN_MAX_MEMBERS` | `clans` | `0` | The most members a clan may have; 0: no limit (MAXCLANMEMBERS). |
+| `CLAN_MAX_TAX` | `clans` | `25` | The highest tax, in percent, a clan may levy on its members' experience. |
+| `CLAN_DEATH_DAYS` | `clans` | `2160` | Game days within which CLAN_MIN_MEMBERS members must have played, or the clan is dissolved (DAYSCLANDEATH). 0: never. |
+| `CLAN_OVERTHROW_DAYS` | `clans` | `952` | Game days after which a clan whose leaders have all been away is handed to its highest-ranking member who has played since (DAYSCLANOVERTHROW). 0: never. |
+| `LEVEL_CAP` | `merc` | `50` | The highest level a character reaches under the Merc rules; experience past it still counts but levels no further. |
 
 ## Callbacks
 

@@ -86,6 +86,11 @@ async def cmd_sleep(ctx: CommandContext) -> None:
     if player.has_tag(SLEEPING):
         await ctx.session.send("You are already asleep.")
         return
+    # A rider who sleeps slides off first (the ``companions`` feature).
+    from realm.core.world import get_world
+    companions = get_world().services.get("companions")
+    if companions is not None:
+        await companions.dismount(player, how="sleep")
     player.remove_tag(RESTING)
     player.add_tag(SLEEPING)
     await ctx.session.send("You lie down and go to sleep.")

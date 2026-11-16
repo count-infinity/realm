@@ -1,5 +1,5 @@
 """
-Economy commands: credits, list, buy, sell, pay.
+Economy commands: credits, list, buy, sell, pay, split.
 
 Shops are ShopkeeperBehavior NPCs whose stock is their inventory.
 ``pay`` moves money AND propagates ``event:payment`` — softcode can
@@ -10,16 +10,19 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object
+from realm.core.language import singular_name
 from realm.core.propagation import (
     Action,
     deliver_messages,
     gate_action,
 )
 from realm.core.search import match_one
+from realm.core.world import get_world
 from realm.std.economy.actions import EconomyAction
 from realm.std.economy.credits import (
     currency_name,
     get_credits,
+    split_money,
     transfer_credits,
 )
 from realm.std.economy.shop import find_shopkeeper
@@ -49,14 +52,53 @@ async def cmd_list(ctx: CommandContext) -> None:
         return
     keeper, behavior = shop
     wares = behavior.wares(keeper)
-    if not wares:
+    pets = _pets_for_sale(behavior)
+    if not wares and not pets:
         await ctx.session.send(f"{keeper.name.capitalize()} has nothing to sell.")
         return
-    lines = [f"{keeper.name.capitalize()}'s wares:"]
+    lines = []
+    if pets:
+        lines.append("Pets for sale:")
+        for pet in pets:
+            price = behavior.price_to_buy(keeper, pet, ctx.player)
+            mount = " (mount)" if pet.has_tag("mount") else ""
+            lines.append(f"  {pet.name}{mount} — {price} {currency_name()}")
+    if wares:
+        lines.append(f"{keeper.name.capitalize()}'s wares:")
     for item in wares:
         price = behavior.price_to_buy(keeper, item, ctx.player)
         lines.append(f"  {item.name} — {price} {currency_name()}")
     await ctx.session.send("\n".join(lines))
+
+
+def _pets_for_sale(behavior) -> list:
+    """A pet shop's stock, when the world has ``companions`` to bond what
+    it sells (MUD_PLAN 13.2); otherwise nothing."""
+    pets = behavior.pets()
+    if pets and get_world().services.get("companions") is None:
+        return []
+    return pets
+
+
+async def _buy_pet(ctx: CommandContext, keeper, behavior, pet) -> None:
+    """Buy a copy of ``pet``: the ``companions`` service refuses one past
+    the buyer's limit, clones it beside the buyer and bonds it."""
+    companions = get_world().services["companions"]
+    refusal = companions.bond_refusal(pet, ctx.player)
+    if refusal:
+        await ctx.session.send(refusal)
+        return
+    price = behavior.price_to_buy(keeper, pet, ctx.player)
+    if not transfer_credits(ctx.player, keeper, price):
+        await ctx.session.send(
+            f"You can't afford {pet.name} ({price} {currency_name()}; "
+            f"you have {get_credits(ctx.player)}).")
+        return
+    bought = await companions.buy_pet(ctx.player, pet)
+    await ctx.session.send(f"You buy {singular_name(bought)} for {price} {currency_name()}. "
+                           f"Enjoy your pet.")
+    ctx.player.location.msg_contents(
+        f"{ctx.player.name} buys {singular_name(bought)} as a pet.", exclude=[ctx.player])
 
 
 async def cmd_buy(ctx: CommandContext) -> None:
@@ -79,6 +121,10 @@ async def cmd_buy(ctx: CommandContext) -> None:
         return
     keeper, behavior = shop
 
+    pet = match_one(ctx.args.strip(), _pets_for_sale(behavior))
+    if pet is not None:
+        await _buy_pet(ctx, keeper, behavior, pet)
+        return
     item = match_one(ctx.args.strip(), behavior.wares(keeper))
     if item is None:
         await ctx.session.send(
@@ -208,3 +254,25 @@ async def cmd_pay(ctx: CommandContext) -> None:
     deliver_messages(action)
 
 
+
+
+async def cmd_split(ctx: CommandContext) -> None:
+    """
+    Share money with your party here: each gets an equal share and you
+    keep what is left over.
+
+    Usage: split <amount>
+
+    Example:
+        split 30
+    """
+    words = (ctx.args or "").strip()
+    if not words.isdigit():
+        engine = get_world().scripts
+        if engine is not None and await engine.handle_unknown_command(ctx):
+            return                          # a world $split comes first
+        await ctx.session.send("Split how much?")
+        return
+    refusal = split_money(ctx.player, int(words))
+    if refusal:
+        await ctx.session.send(refusal)

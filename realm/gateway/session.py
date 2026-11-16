@@ -15,6 +15,8 @@ from collections.abc import Awaitable, Callable
 from enum import Enum, auto
 from typing import TYPE_CHECKING, Any
 
+from realm.core.options import get_option
+from realm.core.pools import damage_pool, declared_pools, pool_get, pool_max, vital_pool
 from realm.core.world import setting
 
 if TYPE_CHECKING:
@@ -32,6 +34,9 @@ CLOSED = "closed"
 LINK_LOST = "link_lost"
 
 FLOOD_WARNING = "You are sending commands too fast; the extra ones were dropped."
+
+#: The prompt while long output is held (``Session.send_paged``).
+PAGER_PROMPT = "[more: enter, b back, q quit]"
 
 
 # Heredoc (multi-line input) delimiters — game settings (HEREDOC_OPEN /
@@ -95,6 +100,9 @@ class Session:
         'snoopers',
         '_bucket',
         '_on_flood',
+        '_pager',
+        'raw_lines',
+        '_vitals_sent',
     )
 
     def __init__(
@@ -122,9 +130,17 @@ class Session:
         # the command dispatcher. None = normal command mode.
         self.input_handler: Callable[..., Awaitable[bool]] | None = None
         self._prompt_future: Any = None
+        #: True while the input handler wants every line as typed: blank
+        #: lines and leading spaces kept (the line editor).
+        self.raw_lines = False
+        # Long output being shown a page at a time (send_paged), or None.
+        self._pager: _Pager | None = None
         # Where the game's prompt goes (the protocol's own framing: telnet
         # ends it with EOR/GA). None: this connection shows no prompt.
         self._prompt_writer: Callable[[str], None] | None = None
+        # The last Char.Vitals sent with a prompt (write_prompt sends it again
+        # only when a pool changed).
+        self._vitals_sent: dict[str, int] | None = None
         # Multi-line (heredoc) accumulation state: None in normal mode, else
         # {'head': <command prefix>, 'body': [<raw lines>]} while collecting.
         self._heredoc: dict[str, Any] | None = None
@@ -193,7 +209,18 @@ class Session:
     def write_prompt(self) -> None:
         """Write the game's prompt for this session's player, unless there
         is no player yet, a softcode prompt or wizard is waiting for an
-        answer (its own question is the prompt), or the game shows none."""
+        answer (its own question is the prompt), or the game shows none.
+        While long output is held, the prompt is the pager's.
+
+        A client with an out-of-band channel is sent ``Char.Vitals`` (every
+        pool the player has, ``name`` and ``max_name``) beside the prompt,
+        whenever it differs from the last one sent: the browser client's
+        bars, and any GMCP client's."""
+        if self.player is not None and self._oob_writer is not None:
+            self._send_vitals(self.player)
+        if self._prompt_writer is not None and self._pager is not None:
+            self._prompt_writer(PAGER_PROMPT)
+            return
         if (self._prompt_writer is None or self.player is None
                 or self.input_handler is not None or self._prompt_future is not None):
             return
@@ -209,6 +236,12 @@ class Session:
             return
         if text:
             self._prompt_writer(str(text))
+
+    def _send_vitals(self, player: GameObject) -> None:
+        vitals = vitals_of(player)
+        if vitals and vitals != self._vitals_sent:
+            self._vitals_sent = vitals
+            self.send_oob("Char.Vitals", dict(vitals))
 
     def set_writer(self, writer: Callable[[str], Awaitable[None]]) -> None:
         """Set the function used to write data to the client."""
@@ -347,8 +380,19 @@ class Session:
             self.touch()
             return
 
+        # The line editor takes every line as typed: a blank line is a
+        # blank line of text, and leading spaces are indentation.
+        if self.raw_lines:
+            self.touch()
+            self._queue_input(raw.rstrip("\r\n"))
+            return
+
         line = raw.strip()
         if not line:
+            # A bare enter turns the pager's page; otherwise it is nothing.
+            if self._pager is not None:
+                self.touch()
+                self._queue_input("")
             return
 
         # Open a heredoc? A single command line ending in the OPEN sigil, and
@@ -356,7 +400,7 @@ class Session:
         # the input instead). The '\n' guard skips a whole multi-line paste
         # arriving as one websocket message.
         opener = setting("HEREDOC_OPEN")
-        if (self.player is not None
+        if (self.player is not None and self._pager is None
                 and self._prompt_future is None and self.input_handler is None
                 and "\n" not in line and line.endswith(opener)):
             self._heredoc = {'head': line[:-len(opener)], 'body': []}
@@ -421,10 +465,12 @@ class Session:
         self._input_task = asyncio.create_task(self._pump_input(sink))
 
     def stop_input_pump(self) -> None:
-        """Cancel the input pump (session teardown)."""
-        if self._input_task is not None:
-            self._input_task.cancel()
-            self._input_task = None
+        """Stop the input pump (session teardown). Called from inside the
+        pump (``quit`` destroys its own session), it is not cancelled, which
+        would cancel the teardown it is running: it ends after that line."""
+        task, self._input_task = self._input_task, None
+        if task is not None and task is not asyncio.current_task():
+            task.cancel()
 
     async def _pump_input(
         self, sink: Callable[[Session, str], Awaitable[None]],
@@ -438,6 +484,8 @@ class Session:
             except Exception:
                 logger.exception(
                     f"Session {self.id}: error processing input {line!r}")
+            if self._input_task is not asyncio.current_task():
+                return                            # stopped by the line it ran
 
     async def flush_output(self, *, prompt: bool = False) -> None:
         """Flush all pending output to the writer, then the prompt: after
@@ -546,8 +594,78 @@ class Session:
             await self.send("Pick a number or name from the list (or 'abort').")
 
     def cancel_prompt(self) -> None:
-        """Drop any active input capture and unblock its task (disconnect)."""
+        """Drop any active input capture (a prompt, the line editor, held
+        pages) and unblock its task (disconnect, logout)."""
         self._end_prompt(None)
+        self.raw_lines = False
+        self._pager = None
+
+    # --- The pager (MUD_PLAN 10.1) ---
+
+    def page_length(self) -> int:
+        """Lines on one screen: the player's ``pagelength`` option, else the
+        height the client reported (NAWS, a web client's resize), else
+        ``PAGE_LENGTH``. 0 means output is never held."""
+        if self.player is not None:
+            own = get_option(self.player, "pagelength")
+            if own is not None:
+                return max(0, int(own))
+        height = self.get_data("terminal_height")
+        if height:
+            return max(0, int(height))
+        return max(0, int(setting("PAGE_LENGTH")))
+
+    @property
+    def paging(self) -> bool:
+        """Whether long output is being held a page at a time."""
+        return self._pager is not None
+
+    def send_paged(self, text: str) -> None:
+        """Send ``text``, a screenful at a time when it is longer than one
+        screen (``page_length``): the rest is held, the prompt becomes
+        ``PAGER_PROMPT``, and the next line of input turns the page (enter),
+        goes back (``b``) or stops (``q``); anything else stops paging and is
+        an ordinary command."""
+        lines = str(text).split("\n")
+        height = self.page_length()
+        if height <= 0 or len(lines) <= height:
+            self.send_nowait(str(text))
+            return
+        # One line of the screen is the pager's prompt.
+        self._pager = _Pager(lines, max(1, height - 1))
+        self._show_page()
+
+    def _show_page(self) -> None:
+        pager = self._pager
+        if pager is None:
+            return
+        self.send_nowait("\n".join(pager.lines[pager.top:pager.top + pager.size]))
+        if pager.top + pager.size >= len(pager.lines):
+            self._pager = None                  # that was the last page
+        elif self._prompt_writer is None:
+            # A connection with no prompt line (a test session, a bare
+            # protocol): the pager's prompt is a line of output.
+            self.send_nowait(PAGER_PROMPT)
+
+    def page_input(self, line: str) -> bool:
+        """A line of input while paging: True when the pager used it (enter,
+        ``b``, ``q``); False when paging stopped and the line is a command."""
+        pager = self._pager
+        if pager is None:
+            return False
+        word = line.strip().lower()
+        if word == "":
+            pager.top += pager.size
+        elif word == "b":
+            pager.top = max(0, pager.top - pager.size)
+        elif word == "q":
+            self._pager = None
+            return True
+        else:
+            self._pager = None
+            return False
+        self._show_page()
+        return True
 
     def link_player(self, player: GameObject) -> None:
         """Link this session to a player object and wire output delivery."""
@@ -568,6 +686,18 @@ class Session:
     def __repr__(self) -> str:
         player_name = self.player.name if self.player else "None"
         return f"<Session {self.id[:8]}... state={self.state.name} player={player_name}>"
+
+
+class _Pager:
+    """Long output held by ``Session.send_paged``: its lines, the page size,
+    and the first line of the page on screen."""
+
+    __slots__ = ("lines", "size", "top")
+
+    def __init__(self, lines: list[str], size: int) -> None:
+        self.lines = lines
+        self.size = size
+        self.top = 0
 
 
 class TokenBucket:
@@ -614,6 +744,26 @@ class TokenBucket:
         if self.flooding_since is not None and limit > 0 and now - self.flooding_since >= limit:
             return self.CLOSE
         return verdict
+
+
+def vitals_of(player: GameObject) -> dict[str, int]:
+    """``Char.Vitals`` for ``player``: each pool it has (its declared pools,
+    then its damage and vital pools) as ``name``, and ``max_name`` when the
+    pool has a maximum."""
+    names = list(declared_pools(player))
+    for name in (damage_pool(player), vital_pool(player)):
+        if name is not None and name not in names:
+            names.append(name)
+    vitals: dict[str, int] = {}
+    for name in names:
+        value = pool_get(player, name)
+        if value is None:
+            continue
+        vitals[name] = value
+        maximum = pool_max(player, name)
+        if maximum is not None:
+            vitals[f"max_{name}"] = maximum
+    return vitals
 
 
 def format_peer_address(peername: Any) -> str:

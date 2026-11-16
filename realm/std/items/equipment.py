@@ -69,6 +69,24 @@ async def take_off(player: GameObject, item: GameObject) -> bool:
     return True
 
 
+def may_use(player: GameObject, item: GameObject) -> bool:
+    """The game system's word before ``item`` is worn or wielded: a
+    refusal (Merc: the item's level is above the character's) is said and
+    stops it; an item that ``repels`` the character zaps off to the floor.
+    True when nothing stood in the way."""
+    rules = get_world().rules
+    if rules is None:
+        return True
+    refusal = rules.wear_refusal(player, item)
+    if refusal:
+        player.msg(refusal)
+        return False
+    if rules.repels(player, item):
+        rules.zap(player, item)
+        return False
+    return True
+
+
 async def cmd_wear(ctx: CommandContext) -> None:
     """
     Wear a carried item. Worn gear can grant abilities via
@@ -100,6 +118,8 @@ async def cmd_wear(ctx: CommandContext) -> None:
         return
     if item.has_tag('worn'):
         await ctx.session.send("You're already wearing that.")
+        return
+    if not may_use(player, item):
         return
 
     slot = item.db.get('slot')
@@ -197,5 +217,5 @@ async def cmd_equipment(ctx: CommandContext) -> None:
     await ctx.session.send("\n".join(equipment_lines(ctx.player)))
 
 
-__all__ = ["wear_slots", "worn_in", "take_off", "cmd_wear", "cmd_unwear",
+__all__ = ["wear_slots", "worn_in", "take_off", "may_use", "cmd_wear", "cmd_unwear",
            "equipment_lines", "cmd_equipment"]

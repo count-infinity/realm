@@ -99,6 +99,14 @@ async def test_the_channels_listing(sim):
     assert "immtalk" in _text(sim, imm)
 
 
+async def test_the_listing_footer_reads_as_written(sim):
+    # MUD_PLAN step 17: "on|off|history" lost "|h" to the markup (bold).
+    from realm.core.markup import strip
+    _ann, bob, _imm = _people(sim)
+    await sim.do(bob, "channels")
+    assert "channel <name> on|off|history" in strip(_text(sim, bob))
+
+
 async def test_history(sim):
     ann, bob, _imm = _people(sim)
     for n in range(3):

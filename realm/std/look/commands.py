@@ -13,6 +13,7 @@ from realm.core.action_types import ActionType
 from realm.core.attrflags import visual_attrs
 from realm.core.movement import resolve_exit_destination
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
+from realm.core.world import get_world
 from realm.std.look.describe import detail_lines, may_examine
 from realm.std.look.render import render_room
 
@@ -224,15 +225,20 @@ async def _show_object(ctx: CommandContext, target) -> None:
     if not described:
         await ctx.session.send("You see nothing special.")
 
-    # If it's a container with visible contents
+    # If it's a container with visible contents (and money: a corpse's)
     if target.has_tag('closed'):
         await ctx.session.send("It is closed.")
-    elif target.contents and not target.is_player:
+    elif not target.is_player:
         visible = [obj for obj in target.contents if not obj.is_exit]
-        if visible:
+        economy = get_world().services.get("economy")
+        money = (economy.get_credits(target)
+                 if economy is not None and target.has_tag('container') else 0)
+        if visible or money:
             await ctx.session.send("\nContains:")
             for obj in visible:
                 await ctx.session.send(f"  {obj.name}")
+            if money:
+                await ctx.session.send(f"  {money} {economy.currency_name()}")
 
     await ctx.session.send("")
 

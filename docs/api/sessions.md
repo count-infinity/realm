@@ -71,4 +71,6 @@ session.oob_supports           # what the client announced (Core.Hello...)
 
 No-op for clients that never negotiated an OOB channel. Telnet uses
 GMCP (option 201); WebSocket wraps the same data as
-`{"type": "oob", "package": ..., "data": ...}`.
+`{"type": "oob", "package": ..., "data": ...}`. `write_prompt()` sends
+`Char.Vitals` (every pool, `name` and `max_name`) beside the prompt when
+it changed since the last one.

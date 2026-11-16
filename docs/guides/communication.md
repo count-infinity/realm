@@ -73,6 +73,12 @@ the channel on, except a sleeper. On and off are kept on the account
 Softcode: `cemit(channel, text)` announces a line as is (a herald; it is a
 builder's tool), and `channel_members(channel)` names who hears it now.
 
+Another feature can deliver its own talk the way a channel does: the
+`channels` service offers `deliver(action, line, listeners, history=obj)`
+(propagate the action, keep the line in `obj`'s `history`, send it to the
+listeners a sleeper's deafness allows) and `remember(obj, line)`. Clan
+talk (`ct`) is built on it ([Clans](clans.md#talk-who-home)).
+
 ## Socials (`talk`)
 
 A social is a `social_def` object with up to five lines, in the usual
@@ -113,7 +119,8 @@ it waits for whichever character the person plays next.
 | `mail` | lists your messages (`*` for unread) |
 | `mail <n>` | reads one |
 | `mail <player> = <subject>/<body>` | sends |
-| `mail/reply <n> = <body>` | answers one |
+| `mail <player> = <subject>` | writes the body in the [line editor](world-management.md#the-line-editor-edit) (`.s` sends, `.q` throws it away) |
+| `mail/reply <n> = <body>` | answers one (with no body, in the line editor) |
 | `mail/delete <n>` | deletes one |
 
 At login a player is told how many unread messages wait; an online

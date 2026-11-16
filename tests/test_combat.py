@@ -153,6 +153,15 @@ class TestCombatant:
 
         assert c1 is c2
 
+    def test_get_combatant_wraps_the_object_it_is_given(self):
+        """MUD_PLAN step 17: a world loaded again (a restored backup, a
+        second server in one process) has new objects with the old ids. The
+        wrapper is for this object, never a stale one with its id."""
+        old = GameObject("vagabond", id="rom_i_mob_3063_219")
+        get_combatant(old)
+        new = GameObject("vagabond", id="rom_i_mob_3063_219")
+        assert get_combatant(new).obj is new
+
 
 class TestD20Ruleset:
     """Test suite for D20 ruleset."""

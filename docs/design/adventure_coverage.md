@@ -56,7 +56,7 @@ Gap clusters at the bottom feed BACKLOG.md.
 | Prisoners to rescue (escort them out) | YES | `db.following` + room-local cascade in move_through_exit; NPC escorts agree via softcode `set_attr(me,'following','%#')` — tested end-to-end. (2026-07-05) |
 | Torch/lantern light in dark caves | YES | Carried `light`-tagged object lights the room (perception.py). |
 | Torches burn out over time | SOFT | script_ticker/TimedEffect on the torch removes its `light` tag. |
-| Treasure + XP for recovering it | YES/SOFT | Loot from corpses yes; quest XP = softcode `set_attr` on character_points. |
+| Treasure + XP for recovering it | YES | Loot from corpses yes; quest rewards (award, credits, items) through the `quests` feature (0.3.0, MUD_PLAN step 15). |
 
 ## 2. AD&D — S1 Tomb of Horrors
 

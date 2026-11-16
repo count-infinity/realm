@@ -27,7 +27,8 @@ async def _show_room(ctx: CommandContext) -> None:
     """Show the room the walker arrived in, when the world has ``look``."""
     look = get_world().services.get("look")
     if look is not None:
-        await ctx.session.send(look.render_room(ctx.player.location, ctx.player))
+        await ctx.session.send(look.render_room(ctx.player.location, ctx.player,
+                                                    arrival=True))
 
 
 async def walk(ctx: CommandContext, exit_obj: GameObject, direction: str) -> None:

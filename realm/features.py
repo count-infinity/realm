@@ -98,6 +98,7 @@ class Feature:
         self.logins: list[Callable] = []
         self.traversal_gates: list[tuple[Callable, str]] = []
         self.after_traverse_hooks: list[Callable] = []
+        self.move_describers: list[Callable] = []
         #: attribute name -> what reads it; ``@examine`` warns when an object
         #: carries one and this feature is not loaded.
         self.attributes: dict[str, str] = {}
@@ -269,10 +270,12 @@ class Feature:
         return fn
 
     def input_interceptor(self, fn: Callable | None = None, *, order: int = 0):
-        """Declare an ``async (world, session, line) -> bool`` that sees a
-        line of input after the session's own prompt and before the
-        dispatcher, lowest ``order`` first. True means it consumed the line
-        (``accounts`` routes a character still in creation to chargen)."""
+        """Declare an ``async (world, session, line) -> bool | str`` that
+        sees a line of input after the pager and the session's own prompt
+        and before the dispatcher, lowest ``order`` first. True means it
+        consumed the line (``accounts`` routes a character still in creation
+        to chargen); a string replaces the line for the interceptors after
+        it and the dispatcher (``basics`` expands aliases)."""
         def declare(f: Callable) -> Callable:
             self.input_interceptors.append((order, f))
             return f
@@ -309,6 +312,18 @@ class Feature:
         """Declare an ``async (actor, origin, destination, exit_obj, *,
         fleeing)`` run after anyone walks through an exit."""
         self.after_traverse_hooks.append(fn)
+        return fn
+
+    def move_describer(self, fn: Callable) -> Callable:
+        """Declare a ``(actor, direction, phase) -> str | None`` asked for
+        the lines a walk through an exit prints, in feature order. ``phase``
+        is ``"leave"`` (the origin room's line, normally "{actor} leaves
+        north."), ``"arrive"`` (the destination's, "{actor} arrives.") or
+        ``"own"`` (the walker's own, "You leave north."). The first answer
+        that is not None replaces the line, ``{actor}`` naming the walker
+        to each onlooker; ``""`` prints no line at all. ``companions``
+        answers for riders ("{actor} rides north on a grey mare.")."""
+        self.move_describers.append(fn)
         return fn
 
     def sight_rule(self, fn: Callable) -> Callable:
@@ -791,6 +806,7 @@ class FeatureSet:
                 world.dispatcher.set_login_handler(fn)
             world.traversal_gates.extend(f.traversal_gates)
             world.after_traverse.extend(f.after_traverse_hooks)
+            world.move_describers.extend(f.move_describers)
             world.sight_rules.extend(f.sight_rules)
             world.markers.extend(f.markers)
             world.name_resolvers.extend(f.name_resolvers)

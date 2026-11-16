@@ -1,236 +1,174 @@
 # 137. Hunger & Thirst
 
-> Checklist item 137 ([now]): *on_tick survival meters, consumable reset, zone-policy toggle*
+> Checklist item 137 ([now]): *survival meters, consumables that fill them, zone-policy toggle*
 
-**What you'll build:** a life-support monitor that watches a station and, every
-tick, drains each occupant's hunger and thirst meters, warning them as the
-needles drop and leaving them faint (a -2 condition) when either hits zero, plus
-a mess-hall dispenser whose ration pack fills them back up. These are survival
-meters that exist only where you switch them on.
+> **The engine does this.** Since 0.3.0 the `needs` feature (in `CLASSIC`)
+> runs hunger, thirst and fatigue after CoffeeMud's
+> ([Life and death](../guides/life-and-death.md#hunger-thirst-and-fatigue)).
+> Under the Merc rules every character already has them. This build
+> configures the feature for a station whose rules (here GURPS) do not:
+> it gives the crew the pools, stocks the galley and sets the climate.
 
-**Concepts:** a [`script_ticker`](../reference/softcode.md#npcs-behaviors) on a
-**master object** as a per-zone clock, why draining another player's meters (and
-clearing their penalty) needs **owner authority** (an admin-owned master, the
-[069](069_trainer_npc.md) rule), [`zone_rooms()`](../reference/softcode.md#fn-zone_rooms)
-to scope the effect to one station, and a consumable `$`-command as the reset.
+**What you'll build:** a mess deck with an enlistment terminal that signs a
+crewman onto the station's survival rules, a ration pack eaten a bite at a
+time, a water tap that never runs dry and a canteen to fill at it; a hot, dry
+engine room that parches you three times as fast; and a crew lounge where
+nobody gets hungry at all.
+
+**Concepts:** a need is a **pool** (`food`, `water`), so a character has it
+exactly when it has that pool, and the engine does the rest: it empties them
+every few seconds, reminds, slows recovery and in the end kills. The terminal
+writes another player's sheet, so it needs **owner authority** (an admin-owned
+object, the [069](069_trainer_npc.md) rule). Food and drink are plain
+attributes (`nourishment`, `bite`, `liquid_held`), the climate is room tags,
+and the exemption is a **zone policy** (`no_needs` on a zone master).
 
 ## How it works
 
-The finished shape is one wall panel and one galley unit. The panel carries a
-ticker that, every beat, walks the station's rooms and shaves a little off each
-crewman's hunger and thirst; the galley refills them on the word `eat`. Meters
-are ordinary attributes, so the whole policy lives in `@set`-able values, and the
-sweep is scoped to a zone, so the rules apply exactly where you tag rooms in.
-This section answers four questions: where the numbers live, how you turn the
-system on for one area, why the panel is allowed to edit other players, and what
-running out actually costs.
+The finished shape is one terminal, three supplies and two tagged rooms. Nothing
+ticks in softcode: the `needs` feature sweeps every online player who has the
+pools. This section answers four questions: how a crewman comes to have
+hunger, how the galley fills it, how a room changes it, and how a room
+switches it off.
 
-### Where do the meters live?
+### How does a crewman come to have hunger?
 
-Hunger and thirst are just `db.hunger` and `db.thirst` numbers on a character. A
-single monitor object carries the `script_ticker` behavior, and each tick its
-[`on_tick`](../reference/softcode.md#lifecycle-hooks) script sweeps every player
-in the station's rooms and decrements them. Scheduling rides the server's one
-heartbeat, while the policy (how fast, how loud, at what threshold you weaken)
-is all in attributes you can edit at the prompt.
+The engine gives hunger and thirst to anyone with a `food` or `water` pool. A
+Merc game declares both for every character; a GURPS station does not, so the
+terminal's `$enlist` writes them onto the crewman: a `pools` attribute naming
+`food` and `water` as pools that do not refill on their own (`regen: False`),
+and each one full. From then on, every 4 seconds (`NEEDS_INTERVAL`) the
+crewman loses 1 food and 1 water, and the prompt, the `score` sheet and
+[`pool()`](../reference/softcode.md#fn-pool) all show it. Writing another
+player's attributes needs control of them, which only an admin has, so the
+terminal must be **admin-owned**: build it as your admin character.
 
-### How do you turn it on for one area?
+### How does the galley fill it?
 
-The sweep runs over [`zone_rooms('station')`](../reference/softcode.md#fn-zone_rooms),
-so meters exist exactly where you tag rooms into that zone and nowhere else. A
-safe hub, a downtime lounge, a whole planet with no survival rules: leave it
-unzoned. Run one monitor per survival zone, and a room you never zone never
-starves anyone.
+`eat` and `drink` already know food and drink. The ration pack is tagged
+`food` with `nourishment` 300 and a `bite` of 100, so it takes three meals to
+finish. The tap is tagged `drink` and `fountain`, so it never runs dry, and
+each `drink` is a sip of 50. The canteen has `liquid_held` 300; `fill canteen`
+at the tap fills it with whatever the tap's `liquid` is. A full stomach
+refuses more.
 
-### Why is the panel allowed to edit other players?
+### How does a room change it?
 
-The monitor *mutates other players*: [`set_attr`](../reference/softcode.md#fn-set_attr)
-on their `hunger`, [`add_tag`](../reference/softcode.md#fn-add_tag) for
-`starving`, and edits to their `check_mods`. Softcode may do that only if the
-executor [`controls()`](../reference/softcode.md#fn-controls) the target, and
-nobody controls a player except an **admin**. So the monitor (and the dispenser,
-which resets those same fields) must be **admin-owned**, the identical authority
-wall the trainer hits in [069](069_trainer_npc.md). An owned object acts with its
-owner's authority, so an admin-owned master reaches every player's sheet. This is
-also why it is a central master and not a gadget in each player's pack: a
-proximity effect reaches only its own room, while the master's control authority
-reaches across the whole station.
+Thirst runs at the room's rate: 1, plus 1 for each `climate:hot`,
+`climate:dry` and `climate:windy` tag, minus 1 for `climate:wet`. The engine
+room is hot and dry, so a crewman working there dries out three times as
+fast. Hunger ignores the climate. Walking costs a tick's worth of both.
 
-### What does running out cost?
+### How does a room switch it off?
 
-At zero, the master merges a `{'starving': {'all': -2}}` entry into the victim's
-`check_mods` and tags them `starving`. That -2 folds into every
-[`skill_check()`](../reference/softcode.md#fn-skill_check) exactly like an injury
-([135](135_injury_treatment.md)), because the check engine sums every entry's
-`'all'` value before the roll. Hunger stops being flavor text and makes you worse
-at everything until you eat.
+A zone whose master sets `no_needs` is exempt: nobody in its rooms loses
+anything or counts toward starving. The lounge is that zone. (A character
+tagged `no_needs`, and any administrator, is exempt everywhere.)
 
 ## Build it
 
-As your admin character, dig the station with both rooms zoned so the sweep finds
-them, then create the monitor and give it a one-beat ticker:
+As your admin character, dig the mess deck, the engine room (hot and dry) and
+the crew lounge (its own zone, with a policy master that switches needs off):
 
 ```text
 @dig The Mess Deck = mess, out
 mess
-@zone here = station
-@dig Cargo Hold = hold, mess
-hold
-@zone here = station
+@dig Engine Room = engine, mess
+engine
+@tag here = climate:hot
+@tag here = climate:dry
 mess
-@create life support monitor
-drop life support monitor
-@desc life support monitor = A wall panel of green readouts, one bar per crewman, ticking slowly downward.
-@behavior life support monitor = script_ticker, interval:1
+@dig Crew Lounge = lounge, mess
+lounge
+@zone here = lounge
+@create lounge policy
+@zone/master lounge policy = lounge
+@set lounge policy/no_needs = 1
+drop lounge policy
+mess
 ```
 
-The ticker's `on_tick` is the sweep: for every room in the zone, for every player
-standing in it, hand that player's id to the per-player drain routine. It walks
-[`contents`](../reference/softcode.md#fn-contents) and keeps only objects that
-[`has_tag`](../reference/softcode.md#fn-has_tag) `player`, so props and the panel
-itself are skipped:
+The enlistment terminal gives whoever types `enlist` the two pools, full. A
+`$`-command runs only on the terminal that matched the word, and `enactor` is
+the crewman:
 
 ```text
-@set life support monitor/on_tick = '''
-for r in zone_rooms('station'):
-    for p in contents(r):
-        if has_tag(p, 'player'):
-            eval_attr(me, 'tick_meter', p.id)
+@create enlistment terminal
+drop enlistment terminal
+@desc enlistment terminal = A crew terminal. ENLIST to sign the station's articles, meals and water included.
+@set enlistment terminal/cmd_enlist = '''
+$enlist:
+set_attr(enactor, 'pools', {'food': {'regen': False}, 'water': {'regen': False}})
+set_attr(enactor, 'max_food', 500)
+set_attr(enactor, 'food', 500)
+set_attr(enactor, 'max_water', 1000)
+set_attr(enactor, 'water', 1000)
+pemit(enactor, 'You sign the articles. The station will feed you; see that you eat.')
 '''
 ```
 
-`tick_meter` runs once per crewman. It resolves the player from the id string
-with [`get`](../reference/softcode.md#fn-get), reads each meter through
-[`get_attr`](../reference/softcode.md#fn-get_attr), shaves 10 off hunger and 15
-off thirst (each floored at zero), then asks `assess` to react. The routines call
-each other with
-[`eval_attr`](../reference/softcode.md#fn-eval_attr), which runs as the caller,
-so `me` stays the monitor the whole way down and its owner authority carries into
-every write:
+Now the galley: a ration pack of three bites, a tap that never runs dry, and
+an empty canteen:
 
 ```text
-@set life support monitor/tick_meter = '''
-p = get('#' + arg0)
-if p:
-    set_attr(p, 'hunger', max(0, int(get_attr(p, 'hunger', 100)) - 10))
-    set_attr(p, 'thirst', max(0, int(get_attr(p, 'thirst', 100)) - 15))
-    eval_attr(me, 'assess', p.id)
-'''
+@create ration pack
+@tag ration pack = food
+@set ration pack/nourishment = 300
+@set ration pack/bite = 100
+drop ration pack
+@create water tap
+@tag water tap = drink
+@tag water tap = fountain
+@tag water tap = fixed
+@set water tap/liquid = recycled water
+drop water tap
+@create canteen
+@tag canteen = drink
+@set canteen/liquid_held = 300
+@set canteen/liquid_remaining = 0
+drop canteen
 ```
-
-`assess` reads the new levels and picks one response: empty on either meter
-weakens the crewman, otherwise a low reading (40 or under on either) prints a
-warning with [`pemit`](../reference/softcode.md#fn-pemit), and a healthy reading
-says nothing:
-
-```text
-@set life support monitor/assess = '''
-p = get('#' + arg0)
-h = int(get_attr(p, 'hunger', 100))
-t = int(get_attr(p, 'thirst', 100))
-if h <= 0 or t <= 0:
-    eval_attr(me, 'weaken', p.id)
-elif h <= 40 or t <= 40:
-    pemit(p, 'Your stomach growls; your mouth is dry.')
-'''
-```
-
-`weaken` applies the penalty, but only once: if the crewman is already tagged
-`starving` it does nothing, so the -2 never stacks across ticks. Otherwise it
-merges the `starving` entry into a copy of their `check_mods`, tags them, and
-tells them:
-
-```text
-@set life support monitor/weaken = '''
-p = get('#' + arg0)
-if not has_tag(p, 'starving'):
-    m = dict(get_attr(p, 'check_mods', {}) or {})
-    m['starving'] = {'all': -2}
-    add_tag(p, 'starving')
-    set_attr(p, 'check_mods', m)
-    pemit(p, 'You are faint from hunger and thirst. (-2 to everything)')
-'''
-```
-
-Now the dispenser. Create it in the mess and describe it:
-
-```text
-@create ration dispenser
-drop ration dispenser
-@desc ration dispenser = A humming galley unit. EAT to draw a ration pack and a water bulb.
-```
-
-Its `$eat` command tops both meters on whoever typed it, lifts the penalty
-through `refresh`, and [`remit`](../reference/softcode.md#fn-remit)s to the room
-using the eater's [`loc`](../reference/softcode.md#fn-loc) and
-[`name`](../reference/softcode.md#fn-name). A `$`-command runs only on the
-dispenser that matched the word, and `enactor` is the eater, so no room guard is
-needed:
-
-```text
-@set ration dispenser/cmd_eat = '''
-$eat:
-set_attr(enactor, 'hunger', 100)
-set_attr(enactor, 'thirst', 100)
-eval_attr(me, 'refresh', enactor.id)
-remit(loc(enactor), name(enactor) + ' tears into a ration pack and drains a water bulb.')
-'''
-```
-
-`refresh` reverses `weaken`: it drops the `starving` entry from the eater's
-`check_mods` and [`removes the tag`](../reference/softcode.md#fn-remove_tag), so
-the -2 is gone the instant they eat:
-
-```text
-@set ration dispenser/refresh = '''
-p = get('#' + arg0)
-m = dict(get_attr(p, 'check_mods', {}) or {})
-if 'starving' in m:
-    m.pop('starving')
-set_attr(p, 'check_mods', m)
-remove_tag(p, 'starving')
-'''
-```
-
-The dispenser also needs admin ownership for the same reason the monitor does: it
-writes another player's sheet. Building both as your admin character satisfies
-that.
 
 ## Try it
 
-Stand on the mess deck and let the clock run. Hunger falls 10 a tick and thirst
-15 a tick from 100, so thirst empties first:
+Sign on at the mess deck:
 
 ```text
-(tick 4: hunger 60, thirst 40)   -> Your stomach growls; your mouth is dry.
-(tick 5: hunger 50, thirst 25)   -> Your stomach growls; your mouth is dry.
-(tick 7: hunger 30, thirst 0)    -> You are faint from hunger and thirst. (-2 to everything)
+enlist             -> You sign the articles. The station will feed you; see that you eat.
+prompt <{food} food {water} water>
 ```
 
-Because thirst bottoms out first, you are tagged `starving` at tick 7 and carry a
--2 that a diagnostic slate ([135](135_injury_treatment.md)) would show dragging
-your rolls. Hit the galley:
+Your prompt now reads `<500 food 1000 water>`, and every 4 seconds both drop
+by one. About half an hour later the food
+runs out, and the reminders begin (every 60 ticks, sharper as the hours pass):
 
 ```text
-eat            -> Susan tears into a ration pack and drains a water bulb.
+                   -> You are hungry.
+get ration pack
+eat ration         -> You take a bite of a ration pack.
+                      You are no longer hungry.
+drink tap          -> You drink recycled water from a water tap.
+get canteen
+fill canteen       -> You fill a canteen from a water tap.
 ```
 
-Both meters snap back to 100, the `starving` tag lifts, and the -2 is stripped
-from your `check_mods`. Walk out of the station's zone, into an unzoned corridor,
-and the monitor stops touching you entirely, because meters are a property of
-*where you are*, not a law of the world.
+While a meter is empty you recover hit points at half speed; empty both and you
+recover nothing. Twelve hours online without food (six without water) and you
+die of it, through the ordinary death path. Walk into the engine room and your
+water drains three times as fast. Walk into the lounge and both meters stop.
 
 ## Going further
 
-- **A prompt, not a UI:** stream the meters to the client each tick with
-  [`oob(p, 'Char.Vitals', {'hunger': h, 'thirst': t})`](../reference/softcode.md#fn-oob),
-  the GMCP surface from [193](193_gmcp_oob.md) driving a status gauge.
-- **Escalating cost:** at zero, swap the flat -2 for HP damage that grows the
-  longer you go without, `set_attr(p, 'hp', ...)` from the same master, since its
-  control authority reaches HP too. Starvation that eventually downs you.
-- **Foods with profiles:** give the dispenser several items, a stim bar that
-  fills only hunger and a canteen only thirst, each a `$`-command writing one
-  meter, so meal planning becomes a choice.
-- **Perishable rations:** stock the dispenser from a [063](063_shopkeeper.md)
-  shopkeeper and give the packs a `decay` behavior, spoiled food that fills less,
-  the cooking-buffs angle of [129](129_cooking_buffs.md).
+- **A penalty you can feel:** read [`hungry()`](../reference/softcode.md#fn-hungry)
+  in an `on_check` or a skill-check modifier to make the starving clumsy, the
+  [135](135_injury_treatment.md) injury pattern.
+- **Fatigue:** a third pool, `fatigue` (an up pool), rises while awake and
+  falls asleep; spent, it halves mana and movement recovery. Add it in the
+  terminal's `pools` with `{'direction': 'up', 'regen': False}` and a
+  `max_fatigue`.
+- **A restocking galley:** sell ration packs from a
+  [063](063_shopkeeper.md) shopkeeper with a `restock` behavior, so the mess
+  never runs out.
+- **The rules in Python:** a game's `rules.py` can declare `food` and `water`
+  in its own `pools()` (as Merc does), so every character has them from
+  creation and the terminal is not needed.

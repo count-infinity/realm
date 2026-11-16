@@ -422,3 +422,21 @@ class TestChownHalts:
         await cmd_chown(ctx)
         assert trap.owner is admin
         assert trap.has_tag("halt")
+
+
+async def test_help_shows_a_pipe_as_a_pipe():
+    """MUD_PLAN step 17: `on|off|history` in a usage lost `|h` (and
+    `attack|defend|repeat` its `|r`) to the color markup."""
+    from realm.core.markup import strip
+    from realm.testing import Simulator
+    sim = Simulator()
+    try:
+        pat = sim.player("Pat", location=sim.room("Hall"))
+        await sim.do(pat, "help channel")
+        out = strip("\n".join(sim.seen(pat)))
+        assert "usage: channel <name> on|off|history" in out
+        assert "Usage: channel <name> on|off|history" in out          # the docstring
+        await sim.do(pat, "help combatdefault")
+        assert "<attack|defend|repeat|nothing>" in strip("\n".join(sim.seen(pat)))
+    finally:
+        sim.close()

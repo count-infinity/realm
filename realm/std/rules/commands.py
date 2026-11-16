@@ -77,7 +77,7 @@ async def cmd_skills(ctx: CommandContext) -> None:
         seconds = next_level_in(ctx.player) or 0
         lines.append(f"Training {training.replace('_', ' ')}: the next level in "
                      f"{int(seconds // 60) + 1} minute(s).")
-    await ctx.session.send("\n".join(lines))
+    ctx.session.send_paged("\n".join(lines))
 
 
 async def cmd_improve(ctx: CommandContext) -> None:

@@ -42,6 +42,11 @@ In play, `characters` returns to the menu without disconnecting (the
 character leaves play as on a disconnect), `logout` returns to the welcome
 screen, and `password <old> <new>` works too.
 
+A character out of play keeps its place in the world for its next login,
+but nobody sees it there: a room's "Players here" and `scan` leave it
+out. A link-dead character is still listed, marked `(linkdead)`, until its
+wait runs out ([Operations](operations.md)).
+
 The first character made on the first account of a new server is the
 **superuser**, as the first character always was.
 

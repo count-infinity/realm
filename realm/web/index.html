@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>{{GAME_NAME}}</title>
+<!--
+  The REALM browser client (MUD_PLAN step 16). One page, no build step and
+  no third-party code. Served at / by the WebSocket server when the game
+  sets ENABLE_WEBSOCKET = True and WEB_CLIENT = True; it talks to /ws beside
+  it. Frames from the server (realm/gateway/websocket.py):
+    a plain string                          text to show
+    {type:'text', text, segments}           styled text: [[style key, text], ...]
+    {type:'prompt', text[, segments]}       the prompt, shown in its own line
+    {type:'oob', package, data}             Char.Vitals (bars), Room.Info (header)
+    {type:'pong'}                           the answer to a keep-alive ping
+  A string frame that starts with '{' is always JSON.
+  Frames to the server: a line of input as a plain string; {type:'resize',
+  width, height} (the pager's screen); {type:'ping'}.
+-->
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #fbfbf8; --fg: #1d1d1b; --muted: #6a6a64; --line: #deded8;
+  --panel: #f1f1ec; --track: #e2e2dc; --focus: #1f4fbf;
+  --ok: #2e7d32; --warn: #a06a00; --bad: #c62828;
+  --c-x: #1d1d1b; --c-r: #b3261e; --c-g: #2e7d32; --c-y: #8a6400;
+  --c-b: #1f4fbf; --c-m: #8e24aa; --c-c: #00796b; --c-w: #5c5c58;
+  --c-br-x: #5f5f5a; --c-br-r: #d32f2f; --c-br-g: #2f8f34; --c-br-y: #a37500;
+  --c-br-b: #2962ff; --c-br-m: #ab47bc; --c-br-c: #00897b; --c-br-w: #000000;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121417; --fg: #d7d7d2; --muted: #8b8e94; --line: #2a2e34;
+    --panel: #191c20; --track: #2a2e34; --focus: #8cc8ff;
+    --ok: #7fc97f; --warn: #e5c07b; --bad: #ff7b86;
+    --c-x: #6e7178; --c-r: #e06c75; --c-g: #98c379; --c-y: #d7ba7d;
+    --c-b: #61afef; --c-m: #c678dd; --c-c: #56b6c2; --c-w: #c8c8c4;
+    --c-br-x: #9a9da3; --c-br-r: #ff8790; --c-br-g: #b5e890; --c-br-y: #ffd76e;
+    --c-br-b: #8cc8ff; --c-br-m: #e0a3ff; --c-br-c: #7fe3ee; --c-br-w: #ffffff;
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex; flex-direction: column; height: 100vh; height: 100dvh;
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+header {
+  display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap;
+  padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--line); background: var(--panel);
+}
+header h1 { font-size: 1rem; margin: 0; }
+#room { color: var(--muted); flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+#status { color: var(--muted); }
+#status[data-state="open"] { color: var(--ok); }
+#status[data-state="closed"] { color: var(--bad); }
+button {
+  font: inherit; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 0.3rem 0.8rem; cursor: pointer;
+}
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+#output {
+  flex: 1; overflow-y: auto; padding: 0.5rem 0.75rem;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+#output .msg { margin: 0; }
+#output .echo { color: var(--muted); }
+#output .note { color: var(--muted); font-style: italic; }
+#vitals {
+  display: flex; flex-wrap: wrap; gap: 0.25rem 1rem;
+  padding: 0.35rem 0.75rem; border-top: 1px solid var(--line); background: var(--panel);
+}
+#vitals[hidden], #prompt[hidden] { display: none; }
+.vital { display: flex; align-items: center; gap: 0.4rem; flex: 1 1 9rem; max-width: 18rem; }
+.vital .name { min-width: 2.5rem; color: var(--muted); }
+.vital .track { flex: 1; height: 0.65rem; background: var(--track); border-radius: 4px;
+  overflow: hidden; }
+.vital .fill { height: 100%; width: 0; background: var(--ok); transition: width 0.25s; }
+.vital .fill.warn { background: var(--warn); }
+.vital .fill.bad { background: var(--bad); }
+.vital .nums { min-width: 4.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+#prompt { padding: 0.3rem 0.75rem 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+form {
+  display: flex; gap: 0.5rem;
+  padding: 0.4rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+#command {
+  flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 0.45rem 0.6rem;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+#measure { position: absolute; visibility: hidden; white-space: pre; }
+@media (max-width: 600px) {
+  body { font-size: 13px; }
+  header { padding: 0.3rem 0.5rem; }
+  #output { padding: 0.4rem 0.5rem; }
+  #vitals, #prompt { padding-left: 0.5rem; padding-right: 0.5rem; }
+  form { padding-left: 0.5rem; padding-right: 0.5rem; }
+  .vital { flex-basis: 7.5rem; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>{{GAME_NAME}}</h1>
+  <span id="room"></span>
+  <span id="status" role="status" data-state="connecting">Connecting…</span>
+  <button id="reconnect" type="button" hidden>Reconnect</button>
+</header>
+<main id="output" role="log" aria-live="polite" aria-label="Game output" tabindex="-1"></main>
+<section id="vitals" aria-label="Vitals" hidden></section>
+<div id="prompt" hidden></div>
+<form id="entry" autocomplete="off">
+  <label for="command" class="sr-only">Command</label>
+  <input id="command" type="text" aria-describedby="prompt" autocomplete="off"
+         autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send">
+  <button type="submit">Send</button>
+</form>
+<span id="measure" aria-hidden="true">MMMMMMMMMM</span>
+<noscript>This client needs JavaScript. A telnet client works too.</noscript>
+<script>
+(function () {
+  'use strict';
+
+  var output = document.getElementById('output');
+  var promptLine = document.getElementById('prompt');
+  var vitalsBox = document.getElementById('vitals');
+  var statusLine = document.getElementById('status');
+  var roomLine = document.getElementById('room');
+  var reconnectButton = document.getElementById('reconnect');
+  var form = document.getElementById('entry');
+  var input = document.getElementById('command');
+
+  var MAX_MESSAGES = 2000;    // scrollback kept, in messages
+  var MAX_HISTORY = 200;      // input lines remembered
+  var PING_MS = 30000;        // keep-alive, so idle proxies keep the socket
+
+  var socket = null;
+  var pingTimer = null;
+  var vitals = {};            // the merged Char.Vitals, name -> number
+  var history = [];
+  var historyAt = 0;          // history.length while not browsing
+  var draft = '';
+
+  // --- styled text -------------------------------------------------------
+
+  // A style key from the server: [fg][\[bg][;flags], e.g. 'R[b;hu'.
+  // Lower case is the dark color, upper case the bright one.
+  var STYLE_KEY = /^([xrgybmcwXRGYBMCW])?(?:\[([xrgybmcwXRGYBMCW]))?(?:;([huiv]*))?$/;
+
+  function colorVar(letter) {
+    var lower = letter.toLowerCase();
+    return 'var(--c-' + (letter === lower ? '' : 'br-') + lower + ')';
+  }
+
+  function styledSpan(key, text) {
+    var span = document.createElement('span');
+    span.textContent = text;
+    var m = STYLE_KEY.exec(key || '');
+    if (!m || !key) { return span; }
+    var fg = m[1] ? colorVar(m[1]) : null;
+    var bg = m[2] ? colorVar(m[2]) : null;
+    var flags = m[3] || '';
+    if (flags.indexOf('v') >= 0) {
+      var swap = fg;
+      fg = bg || 'var(--bg)';
+      bg = swap || 'var(--fg)';
+    }
+    if (fg) { span.style.color = fg; }
+    if (bg) { span.style.backgroundColor = bg; }
+    if (flags.indexOf('h') >= 0) { span.style.fontWeight = '700'; }
+    if (flags.indexOf('i') >= 0) { span.style.fontStyle = 'italic'; }
+    if (flags.indexOf('u') >= 0) { span.style.textDecoration = 'underline'; }
+    return span;
+  }
+
+  function fill(element, text, segments) {
+    element.textContent = '';
+    if (!segments) { element.textContent = text; return; }
+    for (var i = 0; i < segments.length; i++) {
+      element.appendChild(styledSpan(segments[i][0], segments[i][1]));
+    }
+  }
+
+  // --- the scrollback ----------------------------------------------------
+
+  // The scrollback follows new output unless the reader scrolled back.
+  // Decided on scrolling, not on arrival: the vitals bars and the prompt
+  // line appearing shrink the output area without anyone scrolling.
+  var stick = true;
+  function atBottom() {
+    return output.scrollHeight - output.scrollTop - output.clientHeight < 40;
+  }
+  function follow() {
+    if (stick) { output.scrollTop = output.scrollHeight; }
+  }
+  output.addEventListener('scroll', function () { stick = atBottom(); });
+  if (window.ResizeObserver) { new ResizeObserver(follow).observe(output); }
+
+  function show(text, segments, kind) {
+    var block = document.createElement('div');
+    block.className = 'msg' + (kind ? ' ' + kind : '');
+    if (kind === 'echo') { block.setAttribute('aria-hidden', 'true'); }
+    if (segments) {
+      // One trailing newline is the end of the message, not a blank line.
+      var last = segments.length - 1;
+      if (last >= 0 && /\n$/.test(segments[last][1])) {
+        segments = segments.slice(0, last).concat([[segments[last][0],
+          segments[last][1].replace(/\n$/, '')]]);
+      }
+      fill(block, text, segments);
+    } else {
+      fill(block, String(text).replace(/\n$/, ''), null);
+    }
+    output.appendChild(block);
+    while (output.childNodes.length > MAX_MESSAGES) { output.removeChild(output.firstChild); }
+    follow();
+  }
+
+  // --- the prompt line and the vitals bars --------------------------------
+
+  function showPrompt(frame) {
+    fill(promptLine, frame.text || '', frame.segments || null);
+    promptLine.hidden = !frame.text;
+  }
+
+  function drawVitals() {
+    vitalsBox.textContent = '';
+    var names = Object.keys(vitals).filter(function (name) {
+      return name.indexOf('max_') !== 0 && typeof vitals[name] === 'number'
+        && typeof vitals['max_' + name] === 'number' && vitals['max_' + name] > 0;
+    });
+    for (var i = 0; i < names.length; i++) {
+      var name = names[i];
+      var value = vitals[name];
+      var max = vitals['max_' + name];
+      var percent = Math.max(0, Math.min(100, (value / max) * 100));
+      var row = document.createElement('div');
+      row.className = 'vital';
+      var label = document.createElement('span');
+      label.className = 'name';
+      label.textContent = name;
+      var track = document.createElement('div');
+      track.className = 'track';
+      track.setAttribute('role', 'meter');
+      track.setAttribute('aria-label', name);
+      track.setAttribute('aria-valuemin', '0');
+      track.setAttribute('aria-valuemax', String(max));
+      track.setAttribute('aria-valuenow', String(Math.max(0, Math.min(value, max))));
+      track.setAttribute('aria-valuetext', value + ' of ' + max);
+      var bar = document.createElement('div');
+      bar.className = 'fill' + (percent <= 25 ? ' bad' : percent <= 50 ? ' warn' : '');
+      bar.style.width = percent + '%';
+      track.appendChild(bar);
+      var nums = document.createElement('span');
+      nums.className = 'nums';
+      nums.textContent = value + '/' + max;
+      row.appendChild(label);
+      row.appendChild(track);
+      row.appendChild(nums);
+      vitalsBox.appendChild(row);
+    }
+    vitalsBox.hidden = names.length === 0;
+  }
+
+  function onOob(package_, data) {
+    if (!data || typeof data !== 'object') { return; }
+    if (package_ === 'Char.Vitals') {
+      for (var key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) { vitals[key] = data[key]; }
+      }
+      drawVitals();
+    } else if (package_ === 'Room.Info' && typeof data.name === 'string') {
+      roomLine.textContent = data.name;
+    }
+  }
+
+  // --- the connection ----------------------------------------------------
+
+  function setStatus(state, text) {
+    statusLine.dataset.state = state;
+    statusLine.textContent = text;
+    reconnectButton.hidden = state !== 'closed';
+  }
+
+  function send(data) {
+    if (socket && socket.readyState === WebSocket.OPEN) { socket.send(data); return true; }
+    return false;
+  }
+
+  function onFrame(event) {
+    var data = event.data;
+    if (typeof data !== 'string') { return; }
+    if (data.charAt(0) !== '{') { show(data, null); return; }
+    var frame;
+    try { frame = JSON.parse(data); } catch (e) { show(data, null); return; }
+    if (frame.type === 'text') {
+      show(frame.text || '', frame.segments || null);
+    } else if (frame.type === 'prompt') {
+      showPrompt(frame);
+    } else if (frame.type === 'oob') {
+      onOob(frame.package, frame.data);
+    }
+  }
+
+  function connect() {
+    var url = new URL('ws', window.location.href);
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    setStatus('connecting', 'Connecting…');
+    socket = new WebSocket(url.href);
+    socket.onopen = function () {
+      setStatus('open', 'Connected');
+      sendSize();
+      pingTimer = window.setInterval(function () {
+        send(JSON.stringify({type: 'ping'}));
+      }, PING_MS);
+    };
+    socket.onmessage = onFrame;
+    socket.onclose = function () {
+      window.clearInterval(pingTimer);
+      setStatus('closed', 'Disconnected');
+      showPrompt({text: ''});
+      show('Connection closed.', null, 'note');
+    };
+  }
+
+  reconnectButton.addEventListener('click', function () {
+    vitals = {};
+    drawVitals();
+    roomLine.textContent = '';
+    connect();
+    input.focus();
+  });
+
+  // The pager holds long output a screen at a time; the screen is the
+  // output area, in characters.
+  var measure = document.getElementById('measure');
+  function sendSize() {
+    var box = measure.getBoundingClientRect();
+    var charWidth = box.width / 10 || 8;
+    var lineHeight = parseFloat(window.getComputedStyle(output).lineHeight) || box.height || 20;
+    var style = window.getComputedStyle(output);
+    var width = output.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    var height = output.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    send(JSON.stringify({
+      type: 'resize',
+      width: Math.max(20, Math.floor(width / charWidth)),
+      height: Math.max(5, Math.floor(height / lineHeight))
+    }));
+  }
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(sendSize, 250);
+  });
+
+  // --- input ---------------------------------------------------------------
+
+  // Lines that carry a password: echoed masked and never kept in history.
+  var SECRETS = [
+    /^(\s*(?:connect|create)\s+\S+\s+)(\S.*)$/i,
+    /^(\s*\S*password\S*\s+)(\S.*)$/i
+  ];
+  function masked(line) {
+    for (var i = 0; i < SECRETS.length; i++) {
+      var m = SECRETS[i].exec(line);
+      if (m) { return m[1] + '********'; }
+    }
+    return null;
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    var line = input.value;
+    input.value = '';
+    // A blank line is sent too: it turns the pager's page.
+    if (!send(line)) {
+      show('Not connected.', null, 'note');
+      input.focus();
+      return;
+    }
+    var secret = masked(line);
+    if (line.trim()) { show('> ' + (secret === null ? line : secret), null, 'echo'); }
+    if (line.trim() && secret === null && history[history.length - 1] !== line) {
+      history.push(line);
+      if (history.length > MAX_HISTORY) { history.shift(); }
+    }
+    historyAt = history.length;
+    draft = '';
+    input.focus();
+  });
+
+  input.addEventListener('keydown', function (event) {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      if (!history.length) { return; }
+      event.preventDefault();
+      if (historyAt === history.length) { draft = input.value; }
+      historyAt += event.key === 'ArrowUp' ? -1 : 1;
+      historyAt = Math.max(0, Math.min(history.length, historyAt));
+      input.value = historyAt === history.length ? draft : history[historyAt];
+      input.setSelectionRange(input.value.length, input.value.length);
+    } else if (event.key === 'PageUp' || event.key === 'PageDown') {
+      event.preventDefault();
+      var step = output.clientHeight * 0.9;
+      output.scrollTop += event.key === 'PageUp' ? -step : step;
+    } else if (event.key === 'Escape') {
+      input.value = '';
+      historyAt = history.length;
+    }
+  });
+
+  // Keep the focus on the input: clicking the output (unless selecting
+  // text to copy) or typing anywhere comes back to it.
+  output.addEventListener('mouseup', function () {
+    var selection = window.getSelection();
+    if (!selection || selection.isCollapsed) { input.focus(); }
+  });
+  document.addEventListener('keydown', function (event) {
+    if (document.activeElement === input || event.ctrlKey || event.metaKey || event.altKey) {
+      return;
+    }
+    if (event.key.length === 1 && document.activeElement.tagName !== 'BUTTON') {
+      input.focus();
+    }
+  });
+
+  connect();
+  input.focus();
+}());
+</script>
+</body>
+</html>

@@ -332,41 +332,65 @@ class TestEncumbrance:
 # --- 137. Hunger & thirst ------------------------------------------------------
 
 
-class TestHungerThirst:
+async def _needs_ticks(sim, n):
+    for _ in range(n):
+        await sim.world.services["needs"].tick()
 
-    async def test_meters_drain_warn_and_faint_then_a_ration_restores(self, sim):
-        builder = await build(sim, 137, admin=True)
+
+class TestHungerThirst:
+    """The build configures the ``needs`` feature on a GURPS station: the
+    terminal gives the pools, the galley fills them, the rooms set the
+    climate and the exemption. The engine does the ticking."""
+
+    async def test_enlist_get_hungry_eat_drink_and_fill(self, sim):
+        await build(sim, 137, admin=True)
         mess = room(sim, "The Mess Deck")
         vale = sim.player("Vale", location=mess)
+        await _needs_ticks(sim, 3)
+        assert vale.db.get("food") is None                 # not enlisted: no needs
 
-        for _ in range(7):
-            await sim.do(builder, "@tr life support monitor/on_tick")
-            checks().resolver = level_resolver
+        await sim.do(vale, "enlist")
+        assert "You sign the articles." in text(sim, vale)
+        assert (vale.db.food, vale.db.water) == (500, 1000)
+        await sim.do(vale, "prompt <{food} food {water} water>")
+        await _needs_ticks(sim, 4)
+        assert (vale.db.food, vale.db.water) == (496, 996)
+        assert sim.prompt(vale) == "<496 food 996 water> "
 
+        vale.db.food = 1                                   # half an hour on
+        sim.seen(vale)
+        await _needs_ticks(sim, 1)
+        assert "You are hungry." in text(sim, vale)
+        await sim.do(vale, "get ration pack")
+        await sim.do(vale, "eat ration")
         stream = text(sim, vale)
-        assert "Your stomach growls; your mouth is dry." in stream   # thresholds
-        assert "You are faint from hunger and thirst." in stream     # bottomed out
-        assert vale.has_tag("starving")
-        assert vale.db.get("check_mods") == {"starving": {"all": -2}}
-        assert int(vale.db.get("thirst")) == 0
-        assert int(vale.db.get("hunger")) == 30
+        assert "You take a bite of a ration pack." in stream
+        assert "You are no longer hungry." in stream
+        assert vale.db.food == 100
+        assert obj(sim, "ration pack").db.nourishment == 200
 
-        await sim.do(vale, "eat")
-        assert "tears into a ration pack" in text(sim, vale)
-        assert int(vale.db.get("hunger")) == 100
-        assert int(vale.db.get("thirst")) == 100
-        assert not vale.has_tag("starving")
-        assert not vale.db.get("check_mods")
+        vale.db.water = 0
+        await sim.do(vale, "drink tap")
+        assert "You drink recycled water from a water tap." in text(sim, vale)
+        assert vale.db.water == 50
+        await sim.do(vale, "get canteen")
+        await sim.do(vale, "fill canteen")
+        assert "You fill a canteen from a water tap." in text(sim, vale)
+        canteen = obj(sim, "canteen")
+        assert (canteen.db.liquid, canteen.db.liquid_remaining) == ("recycled water", 300)
 
-    async def test_no_meters_outside_the_zone(self, sim):
-        builder = await build(sim, 137, admin=True)
-        limbo = room(sim, "Limbo")
-        drifter = sim.player("Drifter", location=limbo)      # unzoned
-        for _ in range(5):
-            await sim.do(builder, "@tr life support monitor/on_tick")
-            checks().resolver = level_resolver
-        assert drifter.db.get("hunger") is None              # never touched
-
+    async def test_the_engine_room_parches_and_the_lounge_spares(self, sim):
+        await build(sim, 137, admin=True)
+        mess = room(sim, "The Mess Deck")
+        vale = sim.player("Vale", location=mess)
+        ike = sim.player("Ike", location=mess)
+        for crew in (vale, ike):
+            await sim.do(crew, "enlist")
+        vale.location = room(sim, "Engine Room")
+        ike.location = room(sim, "Crew Lounge")
+        await _needs_ticks(sim, 2)
+        assert (vale.db.food, vale.db.water) == (498, 994)     # hot and dry: 3 a tick
+        assert (ike.db.food, ike.db.water) == (500, 1000)      # no_needs zone
 
 # --- 138. Sleep & rest ---------------------------------------------------------
 

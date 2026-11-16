@@ -22,6 +22,7 @@ from realm.core.safe_eval import validate_code
 from realm.core.world import setting
 from realm.permissions.locks import LockType
 from realm.persistence.keyid import KEYID_ATTR
+from realm.std.building.edit import edit_description
 from realm.std.look.describe import DETAILS_ATTR
 
 
@@ -32,8 +33,8 @@ async def cmd_desc(ctx: CommandContext) -> None:
     Usage: @desc <object> = <description>
            @desc here = <description>
            @desc me = <description>
-
-    Use multi-line by ending with \\ and continuing on next line.
+           @desc <object>          (write it in the line editor)
+           @desc <object> =        (clear it)
 
     Example:
         @desc here = Salt-bleached steps spiral up the cliff face.
@@ -49,6 +50,9 @@ async def cmd_desc(ctx: CommandContext) -> None:
     target = resolve_target(ctx, target_name)
     if not target:
         await ctx.session.send(f"Object '{target_name}' not found.")
+        return
+    if "=" not in (ctx.args or ""):
+        await edit_description(ctx, target)
         return
 
     if await run_op(ctx, ops.describe, target, description) is None:

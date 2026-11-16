@@ -74,6 +74,24 @@ class TestAbilitiesAsCommands:
         await sim.do(pat, "kick dragon")
         assert "You don't see 'dragon' here." in sim.seen(pat)
 
+    async def test_a_victim_is_a_creature_not_its_corpse(self, sim):
+        # MUD_PLAN step 17: `kick fido` beside "the corpse of fido dog"
+        # kicks the fido; with only the corpse there, nothing is kicked.
+        _ability(sim, "kick")
+        room, pat, _rat = _arena(sim)
+        corpse = sim.obj("corpse of fido dog", location=room, tags=["thing", "container"])
+        fido = sim.obj("fido dog", location=room, tags=["npc"], hp=20, max_hp=20)
+        await sim.do(pat, "kick fido")
+        assert fido.db.hp == 17
+        await sim.do(pat, "kill fido")                  # and `kill` the same
+        assert "You will attack fido dog" in "\n".join(sim.seen(pat))
+        sim.world.services["combat"].stop_all()
+        fido.location = None
+        sim.seen(pat)
+        await sim.do(pat, "kick fido")
+        assert "You don't see 'fido' here." in sim.seen(pat)
+        assert corpse.location is room
+
     async def test_spells_are_not_commands(self, sim):
         sim.obj("zot", tags=["spell_def"], target="victim", damage_dice="3")
         _room, pat, rat = _arena(sim)

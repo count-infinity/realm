@@ -243,12 +243,34 @@ def _sgr_params(style: Style) -> str:
     return ';'.join(params)
 
 
-def to_ansi(text: str) -> str:
+def _recolor(code: str | None, palette: dict[str, str]) -> str | None:
+    """A color letter through a player's palette; brightness (case) kept."""
+    if code is None:
+        return None
+    swapped = palette.get(code.lower())
+    if swapped is None:
+        return code
+    return swapped.upper() if code.isupper() else swapped.lower()
+
+
+def recolor(style: Style, palette: dict[str, str] | None) -> Style:
+    """``style`` through one reader's ``palette`` (``{'r': 'm'}``: red shows
+    as magenta, bright red as bright magenta), foreground and background."""
+    if not palette:
+        return style
+    return replace(style, fg=_recolor(style.fg, palette), bg=_recolor(style.bg, palette))
+
+
+def to_ansi(text: str, palette: dict[str, str] | None = None) -> str:
     """
     Render markup as terminal escape codes — MINIMALLY: adjacent
     same-style text emits no codes, each style change emits one
     combined sequence, and a single reset trails the message iff any
     styling was used (no color bleed into the next prompt).
+
+    ``palette`` swaps colors for one reader (a player's ``palette``
+    option, ``{'r': 'm'}``: red shows as magenta, bright red as bright
+    magenta), foreground and background alike.
     """
     mk = marker()
     if mk not in text:
@@ -257,6 +279,7 @@ def to_ansi(text: str) -> str:
     previous = DEFAULT_STYLE
     styled = False
     for style, seg in parse(text):
+        style = recolor(style, palette)
         if style != previous:
             if style.is_default():
                 out.append('\x1b[0m')
@@ -270,5 +293,28 @@ def to_ansi(text: str) -> str:
     return ''.join(out)
 
 
+#: Characters a line made only for looks is drawn with (rules, table borders).
+DECORATION = frozenset("-=_*~+#|.:")
+
+
+def undecorate(text: str) -> str:
+    """``text`` without its decoration lines (``=====``, ``+---+---+``):
+    lines of three or more characters drawn only from ``DECORATION``, which a
+    screen reader would read out symbol by symbol (a player's
+    ``screenreader`` option). Markup is ignored when judging a line."""
+    kept = []
+    for line in text.split("\n"):
+        visible = strip(line).replace(" ", "")
+        if len(visible) >= 3 and set(visible) <= DECORATION:
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+#: The color letters a palette may swap.
+COLOR_LETTERS = "xrgybmcw"
+
+
 __all__ = ["Style", "DEFAULT_STYLE", "parse", "strip", "visible_len",
-           "pad", "truncate", "escape", "render_markup", "to_ansi"]
+           "pad", "truncate", "escape", "render_markup", "recolor", "to_ansi", "undecorate",
+           "DECORATION", "COLOR_LETTERS"]

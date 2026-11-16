@@ -371,7 +371,8 @@ else:
 That stores the whole indented body in `on_enter`, and it execs as real
 sandboxed Python — blocks, loops, `if`/`else`, same engine as a one-liner,
 just readable. It works with any command that takes a value (`@set`,
-`@desc`, and friends).
+`@desc`, and friends). To write or change a text line by line instead, use
+[the line editor](#the-line-editor-edit).
 
 - **`@abort`** on its own line discards a block — handy if you mistype the
   opening line. A block is also capped at a sane line count as a backstop
@@ -383,6 +384,68 @@ just readable. It works with any command that takes a value (`@set`,
   `HEREDOC_CLOSE = '>>>'` — if your scripts contain `'''` themselves (a
   triple-quoted string, say), so a body line of `'''` no longer ends the
   block.
+
+## The line editor (`@edit`)
+
+A heredoc is typed in one go. To write a long text a line at a time, or to
+fix one line of something already saved, open the **line editor**:
+
+```text
+@edit <object>/<attribute>     an attribute
+@edit <object>                 the object's description
+@desc <object>                 the same (with no "=")
+```
+
+Every line you type is added to the text, kept exactly as typed: leading
+spaces stay (softcode indentation), and an empty line is an empty line of
+text. A line that starts with `.` is an editor command:
+
+| Command | Does |
+|---|---|
+| `.l` | list the text with line numbers (long text is paged) |
+| `.d N` | delete line N |
+| `.i N text` | insert `text` as a new line N |
+| `.r N text` | replace line N with `text` |
+| `.s` | save |
+| `.q` | quit without saving |
+| `.h` | help |
+
+In `.i` and `.r`, everything after the one space that follows the number
+is the line, indentation included.
+
+```text
+@edit fountain/CMD_DRINK
+Editing fountain/CMD_DRINK (0 lines). Type lines to add them; .l lists, .s saves, .q quits, .h helps.
+$drink:
+sips = (get_attr(me, 'sips') or 0) + 1
+set_attr(me, 'sips', sips)
+if sips > 3:
+pemit(enactor, 'The fountain is running low.')
+else:
+    pemit(enactor, 'Cold, clear water.')
+.s
+Warning: fountain/CMD_DRINK will not run — Syntax error: expected an indented block after 'if' statement on line 3 at line 4
+Saved, but it will not run as it is. Fix it and .s again, or .q to leave it.
+.r 5     pemit(enactor, 'The fountain is running low.')
+Replaced line 5.
+.s
+Saved fountain/CMD_DRINK.
+drink
+Cold, clear water.
+```
+
+Saving goes through the same checks as `@set` and `@desc`: you must
+control the object, protected and flagged attributes are refused, and a
+softcode attribute is checked the way `@set` checks it. A script that will
+not run is saved with `@set`'s warning, and the editor stays open so you
+can fix it (`.q` then leaves it as saved). Saving an empty text clears the
+attribute or the description. An attribute that holds a number or a list
+is refused: change it with `@set`.
+
+While the editor is open, every line is its own: commands do not run
+until `.s` or `.q`. A disconnect or `logout` closes it without saving.
+`mail <player> = <subject>` with no body opens the same editor for the
+letter ([Communication](communication.md)).
 
 ## Ownership and safety valves
 

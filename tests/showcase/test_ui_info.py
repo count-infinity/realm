@@ -182,6 +182,10 @@ class TestHelpExtensions:
         _room, bilda = builder_in(sim)
 
         out = await do(sim, bilda, "help")
+        # A builder's list is longer than a screen: enter turns the pages.
+        while sim.session(bilda).paging:
+            await sim.submit_line(bilda, "")
+            out += sim.seen(bilda)
         joined = "\n".join(out)
         assert "Combat:" in joined and "Movement:" in joined
 

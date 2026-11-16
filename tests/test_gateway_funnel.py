@@ -165,7 +165,7 @@ class TestWebSocketParity:
         from realm.core.markup import marker
         MARKER = marker()
         ws = FakeWS()
-        writer = make_ws_writer(ws)
+        writer = make_ws_writer(ws, lambda: None)
 
         await writer(f"Welcome to {MARKER}rREALM{MARKER}n, traveler.")
         await writer("plain line")

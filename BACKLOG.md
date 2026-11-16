@@ -113,6 +113,32 @@ REALM must be usable as a library, not an application to fork.
     delivered via a new async `GameSystem.outfit_new_character(player,
     persistence)` seam (default no-op; Merc mints + wields the class
     weapon), called after `finish_chargen` in the connect flow.
+- [x] **The converted Midgaard has no baker, and its bottle of beer is a
+  shopkeeper** (found 2026-11-16, MUD_PLAN step 15; importer fixed in
+  step 17). Two importer faults. `#SHOPS` patched every object whose
+  `prototype_vnum` was the keeper's vnum, objects as well as mobs: it now
+  patches `npc` instances only (and `P` resets put into objects only), and
+  `scripts/dev/refresh_rom_items.py` took the shops off the shipped file's
+  22 objects. And the reset reader skipped to the end of the *next* line
+  after a reset whose trailing comment was one or two words, or after an
+  `O` reset (it read a fifth number ROM's `O` does not have): placements
+  were lost and their `G`/`E` stock went to the mob before. It now reads
+  as ROM's `load_resets` does (`*` lines are comments; a reset's comment
+  ends with its line). The shipped Midgaard cannot be converted again (its
+  `.are` is not in the repository), so it still lacks the baker (vnum
+  3001, whose wares went to the drunk) and the mage, warrior and thief
+  guildmasters (3020, 3022, 3023); the template's `init_world` clones the
+  baker, and the cleric's guildmaster teaches every class.
+- [ ] **Re-convert Midgaard from its ROM 2.4 `.are`** when a copy is at
+  hand (`realm import-rom midgaard.are --repop`, then
+  `scripts/dev/refresh_rom_items.py --room-flags 3031=M`): it would place
+  the baker and the three guildmasters, give the baker its wares back, and
+  let the template drop its baker workaround.
+- [ ] **Converted objects and mobs are named by their ROM keywords**
+  ("sword long", "potpie pot pie", "a cookies"): the importer makes the
+  keyword list the name and keeps the short description as
+  `short_desc`, which nothing shows. A name resolver that shows
+  `short_desc` while the keywords still match would read as ROM does.
 - [x] **Mob wander (2026-07-30):** a `WanderBehavior` (random-exit roaming,
   `stay_area` zone-bounded, combat-safe) + the importer maps ROM ACT flags
   to it (non-SENTINEL mobs wander; ACT_STAY_AREA sets `stay_area`; keepers
@@ -156,8 +182,12 @@ REALM must be usable as a library, not an application to fork.
   so the combat AI behaviors (aggressive/wandering/guard/venomous) register
   on package import (the docstring promised it; it didn't). Tests:
   test_venom.py (7).
-- [ ] **`spec_guard` / a crime-justice layer** — needs the crime-flag system
-  below; the shipped `guard` blocks movement, the wrong semantic.
+- [x] **`spec_guard` / a crime-justice layer** — needs the crime-flag system
+  below; the shipped `guard` blocks movement, the wrong semantic. *Closed
+  2026-11-16 (MUD_PLAN step 11):* `spec_guard`, `spec_patrolman` and
+  `spec_executioner` import as the `peacekeeper`, whose `protect` parameter
+  adds ROM's two other duties (`evil`: the most evil fighter; `fights`:
+  any brawl).
 
 ### Crime & justice layer (core BUILT 2026-07-30; richer tiers deferred)
 Reference survey (tbaMUD / CoffeeMud / SMAUG) synthesized.
@@ -200,6 +230,39 @@ The consensus minimal-viable shape (for reference / the deferred tiers):
 Avoid: CoffeeMud's conquest/tax/7-state-escort monolith, SMAUG's disjoint
 favor-vs-law systems and hardcoded VNUMs. Split into CrimeDetector /
 WarrantStore / Enforcer / LawConfig.
+
+### MUD_PLAN step 17: the first hour (2026-11-16)
+
+`tests/test_first_hour.py` plays every line of the plan's "What 'complete'
+means here" on a `realm init --system merc --template midgaard` game.
+Fixed on the way (each with its own test): `--system` with `--template`;
+characters out of play listed in rooms; fights between mobs whose quarry
+left never ending; `kill`/`kick`/`cast` aimed at corpses; combatant
+wrappers of a world loaded before; the ROM importer's resets, shops,
+respawn vnums and scavengers; the prompt under the class menu; a pipe in
+help and in `channels` read as color; `quit` through the input pump
+cancelling its own teardown. Left:
+
+- [ ] **Pets and mounts stay behind on `recall`** (MUD_PLAN step 13). ROM's
+  `do_recall` brings the pet along; here a companion follows only a walk,
+  and a recall or teleport parts rider and mount. The `companions`
+  observer sees the arrival (`ON_ENTER` without an exit) but not whether it
+  was a recall; `recall_to` would need to say so (an action extra), or
+  offer the companions service a hook.
+- [ ] **`Room.Info` is sent on movement only, not at login** (MUD_PLAN
+  step 16): the browser client's room name is blank until the first step.
+  Send it from the login path (the `CONNECT` action) as `Char.Vitals` is
+  from the prompt.
+- [ ] **Clocks that are not call-through**: ability cooldowns
+  (`abilities.ready_at`, `time.time`), corpse locks
+  (`combat/corpses.py`), mail and achievement dates, channel history, and
+  the combat beat loop (`encounter.py`, `time.monotonic`). A test cannot
+  move them (`test_first_hour` fires rounds by hand and asserts no dates).
+  A `now()` in each module, as `accounts`, `needs`, `quests` and the rest
+  have, would make them injectable.
+- [ ] **A prompt after a wall**: `@shutdown` (and `@wall`) write the
+  typist's prompt twice, once after the announcement and once after the
+  command.
 
 ## Priority 1 - Should Address Soon
 
@@ -1028,7 +1091,14 @@ same day (see Completed); these remain, roughly by impact:
     - Scripting approach (Python entry points vs inline)
 
 ### Builder Tools
-- [ ] **In-game multiline text editor** (Evennia `EvEditor` analog)
+- [x] **In-game multiline text editor** (Evennia `EvEditor` analog) — **SHIPPED
+  2026-11-16 (MUD_PLAN step 10.2)**: `realm.gateway.editor.open_editor`, a
+  session input handler taking lines as typed; `@edit <obj>/<attr>`, `@edit
+  <obj>`, `@desc <obj>` and `mail` with no body open it; `.l .d .i .r .s .q
+  .h`; saves through the `@set`/`@desc` ops
+  ([World Management](docs/guides/world-management.md#the-line-editor-edit)).
+  Not built: undo and search, a softcode way to open it, and keeping the
+  buffer across a reboot. The original notes:
   - A stateful line-editor input mode for editing multiline text in-game:
     room/object descriptions, `[[...]]`/softcode attr bodies, mail, notes,
     boards. Enter with e.g. `@edit here/desc`; edit over multiple lines;
@@ -1048,7 +1118,14 @@ same day (see Completed); these remain, roughly by impact:
   - Softcode surface: a way to open the editor on an attr from softcode
     (mirrors how `prompt()` is exposed), so builders can wire "edit this"
     affordances.
-- [ ] **Output pager** (Evennia `EvMore` analog)
+- [x] **Output pager** (Evennia `EvMore` analog) — **SHIPPED 2026-11-16
+  (MUD_PLAN step 10.1)**: `Session.send_paged(text)`; enter, `b`, `q`; the
+  screen is the player's `pagelength`, the client's NAWS height or
+  `PAGE_LENGTH`; `help`, `who`, `@examine`, `skills`, `socials`, `config`,
+  `alias`, channel history and `mail` page
+  ([The Character Sheet](docs/guides/character-sheet.md#long-output-the-pager)).
+  Not built: `t` (top), and a softcode `page(target, text)`; `@find` and
+  `@stats` still send in full. The original notes:
   - Deliver long command output a screenful at a time instead of dumping it all
     at once: `n`/Enter for the next page, `b` back, `t` top, `q` quit. The
     *reading* counterpart to the multiline editor above (EvEditor writes, EvMore

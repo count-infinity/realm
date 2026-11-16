@@ -1,0 +1,1901 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "clan_government_gang",
+   "name": "gang",
+   "description": "ruled by one boss, who assigns the underlings",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "ruled by one boss, who assigns the underlings",
+    "positions": [
+     {
+      "id": "boss",
+      "name": "Boss",
+      "plural": "Bosses",
+      "rank": 0,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "assign",
+       "exile",
+       "set_home",
+       "set_donate",
+       "premise",
+       "motd_write",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "tax",
+       "declare",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "lieutenant",
+      "name": "Lieutenant",
+      "plural": "Lieutenants",
+      "rank": 1,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "motd_read",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "treasurer",
+      "name": "Treasurer",
+      "plural": "Treasurers",
+      "rank": 2,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "enchanter",
+      "name": "Enchanter",
+      "plural": "Enchanters",
+      "rank": 3,
+      "max": 3,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "staff",
+      "name": "Staff",
+      "plural": "Staff",
+      "rank": 4,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "member",
+      "name": "Member",
+      "plural": "Members",
+      "rank": 5,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "applicant",
+      "name": "Applicant",
+      "plural": "Applicants",
+      "rank": 6,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": []
+     }
+    ],
+    "accept_position": "member",
+    "applicant_position": "applicant",
+    "required_lock": null,
+    "auto_promote": "rank",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 24,
+    "vote_quorum": 100,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "clan_government_guild",
+   "name": "guild",
+   "description": "ruled by up to five guildmasters, who vote on positions and policy",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "ruled by up to five guildmasters, who vote on positions and policy",
+    "positions": [
+     {
+      "id": "guildmaster",
+      "name": "Guildmaster",
+      "plural": "Guildmasters",
+      "rank": 0,
+      "max": 5,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "exile",
+       "motd_write",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "tax",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "secretary",
+      "name": "Secretary",
+      "plural": "Secretaries",
+      "rank": 1,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "motd_write",
+       "motd_read",
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "treasurer",
+      "name": "Treasurer",
+      "plural": "Treasurers",
+      "rank": 2,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "enchanter",
+      "name": "Enchanter",
+      "plural": "Enchanters",
+      "rank": 3,
+      "max": 3,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "chief",
+      "name": "Chief",
+      "plural": "Chiefs",
+      "rank": 4,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "member",
+      "name": "Member",
+      "plural": "Members",
+      "rank": 5,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "applicant",
+      "name": "Applicant",
+      "plural": "Applicants",
+      "rank": 6,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": []
+     }
+    ],
+    "accept_position": "member",
+    "applicant_position": "applicant",
+    "required_lock": null,
+    "auto_promote": "rank",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 24,
+    "vote_quorum": 100,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "clan_government_union",
+   "name": "union",
+   "description": "every member votes for senators and on membership, relations and the tax",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "every member votes for senators and on membership, relations and the tax",
+    "positions": [
+     {
+      "id": "senator",
+      "name": "Senator",
+      "plural": "Senators",
+      "rank": 0,
+      "max": 5,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "motd_write",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "secretary",
+      "name": "Secretary",
+      "plural": "Secretaries",
+      "rank": 1,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "motd_write",
+       "motd_read",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign"
+      ]
+     },
+     {
+      "id": "treasurer",
+      "name": "Treasurer",
+      "plural": "Treasurers",
+      "rank": 2,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign"
+      ]
+     },
+     {
+      "id": "enchanter",
+      "name": "Enchanter",
+      "plural": "Enchanters",
+      "rank": 3,
+      "max": 3,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign"
+      ]
+     },
+     {
+      "id": "sheriff",
+      "name": "Sheriff",
+      "plural": "Sheriffs",
+      "rank": 4,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign"
+      ]
+     },
+     {
+      "id": "citizen",
+      "name": "Citizen",
+      "plural": "Citizens",
+      "rank": 5,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign"
+      ]
+     },
+     {
+      "id": "applicant",
+      "name": "Applicant",
+      "plural": "Applicants",
+      "rank": 6,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": []
+     }
+    ],
+    "accept_position": "citizen",
+    "applicant_position": "applicant",
+    "required_lock": null,
+    "auto_promote": "rank",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 48,
+    "vote_quorum": 66,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "clan_government_fellowship",
+   "name": "fellowship",
+   "description": "everything, from membership to the leader, is put to the vote",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "everything, from membership to the leader, is put to the vote",
+    "positions": [
+     {
+      "id": "first_citizen",
+      "name": "First Citizen",
+      "plural": "First Citizens",
+      "rank": 0,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "motd_write",
+       "motd_read",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "manager",
+      "name": "Manager",
+      "plural": "Managers",
+      "rank": 1,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "motd_write",
+       "motd_read",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "treasurer",
+      "name": "Treasurer",
+      "plural": "Treasurers",
+      "rank": 2,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "enchanter",
+      "name": "Enchanter",
+      "plural": "Enchanters",
+      "rank": 3,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "soldier",
+      "name": "Soldier",
+      "plural": "Soldiers",
+      "rank": 4,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "citizen",
+      "name": "Citizen",
+      "plural": "Citizens",
+      "rank": 5,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles",
+       "vote_assign",
+       "vote_other"
+      ]
+     },
+     {
+      "id": "applicant",
+      "name": "Applicant",
+      "plural": "Applicants",
+      "rank": 6,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": []
+     }
+    ],
+    "accept_position": "citizen",
+    "applicant_position": "applicant",
+    "required_lock": null,
+    "auto_promote": "rank",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 100,
+    "vote_quorum": 33,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "clan_government_anarchy",
+   "name": "anarchy",
+   "description": "anyone may join, and every member may do almost anything",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "anyone may join, and every member may do almost anything",
+    "positions": [
+     {
+      "id": "freeman",
+      "name": "Freeman",
+      "plural": "Freemen",
+      "rank": 0,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "set_home",
+       "set_donate",
+       "premise",
+       "motd_write",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     }
+    ],
+    "accept_position": "freeman",
+    "applicant_position": null,
+    "required_lock": null,
+    "auto_promote": "none",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 24,
+    "vote_quorum": 100,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "clan_government_co_op",
+   "name": "co-op",
+   "description": "a house mother and father run it; no tax, no relations",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "a house mother and father run it; no tax, no relations",
+    "positions": [
+     {
+      "id": "house_mother",
+      "name": "House Mother",
+      "plural": "House Mothers",
+      "rank": 0,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "assign",
+       "exile",
+       "set_home",
+       "set_donate",
+       "premise",
+       "motd_write",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "house_father",
+      "name": "House Father",
+      "plural": "House Fathers",
+      "rank": 0,
+      "max": 1,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "assign",
+       "exile",
+       "set_home",
+       "set_donate",
+       "premise",
+       "motd_write",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "member",
+      "name": "Member",
+      "plural": "Members",
+      "rank": 1,
+      "max": null,
+      "lock": null,
+      "public": true,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "applicant",
+      "name": "Applicant",
+      "plural": "Applicants",
+      "rank": 2,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": []
+     }
+    ],
+    "accept_position": "member",
+    "applicant_position": "applicant",
+    "required_lock": null,
+    "auto_promote": "rank",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 24,
+    "vote_quorum": 100,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "clan_government_meritocracy",
+   "name": "meritocracy",
+   "description": "ruled by whoever has given the clan the most experience",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "ruled by whoever has given the clan the most experience",
+    "positions": [
+     {
+      "id": "high_entrepreneur",
+      "name": "High Entrepreneur",
+      "plural": "High Entrepreneurs",
+      "rank": 0,
+      "max": "2%",
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "exile",
+       "set_home",
+       "set_donate",
+       "premise",
+       "motd_write",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "declare",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "entrepreneur",
+      "name": "Entrepreneur",
+      "plural": "Entrepreneurs",
+      "rank": 1,
+      "max": "5%",
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "set_home",
+       "set_donate",
+       "premise",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "diligent_worker",
+      "name": "Diligent Worker",
+      "plural": "Diligent Workers",
+      "rank": 2,
+      "max": "10%",
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "hard_worker",
+      "name": "Hard Worker",
+      "plural": "Hard Workers",
+      "rank": 3,
+      "max": "50%",
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "worker",
+      "name": "Worker",
+      "plural": "Workers",
+      "rank": 4,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "applicant",
+      "name": "Applicant",
+      "plural": "Applicants",
+      "rank": 5,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": []
+     }
+    ],
+    "accept_position": "worker",
+    "applicant_position": "applicant",
+    "required_lock": null,
+    "auto_promote": "xp",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 24,
+    "vote_quorum": 100,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "clan_government_plutocracy",
+   "name": "plutocracy",
+   "description": "ruled by whoever has given the clan the most money",
+   "tags": [
+    "clan_government_def"
+   ],
+   "attrs": {
+    "description": "ruled by whoever has given the clan the most money",
+    "positions": [
+     {
+      "id": "tycoon",
+      "name": "Tycoon",
+      "plural": "Tycoons",
+      "rank": 0,
+      "max": "1%",
+      "lock": null,
+      "public": true,
+      "powers": [
+       "accept",
+       "reject",
+       "exile",
+       "set_home",
+       "set_donate",
+       "premise",
+       "motd_write",
+       "motd_read",
+       "withdraw",
+       "deposit",
+       "deposit_list",
+       "tax",
+       "declare",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "mogul",
+      "name": "Mogul",
+      "plural": "Moguls",
+      "rank": 1,
+      "max": "3%",
+      "lock": null,
+      "public": true,
+      "powers": [
+       "motd_read",
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "landlord",
+      "name": "Landlord",
+      "plural": "Landlords",
+      "rank": 2,
+      "max": "5%",
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "deposit_list",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "tenant",
+      "name": "Tenant",
+      "plural": "Tenants",
+      "rank": 3,
+      "max": "50%",
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "home_privs",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "serf",
+      "name": "Serf",
+      "plural": "Serfs",
+      "rank": 4,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": [
+       "deposit",
+       "channel",
+       "list_members",
+       "benefits",
+       "titles"
+      ]
+     },
+     {
+      "id": "applicant",
+      "name": "Applicant",
+      "plural": "Applicants",
+      "rank": 5,
+      "max": null,
+      "lock": null,
+      "public": false,
+      "powers": []
+     }
+    ],
+    "accept_position": "serf",
+    "applicant_position": "applicant",
+    "required_lock": null,
+    "auto_promote": "gold",
+    "category": "",
+    "rivalrous": true,
+    "vote_days": 24,
+    "vote_quorum": 100,
+    "xp_per_level": "500 * level + 1000 * level ** 3",
+    "benefits": [
+     {
+      "level": 3,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 4
+      }
+     },
+     {
+      "level": 6,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 2
+      }
+     },
+     {
+      "level": 8,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 2
+      }
+     },
+     {
+      "level": 12,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 1
+      }
+     },
+     {
+      "level": 13,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 3
+      }
+     },
+     {
+      "level": 14,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 2
+      }
+     },
+     {
+      "level": 15,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 4
+      }
+     },
+     {
+      "level": 16,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "hp": 5,
+       "move": 5,
+       "mana": 5
+      }
+     },
+     {
+      "level": 17,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 1,
+       "mana": 1
+      }
+     },
+     {
+      "level": 18,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "mana": 3
+      }
+     },
+     {
+      "level": 19,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 3
+      }
+     },
+     {
+      "level": 20,
+      "tags": [],
+      "check_mods": {},
+      "pool_max": {
+       "move": 4
+      }
+     }
+    ],
+    "on_join": null,
+    "on_leave": null
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  }
+ ]
+}

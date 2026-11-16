@@ -245,9 +245,14 @@ async def training_sweep(store: Any) -> None:
 
 
 async def login_observer(action: Action) -> None:
-    """Catch up a character's training when it connects."""
+    """Catch up a character's training when it connects, and give it the
+    ``food`` and ``water`` its game system declares if it was made before
+    them (``GameSystem.fill_stomach``, MUD_PLAN 12.1)."""
     if action.action_type == ActionType.CONNECT and action.actor is not None:
         accrue_training(action.actor)
+        rules = _rules()
+        if rules is not None and action.actor.is_player:
+            rules.fill_stomach(action.actor)
 
 
 __all__ = ["MODELS", "now", "skill_key", "skill_def", "progression_of", "trained",

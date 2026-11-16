@@ -1,8 +1,9 @@
 """
 The default prompt (MUD_PLAN 3.3).
 
-A template in the player's ``prompt`` attribute, else the ``PROMPT``
-setting (default ``"<{hp}/{max_hp}hp> "``). Tokens in braces:
+A template in the player's ``prompt`` option (``realm.core.options``: on
+the account when there is one), else the ``PROMPT`` setting (default
+``"<{hp}/{max_hp}hp> "``). Tokens in braces:
 
 - every pool the player has, by name, and its ``max_<name>``;
 - ``{name}``, ``{room}``;
@@ -19,6 +20,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any
 
+from realm.commands.base import save_object
+from realm.core.options import clear_option, get_option, set_option
 from realm.core.pools import damage_pool, declared_pools, pool_get, pool_max, pool_percent
 from realm.core.pools import vital_pool as vital_pool_of
 from realm.core.world import get_world
@@ -60,7 +63,7 @@ def _opponent(player: GameObject) -> GameObject | None:
 
 def template_for(player: GameObject) -> str:
     """The player's template, else the game's ``PROMPT``."""
-    own = player.db.get("prompt")
+    own = get_option(player, "prompt")
     return str(own) if own is not None else str(get_world().setting("PROMPT"))
 
 
@@ -88,7 +91,10 @@ def prompt_values(player: GameObject) -> dict[str, Any]:
 
 
 def render_prompt(player: GameObject) -> str | None:
-    """The ``basics`` prompt renderer."""
+    """The ``basics`` prompt renderer. None while the character is still
+    being made (``chargen_step``): it has no class or pools to show yet."""
+    if player.db.get("chargen_step") is not None:
+        return None
     template = template_for(player)
     if not template:
         return None
@@ -117,15 +123,16 @@ async def cmd_prompt(ctx: CommandContext) -> None:
                                else "Your prompt is off.")
         return
     if word == "default":
-        player.db.delete("prompt")
+        await save_object(ctx, clear_option(player, "prompt"))
         await ctx.session.send("Your prompt is the game's default again.")
         return
     if word == "off":
-        player.db.prompt = ""
+        await save_object(ctx, set_option(player, "prompt", ""))
         await ctx.session.send("Prompt off.")
         return
     template = args.strip()
-    player.db.prompt = template + " "               # a prompt ends with a space
+    # A prompt ends with a space.
+    await save_object(ctx, set_option(player, "prompt", template + " "))
     await ctx.session.send(f"Prompt set: {template}")
 
 

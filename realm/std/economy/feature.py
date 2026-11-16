@@ -15,6 +15,7 @@ from realm.std.economy.commands import (
     cmd_list,
     cmd_pay,
     cmd_sell,
+    cmd_split,
 )
 from realm.std.economy.shop import ShopkeeperBehavior
 
@@ -58,10 +59,18 @@ feature.command(
 feature.command(
     'credits',
     cmd_credits,
-    aliases=['money', 'balance'],
+    aliases=['money', 'balance', 'mo'],
     category='economy',
     help_text='Show your balance',
     usage='credits',
+)
+
+feature.command(
+    'split',
+    cmd_split,
+    category='economy',
+    help_text='Share money with your party here',
+    usage='split <amount>',
 )
 
 feature.behavior(ShopkeeperBehavior)

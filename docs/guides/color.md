@@ -3,8 +3,8 @@
 Color is inline markup in ordinary strings — type it anywhere text
 goes: descriptions, `say`, softcode, `@detail` lines. It renders at
 the protocol edge (ANSI for telnet, structured segments for
-WebSocket, stripped for `color off`), so the engine never juggles
-escape codes internally.
+WebSocket and the browser client, stripped for `color off`, swapped by a
+player's `palette`), so the engine never juggles escape codes internally.
 
 ## Markup
 

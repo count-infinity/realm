@@ -135,10 +135,10 @@ construction.
   hook can check `name(here)` and pay out when she reaches the destination,
   making deliver-the-NPC into content (see
   [tutorial 094](094_job_board.md) for the board that offers it).
-- **A led pet or mount:** the [pet](065_pet.md) rides this same `following`
-  attribute, so it shows up in `party` because a party is just the follow graph;
-  a [mount](158_mounts.md) instead carries you by containment, and its led-mount
-  variation opts a pack animal into `following` the very way Wend does here.
+- **A led pet or mount:** the [pet](065_pet.md) and the [mount](158_mounts.md)
+  are companions, and a companion rides this same `following` attribute, so it
+  shows up in `party` because a party is just the follow graph; a mount you
+  are not riding is led exactly the way Wend walks here.
 - **Break on danger:** fleeing combat drops you from the column, since a flee
   breaks the cascade and you escape alone; lean into it with a rule that
   scatters a party when its leader is ambushed.

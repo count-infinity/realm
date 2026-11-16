@@ -484,7 +484,7 @@ class TestMercClassicPack:
         sim, room = world
         from realm.packs import import_pack
         created = await import_pack("merc-classic", sim.store)
-        assert len(created) == 29                    # 23 spells, 6 class skills (MUD_PLAN 4.2)
+        assert len(created) == 30   # 24 spells (charm person: MUD_PLAN 13.2), 6 class skills (4.2)
         fireball = find_spell_def("fireball")
         assert fireball is not None
         assert fireball.db.get("damage_type") == "fire"

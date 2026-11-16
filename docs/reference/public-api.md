@@ -57,14 +57,21 @@ load them.
 | `realm.std.talk` | `TalkAction` |
 | `realm.std.sight` | `room_is_lit`, `can_see_room` |
 | `realm.std.economy` | `EconomyAction` |
+| `realm.std.accounts` | `account_of`, `characters_of` ([Accounts](../guides/accounts.md)) |
+| `realm.std.companions` | `master_of`, `companions_of`, `set_master` ([Pets, Charm and Mounts](../guides/companions.md)) |
+| `realm.std.clans` | `find_clan`, `clan_of`, `clans_of`, `has_power` ([Clans](../guides/clans.md)) |
+| `realm.std.quests` | `find_quest`, `state`, `accept`, `credit`, `complete`, `fail` ([Quests](../guides/quests.md)) |
 | `realm.games.gurps` | `GurpsSystem`, `GURPSRuleset`, `TEMPLATES` |
 | `realm.games.d20` | `D20System`, `D20Ruleset`, `CLASSES` |
 | `realm.games.merc` | `MercSystem`, `MercRuleset`, `MERC_CLASSES` |
 
-Every other built-in feature (`accounts`, `basics`, `building`, `crime`,
-`effects`, `instances`, `look`, `movement`, `npc`, `social`, `spawning`,
-`stealth`, `wilderness`) has no public names: a game uses it by listing it
-in `FEATURES`.
+Every other built-in feature (`achievements`, `basics`, `building`,
+`channels`, `clock`, `crime`, `effects`, `instances`, `look`, `mail`,
+`movement`, `needs`, `npc`, `operations`, `social`, `spawning`, `stealth`,
+`tasks`, `vitals`, `wilderness`) has no public names: a game uses it by
+listing it in `FEATURES`, and reaches it from softcode, its settings and
+the services it offers (`world.services["vitals"]`, `["achievements"]`,
+`["channels"]`, `["clock"]`, ...), which may change between releases.
 
 ## Testing
 
@@ -77,6 +84,16 @@ from realm.testing import Simulator, build_test_world, reconfigure
 `init_world`, role ranks, a default start room, the features' `on_boot`
 hooks), as `realm start` does on an empty database. `sim.startup_room` is
 the start room.
+
+`sim.player(name, location=...)` makes a character with a live session and
+`sim.account(name, *characters)` an account owning them;
+`await sim.input(player, line)` feeds a line through the input path a
+connection uses (held pages, a pending prompt or the line editor, the
+input interceptors, then the dispatcher), `await sim.submit_line(player,
+raw)` does the same from a raw client line (multi-line blocks, the pager's
+blank enter), and `await sim.do(player, command)` goes straight to the
+dispatcher. `sim.seen(player)` drains what they were sent and
+`sim.prompt(player)` is the prompt they would see.
 
 A game's `tests/conftest.py` gets the fixtures with one line:
 

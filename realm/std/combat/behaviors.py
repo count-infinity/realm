@@ -77,6 +77,10 @@ class AggressiveBehavior(Behavior):
         await self._maybe_engage(obj, entering)
 
     async def _maybe_engage(self, obj: GameObject, target: GameObject) -> None:
+        # A companion (``companions``' ``master``) fights beside its master
+        # or on its orders, not on sight (ROM: charmed mobs are not aggressive).
+        if obj.db.get('master'):
+            return
 
         target_tags = self.get_param('target_tags', ['player'])
         if not any(target.has_tag(tag) for tag in target_tags):

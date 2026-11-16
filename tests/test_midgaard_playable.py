@@ -290,6 +290,64 @@ class TestMidgaardPlayable:
         finally:
             _teardown(sim)
 
+    # --- MUD_PLAN step 11: Merc parity ----------------------------------------------
+
+    async def test_the_watch_protects_the_innocent(self):
+        # spec_guard -> a peacekeeper that also takes on the most evil
+        # fighter in a brawl (protect="evil").
+        sim, system, mgr = await _world()
+        try:
+            guards = [o for o in sim.store.all_cached()
+                      if o.has_tag("rom_spec:spec_guard") and not o.has_tag("prototype")]
+            assert guards
+            for guard in guards:
+                keeper = next(b for b in guard.get_behaviors()
+                              if b.behavior_id == "peacekeeper")
+                assert keeper.get_param("protect") == "evil"
+        finally:
+            _teardown(sim)
+
+    async def test_the_watch_does_not_eat_the_dead(self):
+        # MUD_PLAN step 17: ACT_SCAVENGER picks things up; only spec_fido
+        # eats corpses (the shipped area was refreshed).
+        sim, system, mgr = await _world()
+        try:
+            scavengers = [b for o in sim.store.all_cached()
+                          if o.has_tag("rom_spec:spec_guard") and o.has_tag("npc")
+                          for b in o.get_behaviors() if b.behavior_id == "scavenger"]
+            assert scavengers
+            assert all(b.get_param("eat_corpses") is False for b in scavengers)
+        finally:
+            _teardown(sim)
+
+    async def test_a_kill_pays_the_victims_money(self):
+        # ROM wealth became money; autogold takes it from the corpse.
+        sim, system, mgr = await _world()
+        try:
+            grog = await _barbarian(sim, system)
+            guard = next(o for o in sim.store.all_cached()
+                         if o.has_tag("rom_spec:spec_guard") and not o.has_tag("prototype"))
+            purse = get_credits_of(guard)
+            assert purse > 0
+            guard.location = grog.location
+            await sim.do(grog, "config autogold on")
+            await mgr.handle_death(guard, killer=grog)
+            assert get_credits_of(grog) == purse
+            assert int(grog.db.alignment) < 0            # a good guard: Grog darkens
+        finally:
+            _teardown(sim)
+
+    async def test_consider_a_fido_and_who_is_on(self):
+        sim, system, mgr = await _world()
+        try:
+            grog = await _barbarian(sim, system)
+            await sim.do(grog, "consider fido")
+            assert "says 'Do you feel lucky, punk?'" in "\n".join(sim.seen(grog))
+            await sim.do(grog, "who")
+            assert "Grog the Brute (1 barbarian)" in "\n".join(sim.seen(grog))
+        finally:
+            _teardown(sim)
+
 
 def get_credits_of(obj):
     from realm.std.economy.credits import get_credits

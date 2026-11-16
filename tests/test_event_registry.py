@@ -46,11 +46,19 @@ def restore_default():
 def test_classic_hooks_equal_the_old_table():
     # Step 8 added the kernel's pool hooks after the freeze; MUD_PLAN step 3
     # the items feature's EAT and DRINK; step 6 achievements' ACHIEVEMENT; step 7 TELL, CHANNEL and SOCIAL;
-    # step 8 the clock's HOUR, DAWN, DAY, DUSK and NIGHT.
+    # step 8 the clock's HOUR, DAWN, DAY, DUSK and NIGHT; step 13 the
+    # companions' BOND and RELEASE; step 14 the clans' CLANJOIN, CLANLEAVE,
+    # CLANASSIGN, CLANLEVEL and CLANTALK; step 15 the quests' QUESTACCEPT,
+    # QUESTADVANCE, QUESTCOMPLETE, QUESTFAIL and TALK.
     assert set(installed().hooks()) == STANDARD_HOOKS | {'POOL', 'SPENT', 'EAT', 'DRINK',
                                                          'ACHIEVEMENT', 'TELL', 'CHANNEL',
                                                          'SOCIAL', 'HOUR', 'DAWN', 'DAY',
-                                                         'DUSK', 'NIGHT'}
+                                                         'DUSK', 'NIGHT', 'BOND', 'RELEASE',
+                                                         'CLANJOIN', 'CLANLEAVE',
+                                                         'CLANASSIGN', 'CLANLEVEL',
+                                                         'CLANTALK', 'QUESTACCEPT',
+                                                         'QUESTADVANCE', 'QUESTCOMPLETE',
+                                                         'QUESTFAIL', 'TALK'}
 
 
 def test_lock_rows_equal_the_old_tables():

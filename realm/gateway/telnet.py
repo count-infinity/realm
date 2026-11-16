@@ -13,10 +13,27 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from realm.core.markup import strip, to_ansi, undecorate
+from realm.core.options import display_for
+
 if TYPE_CHECKING:
+    from realm.core.objects import GameObject
     from realm.gateway.session import Session, SessionManager
 
 logger = logging.getLogger(__name__)
+
+
+def render_for(player: GameObject | None, text: str) -> str:
+    """Markup as one player's terminal gets it, by their display options
+    (``realm.core.options.display_for``): ``screenreader`` drops decoration
+    lines and color; ``color`` off strips color; ``palette`` swaps colors.
+    Before login: plain ANSI."""
+    display = display_for(player)
+    if display.undecorate:
+        text = undecorate(text)
+    if display.plain:
+        return strip(text)
+    return to_ansi(text, display.palette)
 
 # Telnet protocol bytes
 IAC = bytes([255])   # Interpret As Command
@@ -276,14 +293,12 @@ class TelnetProtocol(asyncio.Protocol):
         if self.transport is None or self.transport.is_closing():
             return
 
-        # Color markup renders at the protocol edge: ANSI for clients,
-        # stripped for players who set color off.
-        from realm.core.markup import strip, to_ansi
-        player = self.session.player if self.session else None
-        if player is not None and player.db.get('color') is False:
-            message = strip(message)
-        else:
-            message = to_ansi(message)
+        # Color markup renders at the protocol edge, the way the player
+        # set their display options.
+        rendered = render_for(self.session.player if self.session else None, message)
+        if message and not rendered:
+            return                      # nothing left once decoration went
+        message = rendered
 
         # Ensure lines end with CRLF for telnet
         if not message.endswith('\n'):
@@ -303,10 +318,7 @@ class TelnetProtocol(asyncio.Protocol):
         """The prompt: no newline, then IAC EOR (or GA) when negotiated."""
         if self.transport is None:
             return
-        from realm.core.markup import strip, to_ansi
-        player = self.session.player if self.session else None
-        text = strip(text) if player is not None and player.db.get('color') is False \
-            else to_ansi(text)
+        text = render_for(self.session.player if self.session else None, text)
         data = text.encode(self.encoding, errors='replace')
         if self._eor:
             data += IAC + EOR

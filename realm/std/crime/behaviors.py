@@ -36,17 +36,32 @@ class PeacekeeperBehavior(Behavior):
     Unlike the `guard` behavior — which blocks *movement* — a peacekeeper
     enforces the law: each tick it scans its room for players carrying a
     ``wanted:*`` tag (see systems/crime.py) and engages the highest-heat one.
-    The importer maps `spec_guard` to this.
+
+    With no criminal in sight, ``protect`` says whom else it takes on:
+
+    - ``"evil"`` (ROM ``spec_guard``): the most evil character (the lowest
+      ``alignment``, below 300) in a fight with someone other than itself.
+    - ``"fights"`` (ROM ``spec_patrolman``): it breaks up any fight, going
+      for the stronger (higher-level) side.
+
+    The importer maps ``spec_guard`` (``protect="evil"``), ``spec_patrolman``
+    (``"fights"``) and ``spec_executioner`` (criminals only) to this.
 
     Params:
         yell (str): line shouted when it moves to arrest (optional).
+        protect (str): '' (criminals only), 'evil' or 'fights'.
     """
 
     behavior_id = "peacekeeper"
     param_spec = {
         'yell': ("HALT! You are under arrest!",
                  'line shouted when it engages a criminal'),
+        'protect': ('', "whom else it attacks: '' none, 'evil' the most evil "
+                        "fighter (spec_guard), 'fights' any fight (spec_patrolman)"),
     }
+
+    #: ROM spec_guard's ``max_evil``: only a fighter below it is a target.
+    EVIL_BELOW = 300
 
     @property
     def should_tick(self) -> bool:
@@ -61,13 +76,47 @@ class PeacekeeperBehavior(Behavior):
         criminals = [c for c in obj.location.contents
                      if c.is_player and is_wanted(c)
                      and is_combat_capable(c)]
-        if not criminals:
+        if criminals:
+            target = max(criminals, key=wanted_heat)
+            yell = self.get_param('yell')
+            if yell:
+                await _say(obj, str(yell))
+            await manager.initiate(obj, target)
             return
-        target = max(criminals, key=wanted_heat)
-        yell = self.get_param('yell')
-        if yell:
-            await _say(obj, str(yell))
+        protect = str(self.get_param('protect') or '')
+        if protect:
+            await self._intervene(obj, manager, protect)
+
+    async def _intervene(self, obj: GameObject, manager, protect: str) -> None:
+        """Take a side in a fight in the room (``protect``)."""
+        fighters = [c for c in obj.location.contents
+                    if c is not obj and c.has_tag('in_combat') and is_combat_capable(c)
+                    and not any(b.behavior_id == self.behavior_id
+                                for b in c.get_behaviors())]
+        target = None
+        if protect == 'evil':
+            evil = [c for c in fighters if _alignment(c) < self.EVIL_BELOW
+                    and manager.target_of(c) is not obj]
+            if evil:
+                target = min(evil, key=_alignment)
+                line = "PROTECT THE INNOCENT!!  BANZAI!!"
+        elif protect == 'fights' and fighters:
+            first = random.choice(fighters)
+            other = manager.target_of(first)
+            target = first if other is None or _level(first) >= _level(other) else other
+            line = "All roit! All roit! Break it up!"
+        if target is None:
+            return
+        await _say(obj, line)
         await manager.initiate(obj, target)
+
+
+def _alignment(obj: GameObject) -> int:
+    return int(obj.db.get('alignment') or 0)
+
+
+def _level(obj: GameObject) -> int:
+    return int(obj.db.get('level') or 1)
 
 
 class WantedBehavior(TimedEffectBehavior):

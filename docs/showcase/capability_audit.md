@@ -161,7 +161,7 @@ the ranked gap list below.
 | 62 | Aggressive mob | now | `aggressive` behavior + disposition thresholds; `start_combat()` |
 | 63 | Shopkeeper | now | `shopkeeper` behavior + `list`/`buy`/`sell`/`pay`; `spawner` restock |
 | 64 | Bartender | now | `^listen` keyword patterns; `create_obj()` drinks; rumor attrs |
-| 65 | Pet | now | `db.following`; `$`-command whitelist on the pet; ownership |
+| 65 | Pet | now | the `companions` feature (0.3.0): `set_master` from a `^listen` trick, `order`, fighting beside its master; a listen-lock whitelist |
 | 66 | Puppet | now | opt-in control lock (`@lock/control`) + `@force`; puppet output forwarded to the forcer |
 | 67 | Dialogue-tree NPC | now | `prompt()` callback chains; per-player memory dict attr keyed by enactor id |
 | 68 | NPC daily schedule | now | `on_tick` + softcode clock; `attach_behavior`/`detach_behavior` by hour; walk home |
@@ -263,7 +263,7 @@ the ranked gap list below.
 | 134 | Disguises | ~~small~~ **SHIPPED 2026-07-17** (disguise resolver + `check_roll` see-through check; tutorial [134_disguises](134_disguises.md)) | **G3 identity layer**: apparent-name override + softcode rename (no `set_name()` today) |
 | 135 | Injury & treatment | now | `modifier_effect` conditions; `firstaid`; `regeneration` behavior; recovery timers |
 | 136 | Encumbrance effects | now | weight-sum softcode on `ON_GET`/`ON_DROP` → `modifier_effect` DX penalty (effects are proximity-gated) |
-| 137 | Hunger & thirst | now | `on_tick` meter attrs; consumable `ON_USE` resets; toggle via zone policy |
+| 137 | Hunger & thirst | now | the `needs` feature (0.3.0): `food`/`water` pools given by a terminal, `nourishment`/`bite` food, a `fountain` tap, `climate:*` tags, a `no_needs` zone policy |
 | 138 | Sleep & rest | now | `$rest`/`$sleep` tags; `regeneration` boost; vulnerability via ward/lockout |
 | 139 | Intoxication | ~~small~~ **SHIPPED 2026-07-17** (`modifier_effect` penalty + `register_speech_renderer` slur, both scaling with a drink counter; tutorial [139_intoxication](139_intoxication.md)) | stacking `modifier_effect`s work today; slurring now has its seam — `register_speech_renderer` |
 | 140 | Death & cloning | now | `ON_DEATH` + engine unconsciousness/corpses; clone-bay `teleport_obj()` + fees |
@@ -294,7 +294,7 @@ the ranked gap list below.
 | 155 | Drivable vehicle | now | vehicle = container-room; `$drive` makes the vehicle traverse an exit, riders inside; `[[…]]` outside view |
 | 156 | Scheduled shuttle | now | `on_tick` timetable moves the vehicle along its route; boarding-window attrs |
 | 157 | Teleporter pads | now | `$tp` + destination-registry attr; `teleport_obj()`; arrival `remit()` effects |
-| 158 | Mounts | now | enter the mount (containment) or `db.following`; `$ride`/`$dismount` |
+| 158 | Mounts | now | the `companions` feature (0.3.0): a companion tagged `mount`, `mount`/`dismount`, riding lines, `no_mount` rooms, the mount pays the step |
 | 159 | Group travel | now | follow/party built in (`follow`, `party`, follower cascade) — tour |
 | 160 | Sneaking | now | `hide` + Stealth contests + concealment built in; quiet movement via ward + `contest()` |
 | 161 | Travel time | now | exit ward blocks + `wait()` progress `pemit()`s + `teleport_obj()` on arrival *(advanced)* |
@@ -345,8 +345,8 @@ the ranked gap list below.
 | 191 | Help system extensions | now | help *is* auto-generated from command registrations (category/usage/help_text) — tour |
 | 192 | Clickable links | **small** | **G11 MXP**: link markup rendered at the telnet edge (markup pipeline is extension-ready) |
 | 193 | GMCP/OOB data | now | GMCP live on telnet (option 201) + websocket parity + `oob()` softcode — tour |
-| 194 | Screenreader mode | **small** | **G7 render options**: per-session accessibility flags beyond `color on/off` |
-| 195 | Color themes | **small** | **G7 render options**: per-player palette remap at the protocol edge (no-color fallback exists) |
+| 194 | Screenreader mode | ~~small~~ **SHIPPED 2026-11-16** (`config screenreader on`: no color, no decoration lines; `pagelength`) | **G7 render options**: per-session accessibility flags beyond `color on/off` |
+| 195 | Color themes | ~~small~~ **SHIPPED 2026-11-16** (`config palette r=m b=c`, swapped at the telnet and WebSocket edges; `config color off`) | **G7 render options**: per-player palette remap at the protocol edge (no-color fallback exists) |
 | 196 | Personal aliases (nicks) | now | carried alias gadget: inventory `$`-commands run multi-line script bodies |
 | 197 | Idle & AFK states | ~~small~~ **SHIPPED 2026-11-16** (`who` shows idle, `afk`, `linkdead`; `idle_seconds()` drives an auto-afk ticker; `IDLE_TIMEOUT`) | `who` shows idle; **G4 presence surface**: idle exposed to softcode + auto-AFK hook |
 
@@ -354,10 +354,10 @@ the ranked gap list below.
 
 | # | Item | Class | Primitives / gap |
 |---|---|---|---|
-| 198 | Quest framework | now | admin-owned quest master; stage attrs on players; `$quests` journal; `ON_*` completion hooks |
-| 199 | Delivery quest | now | `ON_GIVE` verification at the recipient; `wait()`/timestamp deadline; failure states |
-| 200 | Collection counters | now | zone/world master `ON_GET` counts tagged items; auto-completes |
-| 201 | Branching quest | now | `prompt()` choices set branch attrs; endings gated on them |
+| 198 | Quest framework | now | the `quests` feature (0.3.0): a `quest_def` with stages, the `quests` journal, a giver and hand-in, `ON_QUESTCOMPLETE`, a `quest_state()` lock |
+| 199 | Delivery quest | now | the `quests` feature (0.3.0): a `deliver` objective, `time_limit` failed by the reaper, `on_accept`/`on_fail` softcode, the `quest_giver` behavior |
+| 200 | Collection counters | now | the `quests` feature (0.3.0): a `collect` objective matched by tag; a giverless quest completes at once |
+| 201 | Branching quest | now | `prompt()` choices set branch attrs; endings gated on them (stays softcode; a `custom` objective puts the fork in the journal) |
 | 202 | World event: invasion | now | zone master phases: spawner waves + `remit()`s + cleanup (`destroy_obj`/`ON_RESET`) |
 | 203 | Cutscenes | now | `wait()`-paced `pemit()`/`remit()` sequences; `$skip` via `cancel_wait()` |
 | 204 | GM possession tools | now | `@force` + control locks + puppet output forwarding — built in |
@@ -387,9 +387,9 @@ the ranked gap list below.
 |---|---|---|---|
 | 219 | Friends list | now | world-master `ON_CONNECT`/`ON_DISCONNECT` + consent attrs → `pemit()` friends |
 | 220 | Titles & badges | now | title attrs rendered in look/`$finger` via `desc_extras`; on `who` through the `who` service's `fields` (G4, shipped) |
-| 221 | Player organizations | now | org master: rank attrs, invite `$`-commands, roster attr; lock expressions by tag/rank |
-| 222 | Org treasury & storage | now | org credits on the master; rank-gated `$withdraw`; lockers with lock expressions |
-| 223 | Elections | now | ballot attrs; `$vote` dedupes by id; `on_tick` tally at close |
+| 221 | Player organizations | now | the `clans` feature (0.3.0): a gang government, `clan apply`/`accept`/`assign`, a door locked with `clan(caller)` |
+| 222 | Org treasury & storage | now | the `clans` feature (0.3.0): the clan treasury by power (`clan deposit`/`withdraw`/`deposits`); lockers warded by `clan()` and `clan_has_power()` |
+| 223 | Elections | now | the `clans` feature (0.3.0): the `union` government; members vote senators in, senators vote on the rest; early decision, terms, quorum |
 | 224 | Petition/ticket system | now | ticket-queue attrs on a desk object; staff `$claim`/`$resolve`; `pemit()` notifications |
 | 225 | Player-to-player notes | now | notes dict attrs; `secret` flag for staff-only layers, `visual` for public profile |
 | 226 | Mentor program | now | mentor tag + pairing attrs; `ON_CONNECT` nudges |
@@ -443,7 +443,7 @@ L = a real subsystem.
 | G4 | **Presence & session surface** — ~~gap~~ **SHIPPED 2026-11-16**: softcode `online_players()` and `idle_seconds()`, a `who` that leaves out the unseen and shows idle, `afk` and `linkdead`, and `world.services["who"].fields` for marks; auto-afk is softcode on a ticker reading `idle_seconds()` ([Operating a Live Game](../guides/operations.md#who-is-on)). | `online_players()`/`idle_seconds()` softcode functions, perception-aware `who`, auto-AFK hook | — | 0 | done |
 | G5 | **External bridges** | Discord relay + SMTP email digests (long-lived external-service connectors) | 232, 236 | 2 | L |
 | G6 | **HTTP connector primitives** | config-declared event→webhook POST sink; allowlisted feed-fetch behavior | 233, 238 | 2 | M |
-| G7 | **Per-session render options** | screenreader flag + per-player color-palette remap at the protocol edge (beyond `color on/off`) | 194, 195 | 2 | S |
+| G7 | **Per-session render options** — ~~gap~~ **SHIPPED 2026-11-16**: `config` (player settings, kept on the account) with `screenreader` (no color, no decoration lines) and `palette` (`r=m b=c`, a per-player color swap), both applied at the telnet edge; `world.services["options"]` for a game's own ([The Character Sheet](../guides/character-sheet.md#player-settings)). | screenreader flag + per-player color-palette remap at the protocol edge (beyond `color on/off`) | — | 0 | done |
 | G8 | **Ammo & reload** | ranged attacks consume weapon `db.ammo`; `reload` maneuver in the ruleset vocabulary | 110 | 1 | S |
 | G9 | **Hit locations** | called-shot maneuver + penalty/effect table in the GURPS ruleset | 116 | 1 | S |
 | G10 | **Status prompt line** — ~~gap~~ **SHIPPED 2026-11-15**: `feature.prompt` (one per game) and the `basics` default, a per-player template (`prompt`) over every pool, `{combat}`, `{level}`; telnet EOR/GA ([The Character Sheet](../guides/character-sheet.md#the-prompt)). | per-player prompt template appended after command output | — | 0 | done |
@@ -492,8 +492,8 @@ and unlocks its whole cluster.
    spaceship, 216 escape room, 250 sandbox tour).
 5. **Wave 5 — Small-gap unlocks.** ~~G2 (→ 79, 84, 139)~~ and ~~G3 (→ 85,
    133, 134)~~ shipped 2026-07-17; ~~G10, G12~~ 2026-11-15; ~~G4 (→ 180,
-   188, 197), G13 (→ 185)~~ 2026-11-16. Remaining, in bang-for-buck order:
-   the last of G2 (→ 80 overheard whispers), G7 (→ 194, 195), then the
+   188, 197), G13 (→ 185), G7 (→ 194, 195)~~ 2026-11-16. Remaining, in
+   bang-for-buck order: the last of G2 (→ 80 overheard whispers), then the
    singletons G8, G9, G11 (→ 110, 116, 192) and G6 (→ 233, 238). Each gap's tutorial lands with the
    engine change (docs discipline: same change).
 6. **Wave 6 — Web & external (G1, G5).** 230, 231, 234, 237, 239, 232,

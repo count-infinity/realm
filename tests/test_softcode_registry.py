@@ -92,6 +92,27 @@ READONLY |= {'online_players', 'idle_seconds'}
 TO_DICT |= {'start_task', 'task_of', 'stop_task'}
 READONLY |= {'task_of'}
 
+# Hunger and thirst (MUD_PLAN 12.5).
+TO_DICT |= {'hungry', 'thirsty'}
+READONLY |= {'hungry', 'thirsty'}
+
+# Companions (MUD_PLAN 13.1).
+TO_DICT |= {'master', 'companions', 'set_master', 'release'}
+READONLY |= {'master', 'companions'}
+
+# Clans (MUD_PLAN 14.5, 14.7).
+CLAN_READS = {'clan', 'clan_position', 'clan_rank', 'clan_has_power', 'clan_level',
+              'clan_members', 'clan_relation', 'clans_at_war'}
+TO_DICT |= CLAN_READS | {'clan_add', 'clan_remove'}
+READONLY |= CLAN_READS
+HARM |= {'clan_add', 'clan_remove'}
+
+# Quests (MUD_PLAN 15.3).
+TO_DICT |= {'quest_state', 'quest_count', 'quest_offer', 'quest_advance', 'quest_complete',
+            'quest_fail'}
+READONLY |= {'quest_state', 'quest_count'}
+HARM |= {'quest_offer', 'quest_advance', 'quest_complete', 'quest_fail'}
+
 
 class TestParityWithTheOldLists:
 

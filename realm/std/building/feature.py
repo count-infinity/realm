@@ -39,6 +39,7 @@ from realm.std.building.debug import (
     cmd_rolls,
     cmd_stats,
 )
+from realm.std.building.edit import cmd_edit
 from realm.std.building.modify import (
     cmd_attr,
     cmd_desc,
@@ -127,8 +128,16 @@ feature.command(
     permission='builder',
     category='building',
     help_text="Set an object's description",
-    usage='@desc <object> = <description>',
+    usage='@desc <object> [= <description>]',
     parse_equals=True,
+)
+feature.command(
+    '@edit',
+    cmd_edit,
+    permission='builder',
+    category='building',
+    help_text='Edit an attribute or a description in the line editor',
+    usage='@edit <object>[/<attribute>]',
 )
 feature.command(
     '@name',
@@ -302,6 +311,8 @@ feature.command(
 feature.command(
     '@clone',
     cmd_clone,
+    # `@cl` reached @clone by prefix until clans added @clan.
+    aliases=['@cl'],
     permission='builder',
     category='building',
     help_text='Duplicate an object with its attributes, tags, and behaviors',

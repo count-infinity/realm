@@ -14,4 +14,7 @@ from realm.games.merc.ruleset import MercRuleset
 feature = Feature('merc', requires=["rules", "combat"],
                   doc='Merc/Diku: d20 against THAC0 minus AC.')
 feature.ruleset('merc', MercRuleset, aliases=['diku'])
+feature.setting("LEVEL_CAP", 50,
+                "The highest level a character reaches under the Merc rules; experience "
+                "past it still counts but levels no further.")
 feature.traversal_gate(movement_gate, reason="exhausted", attrs=["move_cost"])

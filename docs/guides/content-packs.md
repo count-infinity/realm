@@ -29,6 +29,11 @@ data. The classes **merge** with whatever's already there, so a fresh
 GURPS game gains them alongside its built-ins, and a new character can be
 created as a `pilot` right away.
 
+`clan-governments` is the eight clan governments a founder chooses from
+(gang, guild, union, fellowship, anarchy, co-op, meritocracy, plutocracy),
+after CoffeeMud ([Clans](clans.md)); a game made with `realm init`
+imports it, with `channels` and `socials-classic`, in `init_world`.
+
 `merc-classic` is the classic Diku spellbook — 23 `spell_def` objects
 (the mage and cleric lines, the affects, the five breath weapons) for the
 `merc` game system and ROM-imported areas ([Spells as Data](spells.md)).

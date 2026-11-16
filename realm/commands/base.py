@@ -167,6 +167,19 @@ def find_object(
     )
 
 
+def find_victim(ctx: CommandContext, name: str) -> GameObject | None:
+    """
+    Find, by (partial) name, whom an attack, a kick or a spell is aimed at
+    here: a player, an NPC, or anything that can be harmed (it has a damage
+    pool). A corpse or a plain thing never is, so ``kill fido`` beside "the
+    corpse of fido dog" is not ambiguous, and with only the corpse there it
+    finds nothing. Raises AmbiguousMatchError as ``find_object``.
+    """
+    from realm.core.pools import damage_pool
+    return match_one(name, [obj for obj in local_candidates(ctx, search_inventory=False)
+                            if obj.is_player or obj.is_npc or damage_pool(obj) is not None])
+
+
 def find_objects(
     ctx: CommandContext,
     name: str,

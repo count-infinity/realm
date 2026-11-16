@@ -12,6 +12,14 @@ imported the way a builder would:
   combat, percentile skills, XP-and-level advancement. Pick a class at
   character creation; a level-1 barbarian starts kitted with a club in the
   Common Square, ready to thrash fidos and trade at the shops next door.
+- **A quest**: ``data/quests.json``, "Fido trouble": the baker in the
+  Bakery wants five fidos dead (``quest list`` there, ``quests`` for the
+  journal), and makes the killer a Friend of the Baker
+  (``data/achievements.json``), on every character of their account.
+- **A skill to study**: ``data/skills.json``, lore, which ``study lore``
+  trains over real time, logged in or not.
+- **A horse**: ``data/stable.json``, a brown horse the pet shop sells
+  beside its ROM pets; ridden, it pays for the walking.
 - **Spells**: the built-in ``merc-classic`` content pack (the mage/cleric
   lines plus the breaths), imported at boot the way ``@pack import`` would.
 - **Code**: ``game.py``, the game's own feature (commands, behaviors,
@@ -52,9 +60,12 @@ WELCOME_BANNER = """
 |                        M I D G A A R D                       |
 |            The classic Diku town, running on REALM           |
 +==============================================================+
-|  Create a character, choose a class (try 'barbarian'), and   |
-|  you will wake in the Common Square with a club in hand.     |
-|  Kill the fidos, sell what drops, and earn your name.        |
+|  Choose a class (try 'barbarian') and you will wake in the   |
+|  Common Square with a weapon in hand. Kill the fidos, sell   |
+|  what drops, and earn your name.                             |
++==============================================================+
+|  create <account> <password>    make an account              |
+|  connect <account> <password>   log in to yours              |
 +==============================================================+
 """
 
@@ -87,6 +98,45 @@ async def init_world(server):
     # Talk beyond the room: gossip, newbie, immtalk; and the common socials.
     await import_pack("channels", server.persistence)
     await import_pack("socials-classic", server.persistence)
+    await import_pack("clan-governments", server.persistence)
+
+    # The town's first quest: the baker, in the Bakery (vnum 3009), wants
+    # five fidos dead (data/quests.json). The converted area places no
+    # baker, so one is made from its prototype, with a loaf to sell.
+    from realm import ops
+    bakery = server.persistence.get_cached("rom_3009")
+    baker_proto = server.persistence.get_cached("rom_mob_3001")
+    bread = server.persistence.get_cached("rom_obj_3011")
+    if bakery is not None and baker_proto is not None:
+        baker = ops.clone(None, baker_proto, location=bakery).value
+        baker.remove_tag("prototype")
+        await server.persistence.save(baker)
+        if bread is not None:
+            loaf = ops.clone(None, bread, location=baker).value
+            loaf.remove_tag("prototype")
+            await server.persistence.save(loaf)
+    # Its reward, besides experience and a loaf: an achievement every
+    # character of the account shares (data/achievements.json).
+    for name in ("achievements.json", "quests.json"):
+        data = Path(__file__).parent / "data" / name
+        await import_objects(json.loads(data.read_text()), server.persistence)
+
+    # The pet shop (vnum 3031) sells a brown horse besides ROM's pets
+    # (data/stable.json): `buy horse`, lead it outside, `mount horse`.
+    stable = Path(__file__).parent / "data" / "stable.json"
+    horses = await import_objects(json.loads(stable.read_text()), server.persistence)
+    pet_shop = server.persistence.get_cached("rom_3031")
+    for keeper in pet_shop.contents if pet_shop is not None else []:
+        for behavior in keeper.get_behaviors():
+            if behavior.behavior_id == "shopkeeper" and behavior.get_param("sells_pets"):
+                behavior.params["pet_stock"] = [*behavior.get_param("pet_stock", []),
+                                                *(horse.id for horse in horses)]
+                await server.persistence.save(keeper)
+
+    # Lore, a skill studied over real time (`study lore`): it improves while
+    # its student is logged out. Merc's other skills improve by use.
+    skills = Path(__file__).parent / "data" / "skills.json"
+    await import_objects(json.loads(skills.read_text()), server.persistence)
 
     rooms = sum(1 for o in created if o.has_tag("room"))
     print(f"Imported {len(created)} objects ({rooms} rooms) from Midgaard, "

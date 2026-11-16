@@ -146,6 +146,110 @@ class TestParse:
         assert set(area.mob_protos) == {3000}
         assert set(area.obj_protos) == {3000, 3010}
 
+    def test_a_shop_patches_its_keeper_not_an_object_of_the_same_vnum(self):
+        # MUD_PLAN step 17: mob 3000 (the wizard) keeps a shop, and object
+        # 3000 is a barrel of beer. Only the mob is a shopkeeper.
+        area = _convert(ARE)
+        barrels = [o for o in area.objects if o["attrs"].get("prototype_vnum") == 3000
+                   and "thing" in o["tags"]]
+        assert barrels and all(o["behaviors"] == [] for o in barrels)
+        assert "rom_shop_buys" not in area.obj_protos[3000]["attrs"]
+        wizard = next(o for o in area.objects if o["attrs"].get("prototype_vnum") == 3000
+                      and "npc" in o["tags"])
+        assert [b["behavior_id"] for b in wizard["behaviors"]] == ["shopkeeper"]
+
+    def test_reset_comments_never_swallow_a_reset(self):
+        # ROM's loader reads a reset's fields, then skips to the end of the
+        # line: whatever follows is a comment, and a line starting with `*`
+        # is one too. A one- or two-word comment used to eat the next line.
+        resets = ("#RESETS\n"
+                  "*\n"
+                  "* the temple\n"
+                  "O 0 3000 1 3005\tbarrel\n"
+                  "M 0 3000 1 3001 1\t* wizard\n"
+                  "E 0 3010 1 16\tsword\n"
+                  "P 0 3010 1 3000 1\t* a sword in the barrel, not the wizard\n"
+                  "S\n")
+        start = ARE.index("#RESETS")
+        text = ARE[:start] + resets + ARE[ARE.index("#SHOPS"):]
+        area = _convert(text)
+        wizard = [o for o in area.objects if o["attrs"].get("prototype_vnum") == 3000
+                  and "npc" in o["tags"]]
+        assert len(wizard) == 1 and wizard[0]["location"] == "rom_3001"
+        swords = [o for o in area.objects if o["attrs"].get("prototype_vnum") == 3010
+                  and "prototype" not in o["tags"]]
+        barrel = next(o for o in area.objects if o["attrs"].get("prototype_vnum") == 3000
+                      and "thing" in o["tags"] and "prototype" not in o["tags"])
+        assert barrel["location"] == "rom_3005"
+        assert [o["location"] for o in swords] == [wizard[0]["id"], barrel["id"]]
+
+    def test_the_refresh_script_takes_a_shop_off_an_object(self):
+        # The shipped Midgaard was converted before the fix above, and its
+        # .are is not at hand: the refresh script mends the converted file.
+        import importlib.util
+        from pathlib import Path
+        script = Path(__file__).resolve().parents[1] / "scripts" / "dev" / "refresh_rom_items.py"
+        spec = importlib.util.spec_from_file_location("refresh_rom_items", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        shop = [{"behavior_id": "shopkeeper", "params": {"markup": 1.1}},
+                {"behavior_id": "restock", "params": {}}]
+        data = {"objects": [
+            {"id": "o1", "name": "bottle beer", "tags": ["thing", "drink_container"],
+             "attrs": {"item_type": "drink", "rom_values": [0, 0, 0, 0, 0],
+                       "rom_shop_buys": [], "prototype_vnum": 3001},
+             "behaviors": [dict(b) for b in shop]},
+            {"id": "m1", "name": "baker", "tags": ["npc"],
+             "attrs": {"rom_act": ["B"], "rom_shop_buys": []},
+             "behaviors": [dict(b) for b in shop]},
+        ]}
+        module.refresh(data)
+        beer, baker = data["objects"]
+        assert beer["behaviors"] == [] and "rom_shop_buys" not in beer["attrs"]
+        assert baker["behaviors"] == shop and baker["attrs"]["rom_shop_buys"] == []
+
+    def test_the_refresh_script_gives_a_spawner_its_vnum(self):
+        import importlib.util
+        from pathlib import Path
+        script = Path(__file__).resolve().parents[1] / "scripts" / "dev" / "refresh_rom_items.py"
+        spec = importlib.util.spec_from_file_location("refresh_rom_items", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        prototype = {"name": "fido dog", "tags": ["npc"], "attrs": {"rom_vnum": 3062}}
+        data = {"objects": [
+            {"id": "r1", "name": "Square", "tags": ["room"], "attrs": {"sector": "city"},
+             "behaviors": [{"behavior_id": "spawner",
+                            "params": {"key": "m3062", "prototype": prototype}}]},
+        ]}
+        module.refresh(data)
+        spawned = data["objects"][0]["behaviors"][0]["params"]["prototype"]
+        assert spawned["attrs"]["prototype_vnum"] == 3062
+
+    def test_the_refresh_script_stops_act_scavengers_eating_corpses(self):
+        import importlib.util
+        from pathlib import Path
+        script = Path(__file__).resolve().parents[1] / "scripts" / "dev" / "refresh_rom_items.py"
+        spec = importlib.util.spec_from_file_location("refresh_rom_items", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        guard = {"name": "cityguard", "tags": ["npc", "rom_spec:spec_guard"],
+                 "attrs": {"rom_act": ["A", "C", "G"], "rom_vnum": 3060},
+                 "behaviors": [{"behavior_id": "scavenger", "params": {}}]}
+        fido = {"name": "fido", "tags": ["npc", "rom_spec:spec_fido"],
+                "attrs": {"rom_act": ["A", "F"], "rom_vnum": 3062},
+                "behaviors": [{"behavior_id": "scavenger",
+                               "params": {"eat_corpses": True, "pick_up": False}}]}
+        room = {"id": "r1", "name": "Square", "tags": ["room"], "attrs": {"sector": "city"},
+                "behaviors": [{"behavior_id": "spawner",
+                               "params": {"key": "m3060", "prototype": dict(guard)}}]}
+        data = {"objects": [dict(guard, id="m1"), dict(fido, id="m2"), room]}
+        module.refresh(data)
+        picks = {"eat_corpses": False, "pick_up": True}
+        assert data["objects"][0]["behaviors"][0]["params"] == picks
+        assert data["objects"][1]["behaviors"][0]["params"]["eat_corpses"] is True
+        spawned = data["objects"][2]["behaviors"][0]["params"]["prototype"]
+        assert spawned["behaviors"][0]["params"] == picks
+
     def test_letter_flags_and_dice(self):
         # ABV -> bits 0,1,21 ; 1d1+999 averages to 1000
         assert rom_import.rom_flags("ABV") == (1 | 2 | (1 << 21))
@@ -219,6 +323,30 @@ class TestParse:
         assert "spawned:m100" in rat[0]["tags"]            # adopted, not dup'd
         assert cellar["attrs"]["spawner_m100_ids"] == [rat[0]["id"]]
         assert cellar["attrs"]["spawner_m100_seeded"] is True
+
+    def test_a_respawn_is_the_same_mob_by_vnum(self):
+        # MUD_PLAN step 17: a quest that counts fidos matches them by
+        # prototype_vnum; the fido a spawner brings back must carry it too,
+        # and so must a zone reset's.
+        area = rom_import.convert(REPOP_ARE, repop=True)
+        cellar = next(o for o in area.objects if o["attrs"].get("rom_vnum") == 101
+                      and "room" in o["tags"])
+        spawner = next(b for b in cellar["behaviors"] if b["behavior_id"] == "spawner")
+        assert spawner["params"]["prototype"]["attrs"]["prototype_vnum"] == 100
+        area = rom_import.convert(REPOP_ARE, zone_reset=True)
+        master = next(o for o in area.objects if "zone_master" in o["tags"])
+        spec = master["attrs"]["reset_spec"]
+        assert [e["prototype"]["attrs"]["prototype_vnum"] for e in spec] == [100]
+
+    def test_a_scavenger_picks_things_up_and_eats_no_corpse(self):
+        # MUD_PLAN step 17: ROM's ACT_SCAVENGER (C) picks up the best thing
+        # in the room; it was mapped to a scavenger that devours corpses, so
+        # Midgaard's cityguards ate the fidos players had just killed.
+        area = rom_import.convert(REPOP_ARE.replace("AG D 0 0", "ACG D 0 0"))
+        rat = area.mob_protos[100]
+        scavenger = [b for b in rat["behaviors"] if b["behavior_id"] == "scavenger"]
+        assert scavenger == [{"behavior_id": "scavenger",
+                              "params": {"eat_corpses": False, "pick_up": True}}]
 
     def test_act_flags_map_to_shipped_behaviors(self):
         # The rat is ACT_STAY_AREA (G), not SENTINEL: it gets the shipped
@@ -487,13 +615,24 @@ class TestSlotsAndConsumables:
         assert attrs[206]["spells"] == ["magic missile"]
         assert (attrs[206]["spell_level"], attrs[206]["charges"]) == (4, 7)
 
-    def test_food_and_drink_restore(self, protos):
+    def test_food_drink_and_fountains(self, protos):
+        # MUD_PLAN 12.4, at CoffeeMud's importer's scale: hours x 20, units x 30.
         area, attrs = protos
-        assert attrs[207]["restores"] == {"food": 25}
-        assert attrs[208]["restores"] == {"water": 4}
-        assert attrs[208]["charges"] == 2                   # 6 units, 4 a drink
-        assert "drink" in area.obj_protos[209]["tags"]
-        assert "charges" not in attrs[209]                   # a fountain never empties
+        assert attrs[207]["nourishment"] == 500
+        assert (attrs[208]["liquid"], attrs[208]["liquid_held"],
+                attrs[208]["liquid_remaining"]) == ("tea", 180, 180)
+        assert {"drink", "fountain"} <= set(area.obj_protos[209]["tags"])
+        assert attrs[209]["liquid"] == "water"
+        assert "liquid_remaining" not in attrs[209]          # a fountain never empties
+        for vnum in (207, 208, 209):
+            assert "restores" not in attrs[vnum] and "charges" not in attrs[vnum]
+
+    def test_an_old_format_liquid_is_named_from_roms_table(self):
+        area = rom_import.Area()
+        assert rom_import.liquid_name(12, area) == "coffee"
+        assert rom_import.liquid_name("Dark Ale", area) == "dark ale"
+        assert rom_import.liquid_name(99, area) == "water"
+        assert any("unknown ROM liquid" in gap for gap in rom_import.gap_lines(area))
 
     def test_a_weapon_deals_its_attack_words_damage_type(self):
         area = _convert(ARE)

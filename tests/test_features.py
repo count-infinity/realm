@@ -108,7 +108,19 @@ class TestDefaultEqualsToday:
                               "weather",
                               # step 9: operating a live game
                               "@wall", "@shutdown", "@reboot", "@snoop", "@freeze",
-                              "@thaw"}
+                              "@thaw",
+                              # step 10: comfort
+                              "@edit", "alias", "unalias", "config",
+                              # step 11: Merc parity
+                              "scan", "exits", "where", "split", "report",
+                              # step 12: hunger and thirst
+                              "fill",
+                              # step 13: companions
+                              "companions", "order", "dismiss", "mount", "dismount",
+                              # step 14: clans
+                              "clan", "clans", "clantalk", "@clan",
+                              # step 15: quests
+                              "quests", "quest", "talk"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
@@ -127,7 +139,18 @@ class TestDefaultEqualsToday:
                      # step 8: the clock
                      "game_time", "time_of_day", "weather",
                      # step 9: presence
-                     "online_players", "idle_seconds"}
+                     "online_players", "idle_seconds",
+                     # step 12: hunger and thirst
+                     "hungry", "thirsty",
+                     # step 13: companions
+                     "master", "companions", "set_master", "release",
+                     # step 14: clans
+                     "clan", "clan_position", "clan_rank", "clan_has_power", "clan_level",
+                     "clan_members", "clan_relation", "clans_at_war", "clan_add",
+                     "clan_remove",
+                     # step 15: quests
+                     "quest_state", "quest_count", "quest_offer", "quest_advance",
+                     "quest_complete", "quest_fail"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.
@@ -143,11 +166,22 @@ class TestDefaultEqualsToday:
                 # step 6: achievements' tags reach a character at login
                 "realm.std.achievements.achievements.login_observer",
                 # step 7: unread mail at login
-                "realm.std.mail.mail.login_observer"}
+                "realm.std.mail.mail.login_observer",
+                # step 12: eating or drinking ends the count of ticks without
+                "realm.std.needs.needs.needs_observer",
+                # step 13: companions leave, return and fight with their master
+                "realm.std.companions.feature.companions_observer",
+                # step 14: clan benefits and messages of the day at login
+                "realm.std.clans.feature.clans_observer",
+                # step 15: quest progress from kills, items, arrivals and talk
+                "realm.std.quests.quests.quest_observer"}
             assert sorted(observers) == OBSERVERS
             # MUD_PLAN step 2 added the player corpse's claim.
-            # step 5 the trainer.
-            assert sorted(set(BehaviorRegistry.list_all()) - {"corpse_claim", "trainer"}) \
+            # step 5 the trainer; step 13 the companion ward and the charm;
+            # step 15 the quest giver.
+            assert sorted(set(BehaviorRegistry.list_all())
+                          - {"corpse_claim", "trainer", "companion", "charmed",
+                             "quest_giver"}) \
                 == BEHAVIOR_IDS
         finally:
             sim.close()

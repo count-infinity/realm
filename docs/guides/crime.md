@@ -29,10 +29,16 @@ justice engine.
   its room each tick and attacks the highest-heat wanted player present.
   This is what ROM's `spec_guard` maps to (imported cityguards become
   peacekeepers) — distinct from the `guard` behavior, which blocks movement.
+  With no criminal in sight, its `protect` parameter says whom else it
+  takes on: `evil` (ROM's `spec_guard`) attacks the most evil character
+  (`alignment` below 300) fighting someone else; `fights` (ROM's
+  `spec_patrolman`) breaks up any fight, going for the higher-level side.
 
 ```text
 # Put a peacekeeper on a town guard:
 @behavior cityguard = peacekeeper, yell:"Halt, in the name of the law!"
+# A watchman who also stops any brawl:
+@behavior watchman = peacekeeper, protect:"fights"
 ```
 
 Everything is tags and behaviors over the existing event bus — no engine

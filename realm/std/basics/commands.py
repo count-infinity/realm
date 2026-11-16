@@ -6,10 +6,19 @@ General-purpose commands like quit, help, time.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from realm.commands import CommandContext
+from realm.commands.base import save_object
 from realm.core.action_types import ActionType
-from realm.core.markup import wrap
+from realm.core.markup import escape, wrap
 from realm.core.movement import move_to
+from realm.core.options import get_option, set_option
+from realm.core.teardown import start_room_floor
+from realm.core.world import find_world
+
+if TYPE_CHECKING:
+    from realm.core.objects import GameObject
 
 
 async def cmd_quit(ctx: CommandContext) -> None:
@@ -112,14 +121,12 @@ async def _show_command_list(ctx: CommandContext) -> None:
         if name in visible:
             categories.setdefault(cmd.category, []).append(name)
 
-    await ctx.session.send("\n" + "=" * 40)
-    await ctx.session.send("  Available Commands")
-    await ctx.session.send("=" * 40)
+    lines = ["", "=" * 40, "  Available Commands", "=" * 40]
     for category in sorted(categories):
-        await ctx.session.send(f"\n{category.title()}:")
-        await ctx.session.send(f"  {', '.join(sorted(categories[category]))}")
-    await ctx.session.send(
-        "\nhelp <command> for details; help <word> searches help text.")
+        lines.extend(["", f"{category.title()}:",
+                      f"  {', '.join(sorted(categories[category]))}"])
+    lines.extend(["", "help <command> for details; help <word> searches help text."])
+    ctx.session.send_paged("\n".join(lines))
 
 
 async def _show_command_help(ctx: CommandContext, topic: str) -> None:
@@ -127,18 +134,20 @@ async def _show_command_help(ctx: CommandContext, topic: str) -> None:
     dispatcher = ctx.dispatcher
     cmd = dispatcher.get_command(topic.lower())
     if cmd is not None:
+        # Help is plain text: a pipe in it (`on|off|history`) is a pipe,
+        # not color markup.
         lines = [f"\n{cmd.name}"]
         if cmd.aliases:
             lines.append(f"  aliases: {', '.join(cmd.aliases)}")
         if cmd.usage:
-            lines.append(f"  usage: {cmd.usage}")
+            lines.append(f"  usage: {escape(cmd.usage)}")
         if cmd.help_text:
-            lines.append(f"  {cmd.help_text}")
+            lines.append(f"  {escape(cmd.help_text)}")
         doc = (cmd.handler.__doc__ or "").strip()
         if doc:
             lines.append("")
-            lines.extend("  " + ln.strip() for ln in doc.split("\n"))
-        await ctx.session.send("\n".join(lines))
+            lines.extend("  " + escape(ln.strip()) for ln in doc.split("\n"))
+        ctx.session.send_paged("\n".join(lines))
         return
 
     # Search: substring over names, aliases, and help text.
@@ -228,32 +237,78 @@ async def cmd_think(ctx: CommandContext) -> None:
 
 async def cmd_recall(ctx: CommandContext) -> None:
     """
-    Return to your home location.
+    Pray your way back to safety: your home, else where new characters
+    start. Some places hold you (a room tagged ``no_recall``); in a fight
+    it takes a check, and the game system may charge for it (under Merc,
+    half your movement).
 
     Usage: recall
     """
-    home_id = ctx.player.db.get('home')
-    if not home_id:
-        await ctx.session.send("You don't have a home set.")
+    player = ctx.player
+    world = find_world()
+    if player.location is not None and player.location.has_tag('no_recall'):
+        await ctx.session.send("You cannot recall from here.")
         return
+    home_id = player.db.get('home')
+    if home_id:
+        dest = ctx.persistence.get_cached(str(home_id)) if ctx.persistence else None
+        if dest is None:
+            await ctx.session.send("Your home no longer exists.")
+            return
+    else:
+        dest = (world.startup_room if world is not None else None) or start_room_floor()
+        if dest is None:
+            await ctx.session.send("You don't have a home to recall to.")
+            return
+    await recall_to(player, dest, ctx.session)
 
-    dest = ctx.persistence.get_cached(str(home_id)) if ctx.persistence else None
-    if dest is None:
-        await ctx.session.send("Your home no longer exists.")
-        return
-    if ctx.player.location is dest:
-        await ctx.session.send("You are already home.")
-        return
+
+async def recall_to(player: GameObject, dest: GameObject, session) -> bool:
+    """Recall ``player`` to ``dest`` under ``recall``'s rules: not from a
+    ``no_recall`` room, a check in a fight (``GameSystem.recall_refusal``)
+    and its cost (``after_recall``), through ``dest``'s locks. Tells the
+    player why not; True when they arrived. The ``recall`` service offers
+    it (``clan recall`` goes to the clan's home with it)."""
+    world = find_world()
+    here = player.location
+    if here is not None and here.has_tag('no_recall'):
+        await session.send("You cannot recall from here.")
+        return False
+    if here is dest:
+        await session.send("You are already home.")
+        return False
+
+    from_combat = player.has_tag('in_combat')
+    rules = world.rules if world is not None else None
+    refusal = (rules.recall_refusal(player) if rules is not None
+               else "You can't recall in the middle of a fight." if from_combat else None)
+    if refusal:
+        await session.send(refusal)
+        return False
 
     # Move through the one relocation core (not forced — recall is voluntary,
     # so home's ENTER/TELEPORT locks and movement wards still apply).
-    if not await move_to(ctx.player, dest, mover=ctx.player):
-        await ctx.session.send("Something prevents you from recalling home.")
-        return
+    if not await move_to(player, dest, mover=player):
+        await session.send("Something prevents you from recalling home.")
+        return False
+    if from_combat:
+        combat = world.services.get("combat") if world is not None else None
+        if combat is not None:
+            combat.withdraw(player)
+    if rules is not None:
+        rules.after_recall(player, from_combat=from_combat)
+    if here is not None:
+        here.msg_contents(f"{player.name} disappears.", exclude=[player])
+    dest.msg_contents(f"{player.name} appears in the room.", exclude=[player])
 
-    if ctx.persistence:
-        await ctx.persistence.save(ctx.player)
-    await ctx.session.send(f"You recall to {dest.name}.")
+    store = world.store if world is not None else None
+    if store is not None:
+        await store.save(player)
+    await session.send(f"You recall to {dest.name}.")
+    look = world.services.get("look") if world is not None else None
+    if look is not None:
+        await session.send(look.render_room(dest, player, arrival=True))
+    return True
 
 
 async def cmd_color(ctx: CommandContext) -> None:
@@ -267,10 +322,10 @@ async def cmd_color(ctx: CommandContext) -> None:
     """
     want = (ctx.args or "").strip().lower()
     if want not in ("on", "off"):
-        state = "off" if ctx.player.db.get("color") is False else "on"
+        state = "off" if get_option(ctx.player, "color") is False else "on"
         await ctx.session.send(f"Color is {state}. Usage: color on|off")
         return
-    ctx.player.db.set("color", want == "on")
+    await save_object(ctx, set_option(ctx.player, "color", want == "on"))
     await ctx.session.send(
         f"Color {want}." + (" " + wrap('g', 'Like this.')
                             if want == "on" else ""))

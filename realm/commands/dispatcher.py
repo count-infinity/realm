@@ -354,6 +354,24 @@ class CommandDispatcher:
             return self._commands.get(self._aliases[name])
         return None
 
+    def resolve(self, line: str) -> Command | None:
+        """The built-in command ``line`` would run, found as ``dispatch``
+        finds it (a one-character token, the name, an alias, a unique
+        prefix); None when it would go to a fallback (an exit name), a
+        softcode ``$``-command, or nowhere. ``order`` reads it to refuse a
+        command before running it as someone else."""
+        line = line.strip()
+        if not line:
+            return None
+        if line[0] in self._tokens:
+            return self._commands.get(self._tokens[line[0]])
+        name = line.split(None, 1)[0].split('/')[0].lower()
+        found = self.get_command(name)
+        if found is not None:
+            return found
+        matches = self._find_prefix_matches(name)
+        return self._commands.get(matches[0]) if len(matches) == 1 else None
+
     def list_commands(self, player: GameObject | None = None) -> list[str]:
         """
         List all available commands for a player.

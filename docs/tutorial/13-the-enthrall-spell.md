@@ -106,3 +106,14 @@ release the sailor
     `cast()` is the *ward + reaction* layer, and effects like
     `disposition_boost` are the aftermath that cleans up after
     itself.
+
+!!! note "The stock charm"
+    Everything above is built by hand, which is the point of this part.
+    A game that wants Diku's charm as it comes gets it from the
+    `companions` feature: an ability's `charm` effect applies the stock
+    `charmed` effect, which makes the target the caster's companion until
+    it wears off. A charmed sailor follows, obeys `order`, fights at your
+    side and counts against how many followers you may keep; when the
+    charm lapses his free will returns (or, with `turns_hostile`, he goes
+    for you). The `merc-classic` pack's `charm person` is one. See
+    [Pets, Charm and Mounts](../guides/companions.md#charm).

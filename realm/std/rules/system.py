@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import importlib
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 from realm.core.pools import Pool
@@ -150,6 +150,98 @@ class GameSystem(ABC):
         character points (PointBuyMixin); an XP system banks experience
         and levels up (MercSystem). Neutral: nothing."""
 
+    def spendable_award(self, player: GameObject) -> int | None:
+        """How much of its advancement currency ``player`` may give away
+        (``clan donate xp``). None: this game has none to give (neutral);
+        PointBuyMixin: unspent character points; MercSystem: experience
+        toward the next level."""
+        return None
+
+    def spend_award(self, player: GameObject, amount: int) -> None:
+        """Take ``amount`` (at most ``spendable_award``) from ``player``.
+        Neutral: there is nothing to take."""
+        raise NotImplementedError(f"{type(self).__name__} has no spendable award")
+
+    def share_award(self, award: int,
+                    members: list[GameObject]) -> list[tuple[GameObject, int]]:
+        """How a kill's ``award`` divides among the party ``members`` in the
+        room (each share goes to ``grant_award``). Neutral: equal shares,
+        at least 1 each."""
+        share = max(1, int(award) // max(1, len(members)))
+        return [(member, share) for member in members]
+
+    def on_kill(self, member: GameObject, victim: GameObject) -> None:
+        """``member`` of the killing party saw ``victim`` die (called once
+        per member in the room, after the awards). Neutral: nothing.
+        MercSystem moves alignment here."""
+
+    # --- Companions (MUD_PLAN step 13) ---
+
+    def companion_limit(self, character: GameObject) -> int:
+        """How many followers ``character`` may keep (pets, charmed
+        creatures, and their own followers). Asked only when the game sets
+        no ``COMPANION_LIMIT_RULE``. Neutral: 2. MercSystem: 1 + level // 10."""
+        return 2
+
+    def mounted_modifiers(self, rider: GameObject, mount: GameObject) -> dict[str, int]:
+        """What riding ``mount`` changes in a fight: ``{"attack": n}`` is
+        added to ``rider``'s attack rolls, ``{"defense": n}`` counts against
+        attacks on ``rider``. Neutral (and Merc): nothing."""
+        return {}
+
+    # --- The world around the character (MUD_PLAN step 11) ---
+
+    def consider(self, viewer: GameObject, target: GameObject) -> str | None:
+        """What ``consider`` says of ``target`` before its attitude, or None
+        to say nothing more. MercSystem compares levels."""
+        return None
+
+    def who_title(self, player: GameObject) -> str | None:
+        """The words ``who`` shows after a name. Neutral: none."""
+        return None
+
+    def wear_refusal(self, player: GameObject, item: GameObject) -> str | None:
+        """Why ``player`` may not wear or wield ``item``, or None.
+        MercSystem refuses an item above the character's level."""
+        return None
+
+    def repels(self, player: GameObject, item: GameObject) -> bool:
+        """Whether ``item`` will not stay on ``player`` (worn or wielded, it
+        is dropped). MercSystem: an item tagged ``anti_good``,
+        ``anti_evil`` or ``anti_neutral`` against that alignment."""
+        return False
+
+    def zap(self, player: GameObject, item: GameObject) -> None:
+        """``item`` repels ``player``: it comes off (no event, nothing can
+        hold it on) and falls to the floor. The wear and wield commands call
+        this when ``repels`` says so; a system calls it when the character
+        changes under what they wear (Merc: alignment after a kill)."""
+        item.remove_tag('worn')
+        item.remove_tag('wielded')
+        for tag in item.db.get('granted_active') or []:
+            player.remove_tag(tag)
+        if item.db.get('granted_active'):
+            item.db.granted_active = []
+        room = player.location
+        item.location = room
+        player.msg(f"You are zapped by {item.name} and drop it.")
+        if room is not None:
+            room.msg_contents(f"{player.name} is zapped by {item.name} and drops it.",
+                              exclude=[player])
+
+    def recall_refusal(self, player: GameObject) -> str | None:
+        """Why ``recall`` fails, or None. Neutral: out of a fight it works;
+        in one it takes a ``recall`` skill check ("You failed!" when it
+        misses)."""
+        if not player.has_tag('in_combat'):
+            return None
+        from realm.std.rules.checks import check
+        return None if check(player, "recall").success else "You failed!"
+
+    def after_recall(self, player: GameObject, *, from_combat: bool) -> None:
+        """What a successful ``recall`` costs. Neutral: nothing. MercSystem
+        halves the ``move`` pool."""
+
     # --- Progression (realm.std.rules.progression) ---
 
     def on_skill_used(self, obj: GameObject, result: Any) -> None:
@@ -218,6 +310,37 @@ class GameSystem(ABC):
         "respawn"``, called after the corpse is left and before the player
         returns home. Neutral: none."""
 
+    # --- Hunger and thirst (MUD_PLAN step 12) ---
+
+    def stomach(self, obj: GameObject) -> tuple[int, int]:
+        """How much food and water ``obj`` holds when full: the
+        ``FOOD_FULL`` and ``WATER_FULL`` settings, scaled by ``weight /
+        NEEDS_BASE_WEIGHT`` when ``obj`` has a ``weight``."""
+        from realm.core.world import setting
+        food = int(setting("FOOD_FULL", 500))
+        water = int(setting("WATER_FULL", 1000))
+        weight = obj.db.get("weight")
+        if isinstance(weight, (int, float)) and not isinstance(weight, bool) and weight > 0:
+            scale = float(weight) / float(setting("NEEDS_BASE_WEIGHT", 150))
+            return max(1, round(food * scale)), max(1, round(water * scale))
+        return food, water
+
+    def fill_stomach(self, player: GameObject) -> None:
+        """Give ``player`` the ``food`` and ``water`` pools this system
+        declares (``pools()``) when it lacks them, full at ``stomach``.
+        Character creation calls it (``apply_baseline``), and the ``rules``
+        feature at each login, so a character made before the system
+        declared them gets them too. A pool already there is left alone."""
+        from realm.core.pools import pool_get, pool_max, set_pool
+        declared = {pool.name for pool in self.pools()}
+        for name, full in zip(("food", "water"), self.stomach(player), strict=True):
+            if name not in declared:
+                continue
+            value, maximum = pool_get(player, name), pool_max(player, name)
+            if value is None or maximum is None:
+                set_pool(player, name, full if value is None else value,
+                         max=full if maximum is None else maximum)
+
     def score_lines(self, player: GameObject) -> list[str]:
         """The ``score`` sheet, in this system's own vocabulary. Neutral:
         the character's pools (``pool_lines``)."""
@@ -271,10 +394,12 @@ class GameSystem(ABC):
     # --- Character creation ---
 
     def apply_baseline(self, player: GameObject) -> None:
-        """Stats every fresh character gets before chargen runs."""
+        """Stats every fresh character gets before chargen runs, and a full
+        stomach when this system has hunger and thirst (``fill_stomach``)."""
         for stat, value in self.baseline_stats().items():
             if player.db.get(stat) is None:
                 player.db.set(stat, value)
+        self.fill_stomach(player)
 
     def baseline_stats(self) -> dict[str, Any]:
         return {
@@ -303,12 +428,16 @@ def _pool_label(name: str) -> str:
     return words.upper() if len(name) <= 2 else words.capitalize()
 
 
-def pool_lines(obj: GameObject) -> str:
+def pool_lines(obj: GameObject, exclude: Iterable[str] = ()) -> str:
     """One line naming the object's declared pools (``realm.core.pools``):
-    ``HP: 7/10   Mana: 40/100``. Empty when it has none."""
+    ``HP: 7/10   Mana: 40/100``, leaving out the pools named in
+    ``exclude``. Empty when it has none."""
     from realm.core.pools import declared_pools, pool_get, pool_max
+    left_out = set(exclude)
     parts = []
     for name in declared_pools(obj):
+        if name in left_out:
+            continue
         value, maximum = pool_get(obj, name), pool_max(obj, name)
         shown = f"{value}/{maximum}" if maximum is not None else f"{value}"
         parts.append(f"{_pool_label(name)}: {shown}")
@@ -333,6 +462,14 @@ class PointBuyMixin:
         """The victim's worth (``db.points``, default 10) over ten, at
         least 1."""
         return max(1, int(victim.db.get('points') or 10) // 10)
+
+    def spendable_award(self, player: GameObject) -> int | None:
+        """Unspent character points."""
+        return int(player.db.get('character_points') or 0)
+
+    def spend_award(self, player: GameObject, amount: int) -> None:
+        player.db.character_points = \
+            max(0, int(player.db.get('character_points') or 0) - int(amount))
 
     def grant_award(self, player: GameObject, amount: int) -> None:
         """Bank the share as character points."""
@@ -400,6 +537,46 @@ def resolve_game_system(spec: str | type[GameSystem] | GameSystem) -> GameSystem
     )
 
 
+# --- Awards: what a kill (or a quest) pays ------------------------------------
+
+#: ``(player, amount) -> int``: one step of an award on its way to
+#: ``GameSystem.grant_award`` (``needs`` scales it while hungry).
+AwardFilter = Callable[["GameObject", int], int]
+
+
+class RulesService:
+    """``world.services["rules"]``: the seams other features add to the
+    game system's work. ``award_filters`` run in order over every award;
+    ``award(player, amount)`` pays one."""
+
+    def __init__(self) -> None:
+        self.award_filters: list[AwardFilter] = []
+
+    def award(self, player: GameObject, amount: int) -> int:
+        """Pay ``player`` through the filters (``award``): for features
+        that may not import ``rules`` (``quests``' rewards)."""
+        return award(player, amount)
+
+
+def award(player: GameObject, amount: int) -> int:
+    """Pay ``player`` ``amount`` of the game system's advancement currency
+    (experience under Merc, character points under GURPS and D20): the
+    amount passes through each of the ``rules`` service's
+    ``award_filters``, then whatever is left above 0 goes to
+    ``GameSystem.grant_award``. Returns what was paid. The kill award and
+    quest rewards come through here, never straight to ``grant_award``."""
+    from realm.core.world import get_world
+    world = get_world()
+    service = world.services.get("rules")
+    amount = int(amount)
+    for step in (service.award_filters if service is not None else ()):
+        amount = int(step(player, amount))
+    if amount <= 0 or world.rules is None:
+        return 0
+    world.rules.grant_award(player, amount)
+    return amount
+
+
 # --- Equipment changes reach the game system ---------------------------------
 
 #: Action types that mean a character's worn gear changed.
@@ -441,10 +618,13 @@ def reload_rules() -> None:
 
 
 __all__ = [
+    "AwardFilter",
     "ChargenStep",
     "ChoiceStep",
     "GameSystem",
     "PointBuyMixin",
+    "RulesService",
+    "award",
     "equipment_observer",
     "pool_lines",
     "resolve_game_system",

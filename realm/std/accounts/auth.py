@@ -12,7 +12,8 @@ import hashlib
 import hmac
 import secrets
 
-from realm.std.accounts.account import ACCOUNT_TAG, link_character, new_account
+from realm.core.options import ACCOUNT_TAG
+from realm.std.accounts.account import link_character, new_account
 
 _SCRYPT = {'n': 2 ** 14, 'r': 8, 'p': 1}
 

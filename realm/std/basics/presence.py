@@ -7,7 +7,9 @@ play: it has no connection). ``who`` lists them
 with their idle time and the link-dead characters waiting in their rooms,
 leaving out anyone the viewer cannot see. Beside each name it shows what
 the ``who`` service's ``fields`` say: callables ``(viewer, player) -> str
-| None``, so a feature adds a mark (``channels``: afk) and a game a title.
+| None``, so a feature adds a mark (``channels``: afk); the game system's
+``who_title`` puts a title after the name (Merc: ``the Swordpupil (1
+warrior)``).
 """
 
 from __future__ import annotations
@@ -109,12 +111,16 @@ async def cmd_who(ctx: CommandContext) -> None:
     lines = [f"\n{'=' * 40}", f"  {len(rows)} player(s) online", f"{'=' * 40}"]
     if rows:
         lines.append("")
+    world = find_world()
+    rules = world.rules if world is not None else None
     for player, idle, marks in rows:
+        title = rules.who_title(player) if rules is not None else None
+        named = f"{player.name} {title}" if title else player.name
         shown = f" [{', '.join(marks)}]" if marks else ""
         where = f" in {player.location.name}" if player.location is not None else ""
-        lines.append(f"  {player.name}{shown} (idle {format_idle(idle)}){where}")
+        lines.append(f"  {named}{shown} (idle {format_idle(idle)}){where}")
     lines.append("")
-    await ctx.session.send("\n".join(lines))
+    ctx.session.send_paged("\n".join(lines))
 
 
 # --- softcode -------------------------------------------------------------------------------

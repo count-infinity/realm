@@ -240,6 +240,10 @@ class WanderingBehavior(Behavior):
     async def tick(self, obj: GameObject, delta: float) -> None:
         if obj.has_tag('in_combat') or obj.location is None:
             return
+        # A companion (the ``companions`` feature's ``master``) goes where
+        # its master goes, never off on its own (ROM: a charmed mob stays).
+        if obj.db.get('master'):
+            return
 
         if not self.countdown(obj, 'wander_wait', int(self.get_param('pause', 7)) + 1):
             return

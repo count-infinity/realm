@@ -30,6 +30,7 @@ from realm.std.combat.commands import (
     cmd_wimpy,
 )
 from realm.std.combat.corpses import CorpseClaimBehavior
+from realm.std.combat.loot import offer_loot_options
 
 feature = Feature(
     'combat',
@@ -99,7 +100,8 @@ feature.command(
 feature.command(
     'firstaid',
     cmd_firstaid,
-    aliases=['aid'],
+    # `fi` stays first aid now `fill` shares its letters (MUD_PLAN step 12).
+    aliases=['aid', 'fi'],
     category='combat',
     help_text='Tend wounds (First Aid skill)',
     usage='firstaid [target]',
@@ -129,6 +131,9 @@ feature.setting(
     "CORPSE_LOCK_SECONDS", 300,
     "Under `respawn`, how long only the dead player (and admins) may take from "
     "their corpse. 0 leaves it open to anyone.")
+
+
+feature.on_install(offer_loot_options)
 
 
 @feature.on_install

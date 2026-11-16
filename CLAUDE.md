@@ -48,12 +48,19 @@ not the feature.
 |---|---|
 | `realm/__init__.py` | The public names (`realm.__all__`, loaded on first use via `realm/_exports.py`); feature and game packages publish theirs in their `__init__.py`. Frozen by `tests/test_public_api.py`; docs/reference/public-api.md |
 | `realm/testing/` | `Simulator` (`Simulator.from_game(dir)` + `await sim.start()` boot a game directory as `realm start` would; the shared step is `server/world.py::prepare_world`), `build_test_world`, `reconfigure`; `fixtures.py` is the pytest plugin (`world`, `classic_world`, the `features` marker) the suite and a game's tests load |
-| `realm/cli.py` | `realm init` (`--features classic\|social\|bare`, `--template`; templates in `realm/templates/`, including the scaffold's README and `tests/test_game.py`), `realm start`, `realm features [--check]`, `realm import-rom` |
+| `realm/cli.py` | `realm init` (`--features classic\|social\|bare`, `--system gurps\|d20\|merc`, `--template`, which `--system` may name: `--system merc --template midgaard`; templates in `realm/templates/`, including the scaffold's README and `tests/test_game.py`), `realm start`, `realm backup` / `restore` / `migrate`, `realm features [--check]`, `realm import-rom` |
 | `realm/server/game.py` | GameServer — opens the store, loads the world, runs loops and protocols; input goes session prompt → feature input interceptors → dispatcher (login is the `accounts` feature's) |
 | `realm/server/world.py` | `build_world()` — wires the kernel, then the loaded features; the server and the Simulator both call it |
 | `realm/core/world.py` | `World`, the one handle to the running world: `get_world().store` / `.engine` / `.scripts` / `.rules` / `.services`, and `setting(key)` for config |
 | `realm/features.py` | `Feature`, `FeatureSet`, `load()`: how commands, behaviors, softcode functions and observers join a world |
 | `realm/std/` | The built-in features (`CLASSIC` lists them): one package each, `feature.py` declares it, the rest are its parts |
+| `realm/std/accounts/` | Login: accounts holding characters (`account.py`, `login.py`), `@account` bans and `@sitelock` (`admin.py`); `achievements/` grants shared by an account |
+| `realm/std/vitals/`, `needs/`, `tasks/` | Regeneration, rest and sleep, coming round; hunger, thirst and fatigue (Merc's food and water pools); timed tasks (`start_task`, `stop`) |
+| `realm/std/channels/`, `mail/` | Tells, channels (`channel_def` data), ignore and afk; mail to accounts (socials are `talk`'s) |
+| `realm/std/clock/`, `operations/` | Game time, day and night, weather; `@wall`, `@shutdown`, `@reboot`, `@snoop`, `@freeze` |
+| `realm/std/companions/`, `clans/`, `quests/` | Pets, charm and mounts (`riding.py`); clans under `clan_government_def` governments (votes, treasury, relations); quests as `quest_def` data (objectives, journal, rewards) |
+| `realm/std/rules/progression.py`, `training.py` | How skills improve: points, `practice` at a `trainer`, use, `study` over real time |
+| `realm/web/index.html` | The browser client, served at `/` by the WebSocket server when `WEB_CLIENT` is set |
 | `realm/config/loader.py` | `Settings` (every config key, its default and doc) and `load_config` |
 | `realm/core/objects.py` | GameObject: tags, attrs, `@parent` inheritance, kind predicates |
 | `realm/core/propagation.py` | Two-pass check/react action pipeline |
@@ -68,7 +75,8 @@ not the feature.
 | `realm/scripting/lib/` | The kernel's softcode functions, one module per area (a feature's own are in `realm/std/<feature>/softcode.py`, declared by its `feature.py`); `functions.py` holds the per-run `ScriptFrame` |
 | `realm/packs/` | Content packs (worldio JSON bundles) |
 | `realm/examples/` | The example games `realm init --template <name>` copies (midgaard, spacegame, wilderness); inside the package so a wheel has them (`tests/test_packaging.py`) |
-| `realm/tools/rom_import.py` | ROM `.are` -> worldio converter behind `realm import-rom`. `scripts/` holds developer tools only (doc generators, example builders, `dev/move_modules.py`) |
+| `realm/tools/rom_import.py` | ROM `.are` -> worldio converter behind `realm import-rom`. `scripts/` holds developer tools only (doc generators, example builders, `dev/move_modules.py`, `dev/refresh_rom_items.py`, which brings a converted area such as the shipped Midgaard up to the importer's current mappings) |
+| `tests/test_first_hour.py` | The acceptance test of `MUD_PLAN.md`: a real server on a `realm init --system merc --template midgaard` game, played line by line ("What 'complete' means here"); `docs/getting-started/your-first-mud.md` is its guide for people |
 | `realm/persistence/worldio.py` | Export/import with ref remapping |
 | `realm/persistence/store.py` | `Store` protocol: what engine code may call on a store (`PersistenceManager`, `MemoryStore`) |
 

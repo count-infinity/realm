@@ -164,6 +164,12 @@ talk                -> the menu again, with [3] gone for good
 q
 ```
 
+A bare `talk` reaches Moss's `$talk`: the engine's own `talk <someone>`
+(the [quests](../guides/quests.md) feature) offers a line it cannot use to
+the world's softcode first. `talk moss` is the built-in, which fires Moss's
+`ON_TALK` instead; a dialogue NPC can answer both by putting the opener in
+`on_talk` too.
+
 While a prompt is pending, your next line is the answer; `help` still
 passes through to the game, and answers run with Moss's authority, not
 yours.

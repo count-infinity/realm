@@ -37,7 +37,9 @@ FEATURE_ALL = {
     "basics": [],
     "building": [],
     "channels": [],
+    "clans": ["clan_of", "clans_of", "find_clan", "has_power"],
     "clock": [],
+    "companions": ["companions_of", "master_of", "set_master"],
     "combat": ["AttackResult", "CombatAction", "CombatView", "Combatant",
                "DamageResult", "DamageType", "RollResult", "Ruleset", "deal_damage"],
     "crime": [],
@@ -48,8 +50,10 @@ FEATURE_ALL = {
     "look": [],
     "mail": [],
     "movement": [],
+    "needs": [],
     "npc": [],
     "operations": [],
+    "quests": ["accept", "complete", "credit", "fail", "find_quest", "state"],
     "rules": ["ChargenStep", "CheckResult", "ChoiceStep", "GameSystem", "PointBuyMixin",
               "check", "default_resolver", "define_class", "define_skill"],
     "sight": ["can_see_room", "room_is_lit"],
@@ -85,10 +89,10 @@ def test_one_version():
     """``realm.__version__``, pyproject.toml and ``realm version`` agree."""
     import tomllib
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
-    assert realm.__version__ == project["version"] == "0.2.0"
+    assert realm.__version__ == project["version"] == "0.3.0"
     out = subprocess.run([sys.executable, "-m", "realm.cli", "version"], cwd=ROOT,
                          capture_output=True, text=True, check=True).stdout
-    assert "v0.2.0" in out
+    assert "v0.3.0" in out
 
 
 def test_pools_and_ops_are_the_modules():
@@ -106,6 +110,23 @@ def test_feature_all_is_frozen():
         assert sorted(package.__all__) == expected, name
         for public in package.__all__:
             assert getattr(package, public) is not None, f"{name}.{public}"
+
+
+def test_the_reference_lists_every_feature():
+    """MUD_PLAN step 17: docs/reference/public-api.md has a row for every
+    feature and game with public names, naming exactly them, and lists the
+    rest as having none."""
+    text = (ROOT / "docs" / "reference" / "public-api.md").read_text()
+    rows = dict(re.findall(r"^\| `realm\.(?:std|games)\.(\w+)` \| (.*) \|$", text, re.M))
+    listed = {name: sorted(re.findall(r"`(\w+)`", names)) for name, names in rows.items()}
+    public = {name: names for name, names in {**FEATURE_ALL, **GAME_ALL}.items() if names}
+    assert listed == public
+    none = re.search(r"has no public names|have no public names", text)
+    assert none is not None
+    paragraph = text[text.rfind("\n\n", 0, none.start()):none.end()]
+    for name, names in FEATURE_ALL.items():
+        if not names:
+            assert f"`{name}`" in paragraph, name
 
 
 def test_game_all_is_frozen():

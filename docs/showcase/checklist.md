@@ -104,7 +104,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 - [x] 62. **Aggressive mob** [now] — attacks on sight based on faction standing. *(aggressive behavior, dispositions, start_combat)*
 - [x] 63. **Shopkeeper** [now] — buys and sells from a live inventory with restock. *(shopkeeper behavior, list/buy/sell/pay, spawner restock)*
 - [x] 64. **Bartender** [now] — serves drinks and answers keyword questions about rumors. *(^listen keyword patterns, consumables, rumor attrs)*
-- [x] 65. **Pet** [now] — follows its owner between rooms and responds to simple orders. *(db.following, $-command whitelists, ownership)*
+- [x] 65. **Pet** [now] — follows its owner between rooms and responds to simple orders. *(the `companions` feature: set_master, order, listen-lock whitelists)*
 - [x] 66. **Puppet** [now] — a second body a player can possess and speak/act through. *(control locks, @force, puppet output forwarding)*
 - [x] 67. **Dialogue-tree NPC** [now] — branching conversation with memory of past choices. *(prompt() callback chains, per-player memory attrs)*
 - [x] 68. **NPC daily schedule** [now] — opens shop at 9, goes home at night, sleeps. *(softcode clock, attach_behavior/detach_behavior by hour)*
@@ -194,7 +194,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 - [x] 134. **Disguises** [small] — masks and outfits that change your apparent identity. *(feature.name_resolver disguise + check_roll see-through check)*
 - [x] 135. **Injury & treatment** [now] — wound states affecting stats until treated or healed. *(modifier_effect conditions, firstaid, regeneration)*
 - [x] 136. **Encumbrance effects** [now] — carried weight slows movement and penalizes DX. *(ON_GET/ON_DROP weight sums, modifier_effect penalties)*
-- [x] 137. **Hunger & thirst** [now] — optional survival meters with food/drink satisfying them. *(on_tick meters, ON_USE consumables, zone policy toggles)*
+- [x] 137. **Hunger & thirst** [now] — optional survival meters with food/drink satisfying them. *(the `needs` feature: food and water pools, bites and sips, climate tags, a `no_needs` zone)*
 - [x] 138. **Sleep & rest** [now] — resting recovers FP/HP faster; sleeping players are vulnerable. *(rest tags, regeneration boosts, vulnerability wards)*
 - [x] 139. **Intoxication** [small] — drinks impair stats and slur your speech progressively. *(modifier_effect penalty + feature.speech_renderer slur, drink-scaled)*
 - [x] 140. **Death & cloning** [now] — death, body handling, and sci-fi clone respawn with costs. *(ON_DEATH, engine corpses/unconsciousness, clone-bay flows)*
@@ -221,7 +221,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 - [x] 155. **Drivable vehicle** [now] — enterable rover you steer through the world from inside. *(vehicle-as-container-room, $drive traversal, [[...]] outside view)*
 - [x] 156. **Scheduled shuttle** [now] — transport that departs on a timetable along a route. *(on_tick timetables, boarding windows)*
 - [x] 157. **Teleporter pads** [now] — networked pads with destination selection and effects. *(teleport_obj, registry attrs, arrival remits)*
-- [x] 158. **Mounts** [now] — ride an animal/bike for speed; dismount rules. *(containment or following, $ride/$dismount)*
+- [x] 158. **Mounts** [now] — ride an animal/bike for speed; dismount rules. *(the `companions` feature: a `mount` companion, mount/dismount, no_mount rooms)*
 - [x] 159. **Group travel** [now] — follow/lead so parties move as one. *(the built-in follow/party system, follower cascade)*
 - [x] 160. **Sneaking** [now] — move silently with Stealth vs. Per contests, hiding in rooms. *(hide command, stealth contests, concealment state)*
 - [x] 161. **Travel time** [now] — long-distance moves take real seconds with progress messages. *(ward-blocked exits + wait() progress + teleport arrival)*
@@ -273,9 +273,9 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 
 ## 18. Quests & Storytelling (198–208)
 
-- [x] 198. **Quest framework** [now] — quest objects with stages, journal, and completion hooks. *(admin-owned quest masters, stage attrs, $quests journal)*
-- [x] 199. **Delivery quest** [now] — fetch/carry template with timers and failure states. *(ON_GIVE verification, deadline timestamps)*
-- [x] 200. **Collection counters** [now] — "salvage 5 relays" tracked automatically on acquisition. *(zone-master ON_GET counting, tagged objectives)*
+- [x] 198. **Quest framework** [now] — quest objects with stages, journal, and completion hooks. *(the `quests` feature: a quest_def with stages, the journal, a giver, ON_QUESTCOMPLETE, a quest_state lock)*
+- [x] 199. **Delivery quest** [now] — fetch/carry template with timers and failure states. *(a deliver objective, time_limit, on_fail stale orders, quest_giver behavior)*
+- [x] 200. **Collection counters** [now] — "salvage 5 relays" tracked automatically on acquisition. *(a collect objective matched by tag, a giverless quest)*
 - [x] 201. **Branching quest** [now] — choices that lock/unlock different endings. *(prompt() branches, mutually exclusive state attrs)*
 - [x] 202. **World event: invasion** [now] — staged zone-wide event with phases and cleanup. *(zone-master phases, spawner waves, ON_RESET cleanup)*
 - [x] 203. **Cutscenes** [now] — timed, paced sequences of text shown to one or many players. *(wait()-paced pemit/remit, $skip via cancel_wait)*
@@ -302,9 +302,9 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 
 - [x] 219. **Friends list** [now] — contacts with login/logout notifications and privacy opt-outs. *(world-master ON_CONNECT/ON_DISCONNECT, consent attrs)*
 - [x] 220. **Titles & badges** [now] — earned display titles shown in look/finger. *(title attrs, desc_extras rendering)*
-- [x] 221. **Player organizations** [now] — guilds/crews with ranks, invites, and rosters. *(org master objects, rank attrs, lock expressions)*
-- [x] 222. **Org treasury & storage** [now] — shared bank and lockers with rank-gated access. *(org credits, rank-gated $-commands, locked containers)*
-- [x] 223. **Elections** [now] — org leadership voting with terms, ballots, and tallies. *(ballot attrs, vote dedupe, on_tick tallies)*
+- [x] 221. **Player organizations** [now] — guilds/crews with ranks, invites, and rosters. *(the `clans` feature: a government, apply/accept/assign, `clan()` locks)*
+- [x] 222. **Org treasury & storage** [now] — shared bank and lockers with rank-gated access. *(the clan treasury by power, lockers warded by `clan_has_power()`)*
+- [x] 223. **Elections** [now] — org leadership voting with terms, ballots, and tallies. *(the `union` government: clan votes, quorums and terms)*
 - [x] 224. **Petition/ticket system** [now] — players file requests; staff triage a queue. *(ticket-queue attrs, $claim/$resolve, pemit notifications)*
 - [x] 225. **Player-to-player notes** [now] — staff annotations and player-visible profiles. *(notes attrs with secret/visual attr flags)*
 - [x] 226. **Mentor program** [now] — veterans flagged to help newbies, with matchmaking. *(mentor tags, pairing attrs, ON_CONNECT nudges)*

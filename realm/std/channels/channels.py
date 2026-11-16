@@ -20,6 +20,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
+from realm.core.markup import escape
 from realm.core.propagation import Action, propagate
 from realm.core.world import find_world
 from realm.gateway.session import online_players
@@ -79,10 +80,34 @@ def _deaf(player: GameObject, action: Action) -> bool:
     return any(rule(player, action) for rule in (world.deaf_rules if world else ()))
 
 
-def _remember(channel: GameObject, line: str) -> None:
-    size = int(channel.db.get("history_size") or DEFAULT_HISTORY)
-    history = [*(channel.db.get("history") or []), [time.time(), line]][-size:]
-    channel.db.history = history
+def remember(holder: GameObject, line: str) -> None:
+    """Keep ``line`` in ``holder``'s ``history`` (the last
+    ``history_size`` lines, 20 by default)."""
+    size = int(holder.db.get("history_size") or DEFAULT_HISTORY)
+    history = [*(holder.db.get("history") or []), [time.time(), line]][-size:]
+    holder.db.history = history
+
+
+async def deliver(action: Action, line: str, listeners: list[GameObject], *,
+                  history: GameObject | None = None) -> Action:
+    """The channel delivery path: propagate ``action`` (a ward may block
+    it, and its speaker is told why), keep ``line`` in ``history``'s
+    ``history``, and send it to each listener the world's deaf rules do
+    not silence (the speaker always hears it). The ``channels`` service
+    offers it to other features (``clans``' clan talk)."""
+    speaker = action.actor
+    await propagate(action, deliver=False)
+    if action.blocked:
+        if speaker is not None:
+            speaker.msg(action.block_reason or "Your words do not carry.")
+        return action
+    if history is not None:
+        remember(history, line)
+    for player in listeners:
+        if player is not speaker and _deaf(player, action):
+            continue
+        player.msg(line)
+    return action
 
 
 async def broadcast(channel: GameObject, line: str, *, speaker: GameObject | None,
@@ -90,17 +115,7 @@ async def broadcast(channel: GameObject, line: str, *, speaker: GameObject | Non
     """Announce ``line`` on ``channel`` and deliver it to its members."""
     action = Action(actor=speaker, target=channel, action_type="comm:on_channel",
                     extra={"channel": channel.name, "message": message})
-    await propagate(action, deliver=False)
-    if action.blocked:
-        if speaker is not None:
-            speaker.msg(action.block_reason or "Your words do not carry.")
-        return action
-    _remember(channel, line)
-    for player in members(channel):
-        if player is not speaker and _deaf(player, action):
-            continue
-        player.msg(line)
-    return action
+    return await deliver(action, line, members(channel), history=channel)
 
 
 def format_line(channel: GameObject, name: str, message: str) -> str:
@@ -155,7 +170,7 @@ async def cmd_channels(ctx: CommandContext) -> None:
         state = "on" if is_on(player, channel) else "off"
         lines.append(f"  {shown:20} {state:4} {channel.db.get('description') or ''}")
     lines.append("Talk on one by typing its name: gossip hello. "
-                 "channel <name> on|off|history")
+                 + escape("channel <name> on|off|history"))
     await ctx.session.send("\n".join(lines))
 
 
@@ -167,7 +182,7 @@ async def cmd_channel(ctx: CommandContext) -> None:
     """
     words = (ctx.args or "").split()
     if len(words) != 2:
-        await ctx.session.send("Usage: channel <name> on|off|history")
+        await ctx.session.send(escape("Usage: channel <name> on|off|history"))
         return
     channel = find_channel(words[0])
     player = ctx.player
@@ -186,11 +201,12 @@ async def cmd_channel(ctx: CommandContext) -> None:
         lines = [f"Recent {channel.name}:"]
         for stamp, line in history:
             lines.append(f"  {time.strftime('%H:%M', time.gmtime(float(stamp)))} {line}")
-        await ctx.session.send("\n".join(lines))
+        ctx.session.send_paged("\n".join(lines))
     else:
-        await ctx.session.send("Usage: channel <name> on|off|history")
+        await ctx.session.send(escape("Usage: channel <name> on|off|history"))
 
 
 __all__ = ["DEFAULT_FORMAT", "channels", "find_channel", "may_speak", "may_listen", "is_on",
-           "set_on", "members", "broadcast", "format_line", "channel_fallback",
+           "set_on", "members", "remember", "deliver",
+           "broadcast", "format_line", "channel_fallback",
            "cmd_channels", "cmd_channel"]

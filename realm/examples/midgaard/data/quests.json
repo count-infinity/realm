@@ -1,0 +1,22 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "midgaard_quest_fido_trouble",
+   "name": "Fido trouble",
+   "tags": ["quest_def"],
+   "attrs": {
+    "description": "The baker says the beastly fidos have been at the flour sacks again. Kill five of them and there is experience and a loaf in it for you.",
+    "giver": "baker",
+    "stages": [
+     {"text": "Kill five of the beastly fidos that roam the streets.",
+      "objectives": [{"kind": "kill", "prototype_vnum": 3062, "count": 5,
+                      "text": "fidos killed"}]}
+    ],
+    "rewards": {"award": 250, "items": ["#rom_obj_3011"],
+                "achievement": "Friend of the Baker"},
+    "repeatable": 3600
+   }
+  }
+ ]
+}

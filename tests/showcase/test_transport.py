@@ -351,38 +351,63 @@ class TestTeleporterPads:
 
 
 class TestMounts:
+    """The engine's mounts (MUD_PLAN 13.3): Rusty is a companion tagged
+    ``mount``; the riding is the ``companions`` feature's."""
 
-    async def test_mount_ride_and_dismount(self, sim):
+    async def test_claim_ride_and_dismount(self, sim):
         await build(sim, 158)
         paddock = room(sim, "The Paddock")
         trail = room(sim, "The Trail")
         rusty = objs(sim, "Rusty")[0]
 
         pat = sim.player("Pat", location=paddock)
-        await sim.do(pat, "mount Rusty")
-        assert pat.location is rusty                # containment: you're aboard
-        assert rusty.db.get("rider") == "#" + pat.id
-        sim.seen(pat)
+        onlooker = sim.player("Lee", location=paddock)
+        await sim.do(pat, "claim rusty")
+        assert "She is yours to ride." in text(sim, pat)
+        assert rusty.db.get("master") == pat.id
 
-        await sim.do(pat, "ride trail")
-        assert rusty.location is trail
-        assert pat.location is rusty                # carried inside
-        assert "bears you into The Trail" in text(sim, pat)   # ON_ARRIVE relay
+        await sim.do(pat, "mount Rusty")
+        assert "You mount Rusty." in text(sim, pat)
+        assert pat.db.get("riding") == rusty.id
+
+        await sim.do(pat, "trail")
+        assert pat.location is trail and rusty.location is trail
+        assert "You ride trail on Rusty." in text(sim, pat)
+        seen = text(sim, onlooker)
+        assert "Pat rides trail on Rusty." in seen
+        assert "Rusty leaves" not in seen                # her own steps are silent
+
+        await sim.do(pat, "look")                      # a ridden mount is not listed
+        assert "Rusty" not in text(sim, pat)
 
         await sim.do(pat, "dismount")
-        assert pat.location is trail
-        assert rusty.db.get("rider") is None
+        assert pat.db.get("riding") is None and rusty.db.get("ridden_by") is None
 
-    async def test_only_one_rider(self, sim):
+    async def test_only_her_owner_rides(self, sim):
         await build(sim, 158)
         paddock = room(sim, "The Paddock")
-        rusty = objs(sim, "Rusty")[0]
         pat = sim.player("Pat", location=paddock)
         poacher = sim.player("Poacher", location=paddock)
-        await sim.do(pat, "mount Rusty")
+        await sim.do(pat, "claim rusty")
         await sim.do(poacher, "mount Rusty")
-        assert "already astride" in text(sim, poacher)
-        assert poacher.location is paddock
+        assert "Rusty isn't yours to ride." in text(sim, poacher)
+        await sim.do(poacher, "claim rusty")
+        assert "Rusty already answers to Pat." in text(sim, poacher)
+
+    async def test_the_stable_is_closed_to_riders(self, sim):
+        await build(sim, 158)
+        paddock = room(sim, "The Paddock")
+        stable = room(sim, "The Stable")
+        rusty = objs(sim, "Rusty")[0]
+        pat = sim.player("Pat", location=paddock)
+        await sim.do(pat, "claim rusty")
+        await sim.do(pat, "mount Rusty")
+        await sim.do(pat, "stable")
+        assert pat.location is paddock
+        assert "You can't ride in there." in text(sim, pat)
+        await sim.do(pat, "dismount")
+        await sim.do(pat, "stable")
+        assert pat.location is stable and rusty.location is stable
 
 
 # --- 159. Group travel ---------------------------------------------------------

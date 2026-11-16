@@ -31,6 +31,15 @@ class TestRendering:
         pat = sim.player("Pat", location=sim.room("Hall"), hp=7, max_hp=10)
         assert sim.prompt(pat) == "<7/10hp> "
 
+    def test_no_prompt_while_the_character_is_being_made(self, sim):
+        # MUD_PLAN step 17: "<20hp 100m 100mv>" under the class menu, before
+        # there is a class, is noise.
+        pat = sim.player("Pat", location=sim.room("Hall"), hp=7, max_hp=10)
+        pat.db.chargen_step = 0
+        assert sim.prompt(pat) is None
+        pat.db.delete("chargen_step")
+        assert sim.prompt(pat) == "<7/10hp> "
+
     def test_the_setting_is_the_game_default(self):
         sim = Simulator(settings=Settings(raw={"PROMPT": "[{hp}] "}))
         try:

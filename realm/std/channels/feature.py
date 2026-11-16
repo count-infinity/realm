@@ -7,9 +7,18 @@ data (``channel_def``) (MUD_PLAN 7.1, 7.2; docs/guides/communication.md).
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from realm.features import Feature
 from realm.std.channels import softcode
-from realm.std.channels.channels import broadcast, channel_fallback, cmd_channel, cmd_channels
+from realm.std.channels.channels import (
+    broadcast,
+    channel_fallback,
+    cmd_channel,
+    cmd_channels,
+    deliver,
+    remember,
+)
 from realm.std.channels.tells import (
     afk_field,
     cmd_afk,
@@ -28,7 +37,7 @@ feature.def_kind("channel", "channel_def")
 
 feature.command('tell', cmd_tell, aliases=['t'], category='communication',
                 help_text='Tell a player something, anywhere', usage='tell <player> <message>')
-feature.command('reply', cmd_reply, aliases=['r'], category='communication',
+feature.command('reply', cmd_reply, aliases=['r', 'rep'], category='communication',
                 help_text='Answer the last tell', usage='reply <message>')
 feature.command('ignore', cmd_ignore, category='communication',
                 help_text="Stop hearing a player's tells", usage='ignore [player]')
@@ -56,10 +65,13 @@ feature.softfn(softcode.channel_members, group='Messaging & prompts', readonly=T
 
 @feature.on_install
 def _afk_on_who(world) -> None:
-    """``who`` shows ``afk`` beside a player who is away (with ``basics``)."""
+    """``who`` shows ``afk`` beside a player who is away (with ``basics``);
+    ``world.services["channels"]`` offers the delivery path (``deliver``,
+    ``remember``) to other features' talk (``clans``)."""
     who = world.services.get("who")
     if who is not None:
         who.fields.append(afk_field)
+    world.services["channels"] = SimpleNamespace(deliver=deliver, remember=remember)
 
 
 async def _cemit(engine, frame, channel, text) -> None:

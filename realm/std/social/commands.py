@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object
+from realm.core.world import get_world
 from realm.std.rules.checks import contest
 from realm.std.social.disposition import (
     adjust_disposition,
@@ -38,7 +39,8 @@ def _find_npc(ctx: CommandContext, spec: str):
 async def cmd_greet(ctx: CommandContext) -> None:
     """
     Size up an NPC — rolls the first-impression reaction if you've
-    never interacted, then shows their attitude.
+    never interacted, then shows their attitude. The game system may say
+    more first (under Merc, how its level compares to yours).
 
     Usage: consider <npc>       (alias: con)
 
@@ -53,6 +55,10 @@ async def cmd_greet(ctx: CommandContext) -> None:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
 
+    rules = get_world().rules
+    verdict = rules.consider(ctx.player, target) if rules is not None else None
+    if verdict:
+        await ctx.session.send(verdict)
     value = reaction_roll(target, ctx.player)
     band = disposition_band(value)
     await ctx.session.send(

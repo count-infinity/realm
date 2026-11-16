@@ -202,6 +202,14 @@ lives on the player who answered.
 
 ## Going further
 
+- **In the journal.** The engine's [quests](../guides/quests.md) do not
+  branch, but they can carry a fork: a `quest_def` "The Fork" whose one
+  stage is a `custom` objective (`{"kind": "custom", "key": "sworn",
+  "text": "swear an allegiance"}`), and one line more in `on_choose`,
+  `quest_advance(enactor, 'The Fork', 'sworn')`, after the oath is set.
+  The journal then shows the fork until it is taken, the quest completes
+  on the oath, and `on_complete` (with `get_attr(enactor, 'allegiance')`)
+  can pay each side differently. The branch itself stays the attribute.
 - **Deeper trees.** Each branch may `prompt()` into its own follow-up
   callback (`on_warlord_oath`, `on_rebel_oath`) for a second fork, which is
   the same chain with more rooms in the maze (the

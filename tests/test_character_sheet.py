@@ -52,6 +52,11 @@ async def test_buy_wear_see_it_quaff_and_watch_the_prompt(midgaard, monkeypatch)
     brom.location = sim.store.get_cached(ARMOURY)
     await sim.do(brom, "buy jerkin")
     jerkin = next(o for o in brom.contents if "jerkin" in o.name)
+    # Scale mail is above a new warrior's level (MUD_PLAN 11.6): train up first.
+    await sim.do(brom, "wear jerkin")
+    assert not jerkin.has_tag("worn")
+    assert f"You must be level {jerkin.db.level} to use" in "\n".join(sim.seen(brom))
+    brom.db.level = jerkin.db.level
     await sim.do(brom, "wear jerkin")
     assert jerkin.has_tag("worn")
     sim.seen(brom)

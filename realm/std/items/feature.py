@@ -18,7 +18,7 @@ from realm.std.items.commands import (
     cmd_wield,
 )
 from realm.std.items.equipment import cmd_equipment, cmd_unwear, cmd_wear
-from realm.std.items.food import cmd_drink, cmd_eat
+from realm.std.items.food import cmd_drink, cmd_eat, cmd_fill
 from realm.std.items.inventory import (
     cmd_drop,
     cmd_get,
@@ -35,7 +35,8 @@ feature = Feature(
 feature.command(
     'get',
     cmd_get,
-    aliases=['take', 'grab'],
+    # `ta` stays take now `talk` (quests) shares its first letters.
+    aliases=['take', 'grab', 'ta'],
     category='items',
     help_text='Pick up an object',
     usage='get <object> [from <container>]',
@@ -80,6 +81,8 @@ feature.command(
 feature.command(
     'close',
     cmd_close,
+    # `cl` reached close by prefix until clans added clan and clantalk.
+    aliases=['cl'],
     category='items',
     help_text='Close a door or container',
     usage='close <target>',
@@ -122,7 +125,17 @@ feature.command(
 feature.command('eat', cmd_eat, category='items', help_text='Eat something you carry',
                 usage='eat <food>')
 feature.command('drink', cmd_drink, category='items',
-                help_text='Drink from a container or fountain', usage='drink <container>')
+                help_text='Drink from a container or fountain', usage='drink [<container>]')
+feature.command('fill', cmd_fill, category='items',
+                help_text='Fill a container at a fountain', usage='fill <container> [<fountain>]')
+feature.setting(
+    "FOOD_GAIN", 100,
+    "Percent: how much of a bite of food (its `nourishment`) reaches the eater's "
+    "`food` pool.")
+feature.setting(
+    "WATER_GAIN", 100,
+    "Percent: how much of a sip (a container's `sip`, default 50) reaches the "
+    "drinker's `water` pool.")
 feature.command(
     'remove',
     cmd_unwear,

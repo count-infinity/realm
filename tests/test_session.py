@@ -282,6 +282,36 @@ class TestSessionManager:
         assert disconnected[0] == session_id
 
     @pytest.mark.asyncio
+    async def test_quit_through_the_input_pump_finishes_the_teardown(self):
+        """MUD_PLAN step 17: `quit` arrives through the session's input pump
+        and destroys the session from inside it. Cancelling the pump there
+        cancelled the teardown at its first wait: the session stayed
+        registered with its character, and the connection open."""
+        import asyncio
+        manager = SessionManager()
+        closed = []
+
+        async def on_disconnect(session):
+            await asyncio.sleep(0)                # a callback that waits (a save)
+
+        async def sink(session, line):
+            if line == "quit":
+                await manager.destroy_session(session)
+
+        manager.on_disconnect(on_disconnect)
+        manager.set_input_sink(sink)
+        session = await manager.create_session(protocol="telnet")
+        session.set_closer(lambda: closed.append(True))
+        player = GameObject("Eve", tags=["player"])
+        manager.link_player_to_session(session, player)
+        session.submit_input("quit")
+        for _ in range(20):
+            await asyncio.sleep(0)
+        assert manager.get_session(session.id) is None
+        assert not manager.is_online(player)
+        assert closed == [True]
+
+    @pytest.mark.asyncio
     async def test_broadcast(self):
         """broadcast sends to all playing sessions."""
         manager = SessionManager()

@@ -43,9 +43,9 @@ just that number set against the nothing you get standing up.
 `regeneration` is one of the effects softcode may apply with **proximity**
 authority, the same gate the tranquilizer dart uses in
 [059](059_tranquilizer.md): a fixture in the room can heal whoever is in that
-room, no ownership required. Contrast the survival meters in
-[137](137_hunger_thirst.md), which reach across a whole zone and so need an
-admin-owned master. A bunk only ever works on someone in the same room, so it
+room, no ownership required. Contrast the enlistment terminal in
+[137](137_hunger_thirst.md), which writes survival pools onto a player's sheet
+and so needs an admin owner. A bunk only ever works on someone in the same room, so it
 can be an ordinary builder-owned object.
 
 ### How the state is read back
@@ -159,6 +159,7 @@ taking it.
 - **Wake on danger:** put a zone-master `combat:on_attack` witness that
   `remove_effect`s `resting` from everyone in the room, so the shout of battle
   jolts the camp awake.
-- **Fatigue as its own meter:** run a [137](137_hunger_thirst.md)-style
-  `fatigue` meter that only `$rest` refills, so pushing through the night costs
-  you tomorrow, an FP pool built as data.
+- **Fatigue as its own meter:** give the crew a `fatigue` pool as
+  [137](137_hunger_thirst.md) gives them food and water; the `needs` feature
+  raises it while awake and lowers it asleep, so pushing through the night
+  costs you tomorrow.

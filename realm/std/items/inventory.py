@@ -11,7 +11,7 @@ from realm.commands.base import find_object, find_player, format_list
 from realm.core.language import group_contents, numbered_name
 from realm.core.objects import GameObject
 from realm.core.propagation import deliver_messages
-from realm.core.world import get_world
+from realm.core.world import find_world, get_world
 from realm.std.items.actions import ItemAction
 from realm.std.items.verbs import do_drop, do_get, do_give, gate_item_action
 
@@ -95,6 +95,12 @@ async def cmd_get(ctx: CommandContext) -> None:
         await _get_all(ctx, from_container)
         return
 
+    # Money is a balance, not an object: "get gold from corpse".
+    if from_container is not None and item_name.strip().lower() in money_words():
+        if not take_money(ctx.player, from_container):
+            await ctx.session.send(f"There is no money in {from_container.name}.")
+        return
+
     # Find the item
     if from_container:
         # Search in container
@@ -121,6 +127,60 @@ async def cmd_get(ctx: CommandContext) -> None:
     await do_get(ctx.player, target)
 
 
+def _economy():
+    world = find_world()
+    return world.services.get("economy") if world is not None else None
+
+
+def money_words() -> set[str]:
+    """What ``get <word> from <container>`` takes as the money in it: the
+    currency's name, ``coins`` and ``money``. None without ``economy``."""
+    economy = _economy()
+    if economy is None:
+        return set()
+    return {economy.currency_name().lower(), "coins", "coin", "money"}
+
+
+def take_money(player: GameObject, source: GameObject) -> int:
+    """Move the money a container (a corpse) holds to ``player``, saying so.
+    Returns how much; 0 when there is none or the world has no
+    ``economy``."""
+    economy = _economy()
+    if economy is None or source.is_player:
+        return 0
+    amount = economy.get_credits(source)
+    if amount <= 0 or not economy.transfer_credits(source, player, amount):
+        return 0
+    player.msg(f"You get {amount} {economy.currency_name()} from {source.name}.")
+    return amount
+
+
+async def take_all(player: GameObject, source: GameObject) -> tuple[list[GameObject], int]:
+    """Everything ``player`` may pick up from ``source`` (a room or a
+    container), each through the same gate as a single ``get``, and from a
+    container its money too. Returns what was taken and how much money."""
+    items = [obj for obj in source.contents
+             if not obj.is_player and not obj.is_exit and obj is not player]
+    gotten = []
+    for item in items:
+        # Same gate as single-item get: locks and behaviors apply per item.
+        def _take(_a, item=item):
+            item.location = player
+        action = await gate_item_action(
+            player, ItemAction.ON_GET, item,
+            fail_msg=f"You can't pick up {item.name}.",
+            apply=_take,
+        )
+        if action is None:
+            continue
+        deliver_messages(action)
+        gotten.append(item)
+    if gotten:
+        player.msg(f"You pick up {_summarize(gotten)}.")
+    money = take_money(player, source) if source is not player.location else 0
+    return gotten, money
+
+
 async def _get_all(ctx: CommandContext, from_container=None) -> None:
     """Pick up all items from room or container."""
     if from_container:
@@ -131,33 +191,11 @@ async def _get_all(ctx: CommandContext, from_container=None) -> None:
         source_name = "here"
     else:
         return
-
-    items = [
-        obj for obj in source.contents
-        if not obj.is_player and not obj.is_exit and obj != ctx.player
-    ]
-
-    if not items:
+    gotten, money = await take_all(ctx.player, source)
+    if not gotten and not money and not [
+            obj for obj in source.contents
+            if not obj.is_player and not obj.is_exit and obj != ctx.player]:
         await ctx.session.send(f"There's nothing to get {source_name}.")
-        return
-
-    gotten = []
-    for item in items:
-        # Same gate as single-item get: locks and behaviors apply per item.
-        def _take(_a, item=item):
-            item.location = ctx.player
-        action = await gate_item_action(
-            ctx.player, ItemAction.ON_GET, item,
-            fail_msg=f"You can't pick up {item.name}.",
-            apply=_take,
-        )
-        if action is None:
-            continue
-        deliver_messages(action)
-        gotten.append(item)
-
-    if gotten:
-        await ctx.session.send(f"You pick up {_summarize(gotten)}.")
 
 
 async def cmd_drop(ctx: CommandContext) -> None:

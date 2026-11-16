@@ -231,6 +231,21 @@ class TestRounds:
         assert int(b2.db.get('hp')) < 30
 
 
+    async def test_the_fight_ends_when_nobody_is_left_to_fight(self, manager):
+        # MUD_PLAN step 17: a player killed by two mobs leaves them in the
+        # encounter with no one to hit. Two living participants are not a
+        # fight: one of them must have the other as its target.
+        room = GameObject("Alley", tags=["room"])
+        alice, _ = make_fighter("Alice", room)
+        thug, _ = make_fighter("Thug", room, player=False)
+        cat, _ = make_fighter("Cat", room, player=False)
+        encounter = await manager.initiate(alice, thug)
+        encounter.add(cat, target=alice)
+        assert encounter._check_continue()
+        encounter.remove(alice.id)                # she died, or fled
+        assert not encounter._check_continue()
+
+
 # --- Flee -----------------------------------------------------------------------
 
 

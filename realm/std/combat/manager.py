@@ -23,6 +23,7 @@ from realm.core.propagation import Action, propagate
 from realm.core.world import get_world
 from realm.std.combat.actions import CombatAction
 from realm.std.combat.encounter import CombatEncounter, deliver_combat_messages
+from realm.std.combat.loot import loot_corpse
 from realm.std.combat.maneuver import QueuedAction
 from realm.std.combat.strategy import select_strategy_action
 
@@ -175,6 +176,23 @@ class CombatManager:
         return [p.obj for p in encounter.participants.values()
                 if p.target_id == target.id and p.obj is not target]
 
+    def target_of(self, attacker: GameObject) -> GameObject | None:
+        """Whom ``attacker`` is fighting, or None out of a fight."""
+        encounter = self.encounter_of(attacker)
+        participant = encounter.get(attacker.id) if encounter is not None else None
+        if participant is None or participant.target_id is None:
+            return None
+        target = encounter.get(participant.target_id)
+        return target.obj if target is not None else None
+
+    def withdraw(self, obj: GameObject) -> None:
+        """Take ``obj`` out of its fight at once, wherever it is now (it may
+        already have left the room: ``recall``); the others fight on, or
+        the fight ends at its next beat."""
+        for encounter in list(self._encounters.values()):
+            if encounter.get(obj.id) is not None:
+                encounter.remove(obj.id)
+
     def retarget(self, attacker: GameObject, new_target: GameObject) -> bool:
         """Turn ``attacker`` on ``new_target`` (a rescue). The new target
         joins the fight against the attacker if it was not in it. False
@@ -187,6 +205,19 @@ class CombatManager:
                 return False
             encounter.add(new_target, target=attacker)
         encounter.get(attacker.id).target_id = new_target.id
+        return True
+
+    def assist(self, helper: GameObject, target: GameObject) -> bool:
+        """Bring ``helper`` into the fight ``target`` is in, attacking it
+        (a companion beside its master). Nobody else changes target. False
+        when ``target`` is not fighting here, ``helper`` already is, or
+        ``helper`` cannot fight."""
+        encounter = self.encounter_of(target)
+        if (encounter is None or helper.location is not target.location
+                or encounter.get(helper.id) is not None
+                or not is_combat_capable(helper)):
+            return False
+        encounter.add(helper, target=target)
         return True
 
     def disarm(self, target: GameObject) -> GameObject | None:
@@ -333,7 +364,7 @@ class CombatManager:
             home.msg_contents(f"{player.name} appears, pale and shaken.",
                               exclude=[player])
             render = world.services.get("look")
-            player.msg(render.render_room(home, player) if render is not None
+            player.msg(render.render_room(home, player, arrival=True) if render is not None
                        else home.name)
         if world.store is not None:
             await world.store.save(player)
@@ -355,35 +386,48 @@ class CombatManager:
             room.msg_contents(f"{npc.name} falls dead!", exclude=[npc])
 
         # The kill award: the game system says what the victim is worth
-        # (character points, experience, or 0 for none), split across the
-        # killer's party members present (solo killers keep the whole award).
-        system = get_world().rules
-        award = (system.death_award(npc, killer)
-                 if killer is not None and killer.is_player else 0)
+        # (character points, experience, or 0 for none) and how it divides
+        # among the killer's party members present (solo killers keep the
+        # whole award); then each of them sees the kill (Merc: alignment).
+        world = get_world()
+        system = world.rules
+        sharers: list[GameObject] = []
+        # A companion's kill is its master's (``companions``); the death
+        # event above still named the companion.
+        credited = killer
+        companions = world.services.get("companions")
+        if killer is not None and not killer.is_player and companions is not None:
+            credited = companions.master_of(killer) or killer
+        if credited is not None and credited.is_player:
+            # The party is the killer's when the world has ``social``.
+            social = world.services.get("social")
+            party = social.party_members(credited) if social is not None else [credited]
+            sharers = [m for m in party
+                       if m.is_player and not m.has_tag('unconscious')] or [credited]
+        award = system.death_award(npc, credited) if sharers else 0
         if award > 0:
             from realm.core.zones import zone_property
             multiplier = zone_property(room, 'xp_multiplier', 1.0)
             award = max(1, round(award * float(multiplier)))
-            # The party shares it when the world has ``social``.
-            social = get_world().services.get("social")
-            party = social.party_members(killer) if social is not None else [killer]
-            sharers = [m for m in party
-                       if m.is_player and not m.has_tag('unconscious')]
-            if not sharers:
-                sharers = [killer]
-            share = max(1, award // len(sharers))
-            for member in sharers:
-                # The system decides how a reward lands: character points
+            from realm.std.rules.system import award as pay_award
+            for member, share in system.share_award(award, sharers):
+                # Through the rules' award filters (``needs``: hungry) to the
+                # system, which decides how it lands: character points
                 # (PointBuyMixin), XP and a level-up (MercSystem).
-                system.grant_award(member, share)
+                pay_award(member, share)
+        for member in sharers:
+            system.on_kill(member, npc)
 
-        # Corpse: a container holding the fallen's belongings.
+        # Corpse: a container holding the fallen's belongings and money.
         corpse = GameObjectCls(name=f"corpse of {npc.name}",
                                tags=['thing', 'no_group', 'container'])
         corpse.db.article = "the"
         corpse.db.description = f"The lifeless body of {npc.name}."
         for item in list(npc.contents):
             item.location = corpse
+        economy = world.services.get("economy")
+        if economy is not None and economy.get_credits(npc) > 0:
+            economy.transfer_credits(npc, corpse, economy.get_credits(npc))
         corpse.location = room
 
         # It rots away when the world has a ``decay`` behavior (``npc``).
@@ -397,6 +441,8 @@ class CombatManager:
             await persistence.delete(npc)
         else:
             npc.location = None
+        if killer is not None and killer.is_player and killer.location is room:
+            await loot_corpse(killer, corpse)
 
     # --- Strategy seam (implemented in the strategies phase) ---
 

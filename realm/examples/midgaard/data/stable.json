@@ -1,0 +1,27 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "midgaard_mob_horse",
+   "name": "brown horse",
+   "description": "A sturdy brown riding horse, saddled and patient. It would carry you a long way.",
+   "tags": ["npc", "prototype", "mount", "race:horse"],
+   "attrs": {
+    "short_desc": "a brown horse",
+    "long_desc": "A saddled brown horse stands here, flicking its tail.",
+    "level": 10,
+    "points": 1000,
+    "max_hp": 110,
+    "hp": 110,
+    "max_move": 300,
+    "move": 300,
+    "armor_class": 6,
+    "thac0": 10,
+    "damage_dice": "1d6+1",
+    "alignment": 0,
+    "credits": 0,
+    "value": 10
+   }
+  }
+ ]
+}

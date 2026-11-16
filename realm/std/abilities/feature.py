@@ -30,6 +30,7 @@ feature.command(
 feature.command(
     'spells',
     cmd_spells,
+    aliases=['sp'],          # step 11's `split` made the prefix ambiguous
     category='combat',
     help_text='List spells you can cast',
     usage='spells',

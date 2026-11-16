@@ -321,6 +321,8 @@ async def kennel():
 
 
 class TestPet:
+    """Biscuit is a companion (MUD_PLAN 13.1): heel bonds him with
+    set_master, stay only parks him."""
 
     async def test_orders_follow_and_stay(self, kennel):
         sim, tam = kennel.sim, kennel.staff
@@ -330,10 +332,18 @@ class TestPet:
         out = await _do(kennel, "say Biscuit, speak")
         assert "barks once, sharp and proud." in out
 
-        # Heel: one attribute is the whole follow system.
+        # Heel: he becomes Tam's companion, which brings following.
         out = await _do(kennel, "say Biscuit, heel")
         assert "falls in at Tam's heel." in out
+        assert biscuit.db.get("master") == tam.id
         assert biscuit.db.get("following") == tam.id
+        out = await _do(kennel, "companions")
+        assert "Biscuit" in out and "You have 1 of 2 followers." in out
+
+        # order runs a command as him.
+        out = await _do(kennel, "order Biscuit pose rolls over.")
+        assert "You order Biscuit to 'pose rolls over.'" in out
+        assert "Biscuit rolls over." in out
 
         # He walks the real exits after his owner.
         await _do(kennel, "out")
@@ -344,12 +354,15 @@ class TestPet:
         await _do(kennel, "yard")
         assert biscuit.location is yard
 
-        # Stay: the attribute goes away, and so does the following.
+        # Stay: no more following, still his companion.
         out = await _do(kennel, "say Biscuit, stay")
         assert "sits, ears up, exactly where told." in out
         assert biscuit.db.get("following") is None
+        assert biscuit.db.get("master") == tam.id
         await _do(kennel, "out")
         assert biscuit.location is yard
+        out = await _do(kennel, "companions")
+        assert "in The Kennel Yard" in out
 
     async def test_listen_lock_whitelists_the_owner(self, kennel):
         sim, tam = kennel.sim, kennel.staff
@@ -364,6 +377,9 @@ class TestPet:
         out = await _do(kennel, "say Biscuit, stay", player=rook)
         assert "sits, ears up" not in out
         assert biscuit.db.get("following") == tam.id
+        # ... and order obeys only his master.
+        out = await _do(kennel, "order Biscuit sit", player=rook)
+        assert "Do it yourself!" in out
 
         # The owner's do.
         out = await _do(kennel, "say Biscuit, stay")

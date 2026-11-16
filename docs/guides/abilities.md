@@ -108,6 +108,7 @@ the common shapes need no softcode:
 | `tag` | adds `tag` to the target (a trip leaves it `resting`). |
 | `rescue` | turns everyone fighting the target (an ally) on the actor. |
 | `disarm` | knocks the target's wielded weapon to the floor. |
+| `charm` | makes the target the actor's companion for `duration` + `per_level` × the actor's level beats (the `companions` feature's `charmed` effect; `level_check`, `turns_hostile`, optional `save`). Nothing without `companions`. See [Pets, Charm and Mounts](companions.md#charm). |
 
 Damage `dice` may say `{level}` for the actor's level: a kick's
 `"1d{level}"` grows with the kicker.

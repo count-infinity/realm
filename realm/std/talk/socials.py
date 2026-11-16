@@ -80,7 +80,7 @@ async def cmd_socials(ctx: CommandContext) -> None:
         await ctx.session.send("This game has no socials.")
         return
     rows = [", ".join(names[i:i + 10]) for i in range(0, len(names), 10)]
-    await ctx.session.send("Socials:\n  " + "\n  ".join(rows))
+    ctx.session.send_paged("Socials:\n  " + "\n  ".join(rows))
 
 
 __all__ = ["socials", "social_fallback", "cmd_socials"]

@@ -1,0 +1,7 @@
+{
+  "name": "clan-governments",
+  "description": "Eight clan governments after CoffeeMud's clangovernments.xml (gang, guild, union, fellowship, anarchy, co-op, meritocracy, plutocracy), as clan_government_def objects.",
+  "files": [
+    "governments.json"
+  ]
+}

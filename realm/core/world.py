@@ -78,6 +78,9 @@ class World:
     traversal_gates: list[tuple[Callable, str]] = field(default_factory=list)
     #: async (actor, origin, destination, exit_obj, *, fleeing)
     after_traverse: list[Callable] = field(default_factory=list)
+    #: (actor, direction, phase) -> str | None: a walker's movement line
+    #: (``feature.move_describer``; ``phase`` is leave, arrive or own)
+    move_describers: list[Callable] = field(default_factory=list)
     sight_rules: list[Callable] = field(default_factory=list)   # (viewer, obj) -> bool | None
     markers: list[Callable] = field(default_factory=list)       # (obj, looker) -> str | None
     name_resolvers: list[Callable] = field(default_factory=list)      # perception

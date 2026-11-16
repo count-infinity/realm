@@ -111,7 +111,7 @@ async def bring_followers(
             if obj.is_player:
                 look = get_world().services.get("look")
                 if look is not None:
-                    obj.msg(look.render_room(obj.location, obj))
+                    obj.msg(look.render_room(obj.location, obj, arrival=True))
 
 
 __all__ = [

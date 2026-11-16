@@ -12,6 +12,7 @@ from realm.std.talk.commands import (
     cmd_emit,
     cmd_ooc,
     cmd_pose,
+    cmd_report,
     cmd_say,
     cmd_semipose,
     cmd_shout,
@@ -32,6 +33,8 @@ feature.command('socials', cmd_socials, category='social', help_text='List the s
 feature.event(TalkAction.SOCIAL, hook="SOCIAL", doc="a social (smile, bow) is used",
               payload={"social": "the social's name"})
 
+feature.command('report', cmd_report, category='communication',
+                help_text='Say aloud how you are (your pools)', usage='report')
 feature.command(
     'say',
     cmd_say,

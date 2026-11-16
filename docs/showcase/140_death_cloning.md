@@ -102,7 +102,7 @@ waits a moment instead of firing inside the hook.
    them, all mutations of a player's sheet, which softcode may do only with
    [`controls()`](../reference/softcode.md#fn-controls). So the controller
    is **admin-owned**, the same wall as the trainer
-   ([069](069_trainer_npc.md)) and the survival master
+   ([069](069_trainer_npc.md)) and the enlistment terminal
    ([137](137_hunger_thirst.md)). A builder-owned bay would hear every death
    and then fail every write.
 

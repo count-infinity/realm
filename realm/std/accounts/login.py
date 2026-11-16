@@ -32,6 +32,7 @@ from realm.std.accounts import account as accounts_clock
 from realm.std.accounts.account import (
     account_of,
     ban_message,
+    carry_over_options,
     characters_of,
     sitelocked,
     unlink_character,
@@ -294,6 +295,7 @@ class Accounts:
             await old.send(f"{player.name} has been taken over from elsewhere.")
             self.world.sessions.unlink_player_from_session(old)
         self._link(session, player)
+        carry_over_options(player)
 
         # A persistent softcode prompt outstanding from before a reboot
         # resumes: the player's next line runs its callback again.
@@ -430,7 +432,7 @@ class Accounts:
         """Show the player's room, when the world has ``look``."""
         look = self.world.services.get("look")
         if look is not None:
-            await session.send(look.render_room(player.location, player))
+            await session.send(look.render_room(player.location, player, arrival=True))
 
     async def who(self, session: Session) -> None:
         """``who`` at the login prompt: who is online."""

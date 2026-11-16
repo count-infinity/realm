@@ -54,10 +54,12 @@ ENABLE_TELNET = True
 TELNET_HOST = "0.0.0.0"
 TELNET_PORT = 4000
 
-# WebSocket server (web clients)
+# WebSocket server (web clients; needs aiohttp: pip install 'realm[websocket]')
 ENABLE_WEBSOCKET = False
 WEBSOCKET_HOST = "0.0.0.0"
 WEBSOCKET_PORT = 4001
+# The browser client at http://<host>:<WEBSOCKET_PORT>/ (needs ENABLE_WEBSOCKET)
+WEB_CLIENT = False
 
 
 # =============================================================================
@@ -112,12 +114,14 @@ RECURSION_LIMIT = 1000
 async def init_world(server):
     """
     Called once, when the world is empty: the content every game starts
-    with. The channels (gossip, newbie, immtalk) and the common socials
-    (smile, bow, wave...) are data packs; remove a line to go without.
+    with. The channels (gossip, newbie, immtalk), the common socials
+    (smile, bow, wave...) and the clan governments a founder chooses from
+    (gang, guild, union...) are data packs; remove a line to go without.
     """
     from realm import import_pack
     await import_pack("channels", server.persistence)
     await import_pack("socials-classic", server.persistence)
+    await import_pack("clan-governments", server.persistence)
 
     # Create your starting rooms, NPCs, and items here too:
     # from realm import GameObject

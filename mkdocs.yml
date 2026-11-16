@@ -54,6 +54,7 @@ plugins:
 nav:
   - Home: index.md
   - Getting Started:
+    - Your First MUD: getting-started/your-first-mud.md
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Your First Game: getting-started/first-game.md
@@ -82,6 +83,9 @@ nav:
     - Accounts, Achievements & Bans: guides/accounts.md
     - "Communication: Tells, Channels, Socials, Mail": guides/communication.md
     - Time and Weather: guides/time-and-weather.md
+    - Pets, Charm and Mounts: guides/companions.md
+    - Clans: guides/clans.md
+    - Quests: guides/quests.md
     - Operating a Live Game: guides/operations.md
     - Rules:
       - Game Systems: guides/game-systems.md

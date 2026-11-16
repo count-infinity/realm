@@ -18,12 +18,12 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from realm.core.options import ACCOUNT_TAG
 from realm.core.world import find_world
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
-ACCOUNT_TAG = "account"
 SITELOCK_TAG = "sitelock_registry"
 #: ``banned_until`` for a ban with no end.
 FOREVER = "forever"
@@ -60,6 +60,25 @@ def account_of(character: GameObject | None) -> GameObject | None:
         return None
     account = store.get_cached(str(account_id))
     return account if account is not None and account.has_tag(ACCOUNT_TAG) else None
+
+
+def carry_over_options(character: GameObject) -> None:
+    """Display options a character kept from before they lived on its
+    account (MUD_PLAN 10.4) move to the account, whose own value wins, and
+    leave the character. The option names are the ``options`` service's
+    (``basics``); run as the character enters play."""
+    world = find_world()
+    service = world.services.get("options") if world is not None else None
+    account = account_of(character)
+    if service is None or account is None:
+        return
+    for name in service.options:
+        value = character.db.get(name)
+        if value is None:
+            continue
+        if account.db.get(name) is None:
+            account.db.set(name, value)
+        character.db.delete(name)
 
 
 def characters_of(account: GameObject | None) -> list[GameObject]:
@@ -165,7 +184,7 @@ def sitelocked(address: str) -> str | None:
     return None
 
 
-__all__ = ["ACCOUNT_TAG", "SITELOCK_TAG", "FOREVER", "admin_log", "now", "find_account",
-           "account_of", "characters_of", "link_character", "unlink_character",
-           "new_account", "parse_duration", "ban_message", "sitelock_registry",
+__all__ = ["SITELOCK_TAG", "FOREVER", "admin_log", "now", "find_account",
+           "account_of", "carry_over_options", "characters_of", "link_character",
+           "unlink_character", "new_account", "parse_duration", "ban_message", "sitelock_registry",
            "ensure_sitelock_registry", "sitelocked"]

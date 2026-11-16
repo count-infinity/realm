@@ -100,7 +100,10 @@ class TestPointBuy:
 class TestMercPools:
 
     def test_hp_mana_and_move(self):
-        assert MercSystem().pools() == [Pool("hp"), Pool("mana"), Pool("move")]
+        # MUD_PLAN step 12 added hunger and thirst (Decision D6).
+        assert MercSystem().pools() == [Pool("hp"), Pool("mana"), Pool("move"),
+                                        Pool("food", regen=False),
+                                        Pool("water", regen=False)]
 
     def test_a_merc_character_has_them(self):
         with Simulator(game_system=MercSystem) as sim:

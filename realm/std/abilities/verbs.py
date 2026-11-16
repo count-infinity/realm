@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from realm.commands.base import find_object
+from realm.commands.base import find_object, find_victim
 from realm.core.defs import all_defs
 from realm.std.abilities.abilities import (
     _cooldown_seconds,
@@ -22,6 +22,7 @@ from realm.std.abilities.abilities import (
     can_invoke,
     invoke_ability,
     ready_at,
+    target_kind,
 )
 
 if TYPE_CHECKING:
@@ -53,7 +54,9 @@ async def ability_fallback(ctx: CommandContext) -> bool:
     target = None
     words = (ctx.args or "").strip()
     if words:
-        target = find_object(ctx, words, search_room=True, search_inventory=False)
+        # Whom it is aimed at is a creature, never a thing (its corpse).
+        target = find_victim(ctx, words) if target_kind(adef) in ("victim", "ally") \
+            else find_object(ctx, words, search_room=True, search_inventory=False)
         if target is None:
             await ctx.session.send(f"You don't see '{words}' here.")
             return True

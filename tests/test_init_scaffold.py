@@ -313,11 +313,30 @@ def test_an_unknown_system_is_refused(tmp_path, monkeypatch, capsys):
     assert not (tmp_path / "questcove").exists()
 
 
-def test_template_with_system_is_refused(tmp_path, monkeypatch, capsys):
+def test_template_with_another_system_is_refused(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     assert cmd_init(_Args("questcove", template="midgaard", system="gurps")) == 1
-    assert "the template decides" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "the midgaard template is a merc game" in out and "--system merc" in out
     assert not (tmp_path / "questcove").exists()
+    # A template without rules has no system to name.
+    assert cmd_init(_Args("questcove", template="wilderness", system="merc")) == 1
+    assert "the wilderness template has no rules system" in capsys.readouterr().out
+    assert not (tmp_path / "questcove").exists()
+
+
+def test_template_with_its_own_system_is_the_template(tmp_path, monkeypatch,
+                                                       clean_import_state):
+    """MUD_PLAN step 17: `realm init demo --system merc --template midgaard`,
+    the line the guide and the acceptance use, makes the Midgaard game."""
+    monkeypatch.chdir(tmp_path)
+    assert cmd_init(_Args("demo", template="midgaard", system="merc")) == 0
+    assert cmd_init(_Args("plain", template="midgaard")) == 0
+    for name in ("config.py", "rules.py", "game.py", "data/quests.json"):
+        assert ((tmp_path / "demo" / name).read_text()
+                == (tmp_path / "plain" / name).read_text()), name
+    system = resolve_game_system(load_config(tmp_path / "demo").game_system)
+    assert type(system).__mro__[1].__name__ == "MercSystem"
 
 
 TEMPLATES = {
@@ -430,7 +449,7 @@ def test_a_merc_scaffold_respawns_its_dead(tmp_path, monkeypatch, clean_import_s
 async def test_a_new_game_starts_with_channels_and_socials(tmp_path, monkeypatch,
                                                            clean_import_state):
     """MUD_PLAN 7.2/7.3: the scaffold's init_world imports the channels and
-    socials-classic packs."""
+    socials-classic packs; step 14 the clan governments."""
     from realm.testing import Simulator
     monkeypatch.chdir(tmp_path)
     assert cmd_init(_Args("questcove")) == 0
@@ -440,5 +459,8 @@ async def test_a_new_game_starts_with_channels_and_socials(tmp_path, monkeypatch
         channels = {o.name for o in sim.store.find_cached(tag="channel_def")}
         assert channels == {"gossip", "newbie", "immtalk"}
         assert len(sim.store.find_cached(tag="social_def")) >= 40
+        governments = {o.name for o in sim.store.find_cached(tag="clan_government_def")}
+        assert governments == {"gang", "guild", "union", "fellowship", "anarchy", "co-op",
+                               "meritocracy", "plutocracy"}
     finally:
         sim.close()

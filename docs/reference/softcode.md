@@ -111,11 +111,18 @@ payload: its subject is `target`.
 | Action | Keys | Feature |
 |---|---|---|
 | `account:on_achievement` | `achievement`: the achievement's name | `achievements` |
+| `clan:on_assign` | `clan`: the clan's name; `position`: the new position id; `previous`: the old position id; `how`: assigned, voted, displaced, promoted, overthrown or overthrow | `clans` |
+| `clan:on_join` | `clan`: the clan's name; `position`: the position id; `how`: joined, accepted, founded, created or added | `clans` |
+| `clan:on_leave` | `clan`: the clan's name; `reason`: left, exiled, removed or dissolved | `clans` |
+| `clan:on_level` | `clan`: the clan's name; `level`: the new level | `clans` |
+| `clan:on_talk` | `clan`: the clan's name; `message`: what was said | `clans` |
 | `combat:on_attack` | `weapon`: the weapon used; `attacker_hp`: the attacker's HP; `defender_hp`: the defender's HP | `combat` |
 | `combat:on_damage` | `damage`: the amount (a ward may lower it); `damage_types`: amount per damage type | `combat` |
 | `combat:on_death` | `killer`: the killer's name (the killer object is actor); `fatal`: True when the body is gone | `combat` |
 | `comm:on_channel` | `channel`: the channel's name; `message`: what was said | `channels` |
 | `comm:on_tell` | `message`: what was said | `channels` |
+| `companion:on_bond` | `how`: bought, charmed, or set (softcode, a builder) | `companions` |
+| `companion:on_release` | `reason`: dismissed, released, charm_ended, master_left, master_gone, attacked or rebonded | `companions` |
 | `event:connect` | `returning`: True when the character already existed | `kernel` |
 | `event:emit` | `message`: the emitted text | `talk` |
 | `event:emote` | `pose`: the pose text | `talk` |
@@ -137,6 +144,10 @@ payload: its subject is `target`.
 | `item:on_unlock` | `picked`: True when a lockpick, not a key, opened it | `items` |
 | `pool:on_change` | `pool`: the pool's name; `old`: its value before; `new`: its value after; `applied`: how much this pool took; `source`: who caused it, or None | `kernel` |
 | `pool:on_spent` | `pool`: the pool's name; `old`: its value before; `new`: its value after; `applied`: how much this pool took; `source`: who caused it, or None | `kernel` |
+| `quest:on_accept` | `quest`: the quest's name | `quests` |
+| `quest:on_advance` | `quest`: the quest's name; `stage`: the new stage number, or 'ready' when it waits to be handed in | `quests` |
+| `quest:on_complete` | `quest`: the quest's name | `quests` |
+| `quest:on_fail` | `quest`: the quest's name; `reason`: expired, abandoned or failed | `quests` |
 | `time:on_dawn` | `hour`: the hour of the day | `clock` |
 | `time:on_day` | `hour`: the hour of the day | `clock` |
 | `time:on_dusk` | `hour`: the hour of the day | `clock` |
@@ -213,8 +224,14 @@ veto (a cursed item refusing removal).
 | `ON_ACHIEVEMENT` | a character earns an achievement | `achievements` |
 | `ON_ARRIVE` | this object arrives somewhere new | `kernel` |
 | `ON_ATTACK` | this object attacks or is attacked | `combat` |
+| `ON_BOND` | this creature became someone's companion (the master is `enactor`) | `companions` |
 | `ON_CAST` | an ability is directed at this object (resist via on_check) | `abilities` |
 | `ON_CHANNEL` | a line is spoken on this channel (the channel_def is the target) | `channels` |
+| `ON_CLANASSIGN` | a member of this clan changed position (`enactor`) | `clans` |
+| `ON_CLANJOIN` | a character joined this clan (the member is `enactor`) | `clans` |
+| `ON_CLANLEAVE` | a member left this clan (the member is `enactor`) | `clans` |
+| `ON_CLANLEVEL` | this clan reached a new level | `clans` |
+| `ON_CLANTALK` | a member spoke on clan talk (`enactor`) | `clans` |
 | `ON_CLOSE` | this door/container is closed | `items` |
 | `ON_CONNECT` | player connects | `kernel` |
 | `ON_DAMAGE` | this object takes damage | `combat` |
@@ -243,11 +260,17 @@ veto (a cursed item refusing removal).
 | `ON_POOL` | one of this object's pools changed (damage, healing, a cost) | `kernel` |
 | `ON_PUSH` | this object is pushed (button, lever) | `items` |
 | `ON_PUT` | this object is put in a container | `items` |
+| `ON_QUESTACCEPT` | a character took a quest (`enactor`; the target is the giver, or the quest's definition) | `quests` |
+| `ON_QUESTADVANCE` | a character finished a stage of a quest (`enactor`) | `quests` |
+| `ON_QUESTCOMPLETE` | a character completed a quest (`enactor`; the target is the giver it was handed in to, or the quest's definition) | `quests` |
+| `ON_QUESTFAIL` | a character's quest ended unfinished (`enactor`) | `quests` |
 | `ON_RECEIVE` | this object is given something (recipient side) | `kernel` |
+| `ON_RELEASE` | this companion was freed (its former master, if any, is `enactor`) | `companions` |
 | `ON_REMOVE` | this object is taken off (gated: cursed gear can refuse) | `items` |
 | `ON_RESET` | this zone master resets (empty + due) — repop, re-lock doors | `kernel` |
 | `ON_SOCIAL` | a social (smile, bow) is used | `talk` |
 | `ON_SPENT` | one of this object's pools was just used up (the change that crossed into spent) | `kernel` |
+| `ON_TALK` | a character talks to this object (`talk <npc>`) | `quests` |
 | `ON_TELL` | this player is told something | `channels` |
 | `ON_TICK` | periodic timer (on_tick behavior) | `kernel` |
 | `ON_UNLOCK` | this is unlocked (gated: a sealed door can refuse) | `items` |
@@ -288,8 +311,19 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`check`](#fn-check) | Roll a skill check AS the subject; True on success. | [Dice & skill checks](#dice-skill-checks) |
 | [`check_roll`](#fn-check_roll) | Roll a skill check and return the GRADED, condition-modified result. | [Dice & skill checks](#dice-skill-checks) |
 | [`clamp`](#fn-clamp) | Clamp value between low and high. | [Math & logic](#math-logic) |
+| [`clan`](#fn-clan) | The name of the clan `obj` belongs to (in `category`; one who has only applied is not in it yet), or None. | [Clans](#clans) |
+| [`clan_add`](#fn-clan_add) | Put a character in a clan (at `position`, else the government's accept position), as if accepted. | [Clans](#clans) |
+| [`clan_has_power`](#fn-clan_has_power) | Does `obj`'s position in its clan hold `power` outright (not merely vote on it)? | [Clans](#clans) |
+| [`clan_level`](#fn-clan_level) | A clan's level, or None when there is no such clan. | [Clans](#clans) |
+| [`clan_members`](#fn-clan_members) | A clan's members (not its applicants), highest rank first. | [Clans](#clans) |
+| [`clan_position`](#fn-clan_position) | The id of `obj`'s position in its clan (`boss`, `member`), or None. | [Clans](#clans) |
+| [`clan_rank`](#fn-clan_rank) | The rank of `obj`'s position in its clan, 0 the highest; None outside a clan. | [Clans](#clans) |
+| [`clan_relation`](#fn-clan_relation) | Clan `a`'s declared relation toward clan `b`: war, hostile, neutral, friendly or ally (None when either is not a clan). | [Clans](#clans) |
+| [`clan_remove`](#fn-clan_remove) | Take a character out of a clan (`CLANLEAVE` fires, reason `removed`). | [Clans](#clans) |
+| [`clans_at_war`](#fn-clans_at_war) | True when either clan has declared war on the other. | [Clans](#clans) |
 | [`clear_lock`](#fn-clear_lock) | Clear a lock from an object the executor controls. | [Locks & permissions](#locks-permissions) |
 | [`clone_obj`](#fn-clone_obj) | Copy an object the executor controls: attributes, tags, behaviors, locks and parent (not its unique keyid). | [Objects & attributes](#objects-attributes) |
+| [`companions`](#fn-companions) | `obj`'s companions, wherever they are. | [NPCs & behaviors](#npcs-behaviors) |
 | [`contents`](#fn-contents) | Get an object's contents. | [Objects & attributes](#objects-attributes) |
 | [`contest`](#fn-contest) | Opposed quick contest; True if the actor wins. | [Dice & skill checks](#dice-skill-checks) |
 | [`controls`](#fn-controls) | Does the executor control this object? | [Objects & attributes](#objects-attributes) |
@@ -325,6 +359,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`has_tag`](#fn-has_tag) | Check if an object has a tag. | [Tags & zones](#tags-zones) |
 | [`heal`](#fn-heal) | Mend the damage pool (`hp` unless the target says otherwise), capped at its max, of something in the executor's room. | [Combat & effects](#combat-effects) |
 | [`highest`](#fn-highest) | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), else miss (0). | [Dice & skill checks](#dice-skill-checks) |
+| [`hungry`](#fn-hungry) | True when the character's `food` pool is empty: it recovers at half speed and counts toward dying of hunger. | [Pools](#pools) |
 | [`idle_seconds`](#fn-idle_seconds) | Seconds since a player last typed (or since its link dropped); None when it is not on. | [Objects & attributes](#objects-attributes) |
 | [`if_else`](#fn-if_else) | Conditional expression. | [Math & logic](#math-logic) |
 | [`incr`](#fn-incr) | Increment a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
@@ -335,6 +370,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`loc`](#fn-loc) | Get an object's location. | [Objects & attributes](#objects-attributes) |
 | [`margin_over`](#fn-margin_over) | Roll-over (D20): success if `rolled >= target`; margin is how far over. | [Dice & skill checks](#dice-skill-checks) |
 | [`margin_under`](#fn-margin_under) | Roll-under (GURPS, CoC): success if `rolled <= target`; margin is how far under. | [Dice & skill checks](#dice-skill-checks) |
+| [`master`](#fn-master) | The character `obj` is a companion of (a pet's owner, a charmed creature's charmer), or None. | [NPCs & behaviors](#npcs-behaviors) |
 | [`member`](#fn-member) | Find position of item in list (1-indexed, 0 if not found). | [Text](#text) |
 | [`mend_pool`](#fn-mend_pool) | Mend a pool of something in reach: raise a down pool toward its max, lower an up pool toward its floor. | [Pools](#pools) |
 | [`mid`](#fn-mid) | Extract substring (1-indexed like MUSH). | [Text](#text) |
@@ -350,8 +386,15 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`pool`](#fn-pool) | A pool's value, or None when the object has no such pool. | [Pools](#pools) |
 | [`pool_max`](#fn-pool_max) | A pool's maximum, or None when it is unbounded or absent. | [Pools](#pools) |
 | [`prompt`](#fn-prompt) | Ask a player a question; their next line runs the `callback` attribute (on the executor) with the answer as arg0 — a softcode wizard. | [Messaging & prompts](#messaging-prompts) |
+| [`quest_advance`](#fn-quest_advance) | Count `by` toward the objective `key` of `obj`'s current stage of `quest`: a `custom` objective, or any other. | [Quests](#quests) |
+| [`quest_complete`](#fn-quest_complete) | Complete `obj`'s `quest` now, whatever is left of it, and pay its rewards. | [Quests](#quests) |
+| [`quest_count`](#fn-quest_count) | How far `obj` is on the objective `key` of their current stage of `quest` (0 when they are not on it, or the stage has no such objective). | [Quests](#quests) |
+| [`quest_fail`](#fn-quest_fail) | End `obj`'s `quest` unfinished (`QUESTFAIL` fires, reason `failed`). | [Quests](#quests) |
+| [`quest_offer`](#fn-quest_offer) | Start `quest` for `obj` as if they had accepted it (a note read, a stranger met): True when they may take it, False (and nothing happens) when not. | [Quests](#quests) |
+| [`quest_state`](#fn-quest_state) | Where `obj` stands on `quest`: None (never taken, or failed), the current stage number (1 is the first), `'ready'` (every stage met, waiting to be handed in) or `'done'`. | [Quests](#quests) |
 | [`rand`](#fn-rand) | Random integer between low and high (inclusive). | [Dice & skill checks](#dice-skill-checks) |
 | [`reaction_roll`](#fn-reaction_roll) | Memoized first-impression roll (npc must be in executor's reach). | [NPCs & behaviors](#npcs-behaviors) |
+| [`release`](#fn-release) | Free `obj` (an NPC the executor controls) from its master; it stays where it is. | [NPCs & behaviors](#npcs-behaviors) |
 | [`remit`](#fn-remit) | Emit a message to everyone in a room (delivered after the script). | [Messaging & prompts](#messaging-prompts) |
 | [`remove_effect`](#fn-remove_effect) | Strip an active effect by kind (cure poison, calm fear). | [Combat & effects](#combat-effects) |
 | [`remove_tag`](#fn-remove_tag) | Remove a tag from an object the executor controls. | [Tags & zones](#tags-zones) |
@@ -367,6 +410,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`set_attr`](#fn-set_attr) | Set an attribute on an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`set_desc`](#fn-set_desc) | Set the description `look` shows on an object the executor controls (like `@desc`; an empty string clears it). | [Objects & attributes](#objects-attributes) |
 | [`set_lock`](#fn-set_lock) | Set a lock on an object the executor controls (validated). | [Locks & permissions](#locks-permissions) |
+| [`set_master`](#fn-set_master) | Make `obj` (an NPC the executor controls) `master`'s companion: it follows and obeys `order`. | [NPCs & behaviors](#npcs-behaviors) |
 | [`set_name`](#fn-set_name) | Rename an object the executor controls (like `@name`). | [Objects & attributes](#objects-attributes) |
 | [`setdiff`](#fn-setdiff) | Difference of two lists (in list1 but not list2). | [Text](#text) |
 | [`setinter`](#fn-setinter) | Intersection of two lists. | [Text](#text) |
@@ -386,6 +430,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`task_of`](#fn-task_of) | What a character is busy with: `{"label": ..., "left": seconds}`, or None. | [Time & scheduling](#time-scheduling) |
 | [`teleport_obj`](#fn-teleport_obj) | Move an object the executor controls straight to a destination — the wizard/admin relocation. | [Objects & attributes](#objects-attributes) |
 | [`test_lock`](#fn-test_lock) | Would `caller` (default: the executor) pass this lock? | [Locks & permissions](#locks-permissions) |
+| [`thirsty`](#fn-thirsty) | True when the character's `water` pool is empty: it recovers at half speed and counts toward dying of thirst. | [Pools](#pools) |
 | [`time_of_day`](#fn-time_of_day) | `dawn`, `day`, `dusk` or `night`. | [Time & scheduling](#time-scheduling) |
 | [`transfer_credits`](#fn-transfer_credits) | Move money FROM something the executor controls. | [Money](#money) |
 | [`trim`](#fn-trim) | Remove leading/trailing whitespace. | [Text](#text) |
@@ -1173,6 +1218,256 @@ set_account_attr(enactor, 'banked_gold', 50)
 ```
 
 
+## Clans
+
+### `clan` {#fn-clan}
+
+```text
+clan(obj: GameObject | str | None, category: str = '') -> str | None
+```
+
+The name of the clan `obj` belongs to (in `category`; one who
+has only applied is not in it yet), or None.
+
+**Example**
+
+```text
+clan(enactor) == 'Ravens'
+```
+
+### `clan_add` {#fn-clan_add}
+
+```text
+clan_add(obj: GameObject | str | None, name: str, position: str | None = None) -> bool
+```
+
+Put a character in a clan (at `position`, else the government's
+accept position), as if accepted. False, changing nothing, for a
+non-character, a missing clan or position, or one already in a clan of
+that kind. Builders only; it lands after the script.
+
+**Example**
+
+```text
+clan_add(enactor, 'Ravens')
+```
+
+### `clan_has_power` {#fn-clan_has_power}
+
+```text
+clan_has_power(obj: GameObject | str | None, power: str, category: str = '') -> bool
+```
+
+Does `obj`'s position in its clan hold `power` outright (not
+merely vote on it)?
+
+**Example**
+
+```text
+clan_has_power(enactor, 'home_privs')
+```
+
+### `clan_level` {#fn-clan_level}
+
+```text
+clan_level(name: str) -> int | None
+```
+
+A clan's level, or None when there is no such clan.
+
+**Example**
+
+```text
+clan_level('Ravens') >= 3
+```
+
+### `clan_members` {#fn-clan_members}
+
+```text
+clan_members(name: str) -> list[GameObject]
+```
+
+A clan's members (not its applicants), highest rank first.
+
+**Example**
+
+```text
+[name(m) for m in clan_members('Ravens')]
+```
+
+### `clan_position` {#fn-clan_position}
+
+```text
+clan_position(obj: GameObject | str | None, category: str = '') -> str | None
+```
+
+The id of `obj`'s position in its clan (`boss`, `member`), or
+None.
+
+**Example**
+
+```text
+clan_position(enactor) == 'treasurer'
+```
+
+### `clan_rank` {#fn-clan_rank}
+
+```text
+clan_rank(obj: GameObject | str | None, category: str = '') -> int | None
+```
+
+The rank of `obj`'s position in its clan, 0 the highest; None
+outside a clan.
+
+**Example**
+
+```text
+clan_rank(enactor) is not None and clan_rank(enactor) <= 1
+```
+
+### `clan_relation` {#fn-clan_relation}
+
+```text
+clan_relation(a: str, b: str) -> str | None
+```
+
+Clan `a`'s declared relation toward clan `b`: war, hostile,
+neutral, friendly or ally (None when either is not a clan). One-sided:
+an alliance holds only when both say ally.
+
+**Example**
+
+```text
+clan_relation(clan(enactor), 'Smiths') == 'war'
+```
+
+### `clan_remove` {#fn-clan_remove}
+
+```text
+clan_remove(obj: GameObject | str | None, name: str) -> bool
+```
+
+Take a character out of a clan (`CLANLEAVE` fires, reason
+`removed`). Builders only; it lands after the script.
+
+**Example**
+
+```text
+clan_remove(enactor, 'Ravens')
+```
+
+### `clans_at_war` {#fn-clans_at_war}
+
+```text
+clans_at_war(a: str, b: str) -> bool
+```
+
+True when either clan has declared war on the other.
+
+**Example**
+
+```text
+clans_at_war(clan(enactor), clan(target))
+```
+
+
+## Quests
+
+### `quest_advance` {#fn-quest_advance}
+
+```text
+quest_advance(obj: GameObject | str | None, quest: str, key: str, by: int = 1) -> bool
+```
+
+Count `by` toward the objective `key` of `obj`'s current stage
+of `quest`: a `custom` objective, or any other. False when they are
+not on that stage. Builders only; it lands after the script.
+
+**Example**
+
+```text
+quest_advance(enactor, 'The Cinder Road', 'ledger')
+```
+
+### `quest_complete` {#fn-quest_complete}
+
+```text
+quest_complete(obj: GameObject | str | None, quest: str) -> bool
+```
+
+Complete `obj`'s `quest` now, whatever is left of it, and pay its
+rewards. Builders only; it lands after the script.
+
+**Example**
+
+```text
+quest_complete(enactor, 'The Cinder Road')
+```
+
+### `quest_count` {#fn-quest_count}
+
+```text
+quest_count(obj: GameObject | str | None, quest: str, key: str) -> int
+```
+
+How far `obj` is on the objective `key` of their current stage
+of `quest` (0 when they are not on it, or the stage has no such
+objective). A `collect` objective counts what they hold now.
+
+**Example**
+
+```text
+quest_count(enactor, 'Fido trouble', 'kill')
+```
+
+### `quest_fail` {#fn-quest_fail}
+
+```text
+quest_fail(obj: GameObject | str | None, quest: str) -> bool
+```
+
+End `obj`'s `quest` unfinished (`QUESTFAIL` fires, reason
+`failed`). Builders only; it lands after the script.
+
+**Example**
+
+```text
+quest_fail(enactor, 'The Cinder Road')
+```
+
+### `quest_offer` {#fn-quest_offer}
+
+```text
+quest_offer(obj: GameObject | str | None, quest: str) -> bool
+```
+
+Start `quest` for `obj` as if they had accepted it (a note read,
+a stranger met): True when they may take it, False (and nothing
+happens) when not. Builders only; it lands after the script.
+
+**Example**
+
+```text
+quest_offer(enactor, 'The Cinder Road')
+```
+
+### `quest_state` {#fn-quest_state}
+
+```text
+quest_state(obj: GameObject | str | None, quest: str) -> int | str | None
+```
+
+Where `obj` stands on `quest`: None (never taken, or failed), the
+current stage number (1 is the first), `'ready'` (every stage met,
+waiting to be handed in) or `'done'`.
+
+**Example**
+
+```text
+quest_state(enactor, 'Fido trouble') == 'done'
+```
+
+
 ## Messaging & prompts
 
 ### `ansi` {#fn-ansi}
@@ -1593,6 +1888,21 @@ True when the object has the pool.
 has_pool(enactor, 'mana')
 ```
 
+### `hungry` {#fn-hungry}
+
+```text
+hungry(obj: GameObject | str | None) -> bool
+```
+
+True when the character's `food` pool is empty: it recovers at half
+speed and counts toward dying of hunger. False without the pool.
+
+**Example**
+
+```text
+if hungry(enactor): pemit(enactor, 'The smell of bread makes you dizzy.')
+```
+
 ### `mend_pool` {#fn-mend_pool}
 
 ```text
@@ -1664,6 +1974,21 @@ True when the pool is used up (a down pool at or below its
 
 ```text
 spent(here, 'hull')
+```
+
+### `thirsty` {#fn-thirsty}
+
+```text
+thirsty(obj: GameObject | str | None) -> bool
+```
+
+True when the character's `water` pool is empty: it recovers at half
+speed and counts toward dying of thirst. False without the pool.
+
+**Example**
+
+```text
+thirsty(enactor)
 ```
 
 
@@ -1906,6 +2231,20 @@ Behavior ids attached to an object.
 'wandering' in behaviors('rat')
 ```
 
+### `companions` {#fn-companions}
+
+```text
+companions(obj: GameObject | str | None) -> list[GameObject]
+```
+
+`obj`'s companions, wherever they are.
+
+**Example**
+
+```text
+len(companions(enactor))
+```
+
 ### `detach_behavior` {#fn-detach_behavior}
 
 ```text
@@ -1951,6 +2290,21 @@ possession primitive — see @force.
 force('minion', 'say Yes, master.')
 ```
 
+### `master` {#fn-master}
+
+```text
+master(obj: GameObject | str | None) -> GameObject | None
+```
+
+The character `obj` is a companion of (a pet's owner, a charmed
+creature's charmer), or None.
+
+**Example**
+
+```text
+pemit(master(me), 'Woof.') if master(me) else None
+```
+
 ### `reaction_roll` {#fn-reaction_roll}
 
 ```text
@@ -1963,6 +2317,38 @@ Memoized first-impression roll (npc must be in executor's reach).
 
 ```text
 reaction_roll(me)
+```
+
+### `release` {#fn-release}
+
+```text
+release(obj: GameObject | str | None) -> bool
+```
+
+Free `obj` (an NPC the executor controls) from its master; it
+stays where it is. Happens after the script (`ON_RELEASE` fires).
+
+**Example**
+
+```text
+release(me)
+```
+
+### `set_master` {#fn-set_master}
+
+```text
+set_master(obj: GameObject | str | None, master: GameObject | str | None) -> bool
+```
+
+Make `obj` (an NPC the executor controls) `master`'s companion:
+it follows and obeys `order`. False, with nothing changed, past
+`master`'s companion limit or `COMPANION_LEVEL_DIFF`, or for a
+player. The bond happens after the script (`ON_BOND` fires then).
+
+**Example**
+
+```text
+set_master(me, enactor)
 ```
 
 

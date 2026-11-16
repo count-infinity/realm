@@ -68,7 +68,7 @@ allows a write only when the executor
 runs as the object that holds it, so the terminal is the executor, and an
 object acts with its owner's authority. Owning the terminal with an admin
 character therefore lets it reach any player's sheet, the same ownership
-model behind the trainer, the survival master ([137](137_hunger_thirst.md)),
+model behind the trainer, the enlistment terminal ([137](137_hunger_thirst.md)),
 and the clone bay ([140](140_death_cloning.md)). The player typing `study`
 consents to nothing beyond the transaction the terminal offers; the authority
 to edit the sheet belongs to the terminal, by ownership.
