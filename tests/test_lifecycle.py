@@ -184,7 +184,7 @@ async def test_destroyed_room_keeps_player_row_on_sqlite(tmp_path, world):
             await pm.save(obj)
 
         await destroy(None, doomed, pm)
-        await pm._flush_queue()
+        await pm.flush()
 
         assert await pm.exists(alice.id)
         assert not await pm.exists(doomed.id)

@@ -28,16 +28,21 @@ from realm.core.objects import GameObject
 from realm.core.propagation import (
     ROOM_TARGET_CHAIN,
     Action,
+    deliver_messages,
     propagate,
 )
 from realm.core.world import World
-from realm.gateway.session import Session, SessionManager
+from realm.gateway.session import LINK_LOST, Session, SessionManager
 from realm.gateway.telnet import TelnetServer
 from realm.persistence.manager import PersistenceManager
 from realm.scripting.engine import ScriptEngine
 from realm.server.world import build_world, prepare_world
 
 logger = logging.getLogger(__name__)
+
+#: ``realm start``'s exit status after ``@reboot``: a supervisor (systemd's
+#: ``Restart=on-failure``, a shell loop) starts the server again on it.
+REBOOT_EXIT_CODE = 3
 
 
 class GameServer:
@@ -92,6 +97,13 @@ class GameServer:
         self._running = False
         self._tick_task: asyncio.Task[None] | None = None
         self._reap_task: asyncio.Task[None] | None = None
+        #: what ``realm start`` exits with: 0, or REBOOT_EXIT_CODE after @reboot
+        self.exit_code = 0
+        # A countdown in progress (@shutdown / @reboot), and the stop it ends in.
+        self._shutdown_task: asyncio.Task[None] | None = None
+        self._stop_task: asyncio.Task[None] | None = None
+        # When the last automatic backup was taken (session clock).
+        self._last_backup: float | None = None
 
         # Callbacks
         self._on_start: list[Callable[[], Awaitable[None]]] = []
@@ -187,6 +199,9 @@ class GameServer:
         )
         await self.persistence.initialize()
         await self.persistence.start_flush_loop()
+        if self._db_file() is not None:
+            from realm.persistence.pidfile import write_pid_file
+            write_pid_file(self._db_file())
 
         # Wire the world (the same build_world the Simulator uses) before it
         # loads, so loading and init_world find the store through it.
@@ -207,6 +222,11 @@ class GameServer:
         # room that was never persisted) — the reboot half of the evacuation
         # guard, so nobody logs in to "nowhere".
         await self._reconcile_orphaned_players()
+
+        # A character left link-dead when the server last stopped (a crash)
+        # has no wait running: it is simply offline.
+        for player in self.persistence.find_cached(tag='linkdead'):
+            player.remove_tag('linkdead')
 
         # Set up session callbacks
         self.session_manager.on_connect(self._on_session_connect)
@@ -286,11 +306,19 @@ class GameServer:
         for key, value in self.world.changed_settings().items():
             logger.info(f"setting {key} = {value!r}")
 
+    def _db_file(self):
+        """The database file, or None for an in-memory database."""
+        path = self.settings.db_path
+        return None if str(path) == ":memory:" else path
+
     async def stop(self) -> None:
         """Stop the game server."""
         logger.info(f"Stopping {self.settings.game_name} game server...")
 
         self._running = False
+        if self._shutdown_task is not None and self._shutdown_task is not asyncio.current_task():
+            self._shutdown_task.cancel()
+        self._shutdown_task = None
 
         # Run stop callbacks
         for callback in self._on_stop:
@@ -344,6 +372,9 @@ class GameServer:
         # Save and close persistence
         if self.persistence:
             await self.persistence.close()
+            if self._db_file() is not None:
+                from realm.persistence.pidfile import remove_pid_file
+                remove_pid_file(self._db_file())
 
         logger.info(f"{self.settings.game_name} game server stopped")
 
@@ -353,13 +384,10 @@ class GameServer:
 
         # Set up signal handlers
         loop = asyncio.get_running_loop()
-        stop_task: asyncio.Task[None] | None = None
 
         def handle_signal():
-            nonlocal stop_task
             logger.info("Received shutdown signal")
-            if stop_task is None:
-                stop_task = asyncio.create_task(self.stop())
+            self.request_stop()
 
         try:
             loop.add_signal_handler(signal.SIGINT, handle_signal)
@@ -376,8 +404,72 @@ class GameServer:
         # Await the full shutdown here — returning early would let
         # asyncio.run() cancel it mid-flight (unflushed saves, a stranded
         # aiosqlite thread that keeps the process alive).
-        if stop_task is not None:
-            await stop_task
+        if self._stop_task is not None:
+            await self._stop_task
+
+    def request_stop(self) -> None:
+        """Stop the server from inside its own loop (a signal, the end of a
+        countdown): ``run_forever`` waits for the stop to finish."""
+        if self._stop_task is None:
+            self._stop_task = asyncio.create_task(self.stop())
+
+    # --- @shutdown / @reboot ---
+
+    @property
+    def shutdown_pending(self) -> bool:
+        return self._shutdown_task is not None and not self._shutdown_task.done()
+
+    async def schedule_shutdown(self, seconds: int, reason: str = "", *,
+                                reboot: bool = False) -> None:
+        """Announce a countdown of ``seconds`` to every session, then (in
+        the background) repeat it at the minute marks and 30, 10 and 5
+        seconds out, save everything, and stop; ``reboot`` exits with
+        REBOOT_EXIT_CODE. One countdown at a time (``cancel_shutdown``)."""
+        if self.shutdown_pending:
+            raise RuntimeError("A shutdown is already counting down.")
+        seconds = max(0, int(seconds))
+        if seconds > 0:
+            await self.wall(self._countdown_line(seconds, reason, reboot))
+        self._shutdown_task = asyncio.create_task(self._count_down(seconds, reason, reboot))
+
+    @staticmethod
+    def _countdown_line(remaining: int, reason: str, reboot: bool) -> str:
+        what = "rebooting" if reboot else "shutting down"
+        why = f" ({reason})" if reason else ""
+        if remaining <= 0:
+            return f"*** The server is {what} now{why}. ***"
+        unit = "second" if remaining == 1 else "seconds"
+        return f"*** The server is {what} in {remaining} {unit}{why}. ***"
+
+    def cancel_shutdown(self) -> bool:
+        """Stop a countdown; False when none is running."""
+        if not self.shutdown_pending:
+            return False
+        self._shutdown_task.cancel()
+        self._shutdown_task = None
+        return True
+
+    async def wall(self, text: str) -> None:
+        """Send ``text`` to every connected session now."""
+        for session in self.session_manager.all_sessions():
+            await session.send(text)
+            await session.flush_output()
+
+    async def _count_down(self, seconds: int, reason: str, reboot: bool) -> None:
+        remaining = seconds
+        while remaining > 0:
+            marks = [m for m in (*range(60, remaining, 60), 30, 10, 5) if m < remaining]
+            nxt = max(marks) if marks else 0
+            await asyncio.sleep(remaining - nxt)
+            remaining = nxt
+            if remaining > 0:
+                await self.wall(self._countdown_line(remaining, reason, reboot))
+        await self.wall(self._countdown_line(0, reason, reboot))
+        self.exit_code = REBOOT_EXIT_CODE if reboot else 0
+        if self.persistence is not None:
+            await self.persistence.flush()
+        self._shutdown_task = None
+        self.request_stop()
 
     async def _load_world(self) -> int:
         """Load the game world from persistence. Returns the object count."""
@@ -475,22 +567,37 @@ class GameServer:
         await session.send(self.dispatcher.welcome_screen())
 
     async def _on_session_disconnect(self, session: Session) -> None:
-        """Called when a session disconnects."""
+        """Called when a session disconnects. A connection that dropped
+        under a character in play (no ``quit``) leaves it waiting in the
+        room, link-dead, for ``LINKDEAD_SECONDS``; otherwise it leaves
+        play now."""
         if session.player:
             player = session.player
             location = player.location
-            if location is not None:
-                action = Action(
-                    actor=player,
-                    target=location,
-                    action_type=ActionType.DISCONNECT,
-                    chain=ROOM_TARGET_CHAIN,
-                )
-                action.add_message("room", "{actor} has disconnected.")
-                await propagate(action)
+            if (session.close_reason == LINK_LOST and location is not None
+                    and self.settings.linkdead_seconds > 0
+                    and player.db.get('chargen_step') is None):
+                self.session_manager.mark_linkdead(player)
+                action = Action(actor=player, target=location,
+                                action_type=ActionType.DISCONNECT, chain=ROOM_TARGET_CHAIN)
+                action.add_message("room", "{actor} has lost their link.")
+                deliver_messages(action)        # a line only: it has not left yet
+            elif location is not None:
+                await self._announce_departure(player)
 
             if self.persistence:
                 await self.persistence.save(player)
+
+    async def _announce_departure(self, player: GameObject) -> None:
+        """The character leaves play: the room hears it, and ``ON_DISCONNECT``."""
+        action = Action(
+            actor=player,
+            target=player.location,
+            action_type=ActionType.DISCONNECT,
+            chain=ROOM_TARGET_CHAIN,
+        )
+        action.add_message("room", "{actor} has disconnected.")
+        await propagate(action)
 
     async def _on_command(self, session: Session, command: str) -> None:
         """Called when a command is received from a session."""
@@ -608,7 +715,8 @@ class GameServer:
 
     async def _reap(self) -> None:
         """Slow housekeeping off the fast pulse: the features' reapers
-        (idle instances, wilderness cells) and the kernel's expiry sweep."""
+        (idle instances, wilderness cells), the kernel's expiry sweep, idle
+        and link-dead sessions, and the automatic backup."""
         from realm.core.events import reap_expired
         reapers = [*(self.world.reapers if self.world is not None else []), reap_expired]
         for fn in reapers:
@@ -616,6 +724,62 @@ class GameServer:
                 await fn(self.persistence)
             except Exception:
                 logger.exception(f"Reap error in {fn.__module__}.{fn.__qualname__}")
+        for step in (self._reap_idle, self._reap_linkdead, self._backup_if_due):
+            try:
+                await step()
+            except Exception:
+                logger.exception(f"Reap error in {step.__name__}")
+
+    async def _reap_idle(self) -> None:
+        """Close every connection idle for ``IDLE_TIMEOUT`` minutes; admins
+        are exempt."""
+        minutes = self.settings.idle_timeout
+        if minutes <= 0:
+            return
+        from realm.permissions.roles import has_permission
+        for session in self.session_manager.all_sessions():
+            if session.idle_time < minutes * 60:
+                continue
+            if session.player is not None and has_permission(session.player, 'admin'):
+                continue
+            await session.send(f"You have been idle for {int(minutes)} minutes. Goodbye.")
+            await self.session_manager.destroy_session(session)
+
+    async def _reap_linkdead(self) -> None:
+        """A link-dead character whose wait ran out leaves play."""
+        limit = self.settings.linkdead_seconds
+        from realm.gateway import session as session_clock
+        now = session_clock.clock()
+        for player, since in self.session_manager.linkdead():
+            if now - since < limit:
+                continue
+            self.session_manager.clear_linkdead(player)
+            if player.location is not None:
+                await self._announce_departure(player)
+            if self.persistence:
+                await self.persistence.save(player)
+
+    async def _backup_if_due(self) -> None:
+        """Every ``BACKUP_INTERVAL_HOURS``, a backup to ``data/backups/``,
+        then prune to the newest ``BACKUP_KEEP``."""
+        hours = self.settings.backup_interval_hours
+        db = self._db_file()
+        if hours <= 0 or db is None or self.persistence is None:
+            return
+        from realm.gateway import session as session_clock
+        now = session_clock.clock()
+        if self._last_backup is None:
+            self._last_backup = now                  # the first one, an interval after boot
+            return
+        if now - self._last_backup < hours * 3600:
+            return
+        self._last_backup = now
+        from realm.persistence.backup import backup_database, prune_backups
+        await self.persistence.flush()
+        path = await asyncio.to_thread(backup_database, db)
+        logger.info(f"Backup written to {path}")
+        if self.settings.backup_keep > 0:
+            await asyncio.to_thread(prune_backups, db, self.settings.backup_keep)
 
     async def _handle_unknown(self, ctx: CommandContext) -> None:
         """Handle unknown commands: softcode $-command fallback."""

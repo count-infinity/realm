@@ -11,6 +11,7 @@ from realm.features import Feature
 from realm.std.channels import softcode
 from realm.std.channels.channels import broadcast, channel_fallback, cmd_channel, cmd_channels
 from realm.std.channels.tells import (
+    afk_field,
     cmd_afk,
     cmd_ignore,
     cmd_reply,
@@ -51,6 +52,14 @@ feature.event("comm:on_channel", hook="CHANNEL",
 
 feature.softfn(softcode.cemit, group='Messaging & prompts', harm=True)
 feature.softfn(softcode.channel_members, group='Messaging & prompts', readonly=True)
+
+
+@feature.on_install
+def _afk_on_who(world) -> None:
+    """``who`` shows ``afk`` beside a player who is away (with ``basics``)."""
+    who = world.services.get("who")
+    if who is not None:
+        who.fields.append(afk_field)
 
 
 async def _cemit(engine, frame, channel, text) -> None:

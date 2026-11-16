@@ -101,7 +101,7 @@ class WebSocketHandler:
                     logger.error(f"WebSocket error: {self.ws.exception()}")
                     break
         finally:
-            await self.session_manager.destroy_session(self.session)
+            await self.session_manager.connection_lost(self.session)
 
     async def _handle_text(self, text: str) -> None:
         """Handle a text message from the client."""

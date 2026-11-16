@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -109,6 +109,9 @@ class CommandDispatcher:
         # monotonic() stamp taken when the server goes live; None until then.
         # `uptime` reads it through ctx.dispatcher.
         self.server_started_at: float | None = None
+        # The GameServer running this world (None in a Simulator): @shutdown
+        # and @reboot stop it, @stats reads its settings.
+        self.server: Any = None
         # Returns the connection/welcome screen text. Wired by GameServer so
         # `logout` can drop a session back to it without reconnecting.
         self.welcome_screen: Callable[[], str] | None = None

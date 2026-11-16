@@ -322,7 +322,10 @@ class TelnetProtocol(asyncio.Protocol):
     def connection_lost(self, exc: Exception | None) -> None:
         """Called when the connection is lost."""
         if self.session:
-            self.session_manager.destroy_session_soon(self.session)
+            # A hang-up we did not ask for: the character may wait link-dead.
+            # (After quit or @boot the session is already gone; this no-ops.)
+            from realm.gateway.session import LINK_LOST
+            self.session_manager.destroy_session_soon(self.session, reason=LINK_LOST)
         self.transport = None
         self.session = None
 

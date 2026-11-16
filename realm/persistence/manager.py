@@ -48,7 +48,21 @@ CREATE TABLE IF NOT EXISTS objects (
 CREATE INDEX IF NOT EXISTS idx_objects_location ON objects(location_id);
 CREATE INDEX IF NOT EXISTS idx_objects_owner ON objects(owner_id);
 CREATE INDEX IF NOT EXISTS idx_objects_name ON objects(name);
+CREATE INDEX IF NOT EXISTS idx_objects_parent ON objects(parent_id);
 """
+
+
+class SchemaOutOfDateError(RuntimeError):
+    """The database predates this engine's schema: ``realm migrate`` first."""
+
+
+def effective_version(user_version: int, has_objects_table: bool) -> int:
+    """The schema version a database is at: its ``user_version`` stamp; an
+    unstamped one holding the objects table predates the stamp (v1); an
+    empty one is new (0)."""
+    if user_version == 0 and has_objects_table:
+        return 1
+    return user_version
 
 
 class PersistenceManager:
@@ -100,8 +114,8 @@ class PersistenceManager:
         # against objects silently reloading at location None.
         self._dangling_locations: dict[str, str] = {}
 
-    #: bump when SCHEMA changes; add a migration step below.
-    SCHEMA_VERSION = 1
+    #: bump when SCHEMA changes, with a step in realm.persistence.migrate.MIGRATIONS
+    SCHEMA_VERSION = 2
 
     async def initialize(self) -> None:
         """Initialize the database connection and create tables."""
@@ -111,20 +125,31 @@ class PersistenceManager:
         # lets reads proceed during the flush transaction.
         await self._db.execute("PRAGMA journal_mode=WAL")
         await self._db.execute("PRAGMA synchronous=NORMAL")
-        await self._db.executescript(SCHEMA)
 
         async with self._db.execute("PRAGMA user_version") as cursor:
             row = await cursor.fetchone()
-            db_version = int(row[0]) if row else 0
+            stamped = int(row[0]) if row else 0
+        async with self._db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='objects'") as cursor:
+            has_objects = await cursor.fetchone() is not None
+        db_version = effective_version(stamped, has_objects)
+        if db_version != 0 and db_version != self.SCHEMA_VERSION:
+            await self._db.close()
+            self._db = None
+            if db_version > self.SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"Database schema v{db_version} is newer than this REALM "
+                    f"(v{self.SCHEMA_VERSION}) — upgrade the engine.")
+            # Never migrated silently: the operator backs up, then migrates.
+            raise SchemaOutOfDateError(
+                f"The database {self.db_path} is at schema v{db_version}; this REALM "
+                f"needs v{self.SCHEMA_VERSION}. Back it up (realm backup), then run "
+                f"realm migrate.")
+
+        await self._db.executescript(SCHEMA)
         if db_version == 0:
             await self._db.execute(
                 f"PRAGMA user_version = {self.SCHEMA_VERSION}")
-        elif db_version > self.SCHEMA_VERSION:
-            raise RuntimeError(
-                f"Database schema v{db_version} is newer than this REALM "
-                f"(v{self.SCHEMA_VERSION}) — upgrade the engine.")
-        # db_version < SCHEMA_VERSION: run migrations here as they exist.
-
         await self._db.commit()
         logger.info(f"Database initialized at {self.db_path}")
 
@@ -139,7 +164,7 @@ class PersistenceManager:
                 pass
 
         # Final flush
-        await self._flush_queue()
+        await self.flush()
 
         if self._db:
             await self._db.close()
@@ -156,13 +181,13 @@ class PersistenceManager:
         while self._running:
             await asyncio.sleep(self.flush_interval)
             try:
-                await self._flush_queue()
+                await self.flush()
             except Exception:
                 # One bad object must not kill autosave for the rest of the
                 # server's lifetime — log and keep the loop alive.
                 logger.exception("Error flushing save queue; autosave continues")
 
-    async def _flush_queue(self) -> None:
+    async def flush(self) -> None:
         """
         Write every dirty object to the database in one transaction.
 

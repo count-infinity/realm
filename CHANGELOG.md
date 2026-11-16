@@ -4,6 +4,42 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### Operating a live game (step 9)
+
+- Link-dead characters: a connection that drops without `quit` leaves the
+  character in the room, tagged `linkdead` (shown `(linkdead)`), for
+  `LINKDEAD_SECONDS` (120); connecting again resumes it in place, else it
+  leaves play. Protocol adapters call the new
+  `SessionManager.connection_lost(session)`; `destroy_session(session,
+  reason=...)` records `Session.close_reason` (`CLOSED` or `LINK_LOST`).
+  `ON_DISCONNECT` now fires when a character leaves play: for a dropped
+  link, when its wait ends.
+- `IDLE_TIMEOUT` (minutes, 0 off; admins exempt) closes idle connections.
+- Flood control (audit G13): a token bucket per connection (`COMMAND_RATE`
+  10, `COMMAND_BURST` 30); a dropped line warns once; a flood lasting
+  `FLOOD_DISCONNECT_SECONDS` (30) closes the connection and is logged.
+- Presence (audit G4): `who` shows idle time and the `afk` and `linkdead`
+  marks, and leaves out players the viewer cannot see;
+  `world.services["who"].fields` adds marks; softcode `online_players()`
+  and `idle_seconds(obj)`. `online_players` and `is_online` moved from
+  `realm.std.channels.common` to `realm.gateway.session` (and
+  `SessionManager.online_players()` / `is_online()`); `cmd_who` moved to
+  `realm.std.basics.presence`.
+- New feature `operations` (in `CLASSIC`): `@wall`, `@shutdown [seconds]
+  [= reason]` and `/cancel`, `@reboot` (`realm start` exits with status 3),
+  `@snoop`, `@freeze` / `@thaw`; logged on `realm.admin`.
+- `realm backup [file] [--keep N]` (SQLite online backup, default
+  `data/backups/<name>-<timestamp>.db`), `realm restore <file>` (refused
+  while the server runs: the server keeps `<db>.pid`), settings
+  `BACKUP_INTERVAL_HOURS` and `BACKUP_KEEP`.
+- `realm migrate`: the schema is now v2 (an index on `parent_id`); a server
+  refuses an older database with `SchemaOutOfDateError` and a message to
+  run `realm migrate`. `PersistenceManager._flush_queue` is now `flush()`.
+  `CommandDispatcher.server` is declared (None in a Simulator).
+- Saved worlds: **run `realm migrate` once** (after `realm backup`) before
+  starting a database made by an earlier REALM. Characters left link-dead
+  by a crash are cleared at start.
+
 ### The world clock (step 8)
 
 - New feature `clock` (in `CLASSIC`): game time derived from an epoch on a

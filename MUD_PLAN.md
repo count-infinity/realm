@@ -1094,56 +1094,56 @@ from a bad day.
 
 **Depends on.** Step 6.
 
-- [ ] **Idle and link-dead sessions.** Settings `IDLE_TIMEOUT` (minutes;
+- [x] **Idle and link-dead sessions.** Settings `IDLE_TIMEOUT` (minutes;
       0 off; admins exempt) and `LINKDEAD_SECONDS` (default 120). A
       connection that drops without `quit` leaves the character in the
       room tagged `linkdead` (a marker shows it) for that long, during
       which a new `connect` resumes it in place; then it is removed from
       the room as on logout. A character in combat when the link drops
       keeps fighting with its default action.
-- [ ] **Flood control** (capability audit G13). **Kernel seam** in the
+- [x] **Flood control** (capability audit G13). **Kernel seam** in the
       session input path: a per-session token bucket
       (`COMMAND_RATE`, `COMMAND_BURST` settings); over the limit, input is
       dropped with one warning line, and a session that stays over it for
       `FLOOD_DISCONNECT_SECONDS` is closed and logged.
-- [ ] **Presence in softcode** (G4): `online_players()`, `idle_seconds(obj)`
+- [x] **Presence in softcode** (G4): `online_players()`, `idle_seconds(obj)`
       (read-only). `who` shows idle time, the `afk` and `linkdead` marks,
       and hides players the viewer cannot see. `basics` offers a service
       (`world.services["who"]`) holding `fields`, a list of
       `(viewer, player) -> str | None` callables whose answers are shown
       beside a name; class titles (step 11) and clan tags (step 14) are
       entries in it.
-- [ ] **Announce and stop.** `@wall <message>` (admin) to every session.
+- [x] **Announce and stop.** `@wall <message>` (admin) to every session.
       `@shutdown [seconds] [= reason]` and `@shutdown/cancel`: counts down
       with announcements, saves everything, stops the server cleanly.
       `@reboot` does the same and exits with a status a supervisor can
       restart on (document the systemd unit).
-- [ ] **Snoop and freeze.** `@snoop <player>` (admin; logged on
+- [x] **Snoop and freeze.** `@snoop <player>` (admin; logged on
       `realm.admin`; the target's
       output is echoed to the admin) and `@freeze` / `@thaw` (a frozen
       player's input is refused with a notice).
-- [ ] **Backup.** `realm backup [file]` copies the live database with
+- [x] **Backup.** `realm backup [file]` copies the live database with
       SQLite's online backup API (safe while the server runs) to
       `data/backups/<name>-<timestamp>.db` by default, and
       `realm backup --keep N` prunes older ones. A setting
       `BACKUP_INTERVAL_HOURS` (default 0, off) makes the server do it.
       `realm restore <file>` refuses while the server is running.
-- [ ] **Migrate.** `realm migrate`: `PersistenceManager` already stamps
+- [x] **Migrate.** `realm migrate`: `PersistenceManager` already stamps
       `PRAGMA user_version` and refuses a newer schema. Add an ordered
       list of migration functions keyed by version, run by
       `realm migrate` (and refused at `realm start` with a message telling
       the operator to run it, never run silently). The account conversion
       of 6.2 stays a boot step because it changes objects, not the schema.
-- [ ] Tests for each: sessions with an injected clock, the token bucket,
+- [x] Tests for each: sessions with an injected clock, the token bucket,
       a backup taken during writes that restores to the same object count,
       a migration from a version-1 file.
 
 ### Docs
 
-- [ ] New guide `docs/guides/operations.md`: settings, the admin commands,
+- [x] New guide `docs/guides/operations.md`: settings, the admin commands,
       backup and restore, running under systemd, upgrading. Add to
       `mkdocs.yml`.
-- [ ] Close capability audit G4 and G13 and the BACKLOG `realm migrate`
+- [x] Close capability audit G4 and G13 and the BACKLOG `realm migrate`
       entry.
 
 ---
@@ -2044,3 +2044,11 @@ the step, what was decided and why.
 | 2026-11-15 | 8 | The hour's hooks run directly on each target (zone masters and rooms holding players), after one action with an empty chain for observers; propagating to each room would also fire every zone master once per room. | "Once per hour". |
 | 2026-11-15 | 8 | `MemoryStore` gains `register(obj)`, matching `PersistenceManager.register`, so sync code (the clock made on first read) can add an object to either store. | The two stores had no common sync add. |
 | 2026-11-15 | 8 | A weather rule binds `hour` and `current`; `time_of_day()` is the read-only function, not a bound value. | Binding a value under the function's name hid the function (found testing the guide's example). |
+| 2026-11-16 | 9.1 | `IDLE_TIMEOUT`, `LINKDEAD_SECONDS`, the flood settings and the backup settings are kernel `Settings`, not a feature's: the session layer and the server read them. A dropped connection is told apart from a deliberate close by who closes it: protocol adapters call the new `SessionManager.connection_lost`, and every other close (`quit`, `@boot`, idle, shutdown, a take-over) is deliberate. The server's session clock (`realm.gateway.session.clock`) is the injectable clock. | The plan names the settings but not where they live; this keeps every existing close path unchanged. |
+| 2026-11-16 | 9.1 | At link loss the room hears "has lost their link." as a line only; `ON_DISCONNECT` fires once, when the character leaves play (the wait ends, or at once for a deliberate close), with "has disconnected.". Reconnecting in time fires `ON_CONNECT` (`returning`) as any re-login does. "Removed from the room as on logout" is read as leaving play: offline characters stay in their rooms in REALM, as on logout. A combatant keeps fighting because combat never consulted the connection. | Firing `ON_DISCONNECT` at both moments would tell softcode a character left twice. |
+| 2026-11-16 | 9.2 | The flood bucket applies to connections a protocol made (`SessionManager.create_session`), not to sessions a test harness adopts. A flood lasts until the bucket is full again (the client slowed down), so a client that keeps sending a little over the rate is closed after `FLOOD_DISCONNECT_SECONDS`. A `'''` block counts as one line. | The Simulator feeds build transcripts through `submit_input` at machine speed. |
+| 2026-11-16 | 9.3 | `online_players` and `is_online` moved from `channels` to the kernel's session module (`realm.gateway.session`, and `SessionManager` methods), because `channels` may not import `basics`. `online_players()` in softcode lists the players the running object can see. The login screen's `who` is unchanged. | The feature-boundary test; the plan's "hides players the viewer cannot see", applied to softcode too. |
+| 2026-11-16 | 9.4 | The admin commands are a new feature, `operations` (in `CLASSIC`). `@shutdown` with no count waits 60 seconds; the countdown announces at once, at each minute and at 30, 10 and 5 seconds. `@reboot` exits with status 3. `CommandDispatcher.server` is now a declared attribute (None in a Simulator, where `@shutdown` says there is no server). | The plan left the default, the cadence and the status open. |
+| 2026-11-16 | 9.5 | A snoop that would loop (the target already sees the admin's output) is refused, and either side's disconnect ends it. A frozen player may still `quit`. | A loop would recurse forever; a frozen player must still be able to leave. |
+| 2026-11-16 | 9.6 | `realm restore` (and `realm migrate`) know the server is running from a pid file beside the database (`game.db.pid`), written at start and removed at stop; a pid file naming a dead process is ignored. Added `BACKUP_KEEP` for the automatic backups. | SQLite gives no reliable "in use" signal; `--keep` needed a setting for the server's own backups. |
+| 2026-11-16 | 9.7 | The schema is now v2: an index on `parent_id`, so the migration path has a real first step. An unstamped database holding the objects table counts as v1. `PersistenceManager._flush_queue` became the public `flush()` (the server flushes before a backup and at the end of a countdown). | A migration framework with nothing to migrate cannot be tested from a version-1 file, as the plan asks. |

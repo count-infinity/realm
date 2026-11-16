@@ -84,6 +84,10 @@ HARM |= {'cemit', 'send_mail'}
 TO_DICT |= {'game_time', 'time_of_day', 'weather'}
 READONLY |= {'game_time', 'time_of_day', 'weather'}
 
+# Presence (MUD_PLAN 9).
+TO_DICT |= {'online_players', 'idle_seconds'}
+READONLY |= {'online_players', 'idle_seconds'}
+
 # Timed tasks (MUD_PLAN 5.5).
 TO_DICT |= {'start_task', 'task_of', 'stop_task'}
 READONLY |= {'task_of'}

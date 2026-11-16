@@ -126,7 +126,7 @@ class TestPersistenceManager:
         assert obj.id in pm._object_cache
 
         # Manually flush the queue
-        await pm._flush_queue()
+        await pm.flush()
 
         # Clear cache and load from DB
         pm._object_cache.clear()
@@ -162,7 +162,7 @@ class TestPersistenceManager:
         obj2.db.value = 1  # Mark dirty
 
         # Flush should only save obj2
-        await pm._flush_queue()
+        await pm.flush()
 
         # Both should exist in DB
         assert await pm.exists(obj1.id)
@@ -443,7 +443,7 @@ class TestDirtySweep:
         obj.add_tag('closed')
         assert obj.is_dirty()
 
-        await pm._flush_queue()  # what the background loop runs
+        await pm.flush()  # what the background loop runs
         await pm.close()
 
         pm2 = PersistenceManager(db)
@@ -486,7 +486,7 @@ class TestDirtySweep:
             await pm.save(o)
 
         docs.location = player  # a 'get' — nobody calls save
-        await pm._flush_queue()
+        await pm.flush()
         await pm.close()
 
         pm2 = PersistenceManager(db)
@@ -512,6 +512,6 @@ class TestDirtySweep:
             await original(o, commit=commit)
 
         pm._save_object = counting
-        await pm._flush_queue()
+        await pm.flush()
         assert writes == []  # nothing dirty, nothing written
         await pm.close()

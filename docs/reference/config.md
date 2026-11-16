@@ -41,6 +41,13 @@ names are yours: `init_world` can read them with `server.settings.get("NAME")`.
 | `WORLD_BEAT` | `4.0` | Seconds in one out-of-combat round (poison, regen) and the default cadence of pulse-counting behaviors. At least 0.1. |
 | `REAP_INTERVAL` | `5.0` | Seconds between housekeeping sweeps (idle instances, wilderness cells, expired objects). |
 | `FLUSH_INTERVAL` | `30.0` | Seconds between saves of changed objects to the database. |
+| `IDLE_TIMEOUT` | `0` | Minutes without input after which a connection is closed (0: never). Admins are exempt. |
+| `LINKDEAD_SECONDS` | `120` | Seconds a character whose connection dropped (no `quit`) waits in the room, tagged `linkdead`, for its player to connect again (0: it leaves at once). |
+| `COMMAND_RATE` | `10` | Lines of input a connection may send per second, sustained (0: no limit). Over it, lines are dropped with one warning. |
+| `COMMAND_BURST` | `30` | Lines a connection may send at once before COMMAND_RATE applies (a speedwalk). At least 1. |
+| `FLOOD_DISCONNECT_SECONDS` | `30` | Seconds a connection may stay over COMMAND_RATE before it is closed and logged (0: never closed). |
+| `BACKUP_INTERVAL_HOURS` | `0` | Hours between automatic backups of the database to data/backups/ (0: off; `realm backup` by hand). |
+| `BACKUP_KEEP` | `0` | How many automatic backups to keep, newest first (0: all). |
 | `FEATURES` | `'realm.std.CLASSIC'` | The features this game is made of, by name or module path, or a dotted path to such a list. Unset, every built-in feature (`realm.std.CLASSIC`). A game lists its own module too: `FEATURES = [*CLASSIC, "game"]`. |
 
 ## Keys declared by built-in features

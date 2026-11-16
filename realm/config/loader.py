@@ -166,6 +166,39 @@ class Settings:
     flush_interval: float = setting(
         30.0, "FLUSH_INTERVAL", "Seconds between saves of changed objects to the database.")
 
+    # --- Sessions ---
+    idle_timeout: float = setting(
+        0, "IDLE_TIMEOUT",
+        "Minutes without input after which a connection is closed (0: never). "
+        "Admins are exempt.", check=_at_least(0))
+    linkdead_seconds: float = setting(
+        120, "LINKDEAD_SECONDS",
+        "Seconds a character whose connection dropped (no `quit`) waits in the "
+        "room, tagged `linkdead`, for its player to connect again (0: it leaves "
+        "at once).", check=_at_least(0))
+    command_rate: float = setting(
+        10, "COMMAND_RATE",
+        "Lines of input a connection may send per second, sustained (0: no "
+        "limit). Over it, lines are dropped with one warning.", check=_at_least(0))
+    command_burst: int = setting(
+        30, "COMMAND_BURST",
+        "Lines a connection may send at once before COMMAND_RATE applies "
+        "(a speedwalk). At least 1.", check=_at_least(1))
+    flood_disconnect_seconds: float = setting(
+        30, "FLOOD_DISCONNECT_SECONDS",
+        "Seconds a connection may stay over COMMAND_RATE before it is closed "
+        "and logged (0: never closed).", check=_at_least(0))
+
+    # --- Operations ---
+    backup_interval_hours: float = setting(
+        0, "BACKUP_INTERVAL_HOURS",
+        "Hours between automatic backups of the database to data/backups/ "
+        "(0: off; `realm backup` by hand).", check=_at_least(0))
+    backup_keep: int = setting(
+        0, "BACKUP_KEEP",
+        "How many automatic backups to keep, newest first (0: all).",
+        check=_at_least(0))
+
     # --- Features ---
     features: list[str] | str = setting(
         "realm.std.CLASSIC", "FEATURES",

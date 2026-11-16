@@ -453,11 +453,80 @@ async def cmd_start(args: argparse.Namespace) -> int:
     server = GameServer(settings)
 
     # Run server
+    from realm.persistence.manager import SchemaOutOfDateError
     try:
         await server.run_forever()
+    except SchemaOutOfDateError as e:
+        logger.error(str(e))
+        return 1
     except KeyboardInterrupt:
         logger.info("Interrupted")
 
+    # 0, or REBOOT_EXIT_CODE after @reboot: a supervisor restarts on it.
+    return server.exit_code
+
+
+def _settings_or_error() -> Any:
+    try:
+        return load_config()
+    except FileNotFoundError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return None
+
+
+def cmd_backup(args: argparse.Namespace) -> int:
+    """Copy the live database (safe while the server runs), then prune."""
+    from realm.persistence.backup import backup_database, prune_backups
+    settings = _settings_or_error()
+    if settings is None:
+        return 1
+    try:
+        path = backup_database(settings.db_path, args.file)
+    except (FileNotFoundError, FileExistsError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    print(f"Backed up {settings.db_path} to {path}")
+    if args.keep:
+        for old in prune_backups(settings.db_path, args.keep):
+            print(f"Removed {old}")
+    return 0
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    """Replace the database with a backup (refused while the server runs)."""
+    from realm.persistence.backup import restore_database
+    from realm.persistence.pidfile import ServerRunningError
+    settings = _settings_or_error()
+    if settings is None:
+        return 1
+    try:
+        restore_database(args.file, settings.db_path)
+    except (FileNotFoundError, ServerRunningError, ValueError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    print(f"Restored {settings.db_path} from {args.file}")
+    return 0
+
+
+def cmd_migrate(args: argparse.Namespace) -> int:
+    """Bring the database's schema up to this REALM's (refused while the
+    server runs)."""
+    from realm.persistence.manager import PersistenceManager
+    from realm.persistence.migrate import migrate
+    from realm.persistence.pidfile import ServerRunningError
+    settings = _settings_or_error()
+    if settings is None:
+        return 1
+    try:
+        done = migrate(settings.db_path)
+    except (FileNotFoundError, ServerRunningError, RuntimeError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    if not done:
+        print(f"{settings.db_path} is at schema v{PersistenceManager.SCHEMA_VERSION}: "
+              "nothing to do.")
+    for version in done:
+        print(f"Migrated {settings.db_path} to schema v{version}.")
     return 0
 
 
@@ -628,6 +697,20 @@ def main() -> int:
         help="Enable debug logging",
     )
 
+    # realm backup / restore / migrate
+    backup_parser = subparsers.add_parser(
+        "backup", help="Copy the database (safe while the server runs)")
+    backup_parser.add_argument(
+        "file", nargs="?", help="where to write it (default data/backups/<name>-<timestamp>.db)")
+    backup_parser.add_argument(
+        "--keep", type=int, metavar="N",
+        help="then delete all but the newest N backups in data/backups/")
+    restore_parser = subparsers.add_parser(
+        "restore", help="Replace the database with a backup (server stopped)")
+    restore_parser.add_argument("file", help="the backup to restore")
+    subparsers.add_parser(
+        "migrate", help="Upgrade the database's schema to this REALM's (server stopped)")
+
     # realm import-rom <area files> [--out ...]
     rom_parser = subparsers.add_parser(
         "import-rom", help="Convert ROM 2.4 .are files to REALM area files")
@@ -672,6 +755,12 @@ def main() -> int:
         return asyncio.run(cmd_import(args))
     elif args.command == "pack":
         return asyncio.run(cmd_pack(args))
+    elif args.command == "backup":
+        return cmd_backup(args)
+    elif args.command == "restore":
+        return cmd_restore(args)
+    elif args.command == "migrate":
+        return cmd_migrate(args)
     elif args.command == "import-rom":
         return cmd_import_rom(args)
     elif args.command == "features":

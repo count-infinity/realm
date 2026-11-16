@@ -105,7 +105,10 @@ class TestDefaultEqualsToday:
                               "tell", "reply", "ignore", "unignore", "afk", "channels",
                               "channel", "socials", "mail",
                               # step 8: the clock
-                              "weather"}
+                              "weather",
+                              # step 9: operating a live game
+                              "@wall", "@shutdown", "@reboot", "@snoop", "@freeze",
+                              "@thaw"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
@@ -122,7 +125,9 @@ class TestDefaultEqualsToday:
                      # step 7: channels and mail
                      "cemit", "channel_members", "send_mail",
                      # step 8: the clock
-                     "game_time", "time_of_day", "weather"}
+                     "game_time", "time_of_day", "weather",
+                     # step 9: presence
+                     "online_players", "idle_seconds"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.

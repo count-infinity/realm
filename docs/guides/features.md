@@ -49,7 +49,7 @@ everything available. The built-in features:
 | `accounts` | accounts with several characters: the welcome screen (`connect`, `create`, `who`, `quit`), the character menu (`play`, `new`, `delete`, `password`), `characters`, `password`, `@account`, `@sitelock`; character creation from the game system's chargen steps; softcode `account_attr`, `set_account_attr`, `incr_account_attr`, `account_characters`; settings `MAX_CHARACTERS`, `ACCOUNT_MULTIPLAY` ([Accounts](accounts.md)) | |
 | `mail` | mail to characters, kept on their accounts; `mail`; setting `MAIL_LIMIT`; softcode `send_mail` | accounts |
 | `achievements` | `achievement_def` data, `achievements`; softcode `grant_achievement`, `has_achievement`; the `ACHIEVEMENT` hook | accounts |
-| `basics` | help, commands, who, quit, logout, color, think, uptime, recall, prompt (and `time`, the server clock, when there is no `clock`); the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)) | |
+| `basics` | help, commands, who, quit, logout, color, think, uptime, recall, prompt (and `time`, the server clock, when there is no `clock`); the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)); the `who` service's `fields`, the `linkdead` marker, softcode `online_players`, `idle_seconds` ([Operating a Live Game](operations.md#who-is-on)) | |
 | `talk` | say, pose, semipose, emit, ooc, shout, whisper; socials as data (`social_def`), `socials`, the `SOCIAL` hook ([Communication](communication.md)) | |
 | `channels` | tell, reply, ignore, unignore, afk; channels as data (`channel_def`), `channels`, `channel`; the `TELL` and `CHANNEL` hooks; softcode `cemit`, `channel_members` | |
 | `movement` | go and the directions, in, out | |
@@ -58,6 +58,7 @@ everything available. The built-in features:
 | `sight` | darkness and light (`dark`, `light`, `nightvision`; another feature's darkness tests, `add_darkness_test`), invisibility (`invisible`, `see_invisible`), the `glowing`, `magic` and `invisible` markers | |
 | `items` | get, drop, give, put, inventory, equipment, open, close, lock, unlock, use, wear, remove, wield, unwield, eat, drink | |
 | `building` | every `@` command, quell, unquell | look |
+| `operations` | `@wall`, `@shutdown`, `@reboot`, `@snoop`, `@freeze`, `@thaw` ([Operating a Live Game](operations.md)) | |
 | `rules` | points, skills, improve, practice, train, study; the `trainer` behavior; progression ([Progression](progression.md)); setting `IDLE_TRAINING_MAX_HOURS`; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
 | `stealth` | hide, search, pick; loud actions break stealth; the watchful behavior | rules, items |
 | `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; death, coming round and respawn; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS`, `PLAYER_DEATH`, `CORPSE_LOCK_SECONDS` | rules, items |

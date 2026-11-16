@@ -12,7 +12,7 @@ The `talk` feature is speech in the room (`say`, `pose`, `emit`, `shout`,
 | `tell <player> <message>` (`t`) | says something privately to a player anywhere in the game |
 | `reply <message>` (`r`) | answers whoever last told you something |
 | `ignore <player>` / `ignore` / `unignore <player>` | stop hearing a player's tells / list / hear them again |
-| `afk [message]` | marks you away; anyone who tells you something is shown the message. `afk` again: back |
+| `afk [message]` | marks you away; anyone who tells you something is shown the message, and `who` shows `afk` beside you. `afk` again: back |
 
 A tell to a player who is not online is refused, with a pointer to mail;
 one to a player who ignores you is refused too. A sleeping player still

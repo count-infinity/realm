@@ -22,6 +22,17 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: The session clock (seconds, monotonic): idle time, link-dead waits and
+#: the flood bucket read it, so a test can move time by replacing it.
+clock = time.monotonic
+
+#: Why a session closed (``Session.close_reason``): on purpose (quit, boot,
+#: idle timeout, shutdown), or because the connection dropped under it.
+CLOSED = "closed"
+LINK_LOST = "link_lost"
+
+FLOOD_WARNING = "You are sending commands too fast; the extra ones were dropped."
+
 
 # Heredoc (multi-line input) delimiters — game settings (HEREDOC_OPEN /
 # HEREDOC_CLOSE in config.py). A command line ending in the OPEN sigil starts
@@ -80,6 +91,10 @@ class Session:
         '_prompt_writer',
         '_heredoc',
         '_flush_tasks',
+        'close_reason',
+        'snoopers',
+        '_bucket',
+        '_on_flood',
     )
 
     def __init__(
@@ -119,8 +134,17 @@ class Session:
 
         self._protocol = protocol
         self._address = address
-        self._created_at = time.monotonic()
+        self._created_at = clock()
         self._last_activity = self._created_at
+        #: set by ``SessionManager.destroy_session``: CLOSED or LINK_LOST
+        self.close_reason: str | None = None
+        #: sessions that see everything this one is sent (``@snoop``)
+        self.snoopers: list[Session] = []
+        # The flood limiter: a session a protocol connected
+        # (``SessionManager.create_session``) gets one; a test harness's
+        # adopted session does not.
+        self._bucket: TokenBucket | None = None
+        self._on_flood: Callable[[], None] | None = None
         #: the account logged in on this connection (the ``accounts``
         #: feature): set at ``connect``, kept while the player picks or
         #: switches characters, cleared at ``logout``
@@ -140,12 +164,12 @@ class Session:
     @property
     def idle_time(self) -> float:
         """Seconds since last activity."""
-        return time.monotonic() - self._last_activity
+        return clock() - self._last_activity
 
     @property
     def connected_time(self) -> float:
         """Seconds since connection."""
-        return time.monotonic() - self._created_at
+        return clock() - self._created_at
 
     def set_oob_writer(self, writer: Callable[[str, dict], None] | None) -> None:
         """Install the protocol's structured-data sender (GMCP etc.)."""
@@ -213,11 +237,12 @@ class Session:
 
     def touch(self) -> None:
         """Update last activity timestamp."""
-        self._last_activity = time.monotonic()
+        self._last_activity = clock()
 
     async def send(self, message: str) -> None:
         """Send a message to the player."""
         await self._output_queue.put(message)
+        self._echo(message)
 
     def send_nowait(self, message: str) -> None:
         """Send a message without waiting (for sync contexts)."""
@@ -225,6 +250,32 @@ class Session:
             self._output_queue.put_nowait(message)
         except asyncio.QueueFull:
             logger.warning(f"Session {self.id}: output queue full, dropping message")
+        self._echo(message)
+
+    def _echo(self, message: str) -> None:
+        """Copy what this session is sent to its snoopers, each line marked
+        with whose it is."""
+        if not self.snoopers:
+            return
+        who = self.player.name if self.player is not None else self.address
+        marked = "\n".join(f"[{who}] {line}" for line in str(message).split("\n"))
+        for snooper in self.snoopers:
+            snooper.send_nowait(marked)
+
+    def reaches(self, other: Session) -> bool:
+        """Whether what this session is sent ends up at ``other``, directly
+        or through a chain of snoopers (a snoop that would loop is refused)."""
+        seen: set[str] = set()
+        todo = [self]
+        while todo:
+            session = todo.pop()
+            if session is other:
+                return True
+            if session.id in seen:
+                continue
+            seen.add(session.id)
+            todo.extend(session.snoopers)
+        return False
 
     async def receive(self) -> str:
         """Receive a command from the player. (For pump-less custom
@@ -332,7 +383,29 @@ class Session:
         self._flush_tasks.add(task)
         task.add_done_callback(self._flush_tasks.discard)
 
+    def limit_input(self, on_flood: Callable[[], None] | None) -> None:
+        """Rate-limit this session's input (``COMMAND_RATE``,
+        ``COMMAND_BURST``); ``on_flood`` runs once it has stayed over the
+        limit for ``FLOOD_DISCONNECT_SECONDS``."""
+        self._bucket = TokenBucket()
+        self._on_flood = on_flood
+
+    def _admit(self) -> bool:
+        """The flood check on one line of input: True to queue it."""
+        if self._bucket is None:
+            return True
+        verdict = self._bucket.take(clock())
+        if verdict is TokenBucket.WARN:
+            self.send_nowait(FLOOD_WARNING)
+            self._flush_soon()
+        elif verdict is TokenBucket.CLOSE and self._on_flood is not None:
+            on_flood, self._on_flood = self._on_flood, None
+            on_flood()
+        return verdict is TokenBucket.OK
+
     def _queue_input(self, line: str) -> None:
+        if not self._admit():
+            return
         try:
             self._input_queue.put_nowait(line)
         except asyncio.QueueFull:
@@ -497,6 +570,52 @@ class Session:
         return f"<Session {self.id[:8]}... state={self.state.name} player={player_name}>"
 
 
+class TokenBucket:
+    """Flood control for one session (capability audit G13).
+
+    The bucket holds up to ``COMMAND_BURST`` tokens and refills at
+    ``COMMAND_RATE`` a second; each line of input takes one. A line that
+    finds the bucket empty is dropped. The first drop of a flood warns; a
+    flood lasts until the bucket is full again, and one that lasts
+    ``FLOOD_DISCONNECT_SECONDS`` (0: never) closes the session.
+    ``COMMAND_RATE`` 0 turns the limit off.
+    """
+
+    OK, DROP, WARN, CLOSE = "ok", "drop", "warn", "close"
+
+    __slots__ = ("tokens", "updated", "flooding_since")
+
+    def __init__(self) -> None:
+        self.tokens: float | None = None
+        self.updated = 0.0
+        self.flooding_since: float | None = None
+
+    def take(self, now: float) -> str:
+        rate = float(setting("COMMAND_RATE"))
+        if rate <= 0:
+            return self.OK
+        burst = float(setting("COMMAND_BURST"))
+        if self.tokens is None:
+            self.tokens = burst
+        else:
+            self.tokens = min(burst, self.tokens + (now - self.updated) * rate)
+        self.updated = now
+        if self.tokens >= burst:
+            self.flooding_since = None                  # slowed down: the flood is over
+        if self.tokens >= 1:
+            self.tokens -= 1
+            verdict = self.OK
+        elif self.flooding_since is None:
+            self.flooding_since = now
+            return self.WARN
+        else:
+            verdict = self.DROP
+        limit = float(setting("FLOOD_DISCONNECT_SECONDS"))
+        if self.flooding_since is not None and limit > 0 and now - self.flooding_since >= limit:
+            return self.CLOSE
+        return verdict
+
+
 def format_peer_address(peername: Any) -> str:
     """``host:port`` from a transport's peername tuple, or ``unknown``."""
     return f"{peername[0]}:{peername[1]}" if peername else "unknown"
@@ -540,7 +659,7 @@ class SessionManager:
     __slots__ = (
         '_sessions', '_by_player', '_by_address',
         '_on_connect', '_on_disconnect', '_pending_destroys',
-        '_input_sink',
+        '_input_sink', '_linkdead',
     )
 
     def __init__(self):
@@ -560,6 +679,10 @@ class SessionManager:
         # Strong refs to in-flight destroy tasks — a bare create_task() can
         # be garbage-collected before it runs.
         self._pending_destroys: set[asyncio.Task] = set()
+
+        # Characters whose connection dropped and who wait in the room for
+        # it to come back: player id -> (player, when the link was lost).
+        self._linkdead: dict[str, tuple[GameObject, float]] = {}
 
     def set_input_sink(
         self, sink: Callable[[Session, str], Awaitable[None]] | None,
@@ -616,6 +739,7 @@ class SessionManager:
 
         if self._input_sink is not None:
             session.start_input_pump(self._input_sink)
+        session.limit_input(lambda: self._flooded(session))
 
         self._sessions[session.id] = session
 
@@ -640,10 +764,27 @@ class SessionManager:
 
         return session
 
-    async def destroy_session(self, session: Session) -> None:
-        """Clean up a session and hang up its connection. Idempotent."""
+    def _flooded(self, session: Session) -> None:
+        """A session that stayed over the input limit: logged and closed."""
+        logger.warning(f"Flood: closing session {session.id} from {session.address}"
+                       + (f" ({session.player.name})" if session.player is not None else ""))
+        session.send_nowait("You sent too many commands too fast. Goodbye.")
+        self.destroy_session_soon(session)
+
+    async def connection_lost(self, session: Session) -> None:
+        """The client's connection dropped (no ``quit``): what protocol
+        adapters call. The session closes with ``close_reason`` LINK_LOST,
+        so its character may wait in the room as link-dead."""
+        await self.destroy_session(session, reason=LINK_LOST)
+
+    async def destroy_session(self, session: Session, *, reason: str = CLOSED) -> None:
+        """Clean up a session and hang up its connection. Idempotent.
+        ``reason`` is CLOSED (on purpose) or LINK_LOST (see
+        ``connection_lost``); disconnect callbacks read it as
+        ``session.close_reason``."""
         if session.id not in self._sessions:
             return
+        session.close_reason = reason
         session.state = SessionState.DISCONNECTING
         session.stop_input_pump()
         session.cancel_prompt()  # resolve any awaiting wizard so its task ends
@@ -654,6 +795,16 @@ class SessionManager:
                 await callback(session)
             except Exception as e:
                 logger.error(f"Error in disconnect callback: {e}")
+
+        # Nobody snoops a closed session, and it snoops nobody.
+        for other in self._sessions.values():
+            if session in other.snoopers:
+                other.snoopers.remove(session)
+        if session.snoopers:
+            who = session.player.name if session.player is not None else session.address
+            for snooper in session.snoopers:
+                snooper.send_nowait(f"[Snoop ended: {who} disconnected.]")
+            session.snoopers.clear()
 
         # Unlink player if any
         if session.player:
@@ -679,13 +830,13 @@ class SessionManager:
 
         logger.info(f"Session destroyed: {session.id}")
 
-    def destroy_session_soon(self, session: Session) -> None:
+    def destroy_session_soon(self, session: Session, *, reason: str = CLOSED) -> None:
         """
         Schedule a session for destruction from sync code (protocol
         callbacks). Holds a reference to the task so it can't be
         garbage-collected before running.
         """
-        task = asyncio.create_task(self.destroy_session(session))
+        task = asyncio.create_task(self.destroy_session(session, reason=reason))
         self._pending_destroys.add(task)
         task.add_done_callback(self._pending_destroys.discard)
 
@@ -719,6 +870,7 @@ class SessionManager:
 
         session.link_player(player)
         self._by_player[player.id] = session
+        self.clear_linkdead(player)
 
     def unlink_player_from_session(self, session: Session) -> None:
         """
@@ -736,6 +888,30 @@ class SessionManager:
         if player is not None:
             self._by_player.pop(player.id, None)
         session.unlink_player()
+
+    # --- link-dead characters ---
+
+    def mark_linkdead(self, player: GameObject) -> None:
+        """``player``'s connection dropped: it waits in the room, tagged
+        ``linkdead``, until it reconnects or the wait runs out."""
+        player.add_tag("linkdead")
+        self._linkdead[player.id] = (player, clock())
+
+    def clear_linkdead(self, player: GameObject) -> None:
+        """``player`` is no longer waiting (reconnected, or the wait ended)."""
+        if self._linkdead.pop(player.id, None) is not None or player.has_tag("linkdead"):
+            player.remove_tag("linkdead")
+
+    def linkdead(self) -> list[tuple[GameObject, float]]:
+        """Every link-dead character, with the clock time its link was lost."""
+        return list(self._linkdead.values())
+
+    def online_players(self) -> list[GameObject]:
+        """Every character in play, in connection order."""
+        return [s.player for s in self._sessions.values() if s.player is not None]
+
+    def is_online(self, player: GameObject) -> bool:
+        return player.id in self._by_player
 
     def all_sessions(self) -> list[Session]:
         """Get all active sessions."""
@@ -771,3 +947,17 @@ class SessionManager:
                 session = self.get_session_by_player(obj)
                 if session:
                     await session.send(message)
+
+
+def online_players() -> list[GameObject]:
+    """The current world's characters in play (none without a world)."""
+    from realm.core.world import find_world
+    world = find_world()
+    return world.sessions.online_players() if world is not None and world.sessions else []
+
+
+def is_online(player: GameObject) -> bool:
+    """Whether ``player`` is in play in the current world."""
+    from realm.core.world import find_world
+    world = find_world()
+    return world is not None and world.sessions is not None and world.sessions.is_online(player)

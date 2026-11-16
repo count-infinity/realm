@@ -30,9 +30,13 @@ REALM must be usable as a library, not an application to fork.
     `rules.py`, `tests/test_game.py` (passes out of the box) and a README;
     `--features classic|social|bare`; `--template` works from a wheel (9.3).
 
-- [ ] Implement `realm migrate` command
+- [x] Implement `realm migrate` command
   - Creates/updates database schema
   - Handles schema versioning
+  - *(2026-11-16, MUD_PLAN step 9)* ordered steps in
+    `realm.persistence.migrate.MIGRATIONS`; `realm start` refuses an older
+    database and says to run it; also `realm backup` / `realm restore`
+    ([Operating a Live Game](docs/guides/operations.md#upgrading)).
 
 - [x] Implement `realm start` that loads from config
   - Reads `config.py` for ports, protocols, database

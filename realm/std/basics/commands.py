@@ -1,7 +1,7 @@
 """
 Utility commands for REALM.
 
-General-purpose commands like who, quit, help.
+General-purpose commands like quit, help, time.
 """
 
 from __future__ import annotations
@@ -10,47 +10,6 @@ from realm.commands import CommandContext
 from realm.core.action_types import ActionType
 from realm.core.markup import wrap
 from realm.core.movement import move_to
-
-
-async def cmd_who(ctx: CommandContext) -> None:
-    """
-    Show who is online.
-
-    Usage: who
-    """
-    if not ctx.session_manager:
-        await ctx.session.send("Who list unavailable.")
-        return
-
-    playing = ctx.session_manager.playing_sessions()
-
-    await ctx.session.send(f"\n{'=' * 40}")
-    await ctx.session.send(f"  {len(playing)} player(s) online")
-    await ctx.session.send(f"{'=' * 40}")
-
-    if playing:
-        await ctx.session.send("")
-        for session in playing:
-            if session.player:
-                name = session.player.name
-                idle = int(session.idle_time)
-
-                # Format idle time
-                if idle < 60:
-                    idle_str = f"{idle}s"
-                elif idle < 3600:
-                    idle_str = f"{idle // 60}m"
-                else:
-                    idle_str = f"{idle // 3600}h"
-
-                # Get location if visible
-                loc = ""
-                if session.player.location:
-                    loc = f" in {session.player.location.name}"
-
-                await ctx.session.send(f"  {name} (idle {idle_str}){loc}")
-
-    await ctx.session.send("")
 
 
 async def cmd_quit(ctx: CommandContext) -> None:

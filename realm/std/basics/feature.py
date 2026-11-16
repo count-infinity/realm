@@ -1,7 +1,8 @@
 """
 The ``basics`` feature.
 
-Session and utility commands: help, who, quit, time.
+Session and utility commands: help, who, quit, time; who is on
+(``world.services["who"]``, ``online_players()``, ``idle_seconds()``).
 """
 
 from __future__ import annotations
@@ -17,7 +18,13 @@ from realm.std.basics.commands import (
     cmd_think,
     cmd_time,
     cmd_uptime,
+)
+from realm.std.basics.presence import (
+    WhoService,
     cmd_who,
+    idle_seconds,
+    linkdead_marker,
+    online_players_fn,
 )
 from realm.std.basics.prompt import cmd_prompt, render_prompt
 
@@ -55,6 +62,16 @@ feature.command(
     help_text='List all available commands',
 )
 feature.command('who', cmd_who, category='utility', help_text='Show who is online')
+feature.marker(linkdead_marker)
+feature.softfn(online_players_fn, name='online_players', group='Objects & attributes',
+               readonly=True)
+feature.softfn(idle_seconds, group='Objects & attributes', readonly=True)
+
+
+@feature.on_install
+def _offer_who(world) -> None:
+    """``world.services["who"]``: other features add to its ``fields``."""
+    world.services["who"] = WhoService()
 feature.command(
     'quit',
     cmd_quit,

@@ -14,7 +14,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.propagation import Action, ActorStep, TargetStep, deliver_messages, gate_action
-from realm.std.channels.common import find_character, is_online
+from realm.gateway.session import is_online
+from realm.std.channels.common import find_character
 
 if TYPE_CHECKING:
     from realm.commands import CommandContext
@@ -165,5 +166,10 @@ async def cmd_afk(ctx: CommandContext) -> None:
     await ctx.session.send(f"You are away: {player.db.afk_message}")
 
 
+def afk_field(viewer: GameObject | None, player: GameObject) -> str | None:
+    """A ``who`` field: ``afk`` beside a player who is away."""
+    return "afk" if player.has_tag("afk") else None
+
+
 __all__ = ["ignores", "send_tell", "cmd_tell", "cmd_reply", "cmd_ignore", "cmd_unignore",
-           "cmd_afk"]
+           "cmd_afk", "afk_field"]

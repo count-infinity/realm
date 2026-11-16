@@ -22,8 +22,9 @@ from typing import TYPE_CHECKING
 
 from realm.core.propagation import Action, propagate
 from realm.core.world import find_world
+from realm.gateway.session import online_players
 from realm.permissions.locks import check_lock
-from realm.std.channels.common import online_players, preferences_holder
+from realm.std.channels.common import preferences_holder
 
 if TYPE_CHECKING:
     from realm.commands import CommandContext

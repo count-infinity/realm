@@ -1,5 +1,5 @@
-"""What tells and channels share: who is online, who a name is, where a
-person's preferences live."""
+"""What tells and channels share: who a name is, where a person's
+preferences live. (Who is online is the session manager's: realm.gateway.session.)"""
 
 from __future__ import annotations
 
@@ -9,21 +9,6 @@ from realm.core.world import find_world
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
-
-
-def online_players() -> list[GameObject]:
-    """Every character in play, in connection order."""
-    world = find_world()
-    sessions = world.sessions if world is not None else None
-    if sessions is None:
-        return []
-    return [s.player for s in sessions.all_sessions() if s.player is not None]
-
-
-def is_online(player: GameObject) -> bool:
-    world = find_world()
-    sessions = world.sessions if world is not None else None
-    return sessions is not None and sessions.get_session_by_player(player) is not None
 
 
 def find_character(name: str) -> GameObject | None:
@@ -46,4 +31,4 @@ def preferences_holder(player: GameObject) -> GameObject:
     return player
 
 
-__all__ = ["online_players", "is_online", "find_character", "preferences_holder"]
+__all__ = ["find_character", "preferences_holder"]

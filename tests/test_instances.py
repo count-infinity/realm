@@ -424,7 +424,7 @@ async def test_ephemeral_objects_are_never_persisted(tmp_path):
 
         # The dirty-sweep flush skips it too.
         ghost.db.set("touched", True)
-        await pm._flush_queue()
+        await pm.flush()
         assert await pm.exists(ghost.id) is False
     finally:
         await pm.close()

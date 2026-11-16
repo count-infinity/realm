@@ -82,6 +82,7 @@ nav:
     - Accounts, Achievements & Bans: guides/accounts.md
     - "Communication: Tells, Channels, Socials, Mail": guides/communication.md
     - Time and Weather: guides/time-and-weather.md
+    - Operating a Live Game: guides/operations.md
     - Rules:
       - Game Systems: guides/game-systems.md
       - Creating Your Own System: guides/creating-your-own-system.md

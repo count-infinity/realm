@@ -221,7 +221,7 @@ veto (a cursed item refusing removal).
 | `ON_DAWN` | dawn breaks | `clock` |
 | `ON_DAY` | full day begins | `clock` |
 | `ON_DEATH` | this object goes down: its vital pool is spent, by any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True when the body is gone (a corpse, or destroyed), False when it stays (unconscious, or `when_spent` is none) | `combat` |
-| `ON_DISCONNECT` | player disconnects | `kernel` |
+| `ON_DISCONNECT` | player leaves play (a dropped connection: when its link-dead wait ends) | `kernel` |
 | `ON_DRINK` | this is drunk from (gated) | `items` |
 | `ON_DROP` | this object is dropped | `items` |
 | `ON_DUSK` | dusk falls | `clock` |
@@ -325,6 +325,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`has_tag`](#fn-has_tag) | Check if an object has a tag. | [Tags & zones](#tags-zones) |
 | [`heal`](#fn-heal) | Mend the damage pool (`hp` unless the target says otherwise), capped at its max, of something in the executor's room. | [Combat & effects](#combat-effects) |
 | [`highest`](#fn-highest) | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), else miss (0). | [Dice & skill checks](#dice-skill-checks) |
+| [`idle_seconds`](#fn-idle_seconds) | Seconds since a player last typed (or since its link dropped); None when it is not on. | [Objects & attributes](#objects-attributes) |
 | [`if_else`](#fn-if_else) | Conditional expression. | [Math & logic](#math-logic) |
 | [`incr`](#fn-incr) | Increment a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
 | [`incr_account_attr`](#fn-incr_account_attr) | Add `by` to a number on the character's account and return the new value (None when refused). | [Accounts](#accounts) |
@@ -342,6 +343,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`net_successes`](#fn-net_successes) | Dice-pool success-counting (Shadowrun, WoD): roll `pool` dice, count those `>= tn`. | [Dice & skill checks](#dice-skill-checks) |
 | [`now`](#fn-now) | Current time as epoch seconds — cache expiry, cooldowns. | [Time & scheduling](#time-scheduling) |
 | [`oemit`](#fn-oemit) | Emit to the executor's room, excluding one object. | [Messaging & prompts](#messaging-prompts) |
+| [`online_players`](#fn-online_players) | The characters in play now that the running object can see. | [Objects & attributes](#objects-attributes) |
 | [`oob`](#fn-oob) | Send structured out-of-band data (GMCP) to a player's client — custom UI panels from softcode. | [Messaging & prompts](#messaging-prompts) |
 | [`owner`](#fn-owner) | Get an object's owner. | [Objects & attributes](#objects-attributes) |
 | [`pemit`](#fn-pemit) | Send a private message to a target (delivered after the script). | [Messaging & prompts](#messaging-prompts) |
@@ -639,6 +641,21 @@ Check if an object has an attribute.
 has_attr(me, 'charged')
 ```
 
+### `idle_seconds` {#fn-idle_seconds}
+
+```text
+idle_seconds(obj: GameObject | str | None) -> int | None
+```
+
+Seconds since a player last typed (or since its link dropped); None
+when it is not on.
+
+**Example**
+
+```text
+idle_seconds(enactor) > 600
+```
+
 ### `incr` {#fn-incr}
 
 ```text
@@ -700,6 +717,20 @@ Get an object's name.
 
 ```text
 name(enactor)
+```
+
+### `online_players` {#fn-online_players}
+
+```text
+online_players() -> list[GameObject]
+```
+
+The characters in play now that the running object can see.
+
+**Example**
+
+```text
+[name(p) for p in online_players()]
 ```
 
 ### `owner` {#fn-owner}

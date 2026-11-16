@@ -326,12 +326,12 @@ the ranked gap list below.
 | 177 | Jail system | now | `$jail`: `teleport_obj()` + exit lock + `wait()` auto-release + log attr |
 | 178 | Ban & sitelock manager | ~~small~~ **SHIPPED 2026-11-15** (engine: `@account/ban`, `@sitelock`, the `realm.admin` log) | **G12 ban registry**: account/IP bans with expiry in AuthService (login-attempt lockout exists) |
 | 179 | Character approval queue | now | `unapproved` tag gates the start-room exit ward; staff `$approve`; `pemit()` on decision |
-| 180 | Staff invisibility | **small** | `invisible` tag + admin sight + `quell` exist; **G4 presence surface**: `who` must respect perception |
+| 180 | Staff invisibility | ~~small~~ **SHIPPED 2026-11-16** (`who` leaves out players the viewer cannot see) | `invisible` tag + admin sight + `quell` exist; **G4 presence surface**: `who` must respect perception |
 | 181 | Announcement system | now | `remit()` loop over all rooms (or world-master emit); history attr; opt-out attr filter |
 | 182 | Object snapshot/restore | now | `@clone` as backup + `@export` area files; attr dump via `@eval` into a vault attr |
 | 183 | Permission tiers in practice | now | roles (god/admin/builder/player/guest) + locks + `controls()` + `quell` — all built in; tour |
 | 184 | New-player onboarding | now | world-master `ON_CONNECT` + first-login attr → starter kit `create_obj()`, greeting, mentor ping |
-| 185 | Rate limiting | **small** | **G13 flood throttle**: per-session command-rate limiter (sandbox CPU limits + login lockout exist) |
+| 185 | Rate limiting | ~~small~~ **SHIPPED 2026-11-16** (engine: per-connection token bucket, `COMMAND_RATE`/`COMMAND_BURST`/`FLOOD_DISCONNECT_SECONDS`) | **G13 flood throttle**: per-session command-rate limiter (sandbox CPU limits + login lockout exist) |
 | 186 | Watchlist & alerts | now | world-master `ON_CONNECT` + `watched` tag → `pemit()` staff |
 
 ### 17. Information & UI (187–197)
@@ -339,7 +339,7 @@ the ranked gap list below.
 | # | Item | Class | Primitives / gap |
 |---|---|---|---|
 | 187 | Status prompt | ~~small~~ **SHIPPED 2026-11-15** (engine prompt: `prompt <template>`, `PROMPT`, `feature.prompt`) | **G10 prompt line**: per-player prompt template appended after output (GMCP vitals via `oob()` work today) |
-| 188 | Custom who list | **small** | **G4 presence surface**: expose sessions to softcode (`online_players()`, idle) so `$who` can be built |
+| 188 | Custom who list | ~~small~~ **SHIPPED 2026-11-16** (softcode `online_players()`, `idle_seconds()`; the `who` service's `fields`) | **G4 presence surface**: expose sessions to softcode (`online_players()`, idle) so `$who` can be built |
 | 189 | In-room minimap | now | room `ON_LOOK` `pemit()`s a mini-map from an `exits()` BFS; exploration-memory attr *(advanced)* |
 | 190 | Score screen | now | `$score` via `eval_attr()` layout over stats/effects attrs |
 | 191 | Help system extensions | now | help *is* auto-generated from command registrations (category/usage/help_text) — tour |
@@ -348,7 +348,7 @@ the ranked gap list below.
 | 194 | Screenreader mode | **small** | **G7 render options**: per-session accessibility flags beyond `color on/off` |
 | 195 | Color themes | **small** | **G7 render options**: per-player palette remap at the protocol edge (no-color fallback exists) |
 | 196 | Personal aliases (nicks) | now | carried alias gadget: inventory `$`-commands run multi-line script bodies |
-| 197 | Idle & AFK states | **small** | `who` shows idle; **G4 presence surface**: idle exposed to softcode + auto-AFK hook |
+| 197 | Idle & AFK states | ~~small~~ **SHIPPED 2026-11-16** (`who` shows idle, `afk`, `linkdead`; `idle_seconds()` drives an auto-afk ticker; `IDLE_TIMEOUT`) | `who` shows idle; **G4 presence surface**: idle exposed to softcode + auto-AFK hook |
 
 ### 18. Quests & Storytelling (198–208)
 
@@ -386,7 +386,7 @@ the ranked gap list below.
 | # | Item | Class | Primitives / gap |
 |---|---|---|---|
 | 219 | Friends list | now | world-master `ON_CONNECT`/`ON_DISCONNECT` + consent attrs → `pemit()` friends |
-| 220 | Titles & badges | now | title attrs rendered in look/`$finger` via `desc_extras` (builtin `who` columns are fixed — see G4) |
+| 220 | Titles & badges | now | title attrs rendered in look/`$finger` via `desc_extras`; on `who` through the `who` service's `fields` (G4, shipped) |
 | 221 | Player organizations | now | org master: rank attrs, invite `$`-commands, roster attr; lock expressions by tag/rank |
 | 222 | Org treasury & storage | now | org credits on the master; rank-gated `$withdraw`; lockers with lock expressions |
 | 223 | Elections | now | ballot attrs; `$vote` dedupes by id; `on_tick` tally at close |
@@ -440,7 +440,7 @@ L = a real subsystem.
 | G1 | **Web layer** | HTTP site + REST API over the live world (views, auth, serialization, submission pipeline) | 230, 231, 234, 237, 239 | 5 | L |
 | G2 | **Speech pipeline hooks** — ~~gap~~ **MOSTLY SHIPPED 2026-07-17**: `register_speech_renderer(fn)` transforms the spoken `{speech}` body per listener (lands **79 languages**, **139 intoxication**), and `db.voice_as` overrides the speech `{actor}` attribution (lands **84 voice disguise**). Still open: **80 overheard whispers** needs the whisper ROOM line to carry a body it currently lacks. | per-listener transform + speaker-attribution override + leak rolls in `do_say`/`do_whisper` delivery (builtins dispatch before softcode, so speech can't be intercepted today) | 80 | 1 | S |
 | G3 | **Identity layer** — ~~gap~~ **SHIPPED 2026-07-17**: `register_name_resolver(fn)` is the per-viewer naming (sdesc/recog/disguise) seam in `perceived_name`, and `pose /name` renders emote references per viewer. Lands **85, 133, 134**. (A softcode `set_name()` was not needed — the resolver chain covers apparent-name.) | per-viewer naming (sdesc/recog) hook in `perceived_name` + a softcode `set_name()`/apparent-name | — | 0 | done |
-| G4 | **Presence & session surface** | `online_players()`/`idle_seconds()` softcode functions, perception-aware `who`, auto-AFK hook | 180, 188, 197 | 3 | S |
+| G4 | **Presence & session surface** — ~~gap~~ **SHIPPED 2026-11-16**: softcode `online_players()` and `idle_seconds()`, a `who` that leaves out the unseen and shows idle, `afk` and `linkdead`, and `world.services["who"].fields` for marks; auto-afk is softcode on a ticker reading `idle_seconds()` ([Operating a Live Game](../guides/operations.md#who-is-on)). | `online_players()`/`idle_seconds()` softcode functions, perception-aware `who`, auto-AFK hook | — | 0 | done |
 | G5 | **External bridges** | Discord relay + SMTP email digests (long-lived external-service connectors) | 232, 236 | 2 | L |
 | G6 | **HTTP connector primitives** | config-declared event→webhook POST sink; allowlisted feed-fetch behavior | 233, 238 | 2 | M |
 | G7 | **Per-session render options** | screenreader flag + per-player color-palette remap at the protocol edge (beyond `color on/off`) | 194, 195 | 2 | S |
@@ -449,7 +449,7 @@ L = a real subsystem.
 | G10 | **Status prompt line** — ~~gap~~ **SHIPPED 2026-11-15**: `feature.prompt` (one per game) and the `basics` default, a per-player template (`prompt`) over every pool, `{combat}`, `{level}`; telnet EOR/GA ([The Character Sheet](../guides/character-sheet.md#the-prompt)). | per-player prompt template appended after command output | — | 0 | done |
 | G11 | **MXP links** | MXP link markup rendered at the telnet edge | 192 | 1 | S |
 | G12 | **Ban/sitelock registry** — ~~gap~~ **SHIPPED 2026-11-15**: accounts carry `banned_until`/`ban_reason`; `@account/ban`, `/unban`, `@sitelock` (a `sitelock_registry` object); every change logged on `realm.admin` ([Accounts](../guides/accounts.md)). | account/IP bans with expiry + audit in AuthService | — | 0 | done |
-| G13 | **Command flood throttle** | per-session rate limiter with backoff | 185 | 1 | S |
+| G13 | **Command flood throttle** — ~~gap~~ **SHIPPED 2026-11-16**: a token bucket per connection (`COMMAND_RATE`, `COMMAND_BURST`); dropped lines warn once; a flood lasting `FLOOD_DISCONNECT_SECONDS` closes the connection and is logged ([Operating a Live Game](../guides/operations.md#connections)). | per-session rate limiter with backoff | — | 0 | done |
 
 Worth noting (not blocking any item, but recurring): a dedicated
 **Master Room** (global `$`-command search is a `TODO` in
@@ -491,10 +491,10 @@ and unlocks its whole cluster.
    20, 22 + item 235).** Includes the capstones (108 casino, 164
    spaceship, 216 escape room, 250 sandbox tour).
 5. **Wave 5 — Small-gap unlocks.** ~~G2 (→ 79, 84, 139)~~ and ~~G3 (→ 85,
-   133, 134)~~ shipped 2026-07-17. Remaining, in bang-for-buck order:
-   G4 (→ 180, 188, 197), the last of G2 (→ 80 overheard whispers),
-   G7 (→ 194, 195), then the singletons G8–G13 (→ 110, 116, 187, 192,
-   178, 185) and G6 (→ 233, 238). Each gap's tutorial lands with the
+   133, 134)~~ shipped 2026-07-17; ~~G10, G12~~ 2026-11-15; ~~G4 (→ 180,
+   188, 197), G13 (→ 185)~~ 2026-11-16. Remaining, in bang-for-buck order:
+   the last of G2 (→ 80 overheard whispers), G7 (→ 194, 195), then the
+   singletons G8, G9, G11 (→ 110, 116, 192) and G6 (→ 233, 238). Each gap's tutorial lands with the
    engine change (docs discipline: same change).
 6. **Wave 6 — Web & external (G1, G5).** 230, 231, 234, 237, 239, 232,
    236. A deliberate, design-first subsystem effort; everything else in

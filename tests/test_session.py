@@ -32,9 +32,8 @@ class TestSession:
 
     def test_idle_time(self, monkeypatch):
         """Session tracks idle time from creation."""
-        import time as _time
         clock = {"t": 500.0}
-        monkeypatch.setattr(_time, "monotonic", lambda: clock["t"])
+        monkeypatch.setattr("realm.gateway.session.clock", lambda: clock["t"])
         session = Session()
         assert session.idle_time == 0.0
         clock["t"] = 502.5
@@ -42,9 +41,8 @@ class TestSession:
 
     def test_touch_updates_activity(self, monkeypatch):
         """touch() resets idle_time to the elapsed time since touch."""
-        import time as _time
         clock = {"t": 1000.0}
-        monkeypatch.setattr(_time, "monotonic", lambda: clock["t"])
+        monkeypatch.setattr("realm.gateway.session.clock", lambda: clock["t"])
 
         session = Session()          # created + last_activity = 1000.0
         clock["t"] = 1005.0
