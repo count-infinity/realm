@@ -547,9 +547,10 @@ class TestCharacterSheet:
 
         # The native sheet is the always-current source of truth.
         await sim.do(ivo, "points")
-        pts = text(sim, ivo)
-        assert "Character points: 6" in pts
-        assert "melee" in pts and "13" in pts
+        assert "Character points: 6" in text(sim, ivo)
+        await sim.do(ivo, "skills")
+        skills = text(sim, ivo)
+        assert "melee" in skills and "13" in skills
 
     async def test_untrained_and_nominal_read_cleanly(self, sim):
         await build(sim, 141)

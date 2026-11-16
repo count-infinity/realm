@@ -338,7 +338,7 @@ the ranked gap list below.
 
 | # | Item | Class | Primitives / gap |
 |---|---|---|---|
-| 187 | Status prompt | **small** | **G10 prompt line**: per-player prompt template appended after output (GMCP vitals via `oob()` work today) |
+| 187 | Status prompt | ~~small~~ **SHIPPED 2026-11-15** (engine prompt: `prompt <template>`, `PROMPT`, `feature.prompt`) | **G10 prompt line**: per-player prompt template appended after output (GMCP vitals via `oob()` work today) |
 | 188 | Custom who list | **small** | **G4 presence surface**: expose sessions to softcode (`online_players()`, idle) so `$who` can be built |
 | 189 | In-room minimap | now | room `ON_LOOK` `pemit()`s a mini-map from an `exits()` BFS; exploration-memory attr *(advanced)* |
 | 190 | Score screen | now | `$score` via `eval_attr()` layout over stats/effects attrs |
@@ -446,7 +446,7 @@ L = a real subsystem.
 | G7 | **Per-session render options** | screenreader flag + per-player color-palette remap at the protocol edge (beyond `color on/off`) | 194, 195 | 2 | S |
 | G8 | **Ammo & reload** | ranged attacks consume weapon `db.ammo`; `reload` maneuver in the ruleset vocabulary | 110 | 1 | S |
 | G9 | **Hit locations** | called-shot maneuver + penalty/effect table in the GURPS ruleset | 116 | 1 | S |
-| G10 | **Status prompt line** | per-player prompt template appended after command output | 187 | 1 | S |
+| G10 | **Status prompt line** — ~~gap~~ **SHIPPED 2026-11-15**: `feature.prompt` (one per game) and the `basics` default, a per-player template (`prompt`) over every pool, `{combat}`, `{level}`; telnet EOR/GA ([The Character Sheet](../guides/character-sheet.md#the-prompt)). | per-player prompt template appended after command output | — | 0 | done |
 | G11 | **MXP links** | MXP link markup rendered at the telnet edge | 192 | 1 | S |
 | G12 | **Ban/sitelock registry** | account/IP bans with expiry + audit in AuthService | 178 | 1 | S |
 | G13 | **Command flood throttle** | per-session rate limiter with backoff | 185 | 1 | S |

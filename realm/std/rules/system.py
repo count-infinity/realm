@@ -146,6 +146,18 @@ class GameSystem(ABC):
         character points (PointBuyMixin); an XP system banks experience
         and levels up (MercSystem). Neutral: nothing."""
 
+    # --- The character sheet ---
+
+    def wear_slots(self) -> list[tuple[str, int]]:
+        """Where things are worn, in the order ``equipment`` lists them, and
+        how many items each place holds. Neutral: ``[]``, meaning any slot
+        an item names, one item each."""
+        return []
+
+    def format_skill(self, skill: str, level: int) -> str:
+        """A skill level as ``skills`` shows it. Neutral: the number."""
+        return str(level)
+
     # --- Recovery and death ---
 
     def regen(self, obj: GameObject, pool_name: str) -> int:
@@ -281,16 +293,10 @@ class PointBuyMixin:
                    f"{'s' if amount != 1 else ''}.")
 
     def score_lines(self, player: GameObject) -> list[str]:
-        """Character points, trained skills and how to spend."""
+        """Character points and how to spend them (``skills`` lists the
+        skills)."""
         cp = int(player.db.get('character_points') or 0)
         lines = [f"Character points: {cp}"]
-        skills = sorted(
-            (key[6:], value) for key, value in player.db.all().items()
-            if key.startswith('skill_')
-        )
-        if skills:
-            lines.append("Skills:")
-            lines.extend(f"  {name:20} {level}" for name, level in skills)
         cost = self.improve_cost('', 0)
         lines.append(f"\nSpend with: improve <skill>  ({cost} points per level)")
         return lines

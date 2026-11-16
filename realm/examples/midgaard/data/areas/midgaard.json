@@ -98,7 +98,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 2
    },
    "locks": {},
    "behaviors": [
@@ -144,7 +148,11 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3101
+    "prototype_vnum": 3101,
+    "restores": {
+     "water": 4
+    },
+    "charges": 2
    },
    "locks": {},
    "behaviors": [],
@@ -178,7 +186,11 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3102
+    "prototype_vnum": 3102,
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [],
@@ -390,7 +402,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -414,7 +427,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -661,7 +675,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -685,7 +700,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -927,7 +943,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -951,7 +968,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -1429,7 +1447,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -1453,7 +1472,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -1661,7 +1681,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -1685,7 +1706,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -1947,7 +1969,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -1971,7 +1994,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -2415,7 +2439,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -2439,7 +2464,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -2601,7 +2627,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -2625,7 +2652,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -2787,7 +2815,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -2811,7 +2840,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -2973,7 +3003,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -2997,7 +3028,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -3094,7 +3126,8 @@
    "description": "A small white fountain gushes forth here.",
    "tags": [
     "thing",
-    "fountain"
+    "fountain",
+    "drink"
    ],
    "attrs": {
     "rom_vnum": 3135,
@@ -3112,7 +3145,10 @@
     ],
     "rom_extra": [],
     "rom_wear": [],
-    "prototype_vnum": 3135
+    "prototype_vnum": 3135,
+    "restores": {
+     "water": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -3886,7 +3922,11 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3154
+    "prototype_vnum": 3154,
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [],
@@ -3920,7 +3960,10 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3152
+    "prototype_vnum": 3152,
+    "restores": {
+     "food": 25
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -3954,7 +3997,10 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3153
+    "prototype_vnum": 3153,
+    "restores": {
+     "food": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -3988,7 +4034,10 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3151
+    "prototype_vnum": 3151,
+    "restores": {
+     "food": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -4029,7 +4078,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 2
    },
    "locks": {},
    "behaviors": [
@@ -4082,7 +4135,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 2
    },
    "locks": {},
    "behaviors": [
@@ -4491,7 +4548,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -4515,7 +4573,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -4745,7 +4804,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -4769,7 +4829,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -4999,7 +5060,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -5023,7 +5085,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -5556,7 +5619,11 @@
      13,
      15,
      19
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [
@@ -5609,7 +5676,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -5778,7 +5849,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -5802,7 +5874,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -5977,7 +6050,8 @@
    "description": "A small white fountain gushes forth here.",
    "tags": [
     "thing",
-    "fountain"
+    "fountain",
+    "drink"
    ],
    "attrs": {
     "rom_vnum": 3135,
@@ -5995,7 +6069,10 @@
     ],
     "rom_extra": [],
     "rom_wear": [],
-    "prototype_vnum": 3135
+    "prototype_vnum": 3135,
+    "restores": {
+     "water": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -6110,7 +6187,11 @@
      4,
      10,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 75
    },
    "locks": {},
    "behaviors": [
@@ -6163,7 +6244,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [
@@ -6373,7 +6458,10 @@
      32,
      33,
      0
-    ]
+    ],
+    "restores": {
+     "food": 20
+    }
    },
    "locks": {},
    "behaviors": [
@@ -6419,7 +6507,10 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3011
+    "prototype_vnum": 3011,
+    "restores": {
+     "food": 18
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -6453,7 +6544,10 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3012
+    "prototype_vnum": 3012,
+    "restores": {
+     "food": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -6487,7 +6581,10 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3013
+    "prototype_vnum": 3013,
+    "restores": {
+     "food": 8
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -6521,7 +6618,10 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3014
+    "prototype_vnum": 3014,
+    "restores": {
+     "food": 8
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -6646,7 +6746,8 @@
    "description": "A large torch.",
    "tags": [
     "thing",
-    "light"
+    "light",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3030,
@@ -6666,7 +6767,8 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3030
+    "prototype_vnum": 3030,
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -6680,7 +6782,8 @@
    "description": "A hooded brass lantern has been left here.",
    "tags": [
     "thing",
-    "light"
+    "light",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3031,
@@ -6700,7 +6803,8 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3031
+    "prototype_vnum": 3031,
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -6734,7 +6838,11 @@
     "rom_wear": [
      "A"
     ],
-    "prototype_vnum": 3138
+    "prototype_vnum": 3138,
+    "restores": {
+     "water": 4
+    },
+    "charges": 16
    },
    "locks": {},
    "behaviors": [],
@@ -7490,7 +7598,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -7514,7 +7623,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -7910,7 +8020,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -7934,7 +8045,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -8226,7 +8338,11 @@
      13,
      15,
      19
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [
@@ -8279,7 +8395,11 @@
      7,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -9234,7 +9354,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -9258,7 +9379,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -9536,7 +9658,11 @@
      13,
      15,
      19
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [
@@ -9589,7 +9715,11 @@
      7,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -9642,7 +9772,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -10299,7 +10433,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -10323,7 +10458,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -10705,7 +10841,11 @@
      7,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -10758,7 +10898,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -11270,7 +11414,8 @@
    "tags": [
     "thing",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3040,
@@ -11300,7 +11445,12 @@
      0,
      0,
      0
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "identify"
+    ],
+    "spell_level": 12
    },
    "locks": {},
    "behaviors": [
@@ -11327,7 +11477,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3041,
@@ -11350,7 +11501,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3041
+    "prototype_vnum": 3041,
+    "slot": "held",
+    "spells": [
+     "detect invis"
+    ],
+    "spell_level": 12
    },
    "locks": {},
    "behaviors": [],
@@ -11365,7 +11521,8 @@
    "tags": [
     "thing",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3039,
@@ -11388,7 +11545,10 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3039
+    "prototype_vnum": 3039,
+    "slot": "held",
+    "spells": [],
+    "spell_level": 15
    },
    "locks": {},
    "behaviors": [],
@@ -11403,7 +11563,8 @@
    "tags": [
     "thing",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3042,
@@ -11433,7 +11594,12 @@
      0,
      0,
      0
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "word of recall"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [
@@ -11519,7 +11685,8 @@
    "tags": [
     "thing",
     "wand",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3044,
@@ -11549,7 +11716,13 @@
      0,
      0,
      0
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "magic missile"
+    ],
+    "spell_level": 4,
+    "charges": 10
    },
    "locks": {},
    "behaviors": [
@@ -11646,7 +11819,8 @@
    "description": "A lustrous opal reminds you of far-off places.",
    "tags": [
     "thing",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3378,
@@ -11669,7 +11843,8 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3378
+    "prototype_vnum": 3378,
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -11683,7 +11858,8 @@
    "description": "A diamond catches and reflects the lighting.",
    "tags": [
     "thing",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3377,
@@ -11706,7 +11882,8 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3377
+    "prototype_vnum": 3377,
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -11720,7 +11897,8 @@
    "description": "A beautiful, if small, ruby is here.",
    "tags": [
     "thing",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3376,
@@ -11743,7 +11921,8 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3376
+    "prototype_vnum": 3376,
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -11757,7 +11936,8 @@
    "description": "A deep green emerald winks at you.",
    "tags": [
     "thing",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3375,
@@ -11780,7 +11960,8 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3375
+    "prototype_vnum": 3375,
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -11794,7 +11975,8 @@
    "description": "A garnet catches your eye.",
    "tags": [
     "thing",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3374,
@@ -11817,7 +11999,8 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3374
+    "prototype_vnum": 3374,
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -11831,7 +12014,8 @@
    "description": "A small but well-formed pearl lies here.",
    "tags": [
     "thing",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3373,
@@ -11854,7 +12038,8 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3373
+    "prototype_vnum": 3373,
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -12590,7 +12775,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -12614,7 +12800,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -12850,7 +13037,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -12874,7 +13062,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -13110,7 +13299,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -13134,7 +13324,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -13370,7 +13561,8 @@
    "tags": [
     "thing",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -13394,7 +13586,8 @@
      "A"
     ],
     "prototype_vnum": 3365,
-    "worn": "light"
+    "worn": "light",
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -13722,7 +13915,11 @@
      7,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -13775,7 +13972,11 @@
      0,
      0,
      0
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [
@@ -14331,7 +14532,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3080,
@@ -14354,7 +14556,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3080
+    "prototype_vnum": 3080,
+    "slot": "held",
+    "spells": [
+     "heal"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -14369,7 +14576,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3081,
@@ -14392,7 +14600,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3081
+    "prototype_vnum": 3081,
+    "slot": "held",
+    "spells": [
+     "sanctuary"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -14407,7 +14620,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3082,
@@ -14433,7 +14647,13 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3082
+    "prototype_vnum": 3082,
+    "slot": "held",
+    "spells": [
+     "sanctuary",
+     "shield"
+    ],
+    "spell_level": 35
    },
    "locks": {},
    "behaviors": [],
@@ -14448,7 +14668,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3083,
@@ -14471,7 +14692,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3083
+    "prototype_vnum": 3083,
+    "slot": "held",
+    "spells": [
+     "cure light"
+    ],
+    "spell_level": 5
    },
    "locks": {},
    "behaviors": [],
@@ -14486,7 +14712,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3084,
@@ -14509,7 +14736,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3084
+    "prototype_vnum": 3084,
+    "slot": "held",
+    "spells": [
+     "cure serious"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -14524,7 +14756,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3085,
@@ -14547,7 +14780,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3085
+    "prototype_vnum": 3085,
+    "slot": "held",
+    "spells": [
+     "cure critical"
+    ],
+    "spell_level": 15
    },
    "locks": {},
    "behaviors": [],
@@ -14562,7 +14800,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3086,
@@ -14585,7 +14824,14 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3086
+    "prototype_vnum": 3086,
+    "slot": "held",
+    "spells": [
+     "cure poison",
+     "cure poison",
+     "cure poison"
+    ],
+    "spell_level": 14
    },
    "locks": {},
    "behaviors": [],
@@ -14600,7 +14846,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3087,
@@ -14623,7 +14870,14 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3087
+    "prototype_vnum": 3087,
+    "slot": "held",
+    "spells": [
+     "cure blindness",
+     "cure blindness",
+     "cure blindness"
+    ],
+    "spell_level": 13
    },
    "locks": {},
    "behaviors": [],
@@ -14638,7 +14892,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3088,
@@ -14663,7 +14918,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3088
+    "prototype_vnum": 3088,
+    "slot": "held",
+    "spells": [
+     "bless"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -14678,7 +14938,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3089,
@@ -14701,7 +14962,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3089
+    "prototype_vnum": 3089,
+    "slot": "held",
+    "spells": [
+     "armor"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -14716,7 +14982,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3090,
@@ -14740,7 +15007,10 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3090
+    "prototype_vnum": 3090,
+    "slot": "held",
+    "spells": [],
+    "spell_level": 35
    },
    "locks": {},
    "behaviors": [],
@@ -14755,7 +15025,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3091,
@@ -14778,7 +15049,12 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3091
+    "prototype_vnum": 3091,
+    "slot": "held",
+    "spells": [
+     "fly"
+    ],
+    "spell_level": 9
    },
    "locks": {},
    "behaviors": [],
@@ -14793,7 +15069,8 @@
    "tags": [
     "thing",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3092,
@@ -14816,7 +15093,14 @@
      "A",
      "O"
     ],
-    "prototype_vnum": 3092
+    "prototype_vnum": 3092,
+    "slot": "held",
+    "spells": [
+     "detect invis",
+     "detect hidden",
+     "detect magic"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -31268,7 +31552,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 75
    },
    "locks": {},
    "behaviors": [],
@@ -31302,7 +31590,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [],
@@ -31336,7 +31628,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [],
@@ -31370,7 +31666,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [],
@@ -31404,7 +31704,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [],
@@ -31479,7 +31783,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 45
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -31513,7 +31820,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 20
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -31581,7 +31891,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 18
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -31615,7 +31928,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -31649,7 +31965,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 8
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -31683,7 +32002,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 8
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -32078,7 +32400,8 @@
    "tags": [
     "thing",
     "prototype",
-    "light"
+    "light",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3030,
@@ -32097,7 +32420,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -32112,7 +32436,8 @@
    "tags": [
     "thing",
     "prototype",
-    "light"
+    "light",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3031,
@@ -32131,7 +32456,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -32215,7 +32541,8 @@
     "thing",
     "prototype",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3039,
@@ -32237,7 +32564,10 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [],
+    "spell_level": 15
    },
    "locks": {},
    "behaviors": [],
@@ -32253,7 +32583,8 @@
     "thing",
     "prototype",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3040,
@@ -32275,7 +32606,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "identify"
+    ],
+    "spell_level": 12
    },
    "locks": {},
    "behaviors": [],
@@ -32291,7 +32627,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3041,
@@ -32313,7 +32650,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "detect invis"
+    ],
+    "spell_level": 12
    },
    "locks": {},
    "behaviors": [],
@@ -32329,7 +32671,8 @@
     "thing",
     "prototype",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3042,
@@ -32351,7 +32694,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "word of recall"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -32407,7 +32755,8 @@
     "thing",
     "prototype",
     "wand",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3044,
@@ -32429,7 +32778,13 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "magic missile"
+    ],
+    "spell_level": 4,
+    "charges": 10
    },
    "locks": {},
    "behaviors": [],
@@ -33457,7 +33812,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3080,
@@ -33479,7 +33835,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "heal"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -33495,7 +33856,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3081,
@@ -33517,7 +33879,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "sanctuary"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -33533,7 +33900,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3082,
@@ -33558,7 +33926,13 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "sanctuary",
+     "shield"
+    ],
+    "spell_level": 35
    },
    "locks": {},
    "behaviors": [],
@@ -33574,7 +33948,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3083,
@@ -33596,7 +33971,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure light"
+    ],
+    "spell_level": 5
    },
    "locks": {},
    "behaviors": [],
@@ -33612,7 +33992,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3084,
@@ -33634,7 +34015,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure serious"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -33650,7 +34036,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3085,
@@ -33672,7 +34059,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure critical"
+    ],
+    "spell_level": 15
    },
    "locks": {},
    "behaviors": [],
@@ -33688,7 +34080,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3086,
@@ -33710,7 +34103,14 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure poison",
+     "cure poison",
+     "cure poison"
+    ],
+    "spell_level": 14
    },
    "locks": {},
    "behaviors": [],
@@ -33726,7 +34126,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3087,
@@ -33748,7 +34149,14 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure blindness",
+     "cure blindness",
+     "cure blindness"
+    ],
+    "spell_level": 13
    },
    "locks": {},
    "behaviors": [],
@@ -33764,7 +34172,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3088,
@@ -33788,7 +34197,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "bless"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -33804,7 +34218,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3089,
@@ -33826,7 +34241,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "armor"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -33842,7 +34262,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3090,
@@ -33865,7 +34286,10 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [],
+    "spell_level": 35
    },
    "locks": {},
    "behaviors": [],
@@ -33881,7 +34305,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3091,
@@ -33903,7 +34328,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "fly"
+    ],
+    "spell_level": 9
    },
    "locks": {},
    "behaviors": [],
@@ -33919,7 +34349,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3092,
@@ -33941,7 +34372,14 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "detect invis",
+     "detect hidden",
+     "detect magic"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -34013,7 +34451,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 2
    },
    "locks": {},
    "behaviors": [],
@@ -34047,7 +34489,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 2
    },
    "locks": {},
    "behaviors": [],
@@ -34081,7 +34527,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 3
    },
    "locks": {},
    "behaviors": [],
@@ -34650,7 +35100,8 @@
    "tags": [
     "thing",
     "prototype",
-    "trash"
+    "trash",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3129,
@@ -34670,7 +35121,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -34849,7 +35301,8 @@
    "tags": [
     "thing",
     "prototype",
-    "fountain"
+    "fountain",
+    "drink"
    ],
    "attrs": {
     "rom_vnum": 3135,
@@ -34866,7 +35319,10 @@
      0
     ],
     "rom_extra": [],
-    "rom_wear": []
+    "rom_wear": [],
+    "restores": {
+     "water": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -34968,7 +35424,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 16
    },
    "locks": {},
    "behaviors": [],
@@ -35066,7 +35526,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 2
    },
    "locks": {},
    "behaviors": [],
@@ -35100,7 +35564,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -35134,7 +35601,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 25
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -35168,7 +35638,10 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "food": 4
+    }
    },
    "locks": {},
    "behaviors": [],
@@ -35202,7 +35675,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 4
    },
    "locks": {},
    "behaviors": [],
@@ -35217,7 +35694,8 @@
    "tags": [
     "thing",
     "prototype",
-    "key"
+    "key",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3161,
@@ -35237,7 +35715,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -35575,7 +36054,11 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "restores": {
+     "water": 4
+    },
+    "charges": 16
    },
    "locks": {},
    "behaviors": [],
@@ -35591,7 +36074,8 @@
     "thing",
     "prototype",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3240,
@@ -35613,7 +36097,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "identify"
+    ],
+    "spell_level": 12
    },
    "locks": {},
    "behaviors": [],
@@ -35629,7 +36118,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3241,
@@ -35651,7 +36141,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "detect invis"
+    ],
+    "spell_level": 12
    },
    "locks": {},
    "behaviors": [],
@@ -35667,7 +36162,8 @@
     "thing",
     "prototype",
     "scroll",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3242,
@@ -35689,7 +36185,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "word of recall"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -35705,7 +36206,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3280,
@@ -35727,7 +36229,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "heal"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -35743,7 +36250,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3281,
@@ -35765,7 +36273,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "sanctuary"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -35781,7 +36294,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3282,
@@ -35806,7 +36320,14 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "sanctuary",
+     "armor",
+     "shield"
+    ],
+    "spell_level": 35
    },
    "locks": {},
    "behaviors": [],
@@ -35822,7 +36343,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3283,
@@ -35844,7 +36366,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure light"
+    ],
+    "spell_level": 5
    },
    "locks": {},
    "behaviors": [],
@@ -35860,7 +36387,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3284,
@@ -35882,7 +36410,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure serious"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -35898,7 +36431,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3285,
@@ -35920,7 +36454,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure critical"
+    ],
+    "spell_level": 15
    },
    "locks": {},
    "behaviors": [],
@@ -35936,7 +36475,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3286,
@@ -35958,7 +36498,14 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure poison",
+     "cure poison",
+     "cure poison"
+    ],
+    "spell_level": 14
    },
    "locks": {},
    "behaviors": [],
@@ -35974,7 +36521,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3287,
@@ -35996,7 +36544,14 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "cure blindness",
+     "cure blindness",
+     "cure blindness"
+    ],
+    "spell_level": 13
    },
    "locks": {},
    "behaviors": [],
@@ -36012,7 +36567,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3288,
@@ -36036,7 +36592,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "bless"
+    ],
+    "spell_level": 20
    },
    "locks": {},
    "behaviors": [],
@@ -36052,7 +36613,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3289,
@@ -36074,7 +36636,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "armor"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -36090,7 +36657,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3290,
@@ -36113,7 +36681,10 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [],
+    "spell_level": 35
    },
    "locks": {},
    "behaviors": [],
@@ -36129,7 +36700,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3291,
@@ -36151,7 +36723,12 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "fly"
+    ],
+    "spell_level": 9
    },
    "locks": {},
    "behaviors": [],
@@ -36167,7 +36744,8 @@
     "thing",
     "prototype",
     "potion",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3292,
@@ -36189,7 +36767,14 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held",
+    "spells": [
+     "detect invis",
+     "detect magic",
+     "detect hidden"
+    ],
+    "spell_level": 10
    },
    "locks": {},
    "behaviors": [],
@@ -36824,7 +37409,8 @@
     "thing",
     "prototype",
     "light",
-    "magic"
+    "magic",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -36846,7 +37432,8 @@
     ],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "slot": "light"
    },
    "locks": {},
    "behaviors": [],
@@ -36939,7 +37526,8 @@
    "tags": [
     "thing",
     "prototype",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3373,
@@ -36961,7 +37549,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -36976,7 +37565,8 @@
    "tags": [
     "thing",
     "prototype",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3374,
@@ -36998,7 +37588,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -37013,7 +37604,8 @@
    "tags": [
     "thing",
     "prototype",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3375,
@@ -37035,7 +37627,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -37050,7 +37643,8 @@
    "tags": [
     "thing",
     "prototype",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3376,
@@ -37072,7 +37666,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -37087,7 +37682,8 @@
    "tags": [
     "thing",
     "prototype",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3377,
@@ -37109,7 +37705,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],
@@ -37124,7 +37721,8 @@
    "tags": [
     "thing",
     "prototype",
-    "gem"
+    "gem",
+    "wearable"
    ],
    "attrs": {
     "rom_vnum": 3378,
@@ -37146,7 +37744,8 @@
     "rom_wear": [
      "A",
      "O"
-    ]
+    ],
+    "slot": "held"
    },
    "locks": {},
    "behaviors": [],

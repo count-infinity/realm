@@ -15,7 +15,7 @@ on its own and leaves the suite green.
 |---|------|------|--------|
 | 1 | Starting points: `--system`, and templates that are full scaffolds | S | [x] |
 | 2 | The solo loop: regeneration, rest, recovery, death, movement cost | M | [x] |
-| 3 | The character sheet: equipment, skills, prompt, consumables | M | [ ] |
+| 3 | The character sheet: equipment, skills, prompt, consumables | M | [x] |
 | 4 | Skills you can use: ability commands and the Merc class skills | M | [ ] |
 | 5 | Progression: use, practice, idle training, timed actions | L | [ ] |
 | 6 | Accounts: one login, many characters, account data, achievements, bans | L | [ ] |
@@ -455,36 +455,36 @@ scrolls, wands, food and drink, and nothing consumes them.
 
 In `realm/std/items/`.
 
-- [ ] `GameSystem.wear_slots() -> list[tuple[str, int]]`: slot names and
+- [x] `GameSystem.wear_slots() -> list[tuple[str, int]]`: slot names and
       how many items each holds. Neutral: `[]`, meaning any slot name, one
       item each (today's behavior). `MercSystem`: light, finger ×2, neck
       ×2, body, head, legs, feet, hands, arms, shield, about, waist, wrist
       ×2, held. `items` reads it through `world.rules` when present.
-- [ ] `cmd_wear` honors the count, replacing the oldest item in a full
+- [x] `cmd_wear` honors the count, replacing the oldest item in a full
       slot only when asked (`wear ring replace`), otherwise refusing with
       what is worn there.
-- [ ] New command `equipment` (alias `eq`): the slots in system order with
+- [x] New command `equipment` (alias `eq`): the slots in system order with
       what fills them, "nothing" for empty ones, and the wielded weapon.
       `inventory` stops listing worn and wielded items.
-- [ ] The ROM importer (`realm/tools/rom_import.py`) writes a `slot` from
+- [x] The ROM importer (`realm/tools/rom_import.py`) writes a `slot` from
       the object's wear flags using the Merc slot names; check the
       Midgaard area and regenerate it if slots are missing.
-- [ ] Tests: two rings on a Merc character, a third refused; `equipment`
+- [x] Tests: two rings on a Merc character, a third refused; `equipment`
       lists all slots; a GURPS world behaves as before.
 
 ### 3.2 Skills
 
 In `realm/std/rules/`.
 
-- [ ] New command `skills` (alias `sk`): the character's trained skills
+- [x] New command `skills` (alias `sk`): the character's trained skills
       with level, grouped by the skill definition's `group` attribute when
       it has one, and for each how it improves (step 5 fills this in;
       until then the level only). `score` stops listing skills.
-- [ ] Tests under GURPS, D20 and Merc.
+- [x] Tests under GURPS, D20 and Merc.
 
 ### 3.3 The prompt
 
-- [ ] **Kernel seam.** `feature.prompt(fn, replace=False)`:
+- [x] **Kernel seam.** `feature.prompt(fn, replace=False)`:
       `(player) -> str | None`, one per game, stored on
       `World.prompt_renderer`. The server (`GameServer._on_command`, and
       wherever output is flushed for a session outside a command) sends
@@ -492,55 +492,55 @@ In `realm/std/rules/`.
       player, followed by telnet GA or EOR when the client negotiated it.
       A session in a softcode prompt or the pager (step 10) shows that
       prompt instead.
-- [ ] The `basics` feature declares the default: a template in the
+- [x] The `basics` feature declares the default: a template in the
       player's `prompt` attribute, else the `PROMPT` setting, default
       `"<{hp}/{max_hp}hp> "`. Tokens: every declared pool by name and
       `max_<name>`, `{name}`, `{room}`, `{combat}` (the opponent's
       condition word in a fight, else empty), and `{level}` and `{xp}`
       when the attributes exist. An unknown token is left as typed.
-- [ ] Command `prompt [template|default|off]`.
-- [ ] The Merc scaffold sets
+- [x] Command `prompt [template|default|off]`.
+- [x] The Merc scaffold sets
       `PROMPT = "<{hp}hp {mana}m {move}mv> "`.
-- [ ] `Simulator.seen()` does not include prompts (they are not messages);
+- [x] `Simulator.seen()` does not include prompts (they are not messages);
       add `Simulator.prompt(player)` for tests.
-- [ ] Tests: the default and a custom template; a prompt follows command
+- [x] Tests: the default and a custom template; a prompt follows command
       output and follows unsolicited room output once, not per line; no
       prompt before login.
 
 ### 3.4 Consumables
 
-- [ ] In `items`: commands `eat` and `drink`. The target is tagged `food`
+- [x] In `items`: commands `eat` and `drink`. The target is tagged `food`
       or `drink`. Each fires a gated `item:on_eat` / `item:on_drink`
       (hooks `EAT`, `DRINK`), mends pools named in the item's `restores`
       attribute (`{"hp": 5}`), and then destroys food or lowers a drink
       container's `charges`. Softcode on the item still runs.
-- [ ] In `abilities`: commands `quaff <potion>`, `recite <scroll> [target]`
+- [x] In `abilities`: commands `quaff <potion>`, `recite <scroll> [target]`
       and `zap <wand> [target]` (alias `brandish` for a `staff`, which
       targets the room). Each invokes the ability definitions named in the
       item's `spells` attribute through `invoke_ability` at the item's
       `spell_level`, with no cost and no class check, then destroys the
       potion or scroll or lowers `charges`.
-- [ ] The ROM importer writes `spells`, `spell_level` and `charges` from
+- [x] The ROM importer writes `spells`, `spell_level` and `charges` from
       the object values for those item types, and `restores` for food and
       drink. Unknown spell names go to the capability-gap report.
-- [ ] Tests: quaffing a cure light potion heals and consumes it; a wand
+- [x] Tests: quaffing a cure light potion heals and consumes it; a wand
       with no charges fizzles; reciting a scroll of fireball starts a
       fight like `cast` does; eating restores and removes the food.
 
 ### Acceptance
 
-- [ ] On the Midgaard example a new character can buy an item at a shop,
+- [x] On the Midgaard example a new character can buy an item at a shop,
       `wear` it, see it under `equipment`, quaff a potion, and watch the
       prompt change as hit points move.
 
 ### Docs
 
-- [ ] `docs/guides/character-sheet.md`: slots, `equipment`, `skills`, the
+- [x] `docs/guides/character-sheet.md`: slots, `equipment`, `skills`, the
       prompt tokens and `feature.prompt`. Add to `mkdocs.yml`.
-- [ ] `docs/guides/features.md`: the `feature.prompt` and
+- [x] `docs/guides/features.md`: the `feature.prompt` and
       `feature.deaf_rule` rows.
-- [ ] `docs/development/rom-import.md`: consumables and slots now convert.
-- [ ] Close capability audit G10.
+- [x] `docs/development/rom-import.md`: consumables and slots now convert.
+- [x] Close capability audit G10.
 
 ---
 
@@ -2003,3 +2003,9 @@ the step, what was decided and why.
 | 2026-11-15 | 2.4 | `when_spent = respawn` on anything but a player is an error, like `corpse` on a player. Respawn places the player directly (no `on_enter`, no locks) in their `home`, else `world.startup_room`, else a `start_room`-tagged room. Timed effects end through a new `world.services["effects"].clear(obj)`, so `combat` does not import `effects`. | Boundary tests; a death must not be refusable by a lock. |
 | 2026-11-15 | 2.4 | `PLAYER_DEATH = "respawn"` is written by `realm init --system merc` and set in the Midgaard template (the 1.1 note above is done). | Decision D1. |
 | 2026-11-15 | 2.5 | The cost table is ROM's `movement_loss` (adds `water_swim` 4, `water_noswim` 1, `underwater` 6, `air` 10, `desert` 6, and `water` 4 for hand-built rooms), charged for the destination only. Only a declared `move` pool is charged. The gate pays before the destination's lock and `on_leave` checks, so a step refused after it still costs. | ROM's names are what the importer writes; a numeric `move` attribute in another system must not be drained. |
+| 2026-11-15 | 3.1 | `wear` and `remove` moved from `realm.std.items.commands` to a new `realm.std.items.equipment` (with `equipment`), and `items.commands.gated_item_action` gates an item action without a command context. Worn order is a per-character counter (`wear_seq` / `worn_seq`); an item worn before it existed counts as oldest. | The slot logic, the replace path and the listing share one module. |
+| 2026-11-15 | 3.1 | The importer names ROM's hold flag `held` and gives a light source the `light` slot, as Merc does, so potions, scrolls and gems become wearable in `held` (ROM holds them too). ROM 2.4's `float` has no Merc slot: such items are not wearable and the converter reports it. The Midgaard `.are` source is not in the repository, so the area was refreshed from the raw fields it keeps (`rom_wear`, `rom_values`) with a new `scripts/dev/refresh_rom_items.py`, not re-converted. | The plan's "regenerate it if slots are missing" needs a source file that is not there. |
+| 2026-11-15 | 3.2 | Added `GameSystem.format_skill(skill, level)` (D20 `+14`, Merc `14%`) and `define_skill(..., group=)`. | Each system writes a level its own way; a group needs a way to be set. |
+| 2026-11-15 | 3.3 | A prompt is not a message: it goes to a separate session channel (`Session.set_prompt_writer`), written by `flush_output` after any output or when asked (`prompt=True`, which the server passes for the typist). Telnet sends `IAC GA` only when the client refused to suppress go-ahead, since REALM offers SGA; a newline starts output written after a prompt. A template set with the `prompt` command gets a trailing space, because the dispatcher strips input. | Keeping prompts out of the message queue is what keeps `Simulator.seen()` free of them and lets a batch of lines carry one prompt. |
+| 2026-11-15 | 3.3 | The dispatcher prefix-matches commands before trying exits (ROM's `interpret` does the same), so the new `prompt` took showcase 149's exit `prom`; the exit was renamed `promenade`. The dispatcher is unchanged. | Changing command resolution is outside this step; recorded in the changelog for games with short exit names. |
+| 2026-11-15 | 3.4 | `eat`, `drink`, `quaff`, `recite` and `zap` offer a line they cannot use to the world's softcode `$`-commands before refusing it, as `cast` already does. Food and drink restore `food` and `water` pools, which no system has until step 12; a drink is 4 of a ROM container's units. Pills are tagged `potion` (quaffed) and reported as a gap. A spell no spell_def defines does nothing ("Nothing happens.") and the item is used up all the same. `brandish` aims a harmful spell at every other character in the room and a kind one at everyone. ROM spell slot 507, used by five Midgaard items, is not in the slot table and is reported as a gap. | Built-ins must not shadow world verbs (several showcase builds define `$eat` and `$drink`); the rest fills in what the plan left open. |

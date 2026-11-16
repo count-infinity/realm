@@ -82,6 +82,9 @@ class WebSocketHandler:
         # Structured push parity with telnet+GMCP: msg_oob() events
         # (Room.Info, vitals) reach web clients as {'type': 'oob'} frames.
         self.session.set_oob_writer(self._send_oob)
+        # The game's prompt arrives as its own frame, so a web client can
+        # show it apart from the scrollback.
+        self.session.set_prompt_writer(self._send_prompt)
 
         try:
             async for msg in self.ws:
@@ -139,6 +142,14 @@ class WebSocketHandler:
             # Window size update — same session data telnet NAWS sets.
             self.session.set_data('terminal_width', data.get('width', 80))
             self.session.set_data('terminal_height', data.get('height', 24))
+
+    def _send_prompt(self, text: str) -> None:
+        """The game's prompt as a ``{'type': 'prompt'}`` frame (scheduled)."""
+        if self.ws.closed:
+            return
+        task = asyncio.create_task(self._send_json({'type': 'prompt', 'text': text}))
+        self._oob_tasks.add(task)
+        task.add_done_callback(self._oob_tasks.discard)
 
     def _send_oob(self, package: str, data: dict) -> None:
         """Outbound structured event (session.send_oob → here). Sync

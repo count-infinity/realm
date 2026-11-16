@@ -18,12 +18,8 @@ from realm.core.objects import GameObject
 from realm.core.perception import can_see
 from realm.core.world import get_world
 from realm.gateway.session import Session
-from realm.std.items.commands import (
-    cmd_open,
-    cmd_unwear,
-    cmd_use,
-    cmd_wear,
-)
+from realm.std.items.commands import cmd_open, cmd_use
+from realm.std.items.equipment import cmd_unwear, cmd_wear
 from realm.std.items.inventory import cmd_get
 from realm.std.npc.behaviors import PatrolBehavior
 from realm.std.rules.checks import CheckResult, check, checks, contest, skill_level

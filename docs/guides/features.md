@@ -47,19 +47,19 @@ everything available. The built-in features:
 | Feature | Gives you | Requires |
 |---|---|---|
 | `accounts` | the welcome screen; `connect`, `create`, `who`, `quit` at the login prompt; character creation from the game system's chargen steps | |
-| `basics` | help, commands, who, quit, logout, color, think, time, uptime, recall | |
+| `basics` | help, commands, who, quit, logout, color, think, time, uptime, recall, prompt; the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)) | |
 | `talk` | say, pose, semipose, emit, ooc, shout, whisper | |
 | `movement` | go and the directions, in, out | |
 | `look` | look, examine | |
 | `sight` | darkness and light (`dark`, `light`, `nightvision`), invisibility (`invisible`, `see_invisible`), the `glowing`, `magic` and `invisible` markers | |
-| `items` | get, drop, give, put, inventory, open, close, lock, unlock, use, wear, remove, wield, unwield | |
+| `items` | get, drop, give, put, inventory, equipment, open, close, lock, unlock, use, wear, remove, wield, unwield, eat, drink | |
 | `building` | every `@` command, quell, unquell | look |
-| `rules` | points, improve; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
+| `rules` | points, skills, improve; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
 | `stealth` | hide, search, pick; loud actions break stealth; the watchful behavior | rules, items |
 | `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; death, coming round and respawn; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS`, `PLAYER_DEATH`, `CORPSE_LOCK_SECONDS` | rules, items |
 | `effects` | timed effect behaviors; softcode `apply_effect`, `remove_effect`; `services["effects"].clear(obj)` | rules |
 | `vitals` | regeneration out of combat; rest, sleep, stand (wake); a sleeper sees, hears and does nothing; settings `REGEN_INTERVAL`, `REST_REGEN`, `SLEEP_REGEN` ([Life and Death](life-and-death.md)) | |
-| `abilities` | cast, spells; the caster behavior; softcode `cast`, `use_ability` | rules, combat |
+| `abilities` | cast, spells, quaff, recite, zap (brandish); the caster behavior; softcode `cast`, `use_ability` | rules, combat |
 | `economy` | buy, sell, list, pay, credits; shopkeepers; softcode `credits`, `adjust_credits`, `transfer_credits` | items |
 | `social` | consider, persuade, fasttalk, follow, unfollow, party; the disposition boost; softcode `disposition`, `adjust_disposition`, `reaction_roll` | rules, effects |
 | `crime` | wanted flags for assaulting players, peacekeeper guards, thieves | rules, combat, economy, effects |
@@ -136,6 +136,7 @@ Everything a feature can declare:
 | `feature.marker(fn)` | `(obj, looker) -> str \| None`: a parenthetical marker on a listed name (`a key (hidden)`) |
 | `feature.name_resolver(fn)` | `(obj, looker, current) -> name`: who an object appears to be (recognition, disguise) |
 | `feature.speech_renderer(fn)` | `(body, action, looker) -> body`: a spoken line per listener (languages, slurring) |
+| `feature.prompt(fn, replace=)` | `(player) -> str \| None`: the prompt after each batch of output, one per game (`basics` declares the default; see [The Character Sheet](character-sheet.md#your-own-prompt)) |
 | `feature.group_formatter(fn, replace=)` | `(obj, count) -> str`: how a grouped contents line reads (one per game) |
 | `feature.protocol(name, cls, **kwargs)` | a protocol server (see [Adding a Protocol](../protocols/adding-protocol.md)) |
 | `feature.pool(Pool(...), replace=)` | a world-default pool definition (`realm.core.pools`): how `shields` or `hull` behaves on any object without its own (see [Pools](pools.md)) |

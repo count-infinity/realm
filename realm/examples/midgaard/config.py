@@ -35,6 +35,9 @@ GAME_SYSTEM = "rules.GameRules"
 # experience poorer. "unconscious" leaves them where they fell.
 PLAYER_DEATH = "respawn"
 
+# The line after each batch of output: hit points, mana, movement.
+PROMPT = "<{hp}hp {mana}m {move}mv> "
+
 # Every built-in feature, and this game's own game.py.
 from realm import CLASSIC  # noqa: E402
 

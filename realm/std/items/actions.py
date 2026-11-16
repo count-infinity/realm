@@ -19,6 +19,8 @@ class ItemAction(StrEnum):
     ON_WIELD = "item:on_wield"
     ON_UNWIELD = "item:on_unwield"
     ON_USE = "item:on_use"
+    ON_EAT = "item:on_eat"
+    ON_DRINK = "item:on_drink"
     ON_OPEN = "item:on_open"
     ON_CLOSE = "item:on_close"
     ON_LOCK = "item:on_lock"

@@ -76,7 +76,7 @@ shops, and specials follow the ROM 2.4 `db.c` field order.
 | door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a lockable door adds `door`/`closed` tags, the key vnum as a `key` attr |
 | mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `gold`, `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight), ACT_SCAVENGER → `scavenger` (eat corpses / pick up litter). Shopkeepers are stripped of `wandering` and kept at the counter |
 | room (`#ROOMS`), continued | also tagged `zone:<area>` (one zone per imported area — bounds STAY_AREA wanderers, and the room-set a `zone_reset` or `population` orchestrator draws on) and `outdoor` for any non-interior sector (so an orchestrator can populate "all outdoor rooms") |
-| object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `weight`, `value` (cost), `slot` for wearables, `wieldable` for weapons; the five ROM value fields kept raw in `rom_values` |
+| object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `weight`, `value` (cost), `slot` for wearables (Merc's slot names: the hold flag is `held`, a light source `light`), `wieldable` for weapons; potions, pills, scrolls, wands and staves get `spells`, `spell_level` and `charges`; food gets `restores` `{"food": hours}`, drink containers `restores` `{"water": 4}` and `charges`, fountains `restores` and the `drink` tag; the five ROM value fields kept raw in `rom_values` |
 | reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script |
 | shop (`#SHOPS`) | the keeper mob gains the `shopkeeper` behavior with `markup`/`buyback` derived from its profit margins; per-item-type buy filters kept as `rom_shop_buys` |
 
@@ -109,9 +109,17 @@ in REALM yet, and a builder can wire it up in softcode.
 - **Weapon & object value semantics.** A ROM object's five value fields
   mean different things per item type (a weapon's dice, a container's
   capacity, a wand's spell). The converter maps weapon damage to a
-  `damage` attr and keeps all five raw in `rom_values`; a light's duration,
-  a potion's spells, a container's key, etc. are **not** wired to REALM
-  mechanics — they are data waiting for softcode.
+  `damage` attr, armor to `ac_apply`, and consumables to the fields
+  `quaff`, `recite`, `zap`, `eat` and `drink` read ([The Character
+  Sheet](../guides/character-sheet.md#consumables)). Old-format areas name
+  spells by ROM slot number; the converter translates them. A spell the
+  `merc-classic` pack does not define, and a slot number it does not know,
+  are reported as gaps. It keeps all five values raw in `rom_values`; a
+  light's duration, a container's key and the like are not wired to REALM
+  mechanics. Food and drink restore `food` and `water` pools, which no
+  game system has yet (MUD_PLAN step 12). A converted area already on disk
+  is brought up to date with `python scripts/dev/refresh_rom_items.py
+  <area.json>`.
 - **Resets: static by default, respawning with `--repop`.** ROM resets are
   a *repop spec* the server re-runs on a cycle; the converter runs them
   **once** to place the initial population (a static snapshot). Pass
@@ -222,6 +230,9 @@ THAC0 17 — trades blows with a warrior on the `merc` ruleset):
   observers. (Mob AC is authored in the file, so this is about players,
   not imported NPCs.)
 - **Shops** → the `shopkeeper` behavior. **Doors** → initial lock tags.
+- **Wear slots and consumables** → Merc's slots (`equipment` lists them,
+  two rings and two necks), and potions, scrolls, wands, staves, food and
+  drink that do something when used.
 
 ### Spells — closed
 

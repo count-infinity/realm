@@ -89,8 +89,11 @@ class TestDefaultEqualsToday:
         sim = Simulator()
         try:
             # Step 6 added @events after the freeze; MUD_PLAN step 2 the
-            # vitals positions.
-            added_commands = {"@events", "rest", "sleep", "stand"}
+            # vitals positions, step 3 the sheet and the consumables.
+            added_commands = {"@events", "rest", "sleep", "stand",
+                              # MUD_PLAN step 3: the character sheet, consumables
+                              "equipment", "skills", "prompt", "eat", "drink",
+                              "quaff", "recite", "zap"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;

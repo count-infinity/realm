@@ -259,7 +259,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 
 ## 17. Information & UI (187–197)
 
-- [ ] 187. **Status prompt** [small] — configurable prompt showing HP/FP/status after commands. *(gap G10: per-player prompt line; oob() vitals work today)*
+- [x] 187. **Status prompt** [small] — configurable prompt showing HP/FP/status after commands. *(G10 closed 2026-11-15: the engine's `prompt` and `PROMPT`, [The Character Sheet](../guides/character-sheet.md#the-prompt))*
 - [ ] 188. **Custom who list** [small] — who with location, idle, faction columns and sorting. *(gap G4: session surface for softcode — online_players()/idle)*
 - [x] 189. **In-room minimap** [now] — small ASCII map of nearby rooms shown on look. *(ON_LOOK pemit, exits() BFS, exploration-memory attrs)*
 - [x] 190. **Score screen** [now] — attractive at-a-glance character status. *($score, eval_attr layout functions)*

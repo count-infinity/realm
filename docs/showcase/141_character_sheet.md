@@ -27,8 +27,8 @@ authority.
 ### Why is there almost nothing to build?
 
 There is already a sheet. Type `points` (aliases `score` and `cp`) and the
-engine lists your character points and every trained `skill_*`, with the cost
-to improve each one. It is the honest, always-current view and it costs zero
+engine shows your character points and the cost to improve a skill; `skills`
+lists every trained `skill_*`. It is the honest, always-current view and it costs zero
 build. A *custom* sheet is purely about presentation: your attributes, a health
 bar, and the conditions riding on you, arranged the way you want them.
 
@@ -158,11 +158,12 @@ and `Status: nominal`. Compare with the built-in, which needs no build at all:
 ```text
 > points
 Character points: 6
-Skills:
-  guns                 12
-  melee                13
 
 Spend with: improve <skill>  (4 points per level)
+> skills
+Your skills:
+  guns                 12
+  melee                13
 ```
 
 The native command is the source of truth; the scanner is the theatre.

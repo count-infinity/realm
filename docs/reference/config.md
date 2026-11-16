@@ -50,6 +50,7 @@ A feature can declare its own keys. These exist only when the feature is in
 
 | Key | Feature | Default | What it does |
 |---|---|---|---|
+| `PROMPT` | `basics` | `'<{hp}/{max_hp}hp> '` | The prompt shown after each batch of output, unless a player sets their own with `prompt`. Tokens: any pool by name and `max_<name>`, `{name}`, `{room}`, `{combat}`, `{level}`, `{xp}`. Empty for none. |
 | `COMBAT_RULESET` | `combat` | `None` | Combat ruleset name. Unset, the game system picks its own; set it only to mix systems on purpose. |
 | `SHOW_ROLLS` | `combat` | `False` | Show dice detail on combat messages. Players override with `showrolls on\|off`. |
 | `COMBAT_BEAT_MIN` | `combat` | `4.0` | Shortest combat round, in seconds. |

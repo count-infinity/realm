@@ -4,6 +4,35 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### The character sheet (step 3)
+
+- `GameSystem.wear_slots()` (Merc: Diku's 14 places, two fingers, necks
+  and wrists) and `wear <item> replace`; `equipment` (`eq`) lists every
+  slot; `inventory` no longer lists worn or wielded items. `wear` and
+  `remove` moved to `realm.std.items.equipment`.
+- `skills` (`sk`), grouped by a skill_def's `group`, in the system's own
+  terms (`GameSystem.format_skill`); `score` no longer lists skills.
+  `define_skill` takes `group=`.
+- The prompt (closes capability gap G10): kernel seam `feature.prompt` /
+  `World.prompt_renderer`; `Session.set_prompt_writer` and
+  `flush_output(prompt=)`; telnet offers EOR and ends a prompt with
+  `IAC EOR` (or `IAC GA`); WebSocket sends a `prompt` frame. `basics`
+  declares the default (setting `PROMPT`, command `prompt`);
+  `Simulator.prompt(player)`. The Merc scaffold and Midgaard set
+  `PROMPT = "<{hp}hp {mana}m {move}mv> "`.
+- Consumables: `eat` and `drink` (events `item:on_eat`, `item:on_drink`,
+  hooks `EAT`, `DRINK`; the item's `restores` and `charges`); `quaff`,
+  `recite`, `zap` and `brandish` (the item's `spells` at its
+  `spell_level`). `invoke_ability` takes `free=` and `level=`. A line
+  these commands cannot use goes to the world's `$`-commands first.
+- The ROM importer writes Merc slot names (`held`, `light`), and
+  consumable fields, translating ROM spell slot numbers; the Midgaard area
+  is refreshed (`scripts/dev/refresh_rom_items.py`).
+- Saved worlds: worn items saved before 0.3.0 have no wear order; the
+  first `wear ... replace` treats them as oldest. An exit whose name is a
+  prefix of a new command (`prom` for `prompt`) now runs the command;
+  rename the exit.
+
 ### The solo loop (step 2)
 
 - New feature `vitals` (in `CLASSIC`): characters regain their pools out

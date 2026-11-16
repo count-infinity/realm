@@ -81,11 +81,14 @@ _RULES_IMPORT = "from realm.games.gurps import GurpsSystem\n"
 _RULES_CLASS = "class GameRules(GurpsSystem):\n"
 _RULES_EXAMPLES = "    # __SYSTEM_EXAMPLES__\n"
 
-#: What ``--system merc`` adds to config.py after GAME_SYSTEM.
+#: What ``--system merc`` adds to config.py after GAME_SYSTEM: Diku's death
+#: (Decision D1) and its prompt.
 _MERC_DEATH = ('# A player whose hit points run out dies: they leave a corpse holding\n'
                '# what they carried and wake at home with 1 hit point, a quarter of a\n'
                '# level\'s experience poorer. "unconscious" leaves them where they fell.\n'
-               'PLAYER_DEATH = "respawn"\n\n')
+               'PLAYER_DEATH = "respawn"\n\n'
+               '# The line after each batch of output: hit points, mana, movement.\n'
+               'PROMPT = "<{hp}hp {mana}m {move}mv> "\n\n')
 
 
 def _replace_once(text: str, old: str, new: str) -> str:

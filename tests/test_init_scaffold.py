@@ -420,6 +420,8 @@ def test_a_merc_scaffold_respawns_its_dead(tmp_path, monkeypatch, clean_import_s
         assert cmd_init(_Args(f"g_{system}", system=system)) == 0
         config = (tmp_path / f"g_{system}" / "config.py").read_text()
         assert ('PLAYER_DEATH = "respawn"' in config) == (system == "merc"), system
+        assert ('PROMPT = "<{hp}hp {mana}m {move}mv> "' in config) == (system == "merc")
     assert cmd_init(_Args("town", template="midgaard")) == 0
     settings = load_config(tmp_path / "town")
     assert settings.raw["PLAYER_DEATH"] == "respawn"
+    assert settings.raw["PROMPT"] == "<{hp}hp {mana}m {move}mv> "

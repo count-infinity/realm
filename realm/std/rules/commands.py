@@ -24,6 +24,46 @@ async def cmd_points(ctx: CommandContext) -> None:
     await ctx.session.send("\n" + "\n".join(lines) + "\n")
 
 
+def skill_groups() -> dict[str, str]:
+    """skill name -> its ``skill_def``'s ``group``, for those that have one."""
+    from realm.std.rules.definitions import SKILL_DEF_TAG
+    store = get_world().store
+    out: dict[str, str] = {}
+    for sdef in (store.find_cached(tag=SKILL_DEF_TAG) if store is not None else ()):
+        group = sdef.db.get("group")
+        if group:
+            out[sdef.name.strip().lower().replace(" ", "_")] = str(group)
+    return out
+
+
+async def cmd_skills(ctx: CommandContext) -> None:
+    """
+    List the skills you have trained, and how good you are at each.
+
+    Usage: skills
+    """
+    rules = get_world().rules
+    trained = sorted((key[6:], value) for key, value in ctx.player.db.all().items()
+                     if key.startswith('skill_'))
+    if not trained:
+        await ctx.session.send("You have no trained skills.")
+        return
+    groups = skill_groups()
+    by_group: dict[str, list[tuple[str, int]]] = {}
+    for name, level in trained:
+        by_group.setdefault(groups.get(name, ""), []).append((name, level))
+    lines = ["Your skills:"]
+    for group in sorted(by_group):                 # "" (ungrouped) first
+        indent = "  "
+        if group:
+            lines.append(f"  {group}:")
+            indent = "    "
+        for name, level in by_group[group]:
+            shown = rules.format_skill(name, int(level))
+            lines.append(f"{indent}{name.replace('_', ' '):20} {shown}")
+    await ctx.session.send("\n".join(lines))
+
+
 async def cmd_improve(ctx: CommandContext) -> None:
     """
     Spend character points to raise a skill by one level.

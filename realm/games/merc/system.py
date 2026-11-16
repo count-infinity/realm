@@ -82,6 +82,13 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
     },
 }
 
+#: Diku's wear locations and how many items each holds, in ROM's order.
+MERC_WEAR_SLOTS: tuple[tuple[str, int], ...] = (
+    ("light", 1), ("finger", 2), ("neck", 2), ("body", 1), ("head", 1),
+    ("legs", 1), ("feet", 1), ("hands", 1), ("arms", 1), ("shield", 1),
+    ("about", 1), ("waist", 1), ("wrist", 2), ("held", 1),
+)
+
 # Untrained percentile defaults: (governing attribute, flat penalty). A
 # skill you were never taught rolls near zero.
 BUILTIN_SKILL_DEFAULTS: dict[str, tuple[str, int]] = {
@@ -294,14 +301,14 @@ class MercSystem(GameSystem):
         practices = int(player.db.get("practices") or 0)
         if practices:
             lines.append(f"Practices: {practices}")
-        skills = sorted(
-            (key[6:], value) for key, value in player.db.all().items()
-            if key.startswith('skill_')
-        )
-        if skills:
-            lines.append("Skills:")
-            lines.extend(f"  {name:20} {value}" for name, value in skills)
         return lines
+
+    def wear_slots(self) -> list[tuple[str, int]]:
+        """Diku's wear locations (ROM ``WEAR_*``), in its ``equipment`` order."""
+        return list(MERC_WEAR_SLOTS)
+
+    def format_skill(self, skill: str, level: int) -> str:
+        return f"{level}%"
 
     def advance_level(self, player: GameObject) -> None:
         cls = str(player.db.get("character_class") or "warrior")

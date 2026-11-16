@@ -61,12 +61,43 @@ ITEM_TYPES = {
     25: "fountain", 26: "pill", 27: "protect", 29: "jewelry", 30: "jukebox",
 }
 
-# ROM wear-flag letters (bit -> slot). Bit A(0)=take, then wear locations.
+# ROM wear-flag letters (bit -> slot), named as MercSystem.wear_slots names
+# them. Bit A(0)=take, then wear locations; B(13)=wield is a weapon, not a
+# slot. ROM 2.4's Q(16)=float has no Merc slot and is reported as a gap.
 WEAR_SLOTS = {
     1: "finger", 2: "neck", 3: "body", 4: "head", 5: "legs", 6: "feet",
     7: "hands", 8: "arms", 9: "shield", 10: "about", 11: "waist",
-    12: "wrist", 13: "wield", 14: "hold", 16: "float",
+    12: "wrist", 13: "wield", 14: "held",
 }
+FLOAT_BIT = 16
+
+# ROM's spell slot numbers (const.c ``skill_table``), which old-format
+# areas write in potion, scroll and wand values instead of spell names.
+ROM_SPELL_SLOTS: dict[int, str] = {
+    1: "armor", 2: "teleport", 3: "bless", 4: "blindness", 5: "burning hands",
+    6: "call lightning", 7: "charm person", 8: "chill touch", 10: "colour spray",
+    11: "control weather", 12: "create food", 13: "create water",
+    14: "cure blindness", 15: "cure critical", 16: "cure light", 17: "curse",
+    18: "detect evil", 19: "detect invis", 20: "detect magic", 21: "detect poison",
+    22: "dispel evil", 23: "earthquake", 24: "enchant weapon", 25: "energy drain",
+    26: "fireball", 27: "harm", 28: "heal", 29: "invis", 30: "lightning bolt",
+    31: "locate object", 32: "magic missile", 33: "poison", 34: "protection",
+    35: "remove curse", 36: "sanctuary", 37: "shocking grasp", 38: "sleep",
+    39: "giant strength", 40: "summon", 41: "ventriloquate", 42: "word of recall",
+    43: "cure poison", 44: "detect hidden", 53: "identify", 56: "fly",
+    57: "continual light", 58: "know alignment", 59: "dispel magic",
+    61: "cure serious", 62: "cause light", 63: "cause critical",
+    64: "cause serious", 65: "flamestrike", 66: "stone skin", 67: "shield",
+    68: "weaken", 69: "mass invis", 70: "acid blast", 72: "faerie fire",
+    73: "faerie fog", 74: "pass door", 77: "infravision", 80: "create spring",
+    81: "refresh", 82: "change sex", 83: "gate",
+    200: "acid breath", 201: "fire breath", 202: "frost breath",
+    203: "gas breath", 204: "lightning breath",
+}
+
+#: One drink's worth of a ROM drink container's units (ROM serves about 4
+#: hours of thirst per sip of water), and what it restores.
+DRINK_UNITS = 4
 
 # ROM immune/resist/vuln flag letters -> REALM damage-type name. ROM's
 # IMM_/RES_/VULN_ bitvectors share one layout (merc.h); only the
@@ -508,11 +539,11 @@ def _objects(r: Reader, area: Area) -> None:
         wear_bits = rom_flags(wear)
         if type_name == "weapon" or (wear_bits >> 13) & 1:
             tags.append("wieldable")
-        wslot = next((s for b, s in WEAR_SLOTS.items()
-                      if (wear_bits >> b) & 1 and s not in ("wield", "hold")),
-                     None)
+        wslot = wear_slot(type_name, wear_bits)
         if wslot:
             tags.append("wearable")
+        elif (wear_bits >> FLOAT_BIT) & 1:
+            area.gap("wear location 'float' has no Merc slot; the item is not wearable")
         # ROM ITEM_MAGIC (extra flag G): the enchanted-delivery marker. A
         # magic-tagged weapon's hits count as magical for the resistance
         # family ladder — they bypass IMM_WEAPON ('physical'), the classic
@@ -527,6 +558,9 @@ def _objects(r: Reader, area: Area) -> None:
         }
         if wslot:
             attrs["slot"] = wslot
+        extra_tags, consumable = consumable_fields(type_name, values, area)
+        tags.extend(t for t in extra_tags if t not in tags)
+        attrs.update(consumable)
         if type_name == "weapon":
             # ROM weapon values: [class, num_dice, dice_type, attack, flags].
             # Emit ``damage_dice`` (what MercRuleset reads) and a plain
@@ -547,6 +581,89 @@ def _objects(r: Reader, area: Area) -> None:
                 pass
         area.obj_protos[vnum] = obj_record(
             f"rom_obj_{vnum}", name, look, tags, attrs)
+
+
+def wear_slot(type_name: str, wear_bits: int) -> str | None:
+    """The Merc slot an object is worn in: its first wear-location bit (not
+    wield), else ``light`` for a light source."""
+    slot = next((s for b, s in WEAR_SLOTS.items()
+                 if (wear_bits >> b) & 1 and s != "wield"), None)
+    if slot is None and type_name == "light":
+        slot = "light"
+    return slot
+
+
+_PACK_SPELLS: set[str] | None = None
+
+
+def _pack_spells() -> set[str]:
+    """The spell names the built-in merc-classic pack defines."""
+    global _PACK_SPELLS
+    if _PACK_SPELLS is None:
+        import importlib.resources
+        source = importlib.resources.files("realm.packs") / "merc-classic" / "spells.json"
+        data = json.loads(source.read_text())
+        objects = data["objects"] if isinstance(data, dict) else data
+        _PACK_SPELLS = {str(o["name"]).lower() for o in objects}
+    return _PACK_SPELLS
+
+
+def _int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _spell_name(value: Any, type_name: str, area: Area) -> str | None:
+    """A ROM spell value (a 'name', or an old-format slot number) as a
+    spell name; None for an empty value."""
+    if isinstance(value, str) and not value.lstrip("-").isdigit():
+        name = value.strip().lower()
+        if not name:
+            return None
+    else:
+        slot = _int(value, -1)
+        if slot <= 0:
+            return None
+        name = ROM_SPELL_SLOTS.get(slot)
+        if name is None:
+            area.gap(f"{type_name}: unknown ROM spell slot {slot}; left out of spells")
+            return None
+    if name not in _pack_spells():
+        area.gap(f"{type_name} spell '{name}' has no spell_def in merc-classic; the "
+                 f"item does nothing until one is defined")
+    return name
+
+
+def consumable_fields(type_name: str, values: list, area: Area) -> tuple[list[str], dict]:
+    """Tags and attributes that make a ROM consumable work (MUD_PLAN 3.4):
+    ``spells``, ``spell_level`` and ``charges`` for potions, pills,
+    scrolls, wands and staves; ``restores`` (and a drink's ``charges``)
+    for food, drink and fountains."""
+    values = list(values) + [0] * (5 - len(values))
+    attrs: dict[str, Any] = {}
+    tags: list[str] = []
+    if type_name in ("potion", "pill", "scroll"):
+        spells = [n for n in (_spell_name(v, type_name, area) for v in values[1:5]) if n]
+        attrs.update(spells=spells, spell_level=_int(values[0], 1))
+        if type_name == "pill":
+            area.gap("pill: eating a pill does not cast its spells; quaff it as a potion")
+            tags.append("potion")
+    elif type_name in ("wand", "staff"):
+        spell = _spell_name(values[3], type_name, area)
+        attrs.update(spells=[spell] if spell else [], spell_level=_int(values[0], 1),
+                     charges=_int(values[2]))
+    elif type_name == "food":
+        attrs["restores"] = {"food": _int(values[0])}
+    elif type_name in ("drink", "drink_container"):
+        tags.append("drink")
+        attrs["restores"] = {"water": DRINK_UNITS}
+        attrs["charges"] = -(-_int(values[1]) // DRINK_UNITS)
+    elif type_name == "fountain":
+        tags.append("drink")
+        attrs["restores"] = {"water": DRINK_UNITS}
+    return tags, attrs
 
 
 def _value_token(r: Reader):

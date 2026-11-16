@@ -209,7 +209,9 @@ veto (a cursed item refusing removal).
 | `ON_DAMAGE` | this object takes damage | `combat` |
 | `ON_DEATH` | this object goes down: its vital pool is spent, by any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True when the body is gone (a corpse, or destroyed), False when it stays (unconscious, or `when_spent` is none) | `combat` |
 | `ON_DISCONNECT` | player disconnects | `kernel` |
+| `ON_DRINK` | this is drunk from (gated) | `items` |
 | `ON_DROP` | this object is dropped | `items` |
+| `ON_EAT` | this food is eaten (gated) | `items` |
 | `ON_ENTER` | something enters this location | `kernel` |
 | `ON_EXPIRE` | this object's db.expires_at elapsed (then it's destroyed) | `kernel` |
 | `ON_FAIL` | a move was thwarted (dead-end/locked exit) — @afail | `kernel` |

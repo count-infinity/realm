@@ -32,6 +32,9 @@ SE = bytes([240])    # Sub-negotiation End
 # Common telnet options
 ECHO = bytes([1])
 SGA = bytes([3])     # Suppress Go Ahead
+EOR_OPT = bytes([25])  # End Of Record negotiation option
+EOR = bytes([239])   # the End Of Record command, after a prompt
+GA = bytes([249])    # Go Ahead, after a prompt when the client keeps GA
 NAWS = bytes([31])   # Negotiate About Window Size
 LINEMODE = bytes([34])
 
@@ -47,6 +50,12 @@ class TelnetProtocol(asyncio.Protocol):
     """
 
     encoding: str = "utf-8"   # default for __new__-based construction
+    #: the client said DO EOR: end each prompt with IAC EOR
+    _eor: bool = False
+    #: the client said DONT SGA: it wants IAC GA after each prompt
+    _ga: bool = False
+    #: a prompt is the last thing written (no newline after it yet)
+    _prompt_pending: bool = False
 
     def __init__(
         self,
@@ -88,6 +97,7 @@ class TelnetProtocol(asyncio.Protocol):
             writer=self._write_to_client,
             closer=self._close_transport,
         )
+        self.session.set_prompt_writer(self._write_prompt)
 
     def _close_transport(self) -> None:
         """Close the client connection (session closer hook)."""
@@ -107,6 +117,8 @@ class TelnetProtocol(asyncio.Protocol):
         self.transport.write(IAC + DO + SGA)
         # Offer GMCP (structured out-of-band data for modern clients)
         self.transport.write(IAC + WILL + GMCP)
+        # Offer EOR, so a client can tell where the prompt ends
+        self.transport.write(IAC + WILL + EOR_OPT)
 
     def data_received(self, data: bytes) -> None:
         """Called when data is received from the client."""
@@ -163,10 +175,18 @@ class TelnetProtocol(asyncio.Protocol):
                 elif option == 201:  # GMCP accepted — wire the channel
                     if self.session is not None:
                         self.session.set_oob_writer(self._send_gmcp)
+                elif option == 25:  # EOR accepted: prompts end with IAC EOR
+                    self._eor = True
                 else:
                     # Refuse unknown options
                     if self.transport:
                         self.transport.write(IAC + WONT + bytes([option]))
+
+            elif cmd == 254:  # DONT
+                if option == 3:  # SGA refused: the client wants GA after prompts
+                    self._ga = True
+                elif option == 25:
+                    self._eor = False
 
             elif cmd == 251:  # WILL
                 # Client offers to do something
@@ -243,6 +263,7 @@ class TelnetProtocol(asyncio.Protocol):
             line = ""
 
         self._buffer.clear()
+        self._prompt_pending = False      # the client's newline ended the prompt line
 
         # The adapter's whole input job ends here: decoded text into the
         # session's common input representation. The per-session pump
@@ -268,11 +289,35 @@ class TelnetProtocol(asyncio.Protocol):
         if not message.endswith('\n'):
             message += '\n'
         message = message.replace('\n', '\r\n')
+        if self._prompt_pending:
+            # Unsolicited output after a prompt starts on its own line.
+            message = '\r\n' + message
+            self._prompt_pending = False
 
         try:
             self.transport.write(message.encode(self.encoding, errors='replace'))
         except Exception as e:
             logger.error(f"Error writing to telnet client: {e}")
+
+    def _write_prompt(self, text: str) -> None:
+        """The prompt: no newline, then IAC EOR (or GA) when negotiated."""
+        if self.transport is None:
+            return
+        from realm.core.markup import strip, to_ansi
+        player = self.session.player if self.session else None
+        text = strip(text) if player is not None and player.db.get('color') is False \
+            else to_ansi(text)
+        data = text.encode(self.encoding, errors='replace')
+        if self._eor:
+            data += IAC + EOR
+        elif self._ga:
+            data += IAC + GA
+        try:
+            self.transport.write(data)
+        except Exception as e:
+            logger.error(f"Error writing prompt to telnet client: {e}")
+            return
+        self._prompt_pending = True
 
     def connection_lost(self, exc: Exception | None) -> None:
         """Called when the connection is lost."""

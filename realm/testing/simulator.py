@@ -195,6 +195,14 @@ class Simulator:
             out.append(sess._output_queue.get_nowait())
         return out
 
+    def prompt(self, player: GameObject) -> str | None:
+        """The prompt ``player`` would see now (prompts are not messages,
+        so ``seen`` never includes them). None when the game shows none."""
+        renderer = self.world.prompt_renderer
+        if renderer is None:
+            return None
+        return renderer(player) or None
+
     def session(self, player: GameObject) -> Session | None:
         return self._sessions.get(player.id)
 

@@ -32,6 +32,15 @@ from realm.std.items.actions import ItemAction
 from realm.std.items.verbs import do_close, do_open
 
 
+async def gated_item_action(actor: GameObject, action_type: str, target: GameObject, *,
+                            fail_msg: str, apply=None) -> Action | None:
+    """``_gated`` for code that has a player but no command context."""
+    action = Action(actor=actor, target=target, action_type=action_type)
+    if not await gate_action(action, fail_msg=fail_msg, apply=apply):
+        return None
+    return action
+
+
 def _find_thing_or_exit(ctx: CommandContext, name: str) -> GameObject | None:
     return find_object(ctx, name, search_exits=True)
 
@@ -256,96 +265,7 @@ async def cmd_use(ctx: CommandContext) -> None:
 # --- Wearables ------------------------------------------------------------------
 
 
-async def cmd_wear(ctx: CommandContext) -> None:
-    """
-    Wear a carried item. Worn gear can grant abilities via
-    db.grants_tags (e.g. nightvision goggles).
-
-    Usage: wear <item>
-
-    Example:
-        wear nightvision goggles
-    """
-    if not ctx.player or not ctx.args:
-        await ctx.session.send("Wear what?")
-        return
-    item = find_object(ctx, ctx.args.strip(), search_room=False, search_inventory=True)
-    if not item:
-        await ctx.session.send(f"You aren't carrying '{ctx.args.strip()}'.")
-        return
-    if not item.has_tag('wearable'):
-        await ctx.session.send(f"You can't wear {item.name}.")
-        return
-    if item.has_tag('worn'):
-        await ctx.session.send("You're already wearing that.")
-        return
-    slot = item.db.get('slot')
-    if slot:
-        for other in ctx.player.contents:
-            if other.has_tag('worn') and other.db.get('slot') == slot:
-                await ctx.session.send(
-                    f"You're already wearing {other.name} there."
-                )
-                return
-
-    def _don(_a):
-        item.add_tag('worn')
-        granted = []
-        for tag in item.db.get('grants_tags') or []:
-            if not ctx.player.has_tag(tag):
-                ctx.player.add_tag(tag)
-                granted.append(tag)
-        item.db.granted_active = granted
-
-    action = await _gated(ctx, ItemAction.ON_WEAR, item,
-                          fail_msg=f"You can't wear {item.name}.",
-                          apply=_don)
-    if action is None:
-        return
-
-    action.add_message("actor", "You put on {target:the}.")
-    action.add_message("room", "{actor} puts on {target:a}.")
-    deliver_messages(action)
-
-
-async def cmd_unwear(ctx: CommandContext) -> None:
-    """
-    Take off a worn item (its granted abilities go with it).
-
-    Usage: remove <item>
-
-    Example:
-        remove goggles
-    """
-    if not ctx.player or not ctx.args:
-        await ctx.session.send("Remove what?")
-        return
-    item = find_object(ctx, ctx.args.strip(), search_room=False, search_inventory=True)
-    if not item or not item.has_tag('worn'):
-        await ctx.session.send("You aren't wearing that.")
-        return
-
-    # ON_REMOVE — gated, the mirror of item:on_wear: a cursed item's on_check
-    # can refuse (block) removal.
-    def _doff(_a):
-        item.remove_tag('worn')
-        for tag in item.db.get('granted_active') or []:
-            ctx.player.remove_tag(tag)
-        item.db.granted_active = []
-
-    removing = await _gated(
-        ctx, ItemAction.ON_REMOVE, item,
-        fail_msg="You can't seem to take it off.",
-        apply=_doff)
-    if removing is None:
-        return
-
-    ctx.player.msg(f"You take off {item.name}.")
-    if ctx.player.location:
-        ctx.player.location.msg_contents(
-            f"{ctx.player.get_display_name(None)} takes off {item.name}.",
-            exclude=[ctx.player],
-        )
+# ``wear`` and ``remove`` live in ``realm.std.items.equipment``.
 
 
 # --- Weapons ----------------------------------------------------------------

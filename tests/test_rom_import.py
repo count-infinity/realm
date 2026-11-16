@@ -367,3 +367,135 @@ class TestTheCommand:
     def test_a_missing_file_is_an_error(self, tmp_path, capsys):
         assert _import_rom(str(tmp_path / "nope.are")) == 1
         assert "no such file" in capsys.readouterr().err
+
+
+# --- MUD_PLAN step 3: wear slots and consumables ------------------------------------
+
+ITEMS_ARE = """\
+#AREA
+items.are~
+Items~
+{ All } Test    Items~
+200 299
+#OBJECTS
+#201
+ring gold~
+a gold ring~
+A gold ring lies here.~
+gold~
+jewelry 0 AB
+0 0 0 0 0
+1 1 100 P
+#202
+lantern~
+a lantern~
+A lantern lies here.~
+brass~
+light 0 A
+0 0 500 0 0
+1 5 20 P
+#203
+orb~
+a glass orb~
+An orb lies here.~
+glass~
+treasure 0 AO
+0 0 0 0 0
+1 1 10 P
+#204
+potion red~
+a red potion~
+A red potion lies here.~
+glass~
+potion 0 AO
+12 'cure light' '' '' ''
+1 1 100 P
+#205
+potion yellow~
+a yellow potion~
+A yellow potion lies here.~
+glass~
+potion 0 AO
+12 16 -1 -1 -1
+1 1 100 P
+#206
+wand oak~
+an oak wand~
+An oak wand lies here.~
+wood~
+wand 0 AO
+4 10 7 'magic missile' 0
+1 1 100 P
+#207
+stew bowl~
+a bowl of stew~
+A bowl of stew sits here.~
+food~
+food 0 A
+25 25 0 0 0
+1 1 10 P
+#208
+cup tea~
+a cup of tea~
+A cup of tea sits here.~
+china~
+drink 0 A
+6 6 'tea' 0 0
+1 1 10 P
+#209
+fountain~
+a fountain~
+A fountain gurgles here.~
+stone~
+fountain 0 0
+0 0 'water' 0 0
+1 1000 0 P
+#210
+scroll strange~
+a strange scroll~
+A strange scroll lies here.~
+paper~
+scroll 0 AO
+12 'polymorph other' '' '' ''
+1 1 100 P
+#0
+#$
+"""
+
+
+class TestSlotsAndConsumables:
+
+    @pytest.fixture
+    def protos(self):
+        area = _convert(ITEMS_ARE)
+        return area, {vnum: rec["attrs"] for vnum, rec in area.obj_protos.items()}
+
+    def test_wear_flags_become_merc_slots(self, protos):
+        _area, attrs = protos
+        assert attrs[201]["slot"] == "finger"
+        assert attrs[202]["slot"] == "light"
+        assert attrs[203]["slot"] == "held"
+
+    def test_potions_name_their_spells_by_name_or_slot(self, protos):
+        _area, attrs = protos
+        assert attrs[204]["spells"] == ["cure light"]
+        assert attrs[204]["spell_level"] == 12
+        assert attrs[205]["spells"] == ["cure light"]       # ROM slot 16
+
+    def test_a_wand_carries_its_charges(self, protos):
+        _area, attrs = protos
+        assert attrs[206]["spells"] == ["magic missile"]
+        assert (attrs[206]["spell_level"], attrs[206]["charges"]) == (4, 7)
+
+    def test_food_and_drink_restore(self, protos):
+        area, attrs = protos
+        assert attrs[207]["restores"] == {"food": 25}
+        assert attrs[208]["restores"] == {"water": 4}
+        assert attrs[208]["charges"] == 2                   # 6 units, 4 a drink
+        assert "drink" in area.obj_protos[209]["tags"]
+        assert "charges" not in attrs[209]                   # a fountain never empties
+
+    def test_a_spell_no_pack_defines_is_a_gap(self, protos):
+        area, attrs = protos
+        assert attrs[210]["spells"] == ["polymorph other"]
+        assert any("polymorph other" in gap for gap in area.gaps)

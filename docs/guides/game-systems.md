@@ -78,6 +78,15 @@ the deposit. An XP system that inherited the character-point
 `death_award` would starve its level curve; that bug shipped once, and is
 why the seam exists.
 
+## The character sheet
+
+| Method | Neutral `GameSystem` | `D20System` | `MercSystem` |
+|---|---|---|---|
+| `wear_slots()` | `[]`: any slot name, one item each | inherits | Diku's 14 places, with two fingers, necks and wrists |
+| `format_skill(skill, level)` | the number | `+14` | `14%` |
+
+See [The Character Sheet](character-sheet.md).
+
 ## Recovery and death
 
 Two more hooks, both neutral by default ([Life and Death](life-and-death.md)):
@@ -177,8 +186,8 @@ GAME_SYSTEM = "rules.SavageSystem"
 ```
 
 The `resolve_check`, `improve_cost`, `death_award`, `grant_award`,
-`regen`, `on_death`, `score_lines`, `pools` and `chargen_steps` methods
-are the seams; everything
+`regen`, `on_death`, `wear_slots`, `format_skill`, `score_lines`, `pools`
+and `chargen_steps` methods are the seams; everything
 else inherits sensible defaults. Leave out `PointBuyMixin` and the game has
 no advancement economy until you write one.
 

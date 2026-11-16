@@ -71,6 +71,10 @@ class D20System(PointBuyMixin, GameSystem):
         return CheckResult(success=success, margin=total - dc, roll=d20,
                            effective=total, skill=skill)
 
+    def format_skill(self, skill: str, level: int) -> str:
+        """A D20 skill level is a bonus on the d20."""
+        return f"{level:+d}"
+
     def improve_cost(self, skill: str, current_level: int) -> int:
         # Escalating: higher levels cost more (D&D-ish training).
         return max(2, (current_level - 8) // 2)

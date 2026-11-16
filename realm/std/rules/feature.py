@@ -12,7 +12,7 @@ from realm.core.pools import add_default
 from realm.features import Feature
 from realm.std.rules import softcode
 from realm.std.rules.checks import Checks
-from realm.std.rules.commands import cmd_improve, cmd_points
+from realm.std.rules.commands import cmd_improve, cmd_points, cmd_skills
 from realm.std.rules.definitions import parse_class_def, parse_skill_def
 from realm.std.rules.system import equipment_observer, reload_rules, resolve_game_system
 
@@ -52,7 +52,14 @@ feature.command(
     cmd_points,
     aliases=['cp', 'score'],
     category='combat',
-    help_text='Show character points and skills',
+    help_text='Show your character sheet',
+)
+feature.command(
+    'skills',
+    cmd_skills,
+    aliases=['sk'],
+    category='combat',
+    help_text='List the skills you have trained',
 )
 feature.command(
     'improve',

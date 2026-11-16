@@ -106,6 +106,7 @@ class Feature:
         self.name_resolvers: list[Callable] = []
         self.speech_renderers: list[Callable] = []
         self.deaf_rules: list[Callable] = []
+        self.prompts: list[tuple[Callable, bool]] = []
         self.group_formatters: list[tuple[Callable, bool]] = []
         self.protocols: list[tuple[str, type, dict[str, Any]]] = []
         self.pools: list[tuple[Any, bool]] = []
@@ -364,6 +365,16 @@ class Feature:
         (but not to what is addressed to them, the action's target)."""
         self.deaf_rules.append(fn)
         return fn
+
+    def prompt(self, fn: Callable | None = None, *, replace: bool = False):
+        """Declare the game's prompt: ``(player) -> str | None``, the line a
+        player sees after each batch of output (None or "" for none). One
+        per game; ``basics`` declares the default, and a game's own
+        replaces it with ``replace=True``."""
+        def declare(f: Callable) -> Callable:
+            self.prompts.append((f, replace))
+            return f
+        return declare if fn is None else declare(fn)
 
     def group_formatter(self, fn: Callable | None = None, *, replace: bool = False):
         """Declare how a grouped contents line reads: ``(obj, count) -> str``
@@ -643,6 +654,7 @@ class FeatureSet:
         audience_names = _Claims("audience")
         kind_names = _Claims("definition kind")
         formatters = _Claims("group formatter")
+        prompts = _Claims("prompt")
         logins = _Claims("login handler")
         pool_names = _Claims("pool")
         from realm.core.defs import kernel_kinds
@@ -686,6 +698,8 @@ class FeatureSet:
                 kinds.claim(kind, handler, f.name, False)
             for fn, replace in f.group_formatters:
                 formatters.claim("group_formatter", fn, f.name, replace)
+            for fn, replace in f.prompts:
+                prompts.claim("prompt", fn, f.name, replace)
             for fn in f.logins:
                 logins.claim("login", fn, f.name, False)
             for pool, replace in f.pools:
@@ -784,6 +798,8 @@ class FeatureSet:
             world.deaf_rules.extend(f.deaf_rules)
             for fn, _replace in f.group_formatters:
                 world.group_formatter = fn
+            for fn, _replace in f.prompts:
+                world.prompt_renderer = fn
             if world.scripts is not None:
                 world.scripts.queue_kinds.update(f.queue_kinds)
             world.reapers.extend(f.reapers)

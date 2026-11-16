@@ -493,6 +493,7 @@ class TestTrainerNpc:
         assert "You train melee to 13" in out
         out = await _do(drill_yard, "points", player=rian)
         assert "Character points: 4" in out
+        out = await _do(drill_yard, "skills", player=rian)
         assert "melee" in out
 
 

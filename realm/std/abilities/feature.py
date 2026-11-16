@@ -11,6 +11,7 @@ from realm.std.abilities import softcode
 from realm.std.abilities.actions import AbilityAction
 from realm.std.abilities.caster import CasterBehavior
 from realm.std.abilities.commands import cmd_cast, cmd_spells
+from realm.std.abilities.magic_items import cmd_use_magic
 
 feature = Feature(
     'abilities',
@@ -31,6 +32,29 @@ feature.command(
     category='combat',
     help_text='List spells you can cast',
     usage='spells',
+)
+
+feature.command(
+    'quaff',
+    cmd_use_magic,
+    category='items',
+    help_text='Drink a potion',
+    usage='quaff <potion>',
+)
+feature.command(
+    'recite',
+    cmd_use_magic,
+    category='items',
+    help_text='Read a scroll aloud',
+    usage='recite <scroll> [target]',
+)
+feature.command(
+    'zap',
+    cmd_use_magic,
+    aliases=['brandish'],
+    category='items',
+    help_text='Zap a wand, or brandish a staff at the room',
+    usage='zap <wand> [target] | brandish <staff>',
 )
 
 feature.behavior(CasterBehavior)

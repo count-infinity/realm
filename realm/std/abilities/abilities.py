@@ -238,6 +238,8 @@ async def invoke_ability(
     *,
     verb: str = "use",
     domain: str = "ability",
+    free: bool = False,
+    level: int | None = None,
 ) -> Action | None:
     """Invoke ``adef`` as ``actor``: one gated, propagated ``<domain>:<name>``
     action. Eligibility is the caller's gate (see ``can_invoke``); this pays
@@ -245,7 +247,10 @@ async def invoke_ability(
     vetoed / unaffordable / untargetable.
 
     ``verb``/``domain`` flavor the messages and event type — spells pass
-    ``verb='cast', domain='spell'``; a shout passes ``verb='shout'``."""
+    ``verb='cast', domain='spell'``; a shout passes ``verb='shout'``.
+    ``free`` skips the cost (a potion, a wand); ``level`` is the power it
+    is invoked at (an item's ``spell_level``) in place of the def's own
+    ``level``, for saving throws."""
 
     name = adef.name
     effects = _effects_of(adef)
@@ -262,8 +267,9 @@ async def invoke_ability(
     if offensive and action_target is not actor:
         action.tags.add("hostile")
     action.add_data(domain, name)          # 'spell'/'ability' -> name
-    action.add_data("level", int(adef.db.get("level") or 1))
-    cost = _cost_of(adef)
+    action.add_data("level", int(level if level is not None
+                                 else adef.db.get("level") or 1))
+    cost = None if free else _cost_of(adef)
     if cost and cost.get("pool"):
         n = int(cost.get("n") or 0)
         action.add_data("cost", n)                 # generic ward hook

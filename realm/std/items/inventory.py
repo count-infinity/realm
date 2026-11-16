@@ -32,7 +32,9 @@ async def cmd_inventory(ctx: CommandContext) -> None:
            i
            inv
     """
-    items = [obj for obj in ctx.player.contents if not obj.is_exit]
+    # What is worn or wielded is listed by `equipment`, not here.
+    items = [obj for obj in ctx.player.contents if not obj.is_exit
+             and not obj.has_tag('worn') and not obj.has_tag('wielded')]
     # Money is a balance, not an object — the economy feature keeps it and
     # the active GameSystem names it (credits / gold / shillings), so shops
     # and inventory always agree. No economy, no purse line.
@@ -48,15 +50,7 @@ async def cmd_inventory(ctx: CommandContext) -> None:
 
     await ctx.session.send("\nYou are carrying:")
     for item in items:
-        # Equipped state at a glance — the classic (wielded)/(worn) marks.
-        if item.has_tag('wielded'):
-            mark = " (wielded)"
-        elif item.has_tag('worn'):
-            slot = item.db.get('slot')
-            mark = f" (worn on {slot})" if slot else " (worn)"
-        else:
-            mark = ""
-        await ctx.session.send(f"  {item.name}{mark}")
+        await ctx.session.send(f"  {item.name}")
     if purse:
         await ctx.session.send(purse)
     await ctx.session.send("")

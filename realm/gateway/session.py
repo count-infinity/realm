@@ -77,6 +77,7 @@ class Session:
         '_data',
         'input_handler',
         '_prompt_future',
+        '_prompt_writer',
         '_heredoc',
         '_flush_tasks',
     )
@@ -106,6 +107,9 @@ class Session:
         # the command dispatcher. None = normal command mode.
         self.input_handler: Callable[..., Awaitable[bool]] | None = None
         self._prompt_future: Any = None
+        # Where the game's prompt goes (the protocol's own framing: telnet
+        # ends it with EOR/GA). None: this connection shows no prompt.
+        self._prompt_writer: Callable[[str], None] | None = None
         # Multi-line (heredoc) accumulation state: None in normal mode, else
         # {'head': <command prefix>, 'body': [<raw lines>]} while collecting.
         self._heredoc: dict[str, Any] | None = None
@@ -154,6 +158,30 @@ class Session:
                 self._oob_writer(package, data)
             except Exception:
                 pass  # a client hiccup must never break game flow
+
+    def set_prompt_writer(self, writer: Callable[[str], None] | None) -> None:
+        """Where the game's prompt is written (sync; the protocol frames it)."""
+        self._prompt_writer = writer
+
+    def write_prompt(self) -> None:
+        """Write the game's prompt for this session's player, unless there
+        is no player yet, a softcode prompt or wizard is waiting for an
+        answer (its own question is the prompt), or the game shows none."""
+        if (self._prompt_writer is None or self.player is None
+                or self.input_handler is not None or self._prompt_future is not None):
+            return
+        from realm.core.world import find_world
+        world = find_world()
+        renderer = world.prompt_renderer if world is not None else None
+        if renderer is None:
+            return
+        try:
+            text = renderer(self.player)
+        except Exception:
+            logger.exception(f"Session {self.id}: prompt renderer failed")
+            return
+        if text:
+            self._prompt_writer(str(text))
 
     def set_writer(self, writer: Callable[[str], Awaitable[None]]) -> None:
         """Set the function used to write data to the client."""
@@ -335,20 +363,26 @@ class Session:
                 logger.exception(
                     f"Session {self.id}: error processing input {line!r}")
 
-    async def flush_output(self) -> None:
-        """Flush all pending output to the writer."""
+    async def flush_output(self, *, prompt: bool = False) -> None:
+        """Flush all pending output to the writer, then the prompt: after
+        any output, or always with ``prompt`` (a command that printed
+        nothing still ends with one)."""
         if self._writer is None:
             return
 
+        wrote = False
         while not self._output_queue.empty():
             try:
                 message = self._output_queue.get_nowait()
                 await self._writer(message)
+                wrote = True
             except asyncio.QueueEmpty:
                 break
             except Exception as e:
                 logger.error(f"Session {self.id}: error writing: {e}")
                 break
+        if wrote or prompt:
+            self.write_prompt()
 
     def get_data(self, key: str, default: Any = None) -> Any:
         """Get session-specific data."""

@@ -118,7 +118,9 @@ class TestSystemAwareScore:
 @pytest.mark.usefixtures("world")
 class TestInventoryEquipMarks:
 
-    async def test_wielded_and_worn_are_marked(self):
+    async def test_wielded_and_worn_are_listed_by_equipment(self):
+        """MUD_PLAN 3.1: worn and wielded gear moved from ``inventory``
+        (where it was marked) to ``equipment``."""
         dispatcher = CommandDispatcher()
         load(CLASSIC).install_commands(dispatcher)
         room = GameObject("Square", tags=['room'])
@@ -133,6 +135,10 @@ class TestInventoryEquipMarks:
         session.link_player(player)
         await dispatcher.dispatch(session, "inventory")
         out = _drain(session)
-        assert "a short sword (wielded)" in out
-        assert "an iron helm (worn on head)" in out
-        assert "a rock (" not in out                 # unequipped: no mark
+        assert "a rock" in out
+        assert "short sword" not in out and "iron helm" not in out
+        await dispatcher.dispatch(session, "equipment")
+        out = _drain(session)
+        assert "<wielded>" in out and "a short sword" in out
+        assert "<head>" in out and "an iron helm" in out
+        assert "a rock" not in out

@@ -49,8 +49,8 @@ can find them), one janitor bot that should survive (untagged, so the sweep
 passes it by), and the bot's description telling players the two commands:
 
 ```text
-@dig Promenade = prom, out
-prom
+@dig Promenade = promenade, out
+promenade
 @create discarded wrapper
 @tag discarded wrapper = litter
 drop discarded wrapper

@@ -19,10 +19,25 @@ from realm.std.basics.commands import (
     cmd_uptime,
     cmd_who,
 )
+from realm.std.basics.prompt import cmd_prompt, render_prompt
 
 feature = Feature(
     'basics',
     doc='Session and utility commands: help, who, quit, time.',
+)
+
+feature.setting(
+    "PROMPT", "<{hp}/{max_hp}hp> ",
+    "The prompt shown after each batch of output, unless a player sets their own "
+    "with `prompt`. Tokens: any pool by name and `max_<name>`, `{name}`, `{room}`, "
+    "`{combat}`, `{level}`, `{xp}`. Empty for none.")
+feature.prompt(render_prompt)
+feature.command(
+    'prompt',
+    cmd_prompt,
+    category='utility',
+    help_text='Show or set your prompt',
+    usage='prompt [template|default|off]',
 )
 
 feature.command(

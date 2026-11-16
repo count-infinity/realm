@@ -28,8 +28,9 @@ Kel.
 A skill is a plain attribute, `skill_<name>`, on the character, and the
 engine's check system reads that attribute directly (an untrained skill
 falls back to a governing-attribute default). The built-in `points`
-command lists your `character_points` and every `skill_` attribute you
-have trained, and `improve <skill>` spends 4 character points for +1.
+command shows your `character_points`, `skills` lists every `skill_`
+attribute you have trained, and `improve <skill>` spends 4 character
+points for +1.
 That is the built-in economy: earned points, spent by the player at
 will. A *trainer* adds the other classic road, money for tutelage, with
 the world deciding what is teachable, how far, and after what.
@@ -159,7 +160,8 @@ train melee      -> ...now 12.   (-15)
 train melee      -> "You are past my lessons in melee..."      (the cap)
 train guns       -> ...now 10.   (-25; the prerequisite is met)
 train basketry   -> "I do not teach basketry..."
-points           -> your sheet: skills and character points
+points           -> your character points
+skills           -> your trained skills
 ```
 
 Run yourself dry and she turns you away at the fee gate. The two

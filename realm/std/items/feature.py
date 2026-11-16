@@ -13,12 +13,12 @@ from realm.std.items.commands import (
     cmd_lock_item,
     cmd_open,
     cmd_unlock_item,
-    cmd_unwear,
     cmd_unwield,
     cmd_use,
-    cmd_wear,
     cmd_wield,
 )
+from realm.std.items.equipment import cmd_equipment, cmd_unwear, cmd_wear
+from realm.std.items.food import cmd_drink, cmd_eat
 from realm.std.items.inventory import (
     cmd_drop,
     cmd_get,
@@ -110,8 +110,19 @@ feature.command(
     cmd_wear,
     category='items',
     help_text='Wear a carried item',
-    usage='wear <item>',
+    usage='wear <item> [replace]',
 )
+feature.command(
+    'equipment',
+    cmd_equipment,
+    aliases=['eq'],
+    category='items',
+    help_text='Show what you wear and wield',
+)
+feature.command('eat', cmd_eat, category='items', help_text='Eat something you carry',
+                usage='eat <food>')
+feature.command('drink', cmd_drink, category='items',
+                help_text='Drink from a container or fountain', usage='drink <container>')
 feature.command(
     'remove',
     cmd_unwear,
@@ -221,6 +232,8 @@ feature.event(ItemAction.ON_REMOVE, hook="REMOVE",
 feature.event(ItemAction.ON_WIELD, hook="WIELD", doc="this weapon is readied (gated)")
 feature.event(ItemAction.ON_UNWIELD, hook="UNWIELD", doc="this weapon is lowered (gated)")
 feature.event(ItemAction.ON_USE, hook="USE", doc="this object is used")
+feature.event(ItemAction.ON_EAT, hook="EAT", doc="this food is eaten (gated)")
+feature.event(ItemAction.ON_DRINK, hook="DRINK", doc="this is drunk from (gated)")
 feature.event(ItemAction.ON_OPEN, hook="OPEN", doc="this door/container is opened")
 feature.event(ItemAction.ON_CLOSE, hook="CLOSE", doc="this door/container is closed")
 feature.event(ItemAction.ON_LOCK, hook="LOCK", doc="this is locked (gated)")

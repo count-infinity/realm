@@ -86,6 +86,8 @@ class World:
     #: from ``recipient`` (``feature.deaf_rule``: a sleeper hears nothing)
     deaf_rules: list[Callable] = field(default_factory=list)
     group_formatter: Callable | None = None                           # contents lines
+    #: (player) -> str | None: the line after each batch of output (``feature.prompt``)
+    prompt_renderer: Callable | None = None
     #: pool name -> Pool: world defaults from the rules system and
     #: ``feature.pool`` (realm.core.pools, definition source 3).
     pools: dict[str, Any] = field(default_factory=dict)

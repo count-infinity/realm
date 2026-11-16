@@ -44,8 +44,9 @@ def restore_default():
 
 
 def test_classic_hooks_equal_the_old_table():
-    # Step 8 added the kernel's pool hooks after the freeze.
-    assert set(installed().hooks()) == STANDARD_HOOKS | {'POOL', 'SPENT'}
+    # Step 8 added the kernel's pool hooks after the freeze; MUD_PLAN step 3
+    # the items feature's EAT and DRINK.
+    assert set(installed().hooks()) == STANDARD_HOOKS | {'POOL', 'SPENT', 'EAT', 'DRINK'}
 
 
 def test_lock_rows_equal_the_old_tables():

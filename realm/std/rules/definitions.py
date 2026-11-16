@@ -63,12 +63,16 @@ def parse_class_def(obj: GameObject) -> tuple[str, dict, dict] | None:
 
 # --- Creating definitions (for seeding, OLC, and tests) ----------------------
 
-def define_skill(name: str, stat: str, penalty: int) -> GameObject:
-    """Build a ``skill_def`` object (caller adds it to the world)."""
+def define_skill(name: str, stat: str, penalty: int,
+                 group: str | None = None) -> GameObject:
+    """Build a ``skill_def`` object (caller adds it to the world). ``group``
+    is the heading ``skills`` lists it under."""
 
     obj = GameObject(name=name, tags=[SKILL_DEF_TAG])
     obj.db.set("stat", str(stat))
     obj.db.set("penalty", int(penalty))
+    if group:
+        obj.db.set("group", str(group))
     return obj
 
 

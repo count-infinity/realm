@@ -504,7 +504,7 @@ class GameServer:
         # character still in creation to chargen).
         for _order, interceptor in self.world.input_interceptors:
             if await interceptor(self.world, session, command):
-                await session.flush_output()
+                await session.flush_output(prompt=True)
                 return
 
         await self.dispatcher.dispatch(session, command)
@@ -512,9 +512,10 @@ class GameServer:
         # Flush every session, not just the actor's — actions propagated by
         # this command can queue messages on bystanders' output queues. If we
         # only flushed the actor, bystanders wouldn't see anything until they
-        # typed a command of their own.
+        # typed a command of their own. The typist always gets a prompt;
+        # a bystander gets one after the output it was sent.
         for s in self.session_manager.all_sessions():
-            await s.flush_output()
+            await s.flush_output(prompt=s is session)
 
     async def _tick_loop(self) -> None:
         """
