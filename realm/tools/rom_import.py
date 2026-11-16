@@ -95,6 +95,42 @@ ROM_SPELL_SLOTS: dict[int, str] = {
     203: "gas breath", 204: "lightning breath",
 }
 
+# ROM's weapon attack words (const.c ``attack_table``) -> the REALM damage
+# type their damage class is.
+ATTACK_TYPES: dict[str, str] = {
+    "slice": "slashing", "stab": "piercing", "slash": "slashing", "whip": "slashing",
+    "claw": "slashing", "blast": "bludgeoning", "pound": "bludgeoning",
+    "crush": "bludgeoning", "grep": "slashing", "bite": "piercing",
+    "pierce": "piercing", "suction": "bludgeoning", "beating": "bludgeoning",
+    "digestion": "acid", "charge": "bludgeoning", "slap": "bludgeoning",
+    "punch": "bludgeoning", "wrath": "force", "magic": "force", "divine": "radiant",
+    "cleave": "slashing", "scratch": "piercing", "peck": "piercing",
+    "peckb": "bludgeoning", "chop": "slashing", "sting": "piercing",
+    "smash": "bludgeoning", "shbite": "lightning", "flbite": "fire",
+    "frbite": "cold", "acbite": "acid", "chomp": "piercing", "drain": "necrotic",
+    "thrust": "piercing", "slime": "acid", "shock": "lightning",
+    "thwack": "bludgeoning", "flame": "fire", "chill": "cold",
+}
+
+
+def _attack_bits() -> dict[int, str]:
+    """An old-format file's attack word, read by ``_value_token`` as a flag
+    word, is the bit-set of its letters; map each unambiguous one back."""
+    seen: dict[int, list[str]] = {}
+    for word in ATTACK_TYPES:
+        seen.setdefault(rom_flags(word), []).append(word)
+    return {bits: words[0] for bits, words in seen.items() if len(words) == 1}
+
+
+def attack_damage_type(value: Any) -> str | None:
+    """A ROM weapon's attack value (a word, or its letters' bit-set) as a
+    REALM damage type; None when it is not one ROM knows."""
+    if isinstance(value, str):
+        return ATTACK_TYPES.get(value.strip().lower())
+    word = _attack_bits().get(_int(value, -1))
+    return ATTACK_TYPES.get(word) if word else None
+
+
 #: One drink's worth of a ROM drink container's units (ROM serves about 4
 #: hours of thirst per sip of water), and what it restores.
 DRINK_UNITS = 4
@@ -558,9 +594,9 @@ def _objects(r: Reader, area: Area) -> None:
         }
         if wslot:
             attrs["slot"] = wslot
-        extra_tags, consumable = consumable_fields(type_name, values, area)
+        extra_tags, fields = item_fields(type_name, values, area)
         tags.extend(t for t in extra_tags if t not in tags)
-        attrs.update(consumable)
+        attrs.update(fields)
         if type_name == "weapon":
             # ROM weapon values: [class, num_dice, dice_type, attack, flags].
             # Emit ``damage_dice`` (what MercRuleset reads) and a plain
@@ -636,15 +672,22 @@ def _spell_name(value: Any, type_name: str, area: Area) -> str | None:
     return name
 
 
-def consumable_fields(type_name: str, values: list, area: Area) -> tuple[list[str], dict]:
-    """Tags and attributes that make a ROM consumable work (MUD_PLAN 3.4):
-    ``spells``, ``spell_level`` and ``charges`` for potions, pills,
-    scrolls, wands and staves; ``restores`` (and a drink's ``charges``)
-    for food, drink and fountains."""
+def item_fields(type_name: str, values: list, area: Area) -> tuple[list[str], dict]:
+    """Tags and attributes that make a ROM item work (MUD_PLAN 3.4, 4.2): a
+    weapon's ``damage_type``; ``spells``, ``spell_level`` and ``charges``
+    for potions, pills, scrolls, wands and staves; ``restores`` (and a
+    drink's ``charges``) for food, drink and fountains."""
     values = list(values) + [0] * (5 - len(values))
     attrs: dict[str, Any] = {}
     tags: list[str] = []
-    if type_name in ("potion", "pill", "scroll"):
+    if type_name == "weapon":
+        dtype = attack_damage_type(values[3])
+        if dtype:
+            attrs["damage_type"] = dtype
+        else:
+            area.gap("weapon: attack type not a ROM attack word; damage_type left unset "
+                     "(bludgeoning)")
+    elif type_name in ("potion", "pill", "scroll"):
         spells = [n for n in (_spell_name(v, type_name, area) for v in values[1:5]) if n]
         attrs.update(spells=spells, spell_level=_int(values[0], 1))
         if type_name == "pill":

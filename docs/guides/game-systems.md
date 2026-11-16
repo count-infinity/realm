@@ -48,6 +48,27 @@ respawning fidos for XP, and trades at the shops (`realm init --template
 midgaard`). Its five classes are warrior, barbarian, thief, cleric, and
 mage; each starts with its class weapon (the ``outfit_new_character`` seam).
 
+Merc's class skills are things a player types. The `merc-classic` pack
+ships them as ability definitions ([Abilities as Data](abilities.md)):
+
+| Skill | Classes | Does |
+|---|---|---|
+| `kick` | warrior, barbarian | 1 to your level in damage |
+| `bash` | warrior | damage and a round `stunned` |
+| `backstab` | thief | a piercing weapon's damage, doubled and more with level, on someone not fighting |
+| `rescue` | warrior | turns everyone fighting an ally on you |
+| `disarm` (level 10) | warrior, thief | knocks the foe's weapon to the floor |
+| `trip` | thief | the foe falls (`resting`) |
+
+Each rolls the skill of the same name and waits a few beats before it can
+be used again. `MercRuleset` adds the passive skills: a hit that lands is
+still turned aside by the defender's `dodge`, then `parry` (wielding a
+weapon), then `shield_block` (wearing a shield), each at ROM's chances
+shifted by level difference; and a warrior's `second_attack` and
+`third_attack` are more swings each round (the `Ruleset.extra_attacks`
+hook). Every one of them is a `check()`, so whatever adjusts a check
+adjusts them.
+
 The whole package swaps: under `d20`, `stealth` and `persuade` roll a
 d20 too — not just combat. (This wiring was completed 2026-07-07;
 before that, non-combat checks ignored the system.)

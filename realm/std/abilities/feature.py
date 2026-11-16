@@ -12,6 +12,7 @@ from realm.std.abilities.actions import AbilityAction
 from realm.std.abilities.caster import CasterBehavior
 from realm.std.abilities.commands import cmd_cast, cmd_spells
 from realm.std.abilities.magic_items import cmd_use_magic
+from realm.std.abilities.verbs import ability_fallback, cmd_abilities
 
 feature = Feature(
     'abilities',
@@ -56,6 +57,16 @@ feature.command(
     help_text='Zap a wand, or brandish a staff at the room',
     usage='zap <wand> [target] | brandish <staff>',
 )
+
+feature.command(
+    'abilities',
+    cmd_abilities,
+    aliases=['ab'],
+    category='combat',
+    help_text='List the abilities you can use',
+)
+# A typed ability name runs it: `kick fido`.
+feature.fallback(ability_fallback)
 
 feature.behavior(CasterBehavior)
 

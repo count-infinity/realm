@@ -1,5 +1,6 @@
 """
-Re-derive the item fields the ROM importer writes (wear slot, consumables)
+Re-derive the item fields the ROM importer writes (wear slot, a weapon's
+damage type, consumables)
 on an already-converted area file, from the ``item_type``, ``rom_wear``
 and ``rom_values`` each object keeps.
 
@@ -16,7 +17,7 @@ import json
 import sys
 from pathlib import Path
 
-from realm.tools.rom_import import Area, consumable_fields, gap_lines, rom_flags, wear_slot
+from realm.tools.rom_import import Area, gap_lines, item_fields, rom_flags, wear_slot
 
 
 def refresh(data: dict) -> tuple[int, Area]:
@@ -35,7 +36,7 @@ def refresh(data: dict) -> tuple[int, Area]:
             attrs["slot"] = slot
             if "wearable" not in tags:
                 tags.append("wearable")
-        extra_tags, fields = consumable_fields(type_name, attrs["rom_values"], area)
+        extra_tags, fields = item_fields(type_name, attrs["rom_values"], area)
         tags.extend(t for t in extra_tags if t not in tags)
         attrs.update(fields)
         obj["attrs"] = attrs

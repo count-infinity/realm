@@ -255,6 +255,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`ansi`](#fn-ansi) | Penn-style color: ansi('rh', 'My thing') — lowercase letters = foreground (r g y b m c w x), 'h' brightens it, UPPERCASE = background, u = underline, i = inverse video. | [Messaging & prompts](#messaging-prompts) |
 | [`apply_effect`](#fn-apply_effect) | Attach an effect (modifier_effect / damage_over_time / regeneration / disposition_boost) to something in the executor's room. | [Combat & effects](#combat-effects) |
 | [`attach_behavior`](#fn-attach_behavior) | Attach a registered behavior to an object the executor controls. | [NPCs & behaviors](#npcs-behaviors) |
+| [`attackers`](#fn-attackers) | Who is attacking `target` in its fight (empty out of one). | [Combat & effects](#combat-effects) |
 | [`band`](#fn-band) | Tiered outcome (PbtA): tier = how many ascending thresholds `value` clears. | [Dice & skill checks](#dice-skill-checks) |
 | [`behaviors`](#fn-behaviors) | Behavior ids attached to an object. | [NPCs & behaviors](#npcs-behaviors) |
 | [`call`](#fn-call) | Call an attribute as a METHOD on `obj` — runs AS `obj` (`me` is obj, `V()`/`get_attr(me, ...)` read obj's own data, `here` is obj's room), with `enactor` preserved and args bound as arg0..argN. | [Objects & attributes](#objects-attributes) |
@@ -278,6 +279,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`destroy_obj`](#fn-destroy_obj) | Destroy an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`detach_behavior`](#fn-detach_behavior) | Detach a behavior (by id) from an object the executor controls (needs BUILD behind the executor, like `attach_behavior`). | [NPCs & behaviors](#npcs-behaviors) |
 | [`dice`](#fn-dice) | Roll dice: NdS+M Args: num: Number of dice sides: Sides per die modifier: Added to total | [Dice & skill checks](#dice-skill-checks) |
+| [`disarm`](#fn-disarm) | Knock the target's wielded weapon to the floor. | [Combat & effects](#combat-effects) |
 | [`disposition`](#fn-disposition) | How npc feels about other (default: the enactor). | [NPCs & behaviors](#npcs-behaviors) |
 | [`enter_instance`](#fn-enter_instance) | Send a player into a private, transient copy of a template area, materializing one on demand — and reusing their own copy (or their leader's, if it's `shared`) if one already exists. | [Movement & travel](#movement-travel) |
 | [`enter_wilderness`](#fn-enter_wilderness) | Send a player to the wilderness cell at `(region, x, y)`, materializing it on demand — the scripted seam into a coordinate-keyed region. | [Movement & travel](#movement-travel) |
@@ -328,6 +330,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`repeat`](#fn-repeat) | Repeat text N times. | [Text](#text) |
 | [`replace`](#fn-replace) | Replace all occurrences of old with new. | [Text](#text) |
 | [`rest`](#fn-rest) | Get all but first element. | [Text](#text) |
+| [`retarget`](#fn-retarget) | Turn a fighter on a new target in the same room (a rescue): the new target joins the fight if it was not in it. | [Combat & effects](#combat-effects) |
 | [`right`](#fn-right) | Get rightmost N characters. | [Text](#text) |
 | [`roll`](#fn-roll) | Roll a dice expression to a total. | [Dice & skill checks](#dice-skill-checks) |
 | [`search_world`](#fn-search_world) | Query the world: search_world(tag='zone:castle'), search_world(attr='xp_multiplier'), combinable. | [Objects & attributes](#objects-attributes) |
@@ -1482,6 +1485,20 @@ apply_effect(enactor, 'modifier_effect', kind='fear',
 duration=8, check_mods={'all': -2})
 ```
 
+### `attackers` {#fn-attackers}
+
+```text
+attackers(target: GameObject | str | None) -> list
+```
+
+Who is attacking `target` in its fight (empty out of one).
+
+**Example**
+
+```text
+attackers(enactor)
+```
+
 ### `cast` {#fn-cast}
 
 ```text
@@ -1538,6 +1555,20 @@ damage(enactor, 3)
 damage(enactor, 12, 'fire')
 ```
 
+### `disarm` {#fn-disarm}
+
+```text
+disarm(target: GameObject | str | None) -> bool
+```
+
+Knock the target's wielded weapon to the floor. Queued.
+
+**Example**
+
+```text
+disarm(enactor)
+```
+
 ### `heal` {#fn-heal}
 
 ```text
@@ -1565,6 +1596,22 @@ Strip an active effect by kind (cure poison, calm fear).
 
 ```text
 remove_effect(enactor, 'fear')
+```
+
+### `retarget` {#fn-retarget}
+
+```text
+retarget(attacker: GameObject | str | None, new_target: GameObject | str | None) -> bool
+```
+
+Turn a fighter on a new target in the same room (a rescue): the new
+target joins the fight if it was not in it. Queued; it happens after
+the script.
+
+**Example**
+
+```text
+retarget(attackers(enactor)[0], me)
 ```
 
 ### `start_combat` {#fn-start_combat}

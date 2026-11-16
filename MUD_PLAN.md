@@ -16,7 +16,7 @@ on its own and leaves the suite green.
 | 1 | Starting points: `--system`, and templates that are full scaffolds | S | [x] |
 | 2 | The solo loop: regeneration, rest, recovery, death, movement cost | M | [x] |
 | 3 | The character sheet: equipment, skills, prompt, consumables | M | [x] |
-| 4 | Skills you can use: ability commands and the Merc class skills | M | [ ] |
+| 4 | Skills you can use: ability commands and the Merc class skills | M | [x] |
 | 5 | Progression: use, practice, idle training, timed actions | L | [ ] |
 | 6 | Accounts: one login, many characters, account data, achievements, bans | L | [ ] |
 | 7 | Communication: tells, channels, socials, mail | M | [ ] |
@@ -558,23 +558,23 @@ Today an ability is reached only through `cast <spell>` or softcode
 
 In `realm/std/abilities/`.
 
-- [ ] A `feature.fallback`: when no command matches, look for an
+- [x] A `feature.fallback`: when no command matches, look for an
       `ability_def` (not a `spell_def`; spells keep `cast`) whose name or
       one of its `aliases` is the typed verb and that `can_invoke` allows
       the player. If found, resolve the rest of the line as the target and
       call `invoke_ability(player, adef, target, verb=adef.name)`.
-- [ ] Command `abilities` (alias `ab`): what the character can invoke, with
+- [x] Command `abilities` (alias `ab`): what the character can invoke, with
       cost.
-- [ ] A cooldown cost: `{"cooldown": <beats>}` in a cost spec, alone or
+- [x] A cooldown cost: `{"cooldown": <beats>}` in a cost spec, alone or
       beside a pool cost. Store the ready time per ability on the actor
       (`ability_ready`, a dict) against the world's monotonic clock and
       refuse with "You are not ready to <name> again yet." (This is the
       "cooldown cost spec" deferred in BACKLOG.)
-- [ ] An ability effect of type `check`: `{"type": "check", "skill": ...,
+- [x] An ability effect of type `check`: `{"type": "check", "skill": ...,
       "on_fail": "stop"}` rolls the actor's skill through `check()` before
       the effects after it. A failed check sends the definition's
       `fail_msg` and applies nothing more. This is what makes a skill miss.
-- [ ] Tests: `kick fido` runs a `kick` ability; an unknown verb still
+- [x] Tests: `kick fido` runs a `kick` ability; an unknown verb still
       reaches softcode `$`-commands; a cooldown refuses the second use and
       allows the third after the beats pass; a failed check deals no
       damage.
@@ -583,7 +583,7 @@ In `realm/std/abilities/`.
 
 In `realm/packs/merc-classic/` (data) and `realm/games/merc/` (rules).
 
-- [ ] `skills.json` in the pack: `kick` (warrior, barbarian; damage by
+- [x] `skills.json` in the pack: `kick` (warrior, barbarian; damage by
       level), `bash` (warrior; damage and a `stunned` modifier effect for
       one round), `backstab` (thief; needs a piercing weapon and a target
       not fighting; multiplied weapon damage), `rescue` (warrior; takes an
@@ -591,37 +591,37 @@ In `realm/packs/merc-classic/` (data) and `realm/games/merc/` (rules).
       `disarm` (warrior, thief; unwields the target's weapon to the floor),
       `trip` (thief; `resting` position on the victim). Each has a `check`
       effect on the skill of the same name and a cooldown.
-- [ ] `rescue` and `disarm` need more than an effect list. Give them an
+- [x] `rescue` and `disarm` need more than an effect list. Give them an
       `on_invoke` softcode body if the softcode functions suffice;
       otherwise add softcode functions to `combat` (`retarget(attacker,
       new_target)`, `disarm(target)`), harm-gated.
-- [ ] Passive defenses in `MercRuleset.roll_attack`: after a hit is
+- [x] Passive defenses in `MercRuleset.roll_attack`: after a hit is
       rolled, the defender's `dodge`, then `parry` (wielding a weapon),
       then `shield_block` (wearing a shield) each get one percentile
       chance, scaled by level difference, to turn it aside, with its own
       message. Each is rolled through `check()` so step 5's learn-by-use
       applies.
-- [ ] `second_attack` and `third_attack` for warriors as percentile
+- [x] `second_attack` and `third_attack` for warriors as percentile
       chances of an extra swing in the encounter's attack resolution, via
       `Ruleset.resolve_special_maneuver` or a new `Ruleset.extra_attacks`
       hook, whichever keeps `CombatEncounter` free of Merc names.
-- [ ] `MERC_CLASSES` starting skills match the pack's skill names.
-- [ ] Tests on a Merc world: each skill's success and failure, class
+- [x] `MERC_CLASSES` starting skills match the pack's skill names.
+- [x] Tests on a Merc world: each skill's success and failure, class
       gating, the weapon requirement for backstab, a rescue that changes
       who the mob attacks, a dodge that turns a hit into a miss.
 
 ### Acceptance
 
-- [ ] On Midgaard a level-1 warrior can `kick` and `bash`, a thief can
+- [x] On Midgaard a level-1 warrior can `kick` and `bash`, a thief can
       `backstab` an unaware fido, and `abilities` lists exactly what each
       class can use.
 
 ### Docs
 
-- [ ] `docs/guides/abilities.md`: abilities as commands, the `check`
+- [x] `docs/guides/abilities.md`: abilities as commands, the `check`
       effect, cooldowns.
-- [ ] `docs/guides/game-systems.md`: what Merc now implements.
-- [ ] Regenerate the softcode reference.
+- [x] `docs/guides/game-systems.md`: what Merc now implements.
+- [x] Regenerate the softcode reference.
 
 ---
 
@@ -2009,3 +2009,9 @@ the step, what was decided and why.
 | 2026-11-15 | 3.3 | A prompt is not a message: it goes to a separate session channel (`Session.set_prompt_writer`), written by `flush_output` after any output or when asked (`prompt=True`, which the server passes for the typist). Telnet sends `IAC GA` only when the client refused to suppress go-ahead, since REALM offers SGA; a newline starts output written after a prompt. A template set with the `prompt` command gets a trailing space, because the dispatcher strips input. | Keeping prompts out of the message queue is what keeps `Simulator.seen()` free of them and lets a batch of lines carry one prompt. |
 | 2026-11-15 | 3.3 | The dispatcher prefix-matches commands before trying exits (ROM's `interpret` does the same), so the new `prompt` took showcase 149's exit `prom`; the exit was renamed `promenade`. The dispatcher is unchanged. | Changing command resolution is outside this step; recorded in the changelog for games with short exit names. |
 | 2026-11-15 | 3.4 | `eat`, `drink`, `quaff`, `recite` and `zap` offer a line they cannot use to the world's softcode `$`-commands before refusing it, as `cast` already does. Food and drink restore `food` and `water` pools, which no system has until step 12; a drink is 4 of a ROM container's units. Pills are tagged `potion` (quaffed) and reported as a gap. A spell no spell_def defines does nothing ("Nothing happens.") and the item is used up all the same. `brandish` aims a harmful spell at every other character in the room and a kind one at everyone. ROM spell slot 507, used by five Midgaard items, is not in the slot table and is reported as a gap. | Built-ins must not shadow world verbs (several showcase builds define `$eat` and `$drink`); the rest fills in what the plan left open. |
+| 2026-11-15 | 4.1 | Cooldown ready times are wall-clock seconds (`time.time()`), not the monotonic clock the plan names; a cooldown is in world beats of `WORLD_BEAT` seconds. | A monotonic value saved on a character means nothing after a restart; the kernel's expiry already uses wall time. |
+| 2026-11-15 | 4.1 | An ability typed as its own verb reads "You kick the rat." (not "You kick kick at the rat."), with a third-person room line ("bashes"). A failed `check` replaces the success lines with `fail_msg` and a room line. The cooldown is checked before any pool is spent and started only after. | The plan left the messages open. |
+| 2026-11-15 | 4.2 | Rescue and disarm are ability effect types (`rescue`, `disarm`), calling new `CombatManager.attackers_of` / `retarget` / `disarm`; the softcode functions `attackers()`, `retarget()` and `disarm()` call the same methods. An ability's softcode runs as its definition object, which is in no room, so reach-gated softcode cannot touch the fight from there. Backstab needs new def fields (`requires_weapon`, `target_unaware`) and a `weapon_damage` effect; trip a `tag` effect; rescue `target_fighting`. | The plan's softcode route does not reach; the functions are added anyway for traps and NPCs. |
+| 2026-11-15 | 4.2 | Passive defenses live in `MercRuleset.roll_attack` (a hit turned aside becomes a miss whose `effects` names the defense, and `format_attack_message` words it), and only a defender with a trained skill (`skill_<name>` above 0) defends. Chances follow ROM: dodge and parry half the skill, shield block a fifth plus 3, each plus the defender's level minus the attacker's; second attack half, third a quarter and only after a second. `Ruleset.extra_attacks(attacker)` is the new neutral hook. | The plan left the formulas to ROM. |
+| 2026-11-15 | 4.2 | Barbarians lose `rescue` (rescue is the warrior's, per the plan) and gain `kick`; disarm is level 10, so level-1 lists are warrior kick/bash/rescue, barbarian kick, thief backstab/trip. Starting weapons carry a `damage_type` (the dagger is piercing, for backstab). The ROM importer now writes weapons' `damage_type` from the attack word, recovering words that old-format files stored as flag letters, and Midgaard was refreshed with the dev script. | Backstab needs to know a dagger pierces. |
+| 2026-11-15 | 4.2 | A trip's `resting` would be undone at once by vitals' rule that a hostile act stands the victim up: the `tag` effect records `extra["tagged"]` and the rule skips an act that set the position; the pack orders trip's damage before its tag, since the damage is a separate hostile event. | The two plan items conflict as written. |

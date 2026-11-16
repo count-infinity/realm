@@ -18,6 +18,15 @@ ROM area (see ``realm import-rom``) wants to run on:
   attr — the same portable creature property the ROM importer emits from
   imm/res/vuln flags. Softcode ``on_check`` wards still run before this.
 
+- **Passive defenses** (ROM ``check_dodge``/``check_parry``/
+  ``check_shield_block``): a hit that lands still has to get past the
+  defender's ``dodge``, then ``parry`` (wielding a weapon), then
+  ``shield_block`` (wearing a shield): each is one skill check, at half
+  the skill (a fifth plus 3 for the shield) shifted by the level
+  difference, rolled through ``check()`` like any skill.
+- **Extra attacks**: a warrior's ``second_attack`` (half the skill) and
+  then ``third_attack`` (a quarter) are more swings in the same round.
+
 Expected combatant stats: ``thac0``, ``armor_class`` (lower is better),
 ``strength``, ``hp``/``max_hp``. Expected weapon attrs: ``damage_dice``
 (e.g. ``"2d4"``), optional ``damage_type``, optional ``damroll`` bonus.
@@ -36,7 +45,58 @@ from realm.std.combat.ruleset import (
 )
 
 if TYPE_CHECKING:
+    from realm.core.objects import GameObject
     from realm.std.combat.combatant import Combatant
+
+#: ROM's passive defenses, in the order they are tried: (skill, the share of
+#: the skill that is the chance, a flat bonus, what the defender needs).
+DEFENSES: tuple[tuple[str, float, int, str | None], ...] = (
+    ("dodge", 0.5, 0, None),
+    ("parry", 0.5, 0, "weapon"),
+    ("shield_block", 0.2, 3, "shield"),
+)
+
+#: How each defense reads: (defender, attacker, room), with {a} and {d}.
+DEFENSE_MESSAGES: dict[str, tuple[str, str, str]] = {
+    "dodge": ("You dodge {a}'s attack.", "{d} dodges your attack.",
+              "{d} dodges {a}'s attack."),
+    "parry": ("You parry {a}'s attack.", "{d} parries your attack.",
+              "{d} parries {a}'s attack."),
+    "shield_block": ("You block {a}'s attack with your shield.",
+                     "{d} blocks your attack with a shield.",
+                     "{d} blocks {a}'s attack with a shield."),
+}
+
+
+def _trained(obj: GameObject, skill: str) -> int:
+    return int(obj.db.get(f"skill_{skill}") or 0)
+
+
+def _level(obj: GameObject) -> int:
+    return int(obj.db.get("level") or 1)
+
+
+def _chance_check(obj: GameObject, skill: str, chance: int) -> bool:
+    """A check of ``skill`` whose percentile target is ``chance``."""
+    from realm.std.rules.checks import check
+    return check(obj, skill, chance - _trained(obj, skill)).success
+
+
+def passive_defense(attacker: GameObject, defender: GameObject) -> str | None:
+    """The defense that turns this hit aside, or None."""
+    for skill, share, bonus, needs in DEFENSES:
+        level = _trained(defender, skill)
+        if level <= 0:
+            continue
+        if needs == "weapon" and not any(o.has_tag("wielded") for o in defender.contents):
+            continue
+        if needs == "shield" and not any(o.has_tag("worn") and o.db.get("slot") == "shield"
+                                         for o in defender.contents):
+            continue
+        chance = int(level * share) + bonus + _level(defender) - _level(attacker)
+        if chance > 0 and _chance_check(defender, skill, chance):
+            return skill
+    return None
 
 
 class MercRuleset(Ruleset):
@@ -85,9 +145,38 @@ class MercRuleset(Ruleset):
         )
         effects = ["Critical hit!"] if crit else \
             (["Fumble!"] if fumble else [])
+        if hit:
+            defense = passive_defense(attacker.obj, defender.obj)
+            if defense is not None:
+                hit, crit = False, False
+                roll.success = False
+                effects = [defense]
         return AttackResult(hit=hit, roll=roll, critical_hit=crit,
                             critical_miss=fumble, margin=d20 - need,
                             effects=effects)
+
+    def format_attack_message(self, attacker, defender, attack_result, damage_result=None):
+        """A hit turned aside reads as the defense that did it."""
+        defense = next((e for e in attack_result.effects if e in DEFENSE_MESSAGES), None)
+        if attack_result.hit or defense is None:
+            return super().format_attack_message(attacker, defender, attack_result,
+                                                 damage_result)
+        mine, theirs, room = DEFENSE_MESSAGES[defense]
+        names = {"a": attacker.name, "d": defender.name}
+        return {"defender_msg": mine.format(**names),
+                "attacker_msg": theirs.format(**names),
+                "others_msg": room.format(**names)}
+
+    def extra_attacks(self, attacker: Any) -> int:
+        """ROM ``multi_hit``: a second attack at half the skill, and only
+        then a third at a quarter."""
+        extra = 0
+        for skill, share in (("second_attack", 0.5), ("third_attack", 0.25)):
+            level = _trained(attacker, skill)
+            if level <= 0 or not _chance_check(attacker, skill, max(1, int(level * share))):
+                break
+            extra += 1
+        return extra
 
     def roll_damage(
         self,

@@ -511,7 +511,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -784,7 +785,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -1052,7 +1054,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -1556,7 +1559,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -1790,7 +1794,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -2078,7 +2083,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -2222,7 +2228,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3351,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "piercing"
    },
    "locks": {},
    "behaviors": [],
@@ -2360,7 +2367,8 @@
     "damage_dice": "2d12",
     "damage": "2d12",
     "prototype_vnum": 3124,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -2548,7 +2556,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -2736,7 +2745,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -2924,7 +2934,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -3112,7 +3123,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -3257,7 +3269,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -3432,7 +3445,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -3539,7 +3553,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -3646,7 +3661,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -3753,7 +3769,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -4657,7 +4674,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -4913,7 +4931,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -5169,7 +5188,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -5410,7 +5430,8 @@
     "damage_dice": "4d10",
     "damage": "4d10",
     "prototype_vnum": 3005,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -5731,7 +5752,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -5958,7 +5980,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -6299,7 +6322,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -6660,7 +6684,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -6949,7 +6974,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -7061,7 +7087,8 @@
     ],
     "damage_dice": "1d4",
     "damage": "1d4",
-    "prototype_vnum": 3020
+    "prototype_vnum": 3020,
+    "damage_type": "piercing"
    },
    "locks": {},
    "behaviors": [],
@@ -7099,7 +7126,8 @@
     ],
     "damage_dice": "1d5",
     "damage": "1d5",
-    "prototype_vnum": 3021
+    "prototype_vnum": 3021,
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -7137,7 +7165,8 @@
     ],
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022
+    "prototype_vnum": 3022,
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -7175,7 +7204,8 @@
     ],
     "damage_dice": "1d7",
     "damage": "1d7",
-    "prototype_vnum": 3023
+    "prototype_vnum": 3023,
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -7213,7 +7243,8 @@
     ],
     "damage_dice": "2d4",
     "damage": "2d4",
-    "prototype_vnum": 3024
+    "prototype_vnum": 3024,
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -7251,7 +7282,8 @@
     ],
     "damage_dice": "1d6",
     "damage": "1d6",
-    "prototype_vnum": 3025
+    "prototype_vnum": 3025,
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -7289,7 +7321,8 @@
     ],
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3026
+    "prototype_vnum": 3026,
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -7327,7 +7360,8 @@
     ],
     "damage_dice": "1d8",
     "damage": "1d8",
-    "prototype_vnum": 3027
+    "prototype_vnum": 3027,
+    "damage_type": "piercing"
    },
    "locks": {},
    "behaviors": [],
@@ -7365,7 +7399,8 @@
     ],
     "damage_dice": "1d8",
     "damage": "1d8",
-    "prototype_vnum": 3028
+    "prototype_vnum": 3028,
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -7403,7 +7438,8 @@
     ],
     "damage_dice": "1d7",
     "damage": "1d7",
-    "prototype_vnum": 3029
+    "prototype_vnum": 3029,
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -7442,7 +7478,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -7707,7 +7744,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -8129,7 +8167,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -8450,7 +8489,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -9166,7 +9206,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -9268,7 +9309,8 @@
     "damage_dice": "4d6",
     "damage": "4d6",
     "prototype_vnum": 3349,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -9463,7 +9505,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -9827,7 +9870,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -10100,7 +10144,8 @@
     "damage_dice": "1d5",
     "damage": "1d5",
     "prototype_vnum": 3021,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -10347,7 +10392,8 @@
     "damage_dice": "4d6",
     "damage": "4d6",
     "prototype_vnum": 3349,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -10542,7 +10588,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -10725,7 +10772,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3351,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "piercing"
    },
    "locks": {},
    "behaviors": [],
@@ -10953,7 +11001,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -12884,7 +12933,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -13146,7 +13196,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -13408,7 +13459,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -13670,7 +13722,8 @@
     "damage_dice": "3d5",
     "damage": "3d5",
     "prototype_vnum": 3350,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -14027,7 +14080,8 @@
     "damage_dice": "2d5",
     "damage": "2d5",
     "prototype_vnum": 3022,
-    "worn": "wield"
+    "worn": "wield",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -31749,7 +31803,8 @@
      "N"
     ],
     "damage_dice": "4d10",
-    "damage": "4d10"
+    "damage": "4d10",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -32043,7 +32098,8 @@
      "N"
     ],
     "damage_dice": "1d4",
-    "damage": "1d4"
+    "damage": "1d4",
+    "damage_type": "piercing"
    },
    "locks": {},
    "behaviors": [],
@@ -32081,7 +32137,8 @@
      "N"
     ],
     "damage_dice": "1d5",
-    "damage": "1d5"
+    "damage": "1d5",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -32119,7 +32176,8 @@
      "N"
     ],
     "damage_dice": "2d5",
-    "damage": "2d5"
+    "damage": "2d5",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -32157,7 +32215,8 @@
      "N"
     ],
     "damage_dice": "1d7",
-    "damage": "1d7"
+    "damage": "1d7",
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -32195,7 +32254,8 @@
      "N"
     ],
     "damage_dice": "2d4",
-    "damage": "2d4"
+    "damage": "2d4",
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -32233,7 +32293,8 @@
      "N"
     ],
     "damage_dice": "1d6",
-    "damage": "1d6"
+    "damage": "1d6",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -32271,7 +32332,8 @@
      "N"
     ],
     "damage_dice": "2d5",
-    "damage": "2d5"
+    "damage": "2d5",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -32309,7 +32371,8 @@
      "N"
     ],
     "damage_dice": "1d8",
-    "damage": "1d8"
+    "damage": "1d8",
+    "damage_type": "piercing"
    },
    "locks": {},
    "behaviors": [],
@@ -32347,7 +32410,8 @@
      "N"
     ],
     "damage_dice": "1d8",
-    "damage": "1d8"
+    "damage": "1d8",
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -32385,7 +32449,8 @@
      "N"
     ],
     "damage_dice": "1d7",
-    "damage": "1d7"
+    "damage": "1d7",
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],
@@ -35085,7 +35150,8 @@
      "N"
     ],
     "damage_dice": "2d12",
-    "damage": "2d12"
+    "damage": "2d12",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -36812,7 +36878,8 @@
      "N"
     ],
     "damage_dice": "4d6",
-    "damage": "4d6"
+    "damage": "4d6",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -36853,7 +36920,8 @@
      "N"
     ],
     "damage_dice": "3d5",
-    "damage": "3d5"
+    "damage": "3d5",
+    "damage_type": "slashing"
    },
    "locks": {},
    "behaviors": [],
@@ -36894,7 +36962,8 @@
      "N"
     ],
     "damage_dice": "2d5",
-    "damage": "2d5"
+    "damage": "2d5",
+    "damage_type": "piercing"
    },
    "locks": {},
    "behaviors": [],
@@ -36935,7 +37004,8 @@
      "N"
     ],
     "damage_dice": "2d4",
-    "damage": "2d4"
+    "damage": "2d4",
+    "damage_type": "bludgeoning"
    },
    "locks": {},
    "behaviors": [],

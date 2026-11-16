@@ -64,6 +64,11 @@ TO_DICT |= POOL_READS | {'harm_pool', 'mend_pool', 'spend_pool'}
 READONLY |= POOL_READS
 HARM |= {'harm_pool'}
 
+# Combat's fight-turning functions (MUD_PLAN 4.2).
+TO_DICT |= {'attackers', 'retarget', 'disarm'}
+READONLY |= {'attackers'}
+HARM |= {'retarget', 'disarm'}
+
 
 class TestParityWithTheOldLists:
 

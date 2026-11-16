@@ -1,0 +1,246 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "ability_kick",
+   "name": "kick",
+   "description": "A hard kick at your foe; it hurts more as you grow.",
+   "tags": [
+    "ability_def"
+   ],
+   "attrs": {
+    "classes": [
+     "warrior",
+     "barbarian"
+    ],
+    "level": 1,
+    "target": "victim",
+    "hostile": true,
+    "cost": {
+     "cooldown": 2
+    },
+    "fail_msg": "Your kick misses {target:the}.",
+    "effects": [
+     {
+      "type": "check",
+      "skill": "kick",
+      "on_fail": "stop"
+     },
+     {
+      "type": "damage",
+      "dice": "1d{level}",
+      "damage_type": "bludgeoning",
+      "magical": false
+     }
+    ]
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "ability_bash",
+   "name": "bash",
+   "description": "Slam into your foe with your whole weight, stunning them.",
+   "tags": [
+    "ability_def"
+   ],
+   "attrs": {
+    "classes": [
+     "warrior"
+    ],
+    "level": 1,
+    "target": "victim",
+    "hostile": true,
+    "cost": {
+     "cooldown": 3
+    },
+    "fail_msg": "You bash at {target:the} and stumble past.",
+    "effects": [
+     {
+      "type": "check",
+      "skill": "bash",
+      "on_fail": "stop"
+     },
+     {
+      "type": "damage",
+      "dice": "1d{level}+2",
+      "damage_type": "bludgeoning",
+      "magical": false
+     },
+     {
+      "type": "behavior",
+      "behavior_id": "modifier_effect",
+      "params": {
+       "kind": "stunned",
+       "duration": 1,
+       "check_mods": {
+        "all": -5
+       },
+       "expire_msg": "Your head clears."
+      }
+     }
+    ]
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "ability_backstab",
+   "name": "backstab",
+   "description": "Drive a blade into someone who has not seen you coming.",
+   "tags": [
+    "ability_def"
+   ],
+   "attrs": {
+    "classes": [
+     "thief"
+    ],
+    "level": 1,
+    "target": "victim",
+    "hostile": true,
+    "requires_weapon": "piercing",
+    "target_unaware": true,
+    "cost": {
+     "cooldown": 3
+    },
+    "fail_msg": "{target:the} turns just in time; your blade misses.",
+    "effects": [
+     {
+      "type": "check",
+      "skill": "backstab",
+      "on_fail": "stop"
+     },
+     {
+      "type": "weapon_damage",
+      "multiplier": 2,
+      "per_level": 0.1
+     }
+    ]
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "ability_rescue",
+   "name": "rescue",
+   "description": "Step in front of an ally and take their attackers on yourself.",
+   "tags": [
+    "ability_def"
+   ],
+   "attrs": {
+    "classes": [
+     "warrior"
+    ],
+    "level": 1,
+    "target": "ally",
+    "target_fighting": true,
+    "cost": {
+     "cooldown": 2
+    },
+    "fail_msg": "You fail to rescue {target:the}.",
+    "effects": [
+     {
+      "type": "check",
+      "skill": "rescue",
+      "on_fail": "stop"
+     },
+     {
+      "type": "rescue"
+     }
+    ]
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "ability_disarm",
+   "name": "disarm",
+   "description": "Knock the weapon from your foe's hand.",
+   "tags": [
+    "ability_def"
+   ],
+   "attrs": {
+    "classes": [
+     "warrior",
+     "thief"
+    ],
+    "level": 10,
+    "target": "victim",
+    "hostile": true,
+    "cost": {
+     "cooldown": 3
+    },
+    "fail_msg": "You fail to disarm {target:the}.",
+    "effects": [
+     {
+      "type": "check",
+      "skill": "disarm",
+      "on_fail": "stop"
+     },
+     {
+      "type": "disarm"
+     }
+    ]
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "ability_trip",
+   "name": "trip",
+   "description": "Sweep your foe's legs out from under them.",
+   "tags": [
+    "ability_def"
+   ],
+   "attrs": {
+    "classes": [
+     "thief"
+    ],
+    "level": 1,
+    "target": "victim",
+    "hostile": true,
+    "cost": {
+     "cooldown": 3
+    },
+    "fail_msg": "You try to trip {target:the}, and miss.",
+    "effects": [
+     {
+      "type": "check",
+      "skill": "trip",
+      "on_fail": "stop"
+     },
+     {
+      "type": "damage",
+      "dice": "1d2",
+      "damage_type": "bludgeoning",
+      "magical": false
+     },
+     {
+      "type": "tag",
+      "tag": "resting"
+     }
+    ]
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  }
+ ]
+}

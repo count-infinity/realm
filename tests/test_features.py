@@ -93,13 +93,17 @@ class TestDefaultEqualsToday:
             added_commands = {"@events", "rest", "sleep", "stand",
                               # MUD_PLAN step 3: the character sheet, consumables
                               "equipment", "skills", "prompt", "eat", "drink",
-                              "quaff", "recite", "zap"}
+                              "quaff", "recite", "zap",
+                              # step 4: abilities as commands
+                              "abilities"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
             # step 8 the pool functions.
             added = {"clone_obj", "set_name", "set_desc", "pool", "pool_max", "has_pool",
-                     "spent", "harm_pool", "mend_pool", "spend_pool"}
+                     "spent", "harm_pool", "mend_pool", "spend_pool",
+                     # MUD_PLAN step 4: combat's fight-turning functions
+                     "attackers", "retarget", "disarm"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.

@@ -236,6 +236,12 @@ class Ruleset(ABC):
                 return maneuver
         return None
 
+    def extra_attacks(self, attacker: Any) -> int:
+        """How many more swings ``attacker`` (a GameObject) gets this round
+        after its first, at the same target. Default: none. Merc rolls a
+        warrior's second and third attack."""
+        return 0
+
     async def resolve_special_maneuver(
         self,
         combat_system,

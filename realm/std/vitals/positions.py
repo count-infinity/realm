@@ -134,7 +134,8 @@ async def position_gate(actor: GameObject, exit_obj: GameObject | None,
 
 
 async def roused_observer(action: Action) -> None:
-    """A hostile act against a resting or sleeping character stands it up."""
+    """A hostile act against a resting or sleeping character stands it up,
+    unless that act is what put it down (``extra["tagged"]``, a trip)."""
     if action.blocked or HOSTILE not in action.tags:
         return
     target = action.target
@@ -142,6 +143,8 @@ async def roused_observer(action: Action) -> None:
         return
     if not (target.has_tag(RESTING) or target.has_tag(SLEEPING)):
         return
+    if {RESTING, SLEEPING} & set(action.extra.get("tagged") or ()):
+        return                                     # the act itself put them down (a trip)
     target.remove_tag(RESTING)
     target.remove_tag(SLEEPING)
     target.msg("You are jolted to your feet!")

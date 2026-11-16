@@ -4,6 +4,26 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### Skills you can use (step 4)
+
+- An `ability_def` is a command: typing its name or one of its `aliases`
+  runs it, when no command or exit matches and the player may use it.
+  `abilities` (`ab`) lists them. Costs take `"cooldown": <beats>`;
+  effects add `check`, `weapon_damage`, `tag`, `rescue` and `disarm`;
+  dice may say `{level}`; defs may set `requires_weapon`,
+  `target_unaware`, `target_fighting`, `hostile`, `fail_msg`.
+- The merc-classic pack adds `skills.json`: kick, bash, backstab, rescue,
+  disarm, trip. `MERC_CLASSES` starting skills match (barbarians no longer
+  start with `rescue`); starting weapons carry a `damage_type`.
+- `MercRuleset`: dodge, parry and shield block; second and third attack
+  through a new `Ruleset.extra_attacks` hook.
+- Combat: `CombatManager.attackers_of`, `retarget`, `disarm`; softcode
+  `attackers()` (readonly), `retarget()` and `disarm()` (harm).
+- The ROM importer writes a weapon's `damage_type` from its attack word;
+  `consumable_fields` is now `item_fields`. Midgaard refreshed.
+- Saved worlds: a Merc character made before 0.3.0 has its old starting
+  skills; give it the new ones with `@set` if wanted.
+
 ### The character sheet (step 3)
 
 - `GameSystem.wear_slots()` (Merc: Diku's 14 places, two fingers, necks

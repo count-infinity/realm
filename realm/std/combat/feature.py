@@ -195,6 +195,26 @@ async def _start(engine, frame, obj, target) -> None:
 feature.queue_kind("combat", _start)
 
 
+async def _retarget(engine, frame, obj, target) -> None:
+    """Queued by softcode retarget()."""
+    from realm.core.world import get_world
+    manager = get_world().services.get("combat")
+    if manager is not None:
+        manager.retarget(obj, target)
+
+
+async def _disarm(engine, frame, obj, _payload) -> None:
+    """Queued by softcode disarm()."""
+    from realm.core.world import get_world
+    manager = get_world().services.get("combat")
+    if manager is not None:
+        manager.disarm(obj)
+
+
+feature.queue_kind("retarget", _retarget)
+feature.queue_kind("disarm", _disarm)
+
+
 # --- events -------------------------------------------------------------------
 
 
@@ -223,6 +243,9 @@ feature.event(CombatAction.NARRATE, doc="combat narration")
 feature.softfn(softcode.damage, group='Combat & effects', harm=True)
 feature.softfn(softcode.heal, group='Combat & effects')
 feature.softfn(softcode.start_combat, group='Combat & effects')
+feature.softfn(softcode.attackers, group='Combat & effects', readonly=True)
+feature.softfn(softcode.retarget, group='Combat & effects', harm=True)
+feature.softfn(softcode.disarm, group='Combat & effects', harm=True)
 
 
 @feature.traversal_gate(reason="combat")

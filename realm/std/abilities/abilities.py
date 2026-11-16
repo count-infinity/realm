@@ -19,13 +19,24 @@ An ``ability_def`` (or ``spell_def``) object carries:
     target   : 'self' | 'ally' | 'victim' | 'room'      (default: victim if
                it has a damage effect, else self)
     cost     : {'pool': 'mana', 'n': 15} | {'per_day': 2, 'attr': 'used_x'}
-               | (shorthand) mana=15
+               | (shorthand) mana=15; any of them may add 'cooldown': <world
+               beats> before the actor may invoke it again
+    aliases  : more verbs that invoke an ability_def typed as a command
     effects  : [ {'type':'damage','dice':'6d6','damage_type':'fire',
                   'save':'half'},
                  {'type':'heal','dice':'2d8+2'},
                  {'type':'behavior','behavior_id':'modifier_effect',
                   'params':{...},'save':'negates'},
-                 {'type':'softcode','code':'...'} ]
+                 {'type':'softcode','code':'...'},
+                 {'type':'check','skill':'kick','on_fail':'stop'},
+                 {'type':'weapon_damage','multiplier':2,'per_level':0.1},
+                 {'type':'tag','tag':'resting'} ]
+               A ``check`` rolls the actor's skill once; when it fails the
+               effects after it are not applied and ``fail_msg`` is shown.
+               Damage ``dice`` may say ``{level}`` (the actor's level).
+    requires_weapon : a damage type the actor's wielded weapon must deal
+    target_unaware  : True when the target must not be fighting
+    target_fighting : True when the target must be fighting (a rescue)
                (the flat shorthand fields damage_dice/heal_dice/effect/save
                 are read too; shipped spells and the ROM importer use them)
     classes / level / skill_req : eligibility (a player must qualify; NPCs
@@ -37,6 +48,7 @@ from __future__ import annotations
 
 import random
 import re
+import time
 from typing import TYPE_CHECKING, Any
 
 from realm.core.defs import all_defs
@@ -260,6 +272,10 @@ async def invoke_ability(
     if not targets or action_target is None:
         actor.msg(f"{verb.capitalize()} {name} at whom?")
         return None
+    refusal = _unmet(actor, adef, action_target)
+    if refusal:
+        actor.msg(refusal)
+        return None
 
     action = Action(actor=actor, target=action_target,
                     action_type=f"{domain}:{_slug(name)}", tool=adef)
@@ -290,29 +306,81 @@ async def invoke_ability(
         return None
 
     solo = len(targets) == 1 and targets[0] is actor
-    if solo or want == "room":
-        action.add_message("actor", f"You {verb} {name}.")
-        action.add_message("room", "{actor} " + f"{verb}s {name}.")
+    # An ability typed as its own verb reads "You kick the rat.", not
+    # "You kick kick at the rat."
+    own_verb = verb.lower() == name.lower()
+    if action.extra.get("check_failed"):
+        action.add_message("actor", str(adef.db.get("fail_msg")
+                                        or f"You fail to {verb} {name}."))
+        if not solo and want != "room":
+            action.add_message("room", "{actor} " + f"tries to {verb} "
+                               + ("" if own_verb else f"{name} at ") + "{target:the}, and fails.")
+    elif solo or want == "room":
+        action.add_message("actor", f"You {verb}." if own_verb else f"You {verb} {name}.")
+        action.add_message("room", "{actor} " + (f"{_third_person(verb)}."
+                                                 if own_verb else
+                                                 f"{_third_person(verb)} {name}."))
+    elif own_verb:
+        action.add_message("actor", f"You {verb} " + "{target:the}.")
+        action.add_message("room", "{actor} " + f"{_third_person(verb)} " + "{target:the}.")
     else:
         action.add_message("actor", f"You {verb} {name} at " + "{target:the}.")
         action.add_message("room",
-                           "{actor} " + f"{verb}s {name} at " + "{target:the}.")
+                           "{actor} " + f"{_third_person(verb)} {name} at " + "{target:the}.")
     deliver_messages(action)
     return action
+
+
+def _third_person(verb: str) -> str:
+    """"kick" -> "kicks", "bash" -> "bashes"."""
+    if verb.endswith(("s", "sh", "ch", "x", "z")):
+        return verb + "es"
+    return verb + "s"
+
+
+def wielded_weapon(actor: GameObject) -> GameObject | None:
+    return next((o for o in actor.contents if o.has_tag("wielded")), None)
+
+
+def _unmet(actor: GameObject, adef: GameObject, target: GameObject) -> str | None:
+    """Why ``actor`` cannot use ``adef`` on ``target`` right now, or None:
+    the def's ``requires_weapon`` (a damage type the wielded weapon must
+    deal) and ``target_unaware`` (the target is not fighting)."""
+    need = adef.db.get("requires_weapon")
+    if need:
+        weapon = wielded_weapon(actor)
+        if weapon is None or str(weapon.db.get("damage_type") or "") != str(need):
+            return f"You need to wield a {need} weapon to {adef.name}."
+    if adef.db.get("target_unaware") and target is not actor and target.has_tag("in_combat"):
+        return f"{target.get_display_name(actor)} is too alert; you can't take them unawares."
+    if adef.db.get("target_fighting") and not target.has_tag("in_combat"):
+        return f"{target.get_display_name(actor)} is not fighting anyone."
+    return None
 
 
 async def _apply_ability(action: Action, actor: GameObject, adef: GameObject,
                          targets: list, cost: dict | None,
                          effects: list[dict]) -> bool:
-    """Apply step: pay the (final) cost, then each effect to each target."""
+    """Apply step: pay the (final) cost, then each effect to each target.
+    A ``check`` effect is rolled once, at the first target; when it fails
+    the effects after it go no further for anyone."""
     if not await _pay_cost(actor, cost, action):
         return False
 
     system = _game_system()
+    rolled: dict[int, bool] = {}
     # A ward may have shaved the announced damage; carry the ratio to effects.
     for target in targets:
         saved = _roll_save(system, actor, target, adef, effects, action)
-        for eff in effects:
+        for index, eff in enumerate(effects):
+            if eff.get("type") == "check":
+                if index not in rolled:
+                    rolled[index] = _skill_check(actor, eff)
+                if not rolled[index]:
+                    action.add_data("check_failed", True)
+                    if str(eff.get("on_fail") or "stop") == "stop":
+                        break
+                continue
             await _apply_effect(action, actor, target, eff, saved, system)
 
     code = adef.db.get("on_invoke") or adef.db.get("on_cast")
@@ -324,12 +392,46 @@ async def _apply_ability(action: Action, actor: GameObject, adef: GameObject,
     return True
 
 
+def _skill_check(actor: GameObject, eff: dict) -> bool:
+    from realm.std.rules.checks import check
+    return check(actor, str(eff.get("skill")), int(eff.get("modifier") or 0)).success
+
+
+def _cooldown_seconds(cost: dict | None) -> float:
+    beats = float((cost or {}).get("cooldown") or 0)
+    return beats * float(get_world().setting("WORLD_BEAT")) if beats > 0 else 0.0
+
+
+def ready_at(actor: GameObject, name: str) -> float:
+    """When ``actor`` may next use the ability ``name`` (epoch seconds; 0 if now)."""
+    ready = actor.db.get("ability_ready")
+    return float(ready.get(name) or 0) if isinstance(ready, dict) else 0.0
+
+
 async def _pay_cost(actor: GameObject, cost: dict | None, action: Action) -> bool:
     """Charge the ability's cost, or block the action like a ward veto. A
     ``pool`` cost is a ``realm.core.pools.spend``: it lowers a down pool
-    (mana) or raises an up pool (heat), all or nothing."""
+    (mana) or raises an up pool (heat), all or nothing. A ``cooldown`` is
+    checked first and started only once the rest is paid: the ready time
+    is kept per ability in the actor's ``ability_ready``, in wall-clock
+    seconds so it survives a restart."""
     if not cost:
         return True
+    name = action.tool.name if action.tool is not None else ""
+    wait = _cooldown_seconds(cost)
+    if wait and time.time() < ready_at(actor, name):
+        action.block(f"You are not ready to {name} again yet.")
+        return False
+    if not await _pay_pool_or_daily(actor, cost, action):
+        return False
+    if wait:
+        ready = dict(actor.db.get("ability_ready") or {})
+        ready[name] = time.time() + wait
+        actor.db.ability_ready = ready
+    return True
+
+
+async def _pay_pool_or_daily(actor: GameObject, cost: dict, action: Action) -> bool:
     if cost.get("pool"):
         pool = str(cost["pool"])
         # A ward may have rewritten the announced cost; enforce the final one
@@ -383,7 +485,7 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
     save = str(eff.get("save") or "none")
 
     if etype == "damage":
-        amount = roll_dice(eff.get("dice", "0"))
+        amount = roll_dice(_leveled(eff.get("dice", "0"), actor))
         # For the single-target case honor a ward's shaved adata('damage').
         if action.target is target and "damage" in action.extra:
             amount = int(action.extra.get("damage") or amount)
@@ -393,6 +495,46 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
             target, amount, str(eff.get("damage_type") or "magical"),
             attacker=actor, magical=bool(eff.get("magical", True)))
         action.add_data("dealt", dealt)
+
+    elif etype == "weapon_damage":
+        # The actor's wielded weapon, multiplied (a backstab): the weapon's
+        # dice times ``multiplier`` + ``per_level`` x the actor's level.
+        weapon = wielded_weapon(actor)
+        dice = weapon.db.get("damage_dice") if weapon is not None else None
+        level = int(actor.db.get("level") or 1)
+        factor = float(eff.get("multiplier") or 1) + float(eff.get("per_level") or 0) * level
+        amount = int(roll_dice(dice or "1d2") * factor)
+        dtype = str((weapon.db.get("damage_type") if weapon is not None else None)
+                    or "bludgeoning")
+        dealt = await apply_typed_damage(target, amount, dtype, attacker=actor,
+                                         magical=bool(weapon is not None
+                                                      and weapon.has_tag("magic")))
+        action.add_data("dealt", dealt)
+
+    elif etype == "rescue":
+        # Turn everyone attacking ``target`` (an ally) on the actor.
+        manager = get_world().services.get("combat")
+        attackers = manager.attackers_of(target) if manager is not None else []
+        for attacker in attackers:
+            manager.retarget(attacker, actor)
+        if attackers:
+            mine = manager.encounter_of(actor)
+            if mine is not None and mine.get(actor.id) is not None:
+                mine.get(actor.id).target_id = attackers[0].id
+        action.add_data("rescued", len(attackers))
+
+    elif etype == "disarm":
+        manager = get_world().services.get("combat")
+        if manager is not None and not (saved and save == "negates"):
+            manager.disarm(target)
+
+    elif etype == "tag":
+        tag = str(eff.get("tag") or "")
+        if tag and not (saved and save == "negates"):
+            target.add_tag(tag)
+            # Recorded so observers can tell a trip's "resting" was the
+            # point of the action (vitals does not stand the victim up).
+            action.add_data("tagged", [*action.extra.get("tagged", []), tag])
 
     elif etype == "heal":
         pool = damage_pool(target)
@@ -420,6 +562,11 @@ async def _apply_effect(action: Action, actor: GameObject, target: GameObject,
                     params={"target": target})
 
 
+def _leveled(dice: Any, actor: GameObject) -> str:
+    """Dice with ``{level}`` replaced by the actor's level (kick: ``1d{level}``)."""
+    return str(dice).replace("{level}", str(int(actor.db.get("level") or 1)))
+
+
 def _game_system():
     return get_world().rules
 
@@ -432,5 +579,7 @@ __all__ = [
     "find_ability_def",
     "invoke_ability",
     "list_ability_defs",
+    "ready_at",
     "roll_dice",
+    "wielded_weapon",
 ]

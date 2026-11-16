@@ -202,7 +202,8 @@ invisibility, timed effects such as poison, spells and abilities defined
 as data, health and resources on anything (a ship's shields and hull work
 like a character's hit points), regeneration, resting and sleeping, death
 with a corpse and a return home, wear slots and an `equipment` list, a
-configurable prompt, food, drink, potions, scrolls and wands, instanced areas, procedural wilderness,
+configurable prompt, food, drink, potions, scrolls and wands, class skills
+a player types (`kick fido`, `backstab`) with cooldowns, instanced areas, procedural wilderness,
 the building commands, a searchable help system, and area import and
 export. Three rules systems are included: GURPS, D20 and Merc. Players
 connect by telnet (with GMCP) or WebSocket.

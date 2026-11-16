@@ -351,6 +351,13 @@ class CombatEncounter:
             result = await self.combat_system.attack(obj, target.obj,
                                                      weapon=weapon)
             await self.land(participant, target, result)
+            # Extra swings the ruleset grants (Merc's second and third
+            # attack), at the same target while it is still in the fight.
+            for _ in range(self.combat_system.ruleset.extra_attacks(obj)):
+                if self.get(target.obj.id) is None or not target.combatant.is_alive:
+                    break
+                result = await self.combat_system.attack(obj, target.obj, weapon=weapon)
+                await self.land(participant, target, result)
             return
 
         if key == 'shoot':

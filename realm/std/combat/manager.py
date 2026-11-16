@@ -165,6 +165,42 @@ class CombatManager:
             except Exception:
                 logger.exception("Combat flush error")
 
+    # --- Turning a fight (rescue, disarm) ---
+
+    def attackers_of(self, target: GameObject) -> list[GameObject]:
+        """Who in ``target``'s fight is attacking it."""
+        encounter = self.encounter_of(target)
+        if encounter is None:
+            return []
+        return [p.obj for p in encounter.participants.values()
+                if p.target_id == target.id and p.obj is not target]
+
+    def retarget(self, attacker: GameObject, new_target: GameObject) -> bool:
+        """Turn ``attacker`` on ``new_target`` (a rescue). The new target
+        joins the fight against the attacker if it was not in it. False
+        when the attacker is not fighting here or the target cannot fight."""
+        encounter = self.encounter_of(attacker)
+        if encounter is None or new_target.location is not attacker.location:
+            return False
+        if encounter.get(new_target.id) is None:
+            if not is_combat_capable(new_target):
+                return False
+            encounter.add(new_target, target=attacker)
+        encounter.get(attacker.id).target_id = new_target.id
+        return True
+
+    def disarm(self, target: GameObject) -> GameObject | None:
+        """Knock ``target``'s wielded weapon to the floor; the weapon, or None."""
+        weapon = next((o for o in target.contents if o.has_tag('wielded')), None)
+        if weapon is None or target.location is None:
+            return None
+        weapon.remove_tag('wielded')
+        weapon.location = target.location
+        target.msg(f"{weapon.name} flies from your hand!")
+        target.location.msg_contents(f"{weapon.name} flies from {target.name}'s hand!",
+                                     exclude=[target])
+        return weapon
+
     # --- Hostile-action auto-combat (propagation observer) ---
 
     async def hostile_observer(self, action: Action) -> None:

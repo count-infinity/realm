@@ -233,6 +233,11 @@ THAC0 17 — trades blows with a warrior on the `merc` ruleset):
 - **Wear slots and consumables** → Merc's slots (`equipment` lists them,
   two rings and two necks), and potions, scrolls, wands, staves, food and
   drink that do something when used.
+- **Weapon damage types** → a weapon's ROM attack word (`slash`, `stab`,
+  `pound`, ...) becomes its `damage_type` (`slashing`, `piercing`,
+  `bludgeoning`, ...), so resistances apply and a backstab finds its
+  dagger. Old-format files that wrote the word as flag letters are read
+  back from the letters.
 
 ### Spells — closed
 

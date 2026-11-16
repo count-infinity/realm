@@ -1,7 +1,8 @@
 {
   "name": "merc-classic",
-  "description": "Classic Diku/Merc spellbook: the mage and cleric damage/heal/affect lines plus the five breath weapons. Pairs with the merc game system and ROM-imported areas (spec_cast_* mobs cast these).",
+  "description": "Classic Diku/Merc spellbook and class skills: the mage and cleric damage/heal/affect lines, the five breath weapons, and the warrior and thief skills (kick, bash, backstab, rescue, disarm, trip). Pairs with the merc game system and ROM-imported areas (spec_cast_* mobs cast these).",
   "files": [
-    "spells.json"
+    "spells.json",
+    "skills.json"
   ]
 }

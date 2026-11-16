@@ -47,38 +47,45 @@ MERC_CLASSES: dict[str, dict[str, Any]] = {
         "blurb": "a front-line fighter: best hit die and THAC0, no spells",
         "hit_die": 10, "thac0_rate": 1, "mana_per_level": 0,
         "stats": {"strength": 16, "constitution": 15},
-        "skills": {"melee": 40, "shield_block": 25, "rescue": 20},
-        "starting_weapon": {"name": "a short sword", "damage_dice": "1d6"},
+        "skills": {"melee": 40, "kick": 40, "bash": 30, "rescue": 30, "disarm": 20,
+                   "parry": 30, "shield_block": 25, "dodge": 15, "second_attack": 25},
+        "starting_weapon": {"name": "a short sword", "damage_dice": "1d6",
+                            "damage_type": "slashing"},
     },
     "barbarian": {
         "blurb": "a savage warrior: the biggest hit die, a brutal club, "
                  "no spells",
         "hit_die": 12, "thac0_rate": 1, "mana_per_level": 0,
         "stats": {"strength": 17, "constitution": 16},
-        "skills": {"melee": 40, "dodge": 20, "rescue": 15},
-        "starting_weapon": {"name": "a heavy wooden club", "damage_dice": "1d8"},
+        "skills": {"melee": 40, "kick": 45, "dodge": 20, "parry": 15,
+                   "second_attack": 20},
+        "starting_weapon": {"name": "a heavy wooden club", "damage_dice": "1d8",
+                            "damage_type": "bludgeoning"},
     },
     "thief": {
         "blurb": "a skirmisher: stealth, locks, and a wicked backstab",
         "hit_die": 6, "thac0_rate": 2, "mana_per_level": 0,
         "stats": {"dexterity": 16, "intelligence": 13},
-        "skills": {"stealth": 45, "lockpicking": 40, "backstab": 30,
-                   "melee": 20},
-        "starting_weapon": {"name": "a dagger", "damage_dice": "1d4"},
+        "skills": {"stealth": 45, "lockpicking": 40, "backstab": 30, "trip": 30,
+                   "disarm": 20, "dodge": 30, "melee": 20},
+        "starting_weapon": {"name": "a dagger", "damage_dice": "1d4",
+                            "damage_type": "piercing"},
     },
     "cleric": {
         "blurb": "a divine caster: healing and protective prayers",
         "hit_die": 8, "thac0_rate": 2, "mana_per_level": 8,
         "stats": {"wisdom": 16, "strength": 13},
         "skills": {"heal": 40, "bless": 30, "melee": 15},
-        "starting_weapon": {"name": "a wooden mace", "damage_dice": "1d6"},
+        "starting_weapon": {"name": "a wooden mace", "damage_dice": "1d6",
+                            "damage_type": "bludgeoning"},
     },
     "mage": {
         "blurb": "an arcane caster: fragile, but the deadliest spells",
         "hit_die": 4, "thac0_rate": 3, "mana_per_level": 10,
         "stats": {"intelligence": 16, "dexterity": 13},
         "skills": {"magic_missile": 35, "detect_magic": 40, "stealth": 10},
-        "starting_weapon": {"name": "a gnarled dagger", "damage_dice": "1d4"},
+        "starting_weapon": {"name": "a gnarled dagger", "damage_dice": "1d4",
+                            "damage_type": "piercing"},
     },
 }
 
@@ -188,6 +195,8 @@ class MercSystem(GameSystem):
                           location=player)
         item.db.set("damage_dice", dice)
         item.db.set("damage", dice)
+        if weapon.get("damage_type"):
+            item.db.set("damage_type", str(weapon["damage_type"]))
         item.owner = player
         if persistence is not None:
             await persistence.save(item)

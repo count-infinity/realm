@@ -495,6 +495,14 @@ class TestSlotsAndConsumables:
         assert "drink" in area.obj_protos[209]["tags"]
         assert "charges" not in attrs[209]                   # a fountain never empties
 
+    def test_a_weapon_deals_its_attack_words_damage_type(self):
+        area = _convert(ARE)
+        assert area.obj_protos[3010]["attrs"]["damage_type"] == "slashing"
+        # Old-format files read the word as flag letters; it is recognised.
+        assert rom_import.attack_damage_type(rom_import.rom_flags("stab")) == "piercing"
+        assert rom_import.attack_damage_type("pierce") == "piercing"
+        assert rom_import.attack_damage_type("hug") is None
+
     def test_a_spell_no_pack_defines_is_a_gap(self, protos):
         area, attrs = protos
         assert attrs[210]["spells"] == ["polymorph other"]

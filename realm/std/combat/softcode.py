@@ -65,6 +65,50 @@ def heal(frame, obj: GameObject | str | None, amount: int) -> bool:
     frame.command_queue.append(('save', target, ''))
     return True
 
+def attackers(frame, target: GameObject | str | None) -> list:
+    """Who is attacking ``target`` in its fight (empty out of one).
+
+    Example: attackers(enactor)
+    """
+    tgt = frame.resolve(target)
+    if not frame.in_reach(tgt):
+        return []
+    from realm.core.world import get_world
+    manager = get_world().services.get("combat")
+    return manager.attackers_of(tgt) if manager is not None else []
+
+
+def retarget(frame, attacker: GameObject | str | None,
+             new_target: GameObject | str | None) -> bool:
+    """Turn a fighter on a new target in the same room (a rescue): the new
+    target joins the fight if it was not in it. Queued; it happens after
+    the script.
+
+    Example: retarget(attackers(enactor)[0], me)
+    """
+    atk, tgt = frame.resolve(attacker), frame.resolve(new_target)
+    if atk is None or tgt is None or atk is tgt:
+        return False
+    if not frame.in_reach(atk) or not frame.in_reach(tgt):
+        return False
+    frame.command_queue.append(('retarget', atk, tgt))
+    return True
+
+
+def disarm(frame, target: GameObject | str | None) -> bool:
+    """Knock the target's wielded weapon to the floor. Queued.
+
+    Example: disarm(enactor)
+    """
+    tgt = frame.resolve(target)
+    if not frame.in_reach(tgt):
+        return False
+    if not any(o.has_tag('wielded') for o in tgt.contents):
+        return False
+    frame.command_queue.append(('disarm', tgt, None))
+    return True
+
+
 def start_combat(
     frame,
     attacker: GameObject | str | None,
