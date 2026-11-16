@@ -103,7 +103,9 @@ class TestDefaultEqualsToday:
                               "achievements",
                               # step 7: communication
                               "tell", "reply", "ignore", "unignore", "afk", "channels",
-                              "channel", "socials", "mail"}
+                              "channel", "socials", "mail",
+                              # step 8: the clock
+                              "weather"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
@@ -118,7 +120,9 @@ class TestDefaultEqualsToday:
                      "account_attr", "set_account_attr", "incr_account_attr",
                      "account_characters", "grant_achievement", "has_achievement",
                      # step 7: channels and mail
-                     "cemit", "channel_members", "send_mail"}
+                     "cemit", "channel_members", "send_mail",
+                     # step 8: the clock
+                     "game_time", "time_of_day", "weather"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.

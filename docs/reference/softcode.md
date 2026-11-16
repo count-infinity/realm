@@ -137,6 +137,11 @@ payload: its subject is `target`.
 | `item:on_unlock` | `picked`: True when a lockpick, not a key, opened it | `items` |
 | `pool:on_change` | `pool`: the pool's name; `old`: its value before; `new`: its value after; `applied`: how much this pool took; `source`: who caused it, or None | `kernel` |
 | `pool:on_spent` | `pool`: the pool's name; `old`: its value before; `new`: its value after; `applied`: how much this pool took; `source`: who caused it, or None | `kernel` |
+| `time:on_dawn` | `hour`: the hour of the day | `clock` |
+| `time:on_day` | `hour`: the hour of the day | `clock` |
+| `time:on_dusk` | `hour`: the hour of the day | `clock` |
+| `time:on_hour` | `hour`: the hour of the day | `clock` |
+| `time:on_night` | `hour`: the hour of the day | `clock` |
 
 ```
 @set ogre/ON_PAYMENT = pose pockets [[adata('amount')]] and steps aside.
@@ -213,10 +218,13 @@ veto (a cursed item refusing removal).
 | `ON_CLOSE` | this door/container is closed | `items` |
 | `ON_CONNECT` | player connects | `kernel` |
 | `ON_DAMAGE` | this object takes damage | `combat` |
+| `ON_DAWN` | dawn breaks | `clock` |
+| `ON_DAY` | full day begins | `clock` |
 | `ON_DEATH` | this object goes down: its vital pool is spent, by any cause (a swing, poison, a trap, softcode damage). `adata('fatal')` is True when the body is gone (a corpse, or destroyed), False when it stays (unconscious, or `when_spent` is none) | `combat` |
 | `ON_DISCONNECT` | player disconnects | `kernel` |
 | `ON_DRINK` | this is drunk from (gated) | `items` |
 | `ON_DROP` | this object is dropped | `items` |
+| `ON_DUSK` | dusk falls | `clock` |
 | `ON_EAT` | this food is eaten (gated) | `items` |
 | `ON_ENTER` | something enters this location | `kernel` |
 | `ON_EXPIRE` | this object's db.expires_at elapsed (then it's destroyed) | `kernel` |
@@ -224,10 +232,12 @@ veto (a cursed item refusing removal).
 | `ON_GET` | this object is picked up | `items` |
 | `ON_GIVE` | this object is given away | `items` |
 | `ON_HITPRCNT` | the vital pool (HP) fell through this object's db.hitprcnt threshold, from any source: a swing, poison, a trap, softcode | `combat` |
+| `ON_HOUR` | a game hour begins (zone masters, rooms holding players) | `clock` |
 | `ON_LEAVE` | something leaves this location | `kernel` |
 | `ON_LOAD` | this object was just spawned | `kernel` |
 | `ON_LOCK` | this is locked (gated) | `items` |
 | `ON_LOOK` | this object is looked at | `kernel` |
+| `ON_NIGHT` | night falls | `clock` |
 | `ON_OPEN` | this door/container is opened | `items` |
 | `ON_PAYMENT` | this object was paid | `economy` |
 | `ON_POOL` | one of this object's pools changed (damage, healing, a cost) | `kernel` |
@@ -303,6 +313,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`first`](#fn-first) | Get first element of list or first word of string. | [Text](#text) |
 | [`floor`](#fn-floor) | Round down to integer. | [Math & logic](#math-logic) |
 | [`force`](#fn-force) | Make something the executor controls run a command (queued; executes through the real dispatcher after the script). | [NPCs & behaviors](#npcs-behaviors) |
+| [`game_time`](#fn-game_time) | The game's time and date: `{'hour', 'minute', 'day', 'month', 'year', 'month_name', 'day_name', 'time_of_day'}`. | [Time & scheduling](#time-scheduling) |
 | [`get`](#fn-get) | Get an object by ID, friendly keyid, or name. | [Objects & attributes](#objects-attributes) |
 | [`get_attr`](#fn-get_attr) | Get an attribute from an object. | [Objects & attributes](#objects-attributes) |
 | [`grant_achievement`](#fn-grant_achievement) | Award an achievement (an `achievement_def`) to a character, once: recorded on its account (or on the character, for `scope = character`), announced to the player, its grants applied, and `account:on_achievement` fired. | [Accounts](#accounts) |
@@ -373,12 +384,14 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`task_of`](#fn-task_of) | What a character is busy with: `{"label": ..., "left": seconds}`, or None. | [Time & scheduling](#time-scheduling) |
 | [`teleport_obj`](#fn-teleport_obj) | Move an object the executor controls straight to a destination — the wizard/admin relocation. | [Objects & attributes](#objects-attributes) |
 | [`test_lock`](#fn-test_lock) | Would `caller` (default: the executor) pass this lock? | [Locks & permissions](#locks-permissions) |
+| [`time_of_day`](#fn-time_of_day) | `dawn`, `day`, `dusk` or `night`. | [Time & scheduling](#time-scheduling) |
 | [`transfer_credits`](#fn-transfer_credits) | Move money FROM something the executor controls. | [Money](#money) |
 | [`trim`](#fn-trim) | Remove leading/trailing whitespace. | [Text](#text) |
 | [`ucfirst`](#fn-ucfirst) | Capitalize first character. | [Text](#text) |
 | [`use_ability`](#fn-use_ability) | Use an ability or spell definition (`ability_def` / `spell_def`) as the executor: pay its cost, roll its save, apply its effects — what the `cast` command does for a player. | [Combat & effects](#combat-effects) |
 | [`V`](#fn-v) | Read an attribute off `me` (the executor) — the common case. | [Objects & attributes](#objects-attributes) |
 | [`wait`](#fn-wait) | Run a script command as the executor exactly `seconds` from now (one-shot, its own timer — a 0.15s fuse fires at 0.15s, not quantized to the heartbeat; pending waits don't survive a reboot). | [Time & scheduling](#time-scheduling) |
+| [`weather`](#fn-weather) | The weather in a room's zone (rolled hourly by its zone master), or None. | [Time & scheduling](#time-scheduling) |
 | [`words`](#fn-words) | Count words/elements in text. | [Text](#text) |
 | [`zone_rooms`](#fn-zone_rooms) | Rooms tagged into a zone: zone_rooms('castle'). | [Tags & zones](#tags-zones) |
 | [`zones_of`](#fn-zones_of) | The zone names an object belongs to (no 'zone:' prefix). | [Tags & zones](#tags-zones) |
@@ -2113,6 +2126,21 @@ by calling `expire` again. Requires control of the target.
 expire(create_obj('a wisp of smoke'), 30)
 ```
 
+### `game_time` {#fn-game_time}
+
+```text
+game_time() -> dict[str, Any]
+```
+
+The game's time and date: `{'hour', 'minute', 'day', 'month', 'year',
+'month_name', 'day_name', 'time_of_day'}`.
+
+**Example**
+
+```text
+game_time()['hour']
+```
+
 ### `now` {#fn-now}
 
 ```text
@@ -2176,6 +2204,20 @@ None.
 task_of(enactor)
 ```
 
+### `time_of_day` {#fn-time_of_day}
+
+```text
+time_of_day() -> str
+```
+
+`dawn`, `day`, `dusk` or `night`.
+
+**Example**
+
+```text
+if time_of_day() == 'night': pemit(enactor, 'The owls are out.')
+```
+
 ### `wait` {#fn-wait}
 
 ```text
@@ -2194,6 +2236,21 @@ it fires — a defuse, an abort.
 t = wait(30, 'detonate')
 ... set_attr(me, 'fuse', t) ...          # stash the handle
 ... if defused: cancel_wait(get_attr(me, 'fuse'))
+```
+
+### `weather` {#fn-weather}
+
+```text
+weather(room: GameObject | str | None = None) -> str | None
+```
+
+The weather in a room's zone (rolled hourly by its zone master), or
+None.
+
+**Example**
+
+```text
+weather(here)
 ```
 
 

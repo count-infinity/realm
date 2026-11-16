@@ -20,7 +20,7 @@ on its own and leaves the suite green.
 | 5 | Progression: use, practice, idle training, timed actions | L | [x] |
 | 6 | Accounts: one login, many characters, account data, achievements, bans | L | [x] |
 | 7 | Communication: tells, channels, socials, mail | M | [x] |
-| 8 | The world clock: game time, day and night, weather | S–M | [ ] |
+| 8 | The world clock: game time, day and night, weather | S–M | [x] |
 | 9 | Operating a live game: sessions, throttling, shutdown, backup, migrate | M | [ ] |
 | 10 | Comfort: pager, editor, aliases | M | [ ] |
 | 11 | Merc parity: the remaining Diku pieces | M | [ ] |
@@ -1050,40 +1050,40 @@ Today `time` prints the server's wall clock.
 
 Create `realm/std/clock/`.
 
-- [ ] Game time derives from elapsed real time since an epoch stored on a
+- [x] Game time derives from elapsed real time since an epoch stored on a
       singleton object tagged `world_clock`, at `GAME_TIME_RATIO` game
       seconds per real second (a setting, default 30, so a game day lasts
       48 real minutes). A calendar from settings: `HOURS_PER_DAY`,
       `DAYS_PER_MONTH`, `MONTH_NAMES`, `DAY_NAMES`. The clock keeps running
       across restarts because it is derived, not counted.
-- [ ] Softcode, read-only: `game_time()` returns hour, day, month, year,
+- [x] Softcode, read-only: `game_time()` returns hour, day, month, year,
       and `time_of_day()` returns one of dawn, day, dusk, night.
-- [ ] A `feature.reaper` notices when the hour changes and fires
+- [x] A `feature.reaper` notices when the hour changes and fires
       `time:on_hour` (hook `HOUR`, payload `hour`) and, at the four
       boundaries, `time:on_dawn`, `on_day`, `on_dusk`, `on_night`, on each
       zone master and each room holding a player, so softcode can light
       lamps and open shops without a ticker per object.
-- [ ] Day and night: a room tagged `outdoors` is dark at night. Implement
+- [x] Day and night: a room tagged `outdoors` is dark at night. Implement
       it as a `feature.sight_rule` plus the room-lit answer, asking the
       `sight` service; without `sight`, night changes nothing.
       **If** `sight.room_is_lit` cannot be extended from another feature,
       add a list of extra darkness tests to the `sight` service that
       `clock` appends to, rather than importing `sight` from `clock`.
-- [ ] Weather per zone: a zone master with a `weather` attribute (a list
+- [x] Weather per zone: a zone master with a `weather` attribute (a list
       of states with weights, or a softcode expression) gets a current
       state rolled each game hour, stored on the master, announced to
       outdoor rooms in the zone when it changes, and readable with
       `weather(here)`. No effect on rules; builders hook it.
-- [ ] Commands `time` (game time first, server time after) and `weather`.
+- [x] Commands `time` (game time first, server time after) and `weather`.
       The ROM importer tags non-`inside` sectors `outdoors`.
-- [ ] Tests with an injected clock: the calendar, the hour event firing
+- [x] Tests with an injected clock: the calendar, the hour event firing
       once per hour, an outdoor room dark at night and lit by a torch, a
       weather change announced outdoors and not indoors.
 
 ### Docs
 
-- [ ] New guide `docs/guides/time-and-weather.md`. Add to `mkdocs.yml`.
-- [ ] `docs/design/time-and-beats.md`: the third clock.
+- [x] New guide `docs/guides/time-and-weather.md`. Add to `mkdocs.yml`.
+- [x] `docs/design/time-and-beats.md`: the third clock.
 
 ---
 
@@ -2038,3 +2038,9 @@ the step, what was decided and why.
 | 2026-11-15 | 7.2 | The scaffold's `config.py` gains a live `init_world` that imports the `channels` and `socials-classic` packs (before, it was a comment); Midgaard and the space station import them too. | The plan's "imported by the scaffold's init_world". |
 | 2026-11-15 | 7.3 | A social's five lines are the attributes `actor`, `room`, `actor_at`, `target`, `room_at`. A social is an `event:social` action with the `SOCIAL` hook. The pack has 48 socials. | `self` (the first choice) collides with Python's `self` in keyword APIs such as `Simulator.obj`. |
 | 2026-11-15 | 7.4 | A message's location is the recipient's account (accounts have no location, so mail is in no room). Showcase 75's softcode mail now runs without the `mail` feature, whose `mail` command would answer first. | The plan's "held by the recipient's account". |
+| 2026-11-15 | 8 | Night darkness uses the existing `outdoor` tag (the ROM importer already writes it for every non-interior room), not a new `outdoors`; city rooms are also tagged `lamplit`, which keeps them lit, as ROM's `room_is_dark` does for city and inside sectors. | Two near-identical tags would be a trap; the city rule is ROM's. |
+| 2026-11-15 | 8 | `room_is_lit` could not be extended from outside, so the `sight` service gains `add_darkness_test(fn)` (the plan's fallback); `clock` adds its test at install and removes it when the world closes. | The plan's own instruction. |
+| 2026-11-15 | 8 | A new world's clock starts at 08:00 on day 1 (the epoch is set back by eight game hours), and is made at boot or on first read. Dawn is the hour a quarter into the day, dusk the hour 19/24 in; `on_day` and `on_night` fire the hour after dawn and dusk. | Starting at midnight would make every outdoor room dark the moment a world is made. |
+| 2026-11-15 | 8 | The hour's hooks run directly on each target (zone masters and rooms holding players), after one action with an empty chain for observers; propagating to each room would also fire every zone master once per room. | "Once per hour". |
+| 2026-11-15 | 8 | `MemoryStore` gains `register(obj)`, matching `PersistenceManager.register`, so sync code (the clock made on first read) can add an object to either store. | The two stores had no common sync add. |
+| 2026-11-15 | 8 | A weather rule binds `hour` and `current`; `time_of_day()` is the read-only function, not a bound value. | Binding a value under the function's name hid the function (found testing the guide's example). |

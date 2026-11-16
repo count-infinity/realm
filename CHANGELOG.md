@@ -4,6 +4,27 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### The world clock (step 8)
+
+- New feature `clock` (in `CLASSIC`): game time derived from an epoch on a
+  `world_clock` object at `GAME_TIME_RATIO` (30); calendar settings
+  `HOURS_PER_DAY`, `DAYS_PER_MONTH`, `MONTH_NAMES`, `DAY_NAMES`; a new
+  world starts at 08:00. Softcode `game_time()`, `time_of_day()`,
+  `weather(room)`; `time` shows game time first (it replaces the `basics`
+  command); `weather`.
+- Events `time:on_hour` (`HOUR`), `on_dawn`, `on_day`, `on_dusk`,
+  `on_night`, fired once per game hour on zone masters and rooms holding
+  players.
+- Night: `outdoor` rooms are dark at night unless `lamplit` or lit by a
+  light source. The `sight` service gains `add_darkness_test`.
+- Weather per zone master (`weather`, `weather_messages`, `weather_now`).
+- The ROM importer tags city rooms `lamplit`; Midgaard refreshed.
+- `MemoryStore.register(obj)`, the same sync call as
+  `PersistenceManager.register`.
+- Saved worlds: the clock starts at the first boot after upgrading.
+  Imported areas' `outdoor` rooms now go dark at night; tag a room
+  `lamplit` to keep it lit.
+
 ### Communication (step 7)
 
 - New feature `channels` (in `CLASSIC`): `tell` (`t`), `reply` (`r`),

@@ -49,12 +49,13 @@ everything available. The built-in features:
 | `accounts` | accounts with several characters: the welcome screen (`connect`, `create`, `who`, `quit`), the character menu (`play`, `new`, `delete`, `password`), `characters`, `password`, `@account`, `@sitelock`; character creation from the game system's chargen steps; softcode `account_attr`, `set_account_attr`, `incr_account_attr`, `account_characters`; settings `MAX_CHARACTERS`, `ACCOUNT_MULTIPLAY` ([Accounts](accounts.md)) | |
 | `mail` | mail to characters, kept on their accounts; `mail`; setting `MAIL_LIMIT`; softcode `send_mail` | accounts |
 | `achievements` | `achievement_def` data, `achievements`; softcode `grant_achievement`, `has_achievement`; the `ACHIEVEMENT` hook | accounts |
-| `basics` | help, commands, who, quit, logout, color, think, time, uptime, recall, prompt; the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)) | |
+| `basics` | help, commands, who, quit, logout, color, think, uptime, recall, prompt (and `time`, the server clock, when there is no `clock`); the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)) | |
 | `talk` | say, pose, semipose, emit, ooc, shout, whisper; socials as data (`social_def`), `socials`, the `SOCIAL` hook ([Communication](communication.md)) | |
 | `channels` | tell, reply, ignore, unignore, afk; channels as data (`channel_def`), `channels`, `channel`; the `TELL` and `CHANNEL` hooks; softcode `cemit`, `channel_members` | |
 | `movement` | go and the directions, in, out | |
 | `look` | look, examine | |
-| `sight` | darkness and light (`dark`, `light`, `nightvision`), invisibility (`invisible`, `see_invisible`), the `glowing`, `magic` and `invisible` markers | |
+| `clock` | game time and calendar (`time`, softcode `game_time`, `time_of_day`), the `HOUR`, `DAWN`, `DAY`, `DUSK` and `NIGHT` hooks, `outdoor` rooms dark at night, weather per zone (`weather`, softcode `weather`); settings `GAME_TIME_RATIO`, `HOURS_PER_DAY`, `DAYS_PER_MONTH`, `MONTH_NAMES`, `DAY_NAMES` ([Time and Weather](time-and-weather.md)) | |
+| `sight` | darkness and light (`dark`, `light`, `nightvision`; another feature's darkness tests, `add_darkness_test`), invisibility (`invisible`, `see_invisible`), the `glowing`, `magic` and `invisible` markers | |
 | `items` | get, drop, give, put, inventory, equipment, open, close, lock, unlock, use, wear, remove, wield, unwield, eat, drink | |
 | `building` | every `@` command, quell, unquell | look |
 | `rules` | points, skills, improve, practice, train, study; the `trainer` behavior; progression ([Progression](progression.md)); setting `IDLE_TRAINING_MAX_HOURS`; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |

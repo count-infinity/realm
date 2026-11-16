@@ -192,7 +192,8 @@ with a corpse and a return home, wear slots and an `equipment` list, a
 configurable prompt, food, drink, potions, scrolls and wands, class skills
 a player types (`kick fido`, `backstab`) with cooldowns, accounts that
 hold several characters and share achievements and data across them, bans
-and sitelocks, tells, channels, socials and mail, skills that
+and sitelocks, tells, channels, socials and mail, a game clock and calendar
+with night and weather, skills that
 improve by points, practice at a trainer, use, or study over real time
 (chosen skill by skill), timed crafting and gathering, instanced areas, procedural wilderness,
 the building commands, a searchable help system, and area import and

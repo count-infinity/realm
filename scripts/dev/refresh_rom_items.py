@@ -1,6 +1,7 @@
 """
 Re-derive the fields the ROM importer writes for objects (wear slot, a
-weapon's damage type, consumables) and mobs (the trainer behavior)
+weapon's damage type, consumables), mobs (the trainer behavior) and rooms
+(``lamplit`` city streets)
 on an already-converted area file, from the ``item_type``, ``rom_wear``
 and ``rom_values`` each object keeps.
 
@@ -22,6 +23,7 @@ from realm.tools.rom_import import (
     gap_lines,
     item_fields,
     rom_flags,
+    room_light_tags,
     trainer_behavior,
     wear_slot,
 )
@@ -33,6 +35,13 @@ def refresh(data: dict) -> tuple[int, Area]:
     changed = 0
     for obj in data["objects"]:
         attrs = obj.get("attrs") or {}
+        tags = obj.get("tags", [])
+        if "room" in tags and attrs.get("sector"):
+            for tag in room_light_tags(str(attrs["sector"])):
+                if tag not in tags:
+                    tags.append(tag)
+                    changed += 1
+            continue
         if "npc" in obj.get("tags", []) and "rom_act" in attrs:
             trainer = trainer_behavior(attrs["rom_act"])
             behaviors = obj.setdefault("behaviors", [])

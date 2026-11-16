@@ -65,6 +65,11 @@ A feature can declare its own keys. These exist only when the feature is in
 | `REST_REGEN` | `vitals` | `2` | Regeneration multiplier while resting. |
 | `SLEEP_REGEN` | `vitals` | `4` | Regeneration multiplier while asleep. |
 | `MAIL_LIMIT` | `mail` | `100` | How many messages one account's mailbox holds. |
+| `GAME_TIME_RATIO` | `clock` | `30` | Game seconds per real second (30: a game day is 48 real minutes). |
+| `HOURS_PER_DAY` | `clock` | `24` | Hours in a game day. |
+| `DAYS_PER_MONTH` | `clock` | `30` | Days in a game month. |
+| `MONTH_NAMES` | `clock` | `['Deepwinter', 'Thaw', 'Seedtime', 'Rains', 'Blossom', 'Highsun', 'Midsummer', 'Harvest', 'Leaffall', 'Frost', 'Darkening', 'Longnight']` | The months of the game year, in order. |
+| `DAY_NAMES` | `clock` | `['Moonday', 'Tiwday', 'Wodensday', 'Thunderday', 'Freyday', 'Starday', 'Sunday']` | The days of the game week, in order. |
 
 ## Callbacks
 

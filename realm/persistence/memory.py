@@ -58,6 +58,11 @@ class MemoryStore:
         self._enter(obj)
         self._keyids.index(obj)
 
+    def register(self, obj: GameObject) -> None:
+        """Put a new object in the store from sync code: the same name as
+        ``PersistenceManager.register``, so either store takes it."""
+        self.add(obj)
+
     def unregister(self, obj: GameObject) -> None:
         self._keyids.release(obj)
         self._leave(obj)

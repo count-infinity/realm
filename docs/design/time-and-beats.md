@@ -295,3 +295,23 @@ tests stay deterministic while production uses real timers.
 **Tests.** `tests/test_beats.py` (deliver/multiplier/bullet-time/double-tick
 guard/heartbeat default); real-timer + cancel coverage in
 `tests/test_softcode_builders.py::TestWaits`; effect tests drive `on_beat`.
+
+## The third clock: game time (MUD_PLAN step 8, 2026-11-15)
+
+The two clocks above measure real time (seconds) and fight time (beats).
+The `clock` feature adds a third that measures neither: **game time**, the
+hour and date of the world ([Time and Weather](../guides/time-and-weather.md)).
+
+- It is **derived, not counted**: game seconds are (real now - an epoch)
+  x `GAME_TIME_RATIO`, the epoch stored once on a `world_clock` object. No
+  timer advances it, so it is right after a restart or a long downtime,
+  and it costs nothing between reads.
+- Its **events ride the reap cadence**, not the heartbeat: every
+  `REAP_INTERVAL` the clock fires the hours begun since the last fired
+  hour (kept on the clock object), so an hour fires once, in order, even
+  across a reboot. At the default ratio a game hour is two real minutes,
+  far coarser than the five-second sweep.
+- It **touches no beat source**: poison and regeneration still run on
+  beats and seconds. Night is a darkness test the `sight` feature asks;
+  weather is state on a zone master.
+

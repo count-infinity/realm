@@ -547,6 +547,13 @@ def _mobiles(r: Reader, area: Area) -> None:
         area.mob_protos[vnum] = proto
 
 
+def room_light_tags(sector_name: str) -> list[str]:
+    """ROM's ``room_is_dark``: city streets stay lit at night (street
+    lamps), so a city room is ``lamplit``; the clock darkens any other
+    outdoor room at night."""
+    return ["lamplit"] if sector_name == "city" else []
+
+
 def trainer_behavior(act_letters: list[str]) -> dict | None:
     """ROM's ``ACT_PRACTICE`` (K: a guildmaster, teaches the class's
     skills) and ``ACT_TRAIN`` (J: trains characteristics) as the
@@ -773,10 +780,11 @@ def _rooms(r: Reader, area: Area) -> None:
         # Zone membership: bounds STAY_AREA wanderers and lets a zone_reset
         # find its rooms. One zone per imported area, named for it.
         room["tags"].append(f"zone:{area_zone(area)}")
-        # A plain `outdoor` tag (anything not an interior) for orchestrators
-        # that populate, say, "all outdoor rooms".
+        # A plain `outdoor` tag (anything not an interior): orchestrators
+        # populate "all outdoor rooms", and the clock darkens them at night.
         if sector_name != "inside":
             room["tags"].append("outdoor")
+        room["tags"].extend(t for t in room_light_tags(sector_name) if t not in room["tags"])
         # sub-records until 'S'
         while True:
             sub = r.word()

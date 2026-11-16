@@ -80,6 +80,10 @@ TO_DICT |= {'cemit', 'channel_members', 'send_mail'}
 READONLY |= {'channel_members'}
 HARM |= {'cemit', 'send_mail'}
 
+# The clock (MUD_PLAN 8).
+TO_DICT |= {'game_time', 'time_of_day', 'weather'}
+READONLY |= {'game_time', 'time_of_day', 'weather'}
+
 # Timed tasks (MUD_PLAN 5.5).
 TO_DICT |= {'start_task', 'task_of', 'stop_task'}
 READONLY |= {'task_of'}

@@ -37,6 +37,7 @@ FEATURE_ALL = {
     "basics": [],
     "building": [],
     "channels": [],
+    "clock": [],
     "combat": ["AttackResult", "CombatAction", "CombatView", "Combatant",
                "DamageResult", "DamageType", "RollResult", "Ruleset", "deal_damage"],
     "crime": [],

@@ -503,6 +503,13 @@ class TestSlotsAndConsumables:
         assert rom_import.attack_damage_type("pierce") == "piercing"
         assert rom_import.attack_damage_type("hug") is None
 
+    def test_city_streets_are_lamplit(self):
+        assert rom_import.room_light_tags("city") == ["lamplit"]
+        assert rom_import.room_light_tags("forest") == []
+        area = _convert(ARE)
+        square = next(o for o in area.objects if o.get("name") == "The Temple Square")
+        assert "outdoor" in square["tags"]
+
     def test_guildmasters_become_trainers(self):
         assert rom_import.trainer_behavior(["A", "B", "J", "K", "T"]) == {
             "behavior_id": "trainer", "params": {"teaches": "class", "trains_stats": True}}

@@ -45,10 +45,12 @@ def restore_default():
 
 def test_classic_hooks_equal_the_old_table():
     # Step 8 added the kernel's pool hooks after the freeze; MUD_PLAN step 3
-    # the items feature's EAT and DRINK; step 6 achievements' ACHIEVEMENT; step 7 TELL, CHANNEL and SOCIAL.
+    # the items feature's EAT and DRINK; step 6 achievements' ACHIEVEMENT; step 7 TELL, CHANNEL and SOCIAL;
+    # step 8 the clock's HOUR, DAWN, DAY, DUSK and NIGHT.
     assert set(installed().hooks()) == STANDARD_HOOKS | {'POOL', 'SPENT', 'EAT', 'DRINK',
                                                          'ACHIEVEMENT', 'TELL', 'CHANNEL',
-                                                         'SOCIAL'}
+                                                         'SOCIAL', 'HOUR', 'DAWN', 'DAY',
+                                                         'DUSK', 'NIGHT'}
 
 
 def test_lock_rows_equal_the_old_tables():
