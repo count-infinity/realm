@@ -4,6 +4,29 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### Communication (step 7)
+
+- New feature `channels` (in `CLASSIC`): `tell` (`t`), `reply` (`r`),
+  `ignore`, `unignore`, `afk`; channels as `channel_def` data with `speak`
+  and `listen` locks, a `format` and history; `channels`, `channel <name>
+  on|off|history`; a channel's name is a command; events `comm:on_tell`
+  (`TELL`) and `comm:on_channel` (`CHANNEL`); softcode `cemit`,
+  `channel_members`. The `channels` pack ships gossip, newbie and immtalk.
+- `talk` gains socials: `social_def` data, `socials`, the `event:social`
+  action (`SOCIAL`); the `socials-classic` pack ships 48.
+- New feature `mail` (in `CLASSIC`, needs `accounts`): `mail` and its
+  switches, unread count at login, `MAIL_LIMIT`, softcode `send_mail`.
+- The scaffold's `config.py` now has a live `init_world` importing the
+  `channels` and `socials-classic` packs; Midgaard and the space station
+  import them too.
+- `SessionManager.adopt(session)`; the Simulator keeps a real session
+  manager, so who is online reads the same in tests as on a server.
+- Showcase 75 (mail in softcode) now runs without the `mail` feature, and
+  its page says the engine does this.
+- Saved worlds: a game made before 0.3.0 has no channels or socials until
+  it imports the packs (`@pack import channels`,
+  `@pack import socials-classic`).
+
 ### Accounts (step 6)
 
 - **Login changes.** A person logs in to an account: `create <account>

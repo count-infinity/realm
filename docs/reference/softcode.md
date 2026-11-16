@@ -114,6 +114,8 @@ payload: its subject is `target`.
 | `combat:on_attack` | `weapon`: the weapon used; `attacker_hp`: the attacker's HP; `defender_hp`: the defender's HP | `combat` |
 | `combat:on_damage` | `damage`: the amount (a ward may lower it); `damage_types`: amount per damage type | `combat` |
 | `combat:on_death` | `killer`: the killer's name (the killer object is actor); `fatal`: True when the body is gone | `combat` |
+| `comm:on_channel` | `channel`: the channel's name; `message`: what was said | `channels` |
+| `comm:on_tell` | `message`: what was said | `channels` |
 | `event:connect` | `returning`: True when the character already existed | `kernel` |
 | `event:emit` | `message`: the emitted text | `talk` |
 | `event:emote` | `pose`: the pose text | `talk` |
@@ -127,6 +129,7 @@ payload: its subject is `target`.
 | `event:payment` | `amount`: the sum paid | `economy` |
 | `event:semipose` | `pose`: the pose text | `talk` |
 | `event:shout` | `message`: what was said | `talk` |
+| `event:social` | `social`: the social's name | `talk` |
 | `event:speech` | `message`: what was said | `talk` |
 | `event:whisper` | `message`: what was said | `talk` |
 | `item:on_give` | `item`: what was given (also the action's tool); target is the recipient | `items` |
@@ -206,6 +209,7 @@ veto (a cursed item refusing removal).
 | `ON_ARRIVE` | this object arrives somewhere new | `kernel` |
 | `ON_ATTACK` | this object attacks or is attacked | `combat` |
 | `ON_CAST` | an ability is directed at this object (resist via on_check) | `abilities` |
+| `ON_CHANNEL` | a line is spoken on this channel (the channel_def is the target) | `channels` |
 | `ON_CLOSE` | this door/container is closed | `items` |
 | `ON_CONNECT` | player connects | `kernel` |
 | `ON_DAMAGE` | this object takes damage | `combat` |
@@ -232,7 +236,9 @@ veto (a cursed item refusing removal).
 | `ON_RECEIVE` | this object is given something (recipient side) | `kernel` |
 | `ON_REMOVE` | this object is taken off (gated: cursed gear can refuse) | `items` |
 | `ON_RESET` | this zone master resets (empty + due) — repop, re-lock doors | `kernel` |
+| `ON_SOCIAL` | a social (smile, bow) is used | `talk` |
 | `ON_SPENT` | one of this object's pools was just used up (the change that crossed into spent) | `kernel` |
+| `ON_TELL` | this player is told something | `channels` |
 | `ON_TICK` | periodic timer (on_tick behavior) | `kernel` |
 | `ON_UNLOCK` | this is unlocked (gated: a sealed door can refuse) | `items` |
 | `ON_UNWIELD` | this weapon is lowered (gated) | `items` |
@@ -267,6 +273,8 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`capstr`](#fn-capstr) | Capitalize each word. | [Text](#text) |
 | [`cast`](#fn-cast) | Direct an ability at a target — the ability analog of `act`. | [Combat & effects](#combat-effects) |
 | [`ceil`](#fn-ceil) | Round up to integer. | [Math & logic](#math-logic) |
+| [`cemit`](#fn-cemit) | Announce a line on a channel, as is (no speaker name): a herald, a server notice. | [Messaging & prompts](#messaging-prompts) |
+| [`channel_members`](#fn-channel_members) | The names of the online players who hear a channel now. | [Messaging & prompts](#messaging-prompts) |
 | [`check`](#fn-check) | Roll a skill check AS the subject; True on success. | [Dice & skill checks](#dice-skill-checks) |
 | [`check_roll`](#fn-check_roll) | Roll a skill check and return the GRADED, condition-modified result. | [Dice & skill checks](#dice-skill-checks) |
 | [`clamp`](#fn-clamp) | Clamp value between low and high. | [Math & logic](#math-logic) |
@@ -341,6 +349,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`right`](#fn-right) | Get rightmost N characters. | [Text](#text) |
 | [`roll`](#fn-roll) | Roll a dice expression to a total. | [Dice & skill checks](#dice-skill-checks) |
 | [`search_world`](#fn-search_world) | Query the world: search_world(tag='zone:castle'), search_world(attr='xp_multiplier'), combinable. | [Objects & attributes](#objects-attributes) |
+| [`send_mail`](#fn-send_mail) | Send mail to a character, from this object (system mail: a guild's dues notice, a quest's reward slip). | [Messaging & prompts](#messaging-prompts) |
 | [`set_account_attr`](#fn-set_account_attr) | Set an attribute on the character's account, for every character of that person to read. | [Accounts](#accounts) |
 | [`set_attr`](#fn-set_attr) | Set an attribute on an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`set_desc`](#fn-set_desc) | Set the description `look` shows on an object the executor controls (like `@desc`; an empty string clears it). | [Objects & attributes](#objects-attributes) |
@@ -1139,6 +1148,35 @@ background, u = underline, i = inverse video. Returns
 ansi('rh', 'DANGER')
 ```
 
+### `cemit` {#fn-cemit}
+
+```text
+cemit(channel: str, text: str) -> bool
+```
+
+Announce a line on a channel, as is (no speaker name): a herald, a
+server notice. False for no such channel. Queued.
+
+**Example**
+
+```text
+cemit('gossip', 'The fair opens at dawn.')
+```
+
+### `channel_members` {#fn-channel_members}
+
+```text
+channel_members(channel: str) -> list[str]
+```
+
+The names of the online players who hear a channel now.
+
+**Example**
+
+```text
+channel_members('gossip')
+```
+
 ### `escape` {#fn-escape}
 
 ```text
@@ -1227,6 +1265,22 @@ Emit a message to everyone in a room (delivered after the script).
 
 ```text
 remit(here, 'The ground trembles.')
+```
+
+### `send_mail` {#fn-send_mail}
+
+```text
+send_mail(to: str, subject: str, body: str) -> bool
+```
+
+Send mail to a character, from this object (system mail: a guild's
+dues notice, a quest's reward slip). False when the character has no
+account or a full mailbox. Queued.
+
+**Example**
+
+```text
+send_mail('Gus', 'Dues', 'Your guild dues are late.')
 ```
 
 

@@ -81,6 +81,9 @@ async def init_world(server):
     # Classes, skills, and gear come from the content pack — one source of
     # truth, importable into any REALM game.
     pack = await import_pack("gurps-scifi", server.persistence)
+    # Talk beyond the room: gossip, newbie, immtalk; and the common socials.
+    await import_pack("channels", server.persistence)
+    await import_pack("socials-classic", server.persistence)
 
     # Ship prototypes, one per template (their health is pools).
     await create_ship_prototypes(server.persistence)

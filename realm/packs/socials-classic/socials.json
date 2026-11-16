@@ -1,0 +1,939 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "social_smile",
+   "name": "smile",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You smile happily.",
+    "room": "{actor} smiles happily.",
+    "actor_at": "You smile at {target:the}.",
+    "target": "{actor} smiles at you.",
+    "room_at": "{actor} smiles at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_grin",
+   "name": "grin",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You grin evilly.",
+    "room": "{actor} grins evilly.",
+    "actor_at": "You grin at {target:the}.",
+    "target": "{actor} grins at you.",
+    "room_at": "{actor} grins at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_nod",
+   "name": "nod",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You nod.",
+    "room": "{actor} nods.",
+    "actor_at": "You nod at {target:the}.",
+    "target": "{actor} nods at you.",
+    "room_at": "{actor} nods at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_bow",
+   "name": "bow",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You bow deeply.",
+    "room": "{actor} bows deeply.",
+    "actor_at": "You bow before {target:the}.",
+    "target": "{actor} bows before you.",
+    "room_at": "{actor} bows before {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_laugh",
+   "name": "laugh",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You fall down laughing.",
+    "room": "{actor} falls down laughing.",
+    "actor_at": "You laugh at {target:the}.",
+    "target": "{actor} laughs at you. How rude!",
+    "room_at": "{actor} laughs at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_wave",
+   "name": "wave",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You wave happily.",
+    "room": "{actor} waves happily.",
+    "actor_at": "You wave to {target:the}.",
+    "target": "{actor} waves to you.",
+    "room_at": "{actor} waves to {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_shrug",
+   "name": "shrug",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You shrug.",
+    "room": "{actor} shrugs helplessly.",
+    "actor_at": "You shrug at {target:the}.",
+    "target": "{actor} shrugs at you.",
+    "room_at": "{actor} shrugs at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_wink",
+   "name": "wink",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You wink suggestively.",
+    "room": "{actor} winks suggestively.",
+    "actor_at": "You wink at {target:the}.",
+    "target": "{actor} winks at you.",
+    "room_at": "{actor} winks at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_hug",
+   "name": "hug",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Hug whom?",
+    "actor_at": "You hug {target:the}.",
+    "target": "{actor} hugs you.",
+    "room_at": "{actor} hugs {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_cry",
+   "name": "cry",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You burst into tears.",
+    "room": "{actor} bursts into tears.",
+    "actor_at": "You cry on {target:the}'s shoulder.",
+    "target": "{actor} cries on your shoulder.",
+    "room_at": "{actor} cries on {target:the}'s shoulder."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_sigh",
+   "name": "sigh",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You sigh.",
+    "room": "{actor} sighs loudly.",
+    "actor_at": "You sigh at {target:the}.",
+    "target": "{actor} sighs at you.",
+    "room_at": "{actor} sighs at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_cheer",
+   "name": "cheer",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You cheer enthusiastically.",
+    "room": "{actor} cheers enthusiastically.",
+    "actor_at": "You cheer {target:the} on.",
+    "target": "{actor} cheers you on.",
+    "room_at": "{actor} cheers {target:the} on."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_clap",
+   "name": "clap",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You clap your hands together.",
+    "room": "{actor} shows some appreciation and claps.",
+    "actor_at": "You clap at {target:the}'s performance.",
+    "target": "{actor} claps at your performance.",
+    "room_at": "{actor} claps at {target:the}'s performance."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_applaud",
+   "name": "applaud",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Clap, clap, clap.",
+    "room": "{actor} gives a round of applause.",
+    "actor_at": "You applaud {target:the}.",
+    "target": "{actor} applauds you.",
+    "room_at": "{actor} applauds {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_thank",
+   "name": "thank",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You thank everyone.",
+    "room": "{actor} thanks everyone.",
+    "actor_at": "You thank {target:the} heartily.",
+    "target": "{actor} thanks you heartily.",
+    "room_at": "{actor} thanks {target:the} heartily."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_poke",
+   "name": "poke",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Poke whom?",
+    "actor_at": "You poke {target:the} in the ribs.",
+    "target": "{actor} pokes you in the ribs.",
+    "room_at": "{actor} pokes {target:the} in the ribs."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_blush",
+   "name": "blush",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Your cheeks are burning.",
+    "room": "{actor} blushes.",
+    "actor_at": "You blush at {target:the}.",
+    "target": "{actor} blushes at you.",
+    "room_at": "{actor} blushes at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_bounce",
+   "name": "bounce",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "BOIINNNNNNGG!",
+    "room": "{actor} bounces around.",
+    "actor_at": "You bounce onto {target:the}'s lap.",
+    "target": "{actor} bounces onto your lap.",
+    "room_at": "{actor} bounces onto {target:the}'s lap."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_cackle",
+   "name": "cackle",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You throw back your head and cackle with insane glee!",
+    "room": "{actor} throws back their head and cackles with insane glee!",
+    "actor_at": "You cackle at {target:the}.",
+    "target": "{actor} cackles at you.",
+    "room_at": "{actor} cackles at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_comfort",
+   "name": "comfort",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Comfort whom?",
+    "actor_at": "You comfort {target:the}.",
+    "target": "{actor} comforts you.",
+    "room_at": "{actor} comforts {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_cringe",
+   "name": "cringe",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You cringe in terror.",
+    "room": "{actor} cringes in terror!",
+    "actor_at": "You cringe away from {target:the}.",
+    "target": "{actor} cringes away from you.",
+    "room_at": "{actor} cringes away from {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_curtsey",
+   "name": "curtsey",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You curtsey to your audience.",
+    "room": "{actor} curtseys gracefully.",
+    "actor_at": "You curtsey to {target:the}.",
+    "target": "{actor} curtseys to you.",
+    "room_at": "{actor} curtseys to {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_dance",
+   "name": "dance",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Feels silly, doesn't it?",
+    "room": "{actor} dances a little jig.",
+    "actor_at": "You sweep {target:the} into a dance.",
+    "target": "{actor} sweeps you into a dance.",
+    "room_at": "{actor} sweeps {target:the} into a dance."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_frown",
+   "name": "frown",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "What's bothering you?",
+    "room": "{actor} frowns.",
+    "actor_at": "You frown at {target:the}.",
+    "target": "{actor} frowns at you.",
+    "room_at": "{actor} frowns at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_giggle",
+   "name": "giggle",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You giggle.",
+    "room": "{actor} giggles.",
+    "actor_at": "You giggle at {target:the}.",
+    "target": "{actor} giggles at you.",
+    "room_at": "{actor} giggles at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_glare",
+   "name": "glare",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You glare at nothing in particular.",
+    "room": "{actor} glares around.",
+    "actor_at": "You glare icily at {target:the}.",
+    "target": "{actor} glares icily at you.",
+    "room_at": "{actor} glares at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_growl",
+   "name": "growl",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Grrrrrrrrrr ...",
+    "room": "{actor} growls.",
+    "actor_at": "You growl at {target:the}.",
+    "target": "{actor} growls at you.",
+    "room_at": "{actor} growls at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_hiccup",
+   "name": "hiccup",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "*HIC*",
+    "room": "{actor} hiccups."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_kiss",
+   "name": "kiss",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Kiss whom?",
+    "actor_at": "You kiss {target:the}.",
+    "target": "{actor} kisses you.",
+    "room_at": "{actor} kisses {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_pat",
+   "name": "pat",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Pat whom?",
+    "actor_at": "You pat {target:the} on the head.",
+    "target": "{actor} pats you on the head.",
+    "room_at": "{actor} pats {target:the} on the head."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_point",
+   "name": "point",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Point at whom?",
+    "actor_at": "You point at {target:the}.",
+    "target": "{actor} points at you.",
+    "room_at": "{actor} points at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_ponder",
+   "name": "ponder",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You ponder the question.",
+    "room": "{actor} sits down and thinks deeply."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_pout",
+   "name": "pout",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Ah, don't take it so hard.",
+    "room": "{actor} pouts.",
+    "actor_at": "You pout at {target:the}.",
+    "target": "{actor} pouts at you.",
+    "room_at": "{actor} pouts at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_salute",
+   "name": "salute",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You salute smartly.",
+    "room": "{actor} salutes smartly.",
+    "actor_at": "You salute {target:the}.",
+    "target": "{actor} salutes you.",
+    "room_at": "{actor} salutes {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_scream",
+   "name": "scream",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "ARRRRRRRRRRGH!!!!!",
+    "room": "{actor} screams loudly!",
+    "actor_at": "You scream at {target:the}.",
+    "target": "{actor} screams at you.",
+    "room_at": "{actor} screams at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_shiver",
+   "name": "shiver",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Brrrrrrrrr.",
+    "room": "{actor} shivers uncomfortably."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_slap",
+   "name": "slap",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Slap whom?",
+    "actor_at": "You slap {target:the}.",
+    "target": "{actor} slaps you!",
+    "room_at": "{actor} slaps {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_smirk",
+   "name": "smirk",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You smirk.",
+    "room": "{actor} smirks.",
+    "actor_at": "You smirk at {target:the}.",
+    "target": "{actor} smirks at you.",
+    "room_at": "{actor} smirks at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_snicker",
+   "name": "snicker",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You snicker softly.",
+    "room": "{actor} snickers softly.",
+    "actor_at": "You snicker at {target:the}.",
+    "target": "{actor} snickers at you.",
+    "room_at": "{actor} snickers at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_sniff",
+   "name": "sniff",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You sniff sadly.",
+    "room": "{actor} sniffs sadly.",
+    "actor_at": "You sniff at {target:the}.",
+    "target": "{actor} sniffs at you.",
+    "room_at": "{actor} sniffs at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_snore",
+   "name": "snore",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Zzzzzzzzzzzzzzzzz.",
+    "room": "{actor} snores loudly."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_stare",
+   "name": "stare",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You stare at the sky.",
+    "room": "{actor} stares at the sky.",
+    "actor_at": "You stare dreamily at {target:the}.",
+    "target": "{actor} stares dreamily at you.",
+    "room_at": "{actor} stares dreamily at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_sulk",
+   "name": "sulk",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You sulk.",
+    "room": "{actor} sulks in the corner."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_tickle",
+   "name": "tickle",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "Tickle whom?",
+    "actor_at": "You tickle {target:the}.",
+    "target": "{actor} tickles you.",
+    "room_at": "{actor} tickles {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_yawn",
+   "name": "yawn",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You must be tired.",
+    "room": "{actor} yawns.",
+    "actor_at": "You yawn at {target:the}.",
+    "target": "{actor} yawns at you.",
+    "room_at": "{actor} yawns at {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_thumb",
+   "name": "thumb",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You give a thumbs up.",
+    "room": "{actor} gives a thumbs up.",
+    "actor_at": "You give {target:the} a thumbs up.",
+    "target": "{actor} gives you a thumbs up.",
+    "room_at": "{actor} gives {target:the} a thumbs up."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_grovel",
+   "name": "grovel",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You grovel in the dirt.",
+    "room": "{actor} grovels in the dirt.",
+    "actor_at": "You grovel before {target:the}.",
+    "target": "{actor} grovels before you.",
+    "room_at": "{actor} grovels before {target:the}."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "social_wiggle",
+   "name": "wiggle",
+   "description": "",
+   "tags": [
+    "social_def"
+   ],
+   "attrs": {
+    "actor": "You wiggle your bottom.",
+    "room": "{actor} wiggles their bottom."
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  }
+ ]
+}

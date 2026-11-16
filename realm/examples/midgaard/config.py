@@ -84,6 +84,9 @@ async def init_world(server):
 
     # Spells: the classic Diku spellbook, importable into any merc game.
     pack = await import_pack("merc-classic", server.persistence)
+    # Talk beyond the room: gossip, newbie, immtalk; and the common socials.
+    await import_pack("channels", server.persistence)
+    await import_pack("socials-classic", server.persistence)
 
     rooms = sum(1 for o in created if o.has_tag("room"))
     print(f"Imported {len(created)} objects ({rooms} rooms) from Midgaard, "

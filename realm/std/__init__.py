@@ -15,9 +15,9 @@ game gets when it lists nothing. A game subtracts what it does not want:
 """
 
 CLASSIC: tuple[str, ...] = (
-    "accounts", "basics", "talk", "movement", "look", "sight", "items", "building",
+    "accounts", "basics", "talk", "channels", "movement", "look", "sight", "items", "building",
     "rules", "stealth", "combat", "effects", "vitals", "abilities", "economy", "social",
-    "crime", "npc", "spawning", "instances", "wilderness", "tasks", "achievements",
+    "crime", "npc", "spawning", "instances", "wilderness", "tasks", "achievements", "mail",
     "gurps", "d20", "merc",
 )
 

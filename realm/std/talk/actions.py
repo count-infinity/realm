@@ -17,6 +17,7 @@ class TalkAction(StrEnum):
     EMOTE = "event:emote"
     SEMIPOSE = "event:semipose"
     EMIT = "event:emit"
+    SOCIAL = "event:social"
 
 
 __all__ = ["TalkAction"]

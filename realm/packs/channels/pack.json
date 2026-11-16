@@ -1,0 +1,7 @@
+{
+  "name": "channels",
+  "description": "Three channels every game wants: gossip, newbie, and immtalk (builders and staff only).",
+  "files": [
+    "channels.json"
+  ]
+}

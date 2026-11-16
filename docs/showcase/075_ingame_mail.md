@@ -2,6 +2,13 @@
 
 > Checklist item 75 ([now]): *post-office master, per-player ledgers, CC, attachment escrow, ON_CONNECT notice*
 
+> **The engine does this now.** Since 0.3.0 the `mail` feature (in
+> `CLASSIC`) gives every game mail to characters, kept on their accounts
+> ([Communication](../guides/communication.md#mail)). This build is for a
+> game that leaves `mail` out of `FEATURES`, or wants mail to work
+> differently (attachments in escrow, a post office you must visit); with
+> `mail` loaded, the engine's `mail` command answers before this one.
+
 **What you'll build:** A Postmaster who runs persistent mail. `send <names> =
 <message>` posts a letter (comma-separated names CC extra recipients), `mail`
 lists your inbox, and `mail <n>` reads one. `give` the Postmaster an item before

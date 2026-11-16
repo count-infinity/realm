@@ -63,10 +63,14 @@ class Simulator:
         self.features = load(settings.features)
         self.features.install_registries()
         self.store = MemoryStore()
+        # A real session manager, holding the sessions ``player()`` makes,
+        # so "who is online" reads the same here as on a server.
+        from realm.gateway.session import SessionManager
+        self.sessions = SessionManager()
         # Virtual clock: waits fire when the test pumps waits.tick(), not on
         # wall-clock timers — deterministic like the rest of the Simulator.
         self.world = build_world(self.store, settings, defer_timers=True,
-                                 features=self.features)
+                                 features=self.features, sessions=self.sessions)
         self.dispatcher = self.world.dispatcher
         self.engine = self.world.scripts
         self.game_system = self.world.rules
@@ -124,7 +128,8 @@ class Simulator:
         """Create a player with a live Session (reachable via seen())."""
         p = self._make(name, tags=["player"], location=location, attrs=attrs)
         sess = Session(protocol="test", address="127.0.0.1")
-        sess.link_player(p)
+        self.sessions.adopt(sess)
+        self.sessions.link_player_to_session(sess, p)
         self._sessions[p.id] = sess
         return p
 

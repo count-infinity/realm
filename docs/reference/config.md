@@ -64,6 +64,7 @@ A feature can declare its own keys. These exist only when the feature is in
 | `REGEN_INTERVAL` | `vitals` | `15` | Seconds between regeneration ticks. Each tick a character out of combat regains the game system's `regen` amount of each pool below full. |
 | `REST_REGEN` | `vitals` | `2` | Regeneration multiplier while resting. |
 | `SLEEP_REGEN` | `vitals` | `4` | Regeneration multiplier while asleep. |
+| `MAIL_LIMIT` | `mail` | `100` | How many messages one account's mailbox holds. |
 
 ## Callbacks
 

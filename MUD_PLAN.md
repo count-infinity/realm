@@ -19,7 +19,7 @@ on its own and leaves the suite green.
 | 4 | Skills you can use: ability commands and the Merc class skills | M | [x] |
 | 5 | Progression: use, practice, idle training, timed actions | L | [x] |
 | 6 | Accounts: one login, many characters, account data, achievements, bans | L | [x] |
-| 7 | Communication: tells, channels, socials, mail | M | [ ] |
+| 7 | Communication: tells, channels, socials, mail | M | [x] |
 | 8 | The world clock: game time, day and night, weather | S–M | [ ] |
 | 9 | Operating a live game: sessions, throttling, shutdown, backup, migrate | M | [ ] |
 | 10 | Comfort: pager, editor, aliases | M | [ ] |
@@ -959,83 +959,83 @@ Today all speech is in the room: `say`, `pose`, `emit`, `ooc`, `shout`,
 
 Create `realm/std/channels/`.
 
-- [ ] `tell <player> <message>` (alias `t`) and `reply <message>` (alias
+- [x] `tell <player> <message>` (alias `t`) and `reply <message>` (alias
       `r`) to the last teller. Delivered to an online player anywhere,
       refused for one who is offline (pointing at `mail`) or who has the
       teller in their `ignore` list. `tell` propagates an action
       (`comm:on_tell`, hook `TELL`) with the recipient as target and no
       room audience, so softcode can react and wards can veto.
-- [ ] `ignore <player>`, `ignore` (list), `unignore <player>`.
-- [ ] `afk [message]`: a tag and message; tellers are shown it.
-- [ ] Tests: delivery across rooms, reply, ignore, offline, a ward that
+- [x] `ignore <player>`, `ignore` (list), `unignore <player>`.
+- [x] `afk [message]`: a tag and message; tellers are shown it.
+- [x] Tests: delivery across rooms, reply, ignore, offline, a ward that
       blocks tells in a silenced room.
 
 ### 7.2 Channels
 
-- [ ] A channel is a definition object tagged `channel_def`: a name, an
+- [x] A channel is a definition object tagged `channel_def`: a name, an
       optional `alias`, a `speak` lock and a `listen` lock (so `immtalk`
       is admin-only by data), a `format` template, `history` size.
-- [ ] Each channel name and alias is a command through a
+- [x] Each channel name and alias is a command through a
       `feature.fallback` (`gossip hello`). `channels` lists them with
       on/off state; `channel <name> on|off` toggles; `channel <name>
       history` shows recent lines. Preferences are stored on the account
       when there is one, else the character.
-- [ ] A message is one propagated action (`comm:on_channel`, hook
+- [x] A message is one propagated action (`comm:on_channel`, hook
       `CHANNEL`, payload `channel`, `message`), delivered to every online
       listener who passes the listen lock and has it on.
-- [ ] The `channels` content ships three by default in a small pack
+- [x] The `channels` content ships three by default in a small pack
       imported by the scaffold's `init_world`: `gossip`, `newbie`,
       `immtalk`.
-- [ ] Softcode: `cemit(channel, text)` (builder-gated) and
+- [x] Softcode: `cemit(channel, text)` (builder-gated) and
       `channel_members(channel)` (read-only).
-- [ ] Tests: speaking and hearing, locks, toggling, history, softcode.
+- [x] Tests: speaking and hearing, locks, toggling, history, softcode.
 
 ### 7.3 Socials
 
 In `realm/std/talk/`.
 
-- [ ] A social is a definition object tagged `social_def` with up to five
+- [x] A social is a definition object tagged `social_def` with up to five
       message templates (to the actor with no target, to the room with no
       target, to the actor with a target, to the target, to the room with
       a target), using the existing `{actor}` and `{target}` formatting.
-- [ ] A `feature.fallback` runs a social whose name is the typed verb.
+- [x] A `feature.fallback` runs a social whose name is the typed verb.
       `socials` lists them.
-- [ ] Ship a pack of the common Diku socials (smile, nod, bow, laugh, wave,
+- [x] Ship a pack of the common Diku socials (smile, nod, bow, laugh, wave,
       shrug, and so on; at least forty) as `realm/packs/socials-classic/`.
       The ROM importer may later read `#SOCIALS`; not in this step.
-- [ ] Tests: with and without a target, an unseen actor reads as
+- [x] Tests: with and without a target, an unseen actor reads as
       "Someone", a social named like a real command never shadows it.
 
 ### 7.4 Mail
 
 Create `realm/std/mail/` (`requires=["accounts"]`).
 
-- [ ] Messages are objects tagged `mail` held by the recipient's account
+- [x] Messages are objects tagged `mail` held by the recipient's account
       (not in any room), with `sender`, `to`, `subject`, `body`, `sent`,
       `read`.
-- [ ] Commands: `mail` (list), `mail <n>` (read), `mail <player> =
+- [x] Commands: `mail` (list), `mail <n>` (read), `mail <player> =
       <subject>/<body>` (send; the body may use the editor of step 10 when
       it exists), `mail/delete <n>`, `mail/reply <n> = <body>`. Sending to
       a character delivers to that character's account.
-- [ ] At login a player is told how many unread messages wait. An online
+- [x] At login a player is told how many unread messages wait. An online
       recipient is told when mail arrives.
-- [ ] A limit per account (`MAIL_LIMIT`, default 100) and softcode
+- [x] A limit per account (`MAIL_LIMIT`, default 100) and softcode
       `send_mail(to, subject, body)` for system mail (builder-gated).
-- [ ] Tests: send to an offline player, read after login, delete, the
+- [x] Tests: send to an offline player, read after login, delete, the
       limit, system mail.
 
 ### Acceptance
 
-- [ ] Two players in different rooms hold a conversation by `tell` and on
+- [x] Two players in different rooms hold a conversation by `tell` and on
       `gossip`; one logs out; the other mails them; the first logs in and
       reads it.
 
 ### Docs
 
-- [ ] New guide `docs/guides/communication.md`. Add to `mkdocs.yml`.
-- [ ] `docs/guides/features.md`: rows for `channels` and `mail`; the
+- [x] New guide `docs/guides/communication.md`. Add to `mkdocs.yml`.
+- [x] `docs/guides/features.md`: rows for `channels` and `mail`; the
       `talk` row gains socials.
-- [ ] Regenerate the softcode reference.
+- [x] Regenerate the softcode reference.
 
 ---
 
@@ -2032,3 +2032,9 @@ the step, what was decided and why.
 | 2026-11-15 | 6.5 | Showcase 207's three Explorer tiers are three achievements (Wanderer, Pathfinder, Cartographer); the Chronicle's watcher and tier table still decide when; the engine's `achievements` replaces the hand-made `$badges`. | The plan: keep the softcode watchers as what decides. |
 | 2026-11-15 | 6.6 | `@account/password <name> = <new>` (the `=` form, like the other admin commands), ban durations `30m`/`2h`/`3d`/`1w`/`forever` (stored as the string `forever`). The sitelock check runs as a session-manager `on_connect` callback, so a Simulator (which has none) never sitelocks. | The plan left the syntax open. |
 | 2026-11-15 | 6 | `GameServer.stop` now disconnects sessions before closing the world. | A player still in play at shutdown could not be announced or saved: the world was gone (found by the new login tests, the first to stop a server with players in play). |
+| 2026-11-15 | 7.1 | Tells, ignore and afk live in the new `channels` feature (the plan's `realm/std/channels/`). A tell's chain is the teller, both rooms as rooms only (a ward in either refuses it; no bystander overhears), then the recipient. Names in tells and channel lines are written out, not perceived: a listener in another room would otherwise read "Someone". | Remote speech has no line of sight. |
+| 2026-11-15 | 7.2 | A channel line is delivered to each member directly, with the world's deaf rules consulted (a sleeper misses it, Decision D4) instead of through room delivery; the speaker always hears their own line. A channel's command defers to a world `$`-command of the same word, and so do socials. | Built-ins must not shadow world verbs (step 3's rule). |
+| 2026-11-15 | 7.2 | The Simulator now keeps a real `SessionManager` (new `SessionManager.adopt`), so tells and channels find online players the same way in tests as on a server. | "Who is online" had no answer in the Simulator. |
+| 2026-11-15 | 7.2 | The scaffold's `config.py` gains a live `init_world` that imports the `channels` and `socials-classic` packs (before, it was a comment); Midgaard and the space station import them too. | The plan's "imported by the scaffold's init_world". |
+| 2026-11-15 | 7.3 | A social's five lines are the attributes `actor`, `room`, `actor_at`, `target`, `room_at`. A social is an `event:social` action with the `SOCIAL` hook. The pack has 48 socials. | `self` (the first choice) collides with Python's `self` in keyword APIs such as `Simulator.obj`. |
+| 2026-11-15 | 7.4 | A message's location is the recipient's account (accounts have no location, so mail is in no room). Showcase 75's softcode mail now runs without the `mail` feature, whose `mail` command would answer first. | The plan's "held by the recipient's account". |

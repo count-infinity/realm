@@ -1,0 +1,65 @@
+{
+ "realm_format": 1,
+ "objects": [
+  {
+   "id": "channel_gossip",
+   "name": "gossip",
+   "description": "anything and everything",
+   "tags": [
+    "channel_def"
+   ],
+   "attrs": {
+    "alias": "gos",
+    "description": "anything and everything",
+    "format": "[{channel}] {name}: {message}",
+    "history_size": 20
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "channel_newbie",
+   "name": "newbie",
+   "description": "questions from new players, answered by anyone",
+   "tags": [
+    "channel_def"
+   ],
+   "attrs": {
+    "alias": "nb",
+    "description": "questions from new players, answered by anyone",
+    "format": "[{channel}] {name}: {message}",
+    "history_size": 20
+   },
+   "locks": {},
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  },
+  {
+   "id": "channel_immtalk",
+   "name": "immtalk",
+   "description": "builders and staff",
+   "tags": [
+    "channel_def"
+   ],
+   "attrs": {
+    "alias": "imm",
+    "description": "builders and staff",
+    "format": "[{channel}] {name}: {message}",
+    "history_size": 20
+   },
+   "locks": {
+    "speak": "has_entitlement(caller, 'BUILD')",
+    "listen": "has_entitlement(caller, 'BUILD')"
+   },
+   "behaviors": [],
+   "location": null,
+   "owner": null,
+   "parent": null
+  }
+ ]
+}

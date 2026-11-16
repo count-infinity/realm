@@ -75,6 +75,11 @@ TO_DICT |= {'account_attr', 'set_account_attr', 'incr_account_attr', 'account_ch
 READONLY |= {'account_attr', 'account_characters', 'has_achievement'}
 HARM |= {'grant_achievement'}
 
+# Channels and mail (MUD_PLAN 7.2, 7.4).
+TO_DICT |= {'cemit', 'channel_members', 'send_mail'}
+READONLY |= {'channel_members'}
+HARM |= {'cemit', 'send_mail'}
+
 # Timed tasks (MUD_PLAN 5.5).
 TO_DICT |= {'start_task', 'task_of', 'stop_task'}
 READONLY |= {'task_of'}

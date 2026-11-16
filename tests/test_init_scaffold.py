@@ -425,3 +425,20 @@ def test_a_merc_scaffold_respawns_its_dead(tmp_path, monkeypatch, clean_import_s
     settings = load_config(tmp_path / "town")
     assert settings.raw["PLAYER_DEATH"] == "respawn"
     assert settings.raw["PROMPT"] == "<{hp}hp {mana}m {move}mv> "
+
+
+async def test_a_new_game_starts_with_channels_and_socials(tmp_path, monkeypatch,
+                                                           clean_import_state):
+    """MUD_PLAN 7.2/7.3: the scaffold's init_world imports the channels and
+    socials-classic packs."""
+    from realm.testing import Simulator
+    monkeypatch.chdir(tmp_path)
+    assert cmd_init(_Args("questcove")) == 0
+    sim = Simulator.from_game(tmp_path / "questcove")
+    try:
+        await sim.start()
+        channels = {o.name for o in sim.store.find_cached(tag="channel_def")}
+        assert channels == {"gossip", "newbie", "immtalk"}
+        assert len(sim.store.find_cached(tag="social_def")) >= 40
+    finally:
+        sim.close()

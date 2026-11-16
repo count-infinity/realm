@@ -1,0 +1,7 @@
+{
+  "name": "socials-classic",
+  "description": "The common Diku socials (48: smile, nod, bow, laugh, wave, shrug, and so on), as social_def objects.",
+  "files": [
+    "socials.json"
+  ]
+}

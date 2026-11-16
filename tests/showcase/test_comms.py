@@ -195,6 +195,15 @@ class TestCustomChannel:
 
 
 class TestIngameMail:
+    """The softcode build is for a game without the ``mail`` feature,
+    whose own ``mail`` command would answer first."""
+
+    @pytest.fixture
+    def sim(self):
+        from realm.std import CLASSIC
+        simulator = Simulator(features=[f for f in CLASSIC if f != "mail"])
+        yield simulator
+        simulator.close()
 
     async def test_send_cc_attach_read_claim(self, sim):
         bob = await build(sim, "075_ingame_mail.md")

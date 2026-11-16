@@ -689,6 +689,14 @@ class SessionManager:
         self._pending_destroys.add(task)
         task.add_done_callback(self._pending_destroys.discard)
 
+    def adopt(self, session: Session) -> Session:
+        """Register a session made elsewhere (an in-process test harness),
+        with no connection callbacks or input pump: it is then found by
+        ``all_sessions`` and, once linked, ``get_session_by_player``."""
+        self._sessions[session.id] = session
+        self._by_address.setdefault(session.address, []).append(session)
+        return session
+
     def get_session(self, session_id: str) -> Session | None:
         """Get a session by ID."""
         return self._sessions.get(session_id)

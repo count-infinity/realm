@@ -103,22 +103,28 @@ RECURSION_LIMIT = 1000
 
 
 # =============================================================================
-# CALLBACKS (Optional)
+# CALLBACKS
 # =============================================================================
-# Uncomment and implement these functions to hook the server's lifecycle.
-# Commands, behaviors and protocols are declared in game.py instead.
+# The server's lifecycle hooks. Commands, behaviors and protocols are
+# declared in game.py instead.
 
-# async def init_world(server):
-#     \"\"\"
-#     Called once when the world is empty.
-#     Create your starting rooms, NPCs, and items here.
-#     \"\"\"
-#     from realm import GameObject
-#
-#     # Example: Create a starting room
-#     town_square = GameObject(
-#         name="Town Square",
-#         description="The center of town. Cobblestones underfoot.",
-#         tags=['room', 'start_room'],
-#     )
-#     await server.persistence.save(town_square)
+
+async def init_world(server):
+    """
+    Called once, when the world is empty: the content every game starts
+    with. The channels (gossip, newbie, immtalk) and the common socials
+    (smile, bow, wave...) are data packs; remove a line to go without.
+    """
+    from realm import import_pack
+    await import_pack("channels", server.persistence)
+    await import_pack("socials-classic", server.persistence)
+
+    # Create your starting rooms, NPCs, and items here too:
+    # from realm import GameObject
+    #
+    # town_square = GameObject(
+    #     name="Town Square",
+    #     description="The center of town. Cobblestones underfoot.",
+    #     tags=['room', 'start_room'],
+    # )
+    # await server.persistence.save(town_square)

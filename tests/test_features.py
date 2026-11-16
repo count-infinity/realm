@@ -100,7 +100,10 @@ class TestDefaultEqualsToday:
                               "practice", "train", "study", "stop",
                               # step 6: accounts and achievements
                               "characters", "password", "@account", "@sitelock",
-                              "achievements"}
+                              "achievements",
+                              # step 7: communication
+                              "tell", "reply", "ignore", "unignore", "afk", "channels",
+                              "channel", "socials", "mail"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
@@ -113,7 +116,9 @@ class TestDefaultEqualsToday:
                      "start_task", "task_of", "stop_task",
                      # step 6: account data and achievements
                      "account_attr", "set_account_attr", "incr_account_attr",
-                     "account_characters", "grant_achievement", "has_achievement"}
+                     "account_characters", "grant_achievement", "has_achievement",
+                     # step 7: channels and mail
+                     "cemit", "channel_members", "send_mail"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.
@@ -127,7 +132,9 @@ class TestDefaultEqualsToday:
                 "realm.std.rules.progression.login_observer",
                 "realm.std.tasks.tasks.fight_observer",
                 # step 6: achievements' tags reach a character at login
-                "realm.std.achievements.achievements.login_observer"}
+                "realm.std.achievements.achievements.login_observer",
+                # step 7: unread mail at login
+                "realm.std.mail.mail.login_observer"}
             assert sorted(observers) == OBSERVERS
             # MUD_PLAN step 2 added the player corpse's claim.
             # step 5 the trainer.

@@ -1,7 +1,7 @@
 """
 The ``talk`` feature.
 
-Speech: say, pose, emit, shout, whisper.
+Speech: say, pose, emit, shout, whisper; socials as data (``social_def``).
 """
 
 from __future__ import annotations
@@ -17,11 +17,20 @@ from realm.std.talk.commands import (
     cmd_shout,
     cmd_whisper,
 )
+from realm.std.talk.socials import cmd_socials, social_fallback
 
 feature = Feature(
     'talk',
-    doc='Speech: say, pose, emit, shout, whisper.',
+    doc='Speech: say, pose, emit, shout, whisper, and socials.',
 )
+
+# Socials (MUD_PLAN 7.3): a social_def's name is a command when nothing
+# else answers to the word.
+feature.def_kind("social", "social_def")
+feature.fallback(social_fallback)
+feature.command('socials', cmd_socials, category='social', help_text='List the socials')
+feature.event(TalkAction.SOCIAL, hook="SOCIAL", doc="a social (smile, bow) is used",
+              payload={"social": "the social's name"})
 
 feature.command(
     'say',
