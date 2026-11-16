@@ -17,7 +17,7 @@ on its own and leaves the suite green.
 | 2 | The solo loop: regeneration, rest, recovery, death, movement cost | M | [x] |
 | 3 | The character sheet: equipment, skills, prompt, consumables | M | [x] |
 | 4 | Skills you can use: ability commands and the Merc class skills | M | [x] |
-| 5 | Progression: use, practice, idle training, timed actions | L | [ ] |
+| 5 | Progression: use, practice, idle training, timed actions | L | [x] |
 | 6 | Accounts: one login, many characters, account data, achievements, bans | L | [ ] |
 | 7 | Communication: tells, channels, socials, mail | M | [ ] |
 | 8 | The world clock: game time, day and night, weather | S–M | [ ] |
@@ -645,30 +645,30 @@ level, so `skill_level()` stays an attribute read and no ruleset changes.
 
 In `realm/std/rules/`. Create `progression.py`.
 
-- [ ] `progression_of(obj, skill) -> str`: the skill definition's
+- [x] `progression_of(obj, skill) -> str`: the skill definition's
       `progression` attribute (`points`, `practice`, `use`, `idle`), else
       `GameSystem.default_progression` (a class attribute: `"points"` on
       `PointBuyMixin`, `"use"` on `MercSystem` per Decision D5, `None` on
       the neutral base, meaning skills do not improve).
-- [ ] `GameSystem.skill_cap(obj, skill) -> int | None`: neutral None (no
+- [x] `GameSystem.skill_cap(obj, skill) -> int | None`: neutral None (no
       cap); Merc: a per-class maximum from the skill definition's
       `class_caps`, default 75 below the class's level-gate and 95 at it.
-- [ ] `GameSystem.on_skill_used(obj, result) -> None`, called at the end of
+- [x] `GameSystem.on_skill_used(obj, result) -> None`, called at the end of
       `check()` in `realm/std/rules/checks.py` and by nothing else. It is
       synchronous (so is `check()`); it may change attributes and call
       `obj.msg`, and may not propagate actions. The base implementation
       dispatches to the model: only `use` does anything here.
-- [ ] Combat attack rolls do not pass through `check()` under Merc and
+- [x] Combat attack rolls do not pass through `check()` under Merc and
       D20. `CombatSystem.attack` reports them: after the attack roll it
       calls `rules.on_skill_used(attacker, CheckResult(...))` with the
       weapon's `skill` attribute (default `melee`) and the roll's success.
       Do it once in `CombatSystem`, not in each ruleset.
-- [ ] Tests: the hook runs once per check and once per swing, with the
+- [x] Tests: the hook runs once per check and once per swing, with the
       right skill; a world with no `rules` feature is unaffected.
 
 ### 5.2 Learn by use
 
-- [ ] The `use` model in `progression.py`: each use adds to
+- [x] The `use` model in `progression.py`: each use adds to
       `skill_xp_<name>`, more for a success than a failure, nothing when
       the roll could not fail or could not succeed. When it reaches
       `use_xp_needed(level)` (rising with level) the level goes up by one,
@@ -677,18 +677,18 @@ In `realm/std/rules/`. Create `progression.py`.
       `skill_cap`. A skill at level 0 that the character was never taught
       does not improve by use unless its definition says
       `untrained_use = True`.
-- [ ] A softcode route for a builder-authored curve: a `progress_rule`
+- [x] A softcode route for a builder-authored curve: a `progress_rule`
       attribute on the skill definition, evaluated in the `rule` profile
       with `level`, `success` and `xp` bound, returning the experience to
       add. It mirrors `resolve_rule`.
-- [ ] `skills` (3.2) shows progress toward the next level for `use` skills.
-- [ ] Tests: repeated successful checks raise a skill; failures raise it
+- [x] `skills` (3.2) shows progress toward the next level for `use` skills.
+- [x] Tests: repeated successful checks raise a skill; failures raise it
       more slowly; the cap holds; a combat skill rises from swings; a
       `progress_rule` replaces the curve; a `points` skill is untouched.
 
 ### 5.3 Practice
 
-- [ ] Command `practice [skill]` in `rules`, usable in a room holding an
+- [x] Command `practice [skill]` in `rules`, usable in a room holding an
       NPC with the new `trainer` behavior (declare it in `rules`; params:
       `teaches`, a list of skill names or `"class"` for the character's
       class list; `max_level`, how far practice carries a skill, default
@@ -696,19 +696,19 @@ In `realm/std/rules/`. Create `progression.py`.
       teaches and the character's levels. With one it spends a practice
       and raises the skill by an amount from the character's intelligence,
       up to the trainer's maximum.
-- [ ] Command `train <stat>` at a trainer whose behavior has
+- [x] Command `train <stat>` at a trainer whose behavior has
       `trains_stats = True`: spends a `train` (Merc gives one per level
       besides practices) to raise a characteristic by one, to the class
       maximum.
-- [ ] `MercSystem.advance_level` grants trains. The ROM importer attaches
+- [x] `MercSystem.advance_level` grants trains. The ROM importer attaches
       `trainer` to mobs with the ROM `ACT_PRACTICE` and `ACT_TRAIN` flags;
       regenerate Midgaard and check the guildmasters have it.
-- [ ] Tests: practicing with and without a trainer; the practice floor;
+- [x] Tests: practicing with and without a trainer; the practice floor;
       running out of practices; `train strength`.
 
 ### 5.4 Idle training
 
-- [ ] The `idle` model: a character has `training` (a skill name) and
+- [x] The `idle` model: a character has `training` (a skill name) and
       `training_since` (a wall-clock timestamp). Accrual is computed
       lazily by `accrue_training(obj)`: skill points per minute from the
       skill definition's two governing attributes, levels bought at
@@ -717,13 +717,13 @@ In `realm/std/rules/`. Create `progression.py`.
       sweep over online characters that announces "You have finished
       training <skill> to level N." Offline time counts. No timer runs
       while the player is away.
-- [ ] Commands `study <skill>` (start; one skill at a time, needs
+- [x] Commands `study <skill>` (start; one skill at a time, needs
       `progression = idle` and any `requires` prerequisites on the
       definition) and `study stop`. `skills` shows the skill in training
       and when its next level lands.
-- [ ] A cap on banked offline time: setting `IDLE_TRAINING_MAX_HOURS`
+- [x] A cap on banked offline time: setting `IDLE_TRAINING_MAX_HOURS`
       (default 0, unlimited).
-- [ ] Tests with an injected clock: eight hours offline raise a skill by
+- [x] Tests with an injected clock: eight hours offline raise a skill by
       the expected levels; the cap limits it; switching skills banks the
       first; a `use` skill refuses `study`.
 
@@ -732,45 +732,45 @@ In `realm/std/rules/`. Create `progression.py`.
 For crafting, gathering and anything else that takes time at a place.
 Create `realm/std/tasks/` (no `requires`).
 
-- [ ] Softcode function `start_task(seconds, done_attr, label='',
+- [x] Softcode function `start_task(seconds, done_attr, label='',
       interrupt_attr=None)`: the enactor becomes busy (tag `busy`, a `task`
       attribute holding the label, finish time and the object and
       attributes to run). When the time passes, a `feature.reaper` clears
       it and runs `done_attr` on the object that started it, with the
       enactor bound. Unlike `wait()`, a task survives a reboot (it is
       stored on the character) and is tied to one character at one place.
-- [ ] A task is interrupted, running `interrupt_attr`, when the character
+- [x] A task is interrupted, running `interrupt_attr`, when the character
       moves (an `after_traverse` hook), enters combat (an observer on
       hostile actions), or types `stop`. Starting a task while busy is
       refused. A `feature.marker` shows `(busy)`.
-- [ ] Softcode functions `task_of(obj)` (read-only: the label and seconds
+- [x] Softcode functions `task_of(obj)` (read-only: the label and seconds
       left, or None) and `stop_task(obj)`.
-- [ ] Rewrite showcase 122 (recipe crafting) to take time with
+- [x] Rewrite showcase 122 (recipe crafting) to take time with
       `start_task`, and add a showcase build "a skill learned at the
       forge": a `smithing` skill definition with `progression = use`,
       raised by crafting, and a `metallurgy` skill with
       `progression = idle`. This is the worked example of mixing models.
-- [ ] Tests: a task completes and runs its script; moving interrupts it;
+- [x] Tests: a task completes and runs its script; moving interrupts it;
       a task survives `Simulator` teardown and reload of the character; a
       second task is refused.
 
 ### Acceptance
 
-- [ ] One Merc game runs all four models at once: `melee` by use,
+- [x] One Merc game runs all four models at once: `melee` by use,
       `lockpicking` by practice then use, a custom `herbalism` by idle
       study, and a GURPS game keeps buying skills with points. A test
       builds each and checks the level rises the way that model says.
 
 ### Docs
 
-- [ ] New guide `docs/guides/progression.md`: the four models, how to set
+- [x] New guide `docs/guides/progression.md`: the four models, how to set
       one per skill, caps, the trainer behavior, `progress_rule`, idle
       training, timed tasks. Add to `mkdocs.yml`.
-- [ ] `docs/design/skills-inventory.md`: mark the seams built.
-- [ ] `docs/guides/creating-your-own-system.md`: `default_progression`,
+- [x] `docs/design/skills-inventory.md`: mark the seams built.
+- [x] `docs/guides/creating-your-own-system.md`: `default_progression`,
       `skill_cap`, `on_skill_used`.
-- [ ] Regenerate the softcode and config references.
-- [ ] `README.md` "What is not built yet": remove the progression bullet.
+- [x] Regenerate the softcode and config references.
+- [x] `README.md` "What is not built yet": remove the progression bullet.
 
 ### Closes
 
@@ -2015,3 +2015,11 @@ the step, what was decided and why.
 | 2026-11-15 | 4.2 | Passive defenses live in `MercRuleset.roll_attack` (a hit turned aside becomes a miss whose `effects` names the defense, and `format_attack_message` words it), and only a defender with a trained skill (`skill_<name>` above 0) defends. Chances follow ROM: dodge and parry half the skill, shield block a fifth plus 3, each plus the defender's level minus the attacker's; second attack half, third a quarter and only after a second. `Ruleset.extra_attacks(attacker)` is the new neutral hook. | The plan left the formulas to ROM. |
 | 2026-11-15 | 4.2 | Barbarians lose `rescue` (rescue is the warrior's, per the plan) and gain `kick`; disarm is level 10, so level-1 lists are warrior kick/bash/rescue, barbarian kick, thief backstab/trip. Starting weapons carry a `damage_type` (the dagger is piercing, for backstab). The ROM importer now writes weapons' `damage_type` from the attack word, recovering words that old-format files stored as flag letters, and Midgaard was refreshed with the dev script. | Backstab needs to know a dagger pierces. |
 | 2026-11-15 | 4.2 | A trip's `resting` would be undone at once by vitals' rule that a hostile act stands the victim up: the `tag` effect records `extra["tagged"]` and the rule skips an act that set the position; the pack orders trip's damage before its tag, since the damage is a separate hostile event. | The two plan items conflict as written. |
+| 2026-11-15 | Decisions | D5 confirmed by the maintainer ("go"): Merc learns every skill by use after practice to a floor; GURPS and D20 stay point-buy; per-skill `progression` overrides. | The maintainer's answer. |
+| 2026-11-15 | 5.1 | Kernel helper `realm.core.defs.def_objects(kind)`: a kind's definition objects unparsed, cached and invalidated with `all_defs`. | The `skill` kind parses to `(stat, penalty)` and skips definitions without both; progression fields and progression-only definitions need the objects, on the hot check path. |
+| 2026-11-15 | 5.1 | Added hooks the plan implies: `check_was_open` (Merc: a 0% or 100% chance is certain), `use_xp_gain`, `use_xp_needed`, `idle_cost`, `class_skills`, `stat_max`. A swing reports `effective` as the ruleset's to-hit target. Only player characters learn. `on_skill_used` tolerates a result without a `skill` (stand-in resolvers in tests and games). | The plan names the behaviors but not where the numbers live. |
+| 2026-11-15 | 5.1 | Merc's cap: a skill's `class_caps`; else for a class skill (its starting skills and every ability_def listing the class) 95 once the character reaches the ability's level and 75 before; 75 outside the class. | Reading of "75 below the class's level-gate and 95 at it". |
+| 2026-11-15 | 5.2 | An untrained skill (with `untrained_use`) and an idle skill start counting from the skill's untrained default, not 0. | Under GURPS an untrained skill already has an attribute default (dexterity 10 - 5 = 5); writing 1 over it would lower it. Found writing showcase 253. |
+| 2026-11-15 | 5.3 | Practice works for `practice` and `use` skills; a trainer teaching `"class"` teaches the character's own class skills, so any guildmaster teaches anyone. The shipped Midgaard places only the cleric's guildmaster (the converted area has no inner sanctums or resets for the other three); the mage, thief and warrior guildmaster prototypes carry `trainer` for a game that places them. | The area file's content, not the engine. |
+| 2026-11-15 | 5.4 | One skill in study at a time (`training`, `training_since`, `sp_<name>`), not a queue. The reaper sweeps online characters (all player characters when the world has no session manager, as in tests). | The plan's own shape. |
+| 2026-11-15 | 5.5 | `start_task`, `stop_task` and the interruptions run through queued world ops; `stop_task` is allowed for the object that started the task or anything that may mutate the character. `stop`, `study`, `train` and `practice` offer a line they cannot use to softcode `$`-commands first, and showcase 217's exit `study` was renamed `in` (an exact command name now wins over the exit). | Several showcase builds define `$study` and `$stop`. |

@@ -233,6 +233,11 @@ THAC0 17 — trades blows with a warrior on the `merc` ruleset):
 - **Wear slots and consumables** → Merc's slots (`equipment` lists them,
   two rings and two necks), and potions, scrolls, wands, staves, food and
   drink that do something when used.
+- **Guildmasters** → mobs with ROM's `ACT_PRACTICE` (K) get the `trainer`
+  behavior, teaching their class's skills; `ACT_TRAIN` (J) lets them train
+  characteristics. (The shipped Midgaard places only the cleric's
+  guildmaster: the conversion has no inner rooms or resets for the other
+  three.)
 - **Weapon damage types** → a weapon's ROM attack word (`slash`, `stab`,
   `pound`, ...) becomes its `damage_type` (`slashing`, `piercing`,
   `bludgeoning`, ...), so resistances apply and a backstab finds its

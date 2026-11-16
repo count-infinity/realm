@@ -503,6 +503,13 @@ class TestSlotsAndConsumables:
         assert rom_import.attack_damage_type("pierce") == "piercing"
         assert rom_import.attack_damage_type("hug") is None
 
+    def test_guildmasters_become_trainers(self):
+        assert rom_import.trainer_behavior(["A", "B", "J", "K", "T"]) == {
+            "behavior_id": "trainer", "params": {"teaches": "class", "trains_stats": True}}
+        assert rom_import.trainer_behavior(["A", "J"])["params"] == {
+            "teaches": [], "trains_stats": True}
+        assert rom_import.trainer_behavior(["A", "B"]) is None
+
     def test_a_spell_no_pack_defines_is_a_gap(self, protos):
         area, attrs = protos
         assert attrs[210]["spells"] == ["polymorph other"]

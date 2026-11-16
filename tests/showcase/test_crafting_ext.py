@@ -199,9 +199,23 @@ STOCK_122 = [
 ]
 
 
+@pytest.fixture
+def task_clock(monkeypatch):
+    """The tasks feature's clock, advanced by hand."""
+    now = [1_000_000.0]
+    monkeypatch.setattr("realm.std.tasks.tasks.now", lambda: now[0])
+    return now
+
+
+async def finish_tasks(sim, clock, seconds):
+    from realm.std.tasks.tasks import task_sweep
+    clock[0] += seconds
+    await task_sweep(sim.store)
+
+
 class TestRecipeCrafting:
 
-    async def test_jobs_craft_and_consume(self, sim, pinned_dice):
+    async def test_jobs_craft_and_consume(self, sim, pinned_dice, task_clock):
         _room, bilda = workshop_and_builder(sim)
         await build(sim, bilda, BUILD_122)
         await build(sim, bilda, STOCK_122)
@@ -212,13 +226,31 @@ class TestRecipeCrafting:
 
         pinned_dice["value"] = 3   # roll 9 vs 11: margin +2
         out = await do(sim, bilda, "craft valve")
+        assert "You lay out the parts and start on a machined pressure valve." in text(out)
+        assert bilda.has_tag("busy")
+        assert not find_all(sim, "a machined pressure valve")   # not yet
+        await finish_tasks(sim, task_clock, 8)
+        out = sim.seen(bilda)
         assert ("works the bench -- a machined pressure valve drops into "
                 "the tray. (margin +2)" in text(out))
         assert find_all(sim, "a machined pressure valve")
         assert not find_all(sim, "a duralloy ingot")       # consumed
         assert not find_all(sim, "a silicone gasket")
 
-    async def test_guards_and_costly_failure(self, sim, pinned_dice):
+    async def test_walking_off_abandons_the_job_and_keeps_the_parts(self, sim, pinned_dice,
+                                                                    task_clock):
+        _room, bilda = workshop_and_builder(sim)
+        await build(sim, bilda, BUILD_122)
+        await build(sim, bilda, STOCK_122)
+        await do(sim, bilda, "craft valve")
+        out = await do(sim, bilda, "stop")
+        assert ("You set the half-built assembly down; the parts are still "
+                "in your pack." in text(out))
+        await finish_tasks(sim, task_clock, 60)
+        assert not find_all(sim, "a machined pressure valve")
+        assert find_all(sim, "a duralloy ingot") and find_all(sim, "a silicone gasket")
+
+    async def test_guards_and_costly_failure(self, sim, pinned_dice, task_clock):
         _room, bilda = workshop_and_builder(sim)
         await build(sim, bilda, BUILD_122)
 
@@ -229,7 +261,9 @@ class TestRecipeCrafting:
 
         await build(sim, bilda, STOCK_122)
         pinned_dice["value"] = 6   # roll 18 vs 11: botch
-        out = await do(sim, bilda, "craft valve")
+        await do(sim, bilda, "craft valve")
+        await finish_tasks(sim, task_clock, 8)
+        out = sim.seen(bilda)
         assert ("botches the assembly -- ruined scrap hits the tray. "
                 "(rolled 18 vs machining 11)" in text(out))
         assert find_all(sim, "a lump of ruined scrap")

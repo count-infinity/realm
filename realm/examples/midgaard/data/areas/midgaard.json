@@ -5513,6 +5513,13 @@
       ],
       "chance": 0.5
      }
+    },
+    {
+     "behavior_id": "trainer",
+     "params": {
+      "teaches": "class",
+      "trains_stats": true
+     }
     }
    ],
    "location": "rom_3002",
@@ -14391,7 +14398,15 @@
     "prototype_vnum": 3007
    },
    "locks": {},
-   "behaviors": [],
+   "behaviors": [
+    {
+     "behavior_id": "trainer",
+     "params": {
+      "teaches": [],
+      "trains_stats": true
+     }
+    }
+   ],
    "location": "rom_3050",
    "owner": null,
    "parent": null
@@ -27943,7 +27958,15 @@
     "rom_vuln": []
    },
    "locks": {},
-   "behaviors": [],
+   "behaviors": [
+    {
+     "behavior_id": "trainer",
+     "params": {
+      "teaches": [],
+      "trains_stats": true
+     }
+    }
+   ],
    "location": null,
    "owner": null,
    "parent": null
@@ -28392,6 +28415,13 @@
       ],
       "chance": 0.5
      }
+    },
+    {
+     "behavior_id": "trainer",
+     "params": {
+      "teaches": "class",
+      "trains_stats": true
+     }
     }
    ],
    "location": null,
@@ -28471,6 +28501,13 @@
       ],
       "chance": 0.5
      }
+    },
+    {
+     "behavior_id": "trainer",
+     "params": {
+      "teaches": "class",
+      "trains_stats": true
+     }
     }
    ],
    "location": null,
@@ -28535,7 +28572,15 @@
     "rom_vuln": []
    },
    "locks": {},
-   "behaviors": [],
+   "behaviors": [
+    {
+     "behavior_id": "trainer",
+     "params": {
+      "teaches": "class",
+      "trains_stats": true
+     }
+    }
+   ],
    "location": null,
    "owner": null,
    "parent": null
@@ -28604,7 +28649,15 @@
     ]
    },
    "locks": {},
-   "behaviors": [],
+   "behaviors": [
+    {
+     "behavior_id": "trainer",
+     "params": {
+      "teaches": "class",
+      "trains_stats": true
+     }
+    }
+   ],
    "location": null,
    "owner": null,
    "parent": null

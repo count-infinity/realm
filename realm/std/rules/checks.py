@@ -210,12 +210,20 @@ def check(obj: GameObject, skill: str, modifier: int = 0) -> CheckResult:
     are folded in here, upstream of the resolver, so every ruleset and
     injected test resolver inherits them.
     """
+    if obj.db.get('training') == skill:
+        # An idle skill in training catches up before it is rolled.
+        from realm.std.rules.progression import accrue_training
+        accrue_training(obj)
     result = checks().resolver(obj, skill, modifier + condition_modifier(obj, skill))
     # Roll visibility (@rolls on): echo the dice to a curious builder.
     if obj.db.get('show_rolls'):
         obj.msg(f"[roll {result.skill}: {result.roll} vs {result.effective} "
                 f"-> {'success' if result.success else 'failure'} "
                 f"(margin {result.margin:+d})]")
+    # Progression's one hook (learn by use): every check reports here.
+    world = find_world()
+    if world is not None and world.rules is not None:
+        world.rules.on_skill_used(obj, result)
     return result
 
 

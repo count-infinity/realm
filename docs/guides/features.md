@@ -54,7 +54,7 @@ everything available. The built-in features:
 | `sight` | darkness and light (`dark`, `light`, `nightvision`), invisibility (`invisible`, `see_invisible`), the `glowing`, `magic` and `invisible` markers | |
 | `items` | get, drop, give, put, inventory, equipment, open, close, lock, unlock, use, wear, remove, wield, unwield, eat, drink | |
 | `building` | every `@` command, quell, unquell | look |
-| `rules` | points, skills, improve; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
+| `rules` | points, skills, improve, practice, train, study; the `trainer` behavior; progression ([Progression](progression.md)); setting `IDLE_TRAINING_MAX_HOURS`; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
 | `stealth` | hide, search, pick; loud actions break stealth; the watchful behavior | rules, items |
 | `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; death, coming round and respawn; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS`, `PLAYER_DEATH`, `CORPSE_LOCK_SECONDS` | rules, items |
 | `effects` | timed effect behaviors; softcode `apply_effect`, `remove_effect`; `services["effects"].clear(obj)` | rules |
@@ -67,6 +67,7 @@ everything available. The built-in features:
 | `spawning` | spawner, restock, population, zone_reset behaviors | |
 | `instances` | instanced copies of template areas; softcode `enter_instance` | |
 | `wilderness` | procedural wilderness cells; softcode `enter_wilderness` | spawning |
+| `tasks` | timed actions: stop; softcode `start_task`, `task_of`, `stop_task`; the `(busy)` marker | |
 | `gurps`, `d20`, `merc` | the combat ruleset of each rules system; `merc` also charges movement points for walking | rules, combat |
 
 The kernel is always there: the script engine and every other softcode

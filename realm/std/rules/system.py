@@ -103,6 +103,10 @@ class GameSystem(ABC):
     """A complete, swappable rules package."""
 
     system_id: str = "base"
+    #: How a skill improves when its definition does not say
+    #: (``realm.std.rules.progression``): "points", "practice", "use",
+    #: "idle", or None (skills do not improve).
+    default_progression: str | None = None
     #: passed to create_combat_system
     ruleset_name: str = "d20"
     #: what money is called in this rules package
@@ -145,6 +149,48 @@ class GameSystem(ABC):
         advancement seam the progression models share. Point-buy banks
         character points (PointBuyMixin); an XP system banks experience
         and levels up (MercSystem). Neutral: nothing."""
+
+    # --- Progression (realm.std.rules.progression) ---
+
+    def on_skill_used(self, obj: GameObject, result: Any) -> None:
+        """A skill was rolled (every ``check()``, every attack roll):
+        ``result`` is the CheckResult, its ``skill`` the skill. Synchronous;
+        it may change attributes and message ``obj``, never propagate.
+        The base dispatches to the skill's model; only ``use`` acts here."""
+        from realm.std.rules.progression import record_use
+        record_use(self, obj, result)
+
+    def skill_cap(self, obj: GameObject, skill: str) -> int | None:
+        """The highest level ``use``, ``practice`` and ``idle`` can carry
+        ``skill`` for ``obj``. Neutral: no cap."""
+        return None
+
+    def check_was_open(self, result: Any) -> bool:
+        """Could this roll have gone either way? A certain one teaches
+        nothing. Neutral: always."""
+        return True
+
+    def use_xp_gain(self, success: bool) -> int:
+        """Experience one use of a ``use`` skill earns."""
+        return 2 if success else 1
+
+    def use_xp_needed(self, level: int) -> int:
+        """Experience a ``use`` skill needs to leave ``level``."""
+        return 2 + max(0, int(level)) // 5
+
+    def idle_cost(self, level: int) -> int:
+        """Skill points an ``idle`` skill needs to leave ``level`` (times
+        the definition's ``rank``)."""
+        return 60 * (max(0, int(level)) + 1)
+
+    def class_skills(self, obj: GameObject) -> list[str]:
+        """The skills ``obj``'s class may learn (a trainer that teaches
+        ``"class"``). Neutral: none."""
+        return []
+
+    def stat_max(self, obj: GameObject, stat: str) -> int | None:
+        """How far ``train`` may raise a characteristic. Neutral: no limit."""
+        return None
 
     # --- The character sheet ---
 
@@ -274,6 +320,9 @@ class PointBuyMixin:
     ``improve`` spends them on skills. Mix in ahead of GameSystem
     (``class GurpsSystem(PointBuyMixin, GameSystem)``); override
     ``improve_cost`` for a different price curve (D20System escalates)."""
+
+    #: Skills are bought with points unless their definition says otherwise.
+    default_progression: str | None = "points"
 
     def improve_cost(self, skill: str, current_level: int) -> int | None:
         """Character points to raise ``skill`` by one level: a flat 4."""

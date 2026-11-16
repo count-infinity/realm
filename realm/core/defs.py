@@ -8,6 +8,7 @@ a scripted behavior, an ``ability_def``/``spell_def`` an ability. A
 a definition, and how to key it. Every kind shares one cache and one lookup:
 
     all_defs("skill")          # {"stealth": ("dexterity", -5), ...}
+    def_objects("skill")       # {"stealth": <the skill_def object>, ...}
     find_def("spell", "fire")  # exact key, else a unique prefix
 
 The cache for a kind is dropped whenever an object carrying its tag
@@ -113,6 +114,30 @@ def all_defs(kind: str) -> dict[str, Any]:
     return out
 
 
+def _objects_key(kind: str) -> str:
+    return f"{kind}#objects"
+
+
+def def_objects(kind: str) -> dict[str, GameObject]:
+    """Every definition object of ``kind``, unparsed, by key: for the
+    fields a kind's parser does not keep (a skill's ``progression``), and
+    for definitions too incomplete to parse. Cached and dropped with the
+    kind's own cache."""
+    _ensure()
+    key = _objects_key(kind)
+    cached = _cache.get(key)
+    if cached is not None:
+        return cached
+    spec = _KINDS.get(kind)
+    if spec is None:
+        raise KeyError(f"no definition kind {kind!r}; known: {sorted(_KINDS)}")
+    from realm.core.query import find_objects
+    out = {spec.key(obj): obj for obj in sorted(find_objects(tag=spec.tag),
+                                                 key=lambda o: o.id)}
+    _cache[key] = out
+    return out
+
+
 def find_def(kind: str, name: str) -> Any | None:
     """A definition by exact key (case-insensitive), else a unique prefix."""
     want = str(name).strip().lower()
@@ -131,6 +156,7 @@ def invalidate(kind: str | None = None) -> None:
         _cache.clear()
     else:
         _cache.pop(kind, None)
+        _cache.pop(_objects_key(kind), None)
 
 
 def touched(obj: GameObject, tag: str | None = None) -> None:
@@ -142,9 +168,11 @@ def touched(obj: GameObject, tag: str | None = None) -> None:
         kind = _TAGS.get(tag.lower().strip())
         if kind is not None:
             _cache.pop(kind, None)
+            _cache.pop(_objects_key(kind), None)
     for def_tag, kind in _TAGS.items():
-        if kind in _cache and obj.has_tag(def_tag):
+        if obj.has_tag(def_tag):
             _cache.pop(kind, None)
+            _cache.pop(_objects_key(kind), None)
 
 
 def kernel_kinds() -> list[DefKind]:
@@ -157,4 +185,4 @@ def kernel_kinds() -> list[DefKind]:
 
 
 __all__ = ["DefKind", "register_def_kind", "install_def_kinds", "def_kinds", "all_defs",
-           "find_def", "invalidate", "touched", "kernel_kinds"]
+           "def_objects", "find_def", "invalidate", "touched", "kernel_kinds"]

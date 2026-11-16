@@ -303,16 +303,16 @@ Build order when green-lit:
 - [ ] `@parent` + `requires` on skill_def + parent-chain fallback in
   `skill_level` + hidden-until-unlocked visibility
 - [ ] `skills` command grouped by tag, showing spec trees and lock state
-- [ ] Progression seam: `on_skill_used` **sync** hook at the end of
+- [x] Progression seam (DONE 2026-11-15, MUD_PLAN step 5): `on_skill_used` **sync** hook at the end of
   `checks.check()` (check() is sync — this cannot be an `ON_<EVENT>`),
   `progression` attr, `default_progression`, `skill_cap`, optional
   `progress_rule` softcode; ship the SMAUG hybrid + the missing `practice`
   command
-- [ ] Idle training: `training_queue`/`training_since` with **lazy accrual
+- [x] Idle training (DONE 2026-11-15, MUD_PLAN step 5; one skill at a time, `training`/`training_since`): `training_queue`/`training_since` with **lazy accrual
   on read** (offline-correct, no new timer), prereqs via `requires`
 - [ ] Seed the fantasy pack (62 defs) as data; re-skin the spine for
   `gurps-scifi`
-- [ ] Generic timed gather/craft action core (SWR make* shape / Melvor
+- [x] Generic timed gather/craft action core (DONE 2026-11-15: the `tasks` feature's `start_task`) (SWR make* shape / Melvor
   loop) — behaviors + softcode, not engine
 
 ### FIXED 2026-11-13: KERNEL_PLAN step 1 defects
@@ -889,7 +889,7 @@ same day (see Completed); these remain, roughly by impact:
   Softcode `damage()` still deals directly (opt-out is fine, by design).
   Name kept `combat:on_damage` (woven through ~27 sites incl. showcase
   tutorials); a neutral rename (`on_damage`) is a deferred cosmetic sweep.
-- [ ] **Deferred:** cooldown cost spec (needs a clock seam); a real
+- [ ] **Deferred:** ~~cooldown cost spec~~ (DONE 2026-11-15, MUD_PLAN 4.1); a real
   day/night reset for `per_day` (today the counter is rest/manual-reset);
   a generic `use`/`perform` command sibling to `cast`; the neutral
   `on_damage` rename.

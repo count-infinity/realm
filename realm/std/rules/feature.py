@@ -14,7 +14,9 @@ from realm.std.rules import softcode
 from realm.std.rules.checks import Checks
 from realm.std.rules.commands import cmd_improve, cmd_points, cmd_skills
 from realm.std.rules.definitions import parse_class_def, parse_skill_def
+from realm.std.rules.progression import login_observer, training_sweep
 from realm.std.rules.system import equipment_observer, reload_rules, resolve_game_system
+from realm.std.rules.training import TrainerBehavior, cmd_practice, cmd_study, cmd_train
 
 feature = Feature(
     'rules',
@@ -68,6 +70,37 @@ feature.command(
     help_text='Spend points to raise a skill',
     usage='improve <skill>',
 )
+
+feature.command(
+    'practice',
+    cmd_practice,
+    aliases=['prac'],
+    category='combat',
+    help_text='Practice a skill with a trainer',
+    usage='practice [skill]',
+)
+feature.command(
+    'train',
+    cmd_train,
+    category='combat',
+    help_text='Raise a characteristic at a trainer',
+    usage='train <stat>',
+)
+feature.command(
+    'study',
+    cmd_study,
+    category='combat',
+    help_text='Study a skill over real time',
+    usage='study <skill> | study stop',
+)
+feature.behavior(TrainerBehavior)
+feature.setting(
+    "IDLE_TRAINING_MAX_HOURS", 0,
+    "How many hours of time away an idle (`study`) skill banks at once. 0: unlimited.")
+# Idle training catches up while a character plays (the reaper) and when it
+# logs in (the observer).
+feature.reaper(training_sweep)
+feature.observer(login_observer)
 
 # Gear changes reach the rules package as events: on_wear/on_remove ->
 # GameSystem.on_equipment_change (Merc AC).

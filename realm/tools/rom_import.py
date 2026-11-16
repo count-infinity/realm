@@ -541,7 +541,21 @@ def _mobiles(r: Reader, area: Area) -> None:
         if "C" in act_letters:                           # ACT_SCAVENGER
             proto["behaviors"].append(
                 {"behavior_id": "scavenger", "params": {}})
+        trainer = trainer_behavior(act_letters)
+        if trainer is not None:                          # ACT_PRACTICE / ACT_TRAIN
+            proto["behaviors"].append(trainer)
         area.mob_protos[vnum] = proto
+
+
+def trainer_behavior(act_letters: list[str]) -> dict | None:
+    """ROM's ``ACT_PRACTICE`` (K: a guildmaster, teaches the class's
+    skills) and ``ACT_TRAIN`` (J: trains characteristics) as the
+    ``trainer`` behavior; None for neither."""
+    practice, train = "K" in act_letters, "J" in act_letters
+    if not practice and not train:
+        return None
+    return {"behavior_id": "trainer",
+            "params": {"teaches": "class" if practice else [], "trains_stats": train}}
 
 
 def _objects(r: Reader, area: Area) -> None:

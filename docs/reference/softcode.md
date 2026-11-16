@@ -346,11 +346,14 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`spend_pool`](#fn-spend_pool) | Pay a cost from the executor's own pool, all or nothing. | [Pools](#pools) |
 | [`spent`](#fn-spent) | True when the pool is used up (a down pool at or below its `spent_at`, an up pool at its max). | [Pools](#pools) |
 | [`start_combat`](#fn-start_combat) | Throw an attacker the executor controls into combat with a target in the same room (queued; the encounter starts after the script finishes). | [Combat & effects](#combat-effects) |
+| [`start_task`](#fn-start_task) | Make the enactor busy for `seconds`: when the time passes, this object's `done_attr` runs with the enactor bound. | [Time & scheduling](#time-scheduling) |
+| [`stop_task`](#fn-stop_task) | Break off a character's task (its interrupt script runs). | [Time & scheduling](#time-scheduling) |
 | [`strlen`](#fn-strlen) | Get string length. | [Text](#text) |
 | [`switch`](#fn-switch) | Switch statement. | [Math & logic](#math-logic) |
 | [`tag_value`](#fn-tag_value) | First value of a namespaced tag: tag_value(here, 'zone') -> 'castle' (None if untagged). | [Tags & zones](#tags-zones) |
 | [`tag_values`](#fn-tag_values) | All values of a namespaced tag: tag_values(here, 'zone') -> ['castle', 'haunted']. | [Tags & zones](#tags-zones) |
 | [`tags`](#fn-tags) | Get all tags on an object. | [Tags & zones](#tags-zones) |
+| [`task_of`](#fn-task_of) | What a character is busy with: `{"label": ..., "left": seconds}`, or None. | [Time & scheduling](#time-scheduling) |
 | [`teleport_obj`](#fn-teleport_obj) | Move an object the executor controls straight to a destination — the wizard/admin relocation. | [Objects & attributes](#objects-attributes) |
 | [`test_lock`](#fn-test_lock) | Would `caller` (default: the executor) pass this lock? | [Locks & permissions](#locks-permissions) |
 | [`transfer_credits`](#fn-transfer_credits) | Move money FROM something the executor controls. | [Money](#money) |
@@ -1964,6 +1967,55 @@ Current time as epoch seconds — cache expiry, cooldowns.
 
 ```text
 now() - get_attr(me, 'lit_at', 0) > 300
+```
+
+### `start_task` {#fn-start_task}
+
+```text
+start_task(seconds: float, done_attr: str, label: str = '', interrupt_attr: str | None = None) -> bool
+```
+
+Make the enactor busy for `seconds`: when the time passes, this
+object's `done_attr` runs with the enactor bound. Moving, a fight or
+the `stop` command breaks it off and runs `interrupt_attr` instead.
+The task is stored on the character, so it survives a reboot. False
+when the enactor is already busy (or out of reach).
+
+**Example**
+
+```text
+start_task(10, 'smelt_done', 'smelting ore', 'smelt_stop')
+```
+
+### `stop_task` {#fn-stop_task}
+
+```text
+stop_task(obj: GameObject | str | None) -> bool
+```
+
+Break off a character's task (its interrupt script runs). The object
+that started the task may stop it, as may anything that controls the
+character.
+
+**Example**
+
+```text
+stop_task(enactor)
+```
+
+### `task_of` {#fn-task_of}
+
+```text
+task_of(obj: GameObject | str | None) -> dict | None
+```
+
+What a character is busy with: `{"label": ..., "left": seconds}`, or
+None.
+
+**Example**
+
+```text
+task_of(enactor)
 ```
 
 ### `wait` {#fn-wait}

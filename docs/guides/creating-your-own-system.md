@@ -347,6 +347,31 @@ The four stats each earn their keep, so the set feels intentional:
 | **Diplomacy** | haggle | — (social encounters) |
 | **Luck** | gamble | *(open — a natural crit hook, below)* |
 
+## How your skills improve
+
+Three more hooks decide progression ([Progression](progression.md)):
+
+```python
+class SavageSystem(GameSystem):
+    #: skills whose definition does not say: "points", "practice", "use", "idle"
+    default_progression = "use"
+
+    def skill_cap(self, obj, skill):
+        return 20                        # nobody passes 20
+
+    def use_xp_needed(self, level):
+        return 3 * level                 # steep on a 3-to-20 scale
+
+    def on_skill_used(self, obj, result):
+        super().on_skill_used(obj, result)   # learn by use
+        if result.skill == "luck" and result.success:
+            obj.msg("Fortune smiles on you.")
+```
+
+`on_skill_used` runs at the end of every `check()` and after every attack
+roll, synchronously: change attributes and message the character, but do
+not propagate actions from it.
+
 ## Design decisions still open (tune freely)
 
 The two big ones are now settled — untrained skills are **characteristic × 5**,

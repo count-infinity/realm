@@ -121,6 +121,64 @@ class MercSystem(GameSystem):
     system_id = "merc"
     ruleset_name = "merc"
     currency_name = "gold"
+    #: Decision D5: every Merc skill is practiced to a floor and then
+    #: improves by use (the SMAUG hybrid).
+    default_progression = "use"
+
+    # --- progression ---
+
+    def _class_name(self, obj: GameObject) -> str:
+        return str(obj.db.get("character_class") or "")
+
+    def _ability_gate(self, skill: str, cls: str) -> int | None:
+        """The level the class may first use the ability named ``skill``
+        at, when an ability_def of that name lists the class."""
+        from realm.core.defs import def_kinds, def_objects
+        if "ability" not in def_kinds():
+            return None
+        adef = def_objects("ability").get(skill) or def_objects("ability").get(
+            skill.replace("_", " "))
+        if adef is None or cls not in (adef.db.get("classes") or []):
+            return None
+        return int(adef.db.get("level") or 1)
+
+    def class_skills(self, obj: GameObject) -> list[str]:
+        """The class's starting skills, and every ability_def it may use."""
+        from realm.core.defs import def_kinds, def_objects
+        cls = self._class_name(obj)
+        spec = self._classes().get(cls, {})
+        names = list(spec.get("skills", {}))
+        if "ability" in def_kinds():
+            for adef in def_objects("ability").values():
+                key = "_".join(adef.name.lower().split())
+                if cls in (adef.db.get("classes") or []) and key not in names:
+                    names.append(key)
+        return names
+
+    def skill_cap(self, obj: GameObject, skill: str) -> int | None:
+        """SMAUG's class maximum: the skill definition's ``class_caps`` for
+        this class; else 95 for a class skill once the character reaches
+        its level gate and 75 before it, and 75 for a skill outside the
+        class."""
+        from realm.std.rules.progression import skill_def
+        cls = self._class_name(obj)
+        sdef = skill_def(skill)
+        caps = sdef.db.get("class_caps") if sdef is not None else None
+        if isinstance(caps, dict) and cls in caps:
+            return int(caps[cls])
+        if skill not in self.class_skills(obj):
+            return 75
+        gate = self._ability_gate(skill, cls) or 1
+        return 95 if int(obj.db.get("level") or 1) >= gate else 75
+
+    def check_was_open(self, result: Any) -> bool:
+        """A percentile roll at 0% could not succeed and at 100% could not fail."""
+        return 0 < int(result.effective) < 100
+
+    def stat_max(self, obj: GameObject, stat: str) -> int | None:
+        """18, or 20 for a class's prime characteristics."""
+        spec = self._classes().get(self._class_name(obj), {})
+        return 20 if stat in spec.get("stats", {}) else 18
 
     # --- baseline & skills ---
 
@@ -342,6 +400,7 @@ class MercSystem(GameSystem):
             player.db.thac0 = 20 - (level // spec["thac0_rate"])
             practices = max(1, (int(player.db.get("intelligence") or 13) - 11) // 2)
             player.db.practices = int(player.db.get("practices") or 0) + practices
+            player.db.trains = int(player.db.get("trains") or 0) + 1
             player.msg(f"You advance to level {level + 1}! (+{gain} HP)")
 
 

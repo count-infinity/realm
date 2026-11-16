@@ -1,30 +1,36 @@
 # 122. Recipe Crafting
 
-> Checklist item 122 ([now]): *recipe validation, destroy/create, margin quality*
+> Checklist item 122 ([now]): *recipe validation, destroy/create, margin quality, timed work*
 
 **What you'll build:** An assembly bench that turns tagged ingredients
-into finished goods. `craft valve` checks what you carry against a
-recipe, rolls your machining skill, consumes the inputs with
+into finished goods, and takes time to do it. `craft valve` checks what
+you carry against a recipe and sets you working with
+[`start_task`](../reference/softcode.md#fn-start_task); when the job is
+done, it rolls your machining skill, consumes the inputs with
 [`destroy_obj`](../reference/softcode.md#fn-destroy_obj), and mints the
 product (or a lump of ruined scrap) with
-[`create_obj`](../reference/softcode.md#fn-create_obj).
+[`create_obj`](../reference/softcode.md#fn-create_obj). Walk away, get
+into a fight, or type `stop`, and the job is abandoned with the parts
+still in your pack.
 
 **Concepts:** recipes as data (one dict attribute per recipe: output,
-skill, ingredient tags and counts), tags as ingredient types
-(`has_tag(o, 'ingot')` means any ingot satisfies the recipe, no matter
-which mine it came from), guard-chain validation with a specific
-message per failure, consume-then-create committed together, and
-failure that still costs you materials.
+skill, ingredient tags and counts, how long it takes), tags as
+ingredient types (`has_tag(o, 'ingot')` means any ingot satisfies the
+recipe, no matter which mine it came from), guard-chain validation with
+a specific message per failure, timed work that can be broken off,
+consume-then-create committed together, and failure that still costs
+you materials.
 
 ## How it works
 
 An assembly bench is one object that reads a recipe and runs it. A
 recipe is a dict attribute holding the output, the governing skill, and
 the ingredients it needs; the craft command looks that dict up, checks
-what you carry, rolls your skill, consumes the inputs, and mints the
-result. This section covers each piece in turn: the recipe as data,
-tags as the ingredient type, and why a failed craft still burns your
-materials.
+what you carry, and starts the work; when the work is done the bench
+rolls your skill, consumes the inputs, and mints the result. This
+section covers each piece in turn: the recipe as data, tags as the
+ingredient type, the time it takes, and why a failed craft still burns
+your materials.
 
 ### A recipe is data; the bench reads it
 
@@ -50,6 +56,23 @@ objects the executor controls, which under REALM's authority rules
 means objects it or its owner owns. The bench shares an owner with the
 ore and gasket that owner minted, so it may burn them, whereas a
 stranger's ingot (owned by someone else) would refuse.
+
+### The work takes time
+
+`craft valve` does not finish the valve. It calls
+`start_task(r['seconds'], 'craft_done', ..., 'craft_stop')`, which makes
+you busy (others see `Bilda (busy)`) and remembers to run the bench's
+`craft_done` with you as enactor when the recipe's `seconds` have
+passed. The bench notes which job you chose in `job_<your name>`, so
+`craft_done` knows what to finish. A task is stored on you, not in a
+timer, so a reboot mid-job does not lose it. Moving away, being drawn
+into a fight, or typing `stop` breaks it off: the bench's `craft_stop`
+runs instead, and since nothing was consumed yet the parts are still in
+your pack. Starting a second job while busy is refused, because
+`start_task` returns False.
+
+`craft_done` checks the materials again before it rolls, because you
+had all the time in the world to drop the ingot.
 
 ### Attempting costs the materials
 
@@ -77,7 +100,7 @@ parses JSON, so the list and dict store as real values):
 drop assembly bench
 @desc assembly bench = A scarred steel bench under a rack of torque drivers. A job card is chained to one leg.
 @set assembly bench/menu = ["valve"]
-@set assembly bench/recipe_valve = {"output": "a machined pressure valve", "tags": ["thing", "component"], "skill": "machining", "mod": 0, "needs": {"ingot": 1, "gasket": 1}}
+@set assembly bench/recipe_valve = {"output": "a machined pressure valve", "tags": ["thing", "component"], "skill": "machining", "mod": 0, "seconds": 8, "needs": {"ingot": 1, "gasket": 1}}
 ```
 
 The job-card browser walks `menu` and prints one line per recipe with
@@ -94,12 +117,10 @@ for sel in V('menu', []):
 '''
 ```
 
-The craft itself, where `$craft *` captures the selection as `arg0`. It
-guards the recipe name, counts your ingredients and reports any
-shortfall, and only when everything is in hand does it roll, consume the
-inputs, and mint the output. Success announces to the room with
-[`remit`](../reference/softcode.md#fn-remit) and stamps the crafter's
-[`name`](../reference/softcode.md#fn-name) on the line:
+The craft command, where `$craft *` captures the selection as `arg0`.
+It guards the recipe name, counts your ingredients and reports any
+shortfall, and only when everything is in hand starts the timed job and
+notes which recipe you chose:
 
 ```text
 @set assembly bench/cmd_craft = '''
@@ -117,19 +138,39 @@ else:
             short.append(f'{n - have}x {t}')
     if short:
         pemit(enactor, 'Short of materials: ' + ', '.join(short) + '.')
+    elif not start_task(r['seconds'], 'craft_done', 'assembling ' + sel, 'craft_stop'):
+        pemit(enactor, 'You are already busy.')
     else:
-        res = margin_under(roll('3d6'), get_attr(enactor, 'skill_' + r['skill'], 8) + r['mod'])
-        # The attempt burns the inputs whether the roll makes or misses.
-        for t, n in r['needs'].items():
-            for o in [x for x in carried if has_tag(x, t)][:n]:
-                destroy_obj(o)
-        if res.success:
-            create_obj(r['output'], r['tags'], here)
-            remit(here, f'{name(enactor)} works the bench -- {r["output"]} drops into the tray. (margin +{res.margin})')
-        else:
-            create_obj('a lump of ruined scrap', ['thing', 'scrap'], here)
-            remit(here, f'{name(enactor)} botches the assembly -- ruined scrap hits the tray. (rolled {res.roll} vs {r["skill"]} {res.effective})')
+        set_attr(me, 'job_' + name(enactor), sel)
+        pemit(enactor, f'You lay out the parts and start on {r["output"]}.')
 '''
+```
+
+The finished job: check the materials again, roll, consume the inputs,
+and mint. Success announces to the room with
+[`remit`](../reference/softcode.md#fn-remit) and stamps the crafter's
+[`name`](../reference/softcode.md#fn-name) on the line:
+
+```text
+@set assembly bench/craft_done = '''
+r = V('recipe_' + V('job_' + name(enactor), ''))
+carried = contents(enactor)
+if not r or any(len([o for o in carried if has_tag(o, t)]) < n for t, n in r['needs'].items()):
+    pemit(enactor, 'Your parts have gone missing; the job falls apart.')
+else:
+    res = margin_under(roll('3d6'), get_attr(enactor, 'skill_' + r['skill'], 8) + r['mod'])
+    # The attempt burns the inputs whether the roll makes or misses.
+    for t, n in r['needs'].items():
+        for o in [x for x in carried if has_tag(x, t)][:n]:
+            destroy_obj(o)
+    if res.success:
+        create_obj(r['output'], r['tags'], here)
+        remit(here, f'{name(enactor)} works the bench -- {r["output"]} drops into the tray. (margin +{res.margin})')
+    else:
+        create_obj('a lump of ruined scrap', ['thing', 'scrap'], here)
+        remit(here, f'{name(enactor)} botches the assembly -- ruined scrap hits the tray. (rolled {res.roll} vs {r["skill"]} {res.effective})')
+'''
+@set assembly bench/craft_stop = pemit(enactor, 'You set the half-built assembly down; the parts are still in your pack.')
 ```
 
 ## Try it
@@ -144,6 +185,8 @@ demo), read the card, and craft:
 > jobs
     valve -> a machined pressure valve (needs: 1x ingot, 1x gasket)
 > craft valve
+  You lay out the parts and start on a machined pressure valve.
+  (eight seconds later)
   ... works the bench -- a machined pressure valve drops into the tray. (margin +2)
 > get machined pressure valve
   You pick up a machined pressure valve.
@@ -152,6 +195,10 @@ demo), read the card, and craft:
 > craft widget
   The job card lists no such assembly. Try jobs.
 ```
+
+Start a job and walk out (or type `stop`) before it is done, and the
+bench answers `You set the half-built assembly down; the parts are still
+in your pack.`
 
 The margin line varies with the roll. A made roll drops the valve and
 the ingot and gasket vanish from your pack; a botch instead leaves

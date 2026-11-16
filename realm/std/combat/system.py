@@ -226,6 +226,7 @@ class CombatSystem:
 
         # Roll attack
         attack_result = self.ruleset.roll_attack(atk, dfn, weapon, modifiers)
+        self._report_skill_use(atk, weapon, attack_result)
 
         # Handle miss
         if not attack_result.hit:
@@ -306,6 +307,24 @@ class CombatSystem:
             target_defeated=target_defeated,
             changes=changes,
         )
+
+    def _report_skill_use(self, atk: Combatant, weapon: Any | None,
+                          attack_result: Any) -> None:
+        """An attack roll is a use of the weapon's skill (its ``skill``
+        attribute, else ``skill_type``, else ``melee``): the game system
+        hears it as it hears a check, so a weapon skill can learn by use
+        under rulesets that do not roll attacks through ``check()``."""
+        from realm.core.dice import CheckResult
+        from realm.core.world import find_world
+        world = find_world()
+        if world is None or world.rules is None:
+            return
+        skill = (self.ruleset.weapon_prop(weapon, "skill", None)
+                 or self.ruleset.weapon_prop(weapon, "skill_type", None) or "melee")
+        roll = attack_result.roll
+        world.rules.on_skill_used(atk.obj, CheckResult(
+            success=bool(attack_result.hit), margin=int(attack_result.margin or 0),
+            roll=int(roll.total or 0), effective=int(roll.target or 0), skill=str(skill)))
 
     async def heal(
         self,

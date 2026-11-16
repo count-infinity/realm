@@ -4,6 +4,33 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### Progression (step 5)
+
+- Four ways a skill improves, chosen per skill by the skill_def's
+  `progression` (else `GameSystem.default_progression`: `points` on
+  `PointBuyMixin`, `use` on Merc, None on the neutral base):
+  `realm.std.rules.progression`.
+- Learn by use: `GameSystem.on_skill_used`, called at the end of every
+  `check()` and by `CombatSystem.attack` after each attack roll (the
+  weapon's `skill`); `skill_cap`, `check_was_open`, `use_xp_gain`,
+  `use_xp_needed`; a skill_def's `progress_rule`, `untrained_use`,
+  `class_caps`. Merc caps skills SMAUG-style (75/95).
+- Practice: the `trainer` behavior and the `practice` and `train`
+  commands; Merc grants one train per level; the ROM importer makes
+  ACT_PRACTICE/ACT_TRAIN mobs trainers (Midgaard refreshed).
+- Idle training: `study`, lazy accrual from the wall clock
+  (`accrue_training`), `idle_cost`, a definition's `attributes`, `rank`
+  and `requires`; setting `IDLE_TRAINING_MAX_HOURS`.
+- New feature `tasks` (in `CLASSIC`): softcode `start_task`, `task_of`,
+  `stop_task`; command `stop`; the `(busy)` marker.
+- Kernel: `realm.core.defs.def_objects(kind)`.
+- `skills` shows a `use` skill's progress and the skill in training.
+- Showcase 122 crafts over time with `start_task`; new showcase 253, a
+  skill learned at the forge. Showcase 217's exit is now `in`, since
+  `study` is a command.
+- Saved worlds: nothing stored changes. Merc characters now learn every
+  skill by use, from the level they have.
+
 ### Skills you can use (step 4)
 
 - An `ability_def` is a command: typing its name or one of its `aliases`

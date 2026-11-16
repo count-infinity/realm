@@ -379,6 +379,12 @@ the resolver must know about.
 
 ## The seams to build
 
+> **Built (MUD_PLAN step 5, 2026-11-15).** All four seams below exist:
+> `on_skill_used`, `progression` / `default_progression`, `skill_cap` and
+> `progress_rule` (seam 1 and 3); lazy idle training with `study` (seam
+> 2); and timed actions, as the `tasks` feature's `start_task` rather
+> than a behavior (seam 4). See [Progression](../guides/progression.md).
+
 **1. A use hook on `check()`.** One call at the end of
 [`check()`](realm/core/checks.py#L203):
 

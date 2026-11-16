@@ -69,6 +69,10 @@ TO_DICT |= {'attackers', 'retarget', 'disarm'}
 READONLY |= {'attackers'}
 HARM |= {'retarget', 'disarm'}
 
+# Timed tasks (MUD_PLAN 5.5).
+TO_DICT |= {'start_task', 'task_of', 'stop_task'}
+READONLY |= {'task_of'}
+
 
 class TestParityWithTheOldLists:
 

@@ -95,7 +95,9 @@ class TestDefaultEqualsToday:
                               "equipment", "skills", "prompt", "eat", "drink",
                               "quaff", "recite", "zap",
                               # step 4: abilities as commands
-                              "abilities"}
+                              "abilities",
+                              # step 5: progression and timed tasks
+                              "practice", "train", "study", "stop"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
@@ -103,7 +105,9 @@ class TestDefaultEqualsToday:
             added = {"clone_obj", "set_name", "set_desc", "pool", "pool_max", "has_pool",
                      "spent", "harm_pool", "mend_pool", "spend_pool",
                      # MUD_PLAN step 4: combat's fight-turning functions
-                     "attackers", "retarget", "disarm"}
+                     "attackers", "retarget", "disarm",
+                     # step 5: timed tasks
+                     "start_task", "task_of", "stop_task"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.
@@ -112,10 +116,15 @@ class TestDefaultEqualsToday:
                 "realm.std.combat.vitals.threshold_observer",
                 "realm.std.combat.vitals.revive_observer",
                 "realm.std.vitals.regen.regen_observer",
-                "realm.std.vitals.positions.roused_observer"}
+                "realm.std.vitals.positions.roused_observer",
+                # step 5: idle training at login, tasks broken off by a fight
+                "realm.std.rules.progression.login_observer",
+                "realm.std.tasks.tasks.fight_observer"}
             assert sorted(observers) == OBSERVERS
             # MUD_PLAN step 2 added the player corpse's claim.
-            assert sorted(set(BehaviorRegistry.list_all()) - {"corpse_claim"}) == BEHAVIOR_IDS
+            # step 5 the trainer.
+            assert sorted(set(BehaviorRegistry.list_all()) - {"corpse_claim", "trainer"}) \
+                == BEHAVIOR_IDS
         finally:
             sim.close()
 

@@ -170,17 +170,8 @@ It is better to know these before you plan a game around them.
   unlocks, a shared bank) can apply across a player's characters. Login is
   itself a feature, so a game can replace it with its own, but that is a
   substantial piece of work and no guide covers it yet.
-- **How skills improve.** Two models are implemented: spending character
-  points (GURPS, D20) and gaining levels (Merc). Skills that improve
-  through use, and training that takes real time, are designed
-  ([Skills Inventory](docs/design/skills-inventory.md)) but not
-  implemented. A game can build either from existing parts, for example an
-  observer that watches attacks land or a timed softcode `wait`, and the
-  showcase has softcode versions of a trainer and of achievements for a
-  single character.
-- **Merc is not all of Diku.** Characters earn practices when they gain a
-  level, but there is no `practice` command to spend them. ROM mob
-  programs are not converted on import.
+- **Merc is not all of Diku.** ROM mob programs are not converted on
+  import.
   The [import guide](docs/development/rom-import.md#merc-parity-the-punch-list)
   lists what converts and what does not.
 
@@ -203,7 +194,9 @@ as data, health and resources on anything (a ship's shields and hull work
 like a character's hit points), regeneration, resting and sleeping, death
 with a corpse and a return home, wear slots and an `equipment` list, a
 configurable prompt, food, drink, potions, scrolls and wands, class skills
-a player types (`kick fido`, `backstab`) with cooldowns, instanced areas, procedural wilderness,
+a player types (`kick fido`, `backstab`) with cooldowns, skills that
+improve by points, practice at a trainer, use, or study over real time
+(chosen skill by skill), timed crafting and gathering, instanced areas, procedural wilderness,
 the building commands, a searchable help system, and area import and
 export. Three rules systems are included: GURPS, D20 and Merc. Players
 connect by telnet (with GMCP) or WebSocket.

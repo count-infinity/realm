@@ -91,8 +91,8 @@ Dig the study, walk in, and describe it. The `out` exit is the way back to where
 you started:
 
 ```text
-@dig The Study = study, out
-study
+@dig The Study = in, out
+in
 @desc The Study = A scholar's study gone to dust: a great desk, sagging shelves, a cracked oil painting.
 ```
 

@@ -20,6 +20,8 @@ async def cmd_points(ctx: CommandContext) -> None:
 
     Usage: score / points
     """
+    from realm.std.rules.progression import accrue_training
+    accrue_training(ctx.player)
     lines = get_world().rules.score_lines(ctx.player)
     await ctx.session.send("\n" + "\n".join(lines) + "\n")
 
@@ -42,9 +44,11 @@ async def cmd_skills(ctx: CommandContext) -> None:
 
     Usage: skills
     """
+    from realm.std.rules.progression import accrue_training, next_level_in, progression_of
     rules = get_world().rules
+    accrue_training(ctx.player)
     trained = sorted((key[6:], value) for key, value in ctx.player.db.all().items()
-                     if key.startswith('skill_'))
+                     if key.startswith('skill_') and not key.startswith('skill_xp_'))
     if not trained:
         await ctx.session.send("You have no trained skills.")
         return
@@ -60,7 +64,19 @@ async def cmd_skills(ctx: CommandContext) -> None:
             indent = "    "
         for name, level in by_group[group]:
             shown = rules.format_skill(name, int(level))
-            lines.append(f"{indent}{name.replace('_', ' '):20} {shown}")
+            how = progression_of(ctx.player, name)
+            note = ""
+            if how == "use":
+                xp = int(ctx.player.db.get(f"skill_xp_{name}") or 0)
+                note = f"   (use: {xp}/{rules.use_xp_needed(int(level))})"
+            elif how == "idle" and ctx.player.db.get("training") == name:
+                note = "   (training)"
+            lines.append(f"{indent}{name.replace('_', ' '):20} {shown}{note}")
+    training = ctx.player.db.get("training")
+    if training:
+        seconds = next_level_in(ctx.player) or 0
+        lines.append(f"Training {training.replace('_', ' ')}: the next level in "
+                     f"{int(seconds // 60) + 1} minute(s).")
     await ctx.session.send("\n".join(lines))
 
 
