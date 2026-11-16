@@ -118,6 +118,27 @@ Each protocol implements its own writer:
 - **WebSocket**: Calls `ws.send_str()`
 - **Custom**: Whatever your protocol needs
 
+## The Account
+
+`session.account` is the account logged in on the connection (the
+`accounts` feature, [Accounts](../guides/accounts.md)), beside
+`session.player`, the character in play. Together they are the login
+state:
+
+| `account` | `player` | Where the connection is |
+|---|---|---|
+| None | None | the welcome screen: `connect`, `create`, `who`, `quit` |
+| set | None | the account's character menu: `play`, `new`, `delete`, `password`, `quit` |
+| set | set | in play |
+
+Input from a session with no `player` goes to the login handler
+(`feature.login`), which reads `account` to tell the welcome screen from
+the menu. A question the menu is waiting on (a first character's name, the
+password before a delete) is kept in the session's data under
+`account_pending`. `characters` unlinks the player and keeps the account;
+`logout` clears both. A character made outside the login flow (a test's
+`Simulator.player()`) has no account.
+
 ## Player Linking
 
 When a player authenticates:

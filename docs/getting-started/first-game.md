@@ -72,8 +72,15 @@ telnet localhost 4000
 ```
 
 ```text
-create Keeper mypassword
+create keeper mypassword
+Keeper
 ```
+
+The first line makes an **account** (the thing you log in to) and the
+second names its first **character**. One account holds up to five
+characters; next time, `connect keeper mypassword` logs in, straight into
+play when the account has one character and to a menu (`play`, `new`,
+`delete`, `password`) when it has more. See [Accounts](../guides/accounts.md).
 
 **The first character created on a fresh database is the superuser** —
 you'll be told so at creation. You'll then pick a character background

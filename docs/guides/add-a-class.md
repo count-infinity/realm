@@ -67,7 +67,8 @@ this class. (If you *didn't* use `realm init`, that's the one line to
 add.) Restart and create a character to see it:
 
 ```text
-create Maverick topgun
+create maverick topgun
+Maverick
 Pick your background:
   1. soldier — tough and dangerous …
   2. infiltrator — quick and quiet …
@@ -108,7 +109,8 @@ and is the same mechanism used to ship a whole new rules package (see
 realm start
 # telnet in, create a character, confirm your class appears and its
 # stats land on the sheet:
-create Test pw
+create tester password
+Test
 # … pick your class …
 points        # (alias: score) — check the skills were applied
 ```

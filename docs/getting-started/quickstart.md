@@ -18,7 +18,8 @@ telnet localhost 4000
 ```
 
 ```text
-create Keeper secret123        # first character = superuser
+create keeper secret123        # an account
+Keeper                         # its first character: on a new server, the superuser
 look                           # The Void — your empty Limbo
 @dig The Garden = north, south # your first room
 north

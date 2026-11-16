@@ -128,6 +128,22 @@ class Simulator:
         self._sessions[p.id] = sess
         return p
 
+    def account(self, name: str, *characters: GameObject,
+                password: str = "password") -> GameObject:
+        """An account owning ``characters`` (made with ``player()``), the
+        way logging in links them: each character's session gets the
+        account too. ``player()`` alone makes a character with no account."""
+        from realm.std.accounts.account import link_character, new_account
+        from realm.std.accounts.auth import hash_password
+        account = new_account(name, hash_password(password))
+        self.store.add(account)
+        for character in characters:
+            link_character(account, character)
+            session = self._sessions.get(character.id)
+            if session is not None:
+                session.account = account
+        return account
+
     def _make(self, name, *, tags, location=None, attrs=None) -> GameObject:
         from realm.core.inflate import inflate
         obj = inflate({'name': name, 'tags': list(tags), 'attrs': attrs or {}})

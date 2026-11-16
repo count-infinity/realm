@@ -1,7 +1,9 @@
 # How a Character Is Born
 
-When someone types `create Rook hunter2`, a chain of well-defined steps
-turns an empty account into a playable character. Understanding that
+When someone makes an account (`create rook hunter2`) and names a
+character (`Rook`), or adds one to an account they have (`new Rook` at the
+character menu), a chain of well-defined steps turns a name into a
+playable character. Understanding that
 chain is the key to changing *any* of the initial decisions — what
 classes exist, what questions are asked, whether there's a creation
 menu at all. This page is the map; the [how-to guides](#where-to-go-next)
@@ -47,12 +49,14 @@ GameSystem. That's the whole design: swap the object, swap the game.
 ## The birth sequence
 
 Here is what actually happens, in order, when a character is created
-(the `accounts` feature, `realm/std/accounts/login.py`, `Accounts.create`):
+(the `accounts` feature, `realm/std/accounts/login.py`,
+`Accounts.new_character`):
 
 ```
-create Rook hunter2
+create rook hunter2                       → AuthService.create_account: the account
+Rook                                      (or, at the menu: new Rook)
    │
-   ├─ AuthService.create_account          → account + GameObject exist
+   ├─ AuthService.create_character        → the character, linked to the account
    │     └─ system.apply_baseline(player) → baseline_stats() written on
    │                                         the sheet (ST 10, HP 10, …)
    │

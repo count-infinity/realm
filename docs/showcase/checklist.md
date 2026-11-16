@@ -247,7 +247,7 @@ subsystem. Check items off as their tutorial + working in-game example lands.
 
 - [x] 176. **Staff dashboard** [now] — one command showing server health, players, recent errors. *(@stats, who, @eval ops queries)*
 - [x] 177. **Jail system** [now] — timeout misbehaving players with auto-release and logging. *(teleport_obj, exit locks, wait() release, log attrs)*
-- [ ] 178. **Ban & sitelock manager** [small] — account/IP bans with expiry and audit history. *(gap G12: ban registry in AuthService; login lockout exists)*
+- [x] 178. **Ban & sitelock manager** [small] — account/IP bans with expiry and audit history. *(G12 closed 2026-11-15: the engine's `@account/ban` and `@sitelock`, [Accounts](../guides/accounts.md#bans-and-administration))*
 - [x] 179. **Character approval queue** [now] — staff review/approve chargen submissions. *(unapproved tags, gating wards, $approve + pemit)*
 - [ ] 180. **Staff invisibility** [small] — dark mode for staff with proper who/room handling. *(invisible tag + quell exist; gap G4: perception-aware who)*
 - [x] 181. **Announcement system** [now] — formatted server-wide notices with history. *(remit loops, history attrs, opt-out filters)*

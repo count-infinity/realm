@@ -110,6 +110,7 @@ payload: its subject is `target`.
 
 | Action | Keys | Feature |
 |---|---|---|
+| `account:on_achievement` | `achievement`: the achievement's name | `achievements` |
 | `combat:on_attack` | `weapon`: the weapon used; `attacker_hp`: the attacker's HP; `defender_hp`: the defender's HP | `combat` |
 | `combat:on_damage` | `damage`: the amount (a ward may lower it); `damage_types`: amount per damage type | `combat` |
 | `combat:on_death` | `killer`: the killer's name (the killer object is actor); `fatal`: True when the body is gone | `combat` |
@@ -201,6 +202,7 @@ veto (a cursed item refusing removal).
 
 | Hook attr | Fires when | Feature |
 |---|---|---|
+| `ON_ACHIEVEMENT` | a character earns an achievement | `achievements` |
 | `ON_ARRIVE` | this object arrives somewhere new | `kernel` |
 | `ON_ATTACK` | this object attacks or is attacked | `combat` |
 | `ON_CAST` | an ability is directed at this object (resist via on_check) | `abilities` |
@@ -248,6 +250,8 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 
 | Function | What it does | Section |
 |---|---|---|
+| [`account_attr`](#fn-account_attr) | An attribute on the character's account: shared by every character the same person plays. | [Accounts](#accounts) |
+| [`account_characters`](#fn-account_characters) | The names of every character on the character's account (empty for a character with none). | [Accounts](#accounts) |
 | [`act`](#fn-act) | Fire a PROPAGATED action that can reach BEYOND your own room — unlike pemit/remit (which just deliver text), this runs the two-pass engine, so behaviors can veto or react at both ends. | [Firing your own events](#firing-your-own-events) |
 | [`add_tag`](#fn-add_tag) | Add a tag to an object the executor controls. | [Tags & zones](#tags-zones) |
 | [`adjust_credits`](#fn-adjust_credits) | Mint or burn money on an object the executor controls. | [Money](#money) |
@@ -293,7 +297,9 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`force`](#fn-force) | Make something the executor controls run a command (queued; executes through the real dispatcher after the script). | [NPCs & behaviors](#npcs-behaviors) |
 | [`get`](#fn-get) | Get an object by ID, friendly keyid, or name. | [Objects & attributes](#objects-attributes) |
 | [`get_attr`](#fn-get_attr) | Get an attribute from an object. | [Objects & attributes](#objects-attributes) |
+| [`grant_achievement`](#fn-grant_achievement) | Award an achievement (an `achievement_def`) to a character, once: recorded on its account (or on the character, for `scope = character`), announced to the player, its grants applied, and `account:on_achievement` fired. | [Accounts](#accounts) |
 | [`harm_pool`](#fn-harm_pool) | Harm a pool of something in reach, spilling into its overflow pool. | [Pools](#pools) |
+| [`has_achievement`](#fn-has_achievement) | Has the character (or its account) earned the achievement? | [Accounts](#accounts) |
 | [`has_attr`](#fn-has_attr) | Check if an object has an attribute. | [Objects & attributes](#objects-attributes) |
 | [`has_entitlement`](#fn-has_entitlement) | Whether an object holds a permission entitlement (read-only). | [Locks & permissions](#locks-permissions) |
 | [`has_pool`](#fn-has_pool) | True when the object has the pool. | [Pools](#pools) |
@@ -302,6 +308,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`highest`](#fn-highest) | Highest-die tiers (Blades): 6 -> full (2), 4-5 -> partial (1), else miss (0). | [Dice & skill checks](#dice-skill-checks) |
 | [`if_else`](#fn-if_else) | Conditional expression. | [Math & logic](#math-logic) |
 | [`incr`](#fn-incr) | Increment a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
+| [`incr_account_attr`](#fn-incr_account_attr) | Add `by` to a number on the character's account and return the new value (None when refused). | [Accounts](#accounts) |
 | [`last`](#fn-last) | Get last element. | [Text](#text) |
 | [`lcfirst`](#fn-lcfirst) | Lowercase first character. | [Text](#text) |
 | [`left`](#fn-left) | Get leftmost N characters. | [Text](#text) |
@@ -334,6 +341,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`right`](#fn-right) | Get rightmost N characters. | [Text](#text) |
 | [`roll`](#fn-roll) | Roll a dice expression to a total. | [Dice & skill checks](#dice-skill-checks) |
 | [`search_world`](#fn-search_world) | Query the world: search_world(tag='zone:castle'), search_world(attr='xp_multiplier'), combinable. | [Objects & attributes](#objects-attributes) |
+| [`set_account_attr`](#fn-set_account_attr) | Set an attribute on the character's account, for every character of that person to read. | [Accounts](#accounts) |
 | [`set_attr`](#fn-set_attr) | Set an attribute on an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`set_desc`](#fn-set_desc) | Set the description `look` shows on an object the executor controls (like `@desc`; an empty string clears it). | [Objects & attributes](#objects-attributes) |
 | [`set_lock`](#fn-set_lock) | Set a lock on an object the executor controls (validated). | [Locks & permissions](#locks-permissions) |
@@ -1013,6 +1021,102 @@ Move money FROM something the executor controls.
 
 ```text
 transfer_credits(me, enactor, 25)
+```
+
+
+## Accounts
+
+### `account_attr` {#fn-account_attr}
+
+```text
+account_attr(obj: GameObject | str | None, name: str, default: Any = None) -> Any
+```
+
+An attribute on the character's account: shared by every character
+the same person plays. None for a character with no account.
+
+**Example**
+
+```text
+account_attr(enactor, 'banked_gold', 0)
+```
+
+### `account_characters` {#fn-account_characters}
+
+```text
+account_characters(obj: GameObject | str | None) -> list[str]
+```
+
+The names of every character on the character's account (empty for a
+character with none).
+
+**Example**
+
+```text
+account_characters(enactor)
+```
+
+### `grant_achievement` {#fn-grant_achievement}
+
+```text
+grant_achievement(obj: GameObject | str | None, name: str) -> bool
+```
+
+Award an achievement (an `achievement_def`) to a character, once:
+recorded on its account (or on the character, for `scope =
+character`), announced to the player, its grants applied, and
+`account:on_achievement` fired. False when there is no such
+achievement or it is already earned. Queued; it lands after the script.
+
+**Example**
+
+```text
+grant_achievement(enactor, 'Banshee Slayer')
+```
+
+### `has_achievement` {#fn-has_achievement}
+
+```text
+has_achievement(obj: GameObject | str | None, name: str) -> bool
+```
+
+Has the character (or its account) earned the achievement?
+
+**Example**
+
+```text
+has_achievement(enactor, 'Banshee Slayer')
+```
+
+### `incr_account_attr` {#fn-incr_account_attr}
+
+```text
+incr_account_attr(obj: GameObject | str | None, name: str, by: int = 1) -> Any
+```
+
+Add `by` to a number on the character's account and return the new
+value (None when refused). The same rules as `set_account_attr`.
+
+**Example**
+
+```text
+incr_account_attr(enactor, 'kills')
+```
+
+### `set_account_attr` {#fn-set_account_attr}
+
+```text
+set_account_attr(obj: GameObject | str | None, name: str, value: Any) -> bool
+```
+
+Set an attribute on the character's account, for every character of
+that person to read. The executor must control the character;
+protected and `system` attributes are refused.
+
+**Example**
+
+```text
+set_account_attr(enactor, 'banked_gold', 50)
 ```
 
 

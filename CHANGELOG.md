@@ -4,6 +4,33 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### Accounts (step 6)
+
+- **Login changes.** A person logs in to an account: `create <account>
+  <password>` then a first character's name; `connect <account>
+  <password>`, straight into play with one character, else a menu (`play`,
+  `new`, `delete`, `password`, `quit`). In play: `characters`, `password`.
+  Settings `MAX_CHARACTERS` (5) and `ACCOUNT_MULTIPLAY` (False: a second
+  login takes over).
+- Accounts are objects tagged `account` (`realm.std.accounts.account`);
+  `account_of` and `characters_of` are public in `realm.std.accounts`.
+  `Session.account`; `AuthService.authenticate` returns an account,
+  `create_account` makes one and `create_character` a character on it.
+  `Simulator.account(name, *characters)`.
+- Saved worlds: on the first boot, every character with a password gets an
+  account of the same name holding it, and logs in as before.
+- Softcode `account_attr`, `set_account_attr`, `incr_account_attr`,
+  `account_characters` (group "Accounts").
+- New feature `achievements` (in `CLASSIC`): `achievement_def` data,
+  `grant_achievement`, `has_achievement`, `achievements`, the
+  `account:on_achievement` event (hook `ACHIEVEMENT`); grants of tags and
+  check modifiers reach every character of the account.
+- `@account` (show, `/password`, `/ban`, `/unban`, `/boot`) and
+  `@sitelock`; changes logged on `realm.admin`. Closes capability gap G12
+  and showcase 178. Showcase 207 is rebuilt on the achievements feature.
+- `GameServer.stop` disconnects sessions before closing the world, so a
+  player still in play at shutdown is announced and saved.
+
 ### Progression (step 5)
 
 - Four ways a skill improves, chosen per skill by the skill_def's

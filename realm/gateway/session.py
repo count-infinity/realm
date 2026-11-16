@@ -73,7 +73,7 @@ class Session:
         '_address',
         '_created_at',
         '_last_activity',
-        '_account_name',
+        'account',
         '_data',
         'input_handler',
         '_prompt_future',
@@ -121,7 +121,10 @@ class Session:
         self._address = address
         self._created_at = time.monotonic()
         self._last_activity = self._created_at
-        self._account_name: str | None = None
+        #: the account logged in on this connection (the ``accounts``
+        #: feature): set at ``connect``, kept while the player picks or
+        #: switches characters, cleared at ``logout``
+        self.account: GameObject | None = None
         self._data: dict[str, Any] = {}  # Extra session data
 
     @property

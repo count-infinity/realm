@@ -50,6 +50,8 @@ A feature can declare its own keys. These exist only when the feature is in
 
 | Key | Feature | Default | What it does |
 |---|---|---|---|
+| `MAX_CHARACTERS` | `accounts` | `5` | How many characters one account may hold. |
+| `ACCOUNT_MULTIPLAY` | `accounts` | `False` | Whether one account may play several of its characters at once (one connection per character). Off: a second login takes over the first. |
 | `PROMPT` | `basics` | `'<{hp}/{max_hp}hp> '` | The prompt shown after each batch of output, unless a player sets their own with `prompt`. Tokens: any pool by name and `max_<name>`, `{name}`, `{room}`, `{combat}`, `{level}`, `{xp}`. Empty for none. |
 | `IDLE_TRAINING_MAX_HOURS` | `rules` | `0` | How many hours of time away an idle (`study`) skill banks at once. 0: unlimited. |
 | `COMBAT_RULESET` | `combat` | `None` | Combat ruleset name. Unset, the game system picks its own; set it only to mix systems on purpose. |

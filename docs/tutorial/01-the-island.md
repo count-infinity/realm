@@ -1,8 +1,9 @@
 # Part 1 — The Island
 
 Connect to a fresh game (`realm init lighthouse && cd lighthouse &&
-realm start`), create your superuser (`create Keeper <password>`),
-pick any background, and you're in The Void. Let's leave it.
+realm start`), make an account and your superuser character
+(`create keeper <password>`, then `Keeper`), pick any background, and
+you're in The Void. Let's leave it.
 
 ## Rooms and exits
 

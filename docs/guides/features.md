@@ -46,7 +46,8 @@ everything available. The built-in features:
 
 | Feature | Gives you | Requires |
 |---|---|---|
-| `accounts` | the welcome screen; `connect`, `create`, `who`, `quit` at the login prompt; character creation from the game system's chargen steps | |
+| `accounts` | accounts with several characters: the welcome screen (`connect`, `create`, `who`, `quit`), the character menu (`play`, `new`, `delete`, `password`), `characters`, `password`, `@account`, `@sitelock`; character creation from the game system's chargen steps; softcode `account_attr`, `set_account_attr`, `incr_account_attr`, `account_characters`; settings `MAX_CHARACTERS`, `ACCOUNT_MULTIPLAY` ([Accounts](accounts.md)) | |
+| `achievements` | `achievement_def` data, `achievements`; softcode `grant_achievement`, `has_achievement`; the `ACHIEVEMENT` hook | accounts |
 | `basics` | help, commands, who, quit, logout, color, think, time, uptime, recall, prompt; the default prompt (setting `PROMPT`, [The Character Sheet](character-sheet.md#the-prompt)) | |
 | `talk` | say, pose, semipose, emit, ooc, shout, whisper | |
 | `movement` | go and the directions, in, out | |

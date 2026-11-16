@@ -20,6 +20,7 @@ GROUPS: list[str] = [
     "Tags & zones",
     "Locks & permissions",
     "Money",
+    "Accounts",
     "Messaging & prompts",
     "Dice & skill checks",
     "Pools",

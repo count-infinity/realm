@@ -32,7 +32,8 @@ telnet localhost 4000
 ```
 
 ```text
-create Keeper mypassword          # the first character is the superuser
+create keeper mypassword          # make an account...
+Keeper                            # ...and name its first character (the superuser)
 look                              # you start in The Void, an empty room
 help                              # every command, grouped and searchable
 ```
@@ -165,11 +166,6 @@ own beside it.
 
 It is better to know these before you plan a game around them.
 
-- **Accounts.** A login is one character with its own password. There is
-  no account that owns several characters, so nothing (achievements,
-  unlocks, a shared bank) can apply across a player's characters. Login is
-  itself a feature, so a game can replace it with its own, but that is a
-  substantial piece of work and no guide covers it yet.
 - **Merc is not all of Diku.** ROM mob programs are not converted on
   import.
   The [import guide](docs/development/rom-import.md#merc-parity-the-punch-list)
@@ -194,7 +190,9 @@ as data, health and resources on anything (a ship's shields and hull work
 like a character's hit points), regeneration, resting and sleeping, death
 with a corpse and a return home, wear slots and an `equipment` list, a
 configurable prompt, food, drink, potions, scrolls and wands, class skills
-a player types (`kick fido`, `backstab`) with cooldowns, skills that
+a player types (`kick fido`, `backstab`) with cooldowns, accounts that
+hold several characters and share achievements and data across them, bans
+and sitelocks, skills that
 improve by points, practice at a trainer, use, or study over real time
 (chosen skill by skill), timed crafting and gathering, instanced areas, procedural wilderness,
 the building commands, a searchable help system, and area import and

@@ -324,7 +324,7 @@ the ranked gap list below.
 |---|---|---|---|
 | 176 | Staff dashboard | now | `@stats` (tick load, waits, combat) + `who` + `@eval` queries |
 | 177 | Jail system | now | `$jail`: `teleport_obj()` + exit lock + `wait()` auto-release + log attr |
-| 178 | Ban & sitelock manager | **small** | **G12 ban registry**: account/IP bans with expiry in AuthService (login-attempt lockout exists) |
+| 178 | Ban & sitelock manager | ~~small~~ **SHIPPED 2026-11-15** (engine: `@account/ban`, `@sitelock`, the `realm.admin` log) | **G12 ban registry**: account/IP bans with expiry in AuthService (login-attempt lockout exists) |
 | 179 | Character approval queue | now | `unapproved` tag gates the start-room exit ward; staff `$approve`; `pemit()` on decision |
 | 180 | Staff invisibility | **small** | `invisible` tag + admin sight + `quell` exist; **G4 presence surface**: `who` must respect perception |
 | 181 | Announcement system | now | `remit()` loop over all rooms (or world-master emit); history attr; opt-out attr filter |
@@ -448,7 +448,7 @@ L = a real subsystem.
 | G9 | **Hit locations** | called-shot maneuver + penalty/effect table in the GURPS ruleset | 116 | 1 | S |
 | G10 | **Status prompt line** — ~~gap~~ **SHIPPED 2026-11-15**: `feature.prompt` (one per game) and the `basics` default, a per-player template (`prompt`) over every pool, `{combat}`, `{level}`; telnet EOR/GA ([The Character Sheet](../guides/character-sheet.md#the-prompt)). | per-player prompt template appended after command output | — | 0 | done |
 | G11 | **MXP links** | MXP link markup rendered at the telnet edge | 192 | 1 | S |
-| G12 | **Ban/sitelock registry** | account/IP bans with expiry + audit in AuthService | 178 | 1 | S |
+| G12 | **Ban/sitelock registry** — ~~gap~~ **SHIPPED 2026-11-15**: accounts carry `banned_until`/`ban_reason`; `@account/ban`, `/unban`, `@sitelock` (a `sitelock_registry` object); every change logged on `realm.admin` ([Accounts](../guides/accounts.md)). | account/IP bans with expiry + audit in AuthService | — | 0 | done |
 | G13 | **Command flood throttle** | per-session rate limiter with backoff | 185 | 1 | S |
 
 Worth noting (not blocking any item, but recurring): a dedicated

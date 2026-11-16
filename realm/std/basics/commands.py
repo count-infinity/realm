@@ -109,7 +109,9 @@ async def cmd_logout(ctx: CommandContext) -> None:
     await ctx.session.send("You leave your character behind.\n")
 
     # Drop the player↔session link but KEEP the connection: with no player,
-    # the dispatcher routes input to the login handler again.
+    # the dispatcher routes input to the login handler again. The account
+    # goes too: logout returns to the welcome screen, not the character menu.
+    ctx.session.account = None
     if ctx.session_manager:
         ctx.session_manager.unlink_player_from_session(ctx.session)
     else:

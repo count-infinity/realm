@@ -32,7 +32,8 @@ REALM_ALL = [
 
 FEATURE_ALL = {
     "abilities": ["AbilityAction", "invoke_ability"],
-    "accounts": [],
+    "achievements": [],
+    "accounts": ["account_of", "characters_of"],
     "basics": [],
     "building": [],
     "combat": ["AttackResult", "CombatAction", "CombatView", "Combatant",

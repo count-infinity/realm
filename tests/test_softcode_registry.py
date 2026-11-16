@@ -69,6 +69,12 @@ TO_DICT |= {'attackers', 'retarget', 'disarm'}
 READONLY |= {'attackers'}
 HARM |= {'retarget', 'disarm'}
 
+# Account data and achievements (MUD_PLAN 6.4, 6.5).
+TO_DICT |= {'account_attr', 'set_account_attr', 'incr_account_attr', 'account_characters',
+            'grant_achievement', 'has_achievement'}
+READONLY |= {'account_attr', 'account_characters', 'has_achievement'}
+HARM |= {'grant_achievement'}
+
 # Timed tasks (MUD_PLAN 5.5).
 TO_DICT |= {'start_task', 'task_of', 'stop_task'}
 READONLY |= {'task_of'}

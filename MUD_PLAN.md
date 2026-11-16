@@ -18,7 +18,7 @@ on its own and leaves the suite green.
 | 3 | The character sheet: equipment, skills, prompt, consumables | M | [x] |
 | 4 | Skills you can use: ability commands and the Merc class skills | M | [x] |
 | 5 | Progression: use, practice, idle training, timed actions | L | [x] |
-| 6 | Accounts: one login, many characters, account data, achievements, bans | L | [ ] |
+| 6 | Accounts: one login, many characters, account data, achievements, bans | L | [x] |
 | 7 | Communication: tells, channels, socials, mail | M | [ ] |
 | 8 | The world clock: game time, day and night, weather | S–M | [ ] |
 | 9 | Operating a live game: sessions, throttling, shutdown, backup, migrate | M | [ ] |
@@ -796,30 +796,30 @@ command to change a password, and no ban list (capability audit G12).
 
 In `realm/std/accounts/`. Create `account.py`.
 
-- [ ] An account is a `GameObject` tagged `account`, with no location. It
+- [x] An account is a `GameObject` tagged `account`, with no location. It
       holds `password` (the scrypt hash, already a protected attribute),
       `characters` (a list of character ids), `created`, `last_login`,
       `email` (optional), `banned_until` and `ban_reason`, and whatever a
       game adds. A character holds `account` (the account's id).
-- [ ] Account names are unique among accounts, character names among
+- [x] Account names are unique among accounts, character names among
       characters. The two namespaces are separate.
-- [ ] `account_of(character) -> GameObject | None` and
+- [x] `account_of(character) -> GameObject | None` and
       `characters_of(account) -> list[GameObject]` in `account.py`, public
       through `realm.std.accounts.__all__`.
-- [ ] The first account created on an empty database is the superuser's:
+- [x] The first account created on an empty database is the superuser's:
       the first character created on it gets the `god` tag, as the first
       character does today.
-- [ ] Tests: creation, uniqueness, the links both ways, the hash is not
+- [x] Tests: creation, uniqueness, the links both ways, the hash is not
       readable from softcode.
 
 ### 6.2 Carrying existing worlds over
 
-- [ ] A `feature.on_boot` step in `accounts`: every `player` object that
+- [x] A `feature.on_boot` step in `accounts`: every `player` object that
       has a `password` and no `account` gets an account of the same name
       holding that password, and the password attribute is removed from
       the character. It logs one INFO line per account made and is a no-op
       on the second boot.
-- [ ] Tests: a store built the old way boots, the player can
+- [x] Tests: a store built the old way boots, the player can
       `connect <same name> <same password>`, and lands in the same
       character in the same room.
 
@@ -828,29 +828,29 @@ In `realm/std/accounts/`. Create `account.py`.
 Rewrite `Accounts.handle_login` and its helpers in `login.py`.
 `Session` gains an `account` field beside `player`.
 
-- [ ] At the welcome screen: `connect <account> <password>` and
+- [x] At the welcome screen: `connect <account> <password>` and
       `create <account> <password>`. `who` and `quit` as now.
-- [ ] After `connect`: with exactly one character, enter play with it
+- [x] After `connect`: with exactly one character, enter play with it
       (Decision D2). Otherwise show the menu: the account's characters
       with level and class when the rules system has them, and the
       commands `play <name>`, `new <name>`, `delete <name>` (asks for the
       password again; refused for a character holding the `god` tag unless
       it is the last), `password`, `quit`.
-- [ ] `new <name>` creates a character on the account, refuses past
+- [x] `new <name>` creates a character on the account, refuses past
       `MAX_CHARACTERS` (a setting, default 5), and starts the rules
       system's chargen exactly as `create` does today.
-- [ ] After `create <account> <password>` the player is asked for a first
+- [x] After `create <account> <password>` the player is asked for a first
       character name and continues into chargen, so a new player still
       reaches the game in two prompts.
-- [ ] In play: command `characters` returns to the menu without closing
+- [x] In play: command `characters` returns to the menu without closing
       the connection (the character leaves the room as on `logout`).
       `logout` returns to the welcome screen.
-- [ ] One account, one session in play at a time (a second login takes
+- [x] One account, one session in play at a time (a second login takes
       over, with a message to the old connection), unless
       `ACCOUNT_MULTIPLAY = True`, which allows one session per character.
-- [ ] `password <old> <new>` in play and from the menu.
-- [ ] The login rate limit in `AuthService` keys on the account name.
-- [ ] Tests (`tests/test_accounts.py`): the whole menu; chargen from
+- [x] `password <old> <new>` in play and from the menu.
+- [x] The login rate limit in `AuthService` keys on the account name.
+- [x] Tests (`tests/test_accounts.py`): the whole menu; chargen from
       `new`; the character limit; switching characters; take-over; a wrong
       old password; every test that logged in as a character before now
       logs in to its account (`Simulator.player()` is unaffected: it makes
@@ -859,7 +859,7 @@ Rewrite `Accounts.handle_login` and its helpers in `login.py`.
 
 ### 6.4 Account data in softcode
 
-- [ ] Softcode functions, declared by `accounts`, group "Accounts":
+- [x] Softcode functions, declared by `accounts`, group "Accounts":
       `account_attr(obj, name, default=None)` (read-only; the attribute on
       the character's account, None for a character with none),
       `set_account_attr(obj, name, value)` and
@@ -867,76 +867,76 @@ Rewrite `Accounts.handle_login` and its helpers in `login.py`.
       executor to control the character and are refused for the protected
       attributes and for anything flagged `system`. `account_characters(obj)`
       returns the names of the account's characters (read-only).
-- [ ] Tests: a value set from one character is read from another on the
+- [x] Tests: a value set from one character is read from another on the
       same account and not from a stranger's.
 
 ### 6.5 Achievements
 
 Create `realm/std/achievements/` (`requires=["accounts"]`).
 
-- [ ] An achievement is a definition object tagged `achievement_def`
+- [x] An achievement is a definition object tagged `achievement_def`
       (`feature.def_kind("achievement", "achievement_def")`): a name, a
       `description`, `hidden` (not listed until earned), `scope`
       (`account`, the default, or `character`), and `grants`: tags to add,
       and check modifiers by skill name or `"all"`.
-- [ ] Softcode `grant_achievement(obj, name)` (builder-gated like other
+- [x] Softcode `grant_achievement(obj, name)` (builder-gated like other
       state-changing functions): records it with a timestamp in
       `achievements` on the account, or on the character for that scope,
       once. It fires `account:on_achievement` (hook `ACHIEVEMENT`, payload
       `achievement`), tells the player, and applies the grants.
       `has_achievement(obj, name)` is read-only.
-- [ ] Applying grants: tags are added to every character of the account
+- [x] Applying grants: tags are added to every character of the account
       when the achievement is earned, and to each character at login
       (an observer on the connect event), so a character made later gets
       them. Check modifiers are answered by a `feature.check_modifier`
       that sums the earned achievements' modifiers for that skill; cache
       the sum per account and drop the cache when an achievement is
       granted or definitions reload (`feature.on_reload`).
-- [ ] Command `achievements`: earned ones with dates, unearned visible
+- [x] Command `achievements`: earned ones with dates, unearned visible
       ones, a count of hidden ones remaining.
-- [ ] Tests: earned on one character, the tag and a +1 check modifier
+- [x] Tests: earned on one character, the tag and a +1 check modifier
       apply on a second character of the account after it logs in, and not
       on another account; a `character` scope stays put; granting twice
       does nothing; a hidden one is not listed.
-- [ ] Rewrite showcase 207 (achievements) on top of this, keeping its
+- [x] Rewrite showcase 207 (achievements) on top of this, keeping its
       softcode watchers as the thing that decides when to grant.
 
 ### 6.6 Bans and administration
 
-- [ ] Command `@account <name>` (admin): shows the account, its
+- [x] Command `@account <name>` (admin): shows the account, its
       characters, last login and address. Switches: `/password <new>`
       resets it; `/ban <duration> = <reason>` and `/unban`;
       `/boot` disconnects its sessions.
-- [ ] `@sitelock <address-or-prefix> [= reason]`, `@sitelock/remove`,
+- [x] `@sitelock <address-or-prefix> [= reason]`, `@sitelock/remove`,
       `@sitelock/list` (admin): stored on a singleton object tagged
       `sitelock_registry`. Checked when a connection opens and at
       `create`.
-- [ ] `connect` refuses a banned account with the reason and expiry.
-- [ ] Every ban, unban, password reset and sitelock change is logged at
+- [x] `connect` refuses a banned account with the reason and expiry.
+- [x] Every ban, unban, password reset and sitelock change is logged at
       INFO on a `realm.admin` logger, naming who did it and to whom.
-- [ ] Tests for each, including expiry with an injected clock.
+- [x] Tests for each, including expiry with an injected clock.
 
 ### Acceptance
 
-- [ ] `tests/test_accounts.py` and `tests/test_achievements.py` pass, and
+- [x] `tests/test_accounts.py` and `tests/test_achievements.py` pass, and
       the migration test of 6.2.
-- [ ] `git grep -n "db.password\|'password'" realm/` finds the attribute
+- [x] `git grep -n "db.password\|'password'" realm/` finds the attribute
       only in `accounts` and the protected-attribute tables.
 
 ### Docs
 
-- [ ] New guide `docs/guides/accounts.md`: accounts and characters, the
+- [x] New guide `docs/guides/accounts.md`: accounts and characters, the
       menu, the settings, account data in softcode, achievements with a
       worked example ("slay the banshee on any character, and every
       character gets +1 to will"), bans.
-- [ ] `docs/getting-started/first-game.md` and `quickstart.md`:
+- [x] `docs/getting-started/first-game.md` and `quickstart.md`:
       `create <account> <password>` and the first character.
-- [ ] Every doc, tutorial chapter and showcase transcript that types
+- [x] Every doc, tutorial chapter and showcase transcript that types
       `create Keeper mypassword` or `connect ...` (grep for both).
-- [ ] `docs/architecture/sessions.md`: the account field and the menu
+- [x] `docs/architecture/sessions.md`: the account field and the menu
       state.
-- [ ] `README.md` "What is not built yet": remove the accounts bullet.
-- [ ] Regenerate the softcode and config references.
+- [x] `README.md` "What is not built yet": remove the accounts bullet.
+- [x] Regenerate the softcode and config references.
 
 ### Closes
 
@@ -2023,3 +2023,12 @@ the step, what was decided and why.
 | 2026-11-15 | 5.3 | Practice works for `practice` and `use` skills; a trainer teaching `"class"` teaches the character's own class skills, so any guildmaster teaches anyone. The shipped Midgaard places only the cleric's guildmaster (the converted area has no inner sanctums or resets for the other three); the mage, thief and warrior guildmaster prototypes carry `trainer` for a game that places them. | The area file's content, not the engine. |
 | 2026-11-15 | 5.4 | One skill in study at a time (`training`, `training_since`, `sp_<name>`), not a queue. The reaper sweeps online characters (all player characters when the world has no session manager, as in tests). | The plan's own shape. |
 | 2026-11-15 | 5.5 | `start_task`, `stop_task` and the interruptions run through queued world ops; `stop_task` is allowed for the object that started the task or anything that may mutate the character. `stop`, `study`, `train` and `practice` offer a line they cannot use to softcode `$`-commands first, and showcase 217's exit `study` was renamed `in` (an exact command name now wins over the exit). | Several showcase builds define `$study` and `$stop`. |
+| 2026-11-15 | 6.1 | Account and character names are one word of letters, digits and `_`, at most 30 long; a password is at least 4 characters. The first account on an empty database is marked `founder`, and its first character gets `god`. | The plan left the rules for names open. |
+| 2026-11-15 | 6.3 | The menu keeps a pending question (a first character's name, the password before a delete) in the session's `account_pending` data, not `session.prompt()`, which waits on the next line inside the handler of the current one and would deadlock the input pump. | Login runs inside the input pump. |
+| 2026-11-15 | 6.3 | `delete` refuses only the last `god` character on the server ("refused for a character holding the god tag unless it is the last" read as: the server must keep a superuser). | Ambiguous in the plan; this reading cannot strand a server without one. |
+| 2026-11-15 | 6.3 | Without `ACCOUNT_MULTIPLAY` the take-over happens at `connect` (every other connection of the account is told and closed). With it, `play` takes over a character another connection holds. A failed `connect` to an account that does not exist is not counted by the rate limit. | The plan's two cases. |
+| 2026-11-15 | 6.4 | The account setters need the executor to control the character, and players are controlled only by themselves, their owner and admins, so a world object setting account data must be an admin's. `system`-flagged attributes are refused even to admins, as the plan says. | The control rules already in the engine. |
+| 2026-11-15 | 6.5 | `grant_achievement` is harm-gated (a builder's tool, like the other state-changing functions) and needs no control of the character; it awards players only. The check-modifier cache is per character, cleared on every grant and on reload. An achievement for a character with no account is kept on the character. | Simplest correct caching. |
+| 2026-11-15 | 6.5 | Showcase 207's three Explorer tiers are three achievements (Wanderer, Pathfinder, Cartographer); the Chronicle's watcher and tier table still decide when; the engine's `achievements` replaces the hand-made `$badges`. | The plan: keep the softcode watchers as what decides. |
+| 2026-11-15 | 6.6 | `@account/password <name> = <new>` (the `=` form, like the other admin commands), ban durations `30m`/`2h`/`3d`/`1w`/`forever` (stored as the string `forever`). The sitelock check runs as a session-manager `on_connect` callback, so a Simulator (which has none) never sitelocks. | The plan left the syntax open. |
+| 2026-11-15 | 6 | `GameServer.stop` now disconnects sessions before closing the world. | A player still in play at shutdown could not be announced or saved: the world was gone (found by the new login tests, the first to stop a server with players in play). |

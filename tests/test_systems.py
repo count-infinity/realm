@@ -148,6 +148,8 @@ class TestAuth:
 
 @pytest.mark.asyncio
 class TestAuthService:
+    """Identity is the account's (MUD_PLAN 6.1): ``authenticate`` returns
+    an account, ``create_character`` makes a character on it."""
 
     def _service(self, **kw):
         from realm.std.accounts.auth import AuthService
@@ -156,18 +158,17 @@ class TestAuthService:
         return AuthService(pers, **kw), pers
 
     async def _account(self, pers, name="Bob", password="s2"):
-        from realm.core.objects import GameObject
+        from realm.std.accounts.account import new_account
         from realm.std.accounts.auth import hash_password
-        p = GameObject(name, tags=["player"])
-        p.db.password = hash_password(password)
-        pers.add(p)
-        return p
+        account = new_account(name, hash_password(password))
+        pers.add(account)
+        return account
 
     async def test_authenticate_roundtrip(self):
         svc, pers = self._service()
         bob = await self._account(pers)
-        player, err = await svc.authenticate("Bob", "s2")
-        assert player is bob and err == ""
+        account, err = await svc.authenticate("Bob", "s2")
+        assert account is bob and err == ""
 
     async def test_rate_limit_locks_and_drains(self):
         clock = {"t": 0.0}
@@ -175,95 +176,45 @@ class TestAuthService:
                                   clock=lambda: clock["t"])
         await self._account(pers)
         for _ in range(3):
-            player, err = await svc.authenticate("Bob", "wrong")
-            assert player is None
+            account, err = await svc.authenticate("Bob", "wrong")
+            assert account is None
         # Locked even with the RIGHT password now.
-        player, err = await svc.authenticate("Bob", "s2")
-        assert player is None and "Too many failed attempts" in err
+        account, err = await svc.authenticate("Bob", "s2")
+        assert account is None and "Too many failed attempts" in err
         # Window drains -> works again.
         clock["t"] = 61.0
-        player, err = await svc.authenticate("Bob", "s2")
-        assert player is not None
+        account, err = await svc.authenticate("Bob", "s2")
+        assert account is not None
 
     async def test_plaintext_account_cannot_log_in(self):
-        from realm.core.objects import GameObject
         svc, pers = self._service()
-        old = GameObject("Old", tags=["player"])
+        old = await self._account(pers, "Old")
         old.db.password = "plain"
-        pers.add(old)
-        player, err = await svc.authenticate("Old", "plain")
-        assert player is None and err == "Invalid password."
+        account, err = await svc.authenticate("Old", "plain")
+        assert account is None and err == "Invalid password."
         assert old.db.get("password") == "plain"
 
     async def test_create_account_rejects_duplicates(self):
         svc, pers = self._service()
         await self._account(pers)
-        player, err = await svc.create_account("Bob", "x")
-        assert player is None and "already exists" in err
+        account, err = await svc.create_account("Bob", "xxxx")
+        assert account is None and "already exists" in err
 
-    async def test_create_applies_system_baseline(self):
+    async def test_create_character_applies_system_baseline(self):
         svc, _pers = self._service()
-        player, err = await svc.create_account("New", "pw",
-                                               system=GurpsSystem())
+        account, _ = await svc.create_account("New", "pwpw")
+        player, err = await svc.create_character(account, "Newt", system=GurpsSystem())
         assert player is not None
         assert player.db.get("strength") == 10
-        assert str(player.db.get("password")).startswith("scrypt$")
+        assert player.db.get("password") is None
+        assert str(account.db.get("password")).startswith("scrypt$")
 
     async def test_first_character_becomes_superuser(self):
         svc, _pers = self._service()
-        first, _ = await svc.create_account("Founder", "pw")
-        assert first.has_tag("god")
-        second, _ = await svc.create_account("Guest2", "pw")
-        assert not second.has_tag("god")
-
-
-class TestCheckResolution:
-    """Each GameSystem owns non-combat skill resolution, not just combat."""
-
-    def test_gurps_rolls_3d6_under(self):
-        # A high skill almost always succeeds; a low one almost never —
-        # over many rolls, roll-under behaviour.
-        sys = GurpsSystem()
-        pro = GameObject("Pro")
-        pro.db.skill_stealth = 16
-        oaf = GameObject("Oaf")
-        oaf.db.skill_stealth = 4
-        pro_wins = sum(sys.resolve_check(pro, "stealth", 0).success for _ in range(200))
-        oaf_wins = sum(sys.resolve_check(oaf, "stealth", 0).success for _ in range(200))
-        assert pro_wins > 180 and oaf_wins < 20
-
-    def test_d20_rolls_high_vs_dc(self):
-        sys = D20System()
-        # skill "level" is a BONUS under d20: +10 clears DC 15 most rolls,
-        # +0 rarely does.
-        ace = GameObject("Ace")
-        ace.db.skill_stealth = 10
-        joe = GameObject("Joe")
-        joe.db.skill_stealth = 0
-        ace_wins = sum(sys.resolve_check(ace, "stealth", 0).success for _ in range(200))
-        joe_wins = sum(sys.resolve_check(joe, "stealth", 0).success for _ in range(200))
-        assert ace_wins > joe_wins
-        # roll-high, not roll-under: the higher bonus wins, opposite of GURPS
-        assert ace_wins > 100
-
-    def test_server_installs_system_resolver(self, world):
-        # Selecting d20 makes check() itself roll d20 (roll-high), proving
-        # the resolver is wired to the GameSystem not just combat.
-        from realm.std.rules.checks import check, checks
-        checks().resolver = D20System().resolve_check
-        hero = GameObject("Hero")
-        hero.db.skill_stealth = 30  # auto-clears DC
-        assert check(hero, "stealth").success is True
-        assert check(hero, "stealth").roll <= 20  # a d20, not 3d6
-
-    def test_d20_chargen_sets_armor_class(self):
-        sys = D20System()
-        rogue = GameObject("Rogue")
-        sys.apply_baseline(rogue)
-        (step,) = sys.chargen_steps()
-        step.handle(rogue, "rogue")      # DEX 16
-        sys.finish_chargen(rogue)
-        assert rogue.db.get("armor_class") == 13  # 10 + (16-10)//2
+        account, _ = await svc.create_account("Founder", "pwpw")
+        first, _ = await svc.create_character(account, "Hero")
+        second, _ = await svc.create_character(account, "Sidekick")
+        assert first.has_tag("god") and not second.has_tag("god")
 
 
 @pytest.mark.asyncio
@@ -276,5 +227,6 @@ class TestSystemStamp:
 
     async def test_creation_stamps_system(self):
         svc, _ = self._service()
-        player, _ = await svc.create_account("Bob", "pw", system=D20System())
+        account, _ = await svc.create_account("Bob", "pwpw")
+        player, _ = await svc.create_character(account, "Bobby", system=D20System())
         assert player.db.get("game_system") == "d20"

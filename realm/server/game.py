@@ -310,17 +310,19 @@ class GameServer:
                     pass
                 setattr(self, attr, None)
 
+        # Disconnect all sessions BEFORE stopping protocol servers:
+        # Server.wait_closed() (Python 3.12.1+) waits for client connections,
+        # so lingering sessions would stall shutdown until clients hang up.
+        # And before closing the world: a player still in play is announced
+        # as disconnected and saved, which needs the world.
+        for session in self.session_manager.all_sessions():
+            await session.send("Server shutting down. Goodbye!")
+            await self.session_manager.destroy_session(session)
+
         # Undo every ambient registration build_world made (observers,
         # setters, the active store) so a later server starts clean.
         if self.world is not None:
             self.world.close()
-
-        # Disconnect all sessions BEFORE stopping protocol servers:
-        # Server.wait_closed() (Python 3.12.1+) waits for client connections,
-        # so lingering sessions would stall shutdown until clients hang up.
-        for session in self.session_manager.all_sessions():
-            await session.send("Server shutting down. Goodbye!")
-            await self.session_manager.destroy_session(session)
 
         # Stop custom protocol servers
         for name, server in self._protocol_servers.items():

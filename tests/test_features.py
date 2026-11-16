@@ -97,7 +97,10 @@ class TestDefaultEqualsToday:
                               # step 4: abilities as commands
                               "abilities",
                               # step 5: progression and timed tasks
-                              "practice", "train", "study", "stop"}
+                              "practice", "train", "study", "stop",
+                              # step 6: accounts and achievements
+                              "characters", "password", "@account", "@sitelock",
+                              "achievements"}
             assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
@@ -107,7 +110,10 @@ class TestDefaultEqualsToday:
                      # MUD_PLAN step 4: combat's fight-turning functions
                      "attackers", "retarget", "disarm",
                      # step 5: timed tasks
-                     "start_task", "task_of", "stop_task"}
+                     "start_task", "task_of", "stop_task",
+                     # step 6: account data and achievements
+                     "account_attr", "set_account_attr", "incr_account_attr",
+                     "account_characters", "grant_achievement", "has_achievement"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.
@@ -119,7 +125,9 @@ class TestDefaultEqualsToday:
                 "realm.std.vitals.positions.roused_observer",
                 # step 5: idle training at login, tasks broken off by a fight
                 "realm.std.rules.progression.login_observer",
-                "realm.std.tasks.tasks.fight_observer"}
+                "realm.std.tasks.tasks.fight_observer",
+                # step 6: achievements' tags reach a character at login
+                "realm.std.achievements.achievements.login_observer"}
             assert sorted(observers) == OBSERVERS
             # MUD_PLAN step 2 added the player corpse's claim.
             # step 5 the trainer.

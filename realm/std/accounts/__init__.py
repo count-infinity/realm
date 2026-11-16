@@ -1,6 +1,11 @@
 """The ``accounts`` feature. Its declarations are in ``feature.py``; this package
 holds its parts, which import without loading the feature.
 
-It has no public names: a game uses it by listing it in ``FEATURES``."""
+Public: ``account_of(character)`` and ``characters_of(account)``."""
 
-__all__: list[str] = []
+from realm._exports import exports
+
+__all__, __getattr__, __dir__ = exports(globals(), {
+    "account_of": "realm.std.accounts.account:account_of",
+    "characters_of": "realm.std.accounts.account:characters_of",
+})

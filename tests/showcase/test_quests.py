@@ -554,36 +554,58 @@ class TestRumorMill:
 
 @pytest.mark.asyncio
 class TestAchievements:
+    """The Chronicle decides when; the engine's achievements keep what was
+    earned (MUD_PLAN 6.5)."""
 
-    async def test_progressive_tiers_and_hidden_badge(self, world):
+    async def test_progressive_tiers_and_hidden_achievement(self, world):
         sim, bela, hub = world
         await build(sim, bela, "207_achievements.md")
         nova = sim.player("Nova", location=one(sim, "The Grand Concourse"))
 
+        def earned():
+            return set(nova.db.get("achievements") or {})
+
         await sim.do(nova, "observatory")     # 1st distinct room -> tier 1
-        assert nova.db.get("badge_explorer") == 1
+        assert earned() == {"Wanderer"}
         await sim.do(nova, "concourse")        # 2nd -> tier 2
-        assert nova.db.get("badge_explorer") == 2
+        assert earned() == {"Wanderer", "Pathfinder"}
 
-        await sim.do(nova, "vault")            # secret room: hidden badge + tier 3
-        assert nova.db.get("badge_trespasser") == 1
-        assert nova.db.get("badge_explorer") == 3
-        assert any("Trespasser" in m for m in sim.seen(nova))
+        await sim.do(nova, "vault")            # secret room: hidden + tier 3
+        assert earned() == {"Wanderer", "Pathfinder", "Cartographer", "Trespasser"}
+        assert nova.has_tag("trespasser")
+        seen = joined(sim.seen(nova))
+        assert "Achievement earned: Trespasser!" in seen
 
-        await sim.do(nova, "badges")
+        await sim.do(nova, "concourse")
+        await sim.do(nova, "vault")            # nothing new to grant
+        assert "Achievement earned" not in joined(sim.seen(nova))
+
+        await sim.do(nova, "achievements")
         out = joined(sim.seen(nova))
-        assert "Explorer (tier 3)" in out
-        assert "Trespasser" in out
+        assert "Cartographer" in out and "Trespasser" in out
 
-    async def test_hidden_badge_is_not_listed_until_earned(self, world):
+    async def test_hidden_achievement_is_not_listed_until_earned(self, world):
         sim, bela, hub = world
         await build(sim, bela, "207_achievements.md")
         moon = sim.player("Moon", location=one(sim, "The Grand Concourse"))
-        await sim.do(moon, "observatory")      # earns Explorer, never enters vault
-        await sim.do(moon, "badges")
+        await sim.do(moon, "observatory")      # earns Wanderer, never enters vault
+        await sim.do(moon, "achievements")
         out = joined(sim.seen(moon))
-        assert "Explorer" in out
-        assert "Trespasser" not in out         # hidden until unlocked
+        assert "Wanderer" in out and "Pathfinder" in out   # earned, and still to earn
+        assert "Trespasser" not in out                       # hidden until unlocked
+        assert "1 hidden achievement" in out
+
+    async def test_earned_on_one_character_it_counts_for_the_account(self, world):
+        sim, bela, hub = world
+        await build(sim, bela, "207_achievements.md")
+        nova = sim.player("Nova", location=one(sim, "The Grand Concourse"))
+        vega = sim.player("Vega")
+        sim.account("Astra", nova, vega)
+        await sim.do(nova, "vault")
+        chronicle = one(sim, "Chronicle")
+        result, _err = await sim.eval(chronicle,
+                                      "result = has_achievement(get('Vega'), 'Trespasser')")
+        assert result is True
 
 
 # =========================================================================
