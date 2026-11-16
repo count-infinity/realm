@@ -1,5 +1,5 @@
 """
-Combat's two pool observers (KERNEL_PLAN 8.3).
+Combat's three pool observers (KERNEL_PLAN 8.3, MUD_PLAN 2.3).
 
 Whatever harms an object, a swing, a spell, poison, a trap or a softcode
 ``harm_pool``, settles its change through ``realm.core.pools.settle``, which
@@ -11,7 +11,11 @@ the object's **vital pool** (``vital_pool(obj)``: ``hp`` for a character,
 - falling through ``db.hitprcnt`` (a percent left), short of spent:
   ``ON_HITPRCNT``.
 
-Other pools (shields, mana, heat) move without either.
+- no longer spent while the object is ``unconscious``: it comes round
+  (regeneration, ``firstaid``, a spell or softcode ``heal()``, whatever
+  raised it).
+
+Other pools (shields, mana, heat) move without any of these.
 """
 
 from __future__ import annotations
@@ -63,4 +67,19 @@ async def threshold_observer(action: Action) -> None:
                      extra={"percent": round(new), "threshold": int(threshold)})
 
 
-__all__ = ["death_observer", "threshold_observer"]
+async def revive_observer(action: Action) -> None:
+    """The vital pool of an unconscious object rose above spent: it comes
+    round. The one place the ``unconscious`` tag is removed for healing."""
+    if action.action_type != ActionType.POOL_CHANGE:
+        return
+    name = _vital(action)
+    obj = action.target
+    if name is None or not obj.has_tag('unconscious') or is_spent(obj, name):
+        return
+    obj.remove_tag('unconscious')
+    obj.msg("You come to.")
+    if obj.location is not None:
+        obj.location.msg_contents(f"{obj.name} stirs.", exclude=[obj])
+
+
+__all__ = ["death_observer", "threshold_observer", "revive_observer"]

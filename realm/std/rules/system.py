@@ -146,6 +146,20 @@ class GameSystem(ABC):
         character points (PointBuyMixin); an XP system banks experience
         and levels up (MercSystem). Neutral: nothing."""
 
+    # --- Recovery and death ---
+
+    def regen(self, obj: GameObject, pool_name: str) -> int:
+        """How much of ``pool_name`` ``obj`` regains in one ``REGEN_INTERVAL``
+        out of combat, before the ``vitals`` feature's multipliers (resting,
+        sleeping). Neutral: a twentieth of the pool's max, at least 1."""
+        from realm.core.pools import pool_max
+        return max(1, int(pool_max(obj, pool_name) or 0) // 20)
+
+    def on_death(self, player: GameObject, killer: GameObject | None = None) -> None:
+        """The penalty a player pays for dying under ``PLAYER_DEATH =
+        "respawn"``, called after the corpse is left and before the player
+        returns home. Neutral: none."""
+
     def score_lines(self, player: GameObject) -> list[str]:
         """The ``score`` sheet, in this system's own vocabulary. Neutral:
         the character's pools (``pool_lines``)."""

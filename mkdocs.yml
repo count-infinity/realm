@@ -76,6 +76,7 @@ nav:
   - Build your game:
     - Features (where things go): guides/features.md
     - Pools (Health & Resources): guides/pools.md
+    - Life and Death: guides/life-and-death.md
     - Rules:
       - Game Systems: guides/game-systems.md
       - Creating Your Own System: guides/creating-your-own-system.md

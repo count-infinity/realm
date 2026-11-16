@@ -52,6 +52,7 @@ FEATURE_ALL = {
     "spawning": [],
     "stealth": [],
     "talk": ["TalkAction"],
+    "vitals": [],
     "wilderness": [],
 }
 

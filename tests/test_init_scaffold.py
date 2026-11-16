@@ -410,3 +410,16 @@ async def test_the_rules_examples_work_uncommented(system, new_class, tmp_path, 
         await rules_obj.outfit_new_character(player, sim.store)
     finally:
         sim.close()
+
+
+def test_a_merc_scaffold_respawns_its_dead(tmp_path, monkeypatch, clean_import_state):
+    """Decision D1: --system merc (and the Midgaard template) set
+    PLAYER_DEATH = "respawn"; the other systems keep the default."""
+    monkeypatch.chdir(tmp_path)
+    for system in SYSTEMS:
+        assert cmd_init(_Args(f"g_{system}", system=system)) == 0
+        config = (tmp_path / f"g_{system}" / "config.py").read_text()
+        assert ('PLAYER_DEATH = "respawn"' in config) == (system == "merc"), system
+    assert cmd_init(_Args("town", template="midgaard")) == 0
+    settings = load_config(tmp_path / "town")
+    assert settings.raw["PLAYER_DEATH"] == "respawn"

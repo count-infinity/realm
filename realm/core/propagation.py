@@ -687,8 +687,12 @@ def deliver_messages(action: Action) -> None:
     perception and identity apply.
 
     A message queued for an audience nobody registered logs one WARNING per
-    (audience, action type) and is not delivered.
+    (audience, action type) and is not delivered. A recipient any of the
+    world's deaf rules (``feature.deaf_rule``) answers True for gets none.
     """
+    from realm.core.world import find_world
+    world = find_world()
+    deaf_rules = world.deaf_rules if world is not None else ()
     names = list(dict.fromkeys([*action.success_messages, *action.messages]))
     for name in names:
         msgs: list[str] = []
@@ -708,6 +712,8 @@ def deliver_messages(action: Action) -> None:
                     f"feature.audience({name!r}) or use actor/target/room/remote.")
             continue
         for recipient in resolver(action):
+            if any(rule(recipient, action) for rule in deaf_rules):
+                continue
             for msg in msgs:
                 recipient.msg(action.format_message(msg, looker=recipient))
 

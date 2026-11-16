@@ -151,6 +151,19 @@ class Simulator:
             raise ValueError(f"{player.name} was not created via .player()")
         await self.dispatcher.dispatch(sess, command)
 
+    async def input(self, player: GameObject, line: str) -> None:
+        """Feed one line as a live connection does: the features' input
+        interceptors first (a sleeper's "You are asleep.", a character
+        still in creation), then the dispatcher. ``do`` goes straight to
+        the dispatcher."""
+        sess = self._sessions.get(player.id)
+        if sess is None:
+            raise ValueError(f"{player.name} was not created via .player()")
+        for _order, interceptor in self.world.input_interceptors:
+            if await interceptor(self.world, sess, line):
+                return
+        await self.dispatcher.dispatch(sess, line)
+
     async def submit_line(self, player: GameObject, raw: str) -> None:
         """Feed ONE raw client line through the real input path — the same
         ``submit_input`` a live connection uses, so heredoc (multi-line)

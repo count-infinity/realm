@@ -56,8 +56,9 @@ everything available. The built-in features:
 | `building` | every `@` command, quell, unquell | look |
 | `rules` | points, improve; softcode `skill_check`, `check_roll`, `contest`, `skill`, `check`; gear changes reach the game system | |
 | `stealth` | hide, search, pick; loud actions break stealth; the watchful behavior | rules, items |
-| `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS` | rules, items |
-| `effects` | timed effect behaviors; softcode `apply_effect`, `remove_effect` | rules |
+| `combat` | attack, queue, defend, flee, combat, pace, combatdefault, wimpy, showrolls, firstaid; the combat manager; death, coming round and respawn; combat AI behaviors; softcode `damage`, `heal`, `start_combat`; settings `COMBAT_RULESET`, `COMBAT_BEAT_*`, `SHOW_ROLLS`, `PLAYER_DEATH`, `CORPSE_LOCK_SECONDS` | rules, items |
+| `effects` | timed effect behaviors; softcode `apply_effect`, `remove_effect`; `services["effects"].clear(obj)` | rules |
+| `vitals` | regeneration out of combat; rest, sleep, stand (wake); a sleeper sees, hears and does nothing; settings `REGEN_INTERVAL`, `REST_REGEN`, `SLEEP_REGEN` ([Life and Death](life-and-death.md)) | |
 | `abilities` | cast, spells; the caster behavior; softcode `cast`, `use_ability` | rules, combat |
 | `economy` | buy, sell, list, pay, credits; shopkeepers; softcode `credits`, `adjust_credits`, `transfer_credits` | items |
 | `social` | consider, persuade, fasttalk, follow, unfollow, party; the disposition boost; softcode `disposition`, `adjust_disposition`, `reaction_roll` | rules, effects |
@@ -66,7 +67,7 @@ everything available. The built-in features:
 | `spawning` | spawner, restock, population, zone_reset behaviors | |
 | `instances` | instanced copies of template areas; softcode `enter_instance` | |
 | `wilderness` | procedural wilderness cells; softcode `enter_wilderness` | spawning |
-| `gurps`, `d20`, `merc` | the combat ruleset of each rules system | rules, combat |
+| `gurps`, `d20`, `merc` | the combat ruleset of each rules system; `merc` also charges movement points for walking | rules, combat |
 
 The kernel is always there: the script engine and every other softcode
 function, `script_ticker`, `behavior_def` behaviors, expiry reaping. Its
@@ -131,6 +132,7 @@ Everything a feature can declare:
 | `feature.queue_kind(kind, handler)` | a world op softcode queues for the event loop |
 | `feature.check_modifier(fn)` | a `(obj, skill) -> int` modifier folded into every check |
 | `feature.sight_rule(fn)` | `(viewer, obj) -> bool \| None`: after the kernel's sight (invisibility, darkness), False hides (`stealth` hides a `hidden` character) |
+| `feature.deaf_rule(fn)` | `(recipient, action) -> bool`: True keeps that action's queued messages from that recipient (`vitals`: a sleeper hears nothing it is not party to) |
 | `feature.marker(fn)` | `(obj, looker) -> str \| None`: a parenthetical marker on a listed name (`a key (hidden)`) |
 | `feature.name_resolver(fn)` | `(obj, looker, current) -> name`: who an object appears to be (recognition, disguise) |
 | `feature.speech_renderer(fn)` | `(body, action, looker) -> body`: a spoken line per listener (languages, slurring) |

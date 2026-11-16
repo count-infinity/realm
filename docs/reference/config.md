@@ -55,6 +55,11 @@ A feature can declare its own keys. These exist only when the feature is in
 | `COMBAT_BEAT_MIN` | `combat` | `4.0` | Shortest combat round, in seconds. |
 | `COMBAT_BEAT_MAX` | `combat` | `120.0` | Longest combat round, in seconds. |
 | `COMBAT_BEAT_DEFAULT` | `combat` | `15.0` | Default combat round, in seconds. |
+| `PLAYER_DEATH` | `combat` | `'unconscious'` | What happens to a player whose vital pool is spent, unless the player sets `when_spent`: `unconscious` (falls where they are and comes round as they heal) or `respawn` (leaves a corpse of their belongings and returns home at 1 point, paying the game system's `on_death` penalty). |
+| `CORPSE_LOCK_SECONDS` | `combat` | `300` | Under `respawn`, how long only the dead player (and admins) may take from their corpse. 0 leaves it open to anyone. |
+| `REGEN_INTERVAL` | `vitals` | `15` | Seconds between regeneration ticks. Each tick a character out of combat regains the game system's `regen` amount of each pool below full. |
+| `REST_REGEN` | `vitals` | `2` | Regeneration multiplier while resting. |
+| `SLEEP_REGEN` | `vitals` | `4` | Regeneration multiplier while asleep. |
 
 ## Callbacks
 

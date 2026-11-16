@@ -133,8 +133,11 @@ class ScavengerBehavior(Behavior):
         persistence = get_world().store
 
         if self.get_param('eat_corpses', True):
+            # A player's corpse (tag ``player_corpse``) holds their gear
+            # until they come back for it: ROM's fido eats NPC corpses only.
             corpse = next((c for c in room.contents
-                           if 'corpse' in c.name.lower()), None)
+                           if 'corpse' in c.name.lower()
+                           and not c.has_tag('player_corpse')), None)
             if corpse is not None:
                 room.msg_contents(f"{obj.name} noses into {corpse.name} and "
                                   "devours it, bones and all.", exclude=[])

@@ -55,6 +55,9 @@ class Pool:
     spent_at: int = 0                  # a down pool is spent at or below this
     overflow: str | None = None        # harm this pool could not absorb goes here
     soak_attr: str | None = None       # flat reduction read from this attribute
+    #: whether it recovers over time on its own (the ``vitals`` feature):
+    #: a down pool rises toward its max, an up pool falls toward its floor
+    regen: bool = True
     owner: str = "kernel"
 
     def __post_init__(self) -> None:

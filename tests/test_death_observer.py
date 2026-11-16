@@ -223,3 +223,231 @@ class TestWhenSpent:
         with pytest.raises(ValueError, match="Pat.*player"):
             await sim.world.services["combat"].handle_death(pat)
         assert pat.location is room
+
+
+# --- MUD_PLAN 2.3: coming round ---------------------------------------------------
+
+
+@pytest.mark.asyncio
+class TestComingRound:
+
+    async def test_a_lone_player_comes_round_by_regenerating(self, sim):
+        room = sim.room("Pit")
+        here = sim.room("Glade")
+        door = sim.obj("north", location=room, tags=["exit"])
+        door.db.set("destination", here.id)
+        gun = sim.obj("gun", location=room)
+        pat = sim.player("Pat", location=room, hp=4, max_hp=10)
+        sam = sim.player("Sam", location=room)
+        await sim.eval(gun, "damage(get('Pat'), 9)")
+        assert pat.has_tag("unconscious")
+        await sim.do(pat, "north")
+        assert pat.location is room                # still down: the existing gate
+        sim.seen(pat), sim.seen(sam)
+
+        await sim.world.services["vitals"].tick()
+        assert not pat.has_tag("unconscious")
+        assert "You come to." in sim.seen(pat)
+        assert "Pat stirs." in sim.seen(sam)
+        await sim.do(pat, "north")
+        assert pat.location is here
+
+    async def test_softcode_heal_revives(self, sim):
+        room = sim.room("Pit")
+        gun = sim.obj("gun", location=room)
+        pat = sim.player("Pat", location=room, hp=4, max_hp=10)
+        await sim.eval(gun, "damage(get('Pat'), 9)")
+        assert pat.has_tag("unconscious")
+        await sim.eval(gun, "heal(get('Pat'), 3)")
+        assert not pat.has_tag("unconscious")
+        assert "You come to." in sim.seen(pat)
+
+    async def test_firstaid_revives_through_the_observer(self, sim):
+        from realm.std.rules.checks import checks
+        checks().resolver = lambda actor, skill, mod=0, **kw: SimpleNamespace(
+            success=True, margin=4, critical=False, roll=10)
+        room = sim.room("Pit")
+        medic = sim.player("Medic", location=room)
+        pat = sim.player("Pat", location=room, hp=4, max_hp=10)
+        await settle(harm(pat, "hp", 9))
+        assert pat.has_tag("unconscious")
+        await sim.do(medic, "firstaid Pat")
+        assert not pat.has_tag("unconscious")
+        assert sum(line == "You come to." for line in sim.seen(pat)) == 1
+
+    async def test_a_still_spent_pool_does_not_revive(self, sim):
+        room = sim.room("Pit")
+        pat = sim.player("Pat", location=room, hp=0, max_hp=10,
+                         pools={"hp": {"spent_at": 2}})
+        pat.add_tag("unconscious")
+        from realm.core.pools import mend
+        await settle(mend(pat, "hp", 1))           # 1: still at or below spent_at
+        assert pat.has_tag("unconscious")
+
+
+# --- MUD_PLAN 2.4: death and respawn -----------------------------------------------
+
+
+def _respawn_sim(**raw):
+    from realm.config.loader import Settings
+    return Simulator(settings=Settings(raw={"PLAYER_DEATH": "respawn", **raw}))
+
+
+@pytest.fixture
+def rsim():
+    s = _respawn_sim()
+    try:
+        yield s
+    finally:
+        s.close()
+
+
+def _corpse(room):
+    return next(o for o in room.contents if o.name.startswith("corpse of"))
+
+
+@pytest.mark.asyncio
+class TestRespawn:
+
+    async def _killed(self, rsim, **attrs):
+        field = rsim.room("Field")
+        home = rsim.room("Home")
+        witness = rsim.obj("witness", location=field)
+        witness.db.on_death = COUNT_DEATHS
+        pat = rsim.player("Pat", location=field, hp=10, max_hp=10, home=home.id, **attrs)
+        sword = rsim.obj("a sword", location=pat, tags=["thing", "weapon"])
+        ring = rsim.obj("a bound ring", location=pat, tags=["thing", "soulbound"])
+        wolf = rsim.obj("wolf", location=field, tags=["npc"], hp=10, max_hp=10)
+        await settle(harm(pat, "hp", 30), source=wolf)
+        return field, home, witness, pat, sword, ring, wolf
+
+    async def test_the_player_wakes_at_home_at_one_hit_point(self, rsim):
+        field, home, witness, pat, sword, ring, _wolf = await self._killed(rsim)
+        assert pat.location is home
+        assert pat.db.hp == 1
+        assert not pat.has_tag("unconscious")
+        assert witness.db.deaths == 1
+        assert witness.db.fatal is True
+        assert any("Home" in line for line in rsim.seen(pat))   # shown the room
+
+    async def test_the_corpse_holds_what_they_carried_but_soulbound(self, rsim):
+        field, home, _w, pat, sword, ring, _wolf = await self._killed(rsim)
+        corpse = _corpse(field)
+        assert corpse.name == "corpse of Pat"
+        assert sword.location is corpse
+        assert ring.location is pat
+        assert corpse.owner is pat
+        assert corpse.has_tag("player_corpse")
+
+    async def test_only_the_owner_loots_until_the_lock_lapses(self, rsim, monkeypatch):
+        field, home, _w, pat, sword, _ring, _wolf = await self._killed(rsim)
+        thief = rsim.player("Thief", location=field)
+        await rsim.do(thief, "get sword from corpse")
+        assert sword.location is not thief
+        assert any("belongs to Pat" in line for line in rsim.seen(thief))
+
+        import time
+        later = time.time() + 301                  # CORPSE_LOCK_SECONDS 300
+        monkeypatch.setattr("realm.std.combat.corpses.time.time", lambda: later)
+        await rsim.do(thief, "get sword from corpse")
+        assert sword.location is thief
+
+    async def test_the_owner_loots_their_own_corpse(self, rsim):
+        field, home, _w, pat, sword, _ring, _wolf = await self._killed(rsim)
+        pat.location = field                        # walks back from home
+        await rsim.do(pat, "get sword from corpse")
+        assert sword.location is pat
+
+    async def test_a_zero_lock_leaves_it_open(self):
+        sim = _respawn_sim(CORPSE_LOCK_SECONDS=0)
+        try:
+            field, home, _w, pat, sword, _ring, _wolf = await self._killed(sim)
+            thief = sim.player("Thief", location=field)
+            await sim.do(thief, "get sword from corpse")
+            assert sword.location is thief
+        finally:
+            sim.close()
+
+    async def test_no_home_means_the_start_room(self, rsim):
+        start = rsim.room("Start")
+        rsim.startup_room = start
+        field = rsim.room("Field")
+        pat = rsim.player("Pat", location=field, hp=10, max_hp=10)
+        await settle(harm(pat, "hp", 30))
+        assert pat.location is start
+
+    async def test_positions_combat_and_effects_are_cleared(self, rsim):
+        from realm.std.effects.behaviors import ModifierEffectBehavior
+        field = rsim.room("Field")
+        home = rsim.room("Home")
+        pat = rsim.player("Pat", location=field, hp=10, max_hp=10, home=home.id)
+        pat.add_tag("resting")
+        pat.add_behavior(ModifierEffectBehavior(kind="cursed", duration=0))
+        assert pat.has_tag("cursed")
+        await settle(harm(pat, "hp", 30))
+        for tag in ("resting", "sleeping", "in_combat", "unconscious", "cursed"):
+            assert not pat.has_tag(tag), tag
+
+    async def test_no_kill_award_for_a_player_death(self, rsim):
+        field = rsim.room("Field")
+        home = rsim.room("Home")
+        killer = rsim.player("Killer", location=field)
+        pat = rsim.player("Pat", location=field, hp=10, max_hp=10, home=home.id,
+                          points=500)
+        paid = []
+        rsim.game_system.grant_award = lambda player, amount: paid.append(amount)
+        await settle(harm(pat, "hp", 30), source=killer)
+        assert paid == []
+
+    async def test_a_scavenger_leaves_a_player_corpse_alone(self, rsim, monkeypatch):
+        from realm.std.npc.behaviors import ScavengerBehavior
+        field, home, _w, pat, sword, _ring, _wolf = await self._killed(rsim)
+        fido = rsim.obj("fido", location=field, tags=["npc"])
+        monkeypatch.setattr("realm.std.npc.behaviors.random.random", lambda: 0.0)
+        await ScavengerBehavior().tick(fido, 4.0)
+        assert _corpse(field) is not None and sword.location is _corpse(field)
+
+    async def test_respawn_is_for_players(self, rsim):
+        room = rsim.room("Pit")
+        rat = rsim.obj("rat", location=room, when_spent="respawn")
+        with pytest.raises(ValueError, match="rat.*respawn.*player"):
+            await rsim.world.services["combat"].handle_death(rat)
+
+    async def test_the_default_is_still_unconscious(self, sim):
+        room = sim.room("Pit")
+        pat = sim.player("Pat", location=room, hp=10, max_hp=10)
+        await settle(harm(pat, "hp", 30))
+        assert pat.has_tag("unconscious") and pat.location is room
+
+    async def test_an_unknown_player_death_setting_is_an_error(self):
+        sim = _respawn_sim(PLAYER_DEATH="explode")
+        try:
+            room = sim.room("Pit")
+            pat = sim.player("Pat", location=room, hp=10, max_hp=10)
+            with pytest.raises(ValueError, match="PLAYER_DEATH.*explode"):
+                await sim.world.services["combat"].handle_death(pat)
+        finally:
+            sim.close()
+
+
+@pytest.mark.asyncio
+class TestMercDeathPenalty:
+
+    async def test_merc_loses_a_quarter_level_of_experience_never_a_level(self):
+        from realm.config.loader import Settings
+        sim = Simulator(game_system="realm.games.merc.system.MercSystem",
+                        settings=Settings(raw={"PLAYER_DEATH": "respawn"}))
+        try:
+            home = sim.room("Temple")
+            field = sim.room("Field")
+            pat = sim.player("Pat", location=field, hp=10, max_hp=10, home=home.id,
+                             level=3, xp=1000)
+            await settle(harm(pat, "hp", 30))
+            assert pat.db.level == 3
+            assert pat.db.xp == 250                # 1000 - (3000 // 4)
+            pat.location = field
+            pat.db.hp = 10
+            await settle(harm(pat, "hp", 30))
+            assert (pat.db.level, pat.db.xp) == (3, 0)
+        finally:
+            sim.close()

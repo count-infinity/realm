@@ -2,6 +2,13 @@
 
 > Checklist item 138 ([now]): *rest tags, regeneration boosts, vulnerability wards*
 
+> **The engine does this now.** Since 0.3.0 the `vitals` feature (in
+> `CLASSIC`) gives every character natural regeneration and the `rest`,
+> `sleep` and `stand`/`wake` commands ([Life and death](../guides/life-and-death.md)).
+> This build is for a game that leaves `vitals` out of `FEATURES`, or wants
+> rest to work differently; in a world with `vitals`, the engine's `rest`
+> and `wake` answer before these `$`-commands do.
+
 **What you'll build:** a bunk you lie down on to recover HP faster than the
 world gives you for free, and while you are under a ward pins you to the cot
 until you `wake`. Rest that trades safety for healing.
@@ -22,7 +29,7 @@ the sleeper's state is read back, and where the risk lives.
 
 ### Where does the healing come from?
 
-Nothing heals a hurt character on its own. Out of the box a wounded body stays
+Without `vitals`, nothing heals a hurt character on its own. A wounded body stays
 wounded until a medic's [`firstaid`](135_injury_treatment.md), a
 [`heal()`](../reference/softcode.md#fn-heal), or an attached `regeneration`
 effect tops it up. There is no ambient trickle and no fatigue-point pool, so

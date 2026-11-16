@@ -270,7 +270,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`controls`](#fn-controls) | Does the executor control this object? | [Objects & attributes](#objects-attributes) |
 | [`create_obj`](#fn-create_obj) | Create a new thing, owned by the executor's owner (or the executor itself), at the executor's location by default. | [Objects & attributes](#objects-attributes) |
 | [`credits`](#fn-credits) | An object's balance. | [Money](#money) |
-| [`damage`](#fn-damage) | Deal damage to something in the executor's room: it lands in the target's damage pool (`hp` unless it says otherwise). | [Combat & effects](#combat-effects) |
+| [`damage`](#fn-damage) | Deal damage to something in the executor's room: it lands in the target's damage pool (`hp` unless it says otherwise), with soak (each pool's `soak_attr`, a ship's armor). | [Combat & effects](#combat-effects) |
 | [`decr`](#fn-decr) | Decrement a numeric attribute on `me` and return the new value. | [Objects & attributes](#objects-attributes) |
 | [`del_attr`](#fn-del_attr) | Delete an attribute from an object the executor controls. | [Objects & attributes](#objects-attributes) |
 | [`destroy_obj`](#fn-destroy_obj) | Destroy an object the executor controls. | [Objects & attributes](#objects-attributes) |
@@ -1517,7 +1517,8 @@ damage(obj: GameObject | str | None, amount: int, dtype: str | None = None) -> b
 ```
 
 Deal damage to something in the executor's room: it lands in the
-target's damage pool (`hp` unless it says otherwise). After the
+target's damage pool (`hp` unless it says otherwise), with soak (each
+pool's `soak_attr`, a ship's armor). After the
 script finishes the change settles: damage that spends the target's
 vital pool runs the combat manager's death path (corpses, CP awards,
 unconsciousness), and falling through `hitprcnt` fires

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from realm.commands import CommandContext
 from realm.commands.base import find_object
-from realm.core.pools import damage_pool, is_spent, mend, pool_get, pool_max, settle, vital_pool
+from realm.core.pools import damage_pool, mend, pool_get, pool_max, settle
 from realm.core.world import get_world
 from realm.std.combat.manager import is_combat_capable
 from realm.std.combat.maneuver import QueuedAction
@@ -291,8 +291,8 @@ async def cmd_wimpy(ctx: CommandContext) -> None:
 
 async def cmd_firstaid(ctx: CommandContext) -> None:
     """
-    Tend wounds with the First Aid skill (out of combat only). Can
-    revive the unconscious.
+    Tend wounds with the First Aid skill (out of combat only). Healing the
+    unconscious above spent brings them round (combat's revive observer).
 
     Usage: firstaid [target|me]
 
@@ -330,13 +330,6 @@ async def cmd_firstaid(ctx: CommandContext) -> None:
     ctx.player.msg(f"You dress {who} wounds ({healed} HP).")
     if target is not ctx.player:
         target.msg(f"{ctx.player.name} dresses your wounds ({healed} HP).")
-    if target.has_tag('unconscious') and not is_spent(target, vital_pool(target)):
-        target.remove_tag('unconscious')
-        target.msg("You come to, aching all over.")
-        if target.location:
-            target.location.msg_contents(
-                f"{target.name} regains consciousness.", exclude=[target],
-            )
 
 
 async def cmd_rolls(ctx: CommandContext) -> None:

@@ -88,20 +88,27 @@ class TestDefaultEqualsToday:
     def test_classic_matches_the_frozen_state(self):
         sim = Simulator()
         try:
-            # Step 6 added @events after the freeze.
-            assert sorted(set(sim.dispatcher._commands) - {"@events"}) == COMMANDS
+            # Step 6 added @events after the freeze; MUD_PLAN step 2 the
+            # vitals positions.
+            added_commands = {"@events", "rest", "sleep", "stand"}
+            assert sorted(set(sim.dispatcher._commands) - added_commands) == COMMANDS
             names = set(ScriptFrame(persistence=sim.store).to_dict())
             # Step 5 added clone_obj, set_name and set_desc after the freeze;
             # step 8 the pool functions.
             added = {"clone_obj", "set_name", "set_desc", "pool", "pool_max", "has_pool",
                      "spent", "harm_pool", "mend_pool", "spend_pool"}
             assert sorted(names - added) == SOFTCODE_NAMES
-            # Step 8 added combat's two vital-pool observers.
+            # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
+            # combat's revive observer and the vitals feature's two.
             observers = {_qualname(o) for o in get_world().engine._observers} - {
                 "realm.std.combat.vitals.death_observer",
-                "realm.std.combat.vitals.threshold_observer"}
+                "realm.std.combat.vitals.threshold_observer",
+                "realm.std.combat.vitals.revive_observer",
+                "realm.std.vitals.regen.regen_observer",
+                "realm.std.vitals.positions.roused_observer"}
             assert sorted(observers) == OBSERVERS
-            assert sorted(BehaviorRegistry.list_all()) == BEHAVIOR_IDS
+            # MUD_PLAN step 2 added the player corpse's claim.
+            assert sorted(set(BehaviorRegistry.list_all()) - {"corpse_claim"}) == BEHAVIOR_IDS
         finally:
             sim.close()
 

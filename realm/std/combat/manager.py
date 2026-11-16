@@ -36,23 +36,38 @@ logger = logging.getLogger(__name__)
 
 
 #: What ``handle_death`` does to a body, by ``obj.db.when_spent``.
-WHEN_SPENT = ('unconscious', 'corpse', 'destroy', 'none')
+WHEN_SPENT = ('unconscious', 'corpse', 'destroy', 'none', 'respawn')
+
+#: The rules a player may have (``PLAYER_DEATH`` picks the default).
+PLAYER_RULES = ('unconscious', 'none', 'respawn')
 
 
 def when_spent(obj: GameObject) -> str:
-    """``obj.db.when_spent``, else today's rule by kind: a player falls
-    unconscious, anything else leaves a corpse. Raises ValueError for an
-    unknown rule, or for a player set to ``corpse`` or ``destroy``."""
+    """``obj.db.when_spent``, else the default by kind: a player follows
+    the ``PLAYER_DEATH`` setting (``unconscious`` unless set), anything else
+    leaves a corpse. Raises ValueError for an unknown rule, for a player set
+    to ``corpse`` or ``destroy``, or for anything but a player set to
+    ``respawn``."""
     rule = obj.db.when_spent
+    where = "when_spent"
     if rule is None:
-        return 'unconscious' if obj.is_player else 'corpse'
+        if not obj.is_player:
+            return 'corpse'
+        from realm.core.world import find_world
+        world = find_world()
+        rule = world.setting("PLAYER_DEATH", "unconscious") if world is not None \
+            else "unconscious"
+        where = "PLAYER_DEATH"
+    shown = rule
     rule = str(rule).strip().lower()
     if rule not in WHEN_SPENT:
-        raise ValueError(f"{obj.name}: when_spent must be one of "
-                         f"{', '.join(WHEN_SPENT)}, not {obj.db.when_spent!r}")
-    if obj.is_player and rule in ('corpse', 'destroy'):
-        raise ValueError(f"{obj.name}: a player's when_spent may be unconscious "
-                         f"or none, not {rule!r}")
+        raise ValueError(f"{obj.name}: {where} must be one of "
+                         f"{', '.join(WHEN_SPENT)}, not {shown!r}")
+    if obj.is_player and rule not in PLAYER_RULES:
+        raise ValueError(f"{obj.name}: a player's {where} may be "
+                         f"{', '.join(PLAYER_RULES)}, not {rule!r}")
+    if not obj.is_player and rule == 'respawn':
+        raise ValueError(f"{obj.name}: when_spent 'respawn' is for players only")
     return rule
 
 
@@ -212,16 +227,20 @@ class CombatManager:
 
         ``obj.db.when_spent`` says what happens to the body (WHEN_SPENT):
         ``"unconscious"`` (tagged, in place, revivable; a player's
-        default), ``"corpse"`` (a lootable corpse and a character-point
-        award; an NPC's default), ``"destroy"`` (gone, its contents left
-        in the room) or ``"none"`` (nothing: the object's own ``ON_SPENT``
-        softcode decides). A player is never made a corpse or destroyed.
+        default unless ``PLAYER_DEATH`` says otherwise), ``"corpse"`` (a
+        lootable corpse and a kill award; an NPC's default), ``"destroy"``
+        (gone, its contents left in the room), ``"none"`` (nothing: the
+        object's own ``ON_SPENT`` softcode decides) or ``"respawn"`` (a
+        player only: a corpse of their belongings stays, the player
+        returns home at 1 point; no kill award). A player is never made a
+        corpse or destroyed.
 
         It is also the one place ``combat:on_death`` is announced, before
         the body changes, for every rule.
         """
         rule = when_spent(obj)
-        await self._propagate_death(obj, killer, fatal=rule in ('corpse', 'destroy'))
+        await self._propagate_death(obj, killer,
+                                    fatal=rule in ('corpse', 'destroy', 'respawn'))
         if rule == 'unconscious':
             if not obj.has_tag('unconscious'):
                 obj.add_tag('unconscious')
@@ -234,6 +253,54 @@ class CombatManager:
             await self._npc_death(obj, killer)
         elif rule == 'destroy':
             await self._destroy(obj)
+        elif rule == 'respawn':
+            await self._respawn(obj, killer)
+
+    async def _respawn(self, player: GameObject, killer: GameObject | None) -> None:
+        """A player's death under ``respawn``: leave a corpse of their
+        belongings, pay the rules' penalty, and return home at 1 point."""
+        from realm.core.pools import set_pool, vital_pool
+        from realm.core.teardown import start_room_floor
+        from realm.std.combat.corpses import leave_player_corpse
+
+        world = get_world()
+        room = player.location
+        player.msg("You have been KILLED!!")
+        if room is not None:
+            room.msg_contents(f"{player.name} is dead!", exclude=[player])
+
+        encounter = self.encounter_of(player)
+        if encounter is not None:
+            encounter.remove(player.id)
+        if room is not None:
+            await leave_player_corpse(player, room, store=world.store,
+                                      lock_seconds=world.setting("CORPSE_LOCK_SECONDS"))
+        world.rules.on_death(player, killer)
+
+        name = vital_pool(player)
+        if name is not None:
+            set_pool(player, name, 1)
+        for tag in ('in_combat', 'unconscious', 'resting', 'sleeping'):
+            player.remove_tag(tag)
+        effects = world.services.get("effects")
+        if effects is not None:
+            effects.clear(player)
+        vitals = world.services.get("vitals")
+        if vitals is not None:
+            vitals.track(player)
+
+        home = (world.store.get_cached(str(player.db.home))
+                if world.store is not None and player.db.home else None)
+        home = home or world.startup_room or start_room_floor()
+        if home is not None:
+            player.location = home
+            home.msg_contents(f"{player.name} appears, pale and shaken.",
+                              exclude=[player])
+            render = world.services.get("look")
+            player.msg(render.render_room(home, player) if render is not None
+                       else home.name)
+        if world.store is not None:
+            await world.store.save(player)
 
     async def _destroy(self, obj: GameObject) -> None:
         """The one destroy path (``ops.objects.destroy``): an exit unpairs,

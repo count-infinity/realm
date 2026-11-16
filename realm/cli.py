@@ -81,6 +81,12 @@ _RULES_IMPORT = "from realm.games.gurps import GurpsSystem\n"
 _RULES_CLASS = "class GameRules(GurpsSystem):\n"
 _RULES_EXAMPLES = "    # __SYSTEM_EXAMPLES__\n"
 
+#: What ``--system merc`` adds to config.py after GAME_SYSTEM.
+_MERC_DEATH = ('# A player whose hit points run out dies: they leave a corpse holding\n'
+               '# what they carried and wake at home with 1 hit point, a quarter of a\n'
+               '# level\'s experience poorer. "unconscious" leaves them where they fell.\n'
+               'PLAYER_DEATH = "respawn"\n\n')
+
 
 def _replace_once(text: str, old: str, new: str) -> str:
     """``text`` with its one ``old`` replaced; raises if the template lost it."""
@@ -189,6 +195,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     config_content = render_template("config.py.template", game_name=display_name)
     if not with_rules:
         config_content = _rewrite(config_content, _RULES_BLOCK, "")
+    elif system == "merc":
+        # Decision D1: a Diku character dies, leaves a corpse and respawns.
+        config_content = _replace_once(
+            config_content, _RULES_BLOCK[1],
+            _RULES_BLOCK[1] + _MERC_DEATH)
     if feature_list is not None:
         config_content = _rewrite(config_content, _FEATURES_BLOCK,
                                   _features_settings(feature_list))

@@ -30,6 +30,11 @@ ENABLE_WEBSOCKET = False
 # system. Its base class is what makes this a Diku; change the hooks there.
 GAME_SYSTEM = "rules.GameRules"
 
+# A player whose hit points run out dies: they leave a corpse holding what
+# they carried and wake at home with 1 hit point, a quarter of a level's
+# experience poorer. "unconscious" leaves them where they fell.
+PLAYER_DEATH = "respawn"
+
 # Every built-in feature, and this game's own game.py.
 from realm import CLASSIC  # noqa: E402
 

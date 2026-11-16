@@ -26,6 +26,7 @@ a definition.
 | `spent_at` | `0` | a down pool is spent at or below this |
 | `overflow` | none | harm this pool could not absorb goes on to the named pool |
 | `soak_attr` | none | an attribute read as a flat reduction before harm lands, when the caller asks for soak |
+| `regen` | `True` | whether it recovers on its own over time, with the `vitals` feature ([Life and Death](life-and-death.md)) |
 
 ## Where a definition comes from
 
@@ -111,9 +112,9 @@ zero if they should keep fighting there.
 
 ## Death and the HP threshold
 
-With the `combat` feature installed, two observers watch every object's
+With the `combat` feature installed, three observers watch every object's
 vital pool, whatever moved it: a swing, a spell, a poison tick, a trap,
-softcode `damage()` or `harm_pool()`.
+softcode `damage()` or `harm_pool()`, regeneration.
 
 - **Spent:** the combat manager's death path runs once, with the source as
   the killer. `ON_DEATH` fires, then the body is dealt with as its
@@ -123,6 +124,8 @@ softcode `damage()` or `harm_pool()`.
   to at or below it, with `adata('percent')` and `adata('threshold')`. The
   change that spends the pool fires `ON_DEATH` instead. An up pool counts
   what is left below its max: a harm clock at 4 of 6 is at 33 percent.
+- **Rising above spent while `unconscious`:** the object comes round: the
+  tag goes, it is told "You come to." and the room sees it stir.
 
 Spending any other pool (shields, mana, heat) does neither. Its own
 `ON_SPENT` hook still fires.
@@ -131,13 +134,16 @@ Spending any other pool (shields, mana, heat) does neither. Its own
 
 | `when_spent` | What happens | `adata('fatal')` |
 |---|---|---|
-| `unconscious` | tagged `unconscious` where it fell, revivable by healing. A player's default | False |
+| `unconscious` | tagged `unconscious` where it fell; comes round when its vital pool rises above spent (regeneration, healing). A player's default unless `PLAYER_DEATH` says otherwise | False |
+| `respawn` | players only: a corpse of what they carried stays, the player wakes at home at 1 point and pays the game system's `on_death` penalty; no kill award ([Life and Death](life-and-death.md#death)) | True |
 | `corpse` | replaced by a lootable corpse holding its contents; the killer's party gets the award. Any other object's default | True |
 | `destroy` | destroyed the way `@destroy` does it: an exit unpairs, a player inside is moved out, other contents go with it | True |
 | `none` | nothing: the object's own `ON_SPENT` softcode decides | False |
 
-A player may only be `unconscious` or `none`. Any other value is an error
-naming the object.
+A player may only be `unconscious`, `respawn` or `none`, and only a player
+may be `respawn`. Any other value is an error naming the object. A player
+with no `when_spent` follows the `PLAYER_DEATH` setting (`"unconscious"`
+unless the game sets `"respawn"`).
 
     @set ship/when_spent = none
     @set ship/on_spent = if adata('pool') == 'hull': remit(here, 'The ship breaks apart.')

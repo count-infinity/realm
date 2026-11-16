@@ -29,6 +29,7 @@ from realm.std.combat.commands import (
     cmd_rolls,
     cmd_wimpy,
 )
+from realm.std.combat.corpses import CorpseClaimBehavior
 
 feature = Feature(
     'combat',
@@ -105,7 +106,7 @@ feature.command(
 )
 
 for _cls in (AggressiveBehavior, DefensiveBehavior, FleeingBehavior, HealerBehavior,
-             CombatantBehavior, VenomousBehavior):
+             CombatantBehavior, VenomousBehavior, CorpseClaimBehavior):
     feature.behavior(_cls)
 
 feature.setting(
@@ -118,6 +119,16 @@ feature.setting(
 feature.setting("COMBAT_BEAT_MIN", 4.0, "Shortest combat round, in seconds.")
 feature.setting("COMBAT_BEAT_MAX", 120.0, "Longest combat round, in seconds.")
 feature.setting("COMBAT_BEAT_DEFAULT", 15.0, "Default combat round, in seconds.")
+feature.setting(
+    "PLAYER_DEATH", "unconscious",
+    "What happens to a player whose vital pool is spent, unless the player sets "
+    "`when_spent`: `unconscious` (falls where they are and comes round as they "
+    "heal) or `respawn` (leaves a corpse of their belongings and returns home at 1 "
+    "point, paying the game system's `on_death` penalty).")
+feature.setting(
+    "CORPSE_LOCK_SECONDS", 300,
+    "Under `respawn`, how long only the dead player (and admins) may take from "
+    "their corpse. 0 leaves it open to anyone.")
 
 
 @feature.on_install
@@ -150,11 +161,12 @@ def _start_combat(world) -> None:
 
 @feature.on_install
 def _watch_vital_pools(world) -> None:
-    """Death and ``ON_HITPRCNT`` follow the vital pool, whatever moved it
-    (``realm.std.combat.vitals``)."""
-    from realm.std.combat.vitals import death_observer, threshold_observer
+    """Death, ``ON_HITPRCNT`` and coming round follow the vital pool,
+    whatever moved it (``realm.std.combat.vitals``)."""
+    from realm.std.combat.vitals import death_observer, revive_observer, threshold_observer
     world.observe(death_observer)
     world.observe(threshold_observer)
+    world.observe(revive_observer)
 
 
 @feature.on_boot

@@ -179,8 +179,8 @@ It is better to know these before you plan a game around them.
   showcase has softcode versions of a trainer and of achievements for a
   single character.
 - **Merc is not all of Diku.** Characters earn practices when they gain a
-  level, but there is no `practice` command to spend them. Walking does
-  not cost movement points. ROM mob programs are not converted on import.
+  level, but there is no `practice` command to spend them. ROM mob
+  programs are not converted on import.
   The [import guide](docs/development/rom-import.md#merc-parity-the-punch-list)
   lists what converts and what does not.
 
@@ -200,7 +200,8 @@ shopkeeping, respawning), money and shops, opinions that NPCs hold about
 individual characters, parties and followers, stealth, darkness and
 invisibility, timed effects such as poison, spells and abilities defined
 as data, health and resources on anything (a ship's shields and hull work
-like a character's hit points), instanced areas, procedural wilderness,
+like a character's hit points), regeneration, resting and sleeping, death
+with a corpse and a return home, instanced areas, procedural wilderness,
 the building commands, a searchable help system, and area import and
 export. Three rules systems are included: GURPS, D20 and Merc. Players
 connect by telnet (with GMCP) or WebSocket.

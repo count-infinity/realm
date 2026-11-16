@@ -372,6 +372,18 @@ class TestHungerThirst:
 
 
 class TestSleepRest:
+    """The softcode build is for a game without the ``vitals`` feature,
+    whose own ``rest`` and ``wake`` commands would answer first."""
+
+    @pytest.fixture
+    def sim(self):
+        from realm.std import CLASSIC
+        simulator = Simulator(features=[f for f in CLASSIC if f != "vitals"])
+        checks().resolver = level_resolver
+        simulator.engine.session_manager = SimpleNamespace(
+            all_sessions=lambda: list(simulator._sessions.values()))
+        yield simulator
+        simulator.close()
 
     async def test_rest_heals_locks_movement_and_wake_ends_it(self, sim):
         await build(sim, 138)

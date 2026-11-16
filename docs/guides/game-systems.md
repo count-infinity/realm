@@ -78,6 +78,20 @@ the deposit. An XP system that inherited the character-point
 `death_award` would starve its level curve; that bug shipped once, and is
 why the seam exists.
 
+## Recovery and death
+
+Two more hooks, both neutral by default ([Life and Death](life-and-death.md)):
+
+| Method | Neutral `GameSystem` | `MercSystem` |
+|---|---|---|
+| `regen(obj, pool_name)` | a twentieth of the pool's max, at least 1 | `hp` by constitution and level, `mana` by intelligence or wisdom and level, `move` by dexterity and level |
+| `on_death(player, killer)` | nothing | lose a quarter of a level's experience, never a level |
+
+`regen` is the amount one `REGEN_INTERVAL` restores to a character out of
+combat, standing; the `vitals` feature multiplies it for resting and
+sleeping. `on_death` is called only under `PLAYER_DEATH = "respawn"`,
+after the corpse is left and before the player returns home.
+
 `score` should speak your system's language: override `score_lines`, don't
 teach the command. `pool_lines(player)` (from `realm.std.rules.system`)
 renders the pools line Merc's sheet uses.
@@ -163,7 +177,8 @@ GAME_SYSTEM = "rules.SavageSystem"
 ```
 
 The `resolve_check`, `improve_cost`, `death_award`, `grant_award`,
-`score_lines`, `pools` and `chargen_steps` methods are the seams; everything
+`regen`, `on_death`, `score_lines`, `pools` and `chargen_steps` methods
+are the seams; everything
 else inherits sensible defaults. Leave out `PointBuyMixin` and the game has
 no advancement economy until you write one.
 

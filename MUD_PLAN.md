@@ -14,7 +14,7 @@ on its own and leaves the suite green.
 | # | Step | Size | Status |
 |---|------|------|--------|
 | 1 | Starting points: `--system`, and templates that are full scaffolds | S | [x] |
-| 2 | The solo loop: regeneration, rest, recovery, death, movement cost | M | [ ] |
+| 2 | The solo loop: regeneration, rest, recovery, death, movement cost | M | [x] |
 | 3 | The character sheet: equipment, skills, prompt, consumables | M | [ ] |
 | 4 | Skills you can use: ability commands and the Merc class skills | M | [ ] |
 | 5 | Progression: use, practice, idle training, timed actions | L | [ ] |
@@ -296,33 +296,33 @@ nothing spends.
 
 Create `realm/std/vitals/` (no `requires`).
 
-- [ ] **Design.** A character (player or `npc`) regains each of its
+- [x] **Design.** A character (player or `npc`) regains each of its
       declared down pools over time while out of combat. The amount per
       tick is the game system's to decide; without a `rules` feature it is
       a flat 1.
-- [ ] `GameSystem.regen(obj, pool_name) -> int` in
+- [x] `GameSystem.regen(obj, pool_name) -> int` in
       `realm/std/rules/system.py`, neutral default
       `max(1, pool_max // 20)`. `MercSystem.regen` uses level and
       constitution for `hp`, intelligence or wisdom for `mana`, dexterity
       for `move`.
-- [ ] `vitals` keeps a set of object ids that are below max, fed by an
+- [x] `vitals` keeps a set of object ids that are below max, fed by an
       observer on `pool:on_change` (add when below max, drop when full)
       and seeded once in `on_boot` by scanning cached characters. This
       avoids sweeping every NPC in the world every tick.
-- [ ] A `feature.reaper` sweeps that set every `REGEN_INTERVAL` seconds (a
+- [x] A `feature.reaper` sweeps that set every `REGEN_INTERVAL` seconds (a
       new setting, default 15): for each character not tagged `in_combat`,
       `pools.mend` each declared down pool by
       `regen × position multiplier` (2.2) and `await pools.settle(...)`.
       An up pool (stress, heat) falls toward its floor the same way.
       An object may opt out with `no_regen` in its `pools` spec for that
       pool; add `regen: bool = True` to `Pool` and `SPEC_KEYS`.
-- [ ] `vitals` asks `world.rules` for the amount when it exists. It does
+- [x] `vitals` asks `world.rules` for the amount when it exists. It does
       not `require` rules: read `get_world().rules` and fall back to 1.
-- [ ] `vitals` offers a service (`world.services["vitals"]`) holding
+- [x] `vitals` offers a service (`world.services["vitals"]`) holding
       `multipliers`, a list of `(obj, pool_name) -> float` whose product
       scales each tick. The position multipliers of 2.2 are its first
       entries, and other features append their own (hunger, step 12).
-- [ ] Tests (`tests/test_vitals.py`): a hurt player regains hit points
+- [x] Tests (`tests/test_vitals.py`): a hurt player regains hit points
       after one interval and stops at max; a fighter in combat does not; a
       ship's shields regain only if its spec allows; with `features=[...]`
       lacking `vitals` nothing regenerates; Merc's amounts differ by
@@ -332,49 +332,49 @@ Create `realm/std/vitals/` (no `requires`).
 
 In `vitals`.
 
-- [ ] Commands `rest`, `sleep`, `stand`, `wake` (alias `stand` for both
+- [x] Commands `rest`, `sleep`, `stand`, `wake` (alias `stand` for both
       ways up). Position is a tag: `resting` or `sleeping` (standing is
       neither). Regeneration multiplies by `REST_REGEN` (default 2) and
       `SLEEP_REGEN` (default 4), both settings.
-- [ ] A `feature.traversal_gate`: a resting or sleeping actor does not
+- [x] A `feature.traversal_gate`: a resting or sleeping actor does not
       move ("You need to stand up first.").
-- [ ] A `feature.observer`: a hostile action (the `hostile` action tag)
+- [x] A `feature.observer`: a hostile action (the `hostile` action tag)
       against a resting or sleeping character stands it up, with a line to
       the room.
-- [ ] A `feature.input_interceptor` for a sleeping player: every line
+- [x] A `feature.input_interceptor` for a sleeping player: every line
       except `wake`, `stand`, `help`, `who`, `score`, `quit`, `tell` and
       `reply` is answered "You are asleep." and consumed.
-- [ ] Decision D4: a `feature.sight_rule` hides everything but themselves
+- [x] Decision D4: a `feature.sight_rule` hides everything but themselves
       from a sleeping viewer, and message delivery to a sleeper is
       suppressed for room audiences. **Kernel seam:** if
       `realm/core/propagation.py::deliver_messages` has no way to skip a
       recipient, add `World.deaf_rules` (a list of
       `(recipient, action) -> bool`) declared by `feature.deaf_rule`, and
       consult it in the one delivery function. Tells bypass it.
-- [ ] A `feature.marker` shows `(resting)` or `(sleeping)` in room
+- [x] A `feature.marker` shows `(resting)` or `(sleeping)` in room
       listings.
-- [ ] Tests: each command and its refusal lines; moving while resting is
+- [x] Tests: each command and its refusal lines; moving while resting is
       refused; an attack stands the victim; a sleeper sees "You are
       asleep." for `look` and does not receive a `say` in the room.
 
 ### 2.3 Coming round
 
-- [ ] In `realm/std/combat/vitals.py`, add a third observer on
+- [x] In `realm/std/combat/vitals.py`, add a third observer on
       `pool:on_change`: when the pool is the object's vital pool, the
       object is tagged `unconscious`, and the pool is no longer spent,
       remove the tag, tell the character "You come to." and the room that
       they stir. Delete the tag removal from `cmd_firstaid`: healing the
       vital pool above spent is what revives, through this observer.
-- [ ] Unconscious characters regenerate (2.1 does not skip them), so a
+- [x] Unconscious characters regenerate (2.1 does not skip them), so a
       lone player comes round after `REGEN_INTERVAL` or two.
-- [ ] Tests: knocked out by softcode `damage()`, a solo player is
+- [x] Tests: knocked out by softcode `damage()`, a solo player is
       conscious again after regeneration ticks; `firstaid` and softcode
       `heal()` both revive through the observer; an unconscious player
       cannot move (the existing gate) until then.
 
 ### 2.4 Death and respawn
 
-- [ ] Add the value `respawn` to `WHEN_SPENT`
+- [x] Add the value `respawn` to `WHEN_SPENT`
       (`realm/std/combat/manager.py`). It is allowed for players. In
       `handle_death` it:
   1. announces `combat:on_death` with `fatal` True (before the body
@@ -390,14 +390,14 @@ In `vitals`.
   4. sets the vital pool to 1 with `pools.set_pool`, clears `in_combat`,
      `resting`, `sleeping` and timed effects, and moves the character to
      its `home`, else the start room, showing the room.
-- [ ] A setting on the `combat` feature, `PLAYER_DEATH`
+- [x] A setting on the `combat` feature, `PLAYER_DEATH`
       (`"unconscious"` or `"respawn"`, default `"unconscious"`), is what
       `when_spent(obj)` returns for a player with no `when_spent`
       attribute.
-- [ ] The Merc scaffold (1.1) and `realm/examples/midgaard/config.py` set
+- [x] The Merc scaffold (1.1) and `realm/examples/midgaard/config.py` set
       `PLAYER_DEATH = "respawn"`.
-- [ ] The kill award is not paid for a player death.
-- [ ] Tests (`tests/test_death_observer.py`): under `respawn` a defeated
+- [x] The kill award is not paid for a player death.
+- [x] Tests (`tests/test_death_observer.py`): under `respawn` a defeated
       player is in their home at 1 hit point, their sword is in the corpse
       where they fell, another player cannot loot it before the lock time
       and can after, Merc experience drops and the level does not;
@@ -407,35 +407,35 @@ In `vitals`.
 
 In `realm/games/merc/feature.py`.
 
-- [ ] A `feature.traversal_gate` (reason `exhausted`): a player with a
+- [x] A `feature.traversal_gate` (reason `exhausted`): a player with a
       `move` pool spends the destination room's cost with `pools.spend`
       and is refused ("You are too exhausted.") when it cannot pay. Cost
       is the room's `move_cost` attribute, else by its `sector:<name>` tag
       (the ROM importer writes these): inside 1, city 2, field 2, forest
       3, hills 4, mountain 6, water 4; default 1. NPCs and fleeing actors
       are exempt. Settle the change.
-- [ ] Tests: walking drains `move`; a walk the pool cannot pay is refused
+- [x] Tests: walking drains `move`; a walk the pool cannot pay is refused
       and fires `event:on_fail` with reason `exhausted`; resting restores
       it; a GURPS world is unaffected.
 
 ### Acceptance
 
-- [ ] A scripted solo run on the Midgaard example
+- [x] A scripted solo run on the Midgaard example
       (`tests/test_solo_loop.py`): a level-1 warrior fights a fido, loses
       hit points, rests to full, is killed by softcode damage, wakes in
       the Common Square with a corpse left behind, walks back and recovers
       the weapon.
-- [ ] No test or stock path leaves a lone player unable to act.
+- [x] No test or stock path leaves a lone player unable to act.
 
 ### Docs
 
-- [ ] New guide `docs/guides/life-and-death.md`: regeneration, positions,
+- [x] New guide `docs/guides/life-and-death.md`: regeneration, positions,
       coming round, `PLAYER_DEATH`, `when_spent`, movement cost. Add it to
       `mkdocs.yml` under "Build your game".
-- [ ] `docs/guides/pools.md`: the `regen` setting and the new `respawn`
+- [x] `docs/guides/pools.md`: the `regen` setting and the new `respawn`
       row in the `when_spent` table.
-- [ ] `docs/guides/game-systems.md`: `regen` and `on_death`.
-- [ ] `README.md` "What is not built yet": remove what this step built.
+- [x] `docs/guides/game-systems.md`: `regen` and `on_death`.
+- [x] `README.md` "What is not built yet": remove what this step built.
 
 ---
 
@@ -1993,3 +1993,13 @@ the step, what was decided and why.
 | 2026-11-14 | 1.1 | The per-system examples are three snippet files, `realm/templates/rules_examples_<system>.template`, put in place of a marker line in `rules.py.template` (which stays valid Python and names GURPS in its two rewritten lines). The Merc example overrides `MercSystem._classes()` and the D20 one `D20System._class_options()`, since chargen, first-level hit points and the starting weapon all read the class table from there; neither is renamed to a public hook in this step. | One place per system's example text; no rename outside the step's scope. |
 | 2026-11-14 | 1.2 | The examples' `GameRules` do not set `system_id`; they keep `merc` and `gurps`. The scaffold's own `rules.py` still sets the game's id. | Characters are stamped with `system_id`; a new id would make every character in an existing Midgaard or station database log in under the "made under different rules" warning (rule 9). |
 | 2026-11-14 | 1.2 | `test_midgaard_playable.py` and `test_spacegame.py` are unchanged: neither loads an example's `config.py` (they import the area JSON and `ships.py` directly). The new tests that do load one use `clean_import_state`. | Nothing to isolate there. |
+| 2026-11-15 | 2.1 | Regeneration covers an object's declared pools plus its damage and vital pools when those are implicit, so a world with no `rules` feature (no world-default `hp`) still regenerates hit points by 1. An up pool with no floor falls toward 0. | The plan's "without a rules feature it is a flat 1" needs a pool to apply it to. |
+| 2026-11-15 | 2.1 | The reaper is a module function (`realm.std.vitals.regen.regen_sweep`) that asks the world's service; the service keeps the interval with `time.monotonic`, since reapers run every `REAP_INTERVAL` (5 s), not every `REGEN_INTERVAL`. | `feature.reaper` is declared once per feature, not per world. |
+| 2026-11-15 | 2.2 | `stand` is the command and `wake` its alias. The sleeper's input filter accepts each allowed word and any alias of an allowed command (`score` is an alias of `points`). Added `Simulator.input(player, line)`, which runs the input interceptors before the dispatcher, as a live connection does; `Simulator.do` is unchanged. | Testing the interceptor needs the live input path. |
+| 2026-11-15 | 2.2 | The deaf rule is `(recipient, action) -> bool`, and `vitals` answers True for a sleeper who is neither the action's actor nor its target. Messages sent with `room.msg_contents` (not through `deliver_messages`), such as combat's "X collapses", still reach a sleeper. | The plan's one delivery function is `deliver_messages`; the direct broadcasts are left for a later step. |
+| 2026-11-15 | 2.2 | Showcase 138 (sleep and rest in softcode) now runs its test in a world without `vitals`, and its page says the engine does this natively. | With `vitals` loaded the engine's `rest` and `wake` answer before its `$`-commands. |
+| 2026-11-15 | 2.4 | The corpse's loot lock is a behavior on the corpse, `corpse_claim` (a new behavior id), not a `get` lock. | Taking from a container checks the item's lock, not the container's; the corpse sees the `get` as a bystander and can veto it. |
+| 2026-11-15 | 2.4 | Scavengers skip corpses tagged `player_corpse`. | Midgaard's fido is a scavenger and would eat a dead player's gear; ROM's `spec_fido` eats NPC corpses only. |
+| 2026-11-15 | 2.4 | `when_spent = respawn` on anything but a player is an error, like `corpse` on a player. Respawn places the player directly (no `on_enter`, no locks) in their `home`, else `world.startup_room`, else a `start_room`-tagged room. Timed effects end through a new `world.services["effects"].clear(obj)`, so `combat` does not import `effects`. | Boundary tests; a death must not be refusable by a lock. |
+| 2026-11-15 | 2.4 | `PLAYER_DEATH = "respawn"` is written by `realm init --system merc` and set in the Midgaard template (the 1.1 note above is done). | Decision D1. |
+| 2026-11-15 | 2.5 | The cost table is ROM's `movement_loss` (adds `water_swim` 4, `water_noswim` 1, `underwater` 6, `air` 10, `desert` 6, and `water` 4 for hand-built rooms), charged for the destination only. Only a declared `move` pool is charged. The gate pays before the destination's lock and `on_leave` checks, so a step refused after it still costs. | ROM's names are what the importer writes; a numeric `move` attribute in another system must not be drained. |

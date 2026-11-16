@@ -240,6 +240,35 @@ class MercSystem(GameSystem):
         player.msg(f"You gain {amount} experience.")
         self.advance_level(player)
 
+    def regen(self, obj: GameObject, pool_name: str) -> int:
+        """Diku's gain per tick, standing (ROM ``hit_gain``, ``mana_gain``,
+        ``move_gain`` before the position divisor): hit points by
+        constitution and level, mana by the better of intelligence and
+        wisdom, movement by dexterity, all with level."""
+        level = int(obj.db.get("level") or 1)
+
+        def stat(name: str) -> int:
+            return int(obj.db.get(name) or 13)
+
+        if pool_name == "hp":
+            return max(1, (stat("constitution") - 3 + level // 2) // 4)
+        if pool_name == "mana":
+            return max(1, (max(stat("intelligence"), stat("wisdom")) + level) // 4)
+        if pool_name == "move":
+            return max(1, (stat("dexterity") + level) // 4)
+        return super().regen(obj, pool_name)
+
+    def on_death(self, player: GameObject, killer: GameObject | None = None) -> None:
+        """Lose a quarter of a level's experience. Experience is kept as
+        progress toward the next level, so the loss stops at zero and never
+        costs a level."""
+        level = int(player.db.get("level") or 1)
+        xp = int(player.db.get("xp") or 0)
+        lost = min(xp, self.xp_to_next(level) // 4)
+        player.db.xp = xp - lost
+        if lost:
+            player.msg(f"You lose {lost} experience.")
+
     def xp_to_next(self, level: int) -> int:
         """Experience needed to reach the next level from ``level``."""
         return 1000 * level

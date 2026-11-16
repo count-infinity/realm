@@ -105,6 +105,7 @@ class Feature:
         self.markers: list[Callable] = []
         self.name_resolvers: list[Callable] = []
         self.speech_renderers: list[Callable] = []
+        self.deaf_rules: list[Callable] = []
         self.group_formatters: list[tuple[Callable, bool]] = []
         self.protocols: list[tuple[str, type, dict[str, Any]]] = []
         self.pools: list[tuple[Any, bool]] = []
@@ -353,6 +354,15 @@ class Feature:
         feature order; one that raises is logged and skipped, keeping the
         last good body (a renderer only rephrases, so it fails open)."""
         self.speech_renderers.append(fn)
+        return fn
+
+    def deaf_rule(self, fn: Callable) -> Callable:
+        """Declare a ``(recipient, action) -> bool`` rule of hearing, asked
+        for each recipient of an action's queued messages
+        (``deliver_messages``): True keeps every message of that action
+        from that recipient. ``vitals`` makes a sleeper deaf to the room
+        (but not to what is addressed to them, the action's target)."""
+        self.deaf_rules.append(fn)
         return fn
 
     def group_formatter(self, fn: Callable | None = None, *, replace: bool = False):
@@ -771,6 +781,7 @@ class FeatureSet:
             world.markers.extend(f.markers)
             world.name_resolvers.extend(f.name_resolvers)
             world.speech_renderers.extend(f.speech_renderers)
+            world.deaf_rules.extend(f.deaf_rules)
             for fn, _replace in f.group_formatters:
                 world.group_formatter = fn
             if world.scripts is not None:

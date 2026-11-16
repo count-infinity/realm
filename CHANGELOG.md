@@ -4,6 +4,35 @@
 
 The steps of `MUD_PLAN.md`, recorded as they land.
 
+### The solo loop (step 2)
+
+- New feature `vitals` (in `CLASSIC`): characters regain their pools out
+  of combat every `REGEN_INTERVAL` seconds, by the game system's new
+  `regen(obj, pool)` hook; `rest`, `sleep` and `stand` (`wake`) multiply it
+  by `REST_REGEN` and `SLEEP_REGEN`. Resting and sleeping characters do not
+  walk; a hostile act stands them up; a sleeper sees and hears nothing it
+  is not party to and is answered "You are asleep." for most input.
+  `world.services["vitals"].multipliers` lets other features scale it.
+- `Pool` has a new setting, `regen` (default True).
+- Coming round: an `unconscious` character whose vital pool rises above
+  spent, by any cause, gets up ("You come to."). `firstaid` no longer
+  removes the tag itself.
+- `when_spent = "respawn"` and the `PLAYER_DEATH` setting (`"unconscious"`
+  by default): a player who dies leaves `corpse of <name>` with what they
+  carried (not `soulbound` items), locked to them for `CORPSE_LOCK_SECONDS`,
+  pays `GameSystem.on_death` (Merc: a quarter of a level's experience) and
+  wakes at home at 1 point. The Merc scaffold and Midgaard set it.
+- Merc: walking spends `move` by the destination's `move_cost` or sector.
+- Kernel seam: `feature.deaf_rule` / `World.deaf_rules`, consulted by
+  `deliver_messages`. `realm.testing.Simulator.input` feeds a line through
+  the input interceptors as a connection does.
+- `world.services["effects"].clear(obj)` ends a character's timed effects.
+- Scavengers no longer eat a player's corpse.
+- Saved worlds: nothing stored changes. A character saved below full starts
+  regenerating at boot. A game that built resting in softcode (showcase
+  138) and keeps `vitals` loaded will find the engine's `rest` and `wake`
+  answer first; leave `vitals` out of `FEATURES` to keep the softcode.
+
 ### Starting points (step 1)
 
 - `realm init --system gurps|d20|merc` picks the rules system the

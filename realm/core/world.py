@@ -82,6 +82,9 @@ class World:
     markers: list[Callable] = field(default_factory=list)       # (obj, looker) -> str | None
     name_resolvers: list[Callable] = field(default_factory=list)      # perception
     speech_renderers: list[Callable] = field(default_factory=list)    # per listener
+    #: (recipient, action) -> bool: True keeps an action's queued messages
+    #: from ``recipient`` (``feature.deaf_rule``: a sleeper hears nothing)
+    deaf_rules: list[Callable] = field(default_factory=list)
     group_formatter: Callable | None = None                           # contents lines
     #: pool name -> Pool: world defaults from the rules system and
     #: ``feature.pool`` (realm.core.pools, definition source 3).
