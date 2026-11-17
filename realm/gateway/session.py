@@ -24,9 +24,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-#: The session clock (seconds, monotonic): idle time, link-dead waits and
-#: the flood bucket read it, so a test can move time by replacing it.
-clock = time.monotonic
+
+def now() -> float:
+    """The session clock (seconds, monotonic): idle time, link-dead waits
+    and the flood bucket read it (tests replace it)."""
+    return time.monotonic()
+
 
 #: Why a session closed (``Session.close_reason``): on purpose (quit, boot,
 #: idle timeout, shutdown), or because the connection dropped under it.
@@ -155,7 +158,7 @@ class Session:
 
         self._protocol = protocol
         self._address = address
-        self._created_at = clock()
+        self._created_at = now()
         self._last_activity = self._created_at
         #: set by ``SessionManager.destroy_session``: CLOSED or LINK_LOST
         self.close_reason: str | None = None
@@ -185,12 +188,12 @@ class Session:
     @property
     def idle_time(self) -> float:
         """Seconds since last activity."""
-        return clock() - self._last_activity
+        return now() - self._last_activity
 
     @property
     def connected_time(self) -> float:
         """Seconds since connection."""
-        return clock() - self._created_at
+        return now() - self._created_at
 
     def set_oob_writer(self, writer: Callable[[str, dict], None] | None) -> None:
         """Install the protocol's structured-data sender (GMCP etc.)."""
@@ -282,7 +285,7 @@ class Session:
 
     def touch(self) -> None:
         """Update last activity timestamp."""
-        self._last_activity = clock()
+        self._last_activity = now()
 
     async def send(self, message: str) -> None:
         """Send a message to the player."""
@@ -450,7 +453,7 @@ class Session:
         """The flood check on one line of input: True to queue it."""
         if self._bucket is None:
             return True
-        verdict = self._bucket.take(clock())
+        verdict = self._bucket.take(now())
         if verdict is TokenBucket.WARN:
             self.send_nowait(FLOOD_WARNING)
             self._flush_soon()
@@ -1060,7 +1063,7 @@ class SessionManager:
         """``player``'s connection dropped: it waits in the room, tagged
         ``linkdead``, until it reconnects or the wait runs out."""
         player.add_tag("linkdead")
-        self._linkdead[player.id] = (player, clock())
+        self._linkdead[player.id] = (player, now())
 
     def clear_linkdead(self, player: GameObject) -> None:
         """``player`` is no longer waiting (reconnected, or the wait ended)."""

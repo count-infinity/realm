@@ -29,12 +29,18 @@ if TYPE_CHECKING:
 MAX_WAIT = 3600.0
 
 
+def now() -> float:
+    """The clock a wait's due time is kept on (seconds, monotonic): what
+    :meth:`WaitScheduler.tick` fires by (tests replace it)."""
+    return time.monotonic()
+
+
 class WaitScheduler:
     """Pending waits, by handle id."""
 
     def __init__(self, run: Callable[[GameObject, str], Awaitable[None]]) -> None:
         self._run = run
-        #: handle -> (fire_at_monotonic, executor, command, timer task or None)
+        #: handle -> (due on ``now()``, executor, command, timer task or None)
         self.pending: dict[
             str, tuple[float, GameObject, str, asyncio.Task[None] | None]] = {}
         #: Virtual clock: no real timers; :meth:`tick` fires what is due.
@@ -49,7 +55,7 @@ class WaitScheduler:
         seconds = max(0.0, min(float(seconds), MAX_WAIT))
         wait_id = wait_id or uuid.uuid4().hex
         task = None if self.defer else asyncio.ensure_future(self._timer(wait_id, seconds))
-        self.pending[wait_id] = (time.monotonic() + seconds, executor, str(command), task)
+        self.pending[wait_id] = (now() + seconds, executor, str(command), task)
         return wait_id
 
     def cancel(self, wait_id: str, *, by: GameObject | None = None) -> bool:
@@ -100,8 +106,8 @@ class WaitScheduler:
         """
         if not self.pending:
             return
-        now = time.monotonic()
-        due = [wid for wid, entry in self.pending.items() if entry[0] <= now]
+        at = now()
+        due = [wid for wid, entry in self.pending.items() if entry[0] <= at]
         for wid in due:
             entry = self.pending.get(wid)
             if entry is not None and entry[3] is not None:

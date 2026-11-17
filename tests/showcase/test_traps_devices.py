@@ -533,7 +533,7 @@ class TestSelfDestruct:
         assert raven.db.get("hp") < 20
 
         # ...and they gutter out on their expire() fuel.
-        reaped = await reap_expired(sim.store, now=time.time() + 120)
+        reaped = await reap_expired(sim.store, at=time.time() + 120)
         assert reaped == 2
         assert objs(sim, "a sheet of roaring flame") == []
 
@@ -578,7 +578,7 @@ class TestEmpCharge:
         assert "The screen is dead glass." in text(sim, raven)
 
         # The restore rides ON_EXPIRE; the casing dies with the effect.
-        reaped = await reap_expired(sim.store, now=time.time() + 60)
+        reaped = await reap_expired(sim.store, at=time.time() + 60)
         assert reaped == 1
         assert not drone.has_tag("disabled")
         assert not terminal.has_tag("disabled")

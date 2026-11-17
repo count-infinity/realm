@@ -23,7 +23,7 @@ from tests.test_accounts import Instant, _client
 @pytest.fixture
 def clock(monkeypatch):
     now = [50_000.0]
-    monkeypatch.setattr("realm.gateway.session.clock", lambda: now[0])
+    monkeypatch.setattr("realm.gateway.session.now", lambda: now[0])
     return now
 
 

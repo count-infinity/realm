@@ -76,6 +76,11 @@ SPELL_DEF_TAG = "spell_def"          # a flavor of ability; both are abilities
 _ABILITY_TAGS = (ABILITY_DEF_TAG, SPELL_DEF_TAG)
 
 
+def now() -> float:
+    """The wall clock cooldowns are kept in (tests replace it)."""
+    return time.time()
+
+
 # --- lookup -----------------------------------------------------------------
 
 def list_ability_defs(tag: str | None = None) -> list[GameObject]:
@@ -429,14 +434,14 @@ async def _pay_cost(actor: GameObject, cost: dict | None, action: Action) -> boo
         return True
     name = action.tool.name if action.tool is not None else ""
     wait = _cooldown_seconds(cost)
-    if wait and time.time() < ready_at(actor, name):
+    if wait and now() < ready_at(actor, name):
         action.block(f"You are not ready to {name} again yet.")
         return False
     if not await _pay_pool_or_daily(actor, cost, action):
         return False
     if wait:
         ready = dict(actor.db.get("ability_ready") or {})
-        ready[name] = time.time() + wait
+        ready[name] = now() + wait
         actor.db.ability_ready = ready
     return True
 

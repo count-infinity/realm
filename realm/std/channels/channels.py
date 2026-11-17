@@ -35,6 +35,11 @@ DEFAULT_FORMAT = "[{channel}] {name}: {message}"
 DEFAULT_HISTORY = 20
 
 
+def now() -> float:
+    """The wall clock channel history is stamped by (tests replace it)."""
+    return time.time()
+
+
 def channels() -> list[GameObject]:
     from realm.core.defs import def_objects
     return sorted(def_objects("channel").values(), key=lambda o: o.name)
@@ -84,7 +89,7 @@ def remember(holder: GameObject, line: str) -> None:
     """Keep ``line`` in ``holder``'s ``history`` (the last
     ``history_size`` lines, 20 by default)."""
     size = int(holder.db.get("history_size") or DEFAULT_HISTORY)
-    history = [*(holder.db.get("history") or []), [time.time(), line]][-size:]
+    history = [*(holder.db.get("history") or []), [now(), line]][-size:]
     holder.db.history = history
 
 

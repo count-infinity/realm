@@ -494,7 +494,7 @@ class TestPersistentTimers:
         assert ("300 seconds remain." in out or "299 seconds remain." in out)
 
         # Forge the clock past the deadline: the housekeeping task rings it.
-        reaped = await reap_expired(sim.store, now=time.time() + 301)
+        reaped = await reap_expired(sim.store, at=time.time() + 301)
         assert "BRRRING! The egg timer goes off" in text(sim, cook)
         # It cleared its own deadline, so the reaper did NOT destroy it.
         assert reaped == 0

@@ -746,7 +746,7 @@ class GameServer:
         """A link-dead character whose wait ran out leaves play."""
         limit = self.settings.linkdead_seconds
         from realm.gateway import session as session_clock
-        now = session_clock.clock()
+        now = session_clock.now()
         for player, since in self.session_manager.linkdead():
             if now - since < limit:
                 continue
@@ -764,7 +764,7 @@ class GameServer:
         if hours <= 0 or db is None or self.persistence is None:
             return
         from realm.gateway import session as session_clock
-        now = session_clock.clock()
+        now = session_clock.now()
         if self._last_backup is None:
             self._last_backup = now                  # the first one, an interval after boot
             return

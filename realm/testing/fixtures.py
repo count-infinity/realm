@@ -11,7 +11,9 @@ Fixtures:
 - ``classic_world``: every built-in feature (``realm.std.CLASSIC``);
 - ``classic_world_unscripted``: the same with scripting off, for a test
   that wires its own ``ScriptEngine``;
-- ``configure``: ``configure(emote_sigil="@")`` reconfigures ``world``.
+- ``configure``: ``configure(emote_sigil="@")`` reconfigures ``world``;
+- ``clock``: a ``FakeClock`` standing in for every clock the engine reads
+  (``clock.advance(60)``).
 
 Every test starts and ends with no world installed.
 """
@@ -20,6 +22,7 @@ from __future__ import annotations
 
 import pytest
 
+from realm.testing.clock import FakeClock
 from realm.testing.worlds import build_test_world, reconfigure
 
 
@@ -71,3 +74,10 @@ def classic_world_unscripted():
 def configure(_bare_world):
     """``configure(emote_sigil="@")``: reconfigure the bare world."""
     return lambda **changes: reconfigure(_bare_world, **changes)
+
+
+@pytest.fixture
+def clock(monkeypatch) -> FakeClock:
+    """Every clock the engine reads, stopped at ``EPOCH`` until the test
+    moves it (``clock.advance(seconds)``, or set ``clock.t``)."""
+    return FakeClock().install(monkeypatch)

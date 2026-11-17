@@ -216,7 +216,7 @@ async def enter_cell(player, region, x, y, persistence) -> GameObject | None
     # the scripted-entry arm: cell_for or materialize_cell; catches
     # ProviderError (log + walker message, no move); move_to(player, cell)
     # — a placement, teleport semantics; bump last_active.
-async def reap_wilderness(persistence, *, now=None) -> int
+async def reap_wilderness(persistence, *, at=None) -> int
     # iterate the index: every cell empty past its region idle_ttl ->
     # tear down per R9 (players evacuated via evacuation_room, items
     # destroyed+logged, NPCs home-or-destroyed), drop from the index.

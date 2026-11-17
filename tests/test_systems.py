@@ -170,10 +170,10 @@ class TestAuthService:
         account, err = await svc.authenticate("Bob", "s2")
         assert account is bob and err == ""
 
-    async def test_rate_limit_locks_and_drains(self):
+    async def test_rate_limit_locks_and_drains(self, monkeypatch):
         clock = {"t": 0.0}
-        svc, pers = self._service(max_attempts=3, window_seconds=60,
-                                  clock=lambda: clock["t"])
+        monkeypatch.setattr("realm.std.accounts.auth.now", lambda: clock["t"])
+        svc, pers = self._service(max_attempts=3, window_seconds=60)
         await self._account(pers)
         for _ in range(3):
             account, err = await svc.authenticate("Bob", "wrong")

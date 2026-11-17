@@ -264,13 +264,22 @@ cancelling its own teardown. Left:
   step 16): the browser client's room name is blank until the first step.
   Send it from the login path (the `CONNECT` action) as `Char.Vitals` is
   from the prompt.
-- [ ] **Clocks that are not call-through**: ability cooldowns
+- [x] ~~**Clocks that are not call-through**: ability cooldowns
   (`abilities.ready_at`, `time.time`), corpse locks
   (`combat/corpses.py`), mail and achievement dates, channel history, and
   the combat beat loop (`encounter.py`, `time.monotonic`). A test cannot
   move them (`test_first_hour` fires rounds by hand and asserts no dates).
   A `now()` in each module, as `accounts`, `needs`, `quests` and the rest
-  have, would make them injectable.
+  have, would make them injectable.~~ Done 2026-11-17: every game read of
+  the time in `realm/` is a module's `now()` (the five named, the beat,
+  zone resets, the login throttle, `wait()` due times and object expiry
+  besides; `session.clock`, `regen.monotonic` and the instances/wilderness
+  `_clock` renamed to `now`). `CombatEncounter.beat()` is the loop's look
+  at the clock. `realm.testing.FakeClock` and the `clock` fixture move them
+  all; `tests/test_clocks.py` shows each one move and scans the package so
+  a new read of the time fails until it is a known clock or listed as real
+  on purpose. `test_first_hour` drives its fights by the clock and asserts
+  its mail and achievement dates. See "After the MUD plan" below.
 - [x] ~~**A prompt after a wall**: `@shutdown` (and `@wall`) write the
   typist's prompt twice, once after the announcement and once after the
   command.~~ Done 2026-11-17: the session remembers that the prompt is the
@@ -442,6 +451,58 @@ items.** Judgment calls:
   prints nothing still gets its prompt. `tests/test_prompt.py`'s
   "a command with no output" step now calls `input_arrived()` first, as
   the server does.
+
+Clocks a test can move (2026-11-17). Judgment calls:
+
+- **One name, `now()`.** Most modules already had `def now()`; the
+  session's `clock = time.monotonic`, regen's `from time import monotonic`
+  and the instances/wilderness `_clock()` were the same idea under three
+  other names, so they were renamed (no aliases): one name lets
+  `FakeClock` and the scan in `tests/test_clocks.py` work by convention.
+- **Wall or monotonic by meaning.** A time stored in the database
+  (cooldowns, corpse locks, mail/achievement/channel dates, `expires_at`,
+  `last_reset`, idle `last_active`) stays `time.time()`, so saved worlds
+  keep their meaning across restarts; a duration kept only in memory (the
+  beat, the login throttle, `wait()` due times, the regen and needs sweep
+  cadence, session idle) is `time.monotonic()`. A fake clock stands for
+  both; nothing compares a wall reading with a monotonic one.
+- **One kernel clock for expiry.** Softcode `expire()` writes `expires_at`
+  and `reap_expired` compares it; both read `realm.core.events.now`, and
+  softcode `now()` (documented for cooldowns and cache expiry, compared
+  with the same stored stamps) reads it too, so the three cannot drift.
+- **The reapers' `now=` became `at=`.** `reap_expired`, `reap_idle` and
+  `reap_wilderness` took an explicit `now=`, which shadowed the module's
+  `now()`; renamed (33 test call sites), not worked around with
+  `globals()`. The explicit time stays: it is a value passed for one call,
+  not a second clock.
+- **`AuthService(clock=)` removed** for the module's `now()`, so the login
+  throttle moves with every other clock instead of by constructor.
+- **The beat: `beat()`, not a virtual-clock mode.** `WaitScheduler` has
+  `defer` (no timers; `tick()` fires). A combat equivalent would leave
+  fights without a loop (and without "Combat begins!") in every Simulator
+  test. Instead the loop's decision moved into `beat()`, which reads the
+  clock; the sleep stays real (`POLL_SECONDS`, 0.5s). A test moves the
+  clock to `seconds_to_beat` and calls `beat()`. A due beat could still be
+  fired by the loop if half a real second passed while a fight sat due
+  and undriven; `test_first_hour` never leaves one so (all 15 of its
+  rounds are fired by its own `beat()` calls, checked under five
+  `PYTHONHASHSEED`s). `_close()` makes finishing idempotent, since the loop,
+  an outside `beat()` and `end()` can each see the end.
+- **Kept real.** The heartbeat (`GameServer._tick_loop`: the grid it sleeps
+  on, behavior tick intervals and the ambient world beat), a script's CPU
+  budget (`sandbox`), the backup file name, `uptime`, and the "Server
+  time" line of `time` (both `basics`' and `clock`'s): they schedule,
+  measure or report the machine. The heartbeat is the one with game
+  meaning left (spawners count its ticks); `test_first_hour` still ticks
+  the spawners by hand. Splitting a `pulse()` out of `_tick_loop` as
+  `beat()` was split out of the encounter loop would let a test drive it
+  by the clock; not done here.
+- **The helper earns its place** by the list, not by the unit tests: the
+  eight per-module `clock` fixtures in the suite (accounts, clans, clock,
+  operations, progression x2, quests, tasks) each move one module and stay
+  as they are; the first hour's list of clocks (nine, now 21) and any
+  game's own tests are what `FakeClock` serves, and the scan is what keeps
+  its list true.
 
 ## Priority 1 - Should Address Soon
 

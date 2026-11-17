@@ -26,6 +26,11 @@ SOULBOUND = "soulbound"
 PLAYER_CORPSE = "player_corpse"
 
 
+def now() -> float:
+    """The wall clock a corpse's lock runs out on (tests replace it)."""
+    return time.time()
+
+
 class CorpseClaimBehavior(Behavior):
     """Keep others' hands off a fresh player corpse until ``until``."""
 
@@ -45,7 +50,7 @@ class CorpseClaimBehavior(Behavior):
             return
         if actor.id == self.get_param('owner_id'):
             return
-        if time.time() >= float(self.get_param('until') or 0):
+        if now() >= float(self.get_param('until') or 0):
             return
         from realm.permissions.entitlements import LOCK_BYPASS
         from realm.permissions.roles import has_entitlement
@@ -70,7 +75,7 @@ async def leave_player_corpse(player: GameObject, room: GameObject, *,
     corpse.location = room
     if lock_seconds and float(lock_seconds) > 0:
         corpse.add_behavior(CorpseClaimBehavior(owner_id=player.id,
-                                                until=time.time() + float(lock_seconds)))
+                                                until=now() + float(lock_seconds)))
     if BehaviorRegistry.get("decay") is not None:
         corpse.add_behavior(BehaviorRegistry.create("decay", ticks=150))
     if store is not None:

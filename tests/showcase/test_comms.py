@@ -635,7 +635,7 @@ class TestMessageInBottle:
         assert 59 <= drift - time.time() <= 301
 
         # Landfall: ON_EXPIRE rescues the bottle instead of dying.
-        reaped = await reap_expired(sim.store, now=time.time() + 400)
+        reaped = await reap_expired(sim.store, at=time.time() + 400)
         assert reaped == 0
         assert bottle.location is cliff
         assert bottle.db.get("expires_at") is None

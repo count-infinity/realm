@@ -48,7 +48,8 @@ DEFAULT_IDLE_TTL = 900.0              # seconds empty before a copy is reaped
 logger = logging.getLogger(__name__)
 
 
-def _clock() -> float:
+def now() -> float:
+    """The wall clock an idle instance is timed by (tests replace it)."""
     return time.time()
 
 
@@ -134,7 +135,7 @@ async def materialize(
     master.db.set("return_room", return_room.id if return_room else None)
     master.db.set("idle_ttl", float(idle_ttl))
     master.db.set("entry", entry.id if entry else None)
-    master.db.set("last_active", _clock())
+    master.db.set("last_active", now())
     await persistence.save(master)         # registered in cache, skipped from DB
     return entry, master
 
@@ -163,7 +164,7 @@ async def find_or_materialize(
             entry, master = await materialize(
                 template, player, persistence, mode=mode,
                 return_room=return_room, idle_ttl=idle_ttl)
-    master.db.set("last_active", _clock())
+    master.db.set("last_active", now())
     return entry, master
 
 
@@ -321,18 +322,18 @@ async def destroy_instance(master: GameObject, persistence) -> None:
         await persistence.delete(obj)   # removes from DB + unregisters from cache
 
 
-async def reap_idle(persistence, *, now: float | None = None) -> int:
+async def reap_idle(persistence, *, at: float | None = None) -> int:
     """GC pass: reap every copy that's been empty past its idle_ttl. Returns
     the number reaped. Call from the world tick."""
-    now = _clock() if now is None else now
+    at = now() if at is None else at
     reaped = 0
     for master in list(_masters()):
         inst_tag = _instance_tag(master.db.get("template"), master.db.get("owner"))
         if _occupied(inst_tag):
-            master.db.set("last_active", now)
+            master.db.set("last_active", at)
             continue
         ttl = float(master.db.get("idle_ttl") or DEFAULT_IDLE_TTL)
-        if now - float(master.db.get("last_active") or 0) > ttl:
+        if at - float(master.db.get("last_active") or 0) > ttl:
             await destroy_instance(master, persistence)
             reaped += 1
     return reaped

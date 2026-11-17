@@ -121,7 +121,7 @@ class TestRegeneration:
 
     async def test_the_sweep_runs_every_regen_interval(self, sim, monkeypatch):
         clock = [1000.0]
-        monkeypatch.setattr("realm.std.vitals.regen.monotonic", lambda: clock[0])
+        monkeypatch.setattr("realm.std.vitals.regen.now", lambda: clock[0])
         room = sim.room("Glade")
         pat = sim.player("Pat", location=room, hp=10, max_hp=10)
         await _hurt(sim, pat, 5)

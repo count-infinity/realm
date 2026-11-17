@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from realm.core import events
 from realm.scripting.registry import softfn
 
 if TYPE_CHECKING:
@@ -26,11 +27,10 @@ def expire(frame, target: GameObject | str | None, seconds: float) -> bool:
 
     Example: expire(create_obj('a wisp of smoke'), 30)
     """
-    import time as _clock
     tgt = frame.resolve(target)
     if tgt is None or not frame.may_mutate(tgt):
         return False
-    tgt.db.set('expires_at', _clock.time() + float(seconds))
+    tgt.db.set('expires_at', events.now() + float(seconds))
     frame.command_queue.append(('save', tgt, ''))
     return True
 
@@ -77,5 +77,4 @@ def now() -> int:
 
     Example: now() - get_attr(me, 'lit_at', 0) > 300
     """
-    import time
-    return int(time.time())
+    return int(events.now())

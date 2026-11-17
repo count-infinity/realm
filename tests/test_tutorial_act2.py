@@ -204,7 +204,7 @@ class TestActTwo:
         undertow = _undertow(wake)
 
         reaped = await wilderness.reap_wilderness(
-            w.store, now=time.time() + 10_000)
+            w.store, at=time.time() + 10_000)
 
         assert reaped >= 1
         assert wilderness.cell_for("gullwater", 0, 0) is None

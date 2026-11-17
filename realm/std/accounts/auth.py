@@ -11,11 +11,18 @@ from __future__ import annotations
 import hashlib
 import hmac
 import secrets
+import time
 
 from realm.core.options import ACCOUNT_TAG
 from realm.std.accounts.account import link_character, new_account
 
 _SCRYPT = {'n': 2 ** 14, 'r': 8, 'p': 1}
+
+
+def now() -> float:
+    """The clock failed logins are counted on (seconds, monotonic; tests
+    replace it)."""
+    return time.monotonic()
 
 
 def hash_password(password: str) -> str:
@@ -51,20 +58,18 @@ class AuthService:
     """
 
     def __init__(self, persistence, *, max_attempts: int = 5,
-                 window_seconds: float = 60.0, clock=None):
-        import time
+                 window_seconds: float = 60.0):
         self._persistence = persistence
         self._max_attempts = max_attempts
         self._window = window_seconds
-        self._clock = clock or time.monotonic
         self._failures: dict[str, list[float]] = {}
 
     # --- Rate limiting ---
 
     def _prune(self, key: str) -> list[float]:
-        now = self._clock()
+        at = now()
         stamps = [t for t in self._failures.get(key, [])
-                  if now - t < self._window]
+                  if at - t < self._window]
         self._failures[key] = stamps
         return stamps
 
@@ -72,7 +77,7 @@ class AuthService:
         return len(self._prune(name.lower())) >= self._max_attempts
 
     def record_failure(self, name: str) -> None:
-        self._failures.setdefault(name.lower(), []).append(self._clock())
+        self._failures.setdefault(name.lower(), []).append(now())
 
     # --- Identity ---
 

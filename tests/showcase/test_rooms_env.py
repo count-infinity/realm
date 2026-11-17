@@ -591,7 +591,7 @@ class TestInstancedRoom:
         # Empty past its TTL, a copy is reaped; re-walking makes it fresh.
         await do(sim, bilda, "lobby")
         reaped = await instances.reap_idle(
-            sim.store, now=time.time() + 10_000)
+            sim.store, at=time.time() + 10_000)
         assert reaped == 2
         assert sim.store.get_cached(copy.id) is None
         await do(sim, bilda, "suite door")
@@ -644,13 +644,13 @@ class TestProceduralWilderness:
         # Empty cells reap; occupied ones survive.
         await do(sim, bilda, "@teleport me = The Workshop")
         reaped = await wilderness.reap_wilderness(
-            sim.store, now=time.time() + 10_000)
+            sim.store, at=time.time() + 10_000)
         assert reaped >= 2                       # 10,11 and 0,0 were empty
         assert wilderness.cell_for("frontier", 10, 10) is entry_cell  # Kess
         kess.location = workshop
         # (the occupied sweep bumped last_active to its inflated now,
         # so the empty sweep must look even further ahead)
-        await wilderness.reap_wilderness(sim.store, now=time.time() + 30_000)
+        await wilderness.reap_wilderness(sim.store, at=time.time() + 30_000)
         assert wilderness.cell_for("frontier", 10, 10) is None
 
 

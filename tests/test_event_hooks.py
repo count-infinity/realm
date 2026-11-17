@@ -92,7 +92,7 @@ class TestExpire:
         smoke.db.set("on_expire",
                      f"pemit('#{w.alice.id}', 'The smoke dissipates.')")
 
-        reaped = await reap_expired(w.store, now=time.time())
+        reaped = await reap_expired(w.store, at=time.time())
 
         assert reaped == 1
         assert w.store.get_cached(smoke.id) is None
@@ -104,7 +104,7 @@ class TestExpire:
         ward.db.set("expires_at", time.time() - 1)
         ward.db.set("on_expire", "expire(me, 999)")     # renew, don't die
 
-        reaped = await reap_expired(w.store, now=time.time())
+        reaped = await reap_expired(w.store, at=time.time())
 
         assert reaped == 0
         assert w.store.get_cached(ward.id) is ward
@@ -114,7 +114,7 @@ class TestExpire:
         w = world
         obj = w.sim.obj("a candle", location=w.room)
         obj.db.set("expires_at", time.time() + 10_000)
-        assert await reap_expired(w.store, now=time.time()) == 0
+        assert await reap_expired(w.store, at=time.time()) == 0
         assert w.store.get_cached(obj.id) is obj
 
 

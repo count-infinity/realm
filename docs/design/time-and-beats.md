@@ -284,12 +284,13 @@ mid-fight-saved creature rejoins the ambient beat instead of freezing forever;
 effect jitter seeds once (persists across reboot); stale `beat_acc` carry is
 cleared when a multiplier returns to 1.
 
-**Exact `wait()` (A, decision 2).** `ScriptEngine.schedule_wait` spawns one
-asyncio timer per wait (`_wait_timer` → `_deliver_wait`, atomically claimed so
-a wait can't double-fire); `cancel_wait` cancels the task; `shutdown_waits`
-cancels all on stop/reboot (wired into `GameServer.stop` and
-`Simulator.close`). The Simulator sets `engine.defer_waits = True` — a
-virtual-clock mode where waits fire only on an explicit `tick_waits()` pump, so
+**Exact `wait()` (A, decision 2).** `engine.waits` (a `WaitScheduler`,
+`realm/scripting/waits.py`) spawns one asyncio timer per wait (`_timer` →
+`_deliver`, atomically claimed so a wait can't double-fire); `cancel`
+cancels the task; `shutdown` cancels all on stop/reboot (a world closer, so
+`GameServer.stop` and `Simulator.close` run it). The Simulator sets
+`waits.defer = True` — a virtual-clock mode where waits fire only on an
+explicit `waits.tick()` pump, once due on the waits' `now()` (below), so
 tests stay deterministic while production uses real timers.
 
 **Tests.** `tests/test_beats.py` (deliver/multiplier/bullet-time/double-tick
@@ -314,4 +315,37 @@ hour and date of the world ([Time and Weather](../guides/time-and-weather.md)).
 - It **touches no beat source**: poison and regeneration still run on
   beats and seconds. Night is a darkness test the `sight` feature asks;
   weather is state on a zone master.
+
+## Where the time comes from (2026-11-17)
+
+Every read of the time with game meaning goes through a module-level
+`now()` in the module that owns it, called through the module, so a test
+replaces it (`realm.testing.FakeClock` replaces them all; see
+[Testing, "Moving time"](../development/testing.md#moving-time)). Which
+real clock a `now()` reads follows what its value is:
+
+| Kind | Reads | Modules |
+|---|---|---|
+| **Durations kept in memory** | `time.monotonic()` (immune to the host's clock being set) | `gateway.session` (idle, link-dead, flood, backup cadence), `scripting.waits` (a wait's due time), `combat.encounter` (the beat), `accounts.auth` (failed logins), `vitals.regen`, `needs.needs` (the sweeps' cadence) |
+| **Times kept in the database** | `time.time()` (means the same after a restart) | `core.events` (`expires_at`; softcode `expire()` and `now()`), `abilities.abilities` (cooldowns), `combat.corpses` (a corpse's lock), `mail.mail`, `achievements.achievements`, `channels.channels` (dates shown to players), `accounts.account` (bans), `clans.clans`, `quests.quests`, `tasks.tasks`, `rules.progression` (idle training), `clock.clock` (game time), `spawning.zone_reset`, `instances.instances`, `wilderness.wilderness` |
+
+A stored time stays wall-clock: a monotonic reading means nothing after
+the process restarts.
+
+Some reads stay real on purpose, because they measure or report the
+machine and decide nothing in the game: the heartbeat's own schedule
+(`GameServer._tick_loop`, which also times behavior ticks and the ambient
+beat), a script's CPU budget (`scripting.sandbox`), the backup file's name,
+`uptime`, and the server's own clock in `time`. `tests/test_clocks.py`
+scans the package and fails on any read that is neither a known `now()`
+nor one of these.
+
+**The combat beat.** The loop (`CombatEncounter._run`) sleeps in real time,
+at most `POLL_SECONDS` (0.5s) at a time, and each time it wakes calls
+`beat()`, which decides on `now()`: the round fires when
+`now() >= next beat`, the next is set a beat away, and the fight closes
+when it is over (once, whoever sees it: the loop, an outside `beat()`, or
+`end()`). Because the decision reads the clock and not the sleep, a test
+moves the clock to the beat and calls `beat()` itself; a beat that is not
+due does nothing, so the test and the loop never fire one twice.
 

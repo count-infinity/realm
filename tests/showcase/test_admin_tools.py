@@ -216,7 +216,7 @@ class TestJailSystem:
 
         # The sentence timer auto-releases on the world tick.
         sim.seen(vandal)
-        reaped = await reap_expired(sim.store, now=time.time() + 120)
+        reaped = await reap_expired(sim.store, at=time.time() + 120)
         assert reaped == 1
         assert vandal.location is precinct
         assert not vandal.has_tag("jailed")
@@ -240,7 +240,7 @@ class TestJailSystem:
         assert not objs(sim, "a sentence timer")   # early release cancels it
 
         # Reaping now finds nothing to release.
-        assert await reap_expired(sim.store, now=time.time() + 3600) == 0
+        assert await reap_expired(sim.store, at=time.time() + 3600) == 0
 
     async def test_logging_and_staff_gate(self, sim):
         bob = await build(sim, "177_jail_system.md")

@@ -214,6 +214,41 @@ default; a game sets only what it wants different.
   cloned baker and its everyone's-guildmaster stay. Start a new database
   for the new town.
 
+### Clocks a test can move (after the plan, 2026-11-17)
+
+- Every time the engine reads for a game reason now goes through a
+  module-level `now()` that the code calls through its module, so a test
+  moves it with `monkeypatch.setattr("realm.std.mail.mail.now", ...)`.
+  New ones: ability cooldowns (`realm.std.abilities.abilities`, which the
+  `abilities` listing reads too), corpse locks (`combat.corpses`), mail
+  dates (`mail.mail`), achievement dates (`achievements.achievements`),
+  channel and clan-talk history (`channels.channels`), the combat beat
+  (`combat.encounter`), zone resets (`spawning.zone_reset`), the login
+  throttle (`accounts.auth`), softcode `wait()`'s due times
+  (`realm.scripting.waits`, what `waits.tick()` fires by) and object
+  expiry (`realm.core.events`, which softcode `expire()` and `now()` read).
+  Stored times keep their meaning: what was wall-clock in the database
+  (cooldowns, locks, dates, `expires_at`, `last_reset`) still is.
+- One name for all of them: `realm.gateway.session.clock` is
+  `realm.gateway.session.now`, `realm.std.vitals.regen.monotonic` is
+  `regen.now`, and the instances and wilderness `_clock` is `now`.
+  `AuthService` no longer takes `clock=`. The reapers' explicit time is
+  `at=` (`reap_expired(store, at=...)`, `reap_idle`, `reap_wilderness`),
+  so it no longer hides the module's `now`.
+- The combat beat loop's look at the clock is `CombatEncounter.beat()`:
+  it fires the round when the beat is due on `now()`, sets the next one a
+  beat away, and closes the fight once it is over. The loop calls it each
+  time it wakes (it still sleeps in real time, at most `POLL_SECONDS`); a
+  test moves the clock to the beat (`seconds_to_beat`) and calls it.
+- New `realm.testing.FakeClock` and the `clock` fixture: one fake time for
+  every engine clock (`realm.testing.clock.ENGINE_CLOCKS`),
+  `clock.advance(seconds)` moves them all. `tests/test_clocks.py` fails
+  when a module reads the time any other way, or adds a `now()` the list
+  does not name ([Testing, "Moving time"](docs/development/testing.md#moving-time)).
+- `tests/test_first_hour.py` uses it: its fights run by moving the clock
+  to each beat, not by firing `resolve_round` by hand, and it asserts the
+  story's dates on mail and achievements.
+
 ### The first hour (step 17)
 
 - `tests/test_first_hour.py` plays each line of the plan's "What

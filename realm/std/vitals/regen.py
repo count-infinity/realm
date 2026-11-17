@@ -17,8 +17,8 @@ characters already loaded.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
-from time import monotonic
 from typing import TYPE_CHECKING, Any
 
 from realm.core.action_types import ActionType
@@ -40,6 +40,11 @@ if TYPE_CHECKING:
 
 #: ``(obj, pool_name) -> float``: one factor of a tick's amount.
 Multiplier = Callable[["GameObject", str], float]
+
+
+def now() -> float:
+    """The clock the regeneration sweep runs on (tests replace it)."""
+    return time.monotonic()
 
 
 def is_character(obj: GameObject) -> bool:
@@ -127,13 +132,13 @@ class Vitals:
     async def sweep(self, _store: Any = None) -> None:
         """The reaper's call (every ``REAP_INTERVAL``): a tick once
         ``REGEN_INTERVAL`` seconds have passed since the last."""
-        now = monotonic()
+        at = now()
         if self._last is None:
-            self._last = now
+            self._last = at
             return
-        if now - self._last < float(self.world.setting("REGEN_INTERVAL")):
+        if at - self._last < float(self.world.setting("REGEN_INTERVAL")):
             return
-        self._last = now
+        self._last = at
         await self.tick()
 
     def seed(self) -> None:

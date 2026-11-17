@@ -25,14 +25,15 @@ her, then a horse she rides (9); founds a clan Eve joins (10); and builds
 a loft that only Friends of the Baker may climb to, which Cole does (12).
 
 Deterministic: the dice are seeded, and loaded (``Fate``) where the story
-needs a fight won or lost; every clock the features read is one fake clock
-the test moves (a second a command); the housekeeping a running server
-does on its own (regeneration, hunger, idle training, the clan and quest
-sweeps) is the server's own ``_reap``, called as the clock moves. Combat
-rounds are the encounter's own ``resolve_round``, fired by hand instead of
-waiting out the beat, and the spawners are ticked by hand for the fidos to
-come back. (Mail, achievement and channel dates read the wall clock and are
-not asserted.)
+needs a fight won or lost; every clock the engine reads is one
+``FakeClock`` the test moves (a second a command), so the dates on mail,
+achievements and channel history are the story's own; the housekeeping a
+running server does on its own (regeneration, hunger, idle training, the
+clan and quest sweeps) is the server's own ``_reap``, called as the clock
+moves. A fight's rounds come when the clock reaches each beat: the test
+moves it there and calls the encounter's own ``beat``, what its loop does
+when it wakes. The spawners are ticked by hand for the fidos to come back
+(the heartbeat that ticks them runs on real time; there is none here).
 """
 
 from __future__ import annotations
@@ -47,33 +48,7 @@ import pytest
 from realm.cli import cmd_backup, cmd_init, cmd_restore
 from realm.config.loader import load_config
 from realm.server.game import GameServer
-
-EPOCH = 1_800_000_000.0
-
-
-class Clock:
-    """The one clock every feature reads in this test."""
-
-    def __init__(self) -> None:
-        self.t = EPOCH
-
-    def __call__(self) -> float:
-        return self.t
-
-
-#: Every call-through clock a feature reads (``now``/``clock`` looked up at
-#: call time, so one patch moves them all).
-CLOCKS = (
-    "realm.gateway.session.clock",
-    "realm.std.vitals.regen.monotonic",
-    "realm.std.needs.needs.now",
-    "realm.std.clock.clock.now",
-    "realm.std.rules.progression.now",
-    "realm.std.accounts.account.now",
-    "realm.std.tasks.tasks.now",
-    "realm.std.clans.clans.now",
-    "realm.std.quests.quests.now",
-)
+from realm.testing import FakeClock
 
 
 class Fate:
@@ -149,7 +124,7 @@ class Fate:
 class Client:
     """One connection, as a telnet client sees it: output and prompts."""
 
-    def __init__(self, server: GameServer, session, out: list[str], clock: Clock) -> None:
+    def __init__(self, server: GameServer, session, out: list[str], clock: FakeClock) -> None:
         self.server, self.session, self.out, self.clock = server, session, out, clock
         self.seen = 0
 
@@ -184,7 +159,7 @@ class Client:
 class Game:
     """The running server, its clock, and the people connected to it."""
 
-    def __init__(self, project, clock: Clock, fate: Fate) -> None:
+    def __init__(self, project, clock: FakeClock, fate: Fate) -> None:
         self.project, self.clock, self.fate = project, clock, fate
         self.server: GameServer | None = None
 
@@ -231,21 +206,20 @@ class Game:
         return self.server.world.services["combat"]
 
     async def fight(self, client: Client, rounds: int = 20) -> None:
-        """Fire the beats of the fight ``client`` is in until it is over."""
+        """Let the fight ``client`` is in run to its end: the clock moves
+        to each beat in turn and the encounter's ``beat`` fires the round."""
         encounter = self.combat().encounter_of(client.player)
         assert encounter is not None, "not in a fight"
         await asyncio.sleep(0)                    # the beat loop says the fight began
         for _ in range(rounds):
-            await encounter.resolve_round()
+            self.clock.advance(encounter.seconds_to_beat)
+            going = await encounter.beat()
             await self.flush()
-            if not encounter._check_continue():
+            if not going:
                 break
         else:
             raise AssertionError(f"the fight did not end in {rounds} rounds:\n"
                                  + client.take())
-        encounter.end()
-        await encounter._finish()
-        await self.flush()
 
     def find(self, name: str, *, tag: str = "npc", where=None):
         """The object ``name`` names, as a player typing it would mean it,
@@ -285,14 +259,12 @@ class Game:
 
 
 @pytest.fixture
-def game(tmp_path, monkeypatch):
+def game(tmp_path, monkeypatch, clock):
     """``realm init demo --system merc --template midgaard`` in an empty
-    directory, the fake clock and the seeded dice."""
+    directory, the fake clock (the ``clock`` fixture: every engine clock)
+    and the seeded dice."""
     before = list(sys.path)
     monkeypatch.chdir(tmp_path)
-    clock = Clock()
-    for target in CLOCKS:
-        monkeypatch.setattr(target, clock)
     random.seed(1)
     fate = Fate()
     fate.install(monkeypatch)
@@ -502,7 +474,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     out = await ann.send("play Cole")
     assert "Welcome back, Cole!" in out
     out = await ann.send("achievements")
-    assert "Friend of the Baker" in out and "none yet" not in out
+    assert f"{'Friend of the Baker':24} 2027-01-15" in out and "none yet" not in out
     assert cole.has_tag("baker_friend")         # its grant; section 12 opens a door with it
 
     # --- 7. an administrator: ban, reset a password, shut down, back up, restore ---
@@ -524,6 +496,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "Welcome back, Eve!" in out and "You have 1 unread message." in out
     out = await dan.send("mail 1")
     assert "From: Bree" in out and "Meet me in the Common Square at dawn." in out
+    assert "Date: 2027-01-15 " in out                     # the story's day
     # A shutdown, announced to everyone.
     out = await ann.send("@shutdown 60 = restoring a backup")
     announced = "*** The server is shutting down in 60 seconds (restoring a backup). ***"

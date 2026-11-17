@@ -60,7 +60,7 @@ def idle_seconds_of(player: GameObject) -> float | None:
         return session.idle_time
     for waiting, since in sessions.linkdead():
         if waiting is player:
-            return session_clock.clock() - since
+            return session_clock.now() - since
     return None
 
 
@@ -90,7 +90,7 @@ def who_rows(viewer: GameObject | None) -> list[tuple[GameObject, float, list[st
         player = session.player
         if player is not None and can_see(viewer, player):
             rows.append((player, session.idle_time, []))
-    now = session_clock.clock()
+    now = session_clock.now()
     for player, since in sessions.linkdead():
         if can_see(viewer, player):
             rows.append((player, now - since, ["linkdead"]))

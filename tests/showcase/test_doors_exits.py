@@ -608,7 +608,7 @@ class TestPortalPair:
         sim.seen(pat)
 
         assert len(sim.store.find_cached(name="shimmering portal")) == 2
-        reaped = await reap_expired(sim.store, now=time.time() + 300)
+        reaped = await reap_expired(sim.store, at=time.time() + 300)
         assert reaped == 2
         assert sim.store.find_cached(name="shimmering portal") == []
         assert "snaps shut with a thunderclap" in text(sim, pat)

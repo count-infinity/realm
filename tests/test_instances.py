@@ -113,7 +113,7 @@ class TestReaping:
         entry = await instances.enter("crypt", w.alice, w.store)
         w.alice.location = w.hub                      # owner leaves → empty
 
-        reaped = await instances.reap_idle(w.store, now=time.time() + 10_000)
+        reaped = await instances.reap_idle(w.store, at=time.time() + 10_000)
 
         assert reaped == 1
         assert w.store.get_cached(entry.id) is None   # rooms destroyed
@@ -123,7 +123,7 @@ class TestReaping:
         w = world
         entry = await instances.enter("crypt", w.alice, w.store)  # stays inside
 
-        reaped = await instances.reap_idle(w.store, now=time.time() + 10_000)
+        reaped = await instances.reap_idle(w.store, at=time.time() + 10_000)
 
         assert reaped == 0
         assert w.store.get_cached(entry.id) is entry
@@ -132,7 +132,7 @@ class TestReaping:
         w = world
         first = await instances.enter("crypt", w.alice, w.store)
         w.alice.location = w.hub
-        await instances.reap_idle(w.store, now=time.time() + 10_000)
+        await instances.reap_idle(w.store, at=time.time() + 10_000)
 
         second = await instances.enter("crypt", w.alice, w.store)
 
@@ -145,7 +145,7 @@ class TestReaping:
         entry = await instances.enter("crypt", w.alice, w.store)
         w.alice.location = w.hub
         # Empty, but well within its idle TTL.
-        reaped = await instances.reap_idle(w.store, now=time.time())
+        reaped = await instances.reap_idle(w.store, at=time.time())
         assert reaped == 0
         assert w.store.get_cached(entry.id) is entry
 

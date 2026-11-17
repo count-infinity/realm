@@ -484,7 +484,7 @@ class TestGasBomb:
         assert "Stinging yellow gas fills this room!" in text(sim, raven)
 
         # Dissipation is expire(): the world tick reaps the clouds.
-        reaped = await reap_expired(sim.store, now=time.time() + 120)
+        reaped = await reap_expired(sim.store, at=time.time() + 120)
         assert reaped == 2
         assert sim.store.find_cached(name="a cloud of stinging gas") == []
 

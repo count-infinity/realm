@@ -283,7 +283,7 @@ class TestPawnShop:
         watch = w.find("a chrono watch")
 
         # The reaper fires the tag's ON_EXPIRE, then retires the tag.
-        reaped = await reap_expired(w.sim.store, now=time.time() + 301)
+        reaped = await reap_expired(w.sim.store, at=time.time() + 301)
         assert reaped >= 1
         assert shop.db.get("pledge_" + watch.id) is None
         assert watch.has_tag("forfeit")

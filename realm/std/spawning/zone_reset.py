@@ -23,7 +23,7 @@ so the area never returns to canonical while someone's watching, by design.
 
 from __future__ import annotations
 
-import time as _time
+import time
 from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
@@ -36,6 +36,11 @@ from realm.std.spawning.spawner import spawn_tracked
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
+
+
+def now() -> float:
+    """The wall clock zone resets are timed by (tests replace it)."""
+    return time.time()
 
 
 def _resolve_room(ref, persistence) -> GameObject | None:
@@ -67,8 +72,8 @@ class ZoneResetBehavior(Behavior):
         interval = master.db.get("reset_interval")
         if not interval:
             return
-        now = _time.time()
-        if now - float(master.db.get("last_reset") or 0) < float(interval):
+        at = now()
+        if at - float(master.db.get("last_reset") or 0) < float(interval):
             return
         # Presence gate — never repop on top of players; defer (leave
         # last_reset old) so it fires the moment the zone empties.
@@ -77,7 +82,7 @@ class ZoneResetBehavior(Behavior):
                 if any(c.is_player for c in room.contents):
                     return
         await self._reset(master)
-        master.db.set("last_reset", now)
+        master.db.set("last_reset", at)
 
     async def _reset(self, master: GameObject) -> None:
 

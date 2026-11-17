@@ -367,7 +367,7 @@ class TestRespawn:
 
         import time
         later = time.time() + 301                  # CORPSE_LOCK_SECONDS 300
-        monkeypatch.setattr("realm.std.combat.corpses.time.time", lambda: later)
+        monkeypatch.setattr("realm.std.combat.corpses.now", lambda: later)
         await rsim.do(thief, "get sword from corpse")
         assert sword.location is thief
 

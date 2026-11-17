@@ -11,11 +11,11 @@ unknown verb does. ``abilities`` lists what a character can invoke.
 
 from __future__ import annotations
 
-import time
 from typing import TYPE_CHECKING
 
 from realm.commands.base import find_object, find_victim
 from realm.core.defs import all_defs
+from realm.std.abilities import abilities as ability_clock
 from realm.std.abilities.abilities import (
     _cooldown_seconds,
     _cost_of,
@@ -92,9 +92,9 @@ async def cmd_abilities(ctx: CommandContext) -> None:
         await ctx.session.send("You have no abilities.")
         return
     lines = ["Abilities you can use:"]
-    now = time.time()
+    at = ability_clock.now()
     for adef in usable:
-        waiting = ready_at(player, adef.name) - now
+        waiting = ready_at(player, adef.name) - at
         state = f"  (ready in {int(waiting) + 1}s)" if _cooldown_seconds(_cost_of(adef)) \
             and waiting > 0 else ""
         lines.append(f"  {adef.name:<16} {cost_text(adef)}{state}")

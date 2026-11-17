@@ -536,7 +536,7 @@ class TestTracking:
         assert "mean nothing to you" in text(sim, novice)
 
         # The trail fades: expire() destroys the print on the world tick.
-        reaped = await reap_expired(sim.store, now=time.time() + 400)
+        reaped = await reap_expired(sim.store, at=time.time() + 400)
         assert reaped >= 1
         assert not [o for o in clearing.contents if o.has_tag("footprint")]
         after = sim.player("Later", location=clearing, skill_tracking=14)

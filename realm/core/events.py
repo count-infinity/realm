@@ -16,7 +16,7 @@ events just fire the triggers.
 from __future__ import annotations
 
 import logging
-import time as _time
+import time
 from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
@@ -26,6 +26,13 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 logger = logging.getLogger(__name__)
+
+
+def now() -> float:
+    """The wall clock ``expires_at`` is kept in: softcode ``expire()`` and
+    ``now()`` read it too (tests replace it)."""
+    return time.time()
+
 
 async def fire_event(
     actor: GameObject | None,
@@ -50,7 +57,7 @@ async def fire_event(
     return action
 
 
-async def reap_expired(persistence, *, now: float | None = None) -> int:
+async def reap_expired(persistence, *, at: float | None = None) -> int:
     """The object self-expiry primitive (tbaMUD's ``OTRIG_TIMER``). Any object
     with a ``db.expires_at`` timestamp that has passed fires ``event:on_expire``
     and is then destroyed — a summoned wolf, a smoke cloud, a temporary portal.
@@ -70,11 +77,11 @@ async def reap_expired(persistence, *, now: float | None = None) -> int:
     from realm.core import ops
     from realm.core.query import find_objects
 
-    now = _time.time() if now is None else now
+    at = now() if at is None else at
     reaped = 0
     for obj in list(find_objects(attr='expires_at')):
-        at = obj.db.get('expires_at')
-        if at is None or float(at) > now:
+        due = obj.db.get('expires_at')
+        if due is None or float(due) > at:
             continue
         # actor=None: this is the object reacting to ITSELF — as the target
         # it witnesses its own ON_EXPIRE (the actor is excluded from
@@ -82,8 +89,8 @@ async def reap_expired(persistence, *, now: float | None = None) -> int:
         await fire_event(None, obj, ActionType.ON_EXPIRE)
         # Re-check: the handler may have renewed the lease, or already moved
         # / destroyed the object.
-        at = obj.db.get('expires_at')
-        if at is None or float(at) > now:
+        due = obj.db.get('expires_at')
+        if due is None or float(due) > at:
             continue
         try:
             await ops.destroy(None, obj, persistence)  # R9 disposition of contents

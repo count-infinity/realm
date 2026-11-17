@@ -9,10 +9,12 @@ connected player would see. No sockets, no database file.
 The pytest fixtures (``world``, ``classic_world``, the ``features``
 marker) are a plugin: put ``pytest_plugins = ["realm.testing.fixtures"]``
 in your ``conftest.py``. ``build_test_world`` and ``reconfigure`` are the
-same worlds without pytest.
+same worlds without pytest. ``FakeClock`` (the ``clock`` fixture) moves
+every clock the engine reads at once.
 """
 
+from realm.testing.clock import FakeClock
 from realm.testing.simulator import Simulator
 from realm.testing.worlds import build_test_world, reconfigure
 
-__all__ = ["Simulator", "build_test_world", "reconfigure"]
+__all__ = ["FakeClock", "Simulator", "build_test_world", "reconfigure"]

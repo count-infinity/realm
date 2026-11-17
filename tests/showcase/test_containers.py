@@ -370,12 +370,12 @@ class TestTrashIncinerator:
         await do(sim, bilda, "put banana peel in rubbish bin")
         await do(sim, bilda, "put broken hourglass in rubbish bin")
         await sim.engine.waits.tick()
-        assert await reap_expired(sim.store, now=time.time()) == 0
+        assert await reap_expired(sim.store, at=time.time()) == 0
         assert peel.location is bin_
 
         # Past the grace period: both reaped, and the bin narrates each.
         sim.seen(bilda)
-        reaped = await reap_expired(sim.store, now=time.time() + 61)
+        reaped = await reap_expired(sim.store, at=time.time() + 61)
         assert reaped == 2
         assert sim.store.get_cached(peel.id) is None
         assert sim.store.get_cached(hourglass.id) is None

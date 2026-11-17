@@ -27,6 +27,11 @@ if TYPE_CHECKING:
 MAIL_TAG = "mail"
 
 
+def now() -> float:
+    """The wall clock letters are dated by (tests replace it)."""
+    return time.time()
+
+
 def mailbox(account: GameObject | None) -> list[GameObject]:
     """The account's messages, oldest first."""
     if account is None:
@@ -76,7 +81,7 @@ async def deliver(sender: str, to: str, subject: str, body: str) -> GameObject |
     letter.db.to = character.name
     letter.db.subject = subject
     letter.db.body = body
-    letter.db.sent = time.time()
+    letter.db.sent = now()
     letter.db.read = False
     await get_world().store.save(letter)
     _notify(account, sender)

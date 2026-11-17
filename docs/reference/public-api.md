@@ -76,7 +76,7 @@ the services it offers (`world.services["vitals"]`, `["achievements"]`,
 ## Testing
 
 ```python
-from realm.testing import Simulator, build_test_world, reconfigure
+from realm.testing import FakeClock, Simulator, build_test_world, reconfigure
 ```
 
 `Simulator.from_game(path)` builds the world a game directory's
@@ -107,6 +107,7 @@ pytest_plugins = ["realm.testing.fixtures"]
 | `classic_world` | every built-in feature |
 | `classic_world_unscripted` | every built-in feature, scripting off |
 | `configure` | `configure(emote_sigil="@")` changes `world`'s settings |
+| `clock` | a `FakeClock` standing in for every clock the engine reads: `clock.advance(60)` moves cooldowns, locks, dates, beats and idle time together ([Testing](../development/testing.md#moving-time)) |
 
 Every test starts and ends with no world installed.
 

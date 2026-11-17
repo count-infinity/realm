@@ -237,7 +237,7 @@ class TestReaping:
         exit_ids = [o.id for o in cell.contents if o.has_tag("exit")]
 
         reaped = await wilderness.reap_wilderness(
-            w.store, now=time.time() + 10_000)
+            w.store, at=time.time() + 10_000)
 
         assert reaped == 1
         assert wilderness.cell_for("wilds", 0, 0) is None
@@ -249,14 +249,14 @@ class TestReaping:
         await w.sim.do(w.alice, "wild")
         cell = w.alice.location
         reaped = await wilderness.reap_wilderness(
-            w.store, now=time.time() + 10_000)
+            w.store, at=time.time() + 10_000)
         assert reaped == 0
         assert w.store.get_cached(cell.id) is cell
 
     async def test_fresh_empty_cell_is_not_reaped(self, world):
         w = world
         cell = await wilderness.materialize_cell("wilds", 0, 0, w.store)
-        reaped = await wilderness.reap_wilderness(w.store, now=time.time())
+        reaped = await wilderness.reap_wilderness(w.store, at=time.time())
         assert reaped == 0
         assert w.store.get_cached(cell.id) is cell
 
@@ -265,7 +265,7 @@ class TestReaping:
         first = await wilderness.materialize_cell("wilds", 0, 0, w.store)
         first_exits = sorted(
             o.name for o in first.contents if o.has_tag("exit"))
-        await wilderness.reap_wilderness(w.store, now=time.time() + 10_000)
+        await wilderness.reap_wilderness(w.store, at=time.time() + 10_000)
 
         second = await wilderness.materialize_cell("wilds", 0, 0, w.store)
         second_exits = sorted(
@@ -287,7 +287,7 @@ class TestReaping:
         rock = w.sim.obj("a rock", location=cell)
         wolf = w.sim.obj("a wolf", location=cell, tags=["npc"])
 
-        await wilderness.reap_wilderness(w.store, now=time.time() + 10_000)
+        await wilderness.reap_wilderness(w.store, at=time.time() + 10_000)
 
         assert w.store.get_cached(rock.id) is None
         assert w.store.get_cached(wolf.id) is None
@@ -299,7 +299,7 @@ class TestReaping:
         sword = w.sim.obj("a sword", location=cell)
         sword.owner = w.alice
 
-        await wilderness.reap_wilderness(w.store, now=time.time() + 10_000)
+        await wilderness.reap_wilderness(w.store, at=time.time() + 10_000)
 
         assert w.store.get_cached(sword.id) is sword
         assert sword.location is w.town
@@ -347,7 +347,7 @@ class TestPopulation:
         wolf = _npcs(cell)[0]
 
         reaped = await wilderness.reap_wilderness(
-            w.store, now=time.time() + 10_000)
+            w.store, at=time.time() + 10_000)
 
         assert reaped == 1                            # wolf held nothing open
         assert w.store.get_cached(wolf.id) is None
@@ -364,7 +364,7 @@ class TestPopulation:
         assert not impostor.has_tag("start_room")
         # And it can't hold the cell open by impersonating a player.
         reaped = await wilderness.reap_wilderness(
-            w.store, now=time.time() + 10_000)
+            w.store, at=time.time() + 10_000)
         assert reaped == 1
 
     async def test_crewed_vehicle_materializes_but_empty_one_is_becalmed(self, world):
@@ -522,7 +522,7 @@ class TestReviewRegressions:
         w.master.db.set("idle_ttl", "soon")
         await wilderness.materialize_cell("wilds", 0, 0, w.store)
         reaped = await wilderness.reap_wilderness(
-            w.store, now=time.time() + 10_000)
+            w.store, at=time.time() + 10_000)
         assert reaped == 1                            # default TTL applied
 
     async def test_nested_occupants_get_the_r9_disposition(self, world):
@@ -547,7 +547,7 @@ class TestReviewRegressions:
         w.bob.location = wagon
 
         reaped = await wilderness.reap_wilderness(
-            w.store, now=time.time() + 10_000)
+            w.store, at=time.time() + 10_000)
 
         assert reaped == 0
         assert w.store.get_cached(cell.id) is cell

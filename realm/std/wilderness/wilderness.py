@@ -100,7 +100,8 @@ class ProviderError(Exception):
     map edge. Never collapsed into 'invalid coordinate' (R10)."""
 
 
-def _clock() -> float:
+def now() -> float:
+    """The wall clock an idle cell is timed by (tests replace it)."""
     return time.time()
 
 
@@ -269,7 +270,7 @@ async def _build_cell(
         'tags': ["room", EPHEMERAL_TAG, zone, _cell_tag(region_name, x, y),
                  *(str(t) for t in terrain_tags)],
         'attrs': {"wild_region": region_name, "wild_x": x, "wild_y": y,
-                  "last_active": _clock()},
+                  "last_active": now()},
     })
     await persistence.save(cell)      # registered in cache, skipped from DB
     # Index immediately: if an exit entry below is malformed and skipped,
@@ -455,7 +456,7 @@ async def resolve_wilderness_exit(
         # pacing between cells must not refresh their TTL and keep
         # itself alive forever (R6/edge case 13 — NPCs never hold a
         # cell open).
-        cell.db.set("last_active", _clock())
+        cell.db.set("last_active", now())
     return cell
 
 
@@ -477,7 +478,7 @@ async def enter_cell(
         return None
     if not await move_to(player, cell):
         return None
-    cell.db.set("last_active", _clock())
+    cell.db.set("last_active", now())
     return cell
 
 
@@ -507,18 +508,18 @@ async def destroy_cell(cell: GameObject, persistence) -> None:
         await persistence.delete(cell)
 
 
-async def reap_wilderness(persistence, *, now: float | None = None) -> int:
+async def reap_wilderness(persistence, *, at: float | None = None) -> int:
     """GC pass over the live-cell index: destroy every cell empty of
     players past its region's ``idle_ttl``. Returns the number reaped.
     Call from the world tick, next to ``instances.reap_idle``."""
-    now = _clock() if now is None else now
+    at = now() if at is None else at
     reaped = 0
     for key, cell in list(_cells.items()):
         if not _cache_live(cell):
             _cells.pop(key, None)
             continue
         if subtree_has_player(cell):
-            cell.db.set("last_active", now)
+            cell.db.set("last_active", at)
             continue
         region_obj = get_region(key[0])
         ttl = DEFAULT_IDLE_TTL
@@ -531,7 +532,7 @@ async def reap_wilderness(persistence, *, now: float | None = None) -> int:
                     logger.warning(
                         f"region {key[0]!r} idle_ttl {raw_ttl!r} is not a "
                         f"number; using the {DEFAULT_IDLE_TTL:.0f}s default")
-        if now - float(cell.db.get("last_active") or 0) > ttl:
+        if at - float(cell.db.get("last_active") or 0) > ttl:
             await destroy_cell(cell, persistence)
             reaped += 1
     return reaped

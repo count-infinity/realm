@@ -50,6 +50,16 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+#: The longest the beat loop sleeps between looks at the clock, in real
+#: seconds, so a ``pace`` change or a moved clock is noticed promptly.
+POLL_SECONDS = 0.5
+
+
+def now() -> float:
+    """The clock beats are kept on (seconds, monotonic): when a round is
+    due, and how long until it is (tests replace it)."""
+    return time.monotonic()
+
 
 class Participant:
     """One combatant's encounter-local state."""
@@ -117,6 +127,7 @@ class CombatEncounter:
         self._task: asyncio.Task | None = None
         self._next_fire: float = 0.0
         self._resolving = False
+        self._over = False
 
     # --- Membership ---
 
@@ -202,36 +213,68 @@ class CombatEncounter:
 
     @property
     def seconds_to_beat(self) -> float:
-        return max(0.0, self._next_fire - time.monotonic())
+        return max(0.0, self._next_fire - now())
 
     # --- The beat loop ---
 
     def _ensure_running(self) -> None:
+        if self._over:
+            return
         if self._task is None or self._task.done():
+            self._next_fire = now() + self.beat_seconds
             self._task = asyncio.create_task(self._run())
 
     async def _run(self) -> None:
-        self._next_fire = time.monotonic() + self.beat_seconds
+        """The beat loop: sleep (real time, at most ``POLL_SECONDS``) until
+        the beat is due on ``now()``, then :meth:`beat`."""
         self._announce(
             f"*** Combat begins! Next beat in {int(self.beat_seconds)}s "
             f"— queue your action. ***"
         )
         try:
-            while self.participants:
-                delay = self._next_fire - time.monotonic()
-                if delay > 0:
-                    await asyncio.sleep(min(delay, 0.5))
-                    continue
-                try:
-                    await self.resolve_round()
-                except Exception:
-                    logger.exception("Error resolving combat round")
-                if not self._check_continue():
-                    break
-                self._next_fire = time.monotonic() + self.beat_seconds
-                await self.manager.flush_sessions()
+            while await self.beat():
+                await asyncio.sleep(min(self.seconds_to_beat, POLL_SECONDS))
         finally:
-            await self._finish()
+            await self._close()
+
+    async def beat(self) -> bool:
+        """One look at the clock, what the beat loop does each time it
+        wakes: fire the round when its beat is due on ``now()``, then set the
+        next one a beat away; close the fight once it is over. True while the
+        fight goes on.
+
+        The loop sleeps in real time. A test that has moved the clock calls
+        this instead of waiting for the loop to wake: a round fires only when
+        due, so the two never fire the same beat twice."""
+        if self._over:
+            return False
+        if not self.participants:
+            await self._close()
+            return False
+        if self._resolving or now() < self._next_fire:
+            return True
+        try:
+            await self.resolve_round()
+        except Exception:
+            self._resolving = False
+            logger.exception("Error resolving combat round")
+        if not self._check_continue():
+            await self._close()
+            return False
+        self._next_fire = now() + self.beat_seconds
+        await self.manager.flush_sessions()
+        return True
+
+    async def _close(self) -> None:
+        """Finish the fight, once, whoever sees it end: the loop, a
+        :meth:`beat` called from outside it (which stops the loop), or the
+        loop's cancellation by :meth:`end`."""
+        if self._over:
+            return
+        self._over = True
+        if self._task is not None and self._task is not asyncio.current_task():
+            self._task.cancel()
+        await self._finish()
 
     async def resolve_round(self) -> None:
         """Fire the beat: resolve everyone's action in initiative order."""

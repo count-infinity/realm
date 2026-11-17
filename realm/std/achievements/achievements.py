@@ -41,6 +41,11 @@ logger = logging.getLogger(__name__)
 _mod_cache: dict[str, dict[str, int]] = {}
 
 
+def now() -> float:
+    """The wall clock achievements are dated by (tests replace it)."""
+    return time.time()
+
+
 def clear_cache(_world: Any = None) -> None:
     _mod_cache.clear()
 
@@ -121,7 +126,7 @@ async def grant(obj: GameObject, name: str) -> bool:
         return False
     holder = _holder(obj, adef)
     record = dict(holder.db.get("achievements") or {})
-    record[adef.name] = time.time()
+    record[adef.name] = now()
     holder.db.achievements = record
     _apply_tags(obj, adef)
     clear_cache()

@@ -166,10 +166,71 @@ async def test_npc_greets(sim):
   `Simulator(settings=Settings(command_sigil="!"))`
   (`from realm.config.loader import Settings`).
 - Softcode `wait()` runs on a virtual clock: it fires when the test calls
-  `sim.engine.waits.tick()`.
+  `sim.engine.waits.tick()`, once it is due on the waits' clock (see
+  [Moving time](#moving-time)).
 - The world lives in a `MemoryStore` (`sim.store`); `sim.world` is the
   installed `World`.
 
 Because both paths go through the real engine, the transcript is exactly
 what happens live — which makes it the natural way to test data-driven
 content (a `class_def`, a `skill_def`, a scripted NPC) end-to-end.
+
+## Moving time
+
+Everything in the engine that reads the time for a game reason (an
+ability's cooldown, a corpse's lock, a letter's date, the combat beat, a
+session's idle time, a clan's vote, hunger, idle training ...) reads it
+through its module's `now()`, called through the module. A test never
+waits out real time: it replaces the clocks and moves them.
+
+The `clock` fixture (from `realm.testing.fixtures`) replaces every one of
+them with one `FakeClock`, stopped at 2027-01-15 08:00 UTC until the test
+moves it:
+
+```python
+async def test_the_corpse_lock_lifts(clock, sim):
+    ...                                   # Pat dies; the corpse is locked
+    await sim.do(thief, "get sword from corpse")
+    assert sword.location is not thief
+    clock.advance(300)                    # CORPSE_LOCK_SECONDS
+    await sim.do(thief, "get sword from corpse")
+    assert sword.location is thief
+```
+
+`clock.t` is the time and `clock.advance(seconds)` moves it; outside
+pytest, `FakeClock().install(monkeypatch)` does the same.
+`realm.testing.clock.ENGINE_CLOCKS` lists the modules. Wall clocks (times
+kept in the database, which survive a restart) and monotonic ones
+(durations kept in memory) all read the one fake time. To move only one
+module, replace its `now` alone:
+`monkeypatch.setattr("realm.std.mail.mail.now", lambda: 1_800_000_000.0)`.
+
+Install the clock before the objects that stamp a time are made (take the
+`clock` fixture before a `sim` fixture that builds the world), or they
+carry a real time the fake one is far from.
+
+What a moved clock does not do by itself is run the code that looks at
+it; the test runs that, as the server would:
+
+| The server's own | A test calls |
+|---|---|
+| housekeeping every `REAP_INTERVAL` (regeneration, hunger, idle training, clans, quests, expiry, idle instances) | `await server._reap()`, or the feature's sweep (`task_sweep(store)`, `reap_expired(store)`) |
+| softcode `wait()` timers | `await sim.engine.waits.tick()` |
+| a fight's beat loop | `clock.advance(encounter.seconds_to_beat)`, then `await encounter.beat()` |
+| the heartbeat (spawners, decay, wander) | the behavior's `tick(obj, delta)`; the heartbeat schedules on real time |
+
+`encounter.beat()` is what the encounter's loop does each time it wakes:
+it fires the round when the beat is due on the clock, sets the next one a
+beat away, and closes the fight when it is over (`False` from then on).
+Called before the beat is due it does nothing, so a test that drives the
+beats never fires one twice with the loop. `tests/test_first_hour.py`
+plays a whole game this way.
+
+`tests/test_clocks.py` keeps the list honest: it scans `realm/` for every
+read of the time (`time.time()`, `time.monotonic()`, `datetime.now()` ...)
+and fails on one that is neither inside a module's `now()` named in
+`ENGINE_CLOCKS` nor listed there as real time on purpose (a script's CPU
+budget, the heartbeat's schedule, the backup file's name, `uptime` and the
+server's own clock in `time`). A new clock is a `now()` in its module and
+a line in `ENGINE_CLOCKS`.
+

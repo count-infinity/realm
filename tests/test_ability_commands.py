@@ -134,7 +134,7 @@ class TestCooldown:
 
     async def test_a_cooldown_refuses_the_second_use_and_allows_the_third(self, sim, monkeypatch):
         clock = [1000.0]
-        monkeypatch.setattr("realm.std.abilities.abilities.time.time", lambda: clock[0])
+        monkeypatch.setattr("realm.std.abilities.abilities.now", lambda: clock[0])
         _ability(sim, "kick", cost={"cooldown": 2})
         _room, pat, rat = _arena(sim)
         await sim.do(pat, "kick rat")
@@ -148,7 +148,7 @@ class TestCooldown:
         assert rat.db.hp == 14
 
     async def test_a_cooldown_beside_a_pool_cost(self, sim, monkeypatch):
-        monkeypatch.setattr("realm.std.abilities.abilities.time.time", lambda: 1000.0)
+        monkeypatch.setattr("realm.std.abilities.abilities.now", lambda: 1000.0)
         _ability(sim, "roar", cost={"pool": "mana", "n": 3, "cooldown": 1})
         _room, pat, rat = _arena(sim)
         pat.db.mana, pat.db.max_mana = 10, 10
