@@ -234,6 +234,93 @@ async def test_the_login_throttle_drains_on_its_clock(monkeypatch):
     assert (await auth.authenticate("Bob", "s2"))[0] is not None
 
 
+# --- the heartbeat ----------------------------------------------------------------
+
+
+async def test_the_heartbeat_pulses_on_its_clock(monkeypatch):
+    """``GameServer.pulse()`` is one heartbeat, deciding on ``now()`` which
+    behaviors are due and whether the ambient world beat fires; the loop
+    only sleeps between pulses on real time (as ``beat()`` was split out of
+    the encounter loop)."""
+    from realm.core.beats import BeatBehavior
+    from realm.core.behaviors import Behavior
+    from realm.core.objects import GameObject
+    from realm.server.game import GameServer
+
+    t = _at(monkeypatch, "realm.server.game.now")
+    monkeypatch.setattr("realm.server.game.random.random", lambda: 0.0)   # no jitter
+    ticks: list[float] = []
+    beats: list[int] = []
+
+    class Ticker(Behavior):
+        behavior_id = "test_ticker"
+
+        @property
+        def should_tick(self) -> bool:
+            return True
+
+        @property
+        def tick_interval(self) -> float:
+            return 10.0
+
+        async def tick(self, obj, delta: float) -> None:
+            ticks.append(delta)
+
+    class Beat(BeatBehavior):
+        behavior_id = "test_beat"
+
+        async def on_beat(self, obj) -> None:
+            beats.append(1)
+
+    srv = GameServer(db_path=":memory:", enable_telnet=False, tick_interval=0)
+    await srv.start()
+    try:
+        world_beat = srv.world.setting("WORLD_BEAT")
+        thing = GameObject("metronome")
+        thing.add_behavior(Ticker())
+        thing.add_behavior(Beat())
+        await srv.persistence.save(thing)
+        # A namesake that is not this world's object (an earlier world's, a
+        # deleted one still referenced) is not the heartbeat's to tick.
+        ghost = GameObject("metronome", id=thing.id)
+        ghost.add_behavior(Ticker())
+        await srv.pulse()                    # first sight: its phase is set, no tick
+        assert ticks == [] and beats == []
+        t[0] += 9.9
+        await srv.pulse()                    # a WORLD_BEAT has passed: one beat
+        assert ticks == [] and beats == [1]
+        t[0] += 0.1
+        await srv.pulse()                    # the ticker is due on the clock
+        assert ticks == [10.0] and beats == [1]
+        await srv.pulse()                    # nothing due twice
+        assert ticks == [10.0] and beats == [1]
+        t[0] += world_beat
+        await srv.pulse()
+        assert ticks == [10.0] and beats == [1, 1]
+    finally:
+        await srv.stop()
+
+
+def test_the_heartbeat_visits_objects_in_the_order_they_got_behaviors():
+    """Behavior owners are kept by identity, in the order each got its first
+    behavior: the heartbeat's seeded dice fall the same way whatever
+    ``PYTHONHASHSEED`` orders a set by, and an object sharing another's id
+    (a world loaded again) is an owner too."""
+    from realm.core.behaviors import Behavior, behavior_owners
+    from realm.core.objects import GameObject
+
+    class Mark(Behavior):
+        behavior_id = "test_mark"
+
+    made = [GameObject(f"thing {n}", id=f"order-{n:03}") for n in range(60)]
+    for obj in reversed(made):
+        obj.add_behavior(Mark())
+    twin = GameObject("thing 0 again", id="order-000")
+    twin.add_behavior(Mark())
+    mine = [o for o in behavior_owners() if o.id.startswith("order-")]
+    assert [o.name for o in mine] == [o.name for o in reversed(made)] + ["thing 0 again"]
+
+
 # --- every clock at once, and the list kept honest --------------------------------
 
 

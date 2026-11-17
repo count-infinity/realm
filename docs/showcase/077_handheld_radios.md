@@ -216,7 +216,7 @@ behind as a bug:
 ```
 
 A set lying in a room also plays ordinary traffic out loud, so anyone standing
-near the dropped spare hears `spare radio crackles: [alpha] ...` whenever you
+near the dropped spare hears `Spare radio crackles: [alpha] ...` whenever you
 transmit. Try `radio hello` right after dropping your own set: the grip is out of
 reach, and the send key refuses with "Pick the radio up first".
 

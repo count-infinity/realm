@@ -32,8 +32,10 @@ running server does on its own (regeneration, hunger, idle training, the
 clan and quest sweeps) is the server's own ``_reap``, called as the clock
 moves. A fight's rounds come when the clock reaches each beat: the test
 moves it there and calls the encounter's own ``beat``, what its loop does
-when it wakes. The spawners are ticked by hand for the fidos to come back
-(the heartbeat that ticks them runs on real time; there is none here).
+when it wakes. The heartbeat is the server's own ``pulse``, called as the
+clock moves a world beat at a time while the fidos come back; it ticks what
+is due on the clock, in the order the objects got their behaviors, so the
+seeded dice fall the same way under any ``PYTHONHASHSEED``.
 """
 
 from __future__ import annotations
@@ -165,7 +167,7 @@ class Game:
 
     async def start(self) -> GameServer:
         """``realm start`` in the game's directory (no network listener, and
-        no heartbeat: the test moves time itself)."""
+        no heartbeat loop: the test moves the clock and calls ``pulse``)."""
         settings = load_config(self.project)
         self.server = GameServer(settings, enable_telnet=False, tick_interval=0)
         await self.server.start()
@@ -245,17 +247,20 @@ class Game:
         return "\n".join(seen)
 
     async def repopulate(self) -> None:
-        """Time enough for the town's spawners to bring back the dead (the
-        heartbeat a running server gives them; they are ticked here). This
-        server's own rooms: the process-wide ``behavior_owners()`` can still
-        hold an earlier test's world, whose rooms share these ids."""
-        for owner in list(self.server.persistence.all_cached()):
-            for behavior in owner.get_behaviors():
-                if behavior.behavior_id == "spawner":
-                    for _ in range(int(behavior.get_param("respawn_ticks", 150)) + 1):
-                        await behavior.tick(owner, 4.0)
+        """Time enough for the town's spawners to bring back the dead: the
+        clock moves a world beat at a time and the server's heartbeat runs
+        (``pulse``, what its loop does each time it wakes), ticking every
+        behavior that is due: the spawners, and the town's wanderers and
+        scavengers too. The first pulse sets each behavior's phase; the
+        longest respawn takes its ``respawn_ticks`` beats after that."""
+        longest = max(int(b.get_param("respawn_ticks", 150))
+                      for o in self.server.persistence.all_cached()
+                      for b in o.get_behaviors() if b.behavior_id == "spawner")
+        beat = self.server.world.setting("WORLD_BEAT")
+        for _ in range(longest + 2):
+            self.clock.advance(beat)
+            await self.server.pulse()
         await self.flush()
-
 
 
 @pytest.fixture
@@ -339,12 +344,12 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     # she finds her stroke. She wins, hurt.
     game.fate({bree: ["worst", "worst", "best"]}, others="best")
     out = await game.walk(ann, "south", "east", "south")
-    assert "the beastly fido hits you for 8 damage!" in out
-    assert "the beastly fido falls dead!" in out and "You gain 100 experience." in out
+    assert "CRITICAL! The beastly fido hits you for 8 damage!" in out
+    assert "The beastly fido falls dead!" in out and "You gain 85 experience." in out
     assert "[Fido trouble] fidos killed: 1/5" in out
     assert "<2hp 100m 89mv>" in out
     out = await ann.send("score")
-    assert "Experience: 100 / 1000 to level 2" in out and "HP: 2/10" in out
+    assert "Experience: 85 / 1000 to level 2" in out and "HP: 2/10" in out
     # Rest it off.
     assert "You sit down and rest." in await ann.send("rest")
     await game.wait(60)
@@ -355,7 +360,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "You square off against the vagabond!" in await ann.send("kill vagabond")
     await game.fight(ann)
     out = ann.take()
-    assert "You have been KILLED!!" in out and "You lose 100 experience." in out
+    assert "You have been KILLED!!" in out and "You lose 85 experience." in out
     assert "The Common Square" in out and "<1hp 100m 98mv>" in out   # back home
     # Rest, go back for the body; the cat jumps her, and loses.
     await ann.send("rest")
@@ -367,16 +372,18 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "You pick up a short sword." in await ann.send("get all from corpse")
     assert "You ready a short sword." in await ann.send("wield sword")
     await game.fight(ann)
-    assert "an alley cat falls dead!" in ann.take()
+    assert "An alley cat falls dead!" in ann.take()
     # The vagabond again, and this time she wins: his gear is hers.
     assert "You square off against the vagabond!" in await ann.send("kill vagabond")
     await game.fight(ann)
     out = ann.take()
-    assert "the vagabond falls dead!" in out and "You gain 800 experience." in out
+    assert "The vagabond falls dead!" in out and "You gain 800 experience." in out
     out = await ann.send("get all from corpse vagabond")
     assert "a small sword" in out and "a hard leather jerkin" in out
-    # To the weapon shop; on Main Street a fido jumps her, and she levels.
-    out = await game.walk(ann, "west", "north", "east", "east", "north")
+    # To the weapon shop, by way of Poor Alley's fido (a level-0 fido pays
+    # 85; she needs one more); on Main Street another jumps her, and she
+    # levels.
+    out = await game.walk(ann, "west", "west", "east", "north", "east", "east", "north")
     assert "You advance to level 2! (+6 HP)" in out
     assert "You sell a small sword for 100 gold." in await ann.send("sell small")
     # The armourer takes his jerkin.
@@ -394,7 +401,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "AC: 9" in out and "Practices: 1" in out
     out = await ann.send("equipment")
     assert "<head>    a leather cap" in out and "<wielded> a short sword" in out
-    assert "<16hp 100m 69mv>" in out
+    assert "<16hp 100m 65mv>" in out
     out = await ann.send("inventory")
     assert "a leather bracer" in out and "You have 165 gold." in out and "cap" not in out
 
@@ -409,7 +416,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "the beastly fido" in out                        # the square's pounces
     assert "You kick the beastly fido." in await ann.send("kick fido")
     await game.fight(ann)
-    assert "the beastly fido falls dead!" in ann.take()
+    assert "The beastly fido falls dead!" in ann.take()
     out = await ann.send("skills")
     assert "kick                 40%   (use: 2/10)" in out  # kicking teaches kicking
     assert "melee                42%   (use: 6/10)" in out
@@ -418,7 +425,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     out = await game.walk(ann, "north", "east", "east", "south", "east", "south")
     assert "The Tournament and Practice Yard" in out and "the guildmaster" in out
     out = await ann.send("practice")
-    assert "the guildmaster teaches:" in out and "bash                30" in out
+    assert "The guildmaster teaches:" in out and "bash                30" in out
     assert "You have 1 practice session." in out
     assert "You practice bash (31)." in await ann.send("practice bash")
     assert "You have 0 practice sessions." in await ann.send("practice")
@@ -560,13 +567,13 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "You buy the rottweiler for 4 gold." in out
     rottweiler = game.find("rottweiler", where=bree.location)
     out = await game.walk(ann, "south", "west")
-    assert "the rottweiler arrives." in out and "The Dark Alley" in out
+    assert "The rottweiler arrives." in out and "The Dark Alley" in out
     game.fate({bree: "best", rottweiler: "best"}, others="worst")
     await ann.send("kill vagabond")
     await game.fight(ann)
     out = ann.take()
     assert "The rottweiler leaps to Bree's side!" in out
-    assert "the rottweiler hits the vagabond!" in out and "the vagabond falls dead!" in out
+    assert "The rottweiler hits the vagabond!" in out and "The vagabond falls dead!" in out
     # One companion at Bree's level (Merc: 1 + level / 10): the dog goes,
     # and a horse takes its place.
     assert "You dismiss the rottweiler." in await ann.send("dismiss rottweiler")
@@ -574,7 +581,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "You buy a brown horse for 10 gold." in await ann.send("buy horse")
     assert "You can't ride in here." in await ann.send("mount horse")   # a shop
     out = await ann.send("south")
-    assert "a brown horse arrives." in out and "<16hp 100m 80mv>" in out
+    assert "A brown horse arrives." in out and "<16hp 100m 80mv>" in out
     horse = game.find("brown horse", where=bree.location)
     assert "You mount the brown horse." in await ann.send("mount horse")
     out = await game.walk(ann, "west", "west")

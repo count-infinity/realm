@@ -9,6 +9,7 @@ import random
 from typing import TYPE_CHECKING
 
 from realm.core.behaviors import Behavior
+from realm.core.markup import capitalize
 from realm.core.movement import move_through_exit, resolve_exit_destination
 from realm.core.world import get_world
 from realm.permissions.roles import Role, get_role
@@ -193,7 +194,7 @@ class StealBehavior(Behavior):
             if self.get_param('flee', True):
                 await self._slip_away(obj)
         else:
-            mark.msg(f"{obj.name} tries to pick your pocket!")
+            mark.msg(capitalize(f"{obj.name} tries to pick your pocket!"))
             obj.location.msg_contents(
                 f"{obj.name} fumbles at {mark.name}'s purse!", exclude=[mark])
 

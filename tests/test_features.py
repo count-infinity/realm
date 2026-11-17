@@ -330,7 +330,7 @@ class TestGameFeature:
                 sim.obj("apple", location=room, tags=["thing"])
             sim.seen(bob)
             await sim.do(alice, "say hello")
-            assert 'a masked figure says, "HELLO"' in sim.seen(bob)
+            assert 'A masked figure says, "HELLO"' in sim.seen(bob)
             await sim.do(bob, "look")
             assert any("apple x2" in line for line in sim.seen(bob))
         finally:

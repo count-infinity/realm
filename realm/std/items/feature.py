@@ -17,7 +17,7 @@ from realm.std.items.commands import (
     cmd_use,
     cmd_wield,
 )
-from realm.std.items.equipment import cmd_equipment, cmd_unwear, cmd_wear
+from realm.std.items.equipment import cmd_equipment, cmd_unwear, cmd_wear, equip_old_gear
 from realm.std.items.food import cmd_drink, cmd_eat, cmd_fill
 from realm.std.items.inventory import (
     cmd_drop,
@@ -31,6 +31,7 @@ feature = Feature(
     'items',
     doc='Carrying, giving, wearing and using objects; doors and locks.',
 )
+feature.on_boot(equip_old_gear)
 
 feature.command(
     'get',

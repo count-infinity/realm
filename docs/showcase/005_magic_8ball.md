@@ -126,8 +126,8 @@ shake
 You'll see something like:
 
 ```text
-oracle ball trembles in Bilda's grip.
-oracle ball says, "The dice are still rolling."
+Oracle ball trembles in Bilda's grip.
+Oracle ball says, "The dice are still rolling."
 ```
 
 Everyone else in the room sees the same two lines, because the ball is

@@ -135,15 +135,27 @@ async def do_give(actor: GameObject, item: GameObject, target: GameObject) -> bo
     return True
 
 
+def door_word(target: GameObject) -> str | None:
+    """How an open/close/lock line names an exit whose door has ROM
+    keywords: "the gate" (its first keyword, as ROM's ``$d``), never "the
+    west". None for anything else."""
+    keywords = target.db.get('keywords') if target.is_exit else None
+    if not keywords:
+        return None
+    first = keywords.split()[0] if isinstance(keywords, str) else str(keywords[0])
+    return f"the {first}"
+
+
 async def do_open(actor: GameObject, target: GameObject) -> bool:
     """Open a door or container (must be closed and not locked)."""
     if not target.has_tag('closed'):
-        actor.msg(f"{singular_name(target).capitalize()} is already open.")
+        actor.msg(f"{(door_word(target) or singular_name(target)).capitalize()} "
+                  f"is already open.")
         return False
     if target.has_tag('locked'):
         actor.msg(
             target.db.get('locked_msg')
-            or f"{singular_name(target).capitalize()} is locked."
+            or f"{(door_word(target) or singular_name(target)).capitalize()} is locked."
         )
         return False
 
@@ -155,8 +167,9 @@ async def do_open(actor: GameObject, target: GameObject) -> bool:
     if action is None:
         return False
 
-    action.add_message("actor", "You open {target:the}.")
-    action.add_message("room", "{actor} opens {target:the}.")
+    door = door_word(target) or "{target:the}"
+    action.add_message("actor", f"You open {door}.")
+    action.add_message("room", f"{{actor}} opens {door}.")
     deliver_messages(action)
     return True
 
@@ -164,7 +177,8 @@ async def do_open(actor: GameObject, target: GameObject) -> bool:
 async def do_close(actor: GameObject, target: GameObject) -> bool:
     """Close a door or container."""
     if target.has_tag('closed'):
-        actor.msg(f"{singular_name(target).capitalize()} is already closed.")
+        actor.msg(f"{(door_word(target) or singular_name(target)).capitalize()} "
+                  f"is already closed.")
         return False
     is_door_or_container = target.is_exit or target.has_tag('container')
     if not is_door_or_container and not target.has_tag('closable'):
@@ -179,10 +193,12 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
     if action is None:
         return False
 
-    action.add_message("actor", "You close {target:the}.")
-    action.add_message("room", "{actor} closes {target:the}.")
+    door = door_word(target) or "{target:the}"
+    action.add_message("actor", f"You close {door}.")
+    action.add_message("room", f"{{actor}} closes {door}.")
     deliver_messages(action)
     return True
 
 
-__all__ = ["gate_item_action", "do_get", "do_drop", "do_give", "do_open", "do_close"]
+__all__ = ["gate_item_action", "door_word", "do_get", "do_drop", "do_give", "do_open",
+           "do_close"]

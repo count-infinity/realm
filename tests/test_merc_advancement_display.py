@@ -52,6 +52,20 @@ class TestMercDeathAward:
         # A level-1 fido pays 100 XP, not 10 — ten dogs to level 2, not 100.
         assert self.system.death_award(self._mob(1), self._killer(1)) == 100
 
+    def test_level_zero_prey_is_a_level_below_a_level_one_killer(self):
+        # ROM's level-0 fido is level 0 (xp_compute's level_range -1), not
+        # read as level 1: the importer's 100 points, bent 15% down.
+        fido = self._mob(0, points=100)
+        assert self.system.death_award(fido, self._killer(1)) == 85
+        # A level that was never set still reads as 1.
+        unset = GameObject("prey", tags=['npc'])
+        unset.db.points = 100
+        assert self.system.death_award(unset, self._killer(1)) == 100
+
+    def test_consider_reads_level_zero_as_zero(self):
+        fido = self._mob(0, points=100)
+        assert self.system.consider(self._killer(5), fido) == "Prey is no match for you."
+
     def test_tougher_prey_pays_a_premium(self):
         award = self.system.death_award(self._mob(5), self._killer(1))
         assert award > 500                      # above base: +15%/level up

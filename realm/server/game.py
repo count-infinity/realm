@@ -16,7 +16,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import signal
+import time
+import weakref
 from collections.abc import Awaitable, Callable
 from dataclasses import replace
 from typing import Any
@@ -39,6 +42,12 @@ from realm.scripting.engine import ScriptEngine
 from realm.server.world import DISPATCHED, INTERCEPTED, build_world, prepare_world, route_input
 
 logger = logging.getLogger(__name__)
+
+def now() -> float:
+    """The heartbeat's clock (seconds, monotonic): when a behavior's tick
+    and the ambient world beat are due (tests replace it)."""
+    return time.monotonic()
+
 
 #: ``realm start``'s exit status after ``@reboot``: a supervisor (systemd's
 #: ``Restart=on-failure``, a shell loop) starts the server again on it.
@@ -97,6 +106,11 @@ class GameServer:
         self._running = False
         self._tick_task: asyncio.Task[None] | None = None
         self._reap_task: asyncio.Task[None] | None = None
+        # The heartbeat's memory (``pulse``): when each behavior last ticked,
+        # and when the ambient world beat last fired (None until the first
+        # pulse, so the first beat lands one WORLD_BEAT after it).
+        self._last_ticked: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+        self._last_world_beat: float | None = None
         #: what ``realm start`` exits with: 0, or REBOOT_EXIT_CODE after @reboot
         self.exit_code = 0
         # A countdown in progress (@shutdown / @reboot), and the stop it ends in.
@@ -298,8 +312,7 @@ class GameServer:
                 raise
 
         self._running = True
-        import time as _time
-        self.dispatcher.server_started_at = _time.monotonic()
+        self.dispatcher.server_started_at = time.monotonic()
 
         # Run startup callbacks
         for callback in self._on_start:
@@ -625,79 +638,90 @@ class GameServer:
 
     async def _tick_loop(self) -> None:
         """
-        Periodic world pulse.
-
-        Every tick_interval seconds, run tick() on every behavior that
-        opts in (should_tick), then flush all session output — NPC
-        actions must reach players without a player command in flight.
-        A failing behavior is logged and skipped; the pulse survives.
+        The heartbeat's loop: every ``tick_interval`` seconds of real time,
+        one :meth:`pulse`. Only the sleep is here; what is due is the
+        pulse's to decide, on ``now()``.
         """
-        import random
-        import time as _time
-        import weakref
-
-        from realm.core.beats import ambient_beat_targets, deliver_beat
-        from realm.core.behaviors import behavior_owners
-
-        world_beat = self.world.setting("WORLD_BEAT")
-
-        last_ticked: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
-        next_pulse = _time.monotonic()
-        # Start the ambient-beat clock now, so the first beat lands one
-        # WORLD_BEAT after boot rather than immediately on pulse one.
-        last_world_beat = _time.monotonic()
+        next_pulse = time.monotonic()
         while True:
             # Drift-correcting sleep: aim for a fixed grid, and if a heavy
             # pulse made us late, resync to now instead of spiralling.
             next_pulse += self.settings.tick_interval
-            delay = next_pulse - _time.monotonic()
+            delay = next_pulse - time.monotonic()
             if delay > 0:
                 await asyncio.sleep(delay)
             else:
-                next_pulse = _time.monotonic()
-            now = _time.monotonic()
+                next_pulse = time.monotonic()
+            await self.pulse()
 
-            # --- Real-time behaviors (spawners, decay, wander, tickers) ---
-            # Each fires on its own tick_interval (default WORLD_BEAT), so the
-            # fast heartbeat never changes their pacing.
-            for obj in behavior_owners():
-                for behavior in obj.get_behaviors():
-                    if not behavior.should_tick:
-                        continue
-                    interval = behavior.tick_interval
-                    previous = last_ticked.get(behavior)
-                    if previous is None:
-                        # Start-phase jitter: seed a random point within the
-                        # interval so simultaneous behaviors don't lockstep.
-                        last_ticked[behavior] = now - random.random() * interval
-                        continue
-                    if interval > 0 and now - previous < interval:
-                        continue
-                    last_ticked[behavior] = now
-                    try:
-                        await behavior.tick(obj, now - previous)
-                    except Exception:
-                        logger.exception(
-                            f"Tick error in {behavior.behavior_id} on {obj.name}"
-                        )
+    async def pulse(self) -> None:
+        """
+        One heartbeat, what the loop does each time it wakes: tick every
+        behavior of this world's objects that opts in (``should_tick``) and
+        is due on ``now()``, in the order the objects got behaviors, fire
+        the ambient world beat when a ``WORLD_BEAT`` has passed, then flush
+        all session output (NPC actions reach players without a player
+        command in flight). A failing behavior is logged and skipped; the
+        pulse survives.
 
-            # --- Ambient beat: out-of-combat objects advance one beat every
-            # WORLD_BEAT. Combatants are driven by their encounter instead
-            # (the double-tick guard), so they're skipped here. ---
-            if now - last_world_beat >= world_beat:
-                last_world_beat = now
-                for obj in ambient_beat_targets(behavior_owners()):
-                    try:
-                        await deliver_beat(obj)
-                    except Exception:
-                        logger.exception(f"Ambient beat error on {obj.name}")
+        A test that has moved the clock calls this instead of waiting for
+        the loop: nothing fires before it is due, so the two never fire the
+        same tick twice (as ``CombatEncounter.beat()``).
+        """
+        from realm.core.beats import ambient_beat_targets, deliver_beat
+        from realm.core.behaviors import behavior_owners
 
-            # --- Output flush every pulse (near-real-time NPC/room output). ---
-            for session in self.session_manager.all_sessions():
+        at = now()
+        if self._last_world_beat is None:
+            self._last_world_beat = at
+        # This world's objects: the one its store holds under that id. An
+        # object the store no longer holds (a killed mob something still
+        # references, an earlier world's namesake) does not tick.
+        store = self.persistence
+        owners = [obj for obj in behavior_owners()
+                  if store is None or store.get_cached(obj.id) is obj]
+
+        # --- Real-time behaviors (spawners, decay, wander, tickers) ---
+        # Each fires on its own tick_interval (default WORLD_BEAT), so the
+        # fast heartbeat never changes their pacing.
+        for obj in owners:
+            for behavior in obj.get_behaviors():
+                if not behavior.should_tick:
+                    continue
+                interval = behavior.tick_interval
+                previous = self._last_ticked.get(behavior)
+                if previous is None:
+                    # Start-phase jitter: seed a random point within the
+                    # interval so simultaneous behaviors don't lockstep.
+                    self._last_ticked[behavior] = at - random.random() * interval
+                    continue
+                if interval > 0 and at - previous < interval:
+                    continue
+                self._last_ticked[behavior] = at
                 try:
-                    await session.flush_output()
+                    await behavior.tick(obj, at - previous)
                 except Exception:
-                    logger.exception("Tick flush error")
+                    logger.exception(
+                        f"Tick error in {behavior.behavior_id} on {obj.name}"
+                    )
+
+        # --- Ambient beat: out-of-combat objects advance one beat every
+        # WORLD_BEAT. Combatants are driven by their encounter instead
+        # (the double-tick guard), so they're skipped here. ---
+        if at - self._last_world_beat >= self.world.setting("WORLD_BEAT"):
+            self._last_world_beat = at
+            for obj in ambient_beat_targets(owners):
+                try:
+                    await deliver_beat(obj)
+                except Exception:
+                    logger.exception(f"Ambient beat error on {obj.name}")
+
+        # --- Output flush every pulse (near-real-time NPC/room output). ---
+        for session in self.session_manager.all_sessions():
+            try:
+                await session.flush_output()
+            except Exception:
+                logger.exception("Tick flush error")
 
     async def _reap_loop(self) -> None:
         """Coarse housekeeping on its OWN cadence (``reap_interval``, ~5s),

@@ -11,7 +11,12 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from realm.features import Feature
-from realm.std.basics.aliases import alias_interceptor, cmd_alias, cmd_unalias
+from realm.std.basics.aliases import (
+    alias_interceptor,
+    carry_aliases_over,
+    cmd_alias,
+    cmd_unalias,
+)
 from realm.std.basics.commands import (
     cmd_color,
     cmd_commands,
@@ -97,6 +102,7 @@ feature.command('unalias', cmd_unalias, category='utility',
 # After accounts' character creation (0) and a freeze (1), before sleep
 # (10): a sleeper's aliased "wake" is still "wake".
 feature.input_interceptor(alias_interceptor, order=5)
+feature.on_boot(carry_aliases_over)
 feature.command(
     'quit',
     cmd_quit,

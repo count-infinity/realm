@@ -39,7 +39,7 @@ brains are one system.
 | Swappable rulesets | `realm/combat/ruleset.py` ABC + `rulesets/gurps.py`, `rulesets/d20.py` | Working; GURPS 3d6 attack/dodge-parry/damage-DR/initiative |
 | Combatant wrapper | `realm/combat/combatant.py` | Works (stats/HP via `db.*`); has a module-global cache to fix |
 | Combat NPC behaviors | `realm/combat/behaviors.py` | Skeletons with stubbed movement/speech — to be finished against the new encounter layer |
-| Server heartbeat | `GameServer._tick_loop` | Working; drives behaviors + flushes sessions |
+| Server heartbeat | `GameServer._tick_loop` / `pulse()` | Working; drives behaviors + flushes sessions |
 | Skill checks/contests | `realm/core/checks.py` | Working; pluggable resolver |
 | Safe expressions | `realm/permissions/locks.py` evaluator | Working; the strategy-condition language candidate |
 

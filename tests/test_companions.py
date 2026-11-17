@@ -157,7 +157,7 @@ async def test_order_runs_a_command_as_the_companion(sim):
     await sim.do(alice, "order kitten say mew")
     heard = "\n".join(sim.seen(bob))
     assert "Alice orders the kitten to 'say mew'." in heard
-    assert "kitten says" in heard and "mew" in heard
+    assert "Kitten says" in heard and "mew" in heard
 
 
 async def test_order_refuses_admin_commands_order_and_quit(sim):
@@ -880,7 +880,7 @@ async def test_a_ridden_mount_does_not_walk_off(sim):
     await sim.do(alice, "mount mare")
     await sim.do(alice, "order mare north")
     assert mare.location is here
-    assert "grey mare tries to go north and fails." in sim.seen(alice)
+    assert "Grey mare tries to go north and fails." in sim.seen(alice)
 
 
 async def test_a_companion_neither_wanders_nor_attacks_on_sight(sim):

@@ -37,6 +37,7 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any
 
+from realm.games.merc.system import char_level
 from realm.std.combat.ruleset import (
     AttackResult,
     DamageResult,
@@ -72,10 +73,6 @@ def _trained(obj: GameObject, skill: str) -> int:
     return int(obj.db.get(f"skill_{skill}") or 0)
 
 
-def _level(obj: GameObject) -> int:
-    return int(obj.db.get("level") or 1)
-
-
 def _chance_check(obj: GameObject, skill: str, chance: int) -> bool:
     """A check of ``skill`` whose percentile target is ``chance``."""
     from realm.std.rules.checks import check
@@ -93,7 +90,7 @@ def passive_defense(attacker: GameObject, defender: GameObject) -> str | None:
         if needs == "shield" and not any(o.has_tag("worn") and o.db.get("slot") == "shield"
                                          for o in defender.contents):
             continue
-        chance = int(level * share) + bonus + _level(defender) - _level(attacker)
+        chance = int(level * share) + bonus + char_level(defender) - char_level(attacker)
         if chance > 0 and _chance_check(defender, skill, chance):
             return skill
     return None

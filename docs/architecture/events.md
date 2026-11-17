@@ -157,7 +157,7 @@ name — its line bakes `.name` rather than the `{actor}` token.)
 ```
 Ada.db.voice_as = "a distorted voice"
 Ada: say who goes there
-  Bob hears:  a distorted voice says, "who goes there"
+  Bob hears:  A distorted voice says, "who goes there"
   Ada hears:  You say, "who goes there"
   Bob's `look` still lists:  Ada          # face unaffected
 ```
@@ -200,3 +200,17 @@ if action is not None:
 
 The manipulation verb cores in ``realm/std/items/verbs.py`` are the
 reference implementations.
+
+## Capitals: ROM's ``act()`` and ``send_to_char``
+
+ROM capitalizes the first letter of what ``act()`` sends and leaves
+``send_to_char`` as written. REALM's ``act()`` is the two paths that narrate
+someone's doing to an audience: ``deliver_messages`` (every templated
+message) and a room broadcast (``GameObject.msg_contents``, which softcode
+``remit`` and ``oemit`` use). Each starts its line with a capital
+(``realm.core.markup.capitalize``: the first visible character, colour codes
+stepped over, never every line), so ``"{actor} arrives."`` naming "the
+cityguard" reads "The cityguard arrives."; ``look``'s title line ("The
+cityguard") is capitalized too. ``obj.msg(text)`` to one object,
+softcode ``pemit`` and a command's own output are ``send_to_char``: sent as
+written, so a builder's deliberately lowercase line stays so.

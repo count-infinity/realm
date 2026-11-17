@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
+from realm.core.markup import capitalize
 from realm.core.perception import can_see
 from realm.core.pools import damage_pool, mend, pool_get, pool_max, settle
 from realm.core.world import get_world
@@ -199,7 +200,7 @@ class HealerBehavior(Behavior):
 
             heal = int(self.get_param('heal_amount', 5))
             await settle(mend(other, pool, heal), source=obj)
-            other.msg(f"{obj.name} tends your wounds (+{heal} HP).")
+            other.msg(capitalize(f"{obj.name} tends your wounds (+{heal} HP)."))
             if obj.location:
                 obj.location.msg_contents(
                     f"{obj.name} tends {other.name}'s wounds.",

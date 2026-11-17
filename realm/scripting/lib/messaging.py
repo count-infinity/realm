@@ -86,7 +86,9 @@ def prompt(frame, target, text: str, callback: str,
 
 @softfn(group='Messaging & prompts')
 def pemit(frame, target: GameObject | str, message: str) -> None:
-    """Send a private message to a target (delivered after the script).
+    """Send a private message to a target (delivered after the script),
+    exactly as written (ROM's ``send_to_char``: a lowercase first letter
+    stays lowercase).
 
     Example: pemit(enactor, 'A voice only you can hear...')
     """
@@ -97,6 +99,7 @@ def pemit(frame, target: GameObject | str, message: str) -> None:
 @softfn(group='Messaging & prompts')
 def remit(frame, room: GameObject | str, message: str) -> None:
     """Emit a message to everyone in a room (delivered after the script).
+    A room broadcast is ROM's ``act()``: its first letter is capitalized.
 
     Example: remit(here, 'The ground trembles.')
     """
@@ -106,7 +109,8 @@ def remit(frame, room: GameObject | str, message: str) -> None:
 
 @softfn(group='Messaging & prompts')
 def oemit(frame, exclude: GameObject | str, message: str) -> None:
-    """Emit to the executor's room, excluding one object.
+    """Emit to the executor's room, excluding one object. A room broadcast
+    is ROM's ``act()``: its first letter is capitalized.
 
     Example: oemit(enactor, 'Bob vanishes in smoke.')
     """

@@ -53,10 +53,10 @@ class TestEachVerb:
 
     async def test_speech_verbs(self, world, run):
         sim, _room, _yard, alice, golem = world
-        for line, expect in (("say Hello there", "golem says, \"Hello there\""),
-                             ("pose waves.", "golem waves."),
-                             (":bows.", "golem bows."),
-                             (";'s gears whir.", "golem's gears whir."),
+        for line, expect in (("say Hello there", "Golem says, \"Hello there\""),
+                             ("pose waves.", "Golem waves."),
+                             (":bows.", "Golem bows."),
+                             (";'s gears whir.", "Golem's gears whir."),
                              ("emit The air hums.", "The air hums."),
                              ("\\A bell rings.", "A bell rings."),
                              ("whisper Alice = psst", "psst")):

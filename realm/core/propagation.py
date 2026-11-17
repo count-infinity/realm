@@ -27,6 +27,8 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol
 
+from realm.core.markup import capitalize
+
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
@@ -684,7 +686,9 @@ def deliver_messages(action: Action) -> None:
     'room' for everyone else in the delivery room, 'remote' for the far
     rooms of a multiroom action). Every message is formatted **per
     recipient** via ``action.format_message(msg, looker=recipient)``, so
-    perception and identity apply.
+    perception and identity apply, and starts with a capital letter, as
+    ROM's ``act()`` capitalizes ("{actor} arrives." naming "the cityguard"
+    reads "The cityguard arrives.").
 
     A message queued for an audience nobody registered logs one WARNING per
     (audience, action type) and is not delivered. A recipient any of the
@@ -715,7 +719,7 @@ def deliver_messages(action: Action) -> None:
             if any(rule(recipient, action) for rule in deaf_rules):
                 continue
             for msg in msgs:
-                recipient.msg(action.format_message(msg, looker=recipient))
+                recipient.msg(capitalize(action.format_message(msg, looker=recipient)))
 
 
 __all__ = [

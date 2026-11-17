@@ -124,6 +124,7 @@ async def test_a_lone_warrior_is_hurt_recovers_dies_and_recovers_the_sword(
 
     corpse = next(o for o in street.contents if o.name == "corpse of Brom")
     assert sword.location is corpse
+    assert not sword.has_tag("wielded")               # a corpse wields nothing (ROM)
     assert brom.location is square                    # no home: the start room
     assert brom.db.hp == 1
     assert brom.db.level == level                     # never a level
@@ -139,6 +140,7 @@ async def test_a_lone_warrior_is_hurt_recovers_dies_and_recovers_the_sword(
     assert brom.db.move < moves                       # walking cost movement
     await sim.do(brom, "get sword from corpse")
     assert sword.location is brom
+    assert not sword.has_tag("wielded")               # picked up, not yet readied
 
 
 async def test_no_stock_path_leaves_a_lone_player_unable_to_act(midgaard):

@@ -4,13 +4,19 @@ Aliases (MUD_PLAN 10.3): a player's own short words for command lines.
 ``alias kk = kick $1`` makes ``kk fido`` run ``kick fido``. In the line,
 ``$1`` .. ``$9`` are the words typed after the alias and ``$*`` all of
 them; a line with none of these gets the words appended. Aliases live on
-the character (``aliases``, a word -> line mapping), are expanded once
-(an alias inside an expansion is not expanded again), and a word that
+the character (``command_aliases``, a word -> line mapping), are expanded
+once (an alias inside an expansion is not expanded again), and a word that
 begins with ``@`` is never one, so a builder command cannot be shadowed.
+
+``aliases`` is not theirs: that list is the other names an object answers
+to (the matcher's, and the ROM importer's keywords). A world saved before
+the two were parted kept command aliases in ``aliases``; ``carry_aliases_over``
+moves them at boot.
 """
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING
 
@@ -23,12 +29,15 @@ if TYPE_CHECKING:
     from realm.core.world import World
     from realm.gateway.session import Session
 
-ALIAS_ATTR = "aliases"
+ALIAS_ATTR = "command_aliases"
+#: Where command aliases were kept before 2026-11-17 (now name aliases only).
+NAME_ALIAS_ATTR = "aliases"
 #: An alias is one word of letters, digits and ``_``.
 WORD = re.compile(r"^\w{1,20}$")
 #: Words that cannot be aliased: the commands that manage aliases.
 RESERVED = frozenset({"alias", "unalias"})
 _PLACEHOLDER = re.compile(r"\$([1-9*])")
+_log = logging.getLogger(__name__)
 
 
 def aliases_of(player: GameObject) -> dict[str, str]:
@@ -63,6 +72,23 @@ async def alias_interceptor(world: World, session: Session, line: str) -> str | 
     if template is None:
         return False
     return expand(line, template)
+
+
+async def carry_aliases_over(world: World) -> None:
+    """``feature.on_boot``: a player whose ``aliases`` is a word -> line
+    dict kept its command aliases there (a name-alias list is a list, and is
+    left alone); they move to ``command_aliases``, which wins a word both
+    hold. A no-op once done."""
+    store = world.store
+    for player in list(store.find_cached(tag="player")):
+        old = player.db.get(NAME_ALIAS_ATTR)
+        if not isinstance(old, dict):
+            continue
+        player.db.set(ALIAS_ATTR, {**old, **aliases_of(player)})
+        player.db.delete(NAME_ALIAS_ATTR)
+        await store.save(player)
+        _log.info(f"Moved {player.name}'s command aliases from '{NAME_ALIAS_ATTR}' "
+                  f"to '{ALIAS_ATTR}'")
 
 
 async def cmd_alias(ctx: CommandContext) -> None:
@@ -149,5 +175,5 @@ async def cmd_unalias(ctx: CommandContext) -> None:
     await ctx.session.send(f"Alias {word} removed.")
 
 
-__all__ = ["ALIAS_ATTR", "RESERVED", "aliases_of", "expand", "alias_interceptor",
-           "cmd_alias", "cmd_unalias"]
+__all__ = ["ALIAS_ATTR", "NAME_ALIAS_ATTR", "RESERVED", "aliases_of", "expand",
+           "alias_interceptor", "carry_aliases_over", "cmd_alias", "cmd_unalias"]

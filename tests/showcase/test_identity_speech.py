@@ -96,7 +96,7 @@ class TestShortDescs:
         sim.seen(bran)
         await sim.do(ada, "say Care to dance?")
         assert said(sim, bran, "dance") == [
-            'a tall woman in a domino mask says, "Care to dance?"']
+            'A tall woman in a domino mask says, "Care to dance?"']
 
         # Ada introduces herself to Bran.
         sim.seen(bran)
@@ -122,4 +122,4 @@ class TestShortDescs:
         await sim.do(ada, "say Two of you now.")
         assert said(sim, bran, "Two") == ['Ada says, "Two of you now."']
         assert said(sim, cass, "Two") == [
-            'a tall woman in a domino mask says, "Two of you now."']
+            'A tall woman in a domino mask says, "Two of you now."']

@@ -187,7 +187,7 @@ is typed on its own line as an answer, never as part of a command:
 > corridor
 Maintenance Corridor
 > look maintenance log
-maintenance log
+Maintenance log
 A greasy clipboard. Halfway down: "Cleanroom access reset to 4815 -- update your badges."
 > lab
 Fabrication Lab

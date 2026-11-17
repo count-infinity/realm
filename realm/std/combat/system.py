@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from realm.core.action_tags import HOSTILE
-from realm.core.markup import wrap
+from realm.core.markup import capitalize, wrap
 from realm.core.pools import PoolChange, settle
 from realm.core.propagation import Action, propagate
 from realm.core.world import find_world
@@ -288,9 +288,9 @@ class CombatSystem:
         messages = self.ruleset.format_attack_message(atk, dfn, attack_result, damage_result)
 
         if target_defeated:
-            messages['attacker_msg'] += f" {dfn.name} is defeated!"
+            messages['attacker_msg'] += f" {capitalize(dfn.name)} is defeated!"
             messages['defender_msg'] += " You have been defeated!"
-            messages['others_msg'] += f" {dfn.name} falls!"
+            messages['others_msg'] += f" {capitalize(dfn.name)} falls!"
 
         # Roll notes go LAST so suffixes ("X is defeated!") stay on the
         # message line, not dangling after the dice.

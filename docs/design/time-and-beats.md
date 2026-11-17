@@ -26,10 +26,12 @@ the session-output flush. Three consequences:
 
 ## What exists today
 
-- **Heartbeat:** `_tick_loop`, `tick_interval` (config `TICK_INTERVAL`, default 0.1s). Iterates
-  `behavior_owners()` (a `WeakSet` — only objects with behaviors), calling
-  `tick(obj, delta)` when a behavior's `tick_interval` (seconds) has elapsed.
-  `delta` is real seconds since that behavior last ticked.
+- **Heartbeat:** `_tick_loop`, `tick_interval` (config `TICK_INTERVAL`, default 0.1s), calls
+  `pulse()` each time it wakes. A pulse iterates `behavior_owners()` (only
+  objects with behaviors, weakly held, in the order they got one), calling
+  `tick(obj, delta)` when a behavior's `tick_interval` (seconds) has elapsed
+  on the heartbeat's `now()`. `delta` is seconds on that clock since the
+  behavior last ticked.
 - **Combat beat:** each encounter runs its **own** async loop
   (`encounter._run`) with `beat_seconds`, derived from the **slowest**
   participant's `db.combat_beat` (`max()`), clamped to `[beat_min, beat_max]`
@@ -266,8 +268,8 @@ default) effects get no jitter and thus exact, unchanged pulse counts.
 the `WORLD_BEAT` setting (default 4s) instead of 0, so pulse-counting
 world behaviors keep their pacing no matter how fine the heartbeat runs.
 `GameServer._tick_loop` is drift-correcting (aims at a fixed grid, resyncs when
-late), seeds start-phase jitter for new behaviors, and mints the ambient beat
-every `world_beat` via `ambient_beat_targets` + `deliver_beat`. Reaping runs on
+late); each `pulse()` seeds start-phase jitter for new behaviors and mints the
+ambient beat every `world_beat` via `ambient_beat_targets` + `deliver_beat`. Reaping runs on
 its OWN coarse task (`_reap_loop`, cadence `reap_interval`, default 5s) so a
 slow sweep never stalls the heartbeat. Config surface: `tick_interval`
 (heartbeat, default **0.1s**), `world_beat` (ambient beat, 4s), `reap_interval`
@@ -326,17 +328,17 @@ real clock a `now()` reads follows what its value is:
 
 | Kind | Reads | Modules |
 |---|---|---|
-| **Durations kept in memory** | `time.monotonic()` (immune to the host's clock being set) | `gateway.session` (idle, link-dead, flood, backup cadence), `scripting.waits` (a wait's due time), `combat.encounter` (the beat), `accounts.auth` (failed logins), `vitals.regen`, `needs.needs` (the sweeps' cadence) |
+| **Durations kept in memory** | `time.monotonic()` (immune to the host's clock being set) | `gateway.session` (idle, link-dead, flood, backup cadence), `scripting.waits` (a wait's due time), `combat.encounter` (the beat), `server.game` (the heartbeat: behavior ticks and the ambient world beat), `accounts.auth` (failed logins), `vitals.regen`, `needs.needs` (the sweeps' cadence) |
 | **Times kept in the database** | `time.time()` (means the same after a restart) | `core.events` (`expires_at`; softcode `expire()` and `now()`), `abilities.abilities` (cooldowns), `combat.corpses` (a corpse's lock), `mail.mail`, `achievements.achievements`, `channels.channels` (dates shown to players), `accounts.account` (bans), `clans.clans`, `quests.quests`, `tasks.tasks`, `rules.progression` (idle training), `clock.clock` (game time), `spawning.zone_reset`, `instances.instances`, `wilderness.wilderness` |
 
 A stored time stays wall-clock: a monotonic reading means nothing after
 the process restarts.
 
 Some reads stay real on purpose, because they measure or report the
-machine and decide nothing in the game: the heartbeat's own schedule
-(`GameServer._tick_loop`, which also times behavior ticks and the ambient
-beat), a script's CPU budget (`scripting.sandbox`), the backup file's name,
-`uptime`, and the server's own clock in `time`. `tests/test_clocks.py`
+machine and decide nothing in the game: the heartbeat loop's sleep
+(`GameServer._tick_loop`, the grid it wakes on), a script's CPU budget
+(`scripting.sandbox`), the backup file's name, `uptime`, and the server's
+own clock in `time`. `tests/test_clocks.py`
 scans the package and fails on any read that is neither a known `now()`
 nor one of these.
 
@@ -348,4 +350,18 @@ when it is over (once, whoever sees it: the loop, an outside `beat()`, or
 `end()`). Because the decision reads the clock and not the sleep, a test
 moves the clock to the beat and calls `beat()` itself; a beat that is not
 due does nothing, so the test and the loop never fire one twice.
+
+**The heartbeat.** `GameServer._tick_loop` sleeps on a real-time grid
+(`TICK_INTERVAL`, 0.1s) and each time it wakes calls `pulse()`, which
+decides on `server.game.now()`: a behavior ticks when its `tick_interval`
+has passed since its last tick (its first pulse sets a random phase, so
+spawners and wanderers do not move in lockstep), the ambient beat fires
+when a `WORLD_BEAT` has passed since the last, and session output is
+flushed. A test moves the clock and calls `pulse()`
+(`tests/test_first_hour.py` brings the fidos back so). A pulse visits only
+this world's objects (the one its store holds under that id: a killed mob
+something still references does not tick) and visits them in the order
+they got their first behavior (`behavior_owners()` is kept by identity, in
+insertion order, not as a set), so a seeded game replays the same whatever
+`PYTHONHASHSEED` is.
 

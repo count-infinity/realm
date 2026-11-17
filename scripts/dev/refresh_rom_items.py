@@ -7,9 +7,10 @@ took a mob's shop, sharing its vnum, loses it), names (a mob or object
 named by its ROM keywords, its short description kept as ``short_desc``,
 is named by the short description and answers to the keywords as
 ``aliases``, spawners' mobs too)
-and rooms (``lamplit`` city streets, ``no_recall``, a ``ROOM_PET_SHOP``'s
+rooms (``lamplit`` city streets, ``no_recall``, a ``ROOM_PET_SHOP``'s
 keeper selling the next room's mobs as pets, a spawner's mob knowing its
-vnum)
+vnum and coming back with what the placed mob carries) and a mob's E-reset
+gear (worn and wielded, as a player's is, not a ``worn`` attribute)
 on an already-converted area file, from the ``item_type``, ``rom_wear``,
 ``rom_values``, ``rom_extra``, ``rom_act``, ``rom_room_flags`` and
 ``rom_spec:*`` tags each object keeps.
@@ -39,6 +40,8 @@ from realm.tools.rom_import import (
     RETIRED_CONSUMABLE_FIELDS,
     SPEC_BEHAVIORS,
     Area,
+    carried_prototypes,
+    equip_record,
     gap_lines,
     item_fields,
     item_flag_tags,
@@ -114,6 +117,35 @@ def _spawn_vnums(room: dict) -> int:
     return changed
 
 
+def _equip(obj: dict, area: Area) -> int:
+    """Gear an E reset gave before 2026-11-17 carried a ``worn`` attribute
+    naming its ROM wear location; it is worn or wielded now."""
+    wear_loc = (obj.get("attrs") or {}).pop("worn", None)
+    if wear_loc is None:
+        return 0
+    if not equip_record(obj, str(wear_loc)):
+        area.gap(f"reset E (equipped gear): wear location {wear_loc!r} has no "
+                 "Merc slot; the item is carried, not worn")
+    return 1
+
+
+def _spawn_gear(room: dict, objects: list[dict]) -> int:
+    """A room spawner's mob comes back with what the first mob it adopted
+    carries (before 2026-11-17 a respawn came back empty-handed)."""
+    changed = 0
+    for behavior in room.get("behaviors", []):
+        if behavior.get("behavior_id") != "spawner":
+            continue
+        params = behavior.get("params", {})
+        prototype = params.get("prototype", {})
+        adopted = (room.get("attrs") or {}).get(f"spawner_{params.get('key')}_ids") or []
+        if "contents" in prototype or not adopted:
+            continue
+        prototype["contents"] = carried_prototypes(objects, adopted[0])
+        changed += 1
+    return changed
+
+
 def _rom_names(obj: dict) -> int:
     """A thing named by its ROM keywords, with its short description kept
     as ``short_desc`` (the importer before 2026-11-16), is named by the
@@ -178,6 +210,8 @@ def refresh(data: dict) -> tuple[int, Area]:
     area = Area()
     changed = pet_shops(data["objects"])
     for obj in data["objects"]:
+        changed += _equip(obj, area)
+    for obj in data["objects"]:
         attrs = obj.get("attrs") or {}
         tags = obj.get("tags", [])
         if "room" in tags and attrs.get("sector"):
@@ -228,6 +262,9 @@ def refresh(data: dict) -> tuple[int, Area]:
         attrs.update(fields)
         obj["attrs"] = attrs
         changed += json.dumps(obj, sort_keys=True) != before
+    for obj in data["objects"]:              # last: a respawn copies the gear as it is now
+        if "room" in obj.get("tags", []):
+            changed += _spawn_gear(obj, data["objects"])
     return changed, area
 
 

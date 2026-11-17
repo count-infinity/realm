@@ -182,10 +182,10 @@ You square off against the beastly fido!
 *** Combat begins! Next beat in 15s — queue your action. ***
 You hit the beastly fido for 4 damage!
   [d20(18) vs need 10 (THAC0 20 - AC 10)]  [1d6(3)+1 = 4]
-You hit the beastly fido for 5 damage! the beastly fido is defeated!
+You hit the beastly fido for 5 damage! The beastly fido is defeated!
   [d20(13) vs need 10 (THAC0 20 - AC 10)]  [1d6(4)+1 = 5]
-the beastly fido falls dead!
-You gain 100 experience.
+The beastly fido falls dead!
+You gain 85 experience.
 *** The fight is over. ***
 ```
 
@@ -200,9 +200,9 @@ up to a quarter of a level's experience poorer; what you carried waits in
 your corpse where you fell:
 
 ```text
-CRITICAL! the vagabond hits you for 13 damage! You have been defeated!
+CRITICAL! The vagabond hits you for 13 damage! You have been defeated!
 You have been KILLED!!
-You lose 100 experience.
+You lose 85 experience.
 ...
 > get all from corpse
 You pick up a short sword.
@@ -279,7 +279,7 @@ the west end of Main Street:
 
 ```text
 > practice
-the guildmaster teaches:
+The guildmaster teaches:
   melee               40  (learned; use it to improve)
   kick                40  (learned; use it to improve)
   bash                30

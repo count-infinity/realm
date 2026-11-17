@@ -27,6 +27,7 @@ ENGINE_CLOCKS: tuple[str, ...] = (
     "realm.core.events",
     "realm.scripting.waits",
     "realm.gateway.session",
+    "realm.server.game",
     "realm.std.abilities.abilities",
     "realm.std.accounts.account",
     "realm.std.accounts.auth",

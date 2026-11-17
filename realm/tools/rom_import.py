@@ -1095,15 +1095,48 @@ def _give_mob(area: Area, obj_v: int, mob_iid: str | None) -> str | None:
     return inst["id"]
 
 
+#: A ROM wear location (``WEAR_LOC``) whose Merc slot has another name.
+WEAR_LOC_SLOT = {"hold": "held"}
+
+
+def equip_record(record: dict, wear_loc: str) -> bool:
+    """Equip an object record as a player's gear is: ROM's ``wield`` tags it
+    ``wielded``; any other wear location tags it ``worn`` with that place as
+    its Merc ``slot`` (``hold`` is ``held``). False, and the record left
+    alone, for a place Merc has no slot for (``float``)."""
+    tags = record.setdefault("tags", [])
+    if wear_loc == "wield":
+        if "wielded" not in tags:
+            tags.append("wielded")
+        return True
+    slot = WEAR_LOC_SLOT.get(wear_loc, wear_loc)
+    if slot not in {*WEAR_SLOTS.values(), "light"} - {"wield"}:
+        return False
+    if "worn" not in tags:
+        tags.append("worn")
+    record.setdefault("attrs", {})["slot"] = slot
+    return True
+
+
+def carried_prototypes(objects: list[dict], holder_id: str) -> list[dict]:
+    """Spawn prototypes (a spawner's ``contents``) of what the object
+    ``holder_id`` carries, worn and wielded gear tagged as it is."""
+    return [{"name": o["name"], "description": o["description"],
+             "tags": list(o["tags"]), "attrs": json.loads(json.dumps(o["attrs"])),
+             "behaviors": [dict(b) for b in o.get("behaviors", [])]}
+            for o in objects if o.get("location") == holder_id]
+
+
 def _equip_mob(area: Area, obj_v: int, mob_iid: str | None,
                wear: int) -> str | None:
     inst = _clone_proto(area, area.obj_protos, obj_v, "object")
     if inst is None:
         return None
     inst["location"] = mob_iid
-    inst["attrs"]["worn"] = WEAR_LOC.get(wear, str(wear))
-    area.gap("reset E (equipped gear): item placed in the mob's inventory "
-             "with a 'worn' attr; REALM auto-equip on spawn is not modeled")
+    wear_loc = WEAR_LOC.get(wear, str(wear))
+    if not equip_record(inst, wear_loc):
+        area.gap(f"reset E (equipped gear): wear location {wear_loc!r} has no "
+                 "Merc slot; the item is carried, not worn")
     area.objects.append(inst)
     return inst["id"]
 
@@ -1227,6 +1260,9 @@ def _attach_spawners(area: Area) -> None:
             if f"spawned:{key}" not in inst["tags"]:
                 inst["tags"].append(f"spawned:{key}")
         prototype = _instance_prototype(proto, mob_v)
+        # ROM's repop re-runs the G and E resets after the M: a killed mob
+        # comes back carrying, wearing and wielding what it did.
+        prototype["contents"] = carried_prototypes(area.objects, instances[0]["id"])
         room["behaviors"].append({
             "behavior_id": "spawner",
             "params": {"key": key, "prototype": prototype,

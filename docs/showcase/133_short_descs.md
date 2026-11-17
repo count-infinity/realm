@@ -153,7 +153,7 @@ through the same resolver:
 
 ```text
 (Ada)  say Care to dance?
-(Bran hears)  a tall woman in a domino mask says, "Care to dance?"
+(Bran hears)  A tall woman in a domino mask says, "Care to dance?"
 ```
 
 Ada introduces herself to Bran, and to Bran alone:

@@ -252,21 +252,28 @@ class Behavior(ABC):
 # The server's tick loop should not scan 100,000 inert objects to find the
 # fifty with behaviors. Objects register here when their first behavior is
 # attached (weak references — deleted objects vanish on their own).
+#
+# Kept by identity (``id(obj)``), in registration order: two objects with one
+# id (a world loaded again) are both owners, and the heartbeat visits owners
+# in the same order whatever ``PYTHONHASHSEED`` makes of a set of them, so a
+# seeded game replays the same.
 
-_behavior_owners: weakref.WeakSet = weakref.WeakSet()
+_behavior_owners: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
 
 
 def register_behavior_owner(obj: GameObject) -> None:
-    _behavior_owners.add(obj)
+    _behavior_owners.setdefault(id(obj), obj)
 
 
 def unregister_behavior_owner(obj: GameObject) -> None:
-    _behavior_owners.discard(obj)
+    if _behavior_owners.get(id(obj)) is obj:
+        del _behavior_owners[id(obj)]
 
 
 def behavior_owners() -> list[GameObject]:
-    """A snapshot of every object with at least one behavior attached."""
-    return list(_behavior_owners)
+    """A snapshot of every object with at least one behavior attached, in
+    the order each got its first."""
+    return list(_behavior_owners.values())
 
 
 class BehaviorRegistry:

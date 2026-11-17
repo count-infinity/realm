@@ -65,7 +65,7 @@ class TestRecognition:
         await w.sim.do(w.alice, "say well met")
 
         assert heard(w.sim, w.bob, "well met") == [
-            'a tall woman says, "well met"']
+            'A tall woman says, "well met"']
 
     async def test_stranger_reads_as_sdesc_in_the_room_listing(self, world):
         w = world
@@ -86,7 +86,7 @@ class TestRecognition:
         await w.sim.do(w.bob, "look Alice")
         out = "\n".join(w.sim.seen(w.bob))
 
-        assert "a tall woman" in out
+        assert "A tall woman" in out                  # the title line, capitalized
 
     async def test_introduction_reveals_the_real_name(self, world):
         w = world
@@ -147,7 +147,7 @@ class TestDisguise:
         await w.sim.do(w.alice, "say you don't know me")
 
         assert heard(w.sim, w.bob, "know me") == [
-            'a hooded figure says, "you don\'t know me"']
+            'A hooded figure says, "you don\'t know me"']
 
     async def test_disguise_covers_semipose(self, world):
         """Regression: `;` (semipose) once baked the real `.name`, leaking a
@@ -163,7 +163,7 @@ class TestDisguise:
         await w.sim.do(w.alice, ";'s hand trembles.")
 
         assert heard(w.sim, w.bob, "trembles") == [
-            "a hooded figure's hand trembles."]
+            "A hooded figure's hand trembles."]
         assert heard(w.sim, w.alice, "trembles") == [
             "Alice's hand trembles."]
 

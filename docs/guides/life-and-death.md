@@ -178,8 +178,11 @@ destination room's `move_cost` attribute, else the cost of its
 | hills | 4 | air | 10 |
 
 A player who cannot pay stays put: "You are too exhausted.", and the exit
-fires `ON_FAIL` with `adata('reason')` `exhausted`. NPCs and a fleeing
-character walk free. Resting restores movement fastest.
+fires `ON_FAIL` with `adata('reason')` `exhausted`. The step is paid only
+once it has happened: as ROM checks the guild before it charges, a move
+that anything refuses (a locked door or guild bar, a closed door, a room's
+`on_check` veto) costs nothing. NPCs and a fleeing character walk free.
+Resting restores movement fastest.
 
     @set The Long Stair/move_cost = 8
 

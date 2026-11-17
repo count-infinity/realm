@@ -273,7 +273,7 @@ class TestAliases:
         listing = text(sim, pat)
         assert "th" in listing and "think $2 then $1" in listing
         await sim.do(pat, "unalias th")
-        assert pat.db.aliases == {"tt": "think", "ta": "think all: $*"}
+        assert pat.db.command_aliases == {"tt": "think", "ta": "think all: $*"}
 
     async def test_no_recursion_and_never_over_an_at_word(self, sim):
         pat = sim.player("Pat", location=sim.room("Hall"))
@@ -284,7 +284,7 @@ class TestAliases:
         assert "may not begin with @" in text(sim, pat)
         await sim.input(pat, "aa")                           # runs "bb", unexpanded
         assert "You think" not in text(sim, pat)
-        pat.db.aliases = {**pat.db.aliases, "@ex": "think no"}  # even if stored
+        pat.db.command_aliases = {**pat.db.command_aliases, "@ex": "think no"}  # even if stored
         await sim.input(pat, "@ex me")
         assert "You think: no" not in text(sim, pat)
 
@@ -307,7 +307,40 @@ class TestAliases:
         out = text(sim, pat)
         assert "cannot be an alias" in out and "one word" in out
         assert "the most you may keep" in out
-        assert pat.db.aliases == {"l": "look"}
+        assert pat.db.command_aliases == {"l": "look"}
+
+    async def test_a_command_alias_is_not_a_name(self, sim):
+        # Name aliases (``aliases``, a list the matcher reads: the ROM
+        # importer's keywords) and command aliases are kept apart: after
+        # "alias kk = ...", "kk" does not name the player (BACKLOG 2026-11-16).
+        from realm.core.search import match_objects
+        room = sim.room("Hall")
+        pat = sim.player("Pat", location=room, aliases=["patty"])
+        await sim.do(pat, "alias kk = think $1")
+        assert pat.db.aliases == ["patty"]
+        assert match_objects("kk", [pat]).matches == []
+        assert match_objects("patty", [pat]).matches == [pat]
+        sim.seen(pat)
+        await sim.input(pat, "kk hard")
+        assert sim.seen(pat) == ["You think: hard"]
+
+    async def test_command_aliases_saved_in_aliases_move_at_boot(self, sim):
+        # A world saved before the move kept command aliases, a word -> line
+        # dict, in ``aliases``; a name-alias list there is left alone.
+        room = sim.room("Hall")
+        pat = sim.player("Pat", location=room, aliases={"kk": "think $1"})
+        sam = sim.player("Sam", location=room, aliases=["sammy"])
+        both = sim.player("Bo", location=room, aliases={"tt": "think"},
+                          command_aliases={"kk": "kick $1", "tt": "think twice"})
+        await sim.boot()
+        assert pat.db.command_aliases == {"kk": "think $1"} and pat.db.aliases is None
+        assert sam.db.aliases == ["sammy"] and sam.db.command_aliases is None
+        # The newer store wins a word both hold.
+        assert both.db.command_aliases == {"kk": "kick $1", "tt": "think twice"}
+        assert both.db.aliases is None
+        sim.seen(pat)
+        await sim.input(pat, "kk hard")
+        assert sim.seen(pat) == ["You think: hard"]
 
 
 # --- 10.4 player settings ---------------------------------------------------------------------

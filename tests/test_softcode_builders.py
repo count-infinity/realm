@@ -220,7 +220,7 @@ class TestRunObjectScript:
 
         await engine.run_object_script(bell, "on_ring")
 
-        assert 'crier says, "Hear ye!"' in drain(sess)
+        assert 'Crier says, "Hear ye!"' in drain(sess)
 
     async def test_self_trigger_loop_is_depth_capped(self):
         room = GameObject("Cantina", tags=["room"])
@@ -881,7 +881,7 @@ class TestScriptedVerbs:
         engine = ScriptEngine()
         await engine._run_script_command(imp, "give coin = Alice")
         assert coin.location is alice
-        assert any("imp gives you" in m for m in drain(sess))
+        assert any("Imp gives you" in m for m in drain(sess))
 
     async def test_open_and_close(self):
         room = GameObject("Vault", tags=["room"])
@@ -939,7 +939,7 @@ class TestWaits:
 
         await engine.run_object_script(crier, "on_cue")
         await engine.waits.tick()
-        assert any('crier says, "Boom!"' in m for m in drain(sess))
+        assert any('Crier says, "Boom!"' in m for m in drain(sess))
 
     async def test_halted_wait_does_not_fire(self):
         room = GameObject("Stage", tags=["room"])
@@ -1298,7 +1298,7 @@ class TestForce:
         ctx = make_context(bob, left_args="imp", right_args="say Obey!")
         ctx.dispatcher = self._dispatcher()
         await cmd_force(ctx)
-        assert any('imp says, "Obey!"' in m for m in drain(sess))
+        assert any('Imp says, "Obey!"' in m for m in drain(sess))
 
     async def test_force_player_needs_control(self):
         from realm.std.building.scripting import cmd_force
@@ -1358,7 +1358,7 @@ class TestForce:
         get_world().engine.add_observer(engine.handle_action)
 
         await engine.run_object_script(master, "on_command")
-        assert any('minion says, "Yes, master."' in m for m in drain(sess))
+        assert any('Minion says, "Yes, master."' in m for m in drain(sess))
 
     async def test_force_depth_capped(self):
         from realm.server.puppet import MAX_FORCE_DEPTH, force_command

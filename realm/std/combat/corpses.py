@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from realm.core.behaviors import Behavior, BehaviorRegistry
 from realm.core.objects import GameObject
 from realm.std.items.actions import ItemAction
+from realm.std.items.equipment import unequip
 
 if TYPE_CHECKING:
     from realm.core.propagation import Action
@@ -71,6 +72,7 @@ async def leave_player_corpse(player: GameObject, room: GameObject, *,
     corpse.owner = player
     for item in list(player.contents):
         if not item.has_tag(SOULBOUND):
+            unequip(player, item)           # a corpse wears nothing (ROM make_corpse)
             item.location = corpse
     corpse.location = room
     if lock_seconds and float(lock_seconds) > 0:

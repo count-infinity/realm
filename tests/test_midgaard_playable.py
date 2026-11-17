@@ -212,7 +212,8 @@ class TestMidgaardPlayable:
                     break
                 encounter.queue(grog, QueuedAction("attack", target_id=fido.id))
             assert int(fido.db.get("hp") or 0) <= 0        # fido is dead
-            assert int(grog.db.get("xp") or 0) == 100      # a level-0 fido's 100 points
+            # A level-0 fido is a level below level-1 Grog: its 100 points, bent 15% down.
+            assert int(grog.db.get("xp") or 0) == 85
         finally:
             _teardown(sim)
 
@@ -445,7 +446,7 @@ class TestTheTownAsROMHasIt:
             student.db.practices = 1
             await town.do(student, "practice")
             out = _seen(town, student)
-            assert "the guildmaster teaches:" in out, cls
+            assert "The guildmaster teaches:" in out, cls
             taught = get_world().rules.class_skills(student)
             assert taught and all(s.replace("_", " ") in out for s in taught), cls
 
@@ -469,6 +470,47 @@ class TestTheTownAsROMHasIt:
         brute = _character(town, "Brute", "barbarian", way_in.location)
         await town.do(brute, way_in.name)                           # barbarians drink here
         assert brute.location is swordsmen
+
+    async def test_a_cityguard_fights_with_his_sword(self, town):
+        # ROM's E reset equips: the guard wields his sword and wears his vest
+        # (BACKLOG 2026-11-16: the gear sat in his pack and he punched).
+        from realm.std.combat.system import find_wielded
+        guard = next(o for o in town.store.find_cached(tag="npc")
+                     if o.name == "the cityguard" and not o.has_tag("prototype"))
+        sword = find_wielded(guard)
+        assert sword is not None and sword.name == "a standard issue sword"
+        vest = next(o for o in guard.contents if o.name == "a standard issue vest")
+        assert vest.has_tag("worn") and vest.db.get("slot") == "body"
+        assert vest.db.get("worn") is None
+        pat = _character(town, "Pat", "warrior", guard.location)
+        await town.do(pat, "look cityguard")
+        seen = _seen(town, pat)
+        assert "The cityguard is using:" in seen and "<wielded> a standard issue sword" in seen
+        # A fight passes the wielded weapon to the ruleset (the encounter's
+        # find_wielded), whose dice are the sword's 3d5, not his own 2d4+4.
+        assert MercRuleset().weapon_prop(sword, "damage_dice", None) == "3d5"
+
+    async def test_a_dead_guards_gear_is_loot_not_still_worn(self, town):
+        # ROM's make_corpse takes everything off: what a looter picks up is
+        # carried, never worn or wielded on arrival.
+        guard = next(o for o in town.store.find_cached(tag="npc")
+                     if o.name == "the cityguard" and not o.has_tag("prototype"))
+        room = guard.location
+        gear = list(guard.contents)
+        assert any(o.has_tag("wielded") for o in gear)
+        await town.world.services["combat"].handle_death(guard)
+        corpse = next(o for o in room.contents if o.name == "corpse of the cityguard")
+        assert set(gear) == set(corpse.contents)
+        assert not any(o.has_tag("worn") or o.has_tag("wielded") for o in gear)
+
+    async def test_a_keeper_sells_nothing_he_wields(self, town):
+        bakery = town.store.get_cached("rom_3009")
+        baker = next(o for o in bakery.contents if o.db.get("prototype_vnum") == 3001)
+        sword = next(o for o in baker.contents if o.name == "a long sword")
+        assert sword.has_tag("wielded")
+        pat = _character(town, "Pat", "warrior", bakery)
+        await town.do(pat, "list")
+        assert "long sword" not in _seen(town, pat)
 
     async def test_names_read_as_rom_does(self, town):
         square = town.store.get_cached(COMMON_SQUARE)
@@ -501,6 +543,15 @@ async def test_a_world_made_from_the_old_conversion_still_boots():
          "attrs": {"rom_vnum": 3001, "short_desc": "the baker", "prototype_vnum": 3001}},
         {"id": "cloned_loaf", "name": "bread", "tags": ["thing", "food"],
          "location": "cloned_baker", "attrs": {"rom_vnum": 3011, "short_desc": "a bread"}},
+        # Gear an E reset gave before 2026-11-17: a `worn` attribute naming
+        # its ROM wear location, never the tags a wearer's gear has.
+        {"id": "old_sword", "name": "sword long", "tags": ["thing", "weapon", "wieldable"],
+         "location": "cloned_baker", "attrs": {"rom_vnum": 3021, "worn": "wield"}},
+        {"id": "old_apron", "name": "apron", "tags": ["thing", "wearable"],
+         "location": "cloned_baker", "attrs": {"rom_vnum": 3999, "worn": "about",
+                                               "slot": "about"}},
+        {"id": "old_lamp", "name": "lamp", "tags": ["thing", "light"],
+         "location": "cloned_baker", "attrs": {"rom_vnum": 3998, "worn": "hold"}},
     ]
     before = list(sys.path)
     sim = Simulator.from_game(MIDGAARD_GAME)
@@ -512,7 +563,15 @@ async def test_a_world_made_from_the_old_conversion_still_boots():
         assert sim.store.get_cached("rom_3018").locks.get("enter") is None
         pat = sim.player("Pat", location=bakery)
         await sim.do(pat, "look baker")
-        assert "baker" in _seen(sim, pat)
+        assert "Baker" in _seen(sim, pat)
+        # The old gear is equipped at boot (the `items` feature's on_boot):
+        # wielded, and worn where ROM put it (ROM's "hold" is Merc's "held").
+        sword, apron, lamp = (sim.store.get_cached(i) for i in ("old_sword", "old_apron",
+                                                               "old_lamp"))
+        assert sword.has_tag("wielded") and sword.db.get("worn") is None
+        assert apron.has_tag("worn") and apron.db.get("slot") == "about"
+        assert lamp.has_tag("worn") and lamp.db.get("slot") == "held"
+        assert not any(o.db.get("worn") for o in (sword, apron, lamp))
     finally:
         _teardown(sim)
         sys.modules.pop("rules", None)

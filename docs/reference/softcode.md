@@ -383,7 +383,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`online_players`](#fn-online_players) | The characters in play now that the running object can see. | [Objects & attributes](#objects-attributes) |
 | [`oob`](#fn-oob) | Send structured out-of-band data (GMCP) to a player's client — custom UI panels from softcode. | [Messaging & prompts](#messaging-prompts) |
 | [`owner`](#fn-owner) | Get an object's owner. | [Objects & attributes](#objects-attributes) |
-| [`pemit`](#fn-pemit) | Send a private message to a target (delivered after the script). | [Messaging & prompts](#messaging-prompts) |
+| [`pemit`](#fn-pemit) | Send a private message to a target (delivered after the script), exactly as written (ROM's `send_to_char`: a lowercase first letter stays lowercase). | [Messaging & prompts](#messaging-prompts) |
 | [`pool`](#fn-pool) | A pool's value, or None when the object has no such pool. | [Pools](#pools) |
 | [`pool_max`](#fn-pool_max) | A pool's maximum, or None when it is unbounded or absent. | [Pools](#pools) |
 | [`prompt`](#fn-prompt) | Ask a player a question; their next line runs the `callback` attribute (on the executor) with the answer as arg0 — a softcode wizard. | [Messaging & prompts](#messaging-prompts) |
@@ -1556,7 +1556,8 @@ say('They said: ' + escape(arg0))
 oemit(exclude: GameObject | str, message: str) -> None
 ```
 
-Emit to the executor's room, excluding one object.
+Emit to the executor's room, excluding one object. A room broadcast
+is ROM's `act()`: its first letter is capitalized.
 
 **Example**
 
@@ -1586,7 +1587,9 @@ oob(enactor, 'Ship.Status', {'hull': 87})
 pemit(target: GameObject | str, message: str) -> None
 ```
 
-Send a private message to a target (delivered after the script).
+Send a private message to a target (delivered after the script),
+exactly as written (ROM's `send_to_char`: a lowercase first letter
+stays lowercase).
 
 **Example**
 
@@ -1619,6 +1622,7 @@ remit(room: GameObject | str, message: str) -> None
 ```
 
 Emit a message to everyone in a room (delivered after the script).
+A room broadcast is ROM's `act()`: its first letter is capitalized.
 
 **Example**
 

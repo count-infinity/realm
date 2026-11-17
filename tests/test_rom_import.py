@@ -433,7 +433,7 @@ class TestImportIntoWorld:
             wiz = self._one(created, "the wizard")
             sword = self._one(created, "a long sword")
             assert sword.location is wiz
-            assert sword.db.get("worn") == "wield"
+            assert sword.has_tag("wielded")                # equipped, as a player's is
         finally:
             sim.close()
 
@@ -819,3 +819,195 @@ class TestSpellsTheFileLost:
         written = json.loads(path.read_text())["objects"]
         assert [o["attrs"]["spells"] for o in written] == [["detect invis", "detect hidden"]] * 2
         assert module.main([str(path), "--spells", "3092"]) == 2      # no spells: usage
+
+
+@pytest.mark.asyncio
+class TestDoorKeywords:
+    """A converted exit keeps its door's ROM keywords in ``keywords``
+    ("gate"); ``open``, ``close``, ``lock`` and ``unlock`` find the door by
+    them, as ROM's ``find_door`` does. They are not aliases: an exit's
+    aliases are words that walk through it, and ROM never walks on a door
+    keyword (BACKLOG 2026-11-16)."""
+
+    def _gate(self, sim):
+        here, there = sim.room("Inside the Gate"), sim.room("Outside the Gate")
+        west = sim.obj("west", location=here, tags=["exit", "door", "closed"],
+                       destination=there.id, keywords="gate", key_id="citykey")
+        pat = sim.player("Pat", location=here)
+        return here, west, pat
+
+    async def test_open_and_close_the_gate_by_its_keyword(self):
+        sim = Simulator()
+        try:
+            here, west, pat = self._gate(sim)
+            await sim.do(pat, "open gate")
+            assert not west.has_tag("closed")
+            assert "You open the gate." in sim.seen(pat)     # ROM's $d, not "the west"
+            await sim.do(pat, "close gat")                 # a prefix, as ROM's is_name
+            assert west.has_tag("closed")
+            await sim.do(pat, "open west")                 # the direction still does
+            assert not west.has_tag("closed")
+            await sim.do(pat, "open gate")
+            assert "The gate is already open." in sim.seen(pat)
+        finally:
+            sim.close()
+
+    async def test_lock_and_unlock_the_gate_by_its_keyword(self):
+        sim = Simulator()
+        try:
+            here, west, pat = self._gate(sim)
+            sim.obj("a city key", location=pat, tags=["thing"], unlocks="citykey")
+            await sim.do(pat, "lock gate")
+            assert west.has_tag("locked")
+            assert "You lock the gate with a city key." in sim.seen(pat)
+            await sim.do(pat, "unlock gate")
+            assert not west.has_tag("locked")
+        finally:
+            sim.close()
+
+    async def test_a_door_keyword_is_not_a_way_to_walk(self):
+        sim = Simulator()
+        try:
+            here, west, pat = self._gate(sim)
+            await sim.do(pat, "open gate")
+            await sim.do(pat, "gate")
+            assert pat.location is here
+        finally:
+            sim.close()
+
+
+# A guard (not a keeper) who wields a sword, wears a jerkin and carries a
+# loaf: ROM's E (equip) and G (give) resets after its M.
+GEAR_ARE = """\
+#AREA
+gear.are~
+Gear~
+{ All } Test    Gear~
+300 399
+#MOBILES
+#300
+guard~
+the guard~
+A guard stands here.
+~
+A guard.
+~
+human~
+AG D 0 0
+5 0 1d1+40 1d1+0 1d4 punch
+5 5 5 5
+0 0 0 0
+stand stand male 0
+0 0 medium 0
+#0
+#OBJECTS
+#310
+sword short~
+a short sword~
+A short sword lies here.~
+steel~
+weapon 0 AN
+sword 2 6 slash 0
+1 10 50 P
+#311
+jerkin~
+a jerkin~
+A jerkin lies here.~
+leather~
+armor 0 AD
+3 3 3 0 0
+1 5 30 P
+#312
+loaf~
+a loaf~
+A loaf lies here.~
+bread~
+food 0 A
+5 5 0 0 0
+1 1 5 P
+#313
+ring~
+a ring~
+A ring lies here.~
+gold~
+jewelry 0 AB
+0 0 0 0 0
+1 1 10 P
+#0
+#ROOMS
+#301
+A Gatehouse~
+A gatehouse.
+~
+0 0 1
+S
+#0
+#RESETS
+M 0 300 1 301 1
+E 0 310 1 16
+E 0 311 1 5
+E 0 313 1 2
+G 0 312 1
+S
+#$
+"""
+
+
+class TestEquippedGear:
+    """ROM's E reset equips: the mob wields the weapon and wears the armour
+    the way a player does (the ``wielded`` and ``worn`` tags, ``slot``), so
+    it fights with its sword (BACKLOG 2026-11-16: it had only a ``worn``
+    attribute). A spawner brings a killed mob back with its gear."""
+
+    def _carried(self, area, holder_id):
+        return {o["name"]: o for o in area.objects if o.get("location") == holder_id}
+
+    def test_e_reset_gear_is_wielded_and_worn(self):
+        area = rom_import.convert(GEAR_ARE)
+        guard = next(o for o in area.objects if o["name"] == "the guard"
+                     and "prototype" not in o["tags"])
+        gear = self._carried(area, guard["id"])
+        sword, jerkin, ring, loaf = (gear["a short sword"], gear["a jerkin"],
+                                     gear["a ring"], gear["a loaf"])
+        assert "wielded" in sword["tags"] and "worn" not in sword["tags"]
+        assert "worn" in jerkin["tags"] and jerkin["attrs"]["slot"] == "body"
+        assert "worn" in ring["tags"] and ring["attrs"]["slot"] == "finger"
+        assert "worn" not in loaf["tags"] and "wielded" not in loaf["tags"]
+        assert not any("worn" in o["attrs"] for o in gear.values())
+        assert not any("reset E" in gap for gap in area.gaps)
+
+    def test_a_respawn_comes_back_with_its_gear(self):
+        area = rom_import.convert(GEAR_ARE, repop=True)
+        room = next(o for o in area.objects if o["id"] == "rom_301")
+        spawner = next(b for b in room["behaviors"] if b["behavior_id"] == "spawner")
+        contents = spawner["params"]["prototype"]["contents"]
+        by_name = {c["name"]: c for c in contents}
+        assert set(by_name) == {"a short sword", "a jerkin", "a ring", "a loaf"}
+        assert "wielded" in by_name["a short sword"]["tags"]
+        assert by_name["a jerkin"]["attrs"]["slot"] == "body"
+        assert by_name["a short sword"]["attrs"]["prototype_vnum"] == 310
+        assert not any(key in c for c in contents for key in ("id", "location"))
+
+    def test_the_refresh_script_equips_a_converted_files_gear(self):
+        # A file converted before 2026-11-17: gear with a `worn` attribute
+        # naming its ROM wear location, and spawners whose mob comes back
+        # empty-handed. The refresh makes it what a conversion makes now.
+        module = _refresh_script()
+        fresh = json_copy({"objects": rom_import.convert(GEAR_ARE, repop=True).objects})
+        old = json_copy(fresh)
+        for obj in old["objects"]:
+            tags = obj["tags"]
+            if "wielded" in tags:
+                tags.remove("wielded")
+                obj["attrs"]["worn"] = "wield"
+            elif "worn" in tags:
+                tags.remove("worn")
+                obj["attrs"]["worn"] = obj["attrs"]["slot"]
+            for behavior in obj["behaviors"]:
+                if behavior["behavior_id"] == "spawner":
+                    del behavior["params"]["prototype"]["contents"]
+        assert old != fresh
+        module.refresh(old)
+        assert old == fresh
+        module.refresh(old)                                # a second run changes nothing
+        assert old == fresh

@@ -116,6 +116,17 @@ Every behavior's parameters are self-documented: `@behavior/info <id>` (e.g.
 `@behavior/info population`) prints its blurb and each param's default and
 purpose. The rest of this section shows the two zone-level tools.
 
+A prototype (the `prototype` of `spawner` and `population`, a `reset_spec`
+entry's) is `name`, `description`, `tags`, `attrs` and `behaviors`, and may
+carry `contents`: a list of prototypes made inside each spawn as written.
+Gear tagged `wielded`, or `worn` with a `slot`, comes in hand and on the
+back, so a guard respawns wielding his sword (the ROM importer's spawners
+carry a mob's E and G resets this way):
+
+```text
+{"name": "a guard", "tags": ["npc"], "contents": [{"name": "a short sword", "tags": ["thing", "weapon", "wielded"], "attrs": {"damage_dice": "2d6"}}]}
+```
+
 #### `zone_reset` — restore an area (presence-gated)
 
 A zone can **return to its authored state on a timer, but only while no

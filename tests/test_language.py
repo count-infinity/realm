@@ -104,8 +104,8 @@ class TestNamesThatAlreadyCarryAnArticle:
         assert definite_name(key) == "the last ember"
 
     def test_plural_drops_the_indefinite(self):
-        # Pluralizing still works on the last word; the article just goes.
-        assert pluralize("a sheet of roaring flame") == "sheet of roaring flames"
+        # The article goes, and an "X of Y" name pluralizes its head noun.
+        assert pluralize("a sheet of roaring flame") == "sheets of roaring flame"
 
     def test_plural_drops_the_definite_too(self):
         # A ROM short description is the name of a converted mob ("the
@@ -117,7 +117,7 @@ class TestNamesThatAlreadyCarryAnArticle:
     def test_numbered_name_reads_correctly_either_way(self):
         flame = GameObject("a sheet of roaring flame")
         assert numbered_name(flame, 1) == "a sheet of roaring flame"
-        assert numbered_name(flame, 3) == "3 sheet of roaring flames"
+        assert numbered_name(flame, 3) == "3 sheets of roaring flame"
 
 
 # --- Plurals -----------------------------------------------------------------
@@ -149,6 +149,19 @@ class TestPlurals:
     def test_last_word_only(self):
         assert pluralize("energy cell") == "energy cells"
         assert pluralize("quarterstaff") == "quarterstaffs"  # ff guard
+
+    def test_x_of_y_pluralizes_the_head_noun(self):
+        # The noun before the first "of" is the one counted (decided
+        # 2026-11-17; it used to be the last word: "2 batch of Sara's
+        # cookieses").
+        assert pluralize("batch of Sara's cookies") == "batches of Sara's cookies"
+        assert pluralize("loaf of bread") == "loaves of bread"
+        assert pluralize("Potion of Healing") == "Potions of Healing"
+        assert pluralize("flask of oil of the sun") == "flasks of oil of the sun"
+        assert pluralize("cup of tea") == "cups of tea"
+        # "of" only as a whole word: "offering bowl", "coffer" are not split.
+        assert pluralize("offering bowl") == "offering bowls"
+        assert pluralize("coffer") == "coffers"
 
     def test_plural_override(self):
         obj = GameObject("beef jerky")

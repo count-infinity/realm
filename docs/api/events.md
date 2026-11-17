@@ -27,7 +27,8 @@ action.add_modifier(value, reason)      # picked up by combat rolls
 
 ```python
 await propagate(action, deliver=True)   # run both passes (+ messages)
-deliver_messages(action)                # deliver staged messages later
+deliver_messages(action)                # deliver staged messages later (each
+                                        # starts with a capital, as ROM's act())
 await gate_action(action, fail_msg=...) # check-pass-only convenience
 get_world().engine                      # the running world's engine
 feature.observer(async_fn)              # see every action (a feature)

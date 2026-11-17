@@ -410,7 +410,7 @@ class TestHandheldRadios:
         await sim.do(zeke, "drop spare radio")
         sim.seen(zeke)
         await sim.do(bob, "radio radio check")
-        assert "spare radio crackles: [alpha] Bob: radio check" in text(sim, watch)
+        assert "Spare radio crackles: [alpha] Bob: radio check" in text(sim, watch)
 
         # VOX: the set-down radio rebroadcasts room speech.
         await sim.do(zeke, "vox on")

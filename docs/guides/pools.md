@@ -69,6 +69,7 @@ await pools.settle(change, source=attacker)          # ON_POOL, ON_SPENT
 
 pools.mend(player, "hp", 5)        # toward max; an up pool toward its floor
 pools.spend(caster, "mana", 15)    # all or nothing; None when short
+pools.can_spend(walker, "move", 2) # would spend pay? changes nothing
 pools.set_pool(player, "hp", 12, max=12)   # chargen, a level gain
 ```
 

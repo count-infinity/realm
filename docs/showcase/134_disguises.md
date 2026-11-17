@@ -182,7 +182,7 @@ Vale speaks, and the mask covers the voice with no extra work:
 
 ```text
 (Vale)  say Package for you.
-(Wynn hears)  a masked courier says, "Package for you."
+(Wynn hears)  A masked courier says, "Package for you."
 ```
 
 Wynn studies the figure. The outcome rides one perception roll against the
@@ -200,7 +200,7 @@ hears, the courier:
 ```text
 (Vale)  say Nothing to see.
 (Wynn hears)  Vale says, "Nothing to see."
-(Sable hears) a masked courier says, "Nothing to see."
+(Sable hears) A masked courier says, "Nothing to see."
 ```
 
 Drop the costume and you are yourself to everyone again:

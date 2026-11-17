@@ -146,6 +146,13 @@ CONSIDER_LINES: tuple[tuple[int, str], ...] = (
 )
 
 
+def char_level(obj: GameObject) -> int:
+    """``obj``'s level; 1 when it has none. Level 0 is a level (ROM's fido
+    is level 0, a level below a new character), never read as 1."""
+    level = obj.db.get("level")
+    return 1 if level is None else int(level)
+
+
 def alignment(obj: GameObject) -> int:
     """``obj``'s alignment, -1000 (evil) to 1000 (good); 0 when unset."""
     return max(-1000, min(1000, int(obj.db.get("alignment") or 0)))
@@ -226,7 +233,7 @@ class MercSystem(GameSystem):
         if skill not in self.class_skills(obj):
             return 75
         gate = self._ability_gate(skill, cls) or 1
-        return 95 if int(obj.db.get("level") or 1) >= gate else 75
+        return 95 if char_level(obj) >= gate else 75
 
     def check_was_open(self, result: Any) -> bool:
         """A percentile roll at 0% could not succeed and at 100% could not fail."""
@@ -324,13 +331,13 @@ class MercSystem(GameSystem):
     def recompute_ac(self, player: GameObject) -> int:
         """Armor class from dexterity and worn armor (lower is better).
 
-        Sums ``ac_apply`` over items the character wears (an item tagged
-        ``worn`` or carrying a ``worn`` attr). Call this whenever gear
+        Sums ``ac_apply`` over items the character wears (tagged ``worn``).
+        Call this whenever gear
         changes; the wear command is the natural integration point."""
         dex = int(player.db.get("dexterity") or 13)
         ac = 10 - max(0, (dex - 14) // 2)
         for item in player.contents:
-            if item.has_tag("worn") or item.db.get("worn"):
+            if item.has_tag("worn"):
                 ac -= int(item.db.get("ac_apply") or 0)
         player.db.armor_class = ac
         return ac
@@ -343,7 +350,7 @@ class MercSystem(GameSystem):
         """Diku save vs spell: level differential swings the d100 chance
         5%/level around an even 50, clamped to 5..95 so nothing is a
         certainty either way."""
-        target_level = int(target.db.get("level") or 1)
+        target_level = char_level(target)
         chance = max(5, min(95, 50 + 5 * (target_level - int(level))))
         return random.randint(1, 100) <= chance
 
@@ -362,8 +369,7 @@ class MercSystem(GameSystem):
         """
         base = int(victim.db.get("points") or 100)
         if killer is not None:
-            diff = (int(victim.db.get("level") or 1)
-                    - int(killer.db.get("level") or 1))
+            diff = char_level(victim) - char_level(killer)
             base = round(base * max(0.05, min(2.0, 1.0 + 0.15 * diff)))
         return max(1, base)
 
@@ -386,7 +392,7 @@ class MercSystem(GameSystem):
                     members: list[GameObject]) -> list[tuple[GameObject, int]]:
         """ROM's ``group_gain``: each member's share is the award times their
         level over the levels of everyone sharing it."""
-        levels = [max(1, int(m.db.get("level") or 1)) for m in members]
+        levels = [max(1, char_level(m)) for m in members]   # a divisor
         total = sum(levels)
         return [(member, max(1, int(award) * level // total))
                 for member, level in zip(members, levels, strict=True)]
@@ -428,17 +434,17 @@ class MercSystem(GameSystem):
     def wear_refusal(self, player: GameObject, item: GameObject) -> str | None:
         """An item's ``level`` is the least a character must be to use it."""
         need = int(item.db.get("level") or 0)
-        if player.is_player and need > int(player.db.get("level") or 1):
+        if player.is_player and need > char_level(player):
             return f"You must be level {need} to use {item.name}."
         return None
 
     def companion_limit(self, character: GameObject) -> int:
         """Diku has no charisma: one follower, and one more each ten levels."""
-        return 1 + int(character.db.get("level") or 1) // 10
+        return 1 + char_level(character) // 10
 
     def consider(self, viewer: GameObject, target: GameObject) -> str | None:
         """ROM's ``consider``: how the target's level compares to yours."""
-        diff = int(target.db.get("level") or 1) - int(viewer.db.get("level") or 1)
+        diff = char_level(target) - char_level(viewer)
         line = next((text for most, text in CONSIDER_LINES if diff <= most),
                     "Death will thank you for your gift.")
         line = line.format(name=target.get_display_name(viewer))
@@ -451,7 +457,7 @@ class MercSystem(GameSystem):
         spec = self._classes().get(cls)
         if spec is None:
             return None
-        level = int(player.db.get("level") or 1)
+        level = char_level(player)
         title = None
         for floor, name in spec.get("titles") or []:
             if level >= int(floor):
@@ -479,7 +485,7 @@ class MercSystem(GameSystem):
         ``move_gain`` before the position divisor): hit points by
         constitution and level, mana by the better of intelligence and
         wisdom, movement by dexterity, all with level."""
-        level = int(obj.db.get("level") or 1)
+        level = char_level(obj)
 
         def stat(name: str) -> int:
             return int(obj.db.get(name) or 13)
@@ -496,7 +502,7 @@ class MercSystem(GameSystem):
         """Lose a quarter of a level's experience. Experience is kept as
         progress toward the next level, so the loss stops at zero and never
         costs a level."""
-        level = int(player.db.get("level") or 1)
+        level = char_level(player)
         xp = int(player.db.get("xp") or 0)
         lost = min(xp, self.xp_to_next(level) // 4)
         player.db.xp = xp - lost
@@ -509,7 +515,7 @@ class MercSystem(GameSystem):
 
     def score_lines(self, player: GameObject) -> list[str]:
         """The Diku score sheet: level and XP, combat numbers, equipment."""
-        level = int(player.db.get("level") or 1)
+        level = char_level(player)
         xp = int(player.db.get("xp") or 0)
         cls = str(player.db.get("character_class") or "warrior")
         lines = [
@@ -548,7 +554,7 @@ class MercSystem(GameSystem):
         spec = self._classes().get(cls, self._classes()["warrior"])
         cap = self.level_cap()
         while True:
-            level = int(player.db.get("level") or 1)
+            level = char_level(player)
             xp = int(player.db.get("xp") or 0)
             need = self.xp_to_next(level)
             if xp < need or level >= cap:

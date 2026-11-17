@@ -160,8 +160,9 @@ changes the tables by itself. `realm migrate` runs each step from the
 database's version to the engine's, in order, each in its own
 transaction, and refuses while the server is running. A database newer
 than the engine is refused too: upgrade the engine. Changes to the
-objects themselves (accounts made from old characters, a new clock) are
-made at boot, and need nothing from you.
+objects themselves (accounts made from old characters, a new clock, command
+aliases moved out of `aliases` into `command_aliases`) are made at boot,
+and need nothing from you.
 
 | Version | Change |
 |---|---|

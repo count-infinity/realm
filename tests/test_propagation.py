@@ -601,8 +601,9 @@ class TestGameObjectMsg:
 
         room.msg_contents("the lights flicker")
 
-        assert a_log == ["the lights flicker"]
-        assert b_log == ["the lights flicker"]
+        # A room broadcast is ROM's act(): its first letter capitalized.
+        assert a_log == ["The lights flicker"]
+        assert b_log == ["The lights flicker"]
 
     def test_msg_contents_excludes_listed_objects(self):
         room = make_room()
@@ -620,7 +621,7 @@ class TestGameObjectMsg:
 
         assert a_log == []
         assert b_log == []
-        assert c_log == ["alice swings at bob"]
+        assert c_log == ["Alice swings at bob"]
 
     def test_msg_contents_handles_none_in_exclude(self):
         """Exclude list with None entries shouldn't crash."""
@@ -629,7 +630,7 @@ class TestGameObjectMsg:
         a = make_object("Alice", location=room)
         a.set_msg_handler(a_log.append)
         room.msg_contents("ping", exclude=[None, None])
-        assert a_log == ["ping"]
+        assert a_log == ["Ping"]
 
 
 # --- deliver_messages ----------------------------------------------------
@@ -645,7 +646,7 @@ class TestDeliverMessages:
         action = Action(actor=actor, target=None, action_type="x")
         action.add_message("actor", "you swing")
         deliver_messages(action)
-        assert captured == ["you swing"]
+        assert captured == ["You swing"]          # delivered capitalized, as act()
 
     async def test_target_messages_delivered_when_distinct(self):
         actor_log: list[str] = []
@@ -658,7 +659,7 @@ class TestDeliverMessages:
         action.add_message("target", "alice swings at you")
         deliver_messages(action)
         assert actor_log == []
-        assert target_log == ["alice swings at you"]
+        assert target_log == ["Alice swings at you"]
 
     async def test_target_messages_skipped_when_target_is_actor(self):
         """Self-target actions don't double-message the actor via 'target'."""
@@ -669,7 +670,7 @@ class TestDeliverMessages:
         action.add_message("actor", "you focus")
         action.add_message("target", "should-not-deliver")
         deliver_messages(action)
-        assert captured == ["you focus"]
+        assert captured == ["You focus"]
 
     async def test_room_messages_exclude_actor_and_target(self):
         room = make_room()
@@ -691,7 +692,7 @@ class TestDeliverMessages:
         # bystander does.
         assert actor_log == []
         assert target_log == []
-        assert bystander_log == ["alice swings at bob"]
+        assert bystander_log == ["Alice swings at bob"]
 
     async def test_room_messages_format_placeholders(self):
         room = make_room()
@@ -750,7 +751,7 @@ class TestPropagateDelivers:
         action = Action(actor=actor, target=None, action_type="x")
         await propagate(action)
 
-        assert captured == ["you act"]
+        assert captured == ["You act"]
 
     async def test_propagate_skips_delivery_when_opted_out(self):
         captured: list[str] = []
@@ -813,6 +814,6 @@ class TestSessionMsgWiring:
         await propagate(action)
 
         # Actor saw their own message.
-        assert session._output_queue.get_nowait() == "you wave at Bob"
+        assert session._output_queue.get_nowait() == "You wave at Bob"
         # Bystander saw the room message; target did not (no target message added).
         assert bystander_session._output_queue.get_nowait() == "Alice waves at Bob"

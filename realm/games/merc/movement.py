@@ -8,6 +8,11 @@ writes these tags), else 1. A player who cannot pay stays put. NPCs and a
 fleeing character walk free. Only a declared ``move`` pool is charged (Merc
 declares it), so a ``move`` attribute meaning something else in another
 system is left alone. A rider's mount pays from its own ``move`` pool.
+
+The gate only asks whether the step can be paid for; the step is paid once
+it has happened (``pay_for_step``, an after-traverse hook). As ROM's
+``move_char`` checks the guild and the door before it charges, a move that
+anything refuses (a locked bar, a closed door, a room's veto) costs nothing.
 """
 
 from __future__ import annotations
@@ -15,7 +20,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.movement import resolve_exit_destination
-from realm.core.pools import declared_pools, settle, spend
+from realm.core.pools import can_spend, declared_pools, settle, spend
 from realm.core.world import get_world
 
 if TYPE_CHECKING:
@@ -42,23 +47,41 @@ def move_cost(room: GameObject | None) -> int:
     return 1
 
 
-async def movement_gate(actor: GameObject, exit_obj: GameObject | None,
-                        direction: str, *, fleeing: bool) -> str | None:
-    """Spend the step's cost, or refuse it ("You are too exhausted."). A
-    rider's mount pays instead (the ``companions`` service says who pays,
-    MUD_PLAN 13.3); a mount with no ``move`` pool carries its rider free."""
-    if fleeing or not actor.is_player:
+def _payer(actor: GameObject) -> GameObject | None:
+    """Who pays for ``actor``'s step, or None when nobody does: a rider's
+    mount (the ``companions`` service says, MUD_PLAN 13.3), else the actor;
+    only a player pays, and only from a declared ``move`` pool."""
+    if not actor.is_player:
         return None
     companions = get_world().services.get("companions")
     payer = companions.payer(actor) if companions is not None else actor
-    if "move" not in declared_pools(payer):
+    return payer if "move" in declared_pools(payer) else None
+
+
+async def movement_gate(actor: GameObject, exit_obj: GameObject | None,
+                        direction: str, *, fleeing: bool) -> str | None:
+    """Refuse a step that cannot be paid for ("You are too exhausted.");
+    charge nothing yet. A mount with no ``move`` pool carries its rider
+    free."""
+    payer = None if fleeing else _payer(actor)
+    if payer is None:
         return None
     destination = resolve_exit_destination(exit_obj) if exit_obj is not None else None
-    change = spend(payer, "move", move_cost(destination))
-    if change is None:
+    if not can_spend(payer, "move", move_cost(destination)):
         return "You are too exhausted." if payer is actor else "Your mount is too exhausted."
-    await settle(change, source=actor)
     return None
 
 
-__all__ = ["SECTOR_COST", "move_cost", "movement_gate"]
+async def pay_for_step(actor: GameObject, origin: GameObject | None,
+                       destination: GameObject, exit_obj: GameObject | None,
+                       *, fleeing: bool) -> None:
+    """``feature.after_traverse``: the step has happened; pay for it."""
+    payer = None if fleeing else _payer(actor)
+    if payer is None:
+        return
+    change = spend(payer, "move", move_cost(destination))
+    if change is not None:
+        await settle(change, source=actor)
+
+
+__all__ = ["SECTOR_COST", "move_cost", "movement_gate", "pay_for_step"]

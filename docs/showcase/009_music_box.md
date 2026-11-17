@@ -109,10 +109,10 @@ You'll see `music box clicks softly as Bilda winds the brass key.`, then
 a note every five seconds, three in all:
 
 ```text
-music box plays a bright, glassy arpeggio.
-music box plays three descending notes, like rain off a roof.
-music box plays a tiny waltz figure, slightly out of tune.
-music box slows... and stops with a final, drooping plink.
+Music box plays a bright, glassy arpeggio.
+Music box plays three descending notes, like rain off a roof.
+Music box plays a tiny waltz figure, slightly out of tune.
+Music box slows... and stops with a final, drooping plink.
 ```
 
 Wind it twice in quick succession and you get six turns but still one

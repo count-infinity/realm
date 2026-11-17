@@ -361,27 +361,38 @@ that turned up. Deviations and judgment calls:
 
 Left open (found on the way):
 
-- [ ] **Sentence-initial names are lowercase** ("the beastly fido hits
+- [x] **Sentence-initial names are lowercase** ("the beastly fido hits
   you", "the cityguard arrives."); ROM's `act()` capitalizes the first
   letter of every line. Message templates put `obj.name` first in many
   places; capitalizing the line where it is sent would fix them all.
-- [ ] **Merc reads level 0 as level 1** (`int(level or 1)` in
+  *2026-11-17: `deliver_messages` and `msg_contents` capitalize
+  (`markup.capitalize`); `obj.msg` is `send_to_char`, as written. See
+  below.*
+- [x] **Merc reads level 0 as level 1** (`int(level or 1)` in
   `death_award`, `consider` and elsewhere): ROM's level-0 fido pays as a
-  level-1 mob.
-- [ ] **E-reset gear is not equipped** on converted mobs (a `worn`
+  level-1 mob. *2026-11-17: `char_level` (0 is 0, unset is 1); the fido
+  pays 85.*
+- [x] **E-reset gear is not equipped** on converted mobs (a `worn`
   attribute, never the `wielded`/`worn` tags), so a mob fights with its
-  natural attack, not its sword.
-- [ ] **A refused guild bar still costs the step's movement** ("You
+  natural attack, not its sword. *2026-11-17: tagged as a player's gear;
+  spawners respawn it (`contents`); old worlds equipped at boot.*
+- [x] **A refused guild bar still costs the step's movement** ("You
   aren't allowed in there." took 1 mv in the telnet play-through); ROM
-  checks the guild before charging.
-- [ ] **A player's command aliases are also name aliases.** `alias` stores
+  checks the guild before charging. *2026-11-17: the step is paid after
+  it happens (`pay_for_step`); any refusal is free.*
+- [x] **A player's command aliases are also name aliases.** `alias` stores
   a word -> line dict in the `aliases` attribute, which the matcher reads
   as names: after `alias kk = kick $1`, "kk" names that player.
-- [ ] **Plurals of "X of Y" names** pluralize the last word ("3 sheet of
+  *2026-11-17: they live in `command_aliases`; moved at boot.*
+- [x] **Plurals of "X of Y" names** pluralize the last word ("3 sheet of
   roaring flames", "2 batch of Sara's cookieses"); pinned by
   `tests/test_language.py`, so it is a decision to revisit, not a slip.
-- [ ] **Exit door keywords** (`keywords` on a converted exit: "gate",
+  *2026-11-17: the head noun ("3 sheets of roaring flame"), as the
+  maintainer decided.*
+- [x] **Exit door keywords** (`keywords` on a converted exit: "gate",
   "door") are not aliases, so `open gate` needs the direction.
+  *2026-11-17: the door commands look them up (`door_named`); they stay
+  out of `aliases`.*
 
 **2026-11-17: the maintainer's decisions D1 and D2, and two first-hour
 items.** Judgment calls:
@@ -496,13 +507,130 @@ Clocks a test can move (2026-11-17). Judgment calls:
   meaning left (spawners count its ticks); `test_first_hour` still ticks
   the spawners by hand. Splitting a `pulse()` out of `_tick_loop` as
   `beat()` was split out of the encounter loop would let a test drive it
-  by the clock; not done here.
+  by the clock; not done here. *2026-11-17: done, `GameServer.pulse()`;
+  the first hour pulses instead of ticking spawners (see below).*
 - **The helper earns its place** by the list, not by the unit tests: the
   eight per-module `clock` fixtures in the suite (accounts, clans, clock,
   operations, progression x2, quests, tasks) each move one module and stay
   as they are; the first hour's list of clocks (nine, now 21) and any
   game's own tests are what `FakeClock` serves, and the scan is what keeps
   its list true.
+
+**2026-11-17: the eight items above, and the heartbeat.** Judgment calls:
+
+- **Capitals: which paths are ROM's `act()`.** `deliver_messages` (every
+  templated message: movement, combat narration, verbs, socials, say) and
+  `GameObject.msg_contents` (a room broadcast; ROM has no other way to
+  speak to a room, and softcode `remit`/`oemit` use it, as ROM's
+  `mpecho` is an `act()`) capitalize the first visible letter
+  (`realm.core.markup.capitalize`, colour codes stepped over, the first
+  character of the message only, never each line: a wrapped description's
+  second line is prose). `obj.msg` to one object is `send_to_char`: a
+  command's output, softcode `pemit` and a builder's deliberately
+  lowercase line are sent as written. A handful of NPC-first lines sent
+  with `obj.msg` were capitalized where they are made ("The guildmaster
+  teaches:", "... tends your wounds", "... flies from your hand!", "...
+  tries to pick your pocket!"), and the sentences combat glues mid-line
+  ("CRITICAL! The beastly fido hits you", "You hit it! The beastly fido is
+  defeated!"). `look`'s title line is a title and is capitalized ("The
+  cityguard"). Builder outputs that name a target first ("rusty sword
+  already has tag ...") stay as written. 48 tests and 16 showcase/guide
+  transcripts asserted the lowercase lines; each now asserts the
+  capitalized one (no assertion loosened).
+- **Level 0.** `char_level(obj)` in `realm/games/merc/system.py` (0 is 0,
+  an unset level is 1) replaces every `int(level or 1)` in Merc's system
+  and ruleset. ROM's `xp_compute` has no special case for level 0: a
+  level-0 victim is `level_range` -1 to a level-1 killer (base 66 against
+  83 for a peer, about 80%); Merc's own formula bends the importer's
+  `points` 15% a level, so the fido pays 85 (85%). The importer's `points`
+  stay `max(1, level) * 100`: they are what a kill of a peer is worth, and
+  0 would make a level-0 mob pay 1. `share_award` keeps `max(1, ...)`, a
+  divisor. Left alone: the `rules` and `abilities`/`combat`/`crime`
+  features' own `level or 1` reads (a level-0 caster's spell level, a
+  venomous level-0 mob's poison save, crime's level), which are not
+  Merc's and cannot import it. The first hour changed: the fido pays 85
+  and Bree's death costs 85, so she takes one more fido (Poor Alley's, on
+  the way to the weapon shop) to reach level 2; the guide's numbers too.
+- **Gear: tags, and respawns carry it.** The importer equips E-reset gear
+  as a player's is (`wielded`; `worn` with the Merc `slot`; ROM's `hold`
+  is `held`; `float`, no Merc slot, stays carried and is a gap). A
+  spawner's prototype gains `contents` (the first adopted instance's
+  carried gear, G and E alike, as ROM's repop re-runs both), and
+  `spawn_from_prototype` makes them inside each spawn (a general
+  prototype key, also good for `population` and `zone_reset` specs).
+  Only `--repop` writes it: `zone_reset` clears a mob without its contents
+  and would leave them behind. Saved worlds: the `items` feature's
+  `equip_old_gear` (on boot) equips any item carrying the old `worn`
+  attribute and deletes it; the shop and Merc's AC no longer read the
+  attribute. The refresh script does the same to a converted file and
+  adds the spawners' `contents`; refreshing the shipped Midgaard gives a
+  file byte-identical to the documented recipe run from
+  `~/ROM/area/midgaard.are` (checked). Found on the way: a character's
+  gear went into its corpse still tagged `worn`/`wielded`, so a looter
+  "wore" the vagabond's bracer without wearing it; both corpse makers
+  now take it off silently (`equipment.unequip`, ROM's `obj_from_char`).
+  `look` at a creature shows "X is using:" (ROM's look), before what
+  else it carries.
+- **Movement: pay after the move.** The gate asks `pools.can_spend` (new,
+  the check half of `spend`, which now uses it); `pay_for_step`, an
+  after-traverse hook, spends once the walker has arrived (on the room it
+  arrived in), so every refusal after the gate costs nothing, not only a
+  lock (a closed door, the destination's `enter` lock, an `on_leave`
+  veto, `pre_enter`). The exhausted check still runs where the gate ran,
+  before the destination's `enter` lock, so an exhausted walker at a
+  guild bar hears "You are too exhausted." where ROM would say the guild
+  line first.
+- **Aliases: the command store moved.** `alias` is newer (MUD_PLAN step
+  10) and `aliases` is the matcher's and the importer's, so the command
+  store moved to `command_aliases`. At boot (`basics`'
+  `carry_aliases_over`) a player whose `aliases` is a dict has it merged
+  under `command_aliases` (the newer store wins a word both hold) and
+  `aliases` deleted; a list there is names and is left alone. A dict is
+  how the alias command always wrote it; nothing else wrote a dict there.
+- **Plurals**: the head is the noun before the first whole word "of"
+  (not "offering", "coffer"); a name with no "of" is as before.
+- **Door keywords stay `keywords`.** Exit aliases are movement words
+  (`gate` would walk through the gate; ROM never does), so the importer
+  keeps them out of `aliases`. `open`/`close`/`lock`/`unlock` fall back to
+  the first exit whose door keywords answer the words typed (ROM's
+  `find_door`/`is_name`: each word starts a keyword), after things and
+  exit names; their lines name the door ("You open the gate.", "The gate
+  is already closed."). No data change: converted exits already had the
+  keywords.
+- **The heartbeat: `pulse()`, and determinism.** `GameServer.pulse()`
+  decides on `realm.server.game.now()` (registered in `ENGINE_CLOCKS`);
+  the loop keeps the real-time sleep grid (still in `REAL_TIME`). Driving
+  the whole heartbeat in the first hour was not deterministic at first:
+  the transcript differed per `PYTHONHASHSEED` (a cityguard and the drunk
+  wandered elsewhere, an extra fido fight), because `behavior_owners()`
+  was a `WeakSet` whose order follows the objects' hashes (string ids,
+  salted per process), so the seeded dice for phases and wandering fell
+  to different mobs. It is now a `WeakValueDictionary` keyed by `id(obj)`,
+  in registration order, which also stops an object hiding another with
+  the same id (a world loaded again). And a pulse ticks only objects its
+  store holds under their id, so an earlier test's world (or a killed
+  mob something still references) does not tick. With both, the first
+  hour's transcript is identical under `PYTHONHASHSEED` 0, 1, 2, 5, 9 and
+  77 and after other Midgaard tests ran first (apart from new objects'
+  random ids). The first hour pulses only while the fidos come back
+  (`repopulate`: a world beat at a time, the longest `respawn_ticks` + 2
+  beats); its `wait` still runs only the reaper, so the town does not
+  wander through the rest of the story.
+
+Left open (found on the way, 2026-11-17):
+
+- [ ] **`drop all` drops wielded and worn gear** without taking it off
+  (it stays tagged; ROM's `drop all` skips equipment).
+- [ ] **A door has two sides that do not agree**: `close gate` closes
+  this side's exit only; ROM closes the room beyond's reverse exit too.
+- [ ] **Converted locked doors cannot be unlocked with their keys**: the
+  importer writes the key's id as `key`, and `lock`/`unlock` read
+  `key_id` against a key's `unlocks`.
+- [ ] **`@teleport` leaves a character in its fight** ("You're in the
+  middle of combat" in the new room).
+- [ ] **`zone_reset` clears a mob but not what it carries**, which would
+  orphan a `contents` prototype's gear (so the importer writes `contents`
+  only for `--repop`).
 
 ## Priority 1 - Should Address Soon
 

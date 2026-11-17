@@ -57,6 +57,22 @@ You are using:
 
 `inventory` lists only what is carried, not what is worn or wielded.
 
+Looking at a creature shows what it is using, as ROM's `look` does (only
+the filled slots), before what else it carries:
+
+```text
+> look cityguard
+...
+The cityguard is using:
+  <light>   a war banner
+  <finger>  a city guard signet ring
+  <body>    a standard issue vest
+  <wielded> a standard issue sword
+```
+
+Everything a character wears or wields comes off when it dies: in the
+corpse it is loot, carried by whoever takes it, not worn.
+
 A system of your own lists its slots like this:
 
 ```python
@@ -255,10 +271,16 @@ unalias kk
 
 In the command line, `$1` to `$9` are the words typed after the alias and
 `$*` all of them; a line with none of these gets the words added at the
-end. Aliases belong to the character (its `aliases` attribute), at most
-`ALIAS_LIMIT` (50). An alias is one word; it is expanded once, so an alias
-inside an alias's line runs as typed, and a word that begins with `@` is
-never an alias. `alias` and `unalias` cannot be aliased.
+end. Aliases belong to the character (its `command_aliases` attribute), at
+most `ALIAS_LIMIT` (50). An alias is one word; it is expanded once, so an
+alias inside an alias's line runs as typed, and a word that begins with `@`
+is never an alias. `alias` and `unalias` cannot be aliased.
+
+A command alias is not a name: `aliases` is the list of other names an
+object answers to (`get sword long`), and `alias kk = ...` never makes `kk`
+name you. A world saved before 0.3.0 kept command aliases in `aliases`;
+they move to `command_aliases` at boot (a word -> line mapping there is a
+command-alias store, a list is names and stays).
 
 ## Consumables
 

@@ -258,9 +258,9 @@ which the ward refuses to ready it until the bench trues it:
 
 ```text
 (condition reaches 25)
-a mono blade is looking battered.
+A mono blade is looking battered.
 (condition reaches 0)
-a mono blade gives out with a crack!
+A mono blade gives out with a crack!
 > unwield
 You lower a mono blade.
 > wield a mono blade
@@ -295,9 +295,9 @@ repaired:
 You put on a flak vest.
 (a partner in the yard swings back and lands a blow; the vest drops by the damage)
 (condition reaches 25)
-a flak vest is scarred and dented.
+A flak vest is scarred and dented.
 (condition reaches 0)
-a flak vest comes apart at the seams!
+A flak vest comes apart at the seams!
 ```
 
 Note the asymmetry, and that it is deliberate: the blade wears on every swing

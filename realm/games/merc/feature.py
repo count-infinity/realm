@@ -8,7 +8,7 @@ charges movement points for walking (``realm.games.merc.movement``).
 from __future__ import annotations
 
 from realm.features import Feature
-from realm.games.merc.movement import movement_gate
+from realm.games.merc.movement import movement_gate, pay_for_step
 from realm.games.merc.ruleset import MercRuleset
 
 feature = Feature('merc', requires=["rules", "combat"],
@@ -18,3 +18,4 @@ feature.setting("LEVEL_CAP", 50,
                 "The highest level a character reaches under the Merc rules; experience "
                 "past it still counts but levels no further.")
 feature.traversal_gate(movement_gate, reason="exhausted", attrs=["move_cost"])
+feature.after_traverse(pay_for_step)

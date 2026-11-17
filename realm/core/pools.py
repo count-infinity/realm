@@ -350,24 +350,42 @@ def mend(obj: GameObject, name: str, amount: int) -> PoolChange:
                                     and _spent(pool, new, maximum)))
 
 
-def spend(obj: GameObject, name: str, amount: int) -> PoolChange | None:
-    """Pay a cost, all or nothing: lower a down pool (not past its floor) or
-    raise an up pool (not past its max). None, with nothing changed, when
-    the object is short or has no such pool."""
-    amount = _check_amount(amount)
-    pool = pool_def(obj, name)
+def _after_spending(obj: GameObject, pool: Pool | None,
+                    amount: int) -> tuple[int, int] | None:
+    """``(old, new)`` if ``obj`` can pay ``amount`` from ``pool``, else None."""
     old = None if pool is None else _value(obj, pool)
     if old is None:
         return None
-    maximum = _maximum(obj, pool)
     if pool.direction == "down":
         new = old - amount
         if pool.floor is not None and new < pool.floor:
             return None
     else:
         new = old + amount
+        maximum = _maximum(obj, pool)
         if maximum is not None and new > maximum:
             return None
+    return old, new
+
+
+def can_spend(obj: GameObject, name: str, amount: int) -> bool:
+    """Whether ``spend(obj, name, amount)`` would pay, changing nothing: a
+    cost checked now and paid later (a step's movement, paid only once the
+    move has happened)."""
+    return _after_spending(obj, pool_def(obj, name), _check_amount(amount)) is not None
+
+
+def spend(obj: GameObject, name: str, amount: int) -> PoolChange | None:
+    """Pay a cost, all or nothing: lower a down pool (not past its floor) or
+    raise an up pool (not past its max). None, with nothing changed, when
+    the object is short or has no such pool."""
+    amount = _check_amount(amount)
+    pool = pool_def(obj, name)
+    paid = _after_spending(obj, pool, amount)
+    if paid is None:
+        return None
+    old, new = paid
+    maximum = _maximum(obj, pool)
     _write(obj, pool, old, new)
     return PoolChange(obj, name, old, new, amount, amount,
                       became_spent=(not _spent(pool, old, maximum)
@@ -426,5 +444,5 @@ __all__ = [
     "pool_def", "pool_get", "pool_max", "pool_percent", "has_pool", "is_spent",
     "declared_pools",
     "damage_pool", "vital_pool",
-    "harm", "mend", "spend", "set_pool", "settle", "add_default",
+    "harm", "mend", "spend", "can_spend", "set_pool", "settle", "add_default",
 ]

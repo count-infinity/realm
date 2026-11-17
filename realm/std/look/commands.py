@@ -11,6 +11,7 @@ from realm.commands.base import find_exit, find_object
 from realm.core.action_tags import VISUAL
 from realm.core.action_types import ActionType
 from realm.core.attrflags import visual_attrs
+from realm.core.markup import capitalize
 from realm.core.movement import resolve_exit_destination
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 from realm.core.world import get_world
@@ -201,7 +202,8 @@ async def _show_object(ctx: CommandContext, target) -> None:
     # Play-facing look: name the target as the looker knows them (a
     # disguise or an unintroduced stranger reads by their assumed name).
     # `@examine` deliberately does NOT — it shows the truth.
-    await ctx.session.send(f"\n{target.get_display_name(ctx.player)}")
+    # A title line, so it starts with a capital ("The cityguard").
+    await ctx.session.send(f"\n{capitalize(target.get_display_name(ctx.player))}")
 
     # "You see nothing special." is the fallback for an object that shows
     # the looker NOTHING — no description and no perceptible details. It
@@ -230,6 +232,11 @@ async def _show_object(ctx: CommandContext, target) -> None:
         await ctx.session.send("It is closed.")
     elif not target.is_player:
         visible = [obj for obj in target.contents if not obj.is_exit]
+        using = _using_lines(target, visible, ctx.player)
+        if using:
+            await ctx.session.send("\n" + "\n".join(using))
+            visible = [obj for obj in visible
+                       if not obj.has_tag('worn') and not obj.has_tag('wielded')]
         economy = get_world().services.get("economy")
         money = (economy.get_credits(target)
                  if economy is not None and target.has_tag('container') else 0)
@@ -241,6 +248,22 @@ async def _show_object(ctx: CommandContext, target) -> None:
                 await ctx.session.send(f"  {money} {economy.currency_name()}")
 
     await ctx.session.send("")
+
+
+def _using_lines(target, carried: list, viewer) -> list[str]:
+    """A creature's gear, as ROM's look shows it: "The cityguard is using:"
+    and a ``<slot>`` line for each thing it wears (tagged ``worn``, in its
+    ``slot``), then the weapon it wields. Empty when it uses nothing, or
+    for a thing that is not a creature."""
+    if not target.has_tag('npc'):
+        return []
+    rows = [(str(o.db.get('slot') or 'worn'), o.name) for o in carried if o.has_tag('worn')]
+    rows += [("wielded", o.name) for o in carried if o.has_tag('wielded')]
+    if not rows:
+        return []
+    width = max(len(slot) for slot, _ in rows) + 2
+    return [f"{capitalize(target.get_display_name(viewer))} is using:"] + [
+        f"  {f'<{slot}>':{width}} {name}" for slot, name in rows]
 
 
 async def _show_exit(ctx: CommandContext, exit_obj) -> None:

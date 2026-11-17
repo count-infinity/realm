@@ -604,7 +604,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -633,8 +634,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -650,7 +650,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -678,8 +679,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -695,7 +695,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -726,8 +727,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -742,7 +742,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -770,8 +771,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -786,7 +786,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3363,
@@ -814,8 +815,7 @@
     ],
     "slot": "wrist",
     "ac_apply": 2,
-    "prototype_vnum": 3363,
-    "worn": "wrist"
+    "prototype_vnum": 3363
    },
    "locks": {},
    "behaviors": [],
@@ -912,7 +912,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -941,8 +942,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -958,7 +958,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -986,8 +987,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -1003,7 +1003,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -1034,8 +1035,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -1050,7 +1050,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -1078,8 +1079,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -1214,7 +1214,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -1243,8 +1244,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -1260,7 +1260,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -1288,8 +1289,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -1305,7 +1305,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -1336,8 +1337,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -1352,7 +1352,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -1380,8 +1381,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -1396,7 +1396,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3363,
@@ -1424,8 +1425,7 @@
     ],
     "slot": "wrist",
     "ac_apply": 2,
-    "prototype_vnum": 3363,
-    "worn": "wrist"
+    "prototype_vnum": 3363
    },
    "locks": {},
    "behaviors": [],
@@ -1765,7 +1765,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -1794,8 +1795,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -1811,7 +1811,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -1839,8 +1840,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -1856,7 +1856,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -1887,8 +1888,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -1903,7 +1903,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -1931,8 +1932,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -2029,7 +2029,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -2058,8 +2059,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -2075,7 +2075,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -2103,8 +2104,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -2120,7 +2120,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -2151,8 +2152,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -2167,7 +2167,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -2195,8 +2196,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -2350,7 +2350,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -2379,8 +2380,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -2396,7 +2396,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -2424,8 +2425,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -2441,7 +2441,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -2472,8 +2473,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -2488,7 +2488,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -2516,8 +2517,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -2602,7 +2602,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3351,
@@ -2633,8 +2634,7 @@
     "damage_type": "piercing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3351,
-    "worn": "wield"
+    "prototype_vnum": 3351
    },
    "locks": {},
    "behaviors": [],
@@ -2754,7 +2754,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3124,
@@ -2782,8 +2783,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d12",
     "damage": "2d12",
-    "prototype_vnum": 3124,
-    "worn": "wield"
+    "prototype_vnum": 3124
    },
    "locks": {},
    "behaviors": [],
@@ -2870,7 +2870,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -2899,8 +2900,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -2916,7 +2916,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -2944,8 +2945,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -2961,7 +2961,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -2992,8 +2993,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -3080,7 +3080,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -3109,8 +3110,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -3126,7 +3126,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -3154,8 +3155,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -3171,7 +3171,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -3202,8 +3203,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -3290,7 +3290,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -3319,8 +3320,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -3336,7 +3336,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -3364,8 +3365,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -3381,7 +3381,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -3412,8 +3413,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -3500,7 +3500,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -3529,8 +3530,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -3546,7 +3546,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -3574,8 +3575,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -3591,7 +3591,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -3622,8 +3623,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -3786,7 +3786,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -3817,8 +3818,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -3983,7 +3983,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -4014,8 +4015,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -4104,7 +4104,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -4135,8 +4136,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -4225,7 +4225,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -4256,8 +4257,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -4346,7 +4346,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -4377,8 +4378,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -5365,7 +5365,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -5394,8 +5395,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -5411,7 +5411,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -5439,8 +5440,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -5456,7 +5456,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -5487,8 +5488,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -5503,7 +5503,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -5531,8 +5532,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -5547,7 +5547,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3361,
@@ -5575,8 +5576,7 @@
     ],
     "slot": "about",
     "ac_apply": 3,
-    "prototype_vnum": 3361,
-    "worn": "about"
+    "prototype_vnum": 3361
    },
    "locks": {},
    "behaviors": [],
@@ -5651,7 +5651,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -5680,8 +5681,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -5697,7 +5697,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -5725,8 +5726,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -5742,7 +5742,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -5773,8 +5774,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -5789,7 +5789,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -5817,8 +5818,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -5833,7 +5833,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3362,
@@ -5861,8 +5862,7 @@
     ],
     "slot": "waist",
     "ac_apply": 4,
-    "prototype_vnum": 3362,
-    "worn": "waist"
+    "prototype_vnum": 3362
    },
    "locks": {},
    "behaviors": [],
@@ -5937,7 +5937,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -5966,8 +5967,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -5983,7 +5983,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -6011,8 +6012,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -6028,7 +6028,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -6059,8 +6060,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -6075,7 +6075,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -6103,8 +6104,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -6119,7 +6119,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3354,
@@ -6147,8 +6148,7 @@
     ],
     "slot": "shield",
     "ac_apply": 4,
-    "prototype_vnum": 3354,
-    "worn": "shield"
+    "prototype_vnum": 3354
    },
    "locks": {},
    "behaviors": [],
@@ -6429,7 +6429,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3005,
@@ -6460,8 +6461,7 @@
     "damage_type": "slashing",
     "damage_dice": "4d10",
     "damage": "4d10",
-    "prototype_vnum": 3005,
-    "worn": "wield"
+    "prototype_vnum": 3005
    },
    "locks": {},
    "behaviors": [],
@@ -6740,7 +6740,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -6768,8 +6769,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -6967,7 +6967,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -6996,8 +6997,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -7013,7 +7013,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -7041,8 +7042,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -7058,7 +7058,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -7089,8 +7090,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -7105,7 +7105,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -7133,8 +7134,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -7149,7 +7149,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3355,
@@ -7177,8 +7178,7 @@
     ],
     "slot": "neck",
     "ac_apply": 3,
-    "prototype_vnum": 3355,
-    "worn": "neck"
+    "prototype_vnum": 3355
    },
    "locks": {},
    "behaviors": [],
@@ -7457,7 +7457,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -7485,8 +7486,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -7935,7 +7935,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -7963,8 +7964,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -8244,7 +8244,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -8272,8 +8273,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -8785,7 +8785,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -8813,8 +8814,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -8986,7 +8986,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -9015,8 +9016,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -9032,7 +9032,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -9060,8 +9061,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -9077,7 +9077,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -9108,8 +9109,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -9124,7 +9124,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -9152,8 +9153,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -9168,7 +9168,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3356,
@@ -9196,8 +9197,7 @@
     ],
     "slot": "head",
     "ac_apply": 4,
-    "prototype_vnum": 3356,
-    "worn": "head"
+    "prototype_vnum": 3356
    },
    "locks": {},
    "behaviors": [],
@@ -9451,7 +9451,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -9480,8 +9481,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -9497,7 +9497,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -9525,8 +9526,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -9542,7 +9542,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -9573,8 +9574,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -9589,7 +9589,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -9617,8 +9618,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -9633,7 +9633,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3357,
@@ -9661,8 +9662,7 @@
     ],
     "slot": "legs",
     "ac_apply": 4,
-    "prototype_vnum": 3357,
-    "worn": "legs"
+    "prototype_vnum": 3357
    },
    "locks": {},
    "behaviors": [],
@@ -9852,7 +9852,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -9880,8 +9881,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -10747,7 +10747,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -10775,8 +10776,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -10857,7 +10857,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3349,
@@ -10885,8 +10886,7 @@
     "damage_type": "slashing",
     "damage_dice": "4d6",
     "damage": "4d6",
-    "prototype_vnum": 3349,
-    "worn": "wield"
+    "prototype_vnum": 3349
    },
    "locks": {},
    "behaviors": [],
@@ -10983,7 +10983,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -11012,8 +11013,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -11029,7 +11029,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -11057,8 +11058,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -11074,7 +11074,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -11105,8 +11106,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -11121,7 +11121,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -11149,8 +11150,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -11165,7 +11165,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3358,
@@ -11193,8 +11194,7 @@
     ],
     "slot": "feet",
     "ac_apply": 4,
-    "prototype_vnum": 3358,
-    "worn": "feet"
+    "prototype_vnum": 3358
    },
    "locks": {},
    "behaviors": [],
@@ -11411,7 +11411,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -11439,8 +11440,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -11792,7 +11792,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3021,
@@ -11820,8 +11821,7 @@
     "damage_type": "slashing",
     "damage_dice": "1d5",
     "damage": "1d5",
-    "prototype_vnum": 3021,
-    "worn": "wield"
+    "prototype_vnum": 3021
    },
    "locks": {},
    "behaviors": [],
@@ -11836,7 +11836,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3066,
@@ -11864,8 +11865,7 @@
     ],
     "slot": "body",
     "ac_apply": 1,
-    "prototype_vnum": 3066,
-    "worn": "body"
+    "prototype_vnum": 3066
    },
    "locks": {},
    "behaviors": [],
@@ -11880,7 +11880,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3052,
@@ -11908,8 +11909,7 @@
     ],
     "slot": "wrist",
     "ac_apply": 0,
-    "prototype_vnum": 3052,
-    "worn": "wrist"
+    "prototype_vnum": 3052
    },
    "locks": {},
    "behaviors": [],
@@ -12060,7 +12060,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3349,
@@ -12088,8 +12089,7 @@
     "damage_type": "slashing",
     "damage_dice": "4d6",
     "damage": "4d6",
-    "prototype_vnum": 3349,
-    "worn": "wield"
+    "prototype_vnum": 3349
    },
    "locks": {},
    "behaviors": [],
@@ -12186,7 +12186,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -12215,8 +12216,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -12232,7 +12232,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -12260,8 +12261,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -12277,7 +12277,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -12308,8 +12309,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -12324,7 +12324,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -12352,8 +12353,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -12368,7 +12368,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3359,
@@ -12396,8 +12397,7 @@
     ],
     "slot": "hands",
     "ac_apply": 4,
-    "prototype_vnum": 3359,
-    "worn": "hands"
+    "prototype_vnum": 3359
    },
    "locks": {},
    "behaviors": [],
@@ -12482,7 +12482,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3351,
@@ -12513,8 +12514,7 @@
     "damage_type": "piercing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3351,
-    "worn": "wield"
+    "prototype_vnum": 3351
    },
    "locks": {},
    "behaviors": [],
@@ -12689,7 +12689,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -12717,8 +12718,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -14698,7 +14698,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -14727,8 +14728,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -14744,7 +14744,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -14772,8 +14773,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -14789,7 +14789,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -14820,8 +14821,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -14836,7 +14836,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -14864,8 +14865,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -14880,7 +14880,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3361,
@@ -14908,8 +14909,7 @@
     ],
     "slot": "about",
     "ac_apply": 3,
-    "prototype_vnum": 3361,
-    "worn": "about"
+    "prototype_vnum": 3361
    },
    "locks": {},
    "behaviors": [],
@@ -14992,7 +14992,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -15021,8 +15022,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -15038,7 +15038,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -15066,8 +15067,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -15083,7 +15083,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -15114,8 +15115,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -15130,7 +15130,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -15158,8 +15159,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -15174,7 +15174,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3362,
@@ -15202,8 +15203,7 @@
     ],
     "slot": "waist",
     "ac_apply": 4,
-    "prototype_vnum": 3362,
-    "worn": "waist"
+    "prototype_vnum": 3362
    },
    "locks": {},
    "behaviors": [],
@@ -15286,7 +15286,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -15315,8 +15316,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -15332,7 +15332,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -15360,8 +15361,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -15377,7 +15377,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -15408,8 +15409,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -15424,7 +15424,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -15452,8 +15453,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -15468,7 +15468,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3360,
@@ -15496,8 +15497,7 @@
     ],
     "slot": "arms",
     "ac_apply": 4,
-    "prototype_vnum": 3360,
-    "worn": "arms"
+    "prototype_vnum": 3360
    },
    "locks": {},
    "behaviors": [],
@@ -15580,7 +15580,8 @@
     "thing",
     "light",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3365,
@@ -15609,8 +15610,7 @@
      "A"
     ],
     "slot": "light",
-    "prototype_vnum": 3365,
-    "worn": "light"
+    "prototype_vnum": 3365
    },
    "locks": {},
    "behaviors": [],
@@ -15626,7 +15626,8 @@
     "thing",
     "treasure",
     "wearable",
-    "magic"
+    "magic",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3364,
@@ -15654,8 +15655,7 @@
      "B"
     ],
     "slot": "finger",
-    "prototype_vnum": 3364,
-    "worn": "finger"
+    "prototype_vnum": 3364
    },
    "locks": {},
    "behaviors": [],
@@ -15671,7 +15671,8 @@
     "thing",
     "weapon",
     "wieldable",
-    "magic"
+    "magic",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3350,
@@ -15702,8 +15703,7 @@
     "damage_type": "slashing",
     "damage_dice": "3d5",
     "damage": "3d5",
-    "prototype_vnum": 3350,
-    "worn": "wield"
+    "prototype_vnum": 3350
    },
    "locks": {},
    "behaviors": [],
@@ -15718,7 +15718,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3353,
@@ -15746,8 +15747,7 @@
     ],
     "slot": "body",
     "ac_apply": 4,
-    "prototype_vnum": 3353,
-    "worn": "body"
+    "prototype_vnum": 3353
    },
    "locks": {},
    "behaviors": [],
@@ -15762,7 +15762,8 @@
    "tags": [
     "thing",
     "armor",
-    "wearable"
+    "wearable",
+    "worn"
    ],
    "attrs": {
     "rom_vnum": 3354,
@@ -15790,8 +15791,7 @@
     ],
     "slot": "shield",
     "ac_apply": 4,
-    "prototype_vnum": 3354,
-    "worn": "shield"
+    "prototype_vnum": 3354
    },
    "locks": {},
    "behaviors": [],
@@ -16020,7 +16020,8 @@
    "tags": [
     "thing",
     "weapon",
-    "wieldable"
+    "wieldable",
+    "wielded"
    ],
    "attrs": {
     "rom_vnum": 3022,
@@ -16048,8 +16049,7 @@
     "damage_type": "slashing",
     "damage_dice": "2d5",
     "damage": "2d5",
-    "prototype_vnum": 3022,
-    "worn": "wield"
+    "prototype_vnum": 3022
    },
    "locks": {},
    "behaviors": [],
@@ -17811,6 +17811,41 @@
           "chance": 0.5
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a key",
+         "description": "A rusty key has been left here.",
+         "tags": [
+          "thing",
+          "key"
+         ],
+         "attrs": {
+          "rom_vnum": 3121,
+          "aliases": [
+           "key rusty",
+           "key",
+           "rusty"
+          ],
+          "item_type": "key",
+          "weight": 10,
+          "value": 0,
+          "level": 0,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A"
+          ],
+          "prototype_vnum": 3121
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -18059,7 +18094,8 @@
           "stay_in_zone": true
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -18141,6 +18177,210 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue bracer",
+         "description": "You see a standard issue bracer here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3363,
+          "aliases": [
+           "bracer standard merc",
+           "bracer",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 10,
+          "value": 390,
+          "level": 3,
+          "rom_values": [
+           2,
+           4,
+           4,
+           1,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "M"
+          ],
+          "slot": "wrist",
+          "ac_apply": 2,
+          "prototype_vnum": 3363
+         },
+         "behaviors": []
         }
        ]
       },
@@ -18349,6 +18589,204 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a key",
+         "description": "An iron key has been left here.",
+         "tags": [
+          "thing",
+          "key"
+         ],
+         "attrs": {
+          "rom_vnum": 3120,
+          "aliases": [
+           "key iron",
+           "key",
+           "iron"
+          ],
+          "item_type": "key",
+          "weight": 10,
+          "value": 0,
+          "level": 0,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A"
+          ],
+          "prototype_vnum": 3120
+         },
+         "behaviors": []
         }
        ]
       },
@@ -18570,7 +19008,8 @@
           "stay_in_zone": true
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -18712,7 +19151,8 @@
         ],
         "prototype_vnum": 3121
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -18771,7 +19211,8 @@
         ],
         "prototype_vnum": 3122
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -18898,7 +19339,8 @@
           "stay_in_zone": true
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -19114,6 +19556,171 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
         }
        ]
       },
@@ -19424,6 +20031,171 @@
           "protect": "evil"
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -19483,7 +20255,8 @@
           "stay_in_zone": false
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -19955,6 +20728,171 @@
           "protect": "evil"
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -20198,6 +21136,51 @@
         {
          "behavior_id": "steal",
          "params": {}
+        }
+       ],
+       "contents": [
+        {
+         "name": "a standard issue dagger",
+         "description": "You see a standard issue dagger here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3351,
+          "aliases": [
+           "dagger standard merc",
+           "dagger",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 20,
+          "value": 590,
+          "level": 8,
+          "rom_values": [
+           8802065711104,
+           2,
+           5,
+           11013638324224,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "piercing",
+          "damage_dice": "2d5",
+          "damage": "2d5",
+          "prototype_vnum": 3351
+         },
+         "behaviors": []
         }
        ]
       },
@@ -20805,7 +21788,8 @@
         ],
         "prototype_vnum": 3142
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -20937,7 +21921,48 @@
         "rom_vuln": [],
         "prototype_vnum": 3143
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": [
+        {
+         "name": "a long sword",
+         "description": "A long sword has been left here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3124,
+          "aliases": [
+           "sword long",
+           "sword",
+           "long"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 2000,
+          "level": 26,
+          "rom_values": [
+           308963304275968,
+           2,
+           12,
+           17738282041344,
+           8
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "2d12",
+          "damage": "2d12",
+          "prototype_vnum": 3124
+         },
+         "behaviors": []
+        }
+       ]
       },
       "count": 1,
       "respawn_ticks": 20
@@ -21009,6 +22034,132 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
         }
        ]
       },
@@ -21311,6 +22462,117 @@
           "pick_up": true
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a key",
+         "description": "A wooden key has been left here.",
+         "tags": [
+          "thing",
+          "key"
+         ],
+         "attrs": {
+          "rom_vnum": 3122,
+          "aliases": [
+           "key wooden",
+           "key",
+           "wooden"
+          ],
+          "item_type": "key",
+          "weight": 10,
+          "value": 0,
+          "level": 0,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A"
+          ],
+          "prototype_vnum": 3122
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a steel key",
+         "description": "A large steel key has been left here.",
+         "tags": [
+          "thing",
+          "key"
+         ],
+         "attrs": {
+          "rom_vnum": 3137,
+          "aliases": [
+           "key steel",
+           "key",
+           "steel"
+          ],
+          "item_type": "key",
+          "weight": 10,
+          "value": 0,
+          "level": 0,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A"
+          ],
+          "prototype_vnum": 3137
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -21385,6 +22647,51 @@
           "eat_corpses": false,
           "pick_up": true
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
         }
        ]
       },
@@ -21710,7 +23017,8 @@
         ],
         "prototype_vnum": 3161
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -22630,7 +23938,211 @@
         "rom_vuln": [],
         "prototype_vnum": 3071
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue cape",
+         "description": "You see a standard issue cape here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3361,
+          "aliases": [
+           "cape standard merc",
+           "cape",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 20,
+          "value": 380,
+          "level": 3,
+          "rom_values": [
+           3,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "K"
+          ],
+          "slot": "about",
+          "ac_apply": 3,
+          "prototype_vnum": 3361
+         },
+         "behaviors": []
+        }
+       ]
       },
       "count": 2,
       "respawn_ticks": 20
@@ -23139,7 +24651,211 @@
         "rom_vuln": [],
         "prototype_vnum": 3072
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue shield",
+         "description": "You see a standard issue shield here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3354,
+          "aliases": [
+           "shield standard merc",
+           "shield",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 30,
+          "value": 810,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           4,
+           2,
+           2
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "J"
+          ],
+          "slot": "shield",
+          "ac_apply": 4,
+          "prototype_vnum": 3354
+         },
+         "behaviors": []
+        }
+       ]
       },
       "count": 1,
       "respawn_ticks": 20
@@ -24300,7 +26016,8 @@
         "rom_vuln": [],
         "prototype_vnum": 3162
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -24762,6 +26479,50 @@
          "behavior_id": "peacekeeper",
          "params": {}
         }
+       ],
+       "contents": [
+        {
+         "name": "Hassan's scimitar",
+         "description": "Hassan's scimitar lies upon the ground, waiting for its owner.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3005,
+          "aliases": [
+           "scimitar blade",
+           "scimitar",
+           "blade"
+          ],
+          "item_type": "weapon",
+          "weight": 450,
+          "value": 5600,
+          "level": 42,
+          "rom_values": [
+           308963304275968,
+           4,
+           10,
+           140876336594944,
+           48
+          ],
+          "rom_extra": [
+           "B",
+           "I"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "4d10",
+          "damage": "4d10",
+          "prototype_vnum": 3005
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -24935,7 +26696,8 @@
           "chance": 0.5
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -25130,7 +26892,8 @@
         "rom_vuln": [],
         "prototype_vnum": 3025
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -25212,6 +26975,210 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue cloak",
+         "description": "You see a standard issue cloak here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3355,
+          "aliases": [
+           "cloak standard merc",
+           "cloak",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 40,
+          "value": 510,
+          "level": 5,
+          "rom_values": [
+           3,
+           5,
+           4,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "C"
+          ],
+          "slot": "neck",
+          "ac_apply": 3,
+          "prototype_vnum": 3355
+         },
+         "behaviors": []
         }
        ]
       },
@@ -25458,7 +27425,8 @@
           "pick_up": true
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -25596,7 +27564,8 @@
           "stay_in_zone": true
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -25888,7 +27857,8 @@
           "pick_up": false
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -26160,6 +28130,210 @@
           "protect": "evil"
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue helmet",
+         "description": "You see a standard issue helmet here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3356,
+          "aliases": [
+           "helmet standard merc",
+           "helmet",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 30,
+          "value": 450,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "E"
+          ],
+          "slot": "head",
+          "ac_apply": 4,
+          "prototype_vnum": 3356
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -26426,7 +28600,8 @@
           "pick_up": false
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -26610,7 +28785,8 @@
           "chance": 0.5
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -26692,6 +28868,210 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a pair of standard issue leggings",
+         "description": "You see a pair of standard issue leggings here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3357,
+          "aliases": [
+           "leggings standard merc",
+           "leggings",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 30,
+          "value": 450,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "F"
+          ],
+          "slot": "legs",
+          "ac_apply": 4,
+          "prototype_vnum": 3357
+         },
+         "behaviors": []
         }
        ]
       },
@@ -26913,7 +29293,8 @@
           "chance": 0.5
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -27087,7 +29468,48 @@
         "rom_vuln": [],
         "prototype_vnum": 3027
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": [
+        {
+         "name": "a glowing long sword",
+         "description": "A glowing long sword is here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3349,
+          "aliases": [
+           "long sword",
+           "long",
+           "sword"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 3100,
+          "level": 29,
+          "rom_values": [
+           308963304275968,
+           4,
+           6,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "4d6",
+          "damage": "4d6",
+          "prototype_vnum": 3349
+         },
+         "behaviors": []
+        }
+       ]
       },
       "count": 1,
       "respawn_ticks": 20
@@ -27169,6 +29591,210 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a pair of standard issue boots",
+         "description": "You see a pair of standard issue boots here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3358,
+          "aliases": [
+           "boots standard merc",
+           "boots",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 30,
+          "value": 450,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "G"
+          ],
+          "slot": "feet",
+          "ac_apply": 4,
+          "prototype_vnum": 3358
+         },
+         "behaviors": []
         }
        ]
       },
@@ -27380,7 +30006,8 @@
           "trains_stats": false
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -27520,7 +30147,8 @@
           "pick_up": false
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -27694,7 +30322,8 @@
           "pick_up": false
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -27865,6 +30494,125 @@
           "pick_up": true
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a small sword",
+         "description": "A small sword lies here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3021,
+          "aliases": [
+           "sword small",
+           "sword",
+           "small"
+          ],
+          "item_type": "weapon",
+          "weight": 30,
+          "value": 250,
+          "level": 0,
+          "rom_values": [
+           308963304275968,
+           1,
+           5,
+           17748147044352,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "1d5",
+          "damage": "1d5",
+          "prototype_vnum": 3021
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a hard leather jerkin",
+         "description": "A hard leather jerkin is lying on the ground.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3066,
+          "aliases": [
+           "jerkin hard leather",
+           "jerkin",
+           "hard",
+           "leather"
+          ],
+          "item_type": "armor",
+          "weight": 80,
+          "value": 430,
+          "level": 0,
+          "rom_values": [
+           1,
+           3,
+           3,
+           0,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 1,
+          "prototype_vnum": 3066
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a leather bracer",
+         "description": "A strong leather bracer is here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3052,
+          "aliases": [
+           "bracer strong leather",
+           "bracer",
+           "strong",
+           "leather"
+          ],
+          "item_type": "armor",
+          "weight": 10,
+          "value": 112,
+          "level": 0,
+          "rom_values": [
+           0,
+           2,
+           2,
+           0,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "M"
+          ],
+          "slot": "wrist",
+          "ac_apply": 0,
+          "prototype_vnum": 3052
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -27936,7 +30684,8 @@
          "behavior_id": "aggressive",
          "params": {}
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -28109,7 +30858,48 @@
         "rom_vuln": [],
         "prototype_vnum": 3026
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": [
+        {
+         "name": "a glowing long sword",
+         "description": "A glowing long sword is here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3349,
+          "aliases": [
+           "long sword",
+           "long",
+           "sword"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 3100,
+          "level": 29,
+          "rom_values": [
+           308963304275968,
+           4,
+           6,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "4d6",
+          "damage": "4d6",
+          "prototype_vnum": 3349
+         },
+         "behaviors": []
+        }
+       ]
       },
       "count": 1,
       "respawn_ticks": 20
@@ -28192,6 +30982,210 @@
           "protect": "evil"
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a pair of standard issue gloves",
+         "description": "You see a pair of standard issue gloves here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3359,
+          "aliases": [
+           "gloves standard merc",
+           "gloves",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 30,
+          "value": 450,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "H"
+          ],
+          "slot": "hands",
+          "ac_apply": 4,
+          "prototype_vnum": 3359
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 1,
@@ -28262,6 +31256,51 @@
         {
          "behavior_id": "steal",
          "params": {}
+        }
+       ],
+       "contents": [
+        {
+         "name": "a standard issue dagger",
+         "description": "You see a standard issue dagger here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3351,
+          "aliases": [
+           "dagger standard merc",
+           "dagger",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 20,
+          "value": 590,
+          "level": 8,
+          "rom_values": [
+           8802065711104,
+           2,
+           5,
+           11013638324224,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "piercing",
+          "damage_dice": "2d5",
+          "damage": "2d5",
+          "prototype_vnum": 3351
+         },
+         "behaviors": []
         }
        ]
       },
@@ -28467,7 +31506,8 @@
           "trains_stats": false
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -28721,7 +31761,8 @@
         "rom_vuln": [],
         "prototype_vnum": 3090
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -28780,7 +31821,8 @@
         "rom_vuln": [],
         "prototype_vnum": 3091
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -28839,7 +31881,8 @@
         "rom_vuln": [],
         "prototype_vnum": 3092
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -28900,7 +31943,8 @@
         "rom_vuln": [],
         "prototype_vnum": 3093
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -28960,7 +32004,8 @@
         "rom_vuln": [],
         "prototype_vnum": 3094
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -29179,6 +32224,210 @@
           "protect": "evil"
          }
         }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue cape",
+         "description": "You see a standard issue cape here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3361,
+          "aliases": [
+           "cape standard merc",
+           "cape",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 20,
+          "value": 380,
+          "level": 3,
+          "rom_values": [
+           3,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "K"
+          ],
+          "slot": "about",
+          "ac_apply": 3,
+          "prototype_vnum": 3361
+         },
+         "behaviors": []
+        }
        ]
       },
       "count": 2,
@@ -29348,6 +32597,210 @@
          "params": {
           "protect": "evil"
          }
+        }
+       ],
+       "contents": [
+        {
+         "name": "a war banner",
+         "description": "A war banner is on the floor here.",
+         "tags": [
+          "thing",
+          "light",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3365,
+          "aliases": [
+           "banner war merc",
+           "banner",
+           "war",
+           "merc"
+          ],
+          "item_type": "light",
+          "weight": 10,
+          "value": 640,
+          "level": 8,
+          "rom_values": [
+           0,
+           0,
+           500,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "A",
+           "G"
+          ],
+          "rom_wear": [
+           "A"
+          ],
+          "slot": "light",
+          "prototype_vnum": 3365
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a city guard signet ring",
+         "description": "You see a ring with a strange symbol on the floor.",
+         "tags": [
+          "thing",
+          "treasure",
+          "wearable",
+          "magic",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3364,
+          "aliases": [
+           "ring signet",
+           "ring",
+           "signet"
+          ],
+          "item_type": "treasure",
+          "weight": 10,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           0,
+           0,
+           0,
+           0,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "B"
+          ],
+          "slot": "finger",
+          "prototype_vnum": 3364
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue sword",
+         "description": "You see a standard issue sword here.",
+         "tags": [
+          "thing",
+          "weapon",
+          "wieldable",
+          "magic",
+          "wielded"
+         ],
+         "attrs": {
+          "rom_vnum": 3350,
+          "aliases": [
+           "sword standard merc",
+           "sword",
+           "standard",
+           "merc"
+          ],
+          "item_type": "weapon",
+          "weight": 50,
+          "value": 1280,
+          "level": 16,
+          "rom_values": [
+           308963304275968,
+           3,
+           5,
+           17738282041344,
+           0
+          ],
+          "rom_extra": [
+           "G"
+          ],
+          "rom_wear": [
+           "A",
+           "N"
+          ],
+          "damage_type": "slashing",
+          "damage_dice": "3d5",
+          "damage": "3d5",
+          "prototype_vnum": 3350
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a standard issue vest",
+         "description": "You see a standard issue vest here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3353,
+          "aliases": [
+           "vest standard merc",
+           "vest",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 50,
+          "value": 900,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "D"
+          ],
+          "slot": "body",
+          "ac_apply": 4,
+          "prototype_vnum": 3353
+         },
+         "behaviors": []
+        },
+        {
+         "name": "a pair of standard issue sleeves",
+         "description": "You see a pair of standard issue sleeves here.",
+         "tags": [
+          "thing",
+          "armor",
+          "wearable",
+          "worn"
+         ],
+         "attrs": {
+          "rom_vnum": 3360,
+          "aliases": [
+           "sleeves standard merc",
+           "sleeves",
+           "standard",
+           "merc"
+          ],
+          "item_type": "armor",
+          "weight": 20,
+          "value": 450,
+          "level": 5,
+          "rom_values": [
+           4,
+           4,
+           3,
+           1,
+           1
+          ],
+          "rom_extra": [],
+          "rom_wear": [
+           "A",
+           "I"
+          ],
+          "slot": "arms",
+          "ac_apply": 4,
+          "prototype_vnum": 3360
+         },
+         "behaviors": []
         }
        ]
       },
@@ -29637,7 +33090,8 @@
         ],
         "prototype_vnum": 3065
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -30063,7 +33517,8 @@
           "pick_up": true
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -30118,7 +33573,8 @@
         ],
         "prototype_vnum": 3065
        },
-       "behaviors": []
+       "behaviors": [],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -30291,7 +33747,8 @@
           "trains_stats": true
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20
@@ -30646,7 +34103,8 @@
           "chance": 0.5
          }
         }
-       ]
+       ],
+       "contents": []
       },
       "count": 1,
       "respawn_ticks": 20

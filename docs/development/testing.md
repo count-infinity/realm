@@ -217,20 +217,22 @@ it; the test runs that, as the server would:
 | housekeeping every `REAP_INTERVAL` (regeneration, hunger, idle training, clans, quests, expiry, idle instances) | `await server._reap()`, or the feature's sweep (`task_sweep(store)`, `reap_expired(store)`) |
 | softcode `wait()` timers | `await sim.engine.waits.tick()` |
 | a fight's beat loop | `clock.advance(encounter.seconds_to_beat)`, then `await encounter.beat()` |
-| the heartbeat (spawners, decay, wander) | the behavior's `tick(obj, delta)`; the heartbeat schedules on real time |
+| the heartbeat (spawners, decay, wander, the ambient world beat) | `clock.advance(...)`, then `await server.pulse()` (a `GameServer`; a lone behavior: its `tick(obj, delta)`) |
 
 `encounter.beat()` is what the encounter's loop does each time it wakes:
 it fires the round when the beat is due on the clock, sets the next one a
 beat away, and closes the fight when it is over (`False` from then on).
 Called before the beat is due it does nothing, so a test that drives the
-beats never fires one twice with the loop. `tests/test_first_hour.py`
+beats never fires one twice with the loop. `server.pulse()` is the same for
+the heartbeat: each behavior ticks when its interval has passed on the
+clock, and the ambient beat fires once a `WORLD_BEAT`. `tests/test_first_hour.py`
 plays a whole game this way.
 
 `tests/test_clocks.py` keeps the list honest: it scans `realm/` for every
 read of the time (`time.time()`, `time.monotonic()`, `datetime.now()` ...)
 and fails on one that is neither inside a module's `now()` named in
 `ENGINE_CLOCKS` nor listed there as real time on purpose (a script's CPU
-budget, the heartbeat's schedule, the backup file's name, `uptime` and the
+budget, the heartbeat loop's sleep, the backup file's name, `uptime` and the
 server's own clock in `time`). A new clock is a `now()` in its module and
 a line in `ENGINE_CLOCKS`.
 

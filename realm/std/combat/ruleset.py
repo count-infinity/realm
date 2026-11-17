@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from realm.core.markup import capitalize
 from realm.std.combat.maneuver import BASE_MANEUVERS
 
 if TYPE_CHECKING:
@@ -523,9 +524,9 @@ class Ruleset(ABC):
                 others_msg = f"{attacker_name} hits {defender_name}!"
 
             if attack_result.critical_hit:
-                attacker_msg = "CRITICAL! " + attacker_msg
-                defender_msg = "CRITICAL! " + defender_msg
-                others_msg = "CRITICAL! " + others_msg
+                attacker_msg = "CRITICAL! " + capitalize(attacker_msg)
+                defender_msg = "CRITICAL! " + capitalize(defender_msg)
+                others_msg = "CRITICAL! " + capitalize(others_msg)
         else:
             attacker_msg = f"You miss {defender_name}."
             defender_msg = f"{attacker_name} misses you."

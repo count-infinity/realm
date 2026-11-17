@@ -12,6 +12,7 @@ as ``remove`` (a cursed ring stays on).
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from realm.commands.base import find_object
@@ -21,6 +22,14 @@ from realm.std.items.actions import ItemAction
 if TYPE_CHECKING:
     from realm.commands import CommandContext
     from realm.core.objects import GameObject
+    from realm.core.world import World
+
+_log = logging.getLogger(__name__)
+
+#: Before 2026-11-17 the ROM importer left a mob's E-reset gear in its pack
+#: with a ``worn`` attribute naming ROM's wear location; ``hold`` is Merc's
+#: ``held`` slot.
+_OLD_WEAR_LOC_SLOT = {"hold": "held"}
 
 
 def wear_slots() -> list[tuple[str, int]]:
@@ -43,6 +52,18 @@ def _bare_name(item: GameObject) -> str:
         if name.lower().startswith(article):
             return name[len(article):]
     return name
+
+
+def unequip(wearer: GameObject, item: GameObject) -> None:
+    """Take ``item`` off ``wearer`` silently, with no event: what ROM's
+    ``obj_from_char`` does to equipment leaving its owner (a death's
+    corpse). The tags it granted go with it."""
+    item.remove_tag('worn')
+    item.remove_tag('wielded')
+    for tag in item.db.get('granted_active') or []:
+        wearer.remove_tag(tag)
+    if item.db.get('granted_active'):
+        item.db.granted_active = []
 
 
 async def take_off(player: GameObject, item: GameObject) -> bool:
@@ -183,6 +204,33 @@ async def cmd_unwear(ctx: CommandContext) -> None:
     await take_off(ctx.player, item)
 
 
+async def equip_old_gear(world: World) -> None:
+    """``feature.on_boot``: an item carrying the ROM importer's old ``worn``
+    attribute (a saved world converted before 2026-11-17) is equipped as a
+    wearer's gear is: ``wield`` tags it ``wielded``, any other place tags it
+    ``worn`` in that ``slot``. A place the game has no slot for leaves it
+    carried, with a WARNING. A no-op once done."""
+    store = world.store
+    slots = {name for name, _count in wear_slots()}
+    for item in list(store.all_cached()):
+        place = item.db.get("worn")
+        if not isinstance(place, str):
+            continue
+        item.db.delete("worn")
+        if place == "wield":
+            item.add_tag("wielded")
+        else:
+            slot = _OLD_WEAR_LOC_SLOT.get(place, place)
+            if slots and slot not in slots:
+                _log.warning(f"{item.name} ({item.id}) was worn at {place!r}, which this "
+                             f"game has no slot for; it is carried, not worn. Give it a "
+                             f"'slot' and the 'worn' tag to wear it.")
+            else:
+                item.add_tag("worn")
+                item.db.slot = slot
+        await store.save(item)
+
+
 def equipment_lines(player: GameObject) -> list[str]:
     """The ``equipment`` listing: every slot in the system's order with
     what fills it, then anything worn elsewhere, then the wielded weapon."""
@@ -217,5 +265,5 @@ async def cmd_equipment(ctx: CommandContext) -> None:
     await ctx.session.send("\n".join(equipment_lines(ctx.player)))
 
 
-__all__ = ["wear_slots", "worn_in", "take_off", "may_use", "cmd_wear", "cmd_unwear",
-           "equipment_lines", "cmd_equipment"]
+__all__ = ["wear_slots", "worn_in", "unequip", "take_off", "may_use", "cmd_wear", "cmd_unwear",
+           "equip_old_gear", "equipment_lines", "cmd_equipment"]

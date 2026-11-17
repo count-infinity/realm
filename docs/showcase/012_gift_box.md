@@ -172,7 +172,7 @@ included):
 Bilda ties the ribbon tight and pens a name on the tag.
 
 > look gift box
-gift box
+Gift box
 A crisp white box under a red ribbon. The tag reads: for Kess, from Bilda.
 It is closed.
 

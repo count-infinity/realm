@@ -59,7 +59,7 @@ class TestPerViewerReferences:
         await w.sim.do(w.ada, "pose beckons to /Bob.")
         # Cara sees the disguised actor AND knows Bob.
         assert line(w.sim, w.cara, "beckons") == [
-            "a hooded figure beckons to Bob."]
+            "A hooded figure beckons to Bob."]
 
     async def test_multiple_references(self, world):
         w = world

@@ -156,6 +156,30 @@ def parse(text: str) -> list[tuple[Style, str]]:
     return segments
 
 
+def capitalize(text: str) -> str:
+    """``text`` with its first visible character upper-cased, as ROM's
+    ``act()`` capitalizes the line it sends ("the cityguard arrives." ->
+    "The cityguard arrives."). Leading style codes are stepped over (never
+    themselves capitalized); only the very first character of the text
+    changes, not each line, and only when it is a letter."""
+    mk = marker()
+    mk_len = len(mk)
+    i, n = 0, len(text)
+    while text.startswith(mk, i):
+        if i + mk_len >= n or text.startswith(mk, i + mk_len):
+            return text                     # a dangling or a literal marker
+        code = text[i + mk_len]
+        if code == '[' and i + mk_len + 1 < n and text[i + mk_len + 1].lower() in _FG:
+            i += mk_len + 2
+        elif code == 'n' or code.lower() in _FG or code in 'huiv':
+            i += mk_len + 1
+        else:
+            return text                     # |/ (a newline) or an unknown code
+    if i < n and text[i].islower():
+        return text[:i] + text[i].upper() + text[i + 1:]
+    return text
+
+
 def strip(text: str) -> str:
     """The text with all markup removed."""
     mk = marker()

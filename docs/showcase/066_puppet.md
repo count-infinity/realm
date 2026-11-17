@@ -109,7 +109,7 @@ Players here:
 Exits: None
 
 > @force marionette = say I dance for no one.
-marionette says, "I dance for no one."
+Marionette says, "I dance for no one."
 
 > @force marionette = @dig Vault
 [marionette] Permission denied.

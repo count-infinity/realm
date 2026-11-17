@@ -94,7 +94,10 @@ A 0.2.0 database is refused at start until it is migrated
   converted again or refreshed with `scripts/dev/refresh_rom_items.py`; a
   database keeps what it imported until the area is imported again. A
   Midgaard database made before keeps its old town (see "Midgaard from
-  ROM 2.4's own area file").
+  ROM 2.4's own area file"). Two things are carried over at boot with no
+  step of yours: a mob's gear with the importer's old `worn` attribute is
+  equipped, and a player's command aliases kept in `aliases` move to
+  `command_aliases` (see "Eight things the first hour turned up").
 - **Python names that moved:** `online_players` and `is_online` from
   `realm.std.channels.common` to `realm.gateway.session`; `cmd_who` to
   `realm.std.basics.presence`; `wear` and `remove` to
@@ -195,9 +198,9 @@ default; a game sets only what it wants different.
   converted before.
 - A plural drops a leading "the" as it drops "a": two of "the cityguard"
   read "2 cityguards" (`realm.core.language.pluralize`).
-- A shopkeeper does not sell what it wears or wields (a converted mob's
-  equipped gear carries a `worn` attribute): the baker no longer offers
-  his long sword.
+- A shopkeeper does not sell what it wears or wields: the baker no longer
+  offers his long sword (his gear is equipped since 2026-11-17, see "Eight
+  things the first hour turned up").
 - The ROM importer reads a bit-vector written as a decimal number
   (Midgaard's room flags, older areas' ACT and extra flags) as its letters;
   such flags were dropped, so a numbered sentinel wandered and a numbered
@@ -248,6 +251,61 @@ default; a game sets only what it wants different.
 - `tests/test_first_hour.py` uses it: its fights run by moving the clock
   to each beat, not by firing `resolve_round` by hand, and it asserts the
   story's dates on mail and achievements.
+
+### Eight things the first hour turned up (after the plan, 2026-11-17)
+
+- **Lines start with a capital**, as ROM's `act()` writes them: "The
+  beastly fido hits you", "The cityguard arrives.". Every templated
+  message (`deliver_messages`) and every room broadcast
+  (`GameObject.msg_contents`, so softcode `remit` and `oemit`) is
+  capitalized when sent (`realm.core.markup.capitalize`: the first visible
+  letter, colour codes stepped over). A line sent to one object
+  (`obj.msg`, softcode `pemit`, a command's own output) is ROM's
+  `send_to_char` and is sent as written. A few NPC-first lines told to one
+  player are capitalized where they are made ("The guildmaster
+  teaches:"), and so are the mid-line sentences combat builds ("CRITICAL!
+  The vagabond hits you", "... The beastly fido is defeated!") and
+  `look`'s title line.
+- **Merc reads level 0 as 0** (`realm.games.merc.system.char_level`; an
+  unset level is still 1): a level-0 fido is a level below a new
+  character, so it pays 85 experience, not 100, `consider` and saving
+  throws see it as level 0, and so do passive defenses.
+- **A mob wields and wears its E-reset gear.** The ROM importer tags a
+  weapon reset at `wield` `wielded` and other gear `worn` in its Merc
+  `slot` (`hold` is `held`), as a player's gear is, so a cityguard fights
+  with his sword; `look` at a creature shows what it is using. With
+  `--repop` a spawner's prototype carries the mob's `G` and `E` gear as
+  `contents`, and spawners now make a prototype's `contents` inside each
+  spawn, so a killed guard comes back armed. What a character wears or
+  wields comes off into its corpse (it was looted still tagged worn).
+  Saved worlds: an item with the old `worn` attribute is equipped at boot
+  (the `items` feature); the refresh script equips a converted file's gear
+  and gives its spawners their `contents` (the shipped Midgaard is
+  refreshed so).
+- **A refused move costs nothing.** Merc's movement gate only asks whether
+  the step can be paid for (the new `realm.core.pools.can_spend`); the step
+  is paid once it has happened (`realm.games.merc.movement.pay_for_step`,
+  an after-traverse hook), so a guild bar, a locked or closed door or a
+  room's veto takes no movement, as ROM checks the guild before charging.
+- **Command aliases are not names.** `alias` keeps its word -> line
+  mapping in `command_aliases`; `aliases` stays the list of other names an
+  object answers to. Saved worlds: a player whose `aliases` is a mapping
+  has it moved to `command_aliases` at boot (`basics`).
+- **"X of Y" names pluralize X**: "3 sheets of roaring flame", "2 batches
+  of Sara's cookies" (the noun before the first whole word "of").
+- **Doors answer to their keywords**: `open gate`, `close door`, `lock`
+  and `unlock` find an exit by its door's ROM `keywords`, and their lines
+  name it ("You open the gate."). Keywords stay out of `aliases`, so
+  typing `gate` does not walk through it (ROM does not).
+- **The heartbeat is a pulse a test can drive.** `GameServer.pulse()` is
+  one heartbeat (behavior ticks due on the new `realm.server.game.now()`,
+  the ambient world beat, the output flush); `_tick_loop` only sleeps
+  between pulses. A pulse ticks only this world's objects (the one its
+  store holds under that id), and `behavior_owners()` lists objects in
+  the order they got their first behavior, kept by identity, so a seeded
+  game replays the same under any `PYTHONHASHSEED`.
+  `tests/test_first_hour.py` brings the fidos back by moving the clock and
+  pulsing.
 
 ### The first hour (step 17)
 

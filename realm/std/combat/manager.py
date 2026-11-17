@@ -17,6 +17,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from realm.core.behaviors import BehaviorRegistry
+from realm.core.markup import capitalize
 from realm.core.objects import GameObject as GameObjectCls
 from realm.core.pools import damage_pool
 from realm.core.propagation import Action, propagate
@@ -26,6 +27,7 @@ from realm.std.combat.encounter import CombatEncounter, deliver_combat_messages
 from realm.std.combat.loot import loot_corpse
 from realm.std.combat.maneuver import QueuedAction
 from realm.std.combat.strategy import select_strategy_action
+from realm.std.items.equipment import unequip
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -239,7 +241,7 @@ class CombatManager:
             return None
         weapon.remove_tag('wielded')
         weapon.location = target.location
-        target.msg(f"{weapon.name} flies from your hand!")
+        target.msg(capitalize(f"{weapon.name} flies from your hand!"))
         target.location.msg_contents(f"{weapon.name} flies from {target.name}'s hand!",
                                      exclude=[target])
         return weapon
@@ -437,6 +439,7 @@ class CombatManager:
         corpse.db.article = "the"
         corpse.db.description = f"The lifeless body of {npc.name}."
         for item in list(npc.contents):
+            unequip(npc, item)              # a corpse wears nothing (ROM make_corpse)
             item.location = corpse
         economy = world.services.get("economy")
         if economy is not None and economy.get_credits(npc) > 0:

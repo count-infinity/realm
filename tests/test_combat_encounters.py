@@ -693,6 +693,25 @@ class TestSpawner:
         assert thugs[0].has_tag("spawned:thug")
         assert thugs[0].get_behaviors()[0].behavior_id == "combatant"
 
+    async def test_a_spawn_carries_its_prototypes_contents(self, manager):
+        # A prototype's ``contents`` are made inside each spawn, as they
+        # are written: a thug comes back with his knife in hand.
+        from realm.std.combat.system import find_wielded
+        room = GameObject("Alley", tags=["room"])
+        spawner = self._spawner(room, prototype={
+            "name": "alley thug", "tags": ["npc"], "attrs": {"hp": 5, "max_hp": 5},
+            "contents": [
+                {"name": "a knife", "tags": ["thing", "weapon", "wielded"],
+                 "attrs": {"damage_dice": "1d4"}},
+                {"name": "a cap", "tags": ["thing", "wearable", "worn"],
+                 "attrs": {"slot": "head"}},
+            ]})
+        await spawner.tick(room, 4.0)
+        thug = next(o for o in room.contents if o.name == "alley thug")
+        assert sorted(o.name for o in thug.contents) == ["a cap", "a knife"]
+        assert find_wielded(thug).name == "a knife"
+        assert "contents" not in thug.db.all()
+
     async def test_population_is_capped(self, manager):
         room = GameObject("Alley", tags=["room"])
         spawner = self._spawner(room)

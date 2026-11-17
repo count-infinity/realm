@@ -101,3 +101,28 @@ async def test_a_gurps_world_is_unaffected():
         assert pat.db.move == 1
     finally:
         sim.close()
+
+
+async def test_a_locked_destination_costs_nothing(merc):
+    # ROM's move_char checks the guild before it charges: a bar that turns
+    # the walker away takes no movement (BACKLOG 2026-11-16).
+    here, there = _path(merc, tags=["sector:city"])
+    from realm import ops
+    ops.set_lock(None, there, "enter", "False")
+    there.db.lock_fail_enter = "You aren't allowed in there."
+    pat = merc.player("Pat", location=here, move=10, max_move=10)
+    await merc.do(pat, "north")
+    assert pat.location is here
+    assert "You aren't allowed in there." in merc.seen(pat)
+    assert pat.db.move == 10
+
+
+async def test_a_vetoed_leave_costs_nothing(merc):
+    # Any refusal after the cost is known, not only a lock: here the room's
+    # own on_leave check.
+    here, there = _path(merc, tags=["sector:city"])
+    here.db.on_check = "if atype() == 'on_leave': block('The way is barred.')"
+    pat = merc.player("Pat", location=here, move=10, max_move=10)
+    await merc.do(pat, "north")
+    assert pat.location is here
+    assert pat.db.move == 10

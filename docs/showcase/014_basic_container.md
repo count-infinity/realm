@@ -203,7 +203,7 @@ hits the count wall instead. Now read the sack and work the hatch:
 
 ```text
 > look canvas sack
-canvas sack
+Canvas sack
 A patched canvas sack. It bulges around 3 items.
 
 Contains:

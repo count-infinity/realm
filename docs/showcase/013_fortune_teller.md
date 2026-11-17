@@ -170,7 +170,7 @@ You lift the fortune card from the tray.
 You pay Zoltar 5 credits.
 
 > look fortune card
-a printed fortune card
+A printed fortune card
 ZOLTAR SPEAKS:
 "Money finds you when you stop watching for it."
 Lucky numbers: 41 and 87.

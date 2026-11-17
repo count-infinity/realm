@@ -700,12 +700,12 @@ class TestDurability:
         blade.db.set("condition", 30)
         await enc.resolve_round()
         assert blade.db.get("condition") == 25
-        assert "a mono blade is looking battered." in w.text(w.cass)
+        assert "A mono blade is looking battered." in w.text(w.cass)
 
         blade.db.set("condition", 5)
         await enc.resolve_round()
         assert blade.db.get("condition") == 0
-        assert "a mono blade gives out with a crack!" in w.text(w.cass)
+        assert "A mono blade gives out with a crack!" in w.text(w.cass)
 
         await w.sim.do(w.bob, "unwield")
         assert not blade.has_tag("wielded")
@@ -737,12 +737,12 @@ class TestDurability:
         vest.db.set("condition", 26)
         await enc.resolve_round()
         assert vest.db.get("condition") == 25
-        assert "a flak vest is scarred and dented." in w.text(w.cass)
+        assert "A flak vest is scarred and dented." in w.text(w.cass)
 
         vest.db.set("condition", 1)
         await enc.resolve_round()
         assert vest.db.get("condition") == 0
-        assert "a flak vest comes apart at the seams!" in w.text(w.cass)
+        assert "A flak vest comes apart at the seams!" in w.text(w.cass)
 
         # Ruined armour refuses to go back on — the item's own ward.
         await w.sim.do(w.bob, "remove a flak vest")

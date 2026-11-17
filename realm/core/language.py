@@ -89,17 +89,29 @@ def article_for(name: str) -> str:
 
 def pluralize(name: str) -> str:
     """
-    Pluralize a bare noun phrase by its last word.
+    Pluralize a bare noun phrase by its head noun.
 
-    "energy cell" → "energy cells", "staff" → "staves". An article on the
-    front is dropped ("the cityguard" → "cityguards"), since a counted
-    plural never takes one. Heuristic only; callers should prefer
-    ``plural_name(obj)`` which honors ``db.plural``.
+    "energy cell" → "energy cells", "staff" → "staves". An "X of Y" name
+    counts its X: "sheet of roaring flame" → "sheets of roaring flame",
+    "batch of Sara's cookies" → "batches of Sara's cookies" (the head is
+    the noun before the first whole word "of"). An article on the front is
+    dropped ("the cityguard" → "cityguards"), since a counted plural never
+    takes one. Heuristic only; callers should prefer ``plural_name(obj)``
+    which honors ``db.plural``.
     """
     if not name:
         return name
     if leading_article(name) in ("a", "an", "the"):
         name = strip_article(name)
+    words = name.split(" ")
+    if "of" in words[1:]:
+        cut = words.index("of", 1)
+        return f"{_pluralize_last(' '.join(words[:cut]))} {' '.join(words[cut:])}"
+    return _pluralize_last(name)
+
+
+def _pluralize_last(name: str) -> str:
+    """Pluralize a phrase by its last word."""
     head, _, last = name.rpartition(" ")
     prefix = f"{head} " if head else ""
     lower = last.lower()

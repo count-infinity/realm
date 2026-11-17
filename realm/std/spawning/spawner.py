@@ -21,6 +21,11 @@ double-bookkeeping.
         announce="A relief guard steps out of the security office.",
     ))
 
+A prototype's ``contents`` (a list of prototypes) are made inside each
+spawn as written, so a guard comes back with his sword in hand (tagged
+``wielded``) and his vest on (``worn``, with its ``slot``): ROM's E and G
+resets, which the ROM importer writes this way.
+
 Spawned NPCs are tagged ``spawned:<key>`` and their IDs tracked in the
 room's ``db.spawner_<key>_ids`` — all state persists, so respawn timers
 survive reboots.
@@ -48,12 +53,18 @@ logger = logging.getLogger(__name__)
 def spawn_from_prototype(prototype: dict[str, Any],
                          location: GameObject) -> GameObject:
     """Instantiate a prototype dict as a live GameObject (default tags
-    ``['npc']``). An unknown behavior id is dropped and reported."""
+    ``['npc']``), with its ``contents`` (prototypes, default tags
+    ``['thing']``) inside it. An unknown behavior id is dropped and
+    reported."""
     obj = inflate({**prototype,
                    'name': prototype.get('name', 'creature'),
                    'tags': prototype.get('tags', ['npc'])},
                   strict_behaviors=True)
     obj.location = location
+    for item in prototype.get('contents') or []:
+        inflate({**item, 'name': item.get('name', 'thing'),
+                 'tags': item.get('tags', ['thing'])},
+                strict_behaviors=True).location = obj
     return obj
 
 
@@ -67,6 +78,8 @@ async def spawn_tracked(prototype: dict[str, Any], room: GameObject,
     spawn.add_tag(marker)
     if persistence is not None:
         await persistence.save(spawn)
+        for item in spawn.contents:
+            await persistence.save(item)
     # actor=None: the spawn reacts to its OWN creation, so it's the witnessed
     # target, not the excluded-from-witnessing actor.
     await fire_event(None, spawn, ActionType.ON_LOAD,
@@ -90,7 +103,7 @@ class SpawnerBehavior(Behavior):
 
     behavior_id = "spawner"
     param_spec = {
-        'prototype': ({}, 'the object minted: name, tags, attrs'),
+        'prototype': ({}, 'the object minted: name, tags, attrs, behaviors, contents'),
         'count': (1, 'population kept alive at once'),
         'respawn_ticks': (150, 'world beats before a dead spawn returns'),
         'key': (None, 'marker tag naming this spawner\'s brood (default: derived)'),

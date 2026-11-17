@@ -179,7 +179,7 @@ room as the owner:
 (every room) STATION ANNOUNCEMENT: the Convergence in 3 minutes.
 (gap) STATION ANNOUNCEMENT: the Convergence in 2 minutes.
 (gap) STATION ANNOUNCEMENT: the Convergence in 1 minutes.
-(gap) the Convergence begins NOW!
+(gap) The Convergence begins NOW!
 ```
 
 Everyone on the server hears every step of the count, wherever they stand,
@@ -188,7 +188,7 @@ including rooms that belong to no zone. Start another and call it off:
 ```text
 > countdown 5 for the Eclipse
 > scrub countdown
-(every room) the Eclipse has been called off.
+(every room) The Eclipse has been called off.
 ```
 
 A non-owner who tries `countdown` gets *Command authority required.*, and

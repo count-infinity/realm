@@ -163,10 +163,10 @@ class TestComposesWithDisguise:
         # The actor is masked; the reference is still named the way each
         # reader knows Bob (and Bob himself reads "you").
         assert reads(sim, cara, "beckons") == [
-            "a hooded figure beckons to Bob."]
+            "A hooded figure beckons to Bob."]
         assert reads(sim, bob, "beckons") == [
-            "a hooded figure beckons to you."]
-        in_doc("a hooded figure beckons to Bob.")
+            "A hooded figure beckons to you."]
+        in_doc("A hooded figure beckons to Bob.")
 
 
 # --- Going further: the configurable sigil ---------------------------------

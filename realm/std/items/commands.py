@@ -29,7 +29,7 @@ from realm.core.events import fire_event
 from realm.core.objects import GameObject
 from realm.core.propagation import Action, deliver_messages, gate_action
 from realm.std.items.actions import ItemAction
-from realm.std.items.verbs import do_close, do_open
+from realm.std.items.verbs import do_close, do_open, door_word
 
 
 async def gated_item_action(actor: GameObject, action_type: str, target: GameObject, *,
@@ -42,7 +42,35 @@ async def gated_item_action(actor: GameObject, action_type: str, target: GameObj
 
 
 def _find_thing_or_exit(ctx: CommandContext, name: str) -> GameObject | None:
-    return find_object(ctx, name, search_exits=True)
+    """What ``name`` names here, a thing or an exit; else the first exit
+    whose door answers to it (``door_named``)."""
+    found = find_object(ctx, name, search_exits=True)
+    if found is None and ctx.player is not None and ctx.player.location is not None:
+        found = door_named(ctx.player.location, name)
+    return found
+
+
+def door_named(room: GameObject, name: str) -> GameObject | None:
+    """The first exit in ``room`` whose door ``keywords`` (ROM's door
+    keywords: "gate", "door wooden") answer to ``name``, as ROM's
+    ``find_door`` and ``is_name``: every word typed is the start of one of
+    them. The keywords name the door for ``open``, ``close``, ``lock`` and
+    ``unlock`` only; they are not aliases, so they never walk through it."""
+    typed = name.lower().split()
+    if not typed:
+        return None
+    for exit_obj in room.contents:
+        if not exit_obj.is_exit:
+            continue
+        keywords = exit_obj.db.get('keywords')
+        if not keywords:
+            continue
+        words = (keywords.split() if isinstance(keywords, str)
+                 else [str(word) for word in keywords])
+        words = [word.lower() for word in words]
+        if all(any(word.startswith(part) for word in words) for part in typed):
+            return exit_obj
+    return None
 
 
 async def _gated(
@@ -153,7 +181,7 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
                     fail_msg="The lock won't catch.",
                     apply=lambda _a: target.add_tag('locked')) is None:
         return
-    ctx.player.msg(f"You lock {target.name} with {key.name}.")
+    ctx.player.msg(f"You lock {door_word(target) or target.name} with {key.name}.")
 
 
 async def cmd_unlock_item(ctx: CommandContext) -> None:
@@ -183,7 +211,7 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
                     fail_msg="The lock holds fast.",
                     apply=lambda _a: target.remove_tag('locked')) is None:
         return
-    ctx.player.msg(f"You unlock {target.name} with {key.name}.")
+    ctx.player.msg(f"You unlock {door_word(target) or target.name} with {key.name}.")
 
 
 async def cmd_use(ctx: CommandContext) -> None:
