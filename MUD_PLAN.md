@@ -100,16 +100,23 @@ Decision log.
   and the Merc scaffold and the Midgaard template set
   `PLAYER_DEATH = "respawn"` (a corpse with the character's belongings, the
   character returns to its home at 1 hit point, the rules system applies
-  its penalty).
+  its penalty). *Decided 2026-11-16: `respawn` everywhere, as the engine
+  default ("Does no good to get conscious in a room of aggros"); a game
+  that wants the old rule sets `PLAYER_DEATH = "unconscious"`.*
 - **D2. How many characters an account may hold.** Default:
   `MAX_CHARACTERS = 5`. An account with exactly one character enters play
   straight after `connect`; otherwise the account menu is shown.
+  *Decided 2026-11-16: 5 is the default, and the limit is per account:
+  as CoffeeMud's `BONUSCHARLIMIT`, an account can hold extra slots that
+  rewards (achievements) and admins raise.*
 - **D3. Whether to ship a browser client** (step 16). Default: yes, one
-  static page served beside the existing WebSocket protocol. *Not answered;
-  the default was taken in step 16 (2026-11-16).*
+  static page served beside the existing WebSocket protocol. *Decided
+  2026-11-16: not yet. The page step 16 built stays in the tree, off
+  (`WEB_CLIENT = False`) and unadvertised; finishing and shipping it is a
+  BACKLOG item.*
 - **D4. Whether a sleeping character can hear the room.** Default: no
   speech or room messages reach a sleeper except tells, which wake nobody
-  but are delivered.
+  but are delivered. *Confirmed 2026-11-16.*
 - **D5. Where learn-by-use applies by default.** Default: Merc uses it for
   every skill (the SMAUG hybrid: practice to a floor, use to the cap);
   GURPS and D20 stay point-buy. Per-skill `progression` overrides either.
