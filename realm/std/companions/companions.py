@@ -254,6 +254,34 @@ async def return_with(master: GameObject) -> None:
             await world.store.save(npc)
 
 
+async def come_along(master: GameObject, origin: GameObject | None,
+                     destination: GameObject, tags: set[str]) -> None:
+    """``master`` was placed in ``destination`` by a move tagged
+    ``accompanied`` (recall, a gate spell): each companion that was beside
+    it in ``origin`` comes too, through the same movement checks (a room's
+    locks can still keep one out), out of any fight. One that is
+    unconscious stays where it fell; a mount carries its rider (its line is
+    the rider's). Companions elsewhere stay where they are."""
+    if origin is None or origin is destination or master.location is not destination:
+        return
+    from realm.core.movement import move_to
+    from realm.std.companions.riding import rider_of
+    world = get_world()
+    combat = world.services.get("combat")
+    for npc in companions_of(master):
+        if npc.is_player or npc.location is not origin or npc.has_tag("unconscious"):
+            continue
+        if not await move_to(npc, destination, extra_tags=tags, mover=master):
+            continue
+        if combat is not None:
+            combat.withdraw(npc)
+        npc.remove_tag("in_combat")
+        if rider_of(npc) is not master:
+            origin.msg_contents(f"{the(npc)} disappears with {master.name}.")
+        if world.store is not None:
+            await world.store.save(npc)
+
+
 async def release_orphans(store) -> int:
     """The reaper: a companion whose master no longer exists is released
     (and, if it was out of the world, put back where it waited)."""
@@ -332,6 +360,7 @@ __all__ = [
     "bond_refusal",
     "buy_pet",
     "charm",
+    "come_along",
     "companion_limit",
     "companions_of",
     "follower_count",

@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 
 from realm.commands import CommandContext
 from realm.commands.base import save_object
+from realm.core.action_tags import ACCOMPANIED
 from realm.core.action_types import ActionType
 from realm.core.markup import escape, wrap
 from realm.core.movement import move_to
@@ -267,8 +268,10 @@ async def recall_to(player: GameObject, dest: GameObject, session) -> bool:
     """Recall ``player`` to ``dest`` under ``recall``'s rules: not from a
     ``no_recall`` room, a check in a fight (``GameSystem.recall_refusal``)
     and its cost (``after_recall``), through ``dest``'s locks. Tells the
-    player why not; True when they arrived. The ``recall`` service offers
-    it (``clan recall`` goes to the clan's home with it)."""
+    player why not; True when they arrived. The move is tagged
+    ``accompanied``, so a pet beside the player and the mount under it come
+    too (the ``companions`` feature). The ``recall`` service offers it
+    (``clan recall`` goes to the clan's home with it)."""
     world = find_world()
     here = player.location
     if here is not None and here.has_tag('no_recall'):
@@ -287,8 +290,10 @@ async def recall_to(player: GameObject, dest: GameObject, session) -> bool:
         return False
 
     # Move through the one relocation core (not forced — recall is voluntary,
-    # so home's ENTER/TELEPORT locks and movement wards still apply).
-    if not await move_to(player, dest, mover=player):
+    # so home's ENTER/TELEPORT locks and movement wards still apply). The
+    # player's company comes too (ROM's do_recall takes the pet), when the
+    # world has companions.
+    if not await move_to(player, dest, mover=player, extra_tags=[ACCOMPANIED]):
         await session.send("Something prevents you from recalling home.")
         return False
     if from_combat:

@@ -30,6 +30,7 @@ from realm.core.action_types import ActionType
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
 from realm.std.accounts import account as accounts_clock
 from realm.std.accounts.account import (
+    BONUS_SLOTS_ATTR,
     account_of,
     ban_message,
     carry_over_options,
@@ -40,6 +41,8 @@ from realm.std.accounts.account import (
 from realm.std.accounts.auth import AuthService
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from realm.commands.dispatcher import CommandContext
     from realm.core.objects import GameObject
     from realm.core.world import World
@@ -59,6 +62,23 @@ class Accounts:
     def __init__(self, world: World) -> None:
         self.world = world
         self.auth = AuthService(world.store)
+        #: What else raises an account's character limit: each takes the
+        #: account and answers how many slots it adds (``achievements``
+        #: adds those its earned achievements grant).
+        self.slot_sources: list[Callable[[GameObject], int]] = []
+
+    def character_limit_parts(self, account: GameObject) -> tuple[int, int, int]:
+        """``(MAX_CHARACTERS, the account's bonus_characters, what the
+        slot sources add)`` (Decision D2)."""
+        base = int(self._setting("MAX_CHARACTERS", 5))
+        bonus = int(account.db.get(BONUS_SLOTS_ATTR) or 0)
+        rewards = sum(int(source(account)) for source in self.slot_sources)
+        return base, bonus, rewards
+
+    def character_limit(self, account: GameObject) -> int:
+        """How many characters ``account`` may hold: ``MAX_CHARACTERS``,
+        plus its ``bonus_characters``, plus what rewards grant it."""
+        return sum(self.character_limit_parts(account))
 
     def _setting(self, key: str, default):
         try:
@@ -178,13 +198,15 @@ class Accounts:
         """The account's characters and what to do next."""
         account = session.account
         characters = characters_of(account)
+        limit = self.character_limit(account)
         lines = [f"\nAccount: {account.name}"]
         if characters:
-            lines.append("Your characters:")
+            lines.append(f"Your characters ({len(characters)} of {limit}):")
             for char in characters:
                 lines.append(f"  {char.name:16} {self.describe(char)}")
         else:
-            lines.append("You have no characters yet; 'new <name>' makes one.")
+            lines.append(f"You have no characters yet (up to {limit}); "
+                         "'new <name>' makes one.")
         lines.append(MENU_HELP)
         await session.send("\n".join(lines))
 
@@ -215,7 +237,7 @@ class Accounts:
     async def new_character(self, session: Session, name: str) -> bool:
         """``new <name>``: a character on the account, into chargen."""
         account = session.account
-        limit = int(self._setting("MAX_CHARACTERS", 5))
+        limit = self.character_limit(account)
         if len(characters_of(account)) >= limit:
             await session.send(f"An account may hold at most {limit} characters.")
             return False

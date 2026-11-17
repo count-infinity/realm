@@ -30,6 +30,18 @@ def sim():
         s.close()
 
 
+@pytest.fixture
+def fallen_sim():
+    """A world whose players fall where they are (``PLAYER_DEATH =
+    "unconscious"``; the default is ``respawn``, Decision D1)."""
+    from realm.config.loader import Settings
+    s = Simulator(settings=Settings(raw={"PLAYER_DEATH": "unconscious"}))
+    try:
+        yield s
+    finally:
+        s.close()
+
+
 def _arena(sim):
     room = sim.room("Pit")
     witness = sim.obj("witness", location=room)
@@ -66,7 +78,8 @@ class TestDeathIsAnObserver:
         assert witness.db.deaths is None
         assert ship.location is room
 
-    async def test_harming_the_already_fallen_does_not_kill_again(self, sim):
+    async def test_harming_the_already_fallen_does_not_kill_again(self, fallen_sim):
+        sim = fallen_sim
         room, witness = _arena(sim)
         gun = sim.obj("gun", location=room)
         pat = sim.player("Pat", location=room, hp=4, max_hp=10)
@@ -90,7 +103,8 @@ class TestDeathIsAnObserver:
 @pytest.mark.asyncio
 class TestASwingKill:
 
-    async def test_the_hit_is_told_before_the_fall(self, sim):
+    async def test_the_hit_is_told_before_the_fall(self, fallen_sim):
+        sim = fallen_sim
         from realm.std.rules.checks import checks
         checks().resolver = lambda actor, skill, mod=0, **kw: SimpleNamespace(
             success=True, margin=6, critical=False, roll=10)
@@ -230,6 +244,11 @@ class TestWhenSpent:
 
 @pytest.mark.asyncio
 class TestComingRound:
+    """Under ``PLAYER_DEATH = "unconscious"``."""
+
+    @pytest.fixture
+    def sim(self, fallen_sim):
+        return fallen_sim
 
     async def test_a_lone_player_comes_round_by_regenerating(self, sim):
         room = sim.room("Pit")
@@ -413,11 +432,16 @@ class TestRespawn:
         with pytest.raises(ValueError, match="rat.*respawn.*player"):
             await rsim.world.services["combat"].handle_death(rat)
 
-    async def test_the_default_is_still_unconscious(self, sim):
-        room = sim.room("Pit")
-        pat = sim.player("Pat", location=room, hp=10, max_hp=10)
-        await settle(harm(pat, "hp", 30))
-        assert pat.has_tag("unconscious") and pat.location is room
+    async def test_unconscious_is_a_rule_a_game_sets(self):
+        sim = _respawn_sim(PLAYER_DEATH="unconscious")
+        try:
+            room = sim.room("Pit")
+            pat = sim.player("Pat", location=room, hp=10, max_hp=10)
+            await settle(harm(pat, "hp", 30))
+            assert pat.has_tag("unconscious") and pat.location is room
+            assert not any(o.name == "corpse of Pat" for o in room.contents)
+        finally:
+            sim.close()
 
     async def test_an_unknown_player_death_setting_is_an_error(self):
         sim = _respawn_sim(PLAYER_DEATH="explode")
@@ -426,6 +450,64 @@ class TestRespawn:
             pat = sim.player("Pat", location=room, hp=10, max_hp=10)
             with pytest.raises(ValueError, match="PLAYER_DEATH.*explode"):
                 await sim.world.services["combat"].handle_death(pat)
+        finally:
+            sim.close()
+
+
+@pytest.mark.asyncio
+class TestRespawnIsTheDefault:
+    """Decision D1 (decided 2026-11-16): ``respawn`` is every game's default,
+    whatever its rules ("Does no good to get conscious in a room of
+    aggros")."""
+
+    @pytest.mark.parametrize("system", [
+        None,
+        "realm.games.gurps.system.GurpsSystem",
+        "realm.games.d20.system.D20System",
+        "realm.games.merc.system.MercSystem",
+    ])
+    async def test_a_fallen_player_wakes_at_home(self, system):
+        sim = Simulator(game_system=system)
+        try:
+            assert sim.world.setting("PLAYER_DEATH") == "respawn"
+            field, home = sim.room("Field"), sim.room("Home")
+            pat = sim.player("Pat", location=field, home=home.id, level=1, hp=10, max_hp=10)
+            sword = sim.obj("a sword", location=pat, tags=["thing", "weapon"])
+            await settle(harm(pat, "hp", 1000))
+            assert pat.location is home and not pat.has_tag("unconscious")
+            assert pat.db.hp == 1
+            corpse = next(o for o in field.contents if o.name == "corpse of Pat")
+            assert sword.location is corpse
+        finally:
+            sim.close()
+
+    async def test_one_point_means_one_point_short_of_spent(self):
+        """Respawn leaves the vital pool one point from spent, whatever
+        kind it is: a harm clock (spent at its max) wakes one short of it,
+        a pool spent at 2 wakes at 3, not still spent at 1."""
+        sim = Simulator()
+        try:
+            field, home = sim.room("Field"), sim.room("Home")
+            rue = sim.player("Rue", location=field, home=home.id, harm=0, max_harm=6,
+                             damage_pool="harm", pools={"harm": {"direction": "up"}})
+            await settle(harm(rue, "harm", 6))
+            assert rue.location is home and rue.db.harm == 5
+            ned = sim.player("Ned", location=field, home=home.id, hp=10, max_hp=10,
+                             pools={"hp": {"spent_at": 2}})
+            await settle(harm(ned, "hp", 9))
+            assert ned.location is home and ned.db.hp == 3
+        finally:
+            sim.close()
+
+    async def test_with_no_home_the_player_wakes_where_new_characters_start(self):
+        sim = Simulator()
+        try:
+            start = sim.room("Temple")
+            sim.world.startup_room = start
+            field = sim.room("Field")
+            pat = sim.player("Pat", location=field, hp=10, max_hp=10)
+            await settle(harm(pat, "hp", 30))
+            assert pat.location is start and pat.db.hp == 1
         finally:
             sim.close()
 

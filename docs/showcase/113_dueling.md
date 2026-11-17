@@ -67,8 +67,10 @@ as `enactor`, and the stone, standing in the room, hears it on its `ON_DEATH`
 attribute
 ([an `ON_<EVENT>` lifecycle hook](../reference/softcode.md#lifecycle-hooks)): it
 pays the pot, strips both tags, and announces the result. The loser is a player
-at 0 HP, so the native defeat rule applies, which means they fall unconscious in
-place rather than dying, and `firstaid` brings them back.
+at 0 HP, so the game's defeat rule applies. The engine's default, `respawn`,
+would send the loser home and leave a corpse of their belongings on the sand, so
+this arena's game sets `PLAYER_DEATH = "unconscious"` in its `config.py`: the
+loser falls in place rather than dying, and `firstaid` brings them back.
 
 That `ON_DEATH` is a reactive hook, so it needs a guard, but not the usual
 [`target is me`](../reference/softcode.md#guard-on-target) one. A death's target
@@ -81,6 +83,12 @@ duel pending resolves its stored ids to nothing and stands down, exactly as the
 parties it is actually holding.
 
 ## Build it
+
+The game's `config.py` has players fall rather than respawn:
+
+```python
+PLAYER_DEATH = "unconscious"
+```
 
 Do this as an **admin**, because the stone will seize stakes and throw players
 into combat, both of which need its owner's authority. First dig the ring and

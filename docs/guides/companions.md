@@ -30,6 +30,19 @@ the `companion` tag and behavior (the tag is how a character's companions
 are found; the behavior is the ward described under
 [fighting together](#fighting-together)). Releasing takes all four away.
 
+**Recall.** A companion beside its master when the master `recall`s (or
+`clan recall`s) goes with it, as ROM's `do_recall` takes the pet: the
+room left sees "The kitten disappears with Alice.", and the kitten is in
+the room Alice wakes to. One somewhere else, or unconscious, stays where
+it is. The seam is an action tag, not a recall rule: a direct placement
+tagged `accompanied` (`realm.core.action_tags.ACCOMPANIED`) brings the
+mover's company, so a softcode gate spell opts in with
+`move_to(enactor, dest, tags=['accompanied'])`. A placement without it
+(`@tel`, softcode `teleport_obj` or `move_to` without the tag, a summons) moves the mover alone,
+as ROM's `transfer` and `summon` leave the pet behind. Each companion
+moves through the same checks (a destination's locks can keep it out)
+and leaves any fight it was in.
+
 From Python, the feature's public names:
 
 ```python
@@ -255,7 +268,9 @@ Riding is one attribute each way: `riding` on the rider, `ridden_by` on
 the mount (which is also tagged `ridden`). A mount carries one rider and
 a rider rides one mount; nobody mounts in a fight; a rider who sleeps, is
 knocked out or dies comes off ("You fall from the grey mare!"), and so
-does one moved without its mount (a recall, a teleport).
+does one moved without its mount ("You are parted from the grey mare.":
+a teleport, a summons). A rider who `recall`s stays mounted: the mount
+comes along (see [Recall](#companions)).
 
 **Moving.** The mount follows as any companion does. What the rooms see
 is the movement-describer seam (below): the room left sees "Alice rides

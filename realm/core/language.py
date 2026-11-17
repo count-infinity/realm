@@ -91,14 +91,14 @@ def pluralize(name: str) -> str:
     """
     Pluralize a bare noun phrase by its last word.
 
-    "energy cell" → "energy cells", "staff" → "staves". An indefinite
-    article on the front is dropped, since a plural never takes one.
-    Heuristic only; callers should prefer ``plural_name(obj)`` which
-    honors ``db.plural``.
+    "energy cell" → "energy cells", "staff" → "staves". An article on the
+    front is dropped ("the cityguard" → "cityguards"), since a counted
+    plural never takes one. Heuristic only; callers should prefer
+    ``plural_name(obj)`` which honors ``db.plural``.
     """
     if not name:
         return name
-    if leading_article(name) in ("a", "an"):
+    if leading_article(name) in ("a", "an", "the"):
         name = strip_article(name)
     head, _, last = name.rpartition(" ")
     prefix = f"{head} " if head else ""

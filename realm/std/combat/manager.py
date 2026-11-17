@@ -45,7 +45,7 @@ PLAYER_RULES = ('unconscious', 'none', 'respawn')
 
 def when_spent(obj: GameObject) -> str:
     """``obj.db.when_spent``, else the default by kind: a player follows
-    the ``PLAYER_DEATH`` setting (``unconscious`` unless set), anything else
+    the ``PLAYER_DEATH`` setting (``respawn`` unless set), anything else
     leaves a corpse. Raises ValueError for an unknown rule, for a player set
     to ``corpse`` or ``destroy``, or for anything but a player set to
     ``respawn``."""
@@ -56,8 +56,8 @@ def when_spent(obj: GameObject) -> str:
             return 'corpse'
         from realm.core.world import find_world
         world = find_world()
-        rule = world.setting("PLAYER_DEATH", "unconscious") if world is not None \
-            else "unconscious"
+        rule = world.setting("PLAYER_DEATH", "respawn") if world is not None \
+            else "respawn"
         where = "PLAYER_DEATH"
     shown = rule
     rule = str(rule).strip().lower()
@@ -70,6 +70,18 @@ def when_spent(obj: GameObject) -> str:
     if not obj.is_player and rule == 'respawn':
         raise ValueError(f"{obj.name}: when_spent 'respawn' is for players only")
     return rule
+
+
+def _barely_alive(obj: GameObject, name: str) -> int:
+    """The value one point short of spent for ``obj``'s pool ``name``: what
+    a respawned player wakes with (1 hit point). An ``up`` pool (a harm
+    clock) is one below its max; a ``down`` pool one above ``spent_at``."""
+    from realm.core.pools import pool_def, pool_max
+    pool = pool_def(obj, name)
+    if pool is not None and pool.direction == "up":
+        maximum = pool_max(obj, name)
+        return max(int(maximum or 1) - 1, int(pool.floor or 0))
+    return (pool.spent_at if pool is not None else 0) + 1
 
 
 def is_combat_capable(obj: GameObject) -> bool:
@@ -293,13 +305,13 @@ class CombatManager:
         vital pool is spent (``realm.std.combat.vitals``).
 
         ``obj.db.when_spent`` says what happens to the body (WHEN_SPENT):
-        ``"unconscious"`` (tagged, in place, revivable; a player's
-        default unless ``PLAYER_DEATH`` says otherwise), ``"corpse"`` (a
+        ``"unconscious"`` (tagged, in place, revivable), ``"corpse"`` (a
         lootable corpse and a kill award; an NPC's default), ``"destroy"``
         (gone, its contents left in the room), ``"none"`` (nothing: the
         object's own ``ON_SPENT`` softcode decides) or ``"respawn"`` (a
-        player only: a corpse of their belongings stays, the player
-        returns home at 1 point; no kill award). A player is never made a
+        player only, and a player's default unless ``PLAYER_DEATH`` says
+        otherwise: a corpse of their belongings stays, the player returns
+        home at 1 point; no kill award). A player is never made a
         corpse or destroyed.
 
         It is also the one place ``combat:on_death`` is announced, before
@@ -325,7 +337,8 @@ class CombatManager:
 
     async def _respawn(self, player: GameObject, killer: GameObject | None) -> None:
         """A player's death under ``respawn``: leave a corpse of their
-        belongings, pay the rules' penalty, and return home at 1 point."""
+        belongings, pay the rules' penalty, and return home one point short
+        of spent (1 hit point)."""
         from realm.core.pools import set_pool, vital_pool
         from realm.core.teardown import start_room_floor
         from realm.std.combat.corpses import leave_player_corpse
@@ -346,7 +359,7 @@ class CombatManager:
 
         name = vital_pool(player)
         if name is not None:
-            set_pool(player, name, 1)
+            set_pool(player, name, _barely_alive(player, name))
         for tag in ('in_combat', 'unconscious', 'resting', 'sleeping'):
             player.remove_tag(tag)
         effects = world.services.get("effects")

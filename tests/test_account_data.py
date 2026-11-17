@@ -83,3 +83,27 @@ async def test_the_setters_need_control_and_refuse_protected_and_system(sim):
     set_attr_flags(ann, "vip", ["system"])
     result, _e = await sim.eval(trusted, "result = set_account_attr(get('Bree'), 'vip', 2)")
     assert result is False and ann.db.vip == 1
+
+
+async def test_the_character_limit_and_its_bonus_slots(sim):
+    """Decision D2: ``MAX_CHARACTERS`` plus the account's own
+    ``bonus_characters`` (an administrator's ``@account/slots``), read with
+    ``character_limit``; softcode reads the bonus and cannot write it, nor
+    the other records the engine keeps on an account."""
+    _room, ann, bree, cole, dov, ledger = _world(sim)
+    result, _e = await sim.eval(ledger, "result = character_limit(get('Bree'))")
+    assert result == 5
+    ann.db.bonus_characters = 2
+    result, _e = await sim.eval(ledger, "result = character_limit(get('Cole'))")
+    assert result == 7
+    result, _e = await sim.eval(ledger, "result = account_attr(get('Bree'), 'bonus_characters')")
+    assert result == 2
+    for name in ("bonus_characters", "characters", "achievements", "banned_until"):
+        result, _e = await sim.eval(ledger, f"result = set_account_attr(get('Bree'), '{name}', 9)")
+        assert result is False, name
+        result, _e = await sim.eval(ledger, f"result = incr_account_attr(get('Bree'), '{name}')")
+        assert result is None, name
+    assert ann.db.bonus_characters == 2 and ann.db.characters == [bree.id, cole.id]
+    sim.player("Solo", location=_room)
+    result, _e = await sim.eval(ledger, "result = character_limit(get('Solo'))")
+    assert result is None

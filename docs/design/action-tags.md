@@ -44,6 +44,7 @@ that's genre, not engine). They exist so packs converge on one spelling:
 |---|---|---|
 | `magic` | magical/supernatural causation | an anti-magic field |
 | `forced` | against the target's will | knockback, compel |
+| `accompanied` | a direct placement the mover's company shares: recall (the `basics` feature tags it), a gate spell; the `companions` feature brings the pets beside the mover and the mount under it | a "come alone" room |
 
 A **game adds its own** categories freely (`fire`, `holy`, `poison`…) —
 `has_atag()` reads them identically. Keep the *core* set small and

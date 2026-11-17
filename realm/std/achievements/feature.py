@@ -3,7 +3,8 @@ The ``achievements`` feature.
 
 Achievements as data (``achievement_def``), earned once per account or per
 character, granting tags and check modifiers to every character of the
-account (MUD_PLAN 6.5; docs/guides/accounts.md).
+account and character slots to the account (MUD_PLAN 6.5, Decision D2;
+docs/guides/accounts.md).
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from realm.std.achievements import softcode
 from realm.std.achievements.achievements import (
     ACHIEVEMENT_EVENT,
     achievement_modifier,
+    character_slots,
     clear_cache,
     cmd_achievements,
     grant,
@@ -55,5 +57,8 @@ feature.queue_kind("achievement", _grant)
 def _offer_achievements(world) -> None:
     """Other features grant achievements through
     ``world.services["achievements"]`` (``grant``, ``has``): ``quests``'
-    rewards."""
+    rewards. Its earned achievements' ``characters`` grants raise an
+    account's character limit, through the ``accounts`` service's
+    ``slot_sources`` (``accounts`` may not import this feature)."""
     world.services["achievements"] = SimpleNamespace(grant=grant, has=has)
+    world.services["accounts"].slot_sources.append(character_slots)

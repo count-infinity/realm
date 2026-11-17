@@ -266,11 +266,31 @@ def rom_flags(token: str) -> int:
 
 def flag_letters(token: str) -> list[str]:
     """The individual set letters of a flag token, for readable tags —
-    e.g. room flags ``CDS`` -> ``['C','D','S']``. Numbers return []."""
+    e.g. room flags ``CDS`` -> ``['C','D','S']``. A decimal bit-vector
+    (ROM writes Midgaard's room flags so: ``266248``) reads as the letters
+    of its bits, ``A`` for bit 0 to ``Z`` for bit 25, then ``a`` to ``f``."""
     token = token.strip()
     if not token or token.lstrip("-").isdigit():
-        return []
+        bits = int(token) if token.isdigit() else 0
+        return [chr(ord("A") + b) if b < 26 else chr(ord("a") + b - 26)
+                for b in range(32) if bits >> b & 1]
     return [c for c in token if c.isalpha()]
+
+
+def keywords(text: str) -> list[str]:
+    """A ROM keyword list (``sword long``) as the aliases a player types to
+    name the thing: the whole list, as ROM accepts it typed, then each
+    keyword once, in order (``["sword long", "sword", "long"]``)."""
+    words = list(dict.fromkeys(text.split()))
+    return [" ".join(words), *words] if len(words) > 1 else words
+
+
+def rom_names(keyword_list: str, short: str) -> tuple[str, dict[str, Any]]:
+    """The name and attributes a ROM mob or object is called by: its short
+    description (``a long sword``, ``the wizard``) is the name, and its
+    keywords answer when typed. With no short description the keywords
+    are the name."""
+    return (short.strip() or keyword_list.strip()), {"aliases": keywords(keyword_list)}
 
 
 def resistance_map(imm: str, res: str, vuln: str) -> dict[str, float]:
@@ -538,9 +558,10 @@ def _mobiles(r: Reader, area: Area) -> None:
         tags = ["npc", "prototype"]
         if race:
             tags.append(f"race:{race}")
+        shown, naming = rom_names(name, short)
         attrs: dict[str, Any] = {
             "rom_vnum": vnum,
-            "short_desc": short,
+            **naming,
             "long_desc": long_,
             "level": level,
             "alignment": align,
@@ -575,7 +596,7 @@ def _mobiles(r: Reader, area: Area) -> None:
             attrs["rom_imm"] = flag_letters(imm)
             attrs["rom_res"] = flag_letters(res)
             attrs["rom_vuln"] = flag_letters(vuln)
-        proto = obj_record(f"rom_mob_{vnum}", name, look, tags, attrs)
+        proto = obj_record(f"rom_mob_{vnum}", shown, look, tags, attrs)
         # ACT flags -> behavior: a non-SENTINEL mob wanders (ACT_STAY_AREA
         # keeps it in its zone), so towns feel alive. Keepers get this
         # stripped in _shops (a shopkeeper who walks off has no shop).
@@ -731,8 +752,9 @@ def _objects(r: Reader, area: Area) -> None:
         # "you need an enchanted blade" gate. The anti-alignment flags
         # become anti_good / anti_evil / anti_neutral.
         tags.extend(item_flag_tags(flag_letters(extra)))
+        shown, naming = rom_names(name, short)
         attrs: dict[str, Any] = {
-            "rom_vnum": vnum, "short_desc": short,
+            "rom_vnum": vnum, **naming,
             "item_type": type_name, "weight": weight, "value": cost,
             "level": level, "rom_values": values,
             "rom_extra": flag_letters(extra), "rom_wear": flag_letters(wear),
@@ -761,7 +783,7 @@ def _objects(r: Reader, area: Area) -> None:
             except (ValueError, TypeError):
                 pass
         area.obj_protos[vnum] = obj_record(
-            f"rom_obj_{vnum}", name, look, tags, attrs)
+            f"rom_obj_{vnum}", shown, look, tags, attrs)
 
 
 def wear_slot(type_name: str, wear_bits: int) -> str | None:
@@ -836,11 +858,17 @@ def item_fields(type_name: str, values: list, area: Area) -> tuple[list[str], di
     elif type_name in ("potion", "pill", "scroll"):
         spells = [n for n in (_spell_name(v, type_name, area) for v in values[1:5]) if n]
         attrs.update(spells=spells, spell_level=_int(values[0], 1))
+        if not spells:
+            area.gap(f"{type_name}: no spell in its values; it does nothing until it is "
+                     "given one (a `spells` attribute)")
         if type_name == "pill":
             area.gap("pill: eating a pill does not cast its spells; quaff it as a potion")
             tags.append("potion")
     elif type_name in ("wand", "staff"):
         spell = _spell_name(values[3], type_name, area)
+        if spell is None:
+            area.gap(f"{type_name}: no spell in its values; it does nothing until it is "
+                     "given one (a `spells` attribute)")
         attrs.update(spells=[spell] if spell else [], spell_level=_int(values[0], 1),
                      charges=_int(values[2]))
     elif type_name == "food":

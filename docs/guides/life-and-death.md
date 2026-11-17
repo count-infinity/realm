@@ -9,8 +9,9 @@ other player to help. Four pieces do it:
   cost.
 - **Coming round** (`combat`): an unconscious character whose vital pool
   rises above spent gets up.
-- **Death** (`combat`): what happens when the vital pool is spent, from
-  falling unconscious to leaving a corpse and waking at home.
+- **Death** (`combat`): what happens when the vital pool is spent: by
+  default a player leaves a corpse and wakes at home; a game can have its
+  players fall unconscious instead.
 - **Hunger, thirst and fatigue** (`needs`): a stomach that empties with
   time and walking, food and drink to fill it, slower recovery while
   hungry or thirsty, and death after hours ignored.
@@ -116,8 +117,8 @@ once. `ON_DEATH` fires first, then the body is dealt with as its
 
 | `when_spent` | What happens | Who |
 |---|---|---|
-| `unconscious` | tagged `unconscious` where it fell; comes round as it heals | anyone; a player's default |
-| `respawn` | dies: see below | players only |
+| `unconscious` | tagged `unconscious` where it fell; comes round as it heals | anyone |
+| `respawn` | dies: see below | players only; a player's default |
 | `corpse` | a lootable corpse holding what it carried and its money; the killer's party is paid the kill award (see below) | not players; anything else's default |
 | `destroy` | destroyed, as `@destroy` does it | not players |
 | `none` | nothing; the object's `ON_SPENT` softcode decides | anyone |
@@ -131,9 +132,14 @@ holds the victim's money as well as its belongings; the killer's
 money, and `autosplit` shares money taken that way with the party, as
 `split <amount>` does ([Player settings](character-sheet.md#player-settings)).
 
-`PLAYER_DEATH` (`"unconscious"` or `"respawn"`) is the default for players.
-The Merc scaffold (`realm init --system merc`) and the Midgaard template
-set it to `respawn`.
+`PLAYER_DEATH` (`"respawn"` or `"unconscious"`) is the default for players.
+It is `"respawn"` unless a game's `config.py` says otherwise, whatever its
+rules (GURPS, D20, Merc or none): a player who comes round where they fell
+can wake in a room of the creatures that dropped them (Decision D1). A
+game whose players should fall and wait for help (a duel, a clone bay)
+sets:
+
+    PLAYER_DEATH = "unconscious"
 
 Under `respawn`, a player who dies:
 
@@ -146,9 +152,11 @@ Under `respawn`, a player who dies:
 3. pays the game system's `on_death(player, killer)` penalty. The neutral
    one is nothing; Merc takes a quarter of a level's experience, never a
    level;
-4. returns to their `home`, else the start room, with 1 point in their
-   vital pool, standing, out of combat, and with every timed effect
-   ended. They see the room they wake in.
+4. returns to their `home`, else the start room (where new characters
+   begin), one point short of spent in their vital pool (1
+   hit point; one below the top of a harm clock), standing, out of
+   combat, and with every timed effect ended. They see the room they wake
+   in.
 
 A player's death pays no kill award.
 
@@ -354,7 +362,7 @@ that decays, obesity, and the drinking and eating of NPCs.
 | `REGEN_INTERVAL` | 15 | vitals |
 | `REST_REGEN` | 2 | vitals |
 | `SLEEP_REGEN` | 4 | vitals |
-| `PLAYER_DEATH` | `"unconscious"` | combat |
+| `PLAYER_DEATH` | `"respawn"` | combat |
 | `CORPSE_LOCK_SECONDS` | 300 | combat |
 | `NEEDS_INTERVAL` | 4 | needs |
 | `FOOD_LOSS`, `WATER_LOSS` | 100 (percent) | needs |

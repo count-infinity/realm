@@ -327,6 +327,29 @@ class TestStopping:
             if srv._running:
                 await srv.stop()
 
+    async def test_an_announcement_ends_with_one_prompt(self):
+        """BACKLOG (first hour): ``@shutdown`` and ``@wall`` wrote the
+        typist's prompt twice, once after the announcement (flushed at once)
+        and once after the command. What the connection is written, in
+        order, is the announcement and then one prompt."""
+        srv = await _server()
+        try:
+            boss = await _player(srv, "root", "Boss")
+            boss.session.set_prompt_writer(lambda text: boss.out.append(f"PROMPT {text}"))
+            for line, said in (("@wall hi", "*** Boss announces: hi ***"),
+                               ("@shutdown 600", "shutting down in 600 seconds"),
+                               ("@shutdown/cancel", "cancelled by Boss")):
+                start = len(boss.out)
+                await boss.send(line)
+                written = boss.out[start:]
+                assert len(written) == 2 and said in written[0], (line, written)
+                assert written[1].startswith("PROMPT "), (line, written)
+            start = len(boss.out)
+            await boss.send("")                          # a line that prints nothing
+            assert [w for w in boss.out[start:] if w.startswith("PROMPT ")] != []
+        finally:
+            await srv.stop()
+
     async def test_mortals_may_not(self):
         srv = await _server()
         try:

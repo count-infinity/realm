@@ -210,9 +210,11 @@ Run the beat that drops him and the crowd gets the finish:
 ```
 
 Meanwhile the fighters never see a `[pit]` line, and the stands never see the
-pit's native combat narration: two rooms, two scripts of the same fight. A
-defeated player is left unconscious on the sand by the native defeat rule, so
-send a medic down with `firstaid` before the next bout.
+pit's native combat narration: two rooms, two scripts of the same fight. In a
+game that sets `PLAYER_DEATH = "unconscious"` (as the [dueling stone](113_dueling.md)'s
+does) a defeated player is left unconscious on the sand, so send a medic down
+with `firstaid` before the next bout; under the default, `respawn`, they wake at
+home and their corpse stays in the pit.
 
 ## Going further
 

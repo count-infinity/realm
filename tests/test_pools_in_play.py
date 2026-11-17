@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from realm.config.loader import Settings
 from realm.core.objects import GameObject
 from realm.core.pairing import pair_exits
 from realm.games.d20.system import D20System
@@ -105,7 +106,7 @@ async def test_a_ship_takes_a_fight(system, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_harm_clock_fills_and_takes_its_owner_down():
-    with Simulator() as sim:
+    with Simulator(settings=Settings(raw={"PLAYER_DEATH": "unconscious"})) as sim:
         room = sim.room("Alley")
         witness = sim.obj("witness", location=room)
         witness.db.on_death = "incr('deaths')"

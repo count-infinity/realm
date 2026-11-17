@@ -62,7 +62,7 @@ Gap clusters at the bottom feed BACKLOG.md.
 
 | Mechanic | Covered? | How / gap |
 |---|---|---|
-| Instant-death traps (sphere of annihilation) | YES | `damage(enactor, 999)` → handle_death; players fall unconscious (engine default) — perma-death is a game-policy knob a system could set. |
+| Instant-death traps (sphere of annihilation) | YES | `damage(enactor, 999)` → handle_death; players respawn at home leaving a corpse (engine default; `PLAYER_DEATH = "unconscious"` drops them in place) — perma-death is a game-policy knob a system could set. |
 | Riddle-based progression (Acererak's poem) | YES | `$`-command / `^listen` triggers on speaking answers; proven pattern. |
 | Secret/concealed doors everywhere | YES | hidden exits + conceal_difficulty search checks (wall safe pattern). |
 | One-way teleporters, misdirection | YES | ON_ENTER + `teleport_obj(enactor, dest)` — teleport lock consulted. |

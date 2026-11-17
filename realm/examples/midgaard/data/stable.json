@@ -3,11 +3,11 @@
  "objects": [
   {
    "id": "midgaard_mob_horse",
-   "name": "brown horse",
+   "name": "a brown horse",
    "description": "A sturdy brown riding horse, saddled and patient. It would carry you a long way.",
    "tags": ["npc", "prototype", "mount", "race:horse"],
    "attrs": {
-    "short_desc": "a brown horse",
+    "aliases": ["horse", "brown horse"],
     "long_desc": "A saddled brown horse stands here, flicking its tail.",
     "level": 10,
     "points": 1000,

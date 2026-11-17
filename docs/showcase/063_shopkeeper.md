@@ -29,8 +29,9 @@ things with a home-grown `$vend` command, this build wires up the real
 
 `@behavior <npc> = shopkeeper` marks an NPC as the room's merchant, and the
 `list`, `buy`, and `sell` builtins find it automatically. The keeper's stock
-is literally its inventory: anything it carries (minus `no_sell`-tagged and
-`wielded` items) is for sale. A ware costs the customer its `value` times the
+is literally its inventory: anything it carries (minus `no_sell`-tagged
+items and what it wields or wears: `wielded`, `worn`, or a converted ROM
+mob's gear with a `worn` attribute) is for sale. A ware costs the customer its `value` times the
 keeper's `markup`, and the keeper buys your loot back at `value` times its
 `buyback`. `buy` moves the credits with
 [`transfer_credits`](../reference/softcode.md#fn-transfer_credits) and then

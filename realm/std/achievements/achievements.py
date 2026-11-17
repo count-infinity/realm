@@ -4,16 +4,24 @@ Achievements (MUD_PLAN 6.5).
 An ``achievement_def`` object names an achievement: its ``description``,
 ``hidden`` (not listed until earned), ``scope`` (``account``, the default,
 or ``character``) and ``grants``: ``{"tags": [...], "check_mods":
-{"will": 1, "all": 0}}``. Softcode ``grant_achievement`` records it once,
-with a timestamp, in ``achievements`` on the account (or on the character,
-for that scope), tells the player, fires ``account:on_achievement``, and
-applies the grants: the tags go on every character of the account (now,
-and at each login, so a character made later gets them) and the check
-modifiers count in every check those characters make.
+{"will": 1, "all": 0}, "characters": 1}``. Softcode ``grant_achievement``
+records it once, with a timestamp, in ``achievements`` on the account (or
+on the character, for that scope), tells the player, fires
+``account:on_achievement``, and applies the grants: the tags go on every
+character of the account (now, and at each login, so a character made
+later gets them), the check modifiers count in every check those
+characters make, and ``characters`` raises the account's character limit
+(CoffeeMud's ``BONUSCHARLIMIT``; an account-scoped achievement only).
+
+Like the check modifiers, the slots are counted from what the account has
+earned whenever the limit is asked (``character_slots``, one of the
+``accounts`` service's ``slot_sources``), never stored: a changed
+definition counts at once.
 """
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -25,6 +33,8 @@ if TYPE_CHECKING:
     from realm.core.propagation import Action
 
 ACHIEVEMENT_EVENT = "account:on_achievement"
+
+logger = logging.getLogger(__name__)
 
 #: character id -> {skill or "all": modifier}; cleared whenever an
 #: achievement is granted or definitions reload.
@@ -83,6 +93,23 @@ def _apply_tags(obj: GameObject, adef: GameObject) -> None:
             character.add_tag(str(tag))
 
 
+def _slots(adef: GameObject) -> int:
+    value = _grants(adef).get("characters") or 0
+    return int(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0
+
+
+def character_slots(account: GameObject) -> int:
+    """The ``accounts`` service's slot source: the character slots
+    ``account``'s earned (account-scoped) achievements grant."""
+    record = account.db.get("achievements")
+    total = 0
+    for name in record if isinstance(record, dict) else ():
+        adef = definition(name)
+        if adef is not None and _account_scoped(adef):
+            total += _slots(adef)
+    return total
+
+
 async def grant(obj: GameObject, name: str) -> bool:
     """Record ``name`` for ``obj`` (once), tell them, apply the grants and
     fire the event. False when there is no such achievement or it is
@@ -100,6 +127,15 @@ async def grant(obj: GameObject, name: str) -> bool:
     clear_cache()
     obj.msg(f"Achievement earned: {adef.name}!")
     world = find_world()
+    if _slots(adef):
+        accounts = world.services.get("accounts") if world is not None else None
+        if not _account_scoped(adef):
+            logger.warning(f"Achievement {adef.name!r} grants characters but its scope is "
+                           f"character: character slots belong to an account, so it "
+                           f"raised nothing. Set its scope to account.")
+        elif holder is not obj and accounts is not None:
+            obj.msg(f"Your account may now hold {accounts.character_limit(holder)} "
+                    f"characters.")
     if world is not None and world.store is not None:
         await world.store.save(holder)
     # The literal type string (ACHIEVEMENT_EVENT): the payload docs check
@@ -168,4 +204,4 @@ async def cmd_achievements(ctx) -> None:
 
 
 __all__ = ["ACHIEVEMENT_EVENT", "clear_cache", "definitions", "definition", "earned", "has",
-           "grant", "achievement_modifier", "login_observer", "cmd_achievements"]
+           "character_slots", "grant", "achievement_modifier", "login_observer", "cmd_achievements"]

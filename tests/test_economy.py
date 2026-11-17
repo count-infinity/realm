@@ -80,6 +80,17 @@ class TestShopPricing:
         assert heirloom not in behavior.wares(keeper)
         assert sword in behavior.wares(keeper)
 
+    def test_a_keeper_does_not_sell_what_it_wears(self):
+        # ROM lists only what the keeper is not wearing (do_list). A worn
+        # thing is tagged `worn`; a converted ROM mob's equipped gear carries
+        # a `worn` attribute naming its place (the importer's E reset).
+        _room, keeper, behavior, sword, _bob = self._shop()
+        apron = GameObject("apron", tags=["thing", "worn"], location=keeper)
+        cleaver = GameObject("cleaver", tags=["thing"], location=keeper)
+        cleaver.db.worn = "wield"
+        assert behavior.wares(keeper) == [sword]
+        assert apron not in behavior.wares(keeper)
+
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("world")

@@ -59,7 +59,7 @@ A feature can declare its own keys. These exist only when the feature is in
 
 | Key | Feature | Default | What it does |
 |---|---|---|---|
-| `MAX_CHARACTERS` | `accounts` | `5` | How many characters one account may hold. |
+| `MAX_CHARACTERS` | `accounts` | `5` | How many characters one account may hold, before its own extra slots (`@account/slots`, and achievements that grant `characters`). |
 | `ACCOUNT_MULTIPLAY` | `accounts` | `False` | Whether one account may play several of its characters at once (one connection per character). Off: a second login takes over the first. |
 | `PROMPT` | `basics` | `'<{hp}/{max_hp}hp> '` | The prompt shown after each batch of output, unless a player sets their own with `prompt`. Tokens: any pool by name and `max_<name>`, `{name}`, `{room}`, `{combat}`, `{level}`, `{xp}`. Empty for none. |
 | `ALIAS_LIMIT` | `basics` | `50` | How many aliases one character may keep. |
@@ -74,7 +74,7 @@ A feature can declare its own keys. These exist only when the feature is in
 | `COMBAT_BEAT_MIN` | `combat` | `4.0` | Shortest combat round, in seconds. |
 | `COMBAT_BEAT_MAX` | `combat` | `120.0` | Longest combat round, in seconds. |
 | `COMBAT_BEAT_DEFAULT` | `combat` | `15.0` | Default combat round, in seconds. |
-| `PLAYER_DEATH` | `combat` | `'unconscious'` | What happens to a player whose vital pool is spent, unless the player sets `when_spent`: `unconscious` (falls where they are and comes round as they heal) or `respawn` (leaves a corpse of their belongings and returns home at 1 point, paying the game system's `on_death` penalty). |
+| `PLAYER_DEATH` | `combat` | `'respawn'` | What happens to a player whose vital pool is spent, unless the player sets `when_spent`: `respawn` (leaves a corpse of their belongings and returns home one point short of spent, paying the game system's `on_death` penalty) or `unconscious` (falls where they are and comes round as they heal). |
 | `CORPSE_LOCK_SECONDS` | `combat` | `300` | Under `respawn`, how long only the dead player (and admins) may take from their corpse. 0 leaves it open to anyone. |
 | `REGEN_INTERVAL` | `vitals` | `15` | Seconds between regeneration ticks. Each tick a character out of combat regains the game system's `regen` amount of each pool below full. |
 | `REST_REGEN` | `vitals` | `2` | Regeneration multiplier while resting. |

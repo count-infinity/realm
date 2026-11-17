@@ -8,9 +8,9 @@ wakes them in a fresh body across the station, restores them to full, and
 bills them for the vat. It is a death-and-respawn loop, and a close look at
 what the engine tells you when someone dies, and *when* it tells you.
 
-**Concepts:** REALM's **one death path** (`handle_death`) and its two
-outcomes, where players fall unconscious in place and NPCs become lootable
-corpses; [`ON_DEATH`](../reference/softcode.md#lifecycle-hooks) with
+**Concepts:** REALM's **one death path** (`handle_death`) and its
+outcomes, where (in this game) players fall unconscious in place and NPCs
+become lootable corpses; [`ON_DEATH`](../reference/softcode.md#lifecycle-hooks) with
 [`adata('fatal')`](../reference/softcode.md#event-data-namespace) as the
 "a player dropped" signal; a **zone master** hearing every room of the
 colony ([071](071_guard_response.md)); the **deferred handoff**, why an
@@ -31,9 +31,12 @@ waits a moment instead of firing inside the hook.
    deals the finishing blow, a swing, a poison tick, or a softcode
    [`damage()`](../reference/softcode.md#fn-damage), routes through the
    combat manager's `handle_death`:
-   - **A player** is tagged `unconscious` in place and told *"Everything
-     goes black..."*. Players stay alive and go down, revivable by
-     `firstaid` ([112](112_nonlethal_takedowns.md)), or, here, by cloning.
+   - **A player** goes by the game's `PLAYER_DEATH` setting. The engine's
+     default, `respawn`, leaves a corpse and sends them home; this station
+     sets `PLAYER_DEATH = "unconscious"` in its `config.py`, so a player is
+     tagged `unconscious` in place and told *"Everything goes black..."*.
+     They stay alive and go down, revivable by `firstaid`
+     ([112](112_nonlethal_takedowns.md)), or, here, by cloning.
    - **An NPC** becomes a **corpse**: a container holding everything it
      carried, dropped in the room, given a `decay` behavior that rots it
      after about 150 ticks, while a character-point award is split to the
@@ -107,6 +110,13 @@ waits a moment instead of firing inside the hook.
    and then fail every write.
 
 ## Build it
+
+In the game's `config.py`, players fall rather than respawn (the bay is
+the respawn):
+
+```python
+PLAYER_DEATH = "unconscious"
+```
 
 **As your admin character**, dig the colony with both rooms zoned so the
 master hears the deck as well as its own bay, then create the controller,

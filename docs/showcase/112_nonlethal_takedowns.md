@@ -30,8 +30,8 @@ by design:
 
 | | Players | NPCs |
 |---|---|---|
-| At 0 HP | fall unconscious in place, tagged `unconscious` | die into a lootable `corpse of X`, which decays |
-| Comes back via | `firstaid`, which lifts the tag once it heals HP above zero | nothing: a fresh spawn is a new creature |
+| At 0 HP | wake at home, leaving a `corpse of X` of their belongings (the default, `respawn`); under `PLAYER_DEATH = "unconscious"`, fall in place, tagged `unconscious` | die into a lootable `corpse of X`, which decays |
+| Comes back via | at home at once; or, fallen in place, `firstaid`, which lifts the tag once it heals HP above zero | nothing: a fresh spawn is a new creature |
 
 So you cannot capture an NPC by beating it down, because zero HP is a corpse and
 a corpse cannot be interrogated. A player at zero is at least still on the floor,

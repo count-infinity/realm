@@ -64,8 +64,9 @@ hand answers `pull pin` and `throw grenade ...` wherever you carry it.
 
 4. **Deaths are real deaths.** Softcode [`damage()`](../reference/softcode.md#fn-damage)
    routes lethal results through the combat manager's single death path:
-   NPCs die into lootable corpses and players fall unconscious in place,
-   so a grenade kill is exactly as real as a sword kill. That one path is
+   NPCs die into lootable corpses and players respawn at home leaving a
+   corpse (or fall unconscious in place, under `PLAYER_DEATH =
+   "unconscious"`), so a grenade kill is exactly as real as a sword kill. That one path is
    also where `combat:on_death` is announced, and it fires for every
    death whatever the cause, so [`ON_DEATH`](../reference/softcode.md#lifecycle-hooks)
    witnesses such as the [bounty board](114_bounty_board.md) do hear a

@@ -21,7 +21,10 @@ feature = Feature(
     doc='Accounts with several characters, logging in, character creation, bans.',
 )
 
-feature.setting("MAX_CHARACTERS", 5, "How many characters one account may hold.")
+feature.setting(
+    "MAX_CHARACTERS", 5,
+    "How many characters one account may hold, before its own extra slots "
+    "(`@account/slots`, and achievements that grant `characters`).")
 feature.setting(
     "ACCOUNT_MULTIPLAY", False,
     "Whether one account may play several of its characters at once (one "
@@ -127,8 +130,8 @@ feature.command('characters', cmd_characters, aliases=['chars'], category='utili
 feature.command('password', cmd_password, category='utility',
                 help_text='Change your password', usage='password <old> <new>')
 feature.command('@account', cmd_account, category='building', permission='admin',
-                help_text='Show, ban, reset or boot an account',
-                usage='@account[/password|/ban|/unban|/boot] <name> [...]',
+                help_text='Show, ban, reset, boot an account or give it slots',
+                usage='@account[/password|/ban|/unban|/boot|/slots] <name> [...]',
                 parse_equals=True)
 feature.command('@sitelock', cmd_sitelock, category='building', permission='admin',
                 help_text='Lock out an address or prefix',
@@ -139,3 +142,4 @@ feature.softfn(softcode.account_attr, group='Accounts', readonly=True)
 feature.softfn(softcode.set_account_attr, group='Accounts')
 feature.softfn(softcode.incr_account_attr, group='Accounts')
 feature.softfn(softcode.account_characters, group='Accounts', readonly=True)
+feature.softfn(softcode.character_limit, group='Accounts', readonly=True)

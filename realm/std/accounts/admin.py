@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from realm.core.world import get_world
 from realm.std.accounts import account as accounts_clock
 from realm.std.accounts.account import (
+    BONUS_SLOTS_ATTR,
     FOREVER,
     admin_log,
     characters_of,
@@ -56,6 +57,8 @@ async def cmd_account(ctx: CommandContext) -> None:
                                                  ban it (30m, 2h, 3d, 1w, forever)
            @account/unban <name>                 lift a ban
            @account/boot <name>                  disconnect its sessions
+           @account/slots <name> = <n>           give it n character slots
+                                                 beyond MAX_CHARACTERS (0: none)
     """
     who = ctx.player.name
     switch = ctx.switches[0] if ctx.switches else ""
@@ -101,6 +104,19 @@ async def cmd_account(ctx: CommandContext) -> None:
         await store.save(account)
         admin_log.info(f"{who} unbanned account {account.name}")
         await ctx.session.send(f"{account.name} is no longer banned.")
+    elif switch == "slots":
+        if not right.isdigit():
+            await ctx.session.send("Usage: @account/slots <name> = <extra slots, 0 or more>")
+            return
+        if int(right):
+            account.db.set(BONUS_SLOTS_ATTR, int(right))
+        else:
+            account.db.delete(BONUS_SLOTS_ATTR)
+        await store.save(account)
+        limit = get_world().services["accounts"].character_limit(account)
+        admin_log.info(f"{who} gave account {account.name} {int(right)} bonus character "
+                       f"slot(s): it may hold {limit}")
+        await ctx.session.send(f"{account.name} may now hold {limit} characters.")
     elif switch == "boot":
         booted = await _boot(account, "You have been disconnected by an administrator.")
         admin_log.info(f"{who} booted account {account.name} ({booted} session(s))")
@@ -109,8 +125,13 @@ async def cmd_account(ctx: CommandContext) -> None:
         await ctx.session.send(f"Unknown switch /{switch}. See: help @account")
     else:
         names = ", ".join(c.name for c in characters_of(account)) or "none"
+        base, bonus, rewards = get_world().services["accounts"].character_limit_parts(account)
+        why = "".join(part for part, n in ((f" + {bonus} bonus", bonus),
+                                           (f" + {rewards} from achievements", rewards)) if n)
         lines = [f"Account {account.name}",
                  f"  characters:  {names}",
+                 f"  limit:       {base + bonus + rewards} characters"
+                 + (f" ({base}{why})" if why else ""),
                  f"  created:     {_when(account.db.get('created'))}",
                  f"  last login:  {_when(account.db.get('last_login'))} from "
                  f"{account.db.get('last_address') or 'nowhere'}"]

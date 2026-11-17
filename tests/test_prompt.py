@@ -120,7 +120,10 @@ class TestDelivery:
         assert prompts == ["<7/10hp> "]
         await session.flush_output()                # nothing new: no prompt
         assert prompts == ["<7/10hp> "]
-        await session.flush_output(prompt=True)     # a command with no output
+        await session.flush_output(prompt=True)     # the prompt is still the last line
+        assert prompts == ["<7/10hp> "]
+        session.input_arrived()                     # a command with no output
+        await session.flush_output(prompt=True)
         assert len(prompts) == 2
 
     async def test_no_prompt_before_login(self, sim):

@@ -79,8 +79,12 @@ class ShopkeeperBehavior(Behavior):
         return max(1, round(base * buyback * factor))
 
     def wares(self, keeper: GameObject) -> list[GameObject]:
+        """What the keeper sells: what it carries, not what it wields or
+        wears (tagged ``worn``, or a converted mob's gear, whose ``worn``
+        attribute names its place), nor anything tagged ``no_sell``."""
         return [item for item in keeper.contents
-                if not item.has_tag('no_sell') and not item.has_tag('wielded')]
+                if not item.has_tag('no_sell') and not item.has_tag('wielded')
+                and not item.has_tag('worn') and not item.db.get('worn')]
 
     def pets(self) -> list[GameObject]:
         """The creatures a pet shop sells copies of: its ``pet_stock`` ids

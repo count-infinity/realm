@@ -380,6 +380,13 @@ Damage lands in a pool, and death is an observer (KERNEL_PLAN step 8;
   (`Combatant.vital_spent`), the same rule the death observer follows, so
   a ruleset cannot disagree with it. The unused `Ruleset.required_stats`
   is gone too.
+- **2026-11-17 (Decision D1, decided 2026-11-16).** The defeat asymmetry
+  above (and Open Question 3's answer) is no longer the default: a player
+  whose vital pool is spent **respawns** (`PLAYER_DEATH = "respawn"`: a
+  corpse of their belongings, home one point short of spent, the game
+  system's `on_death` penalty) in every game. Falling unconscious in place
+  is the rule a game picks with `PLAYER_DEATH = "unconscious"`
+  ([Life and Death](../guides/life-and-death.md#death)).
 
 ## Open Questions (answers shape Phase 1)
 

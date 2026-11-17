@@ -12,6 +12,9 @@ imported the way a builder would:
   combat, percentile skills, XP-and-level advancement. Pick a class at
   character creation; a level-1 barbarian starts kitted with a club in the
   Common Square, ready to thrash fidos and trade at the shops next door.
+- **Guilds**: the mage, cleric, thief and warrior guildmasters teach
+  ``practice``; each guild's bar lets in only its own class
+  (``GUILD_BARS``), as ROM's do.
 - **A quest**: ``data/quests.json``, "Fido trouble": the baker in the
   Bakery wants five fidos dead (``quest list`` there, ``quests`` for the
   journal), and makes the killer a Friend of the Baker
@@ -37,11 +40,6 @@ ENABLE_WEBSOCKET = False
 # The rules: GameRules in rules.py, which subclasses the built-in Merc
 # system. Its base class is what makes this a Diku; change the hooks there.
 GAME_SYSTEM = "rules.GameRules"
-
-# A player whose hit points run out dies: they leave a corpse holding what
-# they carried and wake at home with 1 hit point, a quarter of a level's
-# experience poorer. "unconscious" leaves them where they fell.
-PLAYER_DEATH = "respawn"
 
 # The line after each batch of output: hit points, mana, movement.
 PROMPT = "<{hp}hp {mana}m {move}mv> "
@@ -73,6 +71,12 @@ WELCOME_BANNER = """
 # the General Store / Weapon Shop / Armoury are a step away.
 START_ROOM_VNUM = 3025
 
+# Each guild's bar (ROM vnum) and the classes it lets in: the Mage's Bar,
+# the Cleric's Bar, the Thieves Bar and the Bar of Swordsmen, with each
+# guildmaster beyond.
+GUILD_BARS = {3018: ("mage",), 3003: ("cleric",), 3028: ("thief",),
+              3022: ("warrior", "barbarian")}
+
 
 async def init_world(server):
     """First-boot world load (empty database only)."""
@@ -100,23 +104,21 @@ async def init_world(server):
     await import_pack("socials-classic", server.persistence)
     await import_pack("clan-governments", server.persistence)
 
-    # The town's first quest: the baker, in the Bakery (vnum 3009), wants
-    # five fidos dead (data/quests.json). The converted area places no
-    # baker, so one is made from its prototype, with a loaf to sell.
+    # The guilds (ROM's class_table): each class's bar, the way in to its
+    # guildmaster, turns the other classes away, so each practises at its
+    # own guild. Barbarians, a class ROM never had, drink with the swordsmen.
     from realm import ops
-    bakery = server.persistence.get_cached("rom_3009")
-    baker_proto = server.persistence.get_cached("rom_mob_3001")
-    bread = server.persistence.get_cached("rom_obj_3011")
-    if bakery is not None and baker_proto is not None:
-        baker = ops.clone(None, baker_proto, location=bakery).value
-        baker.remove_tag("prototype")
-        await server.persistence.save(baker)
-        if bread is not None:
-            loaf = ops.clone(None, bread, location=baker).value
-            loaf.remove_tag("prototype")
-            await server.persistence.save(loaf)
-    # Its reward, besides experience and a loaf: an achievement every
-    # character of the account shares (data/achievements.json).
+    for vnum, classes in GUILD_BARS.items():
+        bar = server.persistence.get_cached(f"rom_{vnum}")
+        ops.set_lock(None, bar, "enter", "not has_tag(caller, 'player') or "
+                     f"get_attr(caller, 'character_class') in {list(classes)!r}")
+        bar.db.lock_fail_enter = "You aren't allowed in there."
+        await server.persistence.save(bar)
+
+    # The town's first quest: the baker, in the Bakery (vnum 3009), wants
+    # five fidos dead (data/quests.json). Its reward, besides experience
+    # and a loaf: an achievement every character of the account shares
+    # (data/achievements.json).
     for name in ("achievements.json", "quests.json"):
         data = Path(__file__).parent / "data" / name
         await import_objects(json.loads(data.read_text()), server.persistence)

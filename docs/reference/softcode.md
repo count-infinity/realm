@@ -308,6 +308,7 @@ a tutorial straight at one function (`reference/softcode.md#fn-pemit`).
 | [`ceil`](#fn-ceil) | Round up to integer. | [Math & logic](#math-logic) |
 | [`cemit`](#fn-cemit) | Announce a line on a channel, as is (no speaker name): a herald, a server notice. | [Messaging & prompts](#messaging-prompts) |
 | [`channel_members`](#fn-channel_members) | The names of the online players who hear a channel now. | [Messaging & prompts](#messaging-prompts) |
+| [`character_limit`](#fn-character_limit) | How many characters the character's account may hold: `MAX_CHARACTERS`, plus the account's `bonus_characters` (set by an administrator), plus what its achievements grant. | [Accounts](#accounts) |
 | [`check`](#fn-check) | Roll a skill check AS the subject; True on success. | [Dice & skill checks](#dice-skill-checks) |
 | [`check_roll`](#fn-check_roll) | Roll a skill check and return the GRADED, condition-modified result. | [Dice & skill checks](#dice-skill-checks) |
 | [`clamp`](#fn-clamp) | Clamp value between low and high. | [Math & logic](#math-logic) |
@@ -1154,6 +1155,23 @@ character with none).
 account_characters(enactor)
 ```
 
+### `character_limit` {#fn-character_limit}
+
+```text
+character_limit(obj: GameObject | str | None) -> int | None
+```
+
+How many characters the character's account may hold:
+`MAX_CHARACTERS`, plus the account's `bonus_characters` (set by an
+administrator), plus what its achievements grant. None for a character
+with no account.
+
+**Example**
+
+```text
+character_limit(enactor) - len(account_characters(enactor))
+```
+
 ### `grant_achievement` {#fn-grant_achievement}
 
 ```text
@@ -1209,7 +1227,9 @@ set_account_attr(obj: GameObject | str | None, name: str, value: Any) -> bool
 
 Set an attribute on the character's account, for every character of
 that person to read. The executor must control the character;
-protected and `system` attributes are refused.
+protected and `system` attributes are refused, and so are the
+records the engine keeps (`characters`, `bonus_characters`,
+`achievements`, the ban and login dates).
 
 **Example**
 

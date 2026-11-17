@@ -316,7 +316,7 @@ class TestParse:
                     if b["behavior_id"] == "spawner"]
         assert len(spawners) == 1
         sp = spawners[0]["params"]
-        assert sp["prototype"]["name"] == "rat" and sp["count"] == 1
+        assert sp["prototype"]["name"] == "a rat" and sp["count"] == 1
         rat = [o for o in area.objects
                if o["attrs"].get("prototype_vnum") == 100 and "npc" in o["tags"]]
         assert len(rat) == 1                               # static instance
@@ -372,7 +372,7 @@ class TestParse:
                    for b in master["behaviors"])
         assert "zone:midgaard" in master["tags"]
         spec = master["attrs"]["reset_spec"]
-        wiz = [e for e in spec if e["prototype"]["name"] == "wizard"]
+        wiz = [e for e in spec if e["prototype"]["name"] == "the wizard"]
         assert wiz and wiz[0]["room"] == "rom_3001"    # mob 3000 in room 3001
         assert any("reset:rom_reset_master" in o["tags"]
                    for o in area.objects if "npc" in o["tags"])
@@ -420,7 +420,7 @@ class TestImportIntoWorld:
     async def test_reset_places_mob_with_stats(self):
         sim, created = await self._world()
         try:
-            wiz = self._one(created, "wizard")
+            wiz = self._one(created, "the wizard")
             assert wiz.location.name == "The Temple Of Mota"
             assert wiz.db.get("hp") == 1000
             assert wiz.db.get("level") == 23
@@ -430,8 +430,8 @@ class TestImportIntoWorld:
     async def test_equipped_weapon_goes_to_the_mob(self):
         sim, created = await self._world()
         try:
-            wiz = self._one(created, "wizard")
-            sword = self._one(created, "sword long")
+            wiz = self._one(created, "the wizard")
+            sword = self._one(created, "a long sword")
             assert sword.location is wiz
             assert sword.db.get("worn") == "wield"
         finally:
@@ -440,7 +440,7 @@ class TestImportIntoWorld:
     async def test_object_reset_places_in_room(self):
         sim, created = await self._world()
         try:
-            barrel = self._one(created, "barrel beer")
+            barrel = self._one(created, "a barrel of beer")
             assert barrel.location.name == "The Temple Square"
         finally:
             sim.close()
@@ -448,7 +448,7 @@ class TestImportIntoWorld:
     async def test_shopkeeper_behavior_on_the_instance(self):
         sim, created = await self._world()
         try:
-            wiz = self._one(created, "wizard")
+            wiz = self._one(created, "the wizard")
             behaviors = wiz.get_behaviors()
             assert [b.behavior_id for b in behaviors] == ["shopkeeper"]
             assert behaviors[0].params["markup"] == 1.2
@@ -660,3 +660,162 @@ class TestSlotsAndConsumables:
         area, attrs = protos
         assert attrs[210]["spells"] == ["polymorph other"]
         assert any("polymorph other" in gap for gap in area.gaps)
+
+
+# --- names, flags and lost spells (after the MUD plan, 2026-11-16) ------------------
+
+
+def _refresh_script():
+    import importlib.util
+    from pathlib import Path
+    script = Path(__file__).resolve().parents[1] / "scripts" / "dev" / "refresh_rom_items.py"
+    spec = importlib.util.spec_from_file_location("refresh_rom_items", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestNamesReadAsROMDoes:
+    """ROM shows a thing's short description ("a long sword", "the
+    wizard") and matches what a player types against its keywords
+    ("sword long"). The converter makes the short description the name
+    and the keywords its aliases."""
+
+    def test_the_short_description_is_the_name_and_the_keywords_aliases(self):
+        area = _convert(ARE)
+        sword = area.obj_protos[3010]
+        assert sword["name"] == "a long sword"
+        assert sword["attrs"]["aliases"] == ["sword long", "sword", "long"]
+        assert "short_desc" not in sword["attrs"]
+        wizard = area.mob_protos[3000]
+        assert wizard["name"] == "the wizard"
+        assert wizard["attrs"]["aliases"] == ["wizard"]
+        placed = next(o for o in area.objects if o["attrs"].get("prototype_vnum") == 3000
+                      and "npc" in o["tags"] and "prototype" not in o["tags"])
+        assert placed["name"] == "the wizard"
+
+    def test_a_respawn_is_named_as_the_placed_mob(self):
+        area = rom_import.convert(REPOP_ARE, repop=True)
+        cellar = next(o for o in area.objects if o["attrs"].get("rom_vnum") == 101
+                      and "room" in o["tags"])
+        spawner = next(b for b in cellar["behaviors"] if b["behavior_id"] == "spawner")
+        prototype = spawner["params"]["prototype"]
+        assert prototype["name"] == "a rat" and prototype["attrs"]["aliases"] == ["rat"]
+
+    def test_the_refresh_script_names_a_converted_file_as_rom_does(self):
+        module = _refresh_script()
+        old_mob = {"name": "fido dog", "tags": ["npc"],
+                   "attrs": {"rom_vnum": 3062, "rom_act": ["A", "F"],
+                             "short_desc": "the beastly fido"}, "behaviors": []}
+        data = {"objects": [
+            {"id": "o1", "name": "potpie pot pie", "tags": ["thing", "food"],
+             "attrs": {"rom_vnum": 3009, "item_type": "food", "short_desc": "a big pot pie",
+                       "rom_values": [5, 0, 0, 0, 0]}, "behaviors": []},
+            dict(old_mob, id="m1"),
+            {"id": "r1", "name": "Square", "tags": ["room"], "attrs": {"sector": "city"},
+             "behaviors": [{"behavior_id": "spawner",
+                            "params": {"key": "m3062", "prototype": json_copy(old_mob)}}]},
+        ]}
+        module.refresh(data)
+        pie, fido, room = data["objects"]
+        assert pie["name"] == "a big pot pie" and pie["attrs"]["aliases"] == [
+            "potpie pot pie", "potpie", "pot", "pie"]
+        assert "short_desc" not in pie["attrs"]
+        assert fido["name"] == "the beastly fido"
+        assert fido["attrs"]["aliases"] == ["fido dog", "fido", "dog"]
+        spawned = room["behaviors"][0]["params"]["prototype"]
+        assert spawned["name"] == "the beastly fido"
+        assert spawned["attrs"]["aliases"] == ["fido dog", "fido", "dog"]
+        module.refresh(data)                               # a second run changes nothing
+        assert data["objects"][0]["name"] == "a big pot pie"
+        assert data["objects"][0]["attrs"]["aliases"] == ["potpie pot pie", "potpie", "pot", "pie"]
+
+
+def json_copy(value):
+    import json
+    return json.loads(json.dumps(value))
+
+
+@pytest.mark.asyncio
+class TestNamesInAWorld:
+
+    async def test_a_thing_shows_its_short_description_and_answers_to_its_keywords(self):
+        from realm.core.search import match_one
+        area = _convert(ARE)
+        sim = Simulator()
+        try:
+            created = await import_objects({"realm_format": 1, "objects": area.objects},
+                                           sim.store, preserve_ids=True)
+            sword = next(o for o in created if o.db.get("prototype_vnum") == 3010)
+            assert sword.name == "a long sword"
+            for typed in ("sword", "long", "long sword", "sword long"):
+                assert match_one(typed, [sword]) is sword, typed
+        finally:
+            sim.close()
+
+
+class TestNumericFlags:
+    """ROM writes a bit-vector as letters or as a decimal number; Midgaard's
+    rooms use numbers (its pet shop is ``0 266248 0``)."""
+
+    def test_a_number_reads_as_its_letters(self):
+        assert rom_import.flag_letters("266248") == ["D", "M", "S"]
+        assert rom_import.flag_letters(str(1 << 26)) == ["a"]
+        assert rom_import.flag_letters("0") == []
+
+    def test_a_room_written_in_numbers_keeps_its_flags(self):
+        # 266248 = D (indoors) + M (ROOM_PET_SHOP) + S (law).
+        text = ARE.replace("#3001\nThe Temple Of Mota~\nThe southern end of the temple hall.\n~\n"
+                           "0 CDS 0", "#3001\nThe Temple Of Mota~\nThe southern end of the "
+                           "temple hall.\n~\n0 266248 0")
+        area = _convert(text)
+        temple = next(o for o in area.objects if o["id"] == "rom_3001")
+        assert temple["attrs"]["rom_room_flags"] == ["D", "M", "S"]
+
+    def test_a_sentinel_written_in_numbers_stays_put(self):
+        # 3 = A (is_npc) + B (ACT_SENTINEL): it does not wander.
+        area = _convert(REPOP_ARE.replace("AG D 0 0", "3 D 0 0"))
+        assert not any(b["behavior_id"] == "wandering"
+                       for b in area.mob_protos[100]["behaviors"])
+
+
+class TestSpellsTheFileLost:
+
+    def test_a_magic_item_with_no_spell_is_a_gap(self):
+        area = _convert(ITEMS_ARE.replace("12 'cure light' '' '' ''", "12 0 0 0 0"))
+        assert area.obj_protos[204]["attrs"]["spells"] == []
+        assert any("potion" in gap and "no spell" in gap for gap in area.gaps)
+
+    def test_the_refresh_script_gives_back_a_lost_spell(self):
+        module = _refresh_script()
+        data = {"objects": [
+            {"id": "rom_obj_3083", "name": "a potion of cure light wounds",
+             "tags": ["thing", "prototype", "potion"],
+             "attrs": {"rom_vnum": 3083, "item_type": "potion", "spells": [],
+                       "spell_level": 5, "rom_values": [5, 0, 0, 0, 0]}, "behaviors": []},
+            {"id": "rom_i_obj_3083_9", "name": "a potion of cure light wounds",
+             "tags": ["thing", "potion"],
+             "attrs": {"rom_vnum": 3083, "prototype_vnum": 3083, "item_type": "potion",
+                       "spells": [], "rom_values": [5, 0, 0, 0, 0]}, "behaviors": []},
+        ]}
+        assert module.restore_spells(data, {3083: ["cure light"]}) == 2
+        module.refresh(data)
+        for potion in data["objects"]:
+            assert potion["attrs"]["rom_values"] == [5, "cure light", 0, 0, 0]
+            assert potion["attrs"]["spells"] == ["cure light"]
+
+    def test_the_refresh_command_reads_spells_and_vnum_lists(self, tmp_path):
+        import json
+        module = _refresh_script()
+        potion = {"name": "a potion", "tags": ["thing", "potion"],
+                  "attrs": {"item_type": "potion", "rom_values": [9, 0, 0, 0, 0]},
+                  "behaviors": []}
+        objects = [dict(json_copy(potion), id=f"p{v}", attrs=dict(potion["attrs"], rom_vnum=v))
+                   for v in (3092, 3292)]
+        path = tmp_path / "area.json"
+        path.write_text(json.dumps({"objects": objects}))
+        assert module.main([str(path), "--spells",
+                            "3092,3292=detect invis+detect hidden"]) == 0
+        written = json.loads(path.read_text())["objects"]
+        assert [o["attrs"]["spells"] for o in written] == [["detect invis", "detect hidden"]] * 2
+        assert module.main([str(path), "--spells", "3092"]) == 2      # no spells: usage

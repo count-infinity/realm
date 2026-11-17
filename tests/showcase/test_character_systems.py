@@ -30,7 +30,7 @@ import pytest
 
 from realm.core.beats import deliver_beat
 from realm.std.rules.checks import CheckResult, checks, skill_level
-from realm.testing import Simulator
+from realm.testing import Simulator, reconfigure
 
 # Output that must never appear while running a "Build it" transcript.
 BUILD_RED_FLAGS = (
@@ -449,6 +449,13 @@ class TestSleepRest:
 
 
 class TestDeathCloning:
+
+    @pytest.fixture
+    def sim(self, sim):
+        """The station sets ``PLAYER_DEATH = "unconscious"``: the bay, not
+        the engine's default respawn, brings the fallen back."""
+        reconfigure(sim.world, raw={**sim.world.settings.raw, "PLAYER_DEATH": "unconscious"})
+        return sim
 
     async def test_downed_player_is_cloned_and_billed(self, sim, combat):
         """The bay hears combat:on_death from a room it doesn't sit in (the

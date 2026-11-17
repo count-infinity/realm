@@ -150,7 +150,9 @@ class TestDefaultEqualsToday:
                      "clan_remove",
                      # step 15: quests
                      "quest_state", "quest_count", "quest_offer", "quest_advance",
-                     "quest_complete", "quest_fail"}
+                     "quest_complete", "quest_fail",
+                     # after the plan (Decision D2): an account's character limit
+                     "character_limit"}
             assert sorted(names - added) == SOFTCODE_NAMES
             # Step 8 added combat's two vital-pool observers; MUD_PLAN step 2
             # combat's revive observer and the vitals feature's two.

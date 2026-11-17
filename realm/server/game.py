@@ -607,6 +607,7 @@ class GameServer:
 
     async def _on_command(self, session: Session, command: str) -> None:
         """Called when a command is received from a session."""
+        session.input_arrived()
         outcome = await route_input(self.world, session, command)
         if outcome != DISPATCHED:
             # A prompt or the editor asks its own question; the pager and an

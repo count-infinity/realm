@@ -134,16 +134,16 @@ Spending any other pool (shields, mana, heat) does neither. Its own
 
 | `when_spent` | What happens | `adata('fatal')` |
 |---|---|---|
-| `unconscious` | tagged `unconscious` where it fell; comes round when its vital pool rises above spent (regeneration, healing). A player's default unless `PLAYER_DEATH` says otherwise | False |
-| `respawn` | players only: a corpse of what they carried stays, the player wakes at home at 1 point and pays the game system's `on_death` penalty; no kill award ([Life and Death](life-and-death.md#death)) | True |
+| `unconscious` | tagged `unconscious` where it fell; comes round when its vital pool rises above spent (regeneration, healing) | False |
+| `respawn` | players only: a corpse of what they carried stays, the player wakes at home one point short of spent and pays the game system's `on_death` penalty; no kill award ([Life and Death](life-and-death.md#death)). A player's default unless `PLAYER_DEATH` says otherwise | True |
 | `corpse` | replaced by a lootable corpse holding its contents; the killer's party gets the award. Any other object's default | True |
 | `destroy` | destroyed the way `@destroy` does it: an exit unpairs, a player inside is moved out, other contents go with it | True |
 | `none` | nothing: the object's own `ON_SPENT` softcode decides | False |
 
 A player may only be `unconscious`, `respawn` or `none`, and only a player
 may be `respawn`. Any other value is an error naming the object. A player
-with no `when_spent` follows the `PLAYER_DEATH` setting (`"unconscious"`
-unless the game sets `"respawn"`).
+with no `when_spent` follows the `PLAYER_DEATH` setting (`"respawn"`
+unless the game sets `"unconscious"`).
 
     @set ship/when_spent = none
     @set ship/on_spent = if adata('pool') == 'hull': remit(here, 'The ship breaks apart.')
@@ -220,8 +220,9 @@ the `attack` command will fight.
 ```
 
 `damage(Rue, 2)` from a trap fills the clock: 2, 4, 6. The third segment
-spends it, and Rue falls unconscious through the same death path a sword
-uses. `hitprcnt` counts what is left of the clock: at 4 of 6, 33 percent.
+spends it, and Rue goes down through the same death path a sword uses:
+she wakes at home with the clock at 5, or, in a game that sets
+`PLAYER_DEATH = "unconscious"`, falls where she stood. `hitprcnt` counts what is left of the clock: at 4 of 6, 33 percent.
 
 ### A door with structure
 

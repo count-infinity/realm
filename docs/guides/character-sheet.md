@@ -111,7 +111,9 @@ set `PROMPT = "<{hp}hp {mana}m {move}mv> "`.
 
 When it appears:
 
-- after every command, even one that printed nothing;
+- after every command, even one that printed nothing, and once only: a
+  command whose output went out as it ran (`@wall`, `@shutdown`'s
+  announcement) is not followed by a second prompt;
 - once after a batch of unsolicited output (someone speaks, a combat
   round), not after every line;
 - never before login, and not while a softcode prompt or wizard is waiting

@@ -7,7 +7,7 @@
    "tags": ["quest_def"],
    "attrs": {
     "description": "The baker says the beastly fidos have been at the flour sacks again. Kill five of them and there is experience and a loaf in it for you.",
-    "giver": "baker",
+    "giver": {"name": "baker", "prototype_vnum": 3001},
     "stages": [
      {"text": "Kill five of the beastly fidos that roam the streets.",
       "objectives": [{"kind": "kill", "prototype_vnum": 3062, "count": 5,

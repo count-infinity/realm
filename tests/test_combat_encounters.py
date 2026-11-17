@@ -23,6 +23,7 @@ from realm.std.combat.maneuver import QueuedAction
 from realm.std.combat.system import CombatSystem
 from realm.std.rules.checks import CheckResult, checks, skill_level
 from realm.std.stealth.behaviors import WatchfulBehavior
+from realm.testing import reconfigure
 
 
 class FixedRuleset(GURPSRuleset):
@@ -43,6 +44,12 @@ def level_resolver(obj, skill, modifier):
     effective = skill_level(obj, skill) + modifier
     return CheckResult(success=effective >= 10, margin=effective - 10,
                        roll=10, effective=effective, skill=skill)
+
+
+def _players_fall_unconscious(world) -> None:
+    """``PLAYER_DEATH = "unconscious"`` (the default is ``respawn``,
+    Decision D1)."""
+    reconfigure(world, raw={**world.settings.raw, "PLAYER_DEATH": "unconscious"})
 
 
 @pytest.fixture
@@ -343,7 +350,8 @@ class TestFlee:
 @pytest.mark.asyncio
 class TestDefeat:
 
-    async def test_player_falls_unconscious_in_place(self, manager):
+    async def test_player_falls_unconscious_in_place(self, manager, classic_world):
+        _players_fall_unconscious(classic_world)
         room = GameObject("Arena", tags=["room"])
         alice, sess = make_fighter("Alice", room, hp=3, dodge=0)
         bruiser, _ = make_fighter("Bruiser", room, player=False, skill=16)
@@ -592,8 +600,9 @@ class TestTimedEffects:
         corpses = [o for o in room.contents if o.name.startswith("corpse of")]
         assert len(corpses) == 1 and loot.location is corpses[0]
 
-    async def test_poisoned_player_falls_unconscious(self, manager):
+    async def test_poisoned_player_falls_unconscious(self, manager, classic_world):
         from realm.std.effects.behaviors import DamageOverTimeBehavior
+        _players_fall_unconscious(classic_world)
 
         room = GameObject("Arena", tags=["room"])
         alice, _ = make_fighter("Alice", room, hp=1)

@@ -272,12 +272,13 @@ objective puts the choice in the journal.
 ## The Midgaard quest
 
 The Midgaard template ships one quest, `data/quests.json`, imported by its
-`init_world`: in the Bakery, the baker offers "Fido trouble", five of the
-beastly fidos for 250 experience and a loaf of bread, repeatable hourly.
-(The converted area places no baker, so `init_world` makes one from its
-prototype, with a loaf to sell.) A world made before
-the quest existed does not have it (`init_world` runs on an empty
-database only); build it with the commands above.
+`init_world`: in the Bakery, the baker (ROM's mob 3001) offers "Fido
+trouble", five of the beastly fidos for 250 experience and a bread,
+repeatable hourly. Its `giver` is `{"name": "baker", "prototype_vnum":
+3001}`, so only the town's own baker (and a respawn of him) gives it and
+takes it back; the objectives count fidos by `prototype_vnum` 3062. A
+world made before the quest existed does not have it (`init_world` runs on
+an empty database only); build it with the commands above.
 
 ## Where it comes from
 

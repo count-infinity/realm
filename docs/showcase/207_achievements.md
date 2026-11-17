@@ -74,7 +74,8 @@ find.
 An achievement's `scope` is `account` unless it says `character`, so it is
 recorded on the account and every character the same person plays has it:
 `has_achievement` answers yes for all of them, and what it `grants` (tags,
-check modifiers) reaches each one, including a character made later.
+check modifiers) reaches each one, including a character made later; a
+`characters` grant raises the account's own character limit.
 
 ## Build it
 
@@ -202,7 +203,9 @@ tiers they have, the ones still to earn, and
   {"observation": 1}}` gives every character on the account +1 to
   observation for good. The worked example in the
   [accounts guide](../guides/accounts.md#a-worked-example) does the same
-  for the banshee's slayer and will.
+  for the banshee's slayer and will. `{"characters": 1}` gives the
+  account a character slot beyond `MAX_CHARACTERS` instead (CoffeeMud's
+  `BONUSCHARLIMIT`; [How many characters](../guides/accounts.md#how-many-characters)).
 - **Per character.** `@set Wanderer/scope = character` keeps an
   achievement on the character that earned it, for milestones a new
   character should earn again.

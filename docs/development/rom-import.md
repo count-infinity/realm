@@ -57,7 +57,10 @@ before shipping an imported area.
 
 Section-based text. Each section opens with `#NAME`; records are keyed by
 `#vnum`; strings end with `~`; bit-vectors are decimal numbers **or** ROM
-letter-flags (`A`=bit 0, `B`=bit 1 … `Z`=bit 25, `aa`=bit 26 …). The
+letter-flags (`A`=bit 0, `B`=bit 1 … `Z`=bit 25, `a`=bit 26 …). A decimal
+one is read as the letters of its bits, so Midgaard's pet shop, whose room
+flags are written `266248`, keeps `D`, `M` and `S` (`ROOM_PET_SHOP` is
+`M`). The
 sections the converter reads: `#AREA`/`#AREADATA`, `#MOBILES`, `#OBJECTS`,
 `#ROOMS`, `#RESETS`, `#SHOPS`, `#SPECIALS`. `#HELPS`/`#SOCIALS` are skipped;
 `#MOBPROGS`/`#OBJPROGS` are skipped with a warning (see below).
@@ -74,6 +77,7 @@ shops, and specials follow the ROM 2.4 `db.c` field order.
 |---|---|
 | room (`#ROOMS`) | object tagged `room`; `sector:<name>` tag + `sector` attr; room-flag letters kept as `rom_room_flags`, and `ROOM_NO_RECALL` (N) tagged `no_recall`; `ROOM_PET_SHOP` (M): the room's shopkeeper sells the mobs reset into the next room (vnum + 1) as pets (`sells_pets`, `pet_stock` naming their prototypes, each priced at ROM's `10 * level * level` silver in gold as `value`) |
 | door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a lockable door adds `door`/`closed` tags, the key vnum as a `key` attr |
+| names | a mob or object is called by its **short description** (`the wizard`, `a long sword`): that is its `name`, shown in rooms, inventory, shop lists and combat. Its ROM **keywords** are its `aliases`, the whole list and each word (`["sword long", "sword", "long"]`), so `get sword`, `get long` and `get sword long` all find it. With no short description the keywords are the name |
 | mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `credits` (its money in gold: ROM's `wealth`, which is silver, over 100; the raw figure kept as `rom_wealth`), `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight), ACT_SCAVENGER → `scavenger` that picks up what lies about and eats no corpse (`eat_corpses: false`; only `spec_fido` eats them). Shopkeepers are stripped of `wandering` and kept at the counter |
 | room (`#ROOMS`), continued | also tagged `zone:<area>` (one zone per imported area — bounds STAY_AREA wanderers, and the room-set a `zone_reset` or `population` orchestrator draws on) and `outdoor` for any non-interior sector (so an orchestrator can populate "all outdoor rooms") |
 | object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `ITEM_MAGIC` tagged `magic` and `ITEM_ANTI_GOOD`/`_EVIL`/`_NEUTRAL` tagged `anti_good`/`anti_evil`/`anti_neutral`; `level` (the least level to use it under Merc), `weight`, `value` (cost), `slot` for wearables (Merc's slot names: the hold flag is `held`, a light source `light`), `wieldable` for weapons; potions, pills, scrolls, wands and staves get `spells`, `spell_level` and `charges`; food gets `nourishment` (its hours of fullness times 20), drink containers `liquid` (the liquid's name; an old-format number is looked up in ROM's liquid table), `liquid_held` and `liquid_remaining` (units times 30, CoffeeMud's importer's scale) and the `drink` tag, fountains `liquid` and the `drink` and `fountain` tags (they never run dry); the five ROM value fields kept raw in `rom_values` |
@@ -114,7 +118,9 @@ in REALM yet, and a builder can wire it up in softcode.
   Sheet](../guides/character-sheet.md#consumables)). Old-format areas name
   spells by ROM slot number; the converter translates them. A spell the
   `merc-classic` pack does not define, and a slot number it does not know,
-  are reported as gaps. It keeps all five values raw in `rom_values`; a
+  are reported as gaps, and so is a potion, pill, scroll, wand or staff
+  that names no spell at all (it does nothing until it is given a
+  `spells` attribute). It keeps all five values raw in `rom_values`; a
   light's duration, a container's key and the like are not wired to REALM
   mechanics. Food carries `nourishment` and drink containers `liquid`,
   `liquid_held` and `liquid_remaining`, which fill the Merc `food` and
@@ -232,17 +238,11 @@ class skills as commands, groups (`follow`, `group`, experience shared by
 level, `split`, `report`), `scan`, `exits`, `where`, `consider` by level,
 `recall` (half your movement), `brief` and `autoexit`, corpses and
 respawn. A converted area already on disk is brought up to date with
-`python scripts/dev/refresh_rom_items.py <area.json>`; the shipped Midgaard
-was refreshed that way (MUD_PLAN step 17 added: shops taken off objects
-that share a keeper's vnum, a spawner's `prototype_vnum`, and
-`ACT_SCAVENGER` mobs that no longer eat corpses). A room flag the stored
-file lost can be given back first, as ROM letters: Midgaard was converted
-with its room flags empty, so its pet shop was restored with `--room-flags
-3031=M`. What the refresh cannot give back is a mob placement the earlier
-converter lost: it read a reset's trailing comment into the next line, and
-Midgaard's `.are` is not at hand to convert again, so its baker and three
-of its four guildmasters are missing (the template's `init_world` places
-the baker; the cleric's guildmaster teaches every class).
+`python scripts/dev/refresh_rom_items.py <area.json>` (a developer tool in
+the source checkout, not the installed package): it re-derives every field
+the importer now maps from the raw `rom_*` values the file keeps, renames
+things named by their keywords, and can give back what the source file
+lost (`--room-flags VNUM=LETTERS`, `--spells VNUM[,VNUM]=spell[+spell]`).
 
 ### What still does not
 
@@ -259,3 +259,77 @@ the baker; the cleric's guildmaster teaches every class).
 - Smaller losses are listed under [Capability gaps](#capability-gaps-what-does-not-map-and-why):
   a light's duration, a container's key, reset `R` and `D`, cross-area
   exits.
+
+## The shipped Midgaard
+
+`realm/examples/midgaard/data/areas/midgaard.json`, the area the
+`midgaard` template loads, is generated, never edited by hand. To make it
+again:
+
+1. **The source.** `area/midgaard.are` from ROM 2.4b6 (`README.version`:
+   "ROM 2.4b6, May 29, 1998"), as found in the copy of the ROM
+   distribution at `github.com/DikuMUDOmnibus/ROM` (6,505 lines;
+   `#AREADATA` `Name Midgaard`, `VNUMs 3000 3399`).
+2. **Convert** it with respawning mobs:
+
+    ```bash
+    realm import-rom path/to/area/midgaard.are --out midgaard.json --repop --report
+    ```
+
+3. **Give back the spells this copy lost.** Every potion, pill, scroll,
+   wand and staff in that distribution's area files has `0` where ROM 2.4
+   writes its spell names (`10 0 0 0 0`, not `10 'detect invis' ...`), so
+   even ROM's own loader would find no spell. The converter reports each
+   one. The spells below are those of the earlier conversion this one
+   replaced (made from a Midgaard whose values still named them by ROM slot
+   number); a spell an earlier source listed three times (the antidote, the
+   potion of cure blindness) is given once. The scroll of cancellation and
+   the potion of negation named slot 507, which ROM 2.4's table does not
+   have, and stay empty.
+
+    ```bash
+    python scripts/dev/refresh_rom_items.py midgaard.json \
+      --spells 3040,3240=identify \
+      --spells 3041,3241="detect invis" \
+      --spells 3042,3242="word of recall" \
+      --spells 3080,3280=heal \
+      --spells 3081,3281=sanctuary \
+      --spells 3082="sanctuary+shield" \
+      --spells 3282="sanctuary+armor+shield" \
+      --spells 3083,3283="cure light" \
+      --spells 3084,3284="cure serious" \
+      --spells 3085,3285="cure critical" \
+      --spells 3086,3286="cure poison" \
+      --spells 3087,3287="cure blindness" \
+      --spells 3088,3288=bless \
+      --spells 3089,3289=armor \
+      --spells 3091,3291=fly \
+      --spells 3092,3292="detect invis+detect hidden+detect magic"
+    ```
+
+   The refresh writes the file back with one-space indentation (the
+   converter writes two). Nothing else in a fresh conversion changes. No
+   `--room-flags` is needed: the converter reads Midgaard's decimal room
+   flags itself (the pet shop's `M` among them).
+4. Copy the result over `realm/examples/midgaard/data/areas/midgaard.json`
+   and run `tests/test_first_hour.py`, `tests/test_midgaard_playable.py`
+   and the rest of the suite: they play this exact file.
+
+**The `.are` is not in the repository.** The Diku licence
+(`doc/license.doc` in the ROM distribution) must go "as is" with any copy
+of any part of DikuMud, and ROM's (`doc/rom.license`) asks a derivative to
+carry ROM's README and credits files; REALM ships as a pip package and
+vendors none of them. So the source stays where you downloaded it, and the
+converted JSON (derived work, as the earlier conversion already was) is
+what ships. Its `#AREADATA` credits line, `{ All } Diku    Midgaard`,
+stays the area's provenance. Those licences also ask a *running* Diku,
+Merc or ROM game to name their authors at login and in a `credits`
+command; whether a REALM game that loads a converted area owes that is a
+question for the maintainer (BACKLOG, "After the MUD plan").
+
+The template adds what ROM keeps in its C code rather than the area file:
+ROM's `class_table` closes each guild's bar to the other classes (the
+Mage's Bar 3018, the Cleric's Bar 3003, the Thieves Bar 3028, the Bar of
+Swordsmen 3022), which `init_world` does with an `enter` lock on each
+(`GUILD_BARS` in the template's `config.py`; barbarians, a class ROM never
+had, use the swordsmen's).

@@ -552,7 +552,7 @@ async def test_midgaards_baker_offers_fido_trouble():
     await s.start()
     try:
         bakery = s.store.get_cached("rom_3009")
-        assert any(o.name == "baker" for o in bakery.contents)
+        assert any(o.name == "the baker" for o in bakery.contents)
         pat = s.player("Pat", location=bakery, level=1, hp=20, max_hp=20)
         assert "baker (!)" in await _say(s, pat, "look")
         assert "Fido trouble" in await _say(s, pat, "quest list")
@@ -566,7 +566,7 @@ async def test_midgaards_baker_offers_fido_trouble():
         assert "fidos killed: 5/5" in "\n".join(s.seen(pat))
         xp = pat.db.get("xp") or 0
         out = await _say(s, pat, "quest complete")
-        assert "Quest complete: Fido trouble!" in out and "You receive bread." in out
+        assert "Quest complete: Fido trouble!" in out and "You receive a bread." in out
         assert (pat.db.get("xp") or 0) >= xp + 250 or pat.db.get("level") > 1
     finally:
         _close(s)

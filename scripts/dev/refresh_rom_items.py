@@ -3,7 +3,10 @@ Re-derive the fields the ROM importer writes for objects (wear slot, a
 weapon's damage type, consumables, the ``magic`` and ``anti_*`` tags), mobs
 (the trainer behavior, the special procedures' behavior parameters, money,
 an ``ACT_SCAVENGER`` that picks up instead of eating corpses; an object that
-took a mob's shop, sharing its vnum, loses it)
+took a mob's shop, sharing its vnum, loses it), names (a mob or object
+named by its ROM keywords, its short description kept as ``short_desc``,
+is named by the short description and answers to the keywords as
+``aliases``, spawners' mobs too)
 and rooms (``lamplit`` city streets, ``no_recall``, a ``ROOM_PET_SHOP``'s
 keeper selling the next room's mobs as pets, a spawner's mob knowing its
 vnum)
@@ -11,15 +14,18 @@ on an already-converted area file, from the ``item_type``, ``rom_wear``,
 ``rom_values``, ``rom_extra``, ``rom_act``, ``rom_room_flags`` and
 ``rom_spec:*`` tags each object keeps.
 
-For a converted area whose ``.are`` source is not at hand (the shipped
-Midgaard): after the importer learns a new mapping, this brings the file up
-to date without a re-conversion, and leaves every other field alone.
+After the importer learns a new mapping, this brings a converted file up to
+date without a re-conversion, and leaves every other field alone.
 
-    python scripts/dev/refresh_rom_items.py realm/examples/midgaard/data/areas/midgaard.json
+    python scripts/dev/refresh_rom_items.py area.json
 
-A room flag the stored file lost can be given back first, as ROM letters:
-``--room-flags 3031=M`` (Midgaard was converted with its room flags empty;
-3031 is its pet shop, ROM's ``ROOM_PET_SHOP``).
+What the source file lost can be given back first. A room flag, as ROM
+letters: ``--room-flags 3031=M`` (3031 is Midgaard's pet shop, ROM's
+``ROOM_PET_SHOP``). A magic item's spells, by vnum (several vnums comma
+separated, several spells joined by ``+``): ``--spells 3083,3283="cure
+light"`` writes them into the item's ``rom_values`` as a ROM 2.4 file
+names them, so every later refresh keeps them. The shipped Midgaard is
+made this way (docs/development/rom-import.md, "The shipped Midgaard").
 """
 
 from __future__ import annotations
@@ -36,6 +42,7 @@ from realm.tools.rom_import import (
     gap_lines,
     item_fields,
     item_flag_tags,
+    keywords,
     mob_money,
     pet_shops,
     rom_flags,
@@ -107,6 +114,51 @@ def _spawn_vnums(room: dict) -> int:
     return changed
 
 
+def _rom_names(obj: dict) -> int:
+    """A thing named by its ROM keywords, with its short description kept
+    as ``short_desc`` (the importer before 2026-11-16), is named by the
+    short description and answers to the keywords."""
+    attrs = obj.get("attrs")
+    if not attrs or "short_desc" not in attrs:
+        return 0
+    short = str(attrs.pop("short_desc") or "").strip()
+    listed = str(obj.get("name") or "")
+    aliases = attrs.setdefault("aliases", [])
+    aliases.extend(a for a in keywords(listed) if a not in aliases)
+    obj["name"] = short or listed
+    return 1
+
+
+#: Where a ROM 2.4 magic item names its spells (``load_objects``).
+SPELL_VALUES = {"potion": (1, 4), "pill": (1, 4), "scroll": (1, 4),
+                "wand": (3, 1), "staff": (3, 1)}
+
+
+def restore_spells(data: dict, spells: dict[int, list[str]]) -> int:
+    """Write spell names into the ``rom_values`` of the magic items whose
+    vnum (``rom_vnum``) is given (``{3083: ["cure light"]}``); returns how
+    many objects changed. Raises ``ValueError`` for more spells than the
+    item type holds."""
+    changed = 0
+    for obj in data["objects"]:
+        attrs = obj.get("attrs") or {}
+        wanted = spells.get(attrs.get("rom_vnum"))
+        place = SPELL_VALUES.get(attrs.get("item_type"))
+        if wanted is None or place is None or "rom_values" not in attrs:
+            continue
+        first, room = place
+        if len(wanted) > room:
+            raise ValueError(f"vnum {attrs['rom_vnum']} ({attrs['item_type']}) holds "
+                             f"{room} spell(s), not {len(wanted)}")
+        values = list(attrs["rom_values"]) + [0] * (5 - len(attrs["rom_values"]))
+        for i in range(room):
+            values[first + i] = wanted[i] if i < len(wanted) else 0
+        if values != attrs["rom_values"]:
+            attrs["rom_values"] = values
+            changed += 1
+    return changed
+
+
 def restore_room_flags(data: dict, flags: dict[int, str]) -> int:
     """Add ROM room-flag letters to ``rom_room_flags`` by vnum (``{3031: "M"}``)."""
     changed = 0
@@ -129,11 +181,18 @@ def refresh(data: dict) -> tuple[int, Area]:
         attrs = obj.get("attrs") or {}
         tags = obj.get("tags", [])
         if "room" in tags and attrs.get("sector"):
+            for behavior in obj.get("behaviors", []):
+                prototype = behavior.get("params", {}).get("prototype") \
+                    if behavior.get("behavior_id") == "spawner" else None
+                changed += _rom_names(prototype) if prototype else 0
             changed += _spawn_vnums(obj)
             changed += _add_tags(tags, room_light_tags(str(attrs["sector"])))
             changed += _add_tags(tags, room_flag_tags(attrs.get("rom_room_flags") or []))
             continue
+        for entry in attrs.get("reset_spec") or [] if "zone_master" in tags else []:
+            changed += _rom_names(entry.get("prototype") or {})
         if "npc" in obj.get("tags", []) and "rom_act" in attrs:
+            changed += _rom_names(obj)
             changed += _refresh_mob(obj)
             changed += _act_scavenger(obj)
             trainer = trainer_behavior(attrs["rom_act"])
@@ -148,6 +207,7 @@ def refresh(data: dict) -> tuple[int, Area]:
         if type_name is None or "rom_values" not in attrs:
             continue
         before = json.dumps(obj, sort_keys=True)
+        _rom_names(obj)
         # An object whose vnum was a shopkeeper's took its shop (before
         # MUD_PLAN step 17, #SHOPS matched objects as well as mobs).
         if attrs.pop("rom_shop_buys", None) is not None:
@@ -171,9 +231,29 @@ def refresh(data: dict) -> tuple[int, Area]:
     return changed, area
 
 
+def _spells_arg(text: str) -> dict[int, list[str]] | None:
+    """``3083,3283=cure light`` -> ``{3083: ["cure light"], 3283: [...]}``;
+    ``a+b`` is two spells. None when it does not read so."""
+    vnums, _, names = text.partition("=")
+    spells = [name.strip() for name in names.split("+") if name.strip()]
+    numbers = [v.strip() for v in vnums.split(",")]
+    if not spells or not all(n.isdigit() for n in numbers):
+        return None
+    return {int(n): spells for n in numbers}
+
+
 def main(argv: list[str]) -> int:
     flags: dict[int, str] = {}
+    spells: dict[int, list[str]] = {}
     args = list(argv)
+    while "--spells" in args:
+        at = args.index("--spells")
+        given = _spells_arg(args[at + 1]) if at + 1 < len(args) else None
+        if given is None:
+            print(__doc__)
+            return 2
+        spells.update(given)
+        del args[at:at + 2]
     while "--room-flags" in args:
         at = args.index("--room-flags")
         vnum, _, letters = (args[at + 1] if at + 1 < len(args) else "").partition("=")
@@ -187,7 +267,7 @@ def main(argv: list[str]) -> int:
         return 2
     path = Path(args[0])
     data = json.loads(path.read_text())
-    restored = restore_room_flags(data, flags)
+    restored = restore_room_flags(data, flags) + restore_spells(data, spells)
     changed, area = refresh(data)
     changed += restored
     path.write_text(json.dumps(data, indent=1))     # the converter's own format

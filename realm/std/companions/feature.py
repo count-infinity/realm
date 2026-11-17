@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from realm.core.action_tags import HOSTILE
+from realm.core.action_tags import ACCOMPANIED, HOSTILE
 from realm.core.action_types import ActionType
 from realm.features import Feature
 from realm.std.combat.actions import CombatAction
@@ -29,6 +29,7 @@ from realm.std.companions.companions import (
     bond_refusal,
     buy_pet,
     charm,
+    come_along,
     companions_of,
     leave_with,
     master_of,
@@ -102,9 +103,10 @@ feature.queue_kind("companion_release", softcode.queued_release)
 
 
 async def companions_observer(action) -> None:
-    """Companions leave and return with their master; fight beside it;
-    break with a master who turns on them; and a rider who goes down, or
-    is moved without its mount, is off it."""
+    """Companions leave and return with their master; come along when it
+    is placed somewhere by a move tagged ``accompanied`` (recall); fight
+    beside it; break with a master who turns on them; and a rider who goes
+    down, or is moved without its mount, is off it."""
     kind = action.action_type
     actor, target = action.actor, action.target
     if kind == ActionType.DISCONNECT and actor is not None:
@@ -114,11 +116,16 @@ async def companions_observer(action) -> None:
     elif kind == CombatAction.ON_DEATH and target is not None:
         await _gone_down(target)
     elif kind == ActionType.ON_ENTER and actor is not None and "exit" not in action.extra:
-        # Placed somewhere directly (recall, a teleport): rider and mount part.
-        if riding.mount_of(actor) is not None:
+        # Placed somewhere directly. Recall (``accompanied``) brings the
+        # company along; any other placement (a teleport, a summons) moves
+        # the mover alone, and a rider and mount left apart are parted.
+        if ACCOMPANIED in action.tags:
+            await come_along(actor, action.extra.get("from"), action.target, action.tags)
+        mount, rider = riding.mount_of(actor), riding.rider_of(actor)
+        if mount is not None and mount.location is not actor.location:
             await riding.dismount(actor, how="parted")
-        elif riding.rider_of(actor) is not None:
-            await riding.dismount(riding.rider_of(actor), how="parted")
+        elif rider is not None and rider.location is not actor.location:
+            await riding.dismount(rider, how="parted")
     elif HOSTILE in action.tags and not action.blocked:
         await _fight_together(actor, target)
 

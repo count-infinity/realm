@@ -35,7 +35,7 @@ from realm.games.gurps.ruleset import GURPSRuleset
 from realm.std.combat.manager import CombatManager
 from realm.std.combat.system import CombatSystem
 from realm.std.rules.checks import CheckResult, checks, skill_level
-from realm.testing import Simulator
+from realm.testing import Simulator, reconfigure
 
 
 def level_resolver(obj, skill, modifier):
@@ -409,7 +409,9 @@ class TestNonlethalTakedowns:
         corpses = [o for o in brig.contents if o.name.startswith("corpse of")]
         assert len(corpses) == 1 and loot.location is corpses[0]
 
-        # Players at zero HP fall unconscious in place, and firstaid revives.
+        # Under PLAYER_DEATH = "unconscious" (the default is respawn), players
+        # at zero HP fall unconscious in place, and firstaid revives.
+        reconfigure(sim.world, raw={**sim.world.settings.raw, "PLAYER_DEATH": "unconscious"})
         bruiser = sim.obj("bruiser", location=brig, tags=["npc"],
                           hp=30, max_hp=30, skill_melee=16, dodge=12)
         dana = fighter(sim, "Dana", brig, hp=3, skill_melee=4)
@@ -460,6 +462,9 @@ class TestDueling:
         assert not ace.has_tag("duelist")
 
     async def test_full_duel_escrow_fight_and_payout(self, sim, combat):
+        # The arena's game sets PLAYER_DEATH = "unconscious": the loser stays
+        # on the sand (the default, respawn, would send them home).
+        reconfigure(sim.world, raw={**sim.world.settings.raw, "PLAYER_DEATH": "unconscious"})
         builder = await build(sim, BUILD_113, admin=True)
         ring = room(sim, "The Ring")
         # Ace defends everything (dodge 12); Bruce is two hits from down.

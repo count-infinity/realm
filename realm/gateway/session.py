@@ -94,6 +94,7 @@ class Session:
         'input_handler',
         '_prompt_future',
         '_prompt_writer',
+        '_prompt_shown',
         '_heredoc',
         '_flush_tasks',
         'close_reason',
@@ -138,6 +139,10 @@ class Session:
         # Where the game's prompt goes (the protocol's own framing: telnet
         # ends it with EOR/GA). None: this connection shows no prompt.
         self._prompt_writer: Callable[[str], None] | None = None
+        # True while the prompt is the last thing this connection was
+        # written and no line of input has come in since: a command that
+        # flushed its own output (an announcement) already ended with it.
+        self._prompt_shown = False
         # The last Char.Vitals sent with a prompt (write_prompt sends it again
         # only when a pool changed).
         self._vitals_sent: dict[str, int] | None = None
@@ -220,6 +225,7 @@ class Session:
             self._send_vitals(self.player)
         if self._prompt_writer is not None and self._pager is not None:
             self._prompt_writer(PAGER_PROMPT)
+            self._prompt_shown = True
             return
         if (self._prompt_writer is None or self.player is None
                 or self.input_handler is not None or self._prompt_future is not None):
@@ -236,6 +242,12 @@ class Session:
             return
         if text:
             self._prompt_writer(str(text))
+            self._prompt_shown = True
+
+    def input_arrived(self) -> None:
+        """A line of input came in: the prompt on the screen is answered,
+        so the end of the command it runs writes a fresh one."""
+        self._prompt_shown = False
 
     def _send_vitals(self, player: GameObject) -> None:
         vitals = vitals_of(player)
@@ -489,8 +501,10 @@ class Session:
 
     async def flush_output(self, *, prompt: bool = False) -> None:
         """Flush all pending output to the writer, then the prompt: after
-        any output, or always with ``prompt`` (a command that printed
-        nothing still ends with one)."""
+        any output, or with ``prompt`` (a command that printed nothing still
+        ends with one) unless the prompt is already the last thing written
+        since the input (a command whose output was flushed as it went,
+        such as an announcement to everyone, ends with one prompt)."""
         if self._writer is None:
             return
 
@@ -500,12 +514,13 @@ class Session:
                 message = self._output_queue.get_nowait()
                 await self._writer(message)
                 wrote = True
+                self._prompt_shown = False
             except asyncio.QueueEmpty:
                 break
             except Exception as e:
                 logger.error(f"Session {self.id}: error writing: {e}")
                 break
-        if wrote or prompt:
+        if wrote or (prompt and not self._prompt_shown):
             self.write_prompt()
 
     def get_data(self, key: str, default: Any = None) -> Any:

@@ -624,10 +624,10 @@ class TestMidgaard:
         for obj in data["objects"]:
             attrs = obj.get("attrs") or {}
             by_type.setdefault(attrs.get("item_type"), []).append(obj)
-        bread = next(o for o in by_type["food"] if o["name"] == "bread")
+        bread = next(o for o in by_type["food"] if o["name"] == "a bread")
         assert bread["attrs"]["nourishment"] == 360           # 18 hours, times 20
         assert "restores" not in bread["attrs"]
-        skin = next(o for o in by_type["drink"] if o["name"] == "skin water buffalo")
+        skin = next(o for o in by_type["drink"] if o["name"] == "a buffalo water skin")
         assert skin["attrs"]["liquid"] == "water"
         assert skin["attrs"]["liquid_held"] == skin["attrs"]["liquid_remaining"] == 64 * 30
         assert "charges" not in skin["attrs"] and "restores" not in skin["attrs"]

@@ -244,6 +244,28 @@ class TestTheMenu:
         finally:
             await srv.stop()
 
+    async def test_the_limit_is_each_accounts_own(self):
+        """Decision D2: ``MAX_CHARACTERS`` is the base; an account's
+        ``bonus_characters`` raises its own limit, and the menu and the
+        refusal show the real one."""
+        srv = GameServer(db_path=":memory:", enable_telnet=False, tick_interval=0,
+                         game_system=Instant, raw={"MAX_CHARACTERS": 2})
+        await srv.start()
+        try:
+            c = await _with_characters(srv, "Ann", "correcthorse", "Bree", "Cole")
+            out = await c.send("characters")
+            assert "Your characters (2 of 2):" in out
+            assert "at most 2 characters" in await c.send("new Dov")
+            c.account.db.bonus_characters = 1
+            out = await c.send("look")                      # the menu again
+            assert "Your characters (2 of 3):" in out
+            await c.send("new Dov")
+            assert c.player is not None and c.player.name == "Dov"
+            await c.send("characters")
+            assert "An account may hold at most 3 characters." in await c.send("new Eve")
+        finally:
+            await srv.stop()
+
     async def test_characters_switches_without_disconnecting(self, server):
         c = await _with_characters(server, "Ann", "correcthorse", "Bree", "Cole")
         cole = c.player
@@ -457,6 +479,24 @@ class TestAdministration:
         d = await _client(server)
         await d.send("connect Ann brandnewpass")
         assert d.player is not None
+
+    async def test_slots_raise_one_accounts_limit(self, server, caplog):
+        import logging
+        admin = await self._admin(server)
+        ann = await _with_characters(server, "Ann", "correcthorse", "Bree")
+        with caplog.at_level(logging.INFO, logger="realm.admin"):
+            out = await admin.send("@account/slots Ann = 2")
+        assert "Ann may now hold 7 characters" in out
+        assert ann.account.db.bonus_characters == 2
+        assert any("Boss" in r.message and "Ann" in r.message and "2" in r.message
+                   for r in caplog.records if r.name == "realm.admin")
+        out = await admin.send("@account Ann")
+        assert "limit:       7 characters (5 + 2 bonus)" in out
+        assert "Usage: @account/slots" in await admin.send("@account/slots Ann = lots")
+        assert "Usage: @account/slots" in await admin.send("@account/slots Ann = -1")
+        await admin.send("@account/slots Ann = 0")
+        assert ann.account.db.get("bonus_characters") is None
+        assert "limit:       5 characters" in await admin.send("@account Ann")
 
     async def test_mortals_may_not(self, server):
         await self._admin(server)

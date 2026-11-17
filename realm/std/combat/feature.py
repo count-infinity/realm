@@ -122,11 +122,11 @@ feature.setting("COMBAT_BEAT_MIN", 4.0, "Shortest combat round, in seconds.")
 feature.setting("COMBAT_BEAT_MAX", 120.0, "Longest combat round, in seconds.")
 feature.setting("COMBAT_BEAT_DEFAULT", 15.0, "Default combat round, in seconds.")
 feature.setting(
-    "PLAYER_DEATH", "unconscious",
+    "PLAYER_DEATH", "respawn",
     "What happens to a player whose vital pool is spent, unless the player sets "
-    "`when_spent`: `unconscious` (falls where they are and comes round as they "
-    "heal) or `respawn` (leaves a corpse of their belongings and returns home at 1 "
-    "point, paying the game system's `on_death` penalty).")
+    "`when_spent`: `respawn` (leaves a corpse of their belongings and returns home "
+    "one point short of spent, paying the game system's `on_death` penalty) or "
+    "`unconscious` (falls where they are and comes round as they heal).")
 feature.setting(
     "CORPSE_LOCK_SECONDS", 300,
     "Under `respawn`, how long only the dead player (and admins) may take from "

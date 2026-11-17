@@ -113,6 +113,10 @@ TO_DICT |= {'quest_state', 'quest_count', 'quest_offer', 'quest_advance', 'quest
 READONLY |= {'quest_state', 'quest_count'}
 HARM |= {'quest_offer', 'quest_advance', 'quest_complete', 'quest_fail'}
 
+# An account's character limit (Decision D2, after the MUD plan, 2026-11-17).
+TO_DICT |= {'character_limit'}
+READONLY |= {'character_limit'}
+
 
 class TestParityWithTheOldLists:
 

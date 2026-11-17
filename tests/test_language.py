@@ -107,6 +107,13 @@ class TestNamesThatAlreadyCarryAnArticle:
         # Pluralizing still works on the last word; the article just goes.
         assert pluralize("a sheet of roaring flame") == "sheet of roaring flames"
 
+    def test_plural_drops_the_definite_too(self):
+        # A ROM short description is the name of a converted mob ("the
+        # cityguard"): two of them read "2 cityguards", never "2 the cityguards".
+        assert pluralize("the cityguard") == "cityguards"
+        assert numbered_name(GameObject("the cityguard"), 2) == "2 cityguards"
+        assert pluralize("Otho the Changer") == "Otho the Changers"   # not an article
+
     def test_numbered_name_reads_correctly_either_way(self):
         flame = GameObject("a sheet of roaring flame")
         assert numbered_name(flame, 1) == "a sheet of roaring flame"

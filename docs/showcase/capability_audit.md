@@ -55,7 +55,8 @@ Known engine truths that bound the audit (checked in source):
 - `wait()` timers are in-memory (MUSH-style); `expire()` persists.
 - GMCP is live (telnet option 201 + websocket parity + `oob()`).
 - Combat: beat-driven encounters, maneuvers incl. aim/cover/range bands,
-  strategies, `ON_HITPRCNT`, corpses + loot, players fall unconscious.
+  strategies, `ON_HITPRCNT`, corpses + loot, players respawn (or fall
+  unconscious, `PLAYER_DEATH = "unconscious"`).
 - No weight/capacity kernel — weight is an attribute convention, gated
   by `on_check` wards (that is the tutorial, not a gap).
 - No game calendar — but `now()` arithmetic builds one in softcode.

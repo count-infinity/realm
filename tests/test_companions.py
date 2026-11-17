@@ -568,7 +568,7 @@ async def test_midgaards_pet_shop_sells(midgaard):
     listing = "\n".join(midgaard.seen(pat))
     assert "Pets for sale:" in listing and "kitten" in listing
     await midgaard.do(pat, "buy kitten")
-    assert [p.name for p in companions_of(pat)] == ["kitten cat pet"]
+    assert [p.name for p in companions_of(pat)] == ["the kitten"]
 
 
 # --- 13.3 mounts --------------------------------------------------------------
@@ -815,6 +815,62 @@ async def test_a_rider_moved_without_its_mount_is_off_it(sim):
     await move_to(alice, there, force=True)                  # a recall, a teleport
     assert alice.db.get("riding") is None and not mare.has_tag("ridden")
     assert "You are parted from the grey mare." in sim.seen(alice)
+
+
+# --- after the plan: companions come along on recall (BACKLOG, first hour) ----------------
+
+
+async def test_a_pet_comes_along_on_recall(sim):
+    """ROM's ``do_recall`` recalls the pet with its master. A companion
+    beside its master goes too; one elsewhere, or out cold, stays."""
+    here, there, _n = _path(sim)
+    temple = sim.room("Temple")
+    alice = sim.player("Alice", location=here, home=temple.id)
+    bob = sim.player("Bob", location=here)
+    kitten = _creature(sim, "kitten", here)
+    hawk = _creature(sim, "hawk", there)
+    dog = _creature(sim, "dog", here)
+    for npc in (kitten, hawk, dog):
+        await set_master(npc, alice)
+    dog.add_tag("unconscious")
+    sim.seen(bob)
+    await sim.do(alice, "recall")
+    assert alice.location is temple
+    assert kitten.location is temple and master_of(kitten) is alice
+    assert hawk.location is there and dog.location is here
+    assert "kitten" in "\n".join(sim.seen(alice))          # in the room she wakes to
+    seen = sim.seen(bob)
+    assert "The kitten disappears with Alice." in seen and "Alice disappears." in seen
+
+
+async def test_a_rider_recalls_on_its_mount(sim):
+    here, _there, _n = _path(sim)
+    temple = sim.room("Temple")
+    alice = sim.player("Alice", location=here, home=temple.id)
+    mare = await _mare(sim, here, alice)
+    await sim.do(alice, "mount mare")
+    sim.seen(alice)
+    await sim.do(alice, "recall")
+    assert alice.location is temple and mare.location is temple
+    assert alice.db.riding == mare.id and mare.has_tag("ridden")
+    assert not any("parted" in line for line in sim.seen(alice))
+
+
+async def test_a_move_that_says_so_brings_companions_any_other_does_not(sim):
+    """The seam is the ``accompanied`` action tag on a direct placement
+    (recall puts it there; a softcode gate spell passes ``tags=
+    ['accompanied']``). A plain teleport, ``@tel`` or a summons leaves
+    them, as ROM's transfer and summon do."""
+    from realm.core.movement import move_to
+    here, there, _n = _path(sim)
+    alice = sim.player("Alice", location=here)
+    kitten = _creature(sim, "kitten", here)
+    await set_master(kitten, alice)
+    await move_to(alice, there, force=True)
+    assert alice.location is there and kitten.location is here
+    await move_to(alice, here, force=True)
+    assert await move_to(alice, there, extra_tags=["accompanied"])
+    assert kitten.location is there
 
 
 async def test_a_ridden_mount_does_not_walk_off(sim):

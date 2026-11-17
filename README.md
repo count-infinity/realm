@@ -62,8 +62,9 @@ cd mygame && realm start
 ```
 
 This gives you the classic town of Midgaard (143 rooms, with shops, guards
-and monsters that respawn) running on the Merc rules: five classes, THAC0
-combat, experience and levels, class skills and 24 spells, a pet shop
+and monsters that respawn, converted from ROM 2.4's own area file) running
+on the Merc rules: five classes, each with its guild and guildmaster,
+THAC0 combat, experience and levels, class skills and 24 spells, a pet shop
 that also sells a horse, the baker's quest, and the channels, socials and
 clan governments every new game gets. Create an account and you can play
 at once, or start building new areas onto the town. Other ROM areas can
@@ -232,13 +233,6 @@ It is better to know these before you plan a game around them.
   [non-goal](MUD_PLAN.md#non-goals): a language port, not a mapping). The
   [import guide](docs/development/rom-import.md#merc-parity-the-punch-list)
   lists what converts and what does not.
-- **The shipped Midgaard is an older conversion.** Its ROM source is not
-  in the repository, and it was converted before the importer read reset
-  comments correctly, so the baker and three of the four guildmasters
-  were never placed (the template puts the baker back; the cleric's
-  guildmaster teaches every class), and objects are named by their ROM
-  keywords ("sword long"). Converting your own ROM areas does not have
-  these faults.
 - **Pets and mounts stay behind on `recall`** (ROM brings them along);
   they follow their master only on foot.
 - **Left out by design** ([Non-goals](MUD_PLAN.md#non-goals)): clan

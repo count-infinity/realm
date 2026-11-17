@@ -4,9 +4,10 @@ Accounts (MUD_PLAN 6.1): the thing a person logs in to.
 An account is a ``GameObject`` tagged ``account``, with no location. It
 holds ``password`` (the scrypt hash; a protected attribute softcode never
 reads), ``characters`` (character ids, in creation order), ``created``,
-``last_login``, ``last_address``, ``email``, ``banned_until`` and
-``ban_reason``, and anything a game adds (account data, achievements). A
-character holds ``account``, its account's id.
+``last_login``, ``last_address``, ``email``, ``banned_until``,
+``ban_reason`` and ``bonus_characters`` (character slots beyond
+``MAX_CHARACTERS``, Decision D2), and anything a game adds (account data,
+achievements). A character holds ``account``, its account's id.
 
 Account names are unique among accounts and character names among
 characters; the two are separate namespaces.
@@ -25,6 +26,16 @@ if TYPE_CHECKING:
     from realm.core.objects import GameObject
 
 SITELOCK_TAG = "sitelock_registry"
+#: Character slots an administrator gave this account beyond
+#: ``MAX_CHARACTERS`` (``@account/slots``; CoffeeMud's ``bonusCharLimit``).
+BONUS_SLOTS_ATTR = "bonus_characters"
+#: What the engine keeps on an account, which softcode reads but never
+#: writes (``set_account_attr``): a script must not give its owner
+#: character slots, achievements or a lifted ban.
+ACCOUNT_RECORDS = frozenset({
+    "characters", "created", "last_login", "last_address", "banned_until",
+    "ban_reason", BONUS_SLOTS_ATTR, "achievements",
+})
 #: ``banned_until`` for a ban with no end.
 FOREVER = "forever"
 
@@ -184,7 +195,8 @@ def sitelocked(address: str) -> str | None:
     return None
 
 
-__all__ = ["SITELOCK_TAG", "FOREVER", "admin_log", "now", "find_account",
+__all__ = ["SITELOCK_TAG", "BONUS_SLOTS_ATTR", "ACCOUNT_RECORDS", "FOREVER", "admin_log",
+           "now", "find_account",
            "account_of", "carry_over_options", "characters_of", "link_character",
            "unlink_character", "new_account", "parse_duration", "ban_message", "sitelock_registry",
            "ensure_sitelock_registry", "sitelocked"]

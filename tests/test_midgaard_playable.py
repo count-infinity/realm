@@ -212,7 +212,7 @@ class TestMidgaardPlayable:
                     break
                 encounter.queue(grog, QueuedAction("attack", target_id=fido.id))
             assert int(fido.db.get("hp") or 0) <= 0        # fido is dead
-            assert int(grog.db.get("xp") or 0) >= 50       # fido lvl5 -> 50 xp
+            assert int(grog.db.get("xp") or 0) == 100      # a level-0 fido's 100 points
         finally:
             _teardown(sim)
 
@@ -341,8 +341,8 @@ class TestMidgaardPlayable:
         sim, system, mgr = await _world()
         try:
             grog = await _barbarian(sim, system)
-            await sim.do(grog, "consider fido")
-            assert "says 'Do you feel lucky, punk?'" in "\n".join(sim.seen(grog))
+            await sim.do(grog, "consider fido")          # ROM's fido is level 0
+            assert "The perfect match!" in "\n".join(sim.seen(grog))
             await sim.do(grog, "who")
             assert "Grog the Brute (1 barbarian)" in "\n".join(sim.seen(grog))
         finally:
@@ -352,3 +352,170 @@ class TestMidgaardPlayable:
 def get_credits_of(obj):
     from realm.std.economy.credits import get_credits
     return get_credits(obj)
+
+
+# --- the town as ROM has it (after the MUD plan, 2026-11-16) -----------------------
+#
+# The shipped area is converted from ROM 2.4's own midgaard.are: the baker
+# keeps the Bakery, the four guildmasters their guilds, and everything is
+# called by its short description while answering to its keywords.
+
+MIDGAARD_GAME = AREA.parents[2]
+GUILDMASTERS = {3020: ("rom_3019", "mage"), 3021: ("rom_3002", "cleric"),
+                3022: ("rom_3029", "thief"), 3023: ("rom_3023", "warrior")}
+BARS = {"rom_3018": "mage", "rom_3003": "cleric", "rom_3028": "thief",
+        "rom_3022": "warrior"}
+
+
+@pytest.fixture
+async def town():
+    """The Midgaard game booted from its config.py (init_world and all)."""
+    import sys
+
+    from realm.features import install_default
+    before = list(sys.path)
+    sim = Simulator.from_game(MIDGAARD_GAME)
+    await sim.start()
+    try:
+        yield sim
+    finally:
+        _teardown(sim)
+        sys.modules.pop("rules", None)
+        sys.modules.pop("game", None)
+        sys.path[:] = before
+        install_default()
+
+
+def _character(sim, name, cls, room):
+    rules = get_world().rules
+    player = sim.player(name, location=room)
+    rules.apply_baseline(player)
+    rules.chargen_steps()[0].handle(player, cls)
+    rules.finish_chargen(player)
+    return player
+
+
+def _seen(sim, player) -> str:
+    return "\n".join(sim.seen(player))
+
+
+@pytest.mark.asyncio
+class TestTheTownAsROMHasIt:
+
+    async def test_the_baker_keeps_the_bakery_and_sells_bread(self, town):
+        bakery = town.store.get_cached("rom_3009")
+        bakers = [o for o in bakery.contents if o.db.get("prototype_vnum") == 3001]
+        assert [b.name for b in bakers] == ["the baker"]           # one, the real one
+        pat = _character(town, "Pat", "warrior", bakery)
+        pat.db.credits = 100
+        await town.do(pat, "list")
+        listing = _seen(town, pat)
+        assert "The baker's wares:" in listing and "a bread — " in listing
+        assert "a big pot pie — " in listing
+        await town.do(pat, "buy bread")
+        assert "You buy a bread for " in _seen(town, pat)
+        await town.do(pat, "buy potpie")                            # a ROM keyword
+        assert "You buy a big pot pie for " in _seen(town, pat)
+        await town.do(pat, "inventory")
+        held = _seen(town, pat)
+        assert "  a bread" in held and "  a big pot pie" in held
+
+    async def test_the_fido_quest_is_the_real_bakers(self, town):
+        bakery = town.store.get_cached("rom_3009")
+        pat = _character(town, "Pat", "warrior", bakery)
+        await town.do(pat, "look")
+        assert "the baker (!)" in _seen(town, pat)
+        await town.do(pat, "quest list")
+        assert "Fido trouble" in _seen(town, pat)
+        elsewhere = town.obj("the baker", location=bakery, tags=["npc"])
+        from realm.std.quests.quests import offered_by
+        assert offered_by(elsewhere) == []                          # a namesake is not him
+
+    async def test_each_guildmaster_is_in_their_guild(self, town):
+        for vnum, (room_id, _cls) in GUILDMASTERS.items():
+            room = town.store.get_cached(room_id)
+            masters = [o for o in room.contents if o.db.get("prototype_vnum") == vnum]
+            assert [m.name for m in masters] == ["the guildmaster"], room.name
+            assert any(b.behavior_id == "trainer" for b in masters[0].get_behaviors())
+
+    async def test_each_class_practises_at_its_own_guild(self, town):
+        for vnum, (room_id, cls) in GUILDMASTERS.items():
+            room = town.store.get_cached(room_id)
+            student = _character(town, f"Student{vnum}", cls, room)
+            student.db.practices = 1
+            await town.do(student, "practice")
+            out = _seen(town, student)
+            assert "the guildmaster teaches:" in out, cls
+            taught = get_world().rules.class_skills(student)
+            assert taught and all(s.replace("_", " ") in out for s in taught), cls
+
+    async def test_a_guilds_bar_turns_the_other_classes_away(self, town):
+        rooms = [o for o in town.store.all_cached() if o.has_tag("room")]
+        for bar_id, cls in BARS.items():
+            way_in = next(e for r in rooms for e in r.contents
+                          if e.has_tag("exit") and e.db.get("destination") == bar_id)
+            outside = way_in.location
+            member = _character(town, f"Member{cls}", cls, outside)
+            other = _character(town, f"Other{cls}", "mage" if cls != "mage" else "thief",
+                               outside)
+            await town.do(other, way_in.name)
+            assert "You aren't allowed in there." in _seen(town, other)
+            assert other.location is outside
+            await town.do(member, way_in.name)
+            assert member.location.id == bar_id, cls
+        swordsmen = town.store.get_cached("rom_3022")
+        way_in = next(e for r in rooms for e in r.contents
+                      if e.has_tag("exit") and e.db.get("destination") == "rom_3022")
+        brute = _character(town, "Brute", "barbarian", way_in.location)
+        await town.do(brute, way_in.name)                           # barbarians drink here
+        assert brute.location is swordsmen
+
+    async def test_names_read_as_rom_does(self, town):
+        square = town.store.get_cached(COMMON_SQUARE)
+        pat = _character(town, "Pat", "warrior", square)
+        await town.do(pat, "look")
+        assert "the beastly fido" in _seen(town, pat)
+        assert "fido dog" not in _seen(town, pat)
+        await town.do(pat, "consider fido")                         # the keyword answers
+        assert "The beastly fido " in _seen(town, pat)
+        await town.do(pat, "kill fido")
+        assert "You square off against the beastly fido!" in _seen(town, pat)
+
+
+async def test_a_world_made_from_the_old_conversion_still_boots():
+    """A Midgaard database made before the re-conversion: things named by
+    their ROM keywords (the short description unused in ``short_desc``),
+    the baker the old template cloned. It boots under the new template as
+    it was (``init_world`` runs only on an empty database): nothing is
+    renamed, no guild bar is locked, and its things still answer to what
+    they are called."""
+    import sys
+
+    from realm.features import install_default
+    old = [
+        {"id": "rom_3009", "name": "The Bakery", "tags": ["room"],
+         "attrs": {"rom_vnum": 3009, "sector": "inside"}},
+        {"id": "rom_3018", "name": "Mage's Bar", "tags": ["room"],
+         "attrs": {"rom_vnum": 3018, "sector": "inside"}},
+        {"id": "cloned_baker", "name": "baker", "tags": ["npc"], "location": "rom_3009",
+         "attrs": {"rom_vnum": 3001, "short_desc": "the baker", "prototype_vnum": 3001}},
+        {"id": "cloned_loaf", "name": "bread", "tags": ["thing", "food"],
+         "location": "cloned_baker", "attrs": {"rom_vnum": 3011, "short_desc": "a bread"}},
+    ]
+    before = list(sys.path)
+    sim = Simulator.from_game(MIDGAARD_GAME)
+    await import_objects({"realm_format": 1, "objects": old}, sim.store, preserve_ids=True)
+    await sim.start()
+    try:
+        bakery = sim.store.get_cached("rom_3009")
+        assert [o.name for o in bakery.contents] == ["baker"]
+        assert sim.store.get_cached("rom_3018").locks.get("enter") is None
+        pat = sim.player("Pat", location=bakery)
+        await sim.do(pat, "look baker")
+        assert "baker" in _seen(sim, pat)
+    finally:
+        _teardown(sim)
+        sys.modules.pop("rules", None)
+        sys.modules.pop("game", None)
+        sys.path[:] = before
+        install_default()

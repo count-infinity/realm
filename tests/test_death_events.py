@@ -24,7 +24,7 @@ from realm.core.world import get_world
 from realm.games.d20.ruleset import D20Ruleset
 from realm.std.combat.manager import CombatManager
 from realm.std.combat.system import CombatSystem
-from realm.testing import Simulator
+from realm.testing import Simulator, reconfigure
 
 WITNESS = (
     "set_attr(me, 'saw', name(target)); "
@@ -90,8 +90,10 @@ class TestPayload:
         assert world.witness.db.get('saw') == "mark"
 
     async def test_fatal_distinguishes_death_from_unconsciousness(self, world):
-        """An NPC dies (corpse); a player drops unconscious, revivable.
-        Both announce; `fatal` tells them apart."""
+        """An NPC dies (corpse); a player drops unconscious, revivable
+        (``PLAYER_DEATH = "unconscious"``). Both announce; `fatal` tells
+        them apart."""
+        reconfigure(world.sim.world, raw={"PLAYER_DEATH": "unconscious"})
         await world.mgr.handle_death(world.mark, killer=None)
         assert world.witness.db.get('fatal') is True
 

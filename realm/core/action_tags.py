@@ -66,9 +66,15 @@ MAGIC = "magic"
 #: Against the target's will — knockback, compel, forced march.
 FORCED = "forced"
 
-RESERVED_CATEGORIES = frozenset({MAGIC, FORCED})
+#: A direct placement the mover's company shares — recall, a gate spell:
+#: the ``companions`` feature brings along the pets beside the mover and
+#: the mount under it. A teleport without it (``@tel``, a summons) moves
+#: the mover alone.
+ACCOMPANIED = "accompanied"
+
+RESERVED_CATEGORIES = frozenset({MAGIC, FORCED, ACCOMPANIED})
 
 __all__ = [
     "MOVEMENT", "HOSTILE", "VISUAL", "SOUND", "SCRIPTED", "FAILURE",
-    "MAGIC", "FORCED", "CORE_CATEGORIES", "RESERVED_CATEGORIES",
+    "MAGIC", "FORCED", "ACCOMPANIED", "CORE_CATEGORIES", "RESERVED_CATEGORIES",
 ]

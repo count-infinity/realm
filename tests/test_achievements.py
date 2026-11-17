@@ -124,3 +124,36 @@ async def test_an_unknown_achievement_is_refused(sim):
     room, ann, zed, bree, cole, dov, altar = _world(sim)
     result, _e = await sim.eval(altar, "result = grant_achievement(get('Bree'), 'Nope')")
     assert result is False and not (ann.db.get("achievements") or {})
+
+
+# --- Decision D2: an achievement can raise an account's character limit ----------------
+
+
+async def test_an_account_achievement_raises_the_character_limit(sim):
+    """CoffeeMud's ``REWARDS="1 BONUSCHARLIMIT"``: ``grants`` ``characters``
+    adds slots to the account that earned it, counted from what it has
+    earned (as ``check_mods`` are), so a changed definition counts at once."""
+    room, ann, zed, bree, cole, dov, altar = _world(sim)
+    accounts = sim.world.services["accounts"]
+    _achievement(sim, "Founder", description="Be here first.", grants={"characters": 1})
+    assert accounts.character_limit(ann) == 5
+    await sim.eval(altar, "grant_achievement(get('Bree'), 'Founder')")
+    assert accounts.character_limit(ann) == 6
+    assert accounts.character_limit(zed) == 5
+    assert "Your account may now hold 6 characters." in sim.seen(bree)
+    result, _e = await sim.eval(altar, "result = character_limit(get('Cole'))")
+    assert result == 6
+    founder = sim.store.find_cached(name="Founder")[0]
+    founder.db.grants = {"characters": 2}
+    assert accounts.character_limit(ann) == 7
+
+
+async def test_a_character_achievement_raises_no_limit_and_says_so(sim, caplog):
+    import logging
+    room, ann, zed, bree, cole, dov, altar = _world(sim)
+    _achievement(sim, "Solo Slot", scope="character", grants={"characters": 1})
+    with caplog.at_level(logging.WARNING):
+        await sim.eval(altar, "grant_achievement(get('Bree'), 'Solo Slot')")
+    assert "Solo Slot" in bree.db.achievements
+    assert sim.world.services["accounts"].character_limit(ann) == 5
+    assert any("Solo Slot" in r.message and "scope" in r.message for r in caplog.records)

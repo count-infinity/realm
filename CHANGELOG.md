@@ -30,6 +30,18 @@ A 0.2.0 database is refused at start until it is migrated
   log in with the name and password they had. Code that read
   `player.db.password` or named characters at login reads accounts now
   (`realm.std.accounts.account_of`, `characters_of`; `Session.account`).
+- **A fallen player respawns** (Decision D1, decided 2026-11-16).
+  `PLAYER_DEATH` now defaults to `"respawn"` in every game, GURPS, D20,
+  Merc or none: a player whose vital pool is spent leaves a corpse of what
+  they carried where they fell, pays the game system's `on_death` penalty
+  (none outside Merc) and wakes at home one point short of spent. A 0.2.0
+  game whose players fell unconscious in place keeps that rule with one
+  line in `config.py`:
+
+  ```python
+  PLAYER_DEATH = "unconscious"
+  ```
+
 - **`firstaid` no longer removes `unconscious`.** It mends the damage
   pool; a character rises ("You come to.") when its vital pool climbs
   above spent, by any cause. Softcode that removed the tag to revive
@@ -76,9 +88,13 @@ A 0.2.0 database is refused at start until it is migrated
   person`.
 - **An area converted from ROM before 0.3.0** keeps its old data (no
   money on mobs, food and drink as `restores`, no pet shop, shopkeeping
-  objects, respawns without `prototype_vnum`) until it is converted again
-  or refreshed with `scripts/dev/refresh_rom_items.py`; a database keeps
-  what it imported until the area is imported again.
+  objects, respawns without `prototype_vnum`, things named by their
+  keywords, "sword long", with the short description unused in
+  `short_desc`, and every room flag written as a number lost) until it is
+  converted again or refreshed with `scripts/dev/refresh_rom_items.py`; a
+  database keeps what it imported until the area is imported again. A
+  Midgaard database made before keeps its old town (see "Midgaard from
+  ROM 2.4's own area file").
 - **Python names that moved:** `online_players` and `is_online` from
   `realm.std.channels.common` to `realm.gateway.session`; `cmd_who` to
   `realm.std.basics.presence`; `wear` and `remove` to
@@ -105,9 +121,6 @@ A 0.2.0 database is refused at start until it is migrated
   `realm pack`, `realm export` / `realm import`.
 - **GURPS and D20** play as before: hunger, learning by use, alignment and
   the Diku sheet are Merc's (Decisions D5, D6).
-- **The default for a fallen player** is still `unconscious`;
-  `PLAYER_DEATH = "respawn"` is what the Merc scaffold and Midgaard set
-  (Decision D1).
 
 ### New settings
 
@@ -129,6 +142,77 @@ default; a game sets only what it wants different.
 | `clock` | `GAME_TIME_RATIO`, `HOURS_PER_DAY`, `DAYS_PER_MONTH`, `MONTH_NAMES`, `DAY_NAMES` |
 | `companions` | `COMPANION_LIMIT_RULE`, `COMPANION_LEVEL_DIFF`, `ORDER_REFUSED`, `MOUNTS_INDOORS` |
 | `clans` | `CLAN_COST`, `CLAN_MIN_LEVEL`, `CLAN_MIN_MEMBERS`, `CLAN_MAX_MEMBERS`, `CLAN_MAX_TAX`, `CLAN_DEATH_DAYS`, `CLAN_OVERTHROW_DAYS` |
+
+### The maintainer's decisions, and two first-hour items (after the plan)
+
+- **Respawn is the default** (Decision D1): `PLAYER_DEATH` defaults to
+  `"respawn"` for every game; `"unconscious"` is the rule a game sets
+  (see "Upgrading from 0.2.0"). The Merc scaffold and the Midgaard
+  template no longer write `PLAYER_DEATH` into `config.py`. A respawned
+  player wakes one point short of spent, which for a harm clock (an `up`
+  pool) is one below its max and for a pool spent at 2 is 3 (it was set
+  to 1 whatever the pool).
+- **Each account has its own character limit** (Decision D2, after
+  CoffeeMud's `BONUSCHARLIMIT`): `MAX_CHARACTERS` (5) plus the account's
+  `bonus_characters`, which `@account/slots <name> = <n>` sets (logged on
+  `realm.admin`), plus the `characters` an account achievement's `grants`
+  give (`{"characters": 1}`, counted from what the account has earned).
+  The character menu shows it ("Your characters (2 of 6):"), `@account`
+  shows how it adds up, and the softcode `character_limit(obj)` reads it.
+  The accounts service's `slot_sources` is where a feature adds its own.
+  `set_account_attr` and `incr_account_attr` now refuse the records the
+  engine keeps on an account (`characters`, `bonus_characters`,
+  `achievements`, `created`, `last_login`, `last_address`,
+  `banned_until`, `ban_reason`).
+- **Pets and mounts come along on `recall`**, as ROM's pet does: a
+  companion beside its master recalls with it, and a rider recalls on its
+  mount. The seam is the new reserved action tag `accompanied`
+  (`realm.core.action_tags.ACCOMPANIED`), which `recall` puts on its move;
+  a softcode gate spell opts in with `move_to(enactor, dest,
+  tags=['accompanied'])`. `@tel`, `teleport_obj` and a summons still move
+  the mover alone.
+- **One prompt after an announcement**: `@shutdown` (and anything else
+  whose output is flushed while the command runs) no longer writes the
+  typist's prompt twice. `Session.input_arrived()` marks the prompt on the
+  screen as answered; `GameServer._on_command` calls it.
+
+### Midgaard from ROM 2.4's own area file (after the plan)
+
+- The shipped `midgaard.json` is converted again, from ROM 2.4b6's
+  `area/midgaard.are` (how, exactly: [Importing ROM areas, "The shipped
+  Midgaard"](docs/development/rom-import.md#the-shipped-midgaard)). The
+  baker keeps the Bakery and sells his bread and pies; the mage, cleric,
+  thief and warrior guildmasters are in their guilds; Hassan guards the
+  Temple of Mota; the knight templar, the janitor, the maid, a sparrow and
+  Melancholy are back. The earlier file was a modified Midgaard (a morgue,
+  a zoo, a chess board, a cesspool for the donation pit, exits to areas
+  REALM does not ship) that had lost those placements.
+- **Names read as ROM's do.** The importer names a mob or object by its
+  short description ("the baker", "a long sword", "a big pot pie") and
+  gives it its ROM keywords as `aliases` (the whole list and each word),
+  so `buy potpie` and `get sword long` still work. `short_desc` is no
+  longer written. `scripts/dev/refresh_rom_items.py` renames a file
+  converted before.
+- A plural drops a leading "the" as it drops "a": two of "the cityguard"
+  read "2 cityguards" (`realm.core.language.pluralize`).
+- A shopkeeper does not sell what it wears or wields (a converted mob's
+  equipped gear carries a `worn` attribute): the baker no longer offers
+  his long sword.
+- The ROM importer reads a bit-vector written as a decimal number
+  (Midgaard's room flags, older areas' ACT and extra flags) as its letters;
+  such flags were dropped, so a numbered sentinel wandered and a numbered
+  pet shop sold nothing. A potion, pill, scroll, wand or staff that names
+  no spell is reported. The refresh script gains `--spells
+  VNUM[,VNUM]=spell[+spell]`, which gives back spells a source file lost.
+- The Midgaard template: each class's guild bar lets in only that class
+  (`GUILD_BARS` in its `config.py`, an `enter` lock; barbarians use the
+  swordsmen's), so each class practises at its own guildmaster; the
+  cloned baker is gone, and "Fido trouble" is the real baker's (`giver`
+  `{"name": "baker", "prototype_vnum": 3001}`).
+- Saved worlds: a Midgaard database made before boots and plays as it did
+  (`init_world` runs only on an empty database): its keyword names, its
+  cloned baker and its everyone's-guildmaster stay. Start a new database
+  for the new town.
 
 ### The first hour (step 17)
 
@@ -715,10 +799,11 @@ default; a game sets only what it wants different.
   spent, by any cause, gets up ("You come to."). `firstaid` no longer
   removes the tag itself.
 - `when_spent = "respawn"` and the `PLAYER_DEATH` setting (`"unconscious"`
-  by default): a player who dies leaves `corpse of <name>` with what they
+  by default when this step shipped; `"respawn"` since Decision D1, see
+  "The maintainer's decisions" above): a player who dies leaves `corpse of <name>` with what they
   carried (not `soulbound` items), locked to them for `CORPSE_LOCK_SECONDS`,
   pays `GameSystem.on_death` (Merc: a quarter of a level's experience) and
-  wakes at home at 1 point. The Merc scaffold and Midgaard set it.
+  wakes at home at 1 point.
 - Merc: walking spends `move` by the destination's `move_cost` or sector.
 - Kernel seam: `feature.deaf_rule` / `World.deaf_rules`, consulted by
   `deliver_messages`. `realm.testing.Simulator.input` feeds a line through

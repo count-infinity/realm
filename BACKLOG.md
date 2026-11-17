@@ -129,16 +129,23 @@ REALM must be usable as a library, not an application to fork.
   3001, whose wares went to the drunk) and the mage, warrior and thief
   guildmasters (3020, 3022, 3023); the template's `init_world` clones the
   baker, and the cleric's guildmaster teaches every class.
-- [ ] **Re-convert Midgaard from its ROM 2.4 `.are`** when a copy is at
-  hand (`realm import-rom midgaard.are --repop`, then
-  `scripts/dev/refresh_rom_items.py --room-flags 3031=M`): it would place
-  the baker and the three guildmasters, give the baker its wares back, and
-  let the template drop its baker workaround.
-- [ ] **Converted objects and mobs are named by their ROM keywords**
-  ("sword long", "potpie pot pie", "a cookies"): the importer makes the
-  keyword list the name and keeps the short description as
-  `short_desc`, which nothing shows. A name resolver that shows
-  `short_desc` while the keywords still match would read as ROM does.
+- [x] **Re-convert Midgaard from its ROM 2.4 `.are`** when a copy is at
+  hand. *Done 2026-11-16* from ROM 2.4b6's `area/midgaard.are`
+  (`realm import-rom midgaard.are --repop`, then the refresh script with
+  `--spells` for the spells that copy lost; `--room-flags 3031=M` is no
+  longer needed, the importer now reads decimal room flags). The baker,
+  the four guildmasters, Hassan and five other lost placements are back,
+  the baker has his wares, the template's cloned baker and
+  cleric-teaches-all are gone, and each class's guild bar admits only that
+  class. Exact recipe: docs/development/rom-import.md, "The shipped
+  Midgaard"; details below, "After the MUD plan".
+- [x] **Converted objects and mobs are named by their ROM keywords**
+  ("sword long", "potpie pot pie", "a cookies"). *Done 2026-11-16*, in
+  the importer rather than a name resolver: the short description is the
+  `name` ("a long sword", "the baker", "a big pot pie") and the keywords
+  are `aliases` (the whole list and each word), which the matcher already
+  reads, so typed keywords still match. `short_desc` is no longer
+  written; `scripts/dev/refresh_rom_items.py` renames a converted file.
 - [x] **Mob wander (2026-07-30):** a `WanderBehavior` (random-exit roaming,
   `stay_area` zone-bounded, combat-safe) + the importer maps ROM ACT flags
   to it (non-SENTINEL mobs wander; ACT_STAY_AREA sets `stay_area`; keepers
@@ -243,12 +250,16 @@ respawn vnums and scavengers; the prompt under the class menu; a pipe in
 help and in `channels` read as color; `quit` through the input pump
 cancelling its own teardown. Left:
 
-- [ ] **Pets and mounts stay behind on `recall`** (MUD_PLAN step 13). ROM's
+- [x] ~~**Pets and mounts stay behind on `recall`** (MUD_PLAN step 13). ROM's
   `do_recall` brings the pet along; here a companion follows only a walk,
   and a recall or teleport parts rider and mount. The `companions`
   observer sees the arrival (`ON_ENTER` without an exit) but not whether it
   was a recall; `recall_to` would need to say so (an action extra), or
-  offer the companions service a hook.
+  offer the companions service a hook.~~ Done 2026-11-17: `recall_to` tags
+  its move `accompanied` (a new reserved action tag), and the `companions`
+  observer brings the master's companions from the room it left
+  (`come_along`), a mount with its rider still on it. See "After the MUD
+  plan" below.
 - [ ] **`Room.Info` is sent on movement only, not at login** (MUD_PLAN
   step 16): the browser client's room name is blank until the first step.
   Send it from the login path (the `CONNECT` action) as `Char.Vitals` is
@@ -260,9 +271,177 @@ cancelling its own teardown. Left:
   move them (`test_first_hour` fires rounds by hand and asserts no dates).
   A `now()` in each module, as `accounts`, `needs`, `quests` and the rest
   have, would make them injectable.
-- [ ] **A prompt after a wall**: `@shutdown` (and `@wall`) write the
+- [x] ~~**A prompt after a wall**: `@shutdown` (and `@wall`) write the
   typist's prompt twice, once after the announcement and once after the
-  command.
+  command.~~ Done 2026-11-17: the session remembers that the prompt is the
+  last thing it wrote since the line came in (`Session.input_arrived`,
+  called by `GameServer._on_command`), so the end of a command whose output
+  was flushed as it ran (`GameServer.wall`, a combat round's flush) writes
+  no second prompt. `@wall` alone did not double (it only queues); the
+  test pins both (`tests/test_operations.py::TestStopping::test_an_announcement_ends_with_one_prompt`).
+
+### After the MUD plan (2026-11-16)
+
+Midgaard converted again from ROM 2.4's own area file, ROM names, and what
+that turned up. Deviations and judgment calls:
+
+- **The source.** `~/ROM/area/midgaard.are` is ROM 2.4b6 (`README.version`,
+  May 29, 1998; the DikuMUDOmnibus copy on GitHub): `#AREADATA` Midgaard,
+  vnums 3000-3399, 143 rooms, 65 mobs, 160 objects, 19 shops, the baker
+  (3001) in the Bakery, the guildmasters 3020-3023 in the Mage's
+  Laboratory, Cleric's Inner Sanctum, Secret Yard and Tournament Yard, the
+  cityguards, the fidos, the gates and walls. The JSON it replaces was
+  *not* this file: a modified Midgaard with a morgue (east of the altar),
+  a zoo, a chess board, a rope up from the Secret Yard, a colour-coded
+  "cesspool" for the donation pit, exits to rooms 66, 67, 70, 201, 4200,
+  8200, 14608-14818 and 28000 (some added, some in place of ROM's), the
+  healer at level 100 (40 here), the fido at level 5 (0 here),
+  guildmasters with `ACT_TRAIN` (here the sailor trains) and the armourer
+  eight times richer. It had also lost ten mob placements
+  to the old reset reader (the baker, three guildmasters, Hassan, the
+  knight templar, the janitor, the maid, a sparrow, Melancholy).
+- **This copy lost every magic item's spells.** Every potion, pill,
+  scroll, wand and staff in its area files reads `level 0 0 0 0`, so even
+  ROM's loader finds no spell (`skill_lookup("0")`). The importer now
+  reports such an item, and the refresh script's new `--spells` gives the
+  spells back into `rom_values` (so later refreshes keep them). Midgaard's
+  30 came from the earlier conversion's slot numbers; a spell listed three
+  times there (antidote, cure blindness) is given once; cancellation and
+  negation (slot 507, unknown to ROM 2.4's table) stay empty.
+- **The `.are` is not vendored** (default kept): the Diku licence must
+  travel with any copy and ROM asks derivatives for its credits files; the
+  derived JSON ships as before. Open question for the maintainer: the same
+  licences ask a running Diku/Merc/ROM game to credit the authors at login
+  and in a `credits` command; does a REALM game running a converted area
+  owe that (the Midgaard welcome banner names neither)?
+- **Names in the importer, not a resolver.** BACKLOG suggested a name
+  resolver showing `short_desc`. Shops, inventory, `@destroy`, combat and
+  `kill` read `obj.name` directly, resolvers run only on narration, and
+  showcase 133's sdesc resolver owns that seam, so the importer writes the
+  short description as the name and the keywords as `aliases`. The only
+  kernel change: `pluralize` drops a leading "the" ("2 cityguards").
+- **Numeric flags.** `flag_letters` returned nothing for a decimal
+  bit-vector, which is how Midgaard writes room flags (hence "converted
+  with its room flags empty" and `--room-flags 3031=M`). It decodes them
+  now; an old-format area's numeric ACT flags no longer make every
+  sentinel wander.
+- **Keepers do not sell what they wear**: the importer leaves E-reset gear
+  in inventory with a `worn` attribute (Merc already counts it for AC),
+  and `ShopkeeperBehavior.wares` now skips it, as ROM's `do_list` does.
+  The baker was offering his long sword.
+- **Guilds** are template data: `GUILD_BARS` in Midgaard's `config.py`
+  puts an `enter` lock on each guild's bar (ROM's `class_table`;
+  barbarians use the swordsmen's). Superusers pass any lock, so the first
+  character practises anywhere.
+- **The first hour changed its route.** With the fido at level 0 (100 XP)
+  and the drunk carrying nothing in stock ROM, Bree beats the vagabond on
+  her second try and loots him, levels on Main Street, sells his sword at
+  the weapon shop and his jerkin at the armourer (the leather worker has 45
+  gold), and practises at the Guild of Swordsmen; she ends the hour at
+  level 2, not 3.
+- **Saved worlds.** A database made from the old JSON boots and plays as it
+  did (`init_world` runs only on an empty database): keyword names, the
+  cloned baker, no guild bars, the cleric's guildmaster teaching all.
+  Nothing rewrites a database's contents; a fresh database gets the new
+  town (`tests/test_midgaard_playable.py::test_a_world_made_from_the_old_conversion_still_boots`).
+- **Test isolation.** `behavior_owners()` is a process-wide WeakSet; an
+  earlier test's closed world (same `rom_*` ids under `preserve_ids`) can
+  still be in it. The first hour's `repopulate` ticked such a world's
+  spawner, which put a fido in a stale room, and failed only in some
+  random orders. It now ticks its own server's objects.
+
+Left open (found on the way):
+
+- [ ] **Sentence-initial names are lowercase** ("the beastly fido hits
+  you", "the cityguard arrives."); ROM's `act()` capitalizes the first
+  letter of every line. Message templates put `obj.name` first in many
+  places; capitalizing the line where it is sent would fix them all.
+- [ ] **Merc reads level 0 as level 1** (`int(level or 1)` in
+  `death_award`, `consider` and elsewhere): ROM's level-0 fido pays as a
+  level-1 mob.
+- [ ] **E-reset gear is not equipped** on converted mobs (a `worn`
+  attribute, never the `wielded`/`worn` tags), so a mob fights with its
+  natural attack, not its sword.
+- [ ] **A refused guild bar still costs the step's movement** ("You
+  aren't allowed in there." took 1 mv in the telnet play-through); ROM
+  checks the guild before charging.
+- [ ] **A player's command aliases are also name aliases.** `alias` stores
+  a word -> line dict in the `aliases` attribute, which the matcher reads
+  as names: after `alias kk = kick $1`, "kk" names that player.
+- [ ] **Plurals of "X of Y" names** pluralize the last word ("3 sheet of
+  roaring flames", "2 batch of Sara's cookieses"); pinned by
+  `tests/test_language.py`, so it is a decision to revisit, not a slip.
+- [ ] **Exit door keywords** (`keywords` on a converted exit: "gate",
+  "door") are not aliases, so `open gate` needs the direction.
+
+**2026-11-17: the maintainer's decisions D1 and D2, and two first-hour
+items.** Judgment calls:
+
+- **D1, `respawn` is every game's default.** `PLAYER_DEATH` defaults to
+  `"respawn"` (`realm/std/combat/feature.py`, and `when_spent`'s fallback
+  with no world). Respawn needed nothing per system: the neutral
+  `GameSystem.on_death` is no penalty (GURPS and D20 inherit it, Merc takes
+  its quarter level), the corpse is combat's, and with no `home` the
+  player wakes in the start room (every world has one: The Void at worst). One fix on the way: a respawned player
+  woke with the vital pool *set to* 1, which leaves a pool with
+  `spent_at: 2` still spent and an `up` pool (a harm clock) nearly full of
+  harm; it is now one point short of spent (`manager._barely_alive`).
+- **The Merc scaffold and Midgaard no longer write `PLAYER_DEATH`**
+  (`realm/cli.py`'s `_MERC_DEATH` became `_MERC_PROMPT`; Midgaard's
+  `config.py` lost the line and its comment). A line restating the default
+  reads as if the other systems differ; the life-and-death guide says what
+  a Merc death costs. A Midgaard database is unaffected (the value is the
+  same).
+- **Tests and showcases about the unconscious rule set it**: the
+  coming-round, swing-order and `fatal` tests, the harm-clock test, and
+  the showcases whose design is a fall in place (112's contrast, 113's
+  duel, 140's clone bay: their "Build it" now shows `PLAYER_DEATH =
+  "unconscious"` in `config.py`, and the tests `reconfigure` the world).
+  No assertion was loosened; `test_a_merc_scaffold_respawns_its_dead`
+  became `test_no_scaffold_restates_the_death_rule`.
+- **D2, per-account limits: computed, not stored.** An account's limit is
+  `MAX_CHARACTERS` + its `bonus_characters` (an admin's
+  `@account/slots <name> = <n>`, logged on `realm.admin`) + what its
+  earned account-scoped achievements grant (`grants` `{"characters": 1}`).
+  CoffeeMud adds the bonus to the account once, at grant time; REALM's
+  `check_mods` are counted from the earned record whenever asked, and the
+  tags are re-applied from it at each login, so the slots follow that
+  pattern: a definition changed later counts at once, and the admin's
+  number stays only the admin's. The seam is the `accounts` service's
+  `slot_sources` list (accounts cannot import achievements);
+  `achievements`' `on_install` appends `character_slots`. A character-scoped
+  achievement with a `characters` grant raises nothing and logs a WARNING
+  when granted.
+- **Softcode cannot write an account's records.** `set_account_attr` and
+  `incr_account_attr` already refused protected and `system` attributes,
+  but a player's own object controls the player's character, so its
+  script could have set `bonus_characters` (or `achievements`,
+  `characters`, a ban's end). They now refuse `ACCOUNT_RECORDS`
+  (`realm/std/accounts/account.py`). Reading stays open
+  (`account_attr(obj, 'bonus_characters')`); the new `character_limit(obj)`
+  reads the whole limit.
+- **Companions on recall: an action tag, not an extra.** BACKLOG suggested
+  an action extra; `move_to` has no extras parameter and softcode
+  `move_to` passes only `tags`, so a tag needs no new kernel or softcode
+  parameter and a softcode gate spell opts in today
+  (`tags=['accompanied']`). It joins `magic` and `forced` as a reserved
+  game-layer name (`ACCOMPANIED`); the kernel never emits it. Only
+  `recall` (and `clan recall`, through `recall_to`) sets it: `@tel`,
+  `teleport_obj` and a summons move the mover alone, as ROM's `transfer`
+  and `summon` do (ROM's `gate` brings the pet; a gate spell here would
+  pass the tag). As in ROM, only companions in the room left come
+  (ROM's recall of the pet also works from anywhere; here one elsewhere
+  stays); one unconscious stays too. Each moves through `move_to` (a
+  destination's locks can still keep it out) and leaves its fight. A
+  rider and mount now part only when a placement leaves them in different
+  rooms.
+- **The prompt: answered by the next line.** `flush_output(prompt=True)`
+  writes the prompt unless it is already the last thing written since the
+  input arrived; `Session.input_arrived()` is the reset, called at the top
+  of `GameServer._on_command` (the one input sink), so a command that
+  prints nothing still gets its prompt. `tests/test_prompt.py`'s
+  "a command with no output" step now calls `input_arrived()` first, as
+  the server does.
 
 ## Priority 1 - Should Address Soon
 
