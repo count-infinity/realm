@@ -29,7 +29,7 @@ from realm.core.events import fire_event
 from realm.core.objects import GameObject
 from realm.core.propagation import Action, deliver_messages, gate_action
 from realm.std.items.actions import ItemAction
-from realm.std.items.verbs import do_close, do_open, door_word
+from realm.std.items.verbs import do_close, do_open, door_state, door_word
 
 
 async def gated_item_action(actor: GameObject, action_type: str, target: GameObject, *,
@@ -140,6 +140,58 @@ async def cmd_close(ctx: CommandContext) -> None:
     await do_close(ctx.player, target)
 
 
+async def mend_old_door_keys(world) -> None:
+    """``feature.on_boot``: a world converted from a ROM area before
+    2026-11-17 named each door's key in the exit's ``key`` (``rom_obj_<vnum>``),
+    which nothing reads, and gave its keys no ``unlocks``, so no converted
+    door could be unlocked. Such an exit takes ``key_id``; a ``key``-type
+    object with a ``rom_vnum``, or one a door names, takes ``unlocks``; so do
+    the prototypes spawners and zone resets make from (their ``contents``
+    too). A no-op once done."""
+    from realm.tools.rom_import import key_token
+    store = world.store
+    objects = list(store.all_cached())
+    named = set()
+    for obj in objects:
+        old = obj.db.get("key") if obj.is_exit else None
+        if isinstance(old, str) and old.startswith("rom_obj_") and not obj.db.get("key_id"):
+            obj.db.key_id = old
+            obj.db.delete("key")
+            await store.save(obj)
+        if obj.is_exit and obj.db.get("key_id"):
+            named.add(str(obj.db.get("key_id")))
+
+    def wants_unlocks(tags, attrs: dict) -> str | None:
+        vnum = attrs.get("rom_vnum")
+        # Mobs and rooms share ROM's vnum space: only an object is a key.
+        if vnum is None or attrs.get("unlocks") or "thing" not in tags:
+            return None
+        token = key_token(vnum)
+        return token if attrs.get("item_type") == "key" or token in named else None
+
+    for obj in objects:
+        changed = False
+        token = wants_unlocks(obj.tags, obj.db.all())
+        if token:
+            obj.db.unlocks = token
+            changed = True
+        prototypes = [b.params.get("prototype") for b in obj.get_behaviors()]
+        prototypes += [e.get("prototype") for e in obj.db.get("reset_spec") or []
+                       if isinstance(e, dict)]
+        stack = [p for p in prototypes if isinstance(p, dict)]
+        while stack:
+            record = stack.pop()
+            stack.extend(r for r in record.get("contents") or [] if isinstance(r, dict))
+            attrs = record.get("attrs")
+            token = wants_unlocks(record.get("tags") or [], attrs) \
+                if isinstance(attrs, dict) else None
+            if token:
+                attrs["unlocks"] = token
+                changed = True
+        if changed:
+            await store.save(obj)
+
+
 def _find_key(player: GameObject, target: GameObject) -> GameObject | None:
     """A carried item whose db.unlocks matches the target's key id."""
     key_id = target.db.get('key_id')
@@ -179,7 +231,7 @@ async def cmd_lock_item(ctx: CommandContext) -> None:
         return
     if await _gated(ctx, ItemAction.ON_LOCK, target, tool=key,
                     fail_msg="The lock won't catch.",
-                    apply=lambda _a: target.add_tag('locked')) is None:
+                    apply=lambda _a: door_state(target, 'locked', True)) is None:
         return
     ctx.player.msg(f"You lock {door_word(target) or target.name} with {key.name}.")
 
@@ -209,7 +261,7 @@ async def cmd_unlock_item(ctx: CommandContext) -> None:
         return
     if await _gated(ctx, ItemAction.ON_UNLOCK, target, tool=key,
                     fail_msg="The lock holds fast.",
-                    apply=lambda _a: target.remove_tag('locked')) is None:
+                    apply=lambda _a: door_state(target, 'locked', False)) is None:
         return
     ctx.player.msg(f"You unlock {door_word(target) or target.name} with {key.name}.")
 
@@ -263,10 +315,7 @@ async def cmd_use(ctx: CommandContext) -> None:
         fail = "The lock won't catch." if now_locked else "The lock holds fast."
 
         def _flip(_a):
-            if now_locked:
-                target.add_tag('locked')
-            else:
-                target.remove_tag('locked')
+            door_state(target, 'locked', now_locked)
 
         if await _gated(ctx, atype, target, tool=item, fail_msg=fail,
                         apply=_flip) is None:

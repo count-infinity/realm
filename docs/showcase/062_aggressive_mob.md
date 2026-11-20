@@ -47,6 +47,10 @@ before it commits. Before it lunges it consults four parameters:
 - `taunt` is the line it says as it engages. It is real speech routed through the
   propagation engine, so a listen trigger elsewhere can hear the war-cry.
 
+It never picks an administrator (ROM's `aggr_update` skips immortals): an
+admin or god walks past it unless they `quell`, which makes them a mortal
+player for every rule, this one included.
+
 The attack itself goes through the combat manager (`initiate`), so encounters,
 beats, strategies, and defeat all work exactly as if a player had typed
 `attack`.

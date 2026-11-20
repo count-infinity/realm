@@ -54,6 +54,23 @@ def _bare_name(item: GameObject) -> str:
     return name
 
 
+def equipped(item: GameObject) -> bool:
+    """Is ``item`` worn or wielded (not merely carried)?"""
+    return item.has_tag('worn') or item.has_tag('wielded')
+
+
+def take_it_off_first(item: GameObject) -> str | None:
+    """Why ``item`` cannot leave its holder's hands as it is: ROM's "You must
+    remove it first." for worn gear ("unwield" for a weapon in hand, which
+    ``remove`` does not take); None when it is only carried. ``drop``,
+    ``give``, ``put``, ``sell`` and ``eat`` ask (``drop all`` skips it)."""
+    if item.has_tag('wielded'):
+        return "You must unwield it first."
+    if item.has_tag('worn'):
+        return "You must remove it first."
+    return None
+
+
 def unequip(wearer: GameObject, item: GameObject) -> None:
     """Take ``item`` off ``wearer`` silently, with no event: what ROM's
     ``obj_from_char`` does to equipment leaving its owner (a death's
@@ -115,13 +132,13 @@ async def cmd_wear(ctx: CommandContext) -> None:
     item only with `replace`, which takes off the one worn longest.
 
     Usage: wear <item> [replace]
+           wear all
 
     Example:
         wear nightvision goggles
         wear iron ring replace
+        wear all               (everything carried that has a free slot)
     """
-    from realm.std.items.commands import gated_item_action
-
     args = (ctx.args or "").strip()
     replace = False
     if args.lower().endswith(" replace"):
@@ -130,6 +147,9 @@ async def cmd_wear(ctx: CommandContext) -> None:
         await ctx.session.send("Wear what?")
         return
     player = ctx.player
+    if args.lower() == "all":
+        await _wear_all(ctx, player)
+        return
     item = find_object(ctx, args, search_room=False, search_inventory=True)
     if not item:
         await ctx.session.send(f"You aren't carrying '{args}'.")
@@ -140,8 +160,34 @@ async def cmd_wear(ctx: CommandContext) -> None:
     if item.has_tag('worn'):
         await ctx.session.send("You're already wearing that.")
         return
+    await _wear(ctx, player, item, replace=replace)
+
+
+async def _wear_all(ctx: CommandContext, player: GameObject) -> None:
+    """ROM's ``wear all``: each carried wearable that has a free slot, in
+    the order carried; a full slot is passed over, never replaced."""
+    slots = dict(wear_slots())
+    wore = False
+    for item in list(player.contents):
+        if not item.has_tag('wearable') or item.has_tag('worn') or item.has_tag('wielded'):
+            continue
+        slot = item.db.get('slot')
+        if slot and (slots and slot not in slots
+                     or len(worn_in(player, slot)) >= slots.get(slot, 1)):
+            continue
+        wore = await _wear(ctx, player, item, replace=False) or wore
+    if not wore:
+        await ctx.session.send("You have nothing more to wear.")
+
+
+async def _wear(ctx: CommandContext, player: GameObject, item: GameObject, *,
+                replace: bool) -> bool:
+    """Put ``item`` on, taking off the oldest in a full slot when
+    ``replace``. Says why not, and returns whether it was put on."""
+    from realm.std.items.commands import gated_item_action
+
     if not may_use(player, item):
-        return
+        return False
 
     slot = item.db.get('slot')
     if slot:
@@ -149,7 +195,7 @@ async def cmd_wear(ctx: CommandContext) -> None:
         if slots and slot not in slots:
             await ctx.session.send(
                 f"You can't wear {item.name}: this game has no {slot} to wear it on.")
-            return
+            return False
         there = worn_in(player, slot)
         if len(there) >= slots.get(slot, 1):
             if not replace:
@@ -158,9 +204,9 @@ async def cmd_wear(ctx: CommandContext) -> None:
                 await ctx.session.send(
                     f"(Type 'wear {_bare_name(item)} replace' to take off "
                     f"{there[0].name} instead.)")
-                return
+                return False
             if not await take_off(player, there[0]):
-                return
+                return False
 
     def _don(_a):
         item.add_tag('worn')
@@ -178,11 +224,12 @@ async def cmd_wear(ctx: CommandContext) -> None:
                                      fail_msg=f"You can't wear {item.name}.",
                                      apply=_don)
     if action is None:
-        return
+        return False
     from realm.core.propagation import deliver_messages
     action.add_message("actor", "You put on {target:the}.")
     action.add_message("room", "{actor} puts on {target:a}.")
     deliver_messages(action)
+    return True
 
 
 async def cmd_unwear(ctx: CommandContext) -> None:

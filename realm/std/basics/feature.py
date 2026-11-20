@@ -29,6 +29,7 @@ from realm.std.basics.commands import (
     cmd_uptime,
     recall_to,
 )
+from realm.std.basics.lines import capitalize_lines
 from realm.std.basics.options import cmd_config, offer_options
 from realm.std.basics.presence import (
     WhoService,
@@ -50,6 +51,14 @@ feature.setting(
     "with `prompt`. Tokens: any pool by name and `max_<name>`, `{name}`, `{room}`, "
     "`{combat}`, `{level}`, `{xp}`. Empty for none.")
 feature.prompt(render_prompt)
+feature.setting(
+    "CAPITALIZE_LINES", False,
+    "Start every narrated line with a capital letter, as ROM's `act()` does: a "
+    "message or room broadcast that opens with a name (\"the cityguard arrives.\") "
+    "reads \"The cityguard arrives.\". A line sent to one player (a command's "
+    "output, softcode `pemit`) is sent as written either way. On in the Merc "
+    "scaffold and Midgaard; off, every line is sent exactly as written.")
+feature.line_formatter(capitalize_lines)
 feature.command(
     'prompt',
     cmd_prompt,
@@ -63,9 +72,12 @@ feature.command(
     cmd_help,
     aliases=['?'],
     category='utility',
-    help_text='Show help on commands',
-    usage='help [command]',
+    help_text='Show help on commands and topics',
+    usage='help [command or topic]',
 )
+# Help topics as data: a `help_def` object's name and `keywords` find its
+# `text` (`help newbie`).
+feature.def_kind("help", "help_def")
 feature.command(
     'commands',
     cmd_commands,
@@ -83,9 +95,11 @@ feature.softfn(idle_seconds, group='Objects & attributes', readonly=True)
 def _offer_who(world) -> None:
     """``world.services["who"]``: other features add to its ``fields``;
     ``world.services["recall"]``: ``to(player, room, session)`` recalls
-    under ``recall``'s rules (``clans`` sends a member to the clan home)."""
+    under ``recall``'s rules (``clans`` sends a member to the clan home),
+    and ``tags``, the action tags its move carries, which other features add
+    to (``companions``: ``accompanied``, so pets come along)."""
     world.services["who"] = WhoService()
-    world.services["recall"] = SimpleNamespace(to=recall_to)
+    world.services["recall"] = SimpleNamespace(to=recall_to, tags=[])
 
 
 # Player settings (MUD_PLAN 10.4) and aliases (10.3).

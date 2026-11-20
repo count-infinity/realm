@@ -399,8 +399,8 @@ class TestGlobalCountdown:
         await sim.engine.waits.tick()
         assert "the Convergence in 1 minutes." in text(sim, at_docks)
         await sim.engine.waits.tick()
-        assert "The Convergence begins NOW!" in text(sim, at_plaza)
-        assert "The Convergence begins NOW!" in text(sim, at_docks)
+        assert "the Convergence begins NOW!" in text(sim, at_plaza)
+        assert "the Convergence begins NOW!" in text(sim, at_docks)
         assert herald.db.get("pending") is None
 
     async def test_non_owner_is_refused_and_scrub_calls_it_off(self, sim):
@@ -416,7 +416,7 @@ class TestGlobalCountdown:
         await sim.do(builder, "countdown 5 for the Eclipse")
         assert herald.db.get("pending")
         await sim.do(builder, "scrub countdown")
-        assert "The Eclipse has been called off." in text(sim, mara)
+        assert "the Eclipse has been called off." in text(sim, mara)
         assert herald.db.get("pending") is None
 
         # Nothing fires after a scrub.

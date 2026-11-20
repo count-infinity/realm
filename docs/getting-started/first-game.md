@@ -29,8 +29,11 @@ The server is now listening on telnet port 4000.
 
 To build on different rules, pick the system `rules.py` inherits:
 `realm init mygame --system d20` or `--system merc` (Diku-style: classes,
-THAC0, experience and levels). The default is `gurps`. The commented
-examples in `rules.py` are written for the system you pick. Choose before
+THAC0, experience and levels; its `config.py` also sets Diku's prompt and
+`CAPITALIZE_LINES = True`, ROM's capital at the start of every narrated
+line, "The cityguard arrives."; other games send lines as written). The
+default is `gurps`. The commented examples in `rules.py` are written for
+the system you pick. Choose before
 the first character is created: characters record the system they were
 made under.
 

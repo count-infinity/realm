@@ -44,7 +44,16 @@ that's genre, not engine). They exist so packs converge on one spelling:
 |---|---|---|
 | `magic` | magical/supernatural causation | an anti-magic field |
 | `forced` | against the target's will | knockback, compel |
-| `accompanied` | a direct placement the mover's company shares: recall (the `basics` feature tags it), a gate spell; the `companions` feature brings the pets beside the mover and the mount under it | a "come alone" room |
+
+Reserving a name does nothing at run time: nothing checks a tag against
+`RESERVED_CATEGORIES`, and `has_atag()` reads any string. The set is a
+spelling convention for categories many packs share (any pack's spell is
+`magic`, any ward reads it). A tag whose meaning one feature owns is
+declared by that feature instead: `accompanied` (a direct placement the
+mover's company shares) is `realm.std.companions.ACCOMPANIED`; `basics`'
+recall carries it because `companions` adds it to the `recall` service's
+`tags`, and a softcode gate spell passes `tags=['accompanied']`. It sat
+here until 2026-11-17; the kernel never emitted it.
 
 A **game adds its own** categories freely (`fire`, `holy`, `poison`…) —
 `has_atag()` reads them identically. Keep the *core* set small and

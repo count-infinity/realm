@@ -103,7 +103,7 @@ if `pla` uniquely prefixes a built-in, the built-in gets it.)
 > tracks
 Track list: Stardock Shanty, Nebula Nocturne, The Comet's Tail
 > play comet
-Holo-jukebox spins up: The Comet's Tail        (everyone in the room sees this)
+holo-jukebox spins up: The Comet's Tail        (everyone in the room sees this)
 > play polka
 holo-jukebox does not know that one.           (only you see this)
 ```

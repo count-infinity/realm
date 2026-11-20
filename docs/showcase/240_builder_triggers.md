@@ -122,7 +122,7 @@ you don't have to wait 30 seconds to check your work:
 @tr keeper/on_tick
 ```
 
-You should see *Keeper polishes the great lens.* — and so does everyone
+You should see *keeper polishes the great lens.* — and so does everyone
 in the room, every 30 seconds from now on.
 
 ## Try it
@@ -134,7 +134,7 @@ As a player (no builder powers needed):
 Salt wind claws at you as you step onto the gallery.
 > in
 > say Looks like it's getting dark out there.
-Keeper says, "The lamp must never go dark. Never!"
+keeper says, "The lamp must never go dark. Never!"
 > get storm lantern
 The lantern flares white as you lift it.
 ```

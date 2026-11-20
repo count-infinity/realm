@@ -2,7 +2,9 @@
 Re-derive the fields the ROM importer writes for objects (wear slot, a
 weapon's damage type, consumables, the ``magic`` and ``anti_*`` tags), mobs
 (the trainer behavior, the special procedures' behavior parameters, money,
-an ``ACT_SCAVENGER`` that picks up instead of eating corpses; an object that
+an ``ACT_SCAVENGER`` that picks up instead of eating corpses, an
+``ACT_AGGRESSIVE`` and ``ACT_WIMPY`` mob that is not ``aggressive``, since
+ROM's attacks only the sleeping; an object that
 took a mob's shop, sharing its vnum, loses it), names (a mob or object
 named by its ROM keywords, its short description kept as ``short_desc``,
 is named by the short description and answers to the keywords as
@@ -10,8 +12,9 @@ is named by the short description and answers to the keywords as
 rooms (``lamplit`` city streets, ``no_recall``, a ``ROOM_PET_SHOP``'s
 keeper selling the next room's mobs as pets, a spawner's mob knowing its
 vnum and coming back with what the placed mob carries) and a mob's E-reset
-gear (worn and wielded, as a player's is, not a ``worn`` attribute)
-on an already-converted area file, from the ``item_type``, ``rom_wear``,
+gear (worn and wielded, as a player's is, not a ``worn`` attribute),
+doors and keys (an exit's ``key_id``, a key's ``unlocks``, not the exit's
+``key`` nothing read) on an already-converted area file, from the ``item_type``, ``rom_wear``,
 ``rom_values``, ``rom_extra``, ``rom_act``, ``rom_room_flags`` and
 ``rom_spec:*`` tags each object keeps.
 
@@ -45,6 +48,7 @@ from realm.tools.rom_import import (
     gap_lines,
     item_fields,
     item_flag_tags,
+    key_token,
     keywords,
     mob_money,
     pet_shops,
@@ -100,6 +104,21 @@ def _act_scavenger(mob: dict) -> int:
     return changed
 
 
+def _wimpy_aggressor(mob: dict) -> int:
+    """An ``ACT_AGGRESSIVE`` mob that is also ``ACT_WIMPY`` attacks only the
+    sleeping in ROM, so it is not ``aggressive`` (before 2026-11-17 the
+    beastly fido jumped everyone)."""
+    act = (mob.get("attrs") or {}).get("rom_act", [])
+    if "F" not in act or "H" not in act:
+        return 0
+    behaviors = mob.get("behaviors", [])
+    kept = [b for b in behaviors if b.get("behavior_id") != "aggressive"]
+    if len(kept) == len(behaviors):
+        return 0
+    mob["behaviors"] = kept
+    return 1
+
+
 def _spawn_vnums(room: dict) -> int:
     """What a room's spawner brings back carries ``prototype_vnum``, as the
     placed mob does (before MUD_PLAN step 17 a respawn had none), and the
@@ -114,6 +133,7 @@ def _spawn_vnums(room: dict) -> int:
             attrs["prototype_vnum"] = attrs["rom_vnum"]
             changed += 1
         changed += _act_scavenger(prototype)
+        changed += _wimpy_aggressor(prototype)
     return changed
 
 
@@ -159,6 +179,58 @@ def _rom_names(obj: dict) -> int:
     aliases.extend(a for a in keywords(listed) if a not in aliases)
     obj["name"] = short or listed
     return 1
+
+
+def _records(objects: list[dict]):
+    """Every object record in a converted file: the objects, and the
+    prototypes (and their ``contents``) its spawners and zone resets make."""
+    stack = list(objects)
+    while stack:
+        record = stack.pop(0)
+        yield record
+        stack.extend(record.get("contents") or [])
+        for behavior in record.get("behaviors") or []:
+            prototype = (behavior.get("params") or {}).get("prototype") \
+                if isinstance(behavior, dict) else None
+            if prototype:
+                stack.append(prototype)
+        for entry in (record.get("attrs") or {}).get("reset_spec") or []:
+            if entry.get("prototype"):
+                stack.append(entry["prototype"])
+
+
+def _door_keys(objects: list[dict]) -> int:
+    """A converted door names its key in ``key_id`` and a key what it opens
+    in ``unlocks``, which ``lock`` and ``unlock`` match (before 2026-11-17
+    the exit's ``key`` named it and nothing read it): every ``key``-type
+    object, and any other object a door names, unlocks ``rom_obj_<vnum>``."""
+    changed = 0
+    named: set[str] = set()
+    for obj in objects:
+        attrs = obj.get("attrs") or {}
+        if "exit" in obj.get("tags", []) and "key" in attrs:
+            attrs["key_id"] = attrs.pop("key")
+            changed += 1
+        if "exit" in obj.get("tags", []) and attrs.get("key_id"):
+            named.add(str(attrs["key_id"]))
+    for record in _records(objects):
+        attrs = record.get("attrs") or {}
+        vnum = attrs.get("rom_vnum")
+        # Mobs and rooms share the vnum space: only an object is a key.
+        if vnum is None or "unlocks" in attrs or "thing" not in record.get("tags", []):
+            continue
+        if attrs.get("item_type") == "key" or key_token(vnum) in named:
+            # Where a conversion writes it: with the prototype's own fields,
+            # before what a placed copy gains (``prototype_vnum``).
+            fields = list(attrs.items())
+            attrs.clear()
+            for name, value in fields:
+                if name == "prototype_vnum":
+                    attrs["unlocks"] = key_token(vnum)
+                attrs[name] = value
+            attrs.setdefault("unlocks", key_token(vnum))
+            changed += 1
+    return changed
 
 
 #: Where a ROM 2.4 magic item names its spells (``load_objects``).
@@ -229,6 +301,7 @@ def refresh(data: dict) -> tuple[int, Area]:
             changed += _rom_names(obj)
             changed += _refresh_mob(obj)
             changed += _act_scavenger(obj)
+            changed += _wimpy_aggressor(obj)
             trainer = trainer_behavior(attrs["rom_act"])
             behaviors = obj.setdefault("behaviors", [])
             if trainer is not None and not any(
@@ -262,6 +335,7 @@ def refresh(data: dict) -> tuple[int, Area]:
         attrs.update(fields)
         obj["attrs"] = attrs
         changed += json.dumps(obj, sort_keys=True) != before
+    changed += _door_keys(data["objects"])
     for obj in data["objects"]:              # last: a respawn copies the gear as it is now
         if "room" in obj.get("tags", []):
             changed += _spawn_gear(obj, data["objects"])

@@ -62,6 +62,7 @@ A feature can declare its own keys. These exist only when the feature is in
 | `MAX_CHARACTERS` | `accounts` | `5` | How many characters one account may hold, before its own extra slots (`@account/slots`, and achievements that grant `characters`). |
 | `ACCOUNT_MULTIPLAY` | `accounts` | `False` | Whether one account may play several of its characters at once (one connection per character). Off: a second login takes over the first. |
 | `PROMPT` | `basics` | `'<{hp}/{max_hp}hp> '` | The prompt shown after each batch of output, unless a player sets their own with `prompt`. Tokens: any pool by name and `max_<name>`, `{name}`, `{room}`, `{combat}`, `{level}`, `{xp}`. Empty for none. |
+| `CAPITALIZE_LINES` | `basics` | `False` | Start every narrated line with a capital letter, as ROM's `act()` does: a message or room broadcast that opens with a name ("the cityguard arrives.") reads "The cityguard arrives.". A line sent to one player (a command's output, softcode `pemit`) is sent as written either way. On in the Merc scaffold and Midgaard; off, every line is sent exactly as written. |
 | `ALIAS_LIMIT` | `basics` | `50` | How many aliases one character may keep. |
 | `FOOD_GAIN` | `items` | `100` | Percent: how much of a bite of food (its `nourishment`) reaches the eater's `food` pool. |
 | `WATER_GAIN` | `items` | `100` | Percent: how much of a sip (a container's `sip`, default 50) reaches the drinker's `water` pool. |

@@ -37,6 +37,8 @@ from realm.core.pools import has_pool, is_spent, mend, pool_get, pool_max, settl
 from realm.core.propagation import Action, deliver_messages
 from realm.core.world import get_world
 from realm.std.items.actions import ItemAction
+from realm.std.items.equipment import take_it_off_first
+from realm.std.items.inventory import find_carried
 
 if TYPE_CHECKING:
     from realm.commands import CommandContext
@@ -113,8 +115,7 @@ async def cmd_eat(ctx: CommandContext) -> None:
     """
     player = ctx.player
     name = (ctx.args or "").strip()
-    item = find_object(ctx, name, search_room=False, search_inventory=True) \
-        if name else None
+    item = find_carried(ctx, name) if name else None
     if item is None or not item.has_tag('food'):
         if await world_verb(ctx):
             return
@@ -124,6 +125,10 @@ async def cmd_eat(ctx: CommandContext) -> None:
             await ctx.session.send(f"You don't have '{name}'.")
         else:
             await ctx.session.send("That's not edible.")
+        return
+    refusal = take_it_off_first(item)
+    if refusal:
+        await ctx.session.send(refusal)
         return
     charges = item.db.get('charges')
     if charges is not None and int(charges) <= 0:

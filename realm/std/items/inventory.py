@@ -7,13 +7,25 @@ Handles getting, dropping, and managing items.
 from __future__ import annotations
 
 from realm.commands import CommandContext
-from realm.commands.base import find_object, find_player, format_list
-from realm.core.language import group_contents, numbered_name
+from realm.commands.base import find_object, find_player, format_list, local_candidates
+from realm.core.language import definite_name, group_contents, numbered_name
 from realm.core.objects import GameObject
 from realm.core.propagation import deliver_messages
+from realm.core.search import match_one
 from realm.core.world import find_world, get_world
 from realm.std.items.actions import ItemAction
+from realm.std.items.equipment import equipped, take_it_off_first
 from realm.std.items.verbs import do_drop, do_get, do_give, gate_item_action
+
+
+def find_carried(ctx: CommandContext, name: str) -> GameObject | None:
+    """What the player carries by ``name``, as ROM's ``get_obj_carry``
+    finds it: what is not worn or wielded answers first (``drop sword``
+    drops the spare, not the one in hand); worn gear answers only when
+    nothing else does, so its command can say to take it off first."""
+    carried = local_candidates(ctx, search_room=False, search_inventory=True)
+    return match_one(name, [o for o in carried if not equipped(o)]) \
+        or match_one(name, carried)
 
 
 def _summarize(items: list[GameObject]) -> str:
@@ -185,17 +197,17 @@ async def _get_all(ctx: CommandContext, from_container=None) -> None:
     """Pick up all items from room or container."""
     if from_container:
         source = from_container
-        source_name = from_container.name
+        empty = f"There is nothing in {definite_name(from_container)}."
     elif ctx.player.location:
         source = ctx.player.location
-        source_name = "here"
+        empty = "There's nothing to get here."
     else:
         return
     gotten, money = await take_all(ctx.player, source)
     if not gotten and not money and not [
             obj for obj in source.contents
             if not obj.is_player and not obj.is_exit and obj != ctx.player]:
-        await ctx.session.send(f"There's nothing to get {source_name}.")
+        await ctx.session.send(empty)
 
 
 async def cmd_drop(ctx: CommandContext) -> None:
@@ -224,13 +236,7 @@ async def cmd_drop(ctx: CommandContext) -> None:
         await _drop_all(ctx)
         return
 
-    # Find the item in inventory
-    target = find_object(
-        ctx, item_name,
-        search_room=False,
-        search_inventory=True,
-    )
-
+    target = find_carried(ctx, item_name)
     if not target:
         await ctx.session.send(f"You aren't carrying '{item_name}'.")
         return
@@ -239,8 +245,9 @@ async def cmd_drop(ctx: CommandContext) -> None:
 
 
 async def _drop_all(ctx: CommandContext) -> None:
-    """Drop all items in inventory."""
-    items = [obj for obj in ctx.player.contents if not obj.is_exit]
+    """Drop everything carried; what is worn or wielded stays on (ROM's
+    ``drop all`` takes only ``WEAR_NONE`` objects)."""
+    items = [obj for obj in ctx.player.contents if not obj.is_exit and not equipped(obj)]
 
     if not items:
         await ctx.session.send("You aren't carrying anything.")
@@ -293,12 +300,7 @@ async def cmd_give(ctx: CommandContext) -> None:
         await ctx.session.send("Usage: give <object> to <player>")
         return
 
-    # Find the item
-    item = find_object(
-        ctx, item_name,
-        search_room=False,
-        search_inventory=True,
-    )
+    item = find_carried(ctx, item_name)
     if not item:
         await ctx.session.send(f"You aren't carrying '{item_name}'.")
         return
@@ -336,14 +338,13 @@ async def cmd_put(ctx: CommandContext) -> None:
     item_name = ctx.args[:len(parts[0])].strip()
     container_name = ctx.args[len(parts[0]) + 4:].strip()
 
-    # Find the item
-    item = find_object(
-        ctx, item_name,
-        search_room=False,
-        search_inventory=True,
-    )
+    item = find_carried(ctx, item_name)
     if not item:
         await ctx.session.send(f"You aren't carrying '{item_name}'.")
+        return
+    refusal = take_it_off_first(item)
+    if refusal:
+        await ctx.session.send(refusal)
         return
 
     # Find the container

@@ -208,7 +208,7 @@ class TestWhenSpent:
         assert crate.location is None
         assert coin.location is None
         assert not any(o.name.startswith("corpse") for o in room.contents)
-        assert any("Crate is destroyed" in line for line in sim.seen(watcher))
+        assert any("crate is destroyed" in line for line in sim.seen(watcher))
 
     async def test_unconscious_spares_an_npc(self, sim):
         room, witness = _arena(sim)

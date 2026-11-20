@@ -46,7 +46,7 @@ deliberate contrast with a [disguise](134_disguises.md), which changes
 ```
 Dex.db.voice_as = "a distorted voice"
 Dex: say who goes there
-  Edda hears:  A distorted voice says, "who goes there"
+  Edda hears:  a distorted voice says, "who goes there"
   Dex hears:   You say, "who goes there"
   Edda's look still lists:  Dex          # the face is untouched
 ```
@@ -125,7 +125,7 @@ Everyone else in the booth hears the alias, but you hear your own words as
 your own:
 
 ```text
-(Edda hears)  A distorted voice says, "Identify yourself."
+(Edda hears)  a distorted voice says, "Identify yourself."
 (Dex hears)   You say, "Identify yourself."
 ```
 

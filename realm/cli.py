@@ -83,9 +83,17 @@ _RULES_CLASS = "class GameRules(GurpsSystem):\n"
 _RULES_EXAMPLES = "    # __SYSTEM_EXAMPLES__\n"
 
 #: What ``--system merc`` adds to config.py after GAME_SYSTEM: Diku's
-#: prompt. (Its death, ``respawn``, is every game's default: Decision D1.)
-_MERC_PROMPT = ('# The line after each batch of output: hit points, mana, movement.\n'
-                'PROMPT = "<{hp}hp {mana}m {move}mv> "\n\n')
+#: prompt, capital first letters and three-second rounds. (Its death,
+#: ``respawn``, is every game's default: Decision D1.)
+_MERC_PRESENTATION = ('# The line after each batch of output: hit points, mana, movement.\n'
+                      'PROMPT = "<{hp}hp {mana}m {move}mv> "\n\n'
+                      '# Every narrated line starts with a capital, as ROM\'s act() writes it\n'
+                      '# ("The cityguard arrives.").\n'
+                      'CAPITALIZE_LINES = True\n\n'
+                      '# A combat round every 3 seconds, ROM\'s PULSE_VIOLENCE (players may\n'
+                      '# still `pace` slower).\n'
+                      'COMBAT_BEAT_DEFAULT = 3.0\n'
+                      'COMBAT_BEAT_MIN = 3.0\n\n')
 
 
 def _replace_once(text: str, old: str, new: str) -> str:
@@ -205,7 +213,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     elif system == "merc":
         config_content = _replace_once(
             config_content, _RULES_BLOCK[1],
-            _RULES_BLOCK[1] + _MERC_PROMPT)
+            _RULES_BLOCK[1] + _MERC_PRESENTATION)
     if feature_list is not None:
         config_content = _rewrite(config_content, _FEATURES_BLOCK,
                                   _features_settings(feature_list))

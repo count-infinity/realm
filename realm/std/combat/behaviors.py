@@ -15,10 +15,10 @@ from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
 from realm.core.behaviors import Behavior, BehaviorRegistry
-from realm.core.markup import capitalize
 from realm.core.perception import can_see
 from realm.core.pools import damage_pool, mend, pool_get, pool_max, settle
-from realm.core.world import get_world
+from realm.core.world import format_line, get_world
+from realm.permissions.roles import Role, get_role
 from realm.std.combat.actions import CombatAction
 
 if TYPE_CHECKING:
@@ -49,6 +49,9 @@ def _ensure_strategy_rule(obj: GameObject, condition: str, action: str) -> None:
 class AggressiveBehavior(Behavior):
     """
     Attacks valid targets on sight (they enter, or it wanders in on them).
+    It never picks an administrator (ROM's ``aggr_update`` skips immortals;
+    the ``needs`` feature exempts the same rank): an admin who wants to be
+    jumped ``quell``s, which makes them a mortal player for every rule.
 
     Parameters:
         attack_chance: probability of engaging (0.0-1.0, default 1.0)
@@ -85,6 +88,8 @@ class AggressiveBehavior(Behavior):
 
         target_tags = self.get_param('target_tags', ['player'])
         if not any(target.has_tag(tag) for tag in target_tags):
+            return
+        if get_role(target) >= Role.ADMIN:
             return
         # Even a monster spares those it's devoted to (spare_at=None disables).
         spare_at = self.get_param('spare_at', 2)
@@ -200,7 +205,7 @@ class HealerBehavior(Behavior):
 
             heal = int(self.get_param('heal_amount', 5))
             await settle(mend(other, pool, heal), source=obj)
-            other.msg(capitalize(f"{obj.name} tends your wounds (+{heal} HP)."))
+            other.msg(format_line(f"{obj.name} tends your wounds (+{heal} HP)."))
             if obj.location:
                 obj.location.msg_contents(
                     f"{obj.name} tends {other.name}'s wounds.",

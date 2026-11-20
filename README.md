@@ -6,6 +6,10 @@ database, so there is nothing else to install or operate. It needs Python
 3.12 or newer, and it is pre-alpha: the API changed a great deal in 0.2.0,
 and 0.3.0 made it a complete MUD system (see the [changelog](CHANGELOG.md)).
 
+**Just want to play?** [Play Midgaard](docs/getting-started/your-first-mud.md#play-midgaard):
+four commands, `telnet localhost 4000`, and a first fight against a
+beastly fido, to level 2.
+
 **New here?** [Your First MUD](docs/getting-started/your-first-mud.md)
 walks from `realm init` to a running Diku-style game: an account, the
 first hour of play, a builder, a room, a trainer, a channel, a quest and a
@@ -62,12 +66,14 @@ cd mygame && realm start
 ```
 
 This gives you the classic town of Midgaard (143 rooms, with shops, guards
-and monsters that respawn, converted from ROM 2.4's own area file) running
+and monsters that respawn, converted from ROM 2.4's own area file, and
+ROM's Mud School up from its temple) running
 on the Merc rules: five classes, each with its guild and guildmaster,
 THAC0 combat, experience and levels, class skills and 24 spells, a pet shop
 that also sells a horse, the baker's quest, and the channels, socials and
 clan governments every new game gets. Create an account and you can play
-at once, or start building new areas onto the town. Other ROM areas can
+at once ([Play Midgaard](docs/getting-started/your-first-mud.md#play-midgaard)),
+or start building new areas onto the town. Other ROM areas can
 be converted and loaded beside it with `realm import-rom`
 ([Importing ROM areas](docs/development/rom-import.md)).
 `tests/test_first_hour.py` in the engine plays this game's first hour, so

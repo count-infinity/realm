@@ -2,7 +2,8 @@
 Looking beyond the room (MUD_PLAN 11.4): ``scan``, ``exits`` and ``where``.
 
 ``scan`` lists who is one room away through each open exit, ``exits`` where
-each exit leads, ``where`` the players in the same zone. All three respect
+each exit leads, ``where`` the players in the same zone (``where <name>``:
+who of that name is in it, ROM's). All three respect
 sight: a dark room shows no one (and ``exits`` says it is too dark to
 tell), a closed door hides what is behind it, and anyone the viewer cannot
 see is left out. A world ``$``-command of the same word comes first, as it
@@ -115,13 +116,22 @@ def _same_zone(here: GameObject | None, there: GameObject | None) -> bool:
 
 async def cmd_where(ctx: CommandContext) -> None:
     """
-    List the players in this zone and the room each is in.
+    List the players in this zone and the room each is in; with a name, who
+    and what of that name is in this zone, and where (ROM's ``where <name>``).
 
     Usage: where
+           where <name>
+
+    Example:
+        where fido
     """
     if await _world_verb(ctx):
         return
     viewer = ctx.player
+    wanted = (ctx.args or "").strip()
+    if wanted:
+        await _where_named(ctx, viewer, wanted)
+        return
     near = [p for p in online_players()
             if can_see(viewer, p) and _same_zone(viewer.location, p.location)]
     if not near:
@@ -132,6 +142,28 @@ async def cmd_where(ctx: CommandContext) -> None:
     for player in near:
         lines.append(f"  {player.get_display_name(viewer):{width}}{player.location.name}")
     await ctx.session.send("\n".join(lines))
+
+
+async def _where_named(ctx: CommandContext, viewer: GameObject, wanted: str) -> None:
+    """``where <name>``: the characters of that name in the viewer's zone
+    whom the viewer could see (at most ``_WHERE_MAX``)."""
+    from realm.core.search import match_objects
+    store = get_world().store
+    candidates = [o for o in (*store.find_cached(tag='npc'), *online_players())
+                  if o is not viewer and o.location is not None
+                  and _same_zone(viewer.location, o.location)
+                  and can_see_room(viewer, o.location) and can_see(viewer, o)]
+    found = match_objects(wanted, candidates, allow_substring=False).matches[:_WHERE_MAX]
+    if not found:
+        await ctx.session.send(f"You didn't find any {wanted}.")
+        return
+    width = max(len(o.get_display_name(viewer)) for o in found) + 2
+    await ctx.session.send("\n".join(
+        f"{o.get_display_name(viewer):{width}}{o.location.name}" for o in found))
+
+
+#: The most ``where <name>`` lists.
+_WHERE_MAX = 10
 
 
 __all__ = ["cmd_scan", "cmd_exits", "cmd_where"]

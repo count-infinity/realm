@@ -108,7 +108,11 @@ def check_destroy(actor: GameObject | None, obj: GameObject, *,
                   allow_player: bool = False) -> None:
     """Refuse a player destroying themselves, any player (unless
     ``allow_player``, i.e. @nuke) and a ``safe``-tagged object; then require
-    control. An object may destroy itself (eaten food, a spent charge)."""
+    control. An object may destroy itself (eaten food, a spent charge). An
+    account is not in the world: deleting one is the accounts feature's."""
+    from realm.core.options import ACCOUNT_TAG
+    if obj.has_tag(ACCOUNT_TAG):
+        raise Refused(f"{obj.name} is an account, not in the world (see @account).")
     if actor is not None and obj is actor and obj.is_player:
         raise Refused("You can't destroy yourself!")
     if obj.is_player and not allow_player:

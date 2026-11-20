@@ -157,7 +157,7 @@ async def test_order_runs_a_command_as_the_companion(sim):
     await sim.do(alice, "order kitten say mew")
     heard = "\n".join(sim.seen(bob))
     assert "Alice orders the kitten to 'say mew'." in heard
-    assert "Kitten says" in heard and "mew" in heard
+    assert "kitten says" in heard and "mew" in heard
 
 
 async def test_order_refuses_admin_commands_order_and_quit(sim):
@@ -873,6 +873,32 @@ async def test_a_move_that_says_so_brings_companions_any_other_does_not(sim):
     assert kitten.location is there
 
 
+def test_accompanied_is_the_companions_word_and_recall_asks_for_it(sim):
+    """``accompanied`` means something only to ``companions``, so it is
+    declared there, not in the kernel's action tags (BACKLOG 2026-11-17,
+    "Kernel"). ``basics``' recall knows nothing of pets: its service lists
+    the tags a recall's move carries, and ``companions`` adds its word."""
+    from realm.core import action_tags
+    from realm.std.companions import ACCOMPANIED
+    assert ACCOMPANIED == "accompanied"
+    assert "ACCOMPANIED" not in action_tags.__all__
+    assert action_tags.RESERVED_CATEGORIES == {"magic", "forced"}
+    assert sim.world.services["recall"].tags == [ACCOMPANIED]
+
+
+async def test_a_world_without_companions_recalls_alone():
+    from realm.testing import Simulator
+    plain = Simulator(features=["basics", "talk", "movement", "look"])
+    try:
+        assert plain.world.services["recall"].tags == []
+        here, temple = plain.room("Square"), plain.room("Temple")
+        alice = plain.player("Alice", location=here, home=temple.id)
+        await plain.do(alice, "recall")
+        assert alice.location is temple
+    finally:
+        plain.close()
+
+
 async def test_a_ridden_mount_does_not_walk_off(sim):
     here, there, _n = _path(sim)
     alice = sim.player("Alice", location=here)
@@ -880,7 +906,7 @@ async def test_a_ridden_mount_does_not_walk_off(sim):
     await sim.do(alice, "mount mare")
     await sim.do(alice, "order mare north")
     assert mare.location is here
-    assert "Grey mare tries to go north and fails." in sim.seen(alice)
+    assert "grey mare tries to go north and fails." in sim.seen(alice)
 
 
 async def test_a_companion_neither_wanders_nor_attacks_on_sight(sim):

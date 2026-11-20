@@ -99,7 +99,9 @@ def pemit(frame, target: GameObject | str, message: str) -> None:
 @softfn(group='Messaging & prompts')
 def remit(frame, room: GameObject | str, message: str) -> None:
     """Emit a message to everyone in a room (delivered after the script).
-    A room broadcast is ROM's ``act()``: its first letter is capitalized.
+    A room broadcast is a narrated line: in a game with
+    ``CAPITALIZE_LINES`` (Merc) its first letter is capitalized, as ROM's
+    ``act()`` does; otherwise it is sent as written.
 
     Example: remit(here, 'The ground trembles.')
     """
@@ -110,7 +112,9 @@ def remit(frame, room: GameObject | str, message: str) -> None:
 @softfn(group='Messaging & prompts')
 def oemit(frame, exclude: GameObject | str, message: str) -> None:
     """Emit to the executor's room, excluding one object. A room broadcast
-    is ROM's ``act()``: its first letter is capitalized.
+    is a narrated line: in a game with ``CAPITALIZE_LINES`` (Merc) its first
+    letter is capitalized, as ROM's ``act()`` does; otherwise it is sent as
+    written.
 
     Example: oemit(enactor, 'Bob vanishes in smoke.')
     """

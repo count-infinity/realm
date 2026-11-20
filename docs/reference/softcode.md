@@ -650,6 +650,8 @@ Three forms, chosen by prefix:
 - anything else — a NAME match, local first (the executor's room and
   inventory) then the whole world, taking the FIRST match and never
   raising on ambiguity. Prefer `#id`/`$keyid` when identity matters.
+  A name never finds an account (a character's login record, often of
+  the same name); `#id` still does.
 
 Returns the GameObject, or None if not found.
 
@@ -1557,7 +1559,9 @@ oemit(exclude: GameObject | str, message: str) -> None
 ```
 
 Emit to the executor's room, excluding one object. A room broadcast
-is ROM's `act()`: its first letter is capitalized.
+is a narrated line: in a game with `CAPITALIZE_LINES` (Merc) its first
+letter is capitalized, as ROM's `act()` does; otherwise it is sent as
+written.
 
 **Example**
 
@@ -1622,7 +1626,9 @@ remit(room: GameObject | str, message: str) -> None
 ```
 
 Emit a message to everyone in a room (delivered after the script).
-A room broadcast is ROM's `act()`: its first letter is capitalized.
+A room broadcast is a narrated line: in a game with
+`CAPITALIZE_LINES` (Merc) its first letter is capitalized, as ROM's
+`act()` does; otherwise it is sent as written.
 
 **Example**
 

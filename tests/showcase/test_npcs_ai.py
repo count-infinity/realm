@@ -414,7 +414,7 @@ class TestPuppet:
 
         # Its speech is real speech — you witness it from your own body.
         out = await _do(booth, "@force marionette = say I dance for no one.")
-        assert 'Marionette says, "I dance for no one."' in out
+        assert 'marionette says, "I dance for no one."' in out
 
     async def test_puppet_acts_with_its_own_station(self, booth):
         # An NPC body rates as a PLAYER: no builder commands through it.

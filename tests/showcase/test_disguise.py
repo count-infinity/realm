@@ -116,7 +116,7 @@ class TestDisguises:
         sim.seen(vale), sim.seen(wynn)
         await sim.do(vale, "say Package for you.")
         assert said(sim, wynn, "Package") == [
-            'A masked courier says, "Package for you."']
+            'a masked courier says, "Package for you."']
         assert said(sim, vale, "Package") == ['You say, "Package for you."']
 
         # And Wynn SEES the mask in the room list, not Vale.
@@ -168,7 +168,7 @@ class TestDisguises:
         await sim.do(vale, "say Nothing to see.")
         assert said(sim, wynn, "Nothing") == ['Vale says, "Nothing to see."']
         assert said(sim, sable, "Nothing") == [
-            'A masked courier says, "Nothing to see."']
+            'a masked courier says, "Nothing to see."']
 
         # And in the room list: Wynn sees Vale, Sable sees the courier.
         sim.seen(wynn), sim.seen(sable)
@@ -213,7 +213,7 @@ class TestVoiceDisguise:
         sim.seen(dex), sim.seen(edda)
         await sim.do(dex, "say Identify yourself.")
         assert said(sim, edda, "Identify") == [
-            'A distorted voice says, "Identify yourself."']
+            'a distorted voice says, "Identify yourself."']
         assert said(sim, dex, "Identify") == [
             'You say, "Identify yourself."']
 

@@ -16,8 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.behaviors import Behavior
-from realm.core.markup import capitalize
-from realm.core.world import get_world
+from realm.core.world import format_line, get_world
 from realm.std.rules import progression
 from realm.std.rules.progression import (
     accrue_training,
@@ -107,7 +106,7 @@ async def cmd_practice(ctx: CommandContext) -> None:
     practices = int(player.db.get("practices") or 0)
     name = (ctx.args or "").strip()
     if not name:
-        lines = [f"{capitalize(master.name)} teaches:"]
+        lines = [format_line(f"{master.name} teaches:")]
         for skill in teaches:
             level = trained(player, skill) or 0
             floor = practice_floor(trainer, player, skill)

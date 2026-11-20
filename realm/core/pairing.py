@@ -16,6 +16,12 @@ stale-able, the engine owns every write path that could invalidate it:
 - ``@pair a = b`` (re)marries by hand — hand-built ``@open`` exits,
   double doors between the same two rooms, re-pairing after a relink.
 
+``far_side(exit)`` is the face a door's state change must reach as well:
+the partner, or, for exits nobody paired (a converted ROM area), the exit
+in the destination leading back (ROM's ``pexit_rev``). The ``items``
+feature's ``open``/``close``/``lock``/``unlock`` keep both faces in step
+through it.
+
 ``partner`` stays an ordinary attribute (scripts read it with
 ``V('partner')``; exotic mirrors like a lever-and-bridge may still set
 their own on non-exits) — these helpers just keep the EXIT pairing
@@ -63,4 +69,27 @@ def dissolve_pairing(exit_obj: GameObject) -> GameObject | None:
     return None
 
 
-__all__ = ["PARTNER_ATTR", "partner_of", "pair_exits", "dissolve_pairing"]
+def far_side(exit_obj: GameObject) -> GameObject | None:
+    """The other face of the door ``exit_obj`` is: its ``partner`` when it
+    is paired, else the exit in its destination that leads back to its room
+    (ROM's ``pexit_rev``: a converted area pairs nothing). When the
+    destination has several ways back, the one named the compass opposite
+    (ROM's ``rev_dir``) is it. None for a one-way exit or an unclear one."""
+    partner = partner_of(exit_obj)
+    if partner is not None:
+        return partner
+    from realm.core.movement import resolve_exit_destination
+    from realm.core.ops.exits import OPPOSITES
+    here = exit_obj.location
+    there = resolve_exit_destination(exit_obj)
+    if here is None or there is None or there is here:
+        return None
+    back = [o for o in there.contents if o.is_exit and o is not exit_obj
+            and resolve_exit_destination(o) is here]
+    if len(back) > 1:
+        reverse = OPPOSITES.get(exit_obj.name.lower())
+        back = [o for o in back if o.name.lower() == reverse]
+    return back[0] if len(back) == 1 else None
+
+
+__all__ = ["PARTNER_ATTR", "partner_of", "pair_exits", "dissolve_pairing", "far_side"]

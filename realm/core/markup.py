@@ -161,7 +161,9 @@ def capitalize(text: str) -> str:
     ``act()`` capitalizes the line it sends ("the cityguard arrives." ->
     "The cityguard arrives."). Leading style codes are stepped over (never
     themselves capitalized); only the very first character of the text
-    changes, not each line, and only when it is a letter."""
+    changes, not each line, and only when it is a letter. A text function:
+    whether a game's lines get it is the ``basics`` feature's
+    ``CAPITALIZE_LINES`` setting."""
     mk = marker()
     mk_len = len(mk)
     i, n = 0, len(text)

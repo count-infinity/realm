@@ -20,7 +20,14 @@ guessing wrong on "swrod" and attacking the wrong thing is worse than a
 
 Disambiguation: a trailing ``-N`` picks the Nth match of the bare name
 (``box-2`` = second box), mirroring the multimatch listing shown when a
-query stays ambiguous.
+query stays ambiguous. Interchangeable "twins" (same name, same place, same
+kind: three apples on the floor) are not a question; anything else that
+stays ambiguous is (``match_one`` raises, never picks silently).
+
+Accounts are not in the world: ``in_world`` drops them from a global
+candidate list, so an account never answers an in-world name (a character
+and its account often share one). Only the account commands look accounts
+up, by their own namespace.
 """
 
 from __future__ import annotations
@@ -62,6 +69,23 @@ class MatchResult:
     def obj(self) -> GameObject | None:
         """The single match, or None if there were zero or several."""
         return self.matches[0] if len(self.matches) == 1 else None
+
+
+def in_world(objects: list[GameObject]) -> list[GameObject]:
+    """``objects`` without accounts: what an in-world name may mean.
+
+    An account is a login record with no place (``realm.core.options``'
+    ``ACCOUNT_TAG``); a global name lookup (``@teleport``, ``@set``,
+    softcode ``get``) must find the character, never its account.
+    """
+    from realm.core.options import ACCOUNT_TAG
+    return [obj for obj in objects if not obj.has_tag(ACCOUNT_TAG)]
+
+
+def _twin_key(obj: GameObject) -> tuple:
+    """What makes two matches interchangeable: name, place and kind."""
+    return (obj.name.lower(), id(obj.location), obj.is_player, obj.is_npc,
+            obj.is_exit, obj.is_room)
 
 
 def _search_names(obj: GameObject) -> list[str]:
@@ -239,11 +263,12 @@ def match_one(
     if not result.matches:
         return None
     if len(result.matches) > 1:
-        # Twins: when every match is visually identical (same name, the
-        # display-grouping key), prompting "apple-1 or apple-2?" is
-        # noise — take the first. name-N still picks a specific one.
-        names = {obj.name.lower() for obj in result.matches}
-        if len(names) == 1:
+        # Twins: when every match is interchangeable (same name, the
+        # display-grouping key, in the same place, of the same kind),
+        # prompting "apple-1 or apple-2?" is noise — take the first.
+        # Two cityguards in two rooms, or a player and an NPC of one
+        # name, are a real choice. name-N still picks a specific one.
+        if len({_twin_key(obj) for obj in result.matches}) == 1:
             return result.matches[0]
         raise AmbiguousMatchError(result.query, result.matches)
     return result.matches[0]
@@ -282,6 +307,7 @@ def format_ambiguous(error: AmbiguousMatchError, looker: GameObject | None = Non
 
 __all__ = [
     "AmbiguousMatchError",
+    "in_world",
     "MatchResult",
     "match_objects",
     "match_one",

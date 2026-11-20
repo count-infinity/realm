@@ -348,6 +348,32 @@ class TestParse:
         assert scavenger == [{"behavior_id": "scavenger",
                               "params": {"eat_corpses": False, "pick_up": True}}]
 
+    def test_a_wimpy_aggressor_spares_the_awake(self):
+        # ROM's aggr_update: an ACT_AGGRESSIVE mob that is also ACT_WIMPY
+        # (H) attacks only a player who is asleep (the beastly fido, the
+        # alley cat). Nobody awake is jumped, so it gets no ``aggressive``.
+        fido = ARE.replace("ABV D 900 0", "AFGH 0 -200 0")
+        proto = rom_import.convert(fido).mob_protos[3000]
+        assert "aggressive" not in [b["behavior_id"] for b in proto["behaviors"]]
+        assert any("ACT_WIMPY" in gap for gap in rom_import.convert(fido).gaps)
+        brute = ARE.replace("ABV D 900 0", "AFG 0 -200 0")
+        proto = rom_import.convert(brute).mob_protos[3000]
+        assert "aggressive" in [b["behavior_id"] for b in proto["behaviors"]]
+
+    def test_the_refresh_script_calms_a_wimpy_aggressor(self):
+        module = _refresh_script()
+        fido = {"name": "the beastly fido", "tags": ["npc"],
+                "attrs": {"rom_act": ["A", "F", "G", "H"], "rom_vnum": 3062},
+                "behaviors": [{"behavior_id": "wandering", "params": {}},
+                              {"behavior_id": "aggressive", "params": {}}]}
+        room = {"id": "r1", "name": "Square", "tags": ["room"], "attrs": {"sector": "city"},
+                "behaviors": [{"behavior_id": "spawner",
+                               "params": {"key": "m3062", "prototype": json_copy(fido)}}]}
+        data = {"objects": [dict(json_copy(fido), id="m1"), room]}
+        module.refresh(data)
+        for mob in (data["objects"][0], room["behaviors"][0]["params"]["prototype"]):
+            assert [b["behavior_id"] for b in mob["behaviors"]] == ["wandering"]
+
     def test_act_flags_map_to_shipped_behaviors(self):
         # The rat is ACT_STAY_AREA (G), not SENTINEL: it gets the shipped
         # `wandering` behavior, zone-bounded.
@@ -876,6 +902,125 @@ class TestDoorKeywords:
             sim.close()
 
 
+# A locked door between two rooms whose key (vnum 410) the second room holds.
+DOOR_ARE = """\
+#AREA
+door.are~
+Door~
+{ All } Test    Door~
+400 499
+#MOBILES
+#410
+guard~
+the guard~
+A guard stands here.
+~
+A guard.
+~
+human~
+AG D 0 0
+5 0 1d1+40 1d1+0 1d4 punch
+5 5 5 5
+0 0 0 0
+stand stand male 0
+0 0 medium 0
+#0
+#OBJECTS
+#410
+key iron~
+an iron key~
+An iron key has been left here.~
+iron~
+key 0 A
+0 0 0 0 0
+0 10 0 P
+#0
+#ROOMS
+#400
+The Hall~
+A hall.
+~
+0 0 0
+D3
+~
+door~
+2 410 401
+S
+#401
+The Vault~
+A vault.
+~
+0 0 0
+D1
+~
+door~
+2 410 400
+S
+#0
+#RESETS
+M 0 410 1 400 1
+O 0 410 1 401
+S
+#$
+"""
+
+
+class TestDoorKeys:
+    """``lock`` and ``unlock`` match an exit's ``key_id`` against a carried
+    item's ``unlocks`` (docs/tutorial/02-keys-and-doors.md); the importer
+    wrote the key as ``key``, which nothing reads, so a converted door
+    could never be unlocked (BACKLOG 2026-11-17). ROM's ``has_key`` matches
+    the key object's vnum, so both sides name it ``rom_obj_<vnum>``."""
+
+    def test_an_exit_names_its_key_and_the_key_what_it_unlocks(self):
+        area = _convert(DOOR_ARE)
+        exits = [o for o in area.objects if "exit" in o["tags"]]
+        assert [e["attrs"].get("key_id") for e in exits] == ["rom_obj_410"] * 2
+        assert all("key" not in e["attrs"] for e in exits)
+        keys = [o for o in area.objects if o["attrs"].get("rom_vnum") == 410
+                and "thing" in o["tags"]]
+        assert len(keys) == 2                          # the prototype and the O reset
+        assert all(k["attrs"]["unlocks"] == "rom_obj_410" for k in keys)
+        # Mob 410 shares the number and is no key (ROM's vnum spaces are apart).
+        guards = [o for o in area.objects if "npc" in o["tags"]]
+        assert guards and all("unlocks" not in g["attrs"] for g in guards)
+
+    async def test_the_converted_door_locks_and_unlocks_with_its_key(self):
+        sim = Simulator()
+        try:
+            await import_objects(rom_import.document(_convert(DOOR_ARE)), sim.store,
+                                 preserve_ids=True)
+            hall, vault = sim.store.get_cached("rom_400"), sim.store.get_cached("rom_401")
+            pat = sim.player("Pat", location=vault)
+            await sim.do(pat, "get key")
+            west = next(o for o in hall.contents if o.is_exit)
+            assert west.has_tag("locked")              # locked at boot (lock value 2)
+            await sim.do(pat, "unlock door")
+            assert not west.has_tag("locked")          # the other side too
+            await sim.do(pat, "lock door")
+            assert "You lock the door with an iron key." in sim.seen(pat)
+            assert west.has_tag("locked")
+            await sim.do(pat, "unlock door")
+            await sim.do(pat, "open door")
+            await sim.do(pat, "east")
+            assert pat.location is hall
+        finally:
+            sim.close()
+
+    def test_the_refresh_renames_the_key_and_marks_the_keys(self):
+        module = _refresh_script()
+        data = rom_import.document(_convert(DOOR_ARE))
+        fresh = json_copy(data)
+        for obj in data["objects"]:                    # as the importer wrote it before
+            attrs = obj["attrs"]
+            if "key_id" in attrs:
+                attrs["key"] = attrs.pop("key_id")
+            attrs.pop("unlocks", None)
+        changed, _area = module.refresh(data)
+        assert changed == 4                            # two exits, two keys
+        assert data == fresh
+
+
 # A guard (not a keeper) who wields a sword, wears a jerkin and carries a
 # loaf: ROM's E (equip) and G (give) resets after its M.
 GEAR_ARE = """\
@@ -988,6 +1133,34 @@ class TestEquippedGear:
         assert by_name["a short sword"]["attrs"]["prototype_vnum"] == 310
         assert not any(key in c for c in contents for key in ("id", "location"))
 
+    async def test_a_zone_reset_brings_the_gear_back_too(self):
+        # zone_reset now takes a cleared mob's gear with it, so --zone-reset
+        # writes the spec's `contents` as --repop does (BACKLOG 2026-11-17).
+        area = rom_import.convert(GEAR_ARE, zone_reset=True)
+        master = next(o for o in area.objects if "zone_master" in o["tags"])
+        [entry] = [e for e in master["attrs"]["reset_spec"] if "npc" in e["prototype"]["tags"]]
+        by_name = {c["name"]: c for c in entry["prototype"]["contents"]}
+        assert set(by_name) == {"a short sword", "a jerkin", "a ring", "a loaf"}
+        assert "wielded" in by_name["a short sword"]["tags"]
+        # In a world: two resets leave one guard with one set of gear.
+        sim = Simulator()
+        try:
+            await import_objects(rom_import.document(area), sim.store, preserve_ids=True)
+            zone = sim.store.get_cached(master["id"])
+            behavior = next(b for b in zone.get_behaviors()
+                            if b.behavior_id == "zone_reset")
+            for _ in range(2):
+                zone.db.set("last_reset", 0)
+                await behavior.tick(zone, 4.0)
+            guards = [o for o in sim.store.all_cached() if o.name == "the guard"
+                      and not o.has_tag("prototype")]
+            assert len(guards) == 1
+            swords = [o for o in sim.store.all_cached() if o.name == "a short sword"
+                      and not o.has_tag("prototype")]
+            assert [s.location for s in swords] == guards and swords[0].has_tag("wielded")
+        finally:
+            sim.close()
+
     def test_the_refresh_script_equips_a_converted_files_gear(self):
         # A file converted before 2026-11-17: gear with a `worn` attribute
         # naming its ROM wear location, and spawners whose mob comes back
@@ -1011,3 +1184,108 @@ class TestEquippedGear:
         assert old == fresh
         module.refresh(old)                                # a second run changes nothing
         assert old == fresh
+
+
+# Two gates and a locked door, as Midgaard's: the room file says which exits
+# are doors, the area's D resets close and lock them at boot (ROM's
+# load_resets ORs the reset's state into the exit's reset flags; 0 open,
+# 1 closed, 2 closed and locked). Only one side of the gate has a D reset;
+# a door has two faces that agree, so the other side is closed too.
+GATES_ARE = """\
+#AREA
+gates.are~
+Gates~
+{ All } Test    Gates~
+500 599
+#MOBILES
+#0
+#OBJECTS
+#0
+#ROOMS
+#500
+Inside the Gate~
+Inside.
+~
+0 0 0
+D3
+~
+gate~
+1 -1 501
+D0
+~
+door~
+1 -1 502
+D2
+~
+~
+0 -1 502
+S
+#501
+Outside the Gate~
+Outside.
+~
+0 0 0
+D1
+~
+gate~
+1 -1 500
+S
+#502
+The Cell~
+A cell.
+~
+0 0 0
+D2
+~
+door~
+1 -1 500
+D0
+~
+~
+0 -1 500
+S
+#0
+#RESETS
+D 0 500 3 1   the west gate is closed
+D 0 500 0 2   the cell door is locked
+D 0 502 2 2
+D 0 500 2 1   not a door: ROM refuses it
+S
+#$
+"""
+
+
+def _exit(area, room_v, direction):
+    return next(o for o in area.objects
+                if o["id"] == f"rom_exit_{room_v}_{direction}")
+
+
+class TestDoorResets:
+    """ROM's ``D`` resets set a door's state at boot (BACKLOG 2026-11-17)."""
+
+    def test_the_d_resets_close_and_lock_both_sides(self):
+        area = _convert(GATES_ARE)
+        west, east = _exit(area, 500, 3), _exit(area, 501, 1)
+        assert {"door", "closed"} <= set(west["tags"]) and "locked" not in west["tags"]
+        assert {"door", "closed"} <= set(east["tags"]) and "locked" not in east["tags"]
+        cell, back = _exit(area, 500, 0), _exit(area, 502, 2)
+        assert {"door", "closed", "locked"} <= set(cell["tags"])
+        assert {"door", "closed", "locked"} <= set(back["tags"])
+        assert not any("reset D" in gap and "not applied" in gap for gap in area.gaps)
+        assert any("reset D" in gap and "not a door" in gap for gap in area.gaps)
+        assert "door" not in _exit(area, 500, 2)["tags"]
+
+    def test_the_room_files_lock_value_is_its_state(self):
+        # ROM's load_rooms: 1 a closed door, 2 closed and locked (ROM 2.4's
+        # OLC loader, the one in ~/ROM/src/db.c).
+        area = _convert(DOOR_ARE)
+        for e in (o for o in area.objects if "exit" in o["tags"]):
+            assert {"door", "closed", "locked"} <= set(e["tags"])
+
+    def test_a_zone_reset_puts_the_doors_back(self):
+        area = rom_import.convert(GATES_ARE, zone_reset=True)
+        assert _exit(area, 500, 3)["attrs"]["reset_tags"] == {"closed": True, "locked": False}
+        assert _exit(area, 500, 0)["attrs"]["reset_tags"] == {"closed": True, "locked": True}
+        assert "reset_tags" not in _exit(area, 500, 2)["attrs"]
+        assert "reset_tags" not in _exit(rom_import.convert(GATES_ARE, repop=True),
+                                         500, 3)["attrs"]

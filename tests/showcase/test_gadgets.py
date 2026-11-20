@@ -415,29 +415,29 @@ class TestMusicBox:
         kess = sim.player("Kess", location=room)
 
         out = await do(sim, bilda, "wind music box")
-        assert "Music box clicks softly as Bilda winds the brass key." in out
+        assert "music box clicks softly as Bilda winds the brass key." in out
         assert find_one(sim, "music box").db.get("turns") == 3
 
         # Each wait() link plays one note and re-arms the next.
         sim.seen(kess)
         await sim.engine.waits.tick()
-        assert "Music box plays a bright, glassy arpeggio." in sim.seen(kess)
+        assert "music box plays a bright, glassy arpeggio." in sim.seen(kess)
         await sim.engine.waits.tick()
-        assert ("Music box plays three descending notes, like rain off "
+        assert ("music box plays three descending notes, like rain off "
                 "a roof." in sim.seen(kess))
 
         # The last turn: final note, then the wind-down — chain over.
         await sim.engine.waits.tick()
         out = sim.seen(kess)
-        assert ("Music box plays a tiny waltz figure, slightly out of "
+        assert ("music box plays a tiny waltz figure, slightly out of "
                 "tune." in out)
-        assert ("Music box slows... and stops with a final, drooping "
+        assert ("music box slows... and stops with a final, drooping "
                 "plink." in out)
         assert find_one(sim, "music box").db.get("turns") == 0
 
         # Silence after: no pending waits remain.
         await sim.engine.waits.tick()
-        assert not any("Music box plays" in line for line in sim.seen(kess))
+        assert not any("music box plays" in line for line in sim.seen(kess))
 
     async def test_rewinding_stacks_turns_without_double_chains(self, sim):
         _room, bilda = await self._built(sim)
@@ -450,7 +450,7 @@ class TestMusicBox:
         # One tick, exactly ONE note — a second chain would double up.
         sim.seen(bilda)   # drain the wind chatter
         await sim.engine.waits.tick()
-        notes = [line for line in sim.seen(bilda) if "Music box plays" in line]
+        notes = [line for line in sim.seen(bilda) if "music box plays" in line]
         assert len(notes) == 1
 
         # The spring caps at 9 turns.

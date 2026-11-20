@@ -42,6 +42,17 @@ never complains about ambiguity, so a second object sharing the name can
 silently capture the reference. Fine for a one-off lookup, a trap for a
 stored reference that must always point at one specific object.
 
+A name never finds an **account**: an account is a login record, not a
+thing in the world, and a character often shares its account's name, so
+`get('Bree')`, `@teleport Bree = ...`, `@set Bree/...`, `@snoop`,
+`@freeze`, `@boot` and every other in-world lookup by name mean the
+character. Only `@account` looks accounts up. An account's `#id` still
+reaches it, but it is never placed (`@teleport`) or destroyed
+(`@destroy`): "An account is not in the world." A command (not softcode)
+asks "Which 'cityguard' do you mean?" when a name fits several things that
+are not interchangeable; only identical things in one place (three apples
+on the floor) are taken first without asking.
+
 **Keyid** fixes that for the objects that need it — a well-known singleton
 like a bank core, a weather master, or a zone brain. Give one a handle with
 `@keyid`, then reference it as `$<handle>` forever:
@@ -143,10 +154,24 @@ player is inside** — the whole area repops at once when nobody's watching
 When the zone is due and holds **no players**, the master **clears its prior
 spawns and reloads the `reset_spec` fresh** (so a killed guard is back — but
 never pops on top of you, and mobs from a since-removed entry vanish), then
-fires **`ON_RESET`** for everything the spec doesn't cover:
+fires **`ON_RESET`** for everything the spec doesn't cover. A cleared spawn
+takes what it carries, wears and wields with it (a prototype's `contents`
+come back with the reload); a player's own thing it was given goes to its
+owner's home, as a destroyed object's does, and a thing on the floor or a
+corpse is not a spawn and stays:
 
 ```text
 @set Castle Brain/ON_RESET = trigger me/reseal_doors
+```
+
+Doors need no script: anything in the zone's rooms with a `reset_tags`
+attribute (`{tag: present}`) gets those tags put back at each reset, so a
+door a visitor opened or unlocked closes and locks again, as ROM's area
+reset does. Each face of a door carries its own (a ROM area converted with
+`--zone-reset` writes them):
+
+```text
+@set north/reset_tags = {"closed": true, "locked": true}
 ```
 
 `reset_spec` entries use the spawner's prototype vocabulary; `room` is an
@@ -177,9 +202,16 @@ presence-gated — wolves keep appearing in the forest while you hunt them.
 ## Paired exits (doors)
 
 A two-way `@dig` creates *two* exit objects, and anything that treats
-them as one door (the mirror hooks of the
-[lockable door](../showcase/025_lockable_door.md)) needs each side to
-know its sibling. The engine owns that relationship end to end:
+them as one door needs each side to know its sibling. The built-in
+`open`, `close`, `lock` and `unlock` (a keycard's swipe, a picked lock,
+a script's `open` line) change both faces of a door, as ROM keeps both
+sides in step: the far side is the exit's partner when it has one, else
+the exit in the room beyond that leads back (`realm.core.pairing.far_side`;
+a converted ROM area pairs nothing), and the room beyond hears "The gate
+opens." A builder's own state (the mirror hooks of the
+[lockable door](../showcase/025_lockable_door.md) on anything two objects
+share) reads the pairing too. The engine owns that relationship end to
+end:
 
 ```text
 @dig The Vault = vault door, vault door   the two faces are PAIRED at birth
@@ -457,6 +489,23 @@ While the editor is open, every line is its own: commands do not run
 until `.s` or `.q`. A disconnect or `logout` closes it without saving.
 `mail <player> = <subject>` with no body opens the same editor for the
 letter ([Communication](communication.md)).
+
+## Help topics
+
+`help <command>` shows a command's own documentation. A game's other help
+(how to start, the town, the rules) is data: an object tagged `help_def`
+is a topic, found by its name or any of its `keywords`, and `help <topic>`
+pages its `text`. A topic of a command's name comes first. Midgaard ships
+one in `data/help.json` (`help newbie`, ROM's "newbie info"); a builder can
+add one live:
+
+```text
+@create rules
+@tag rules = help_def
+@set rules/keywords = ["laws", "conduct"]
+@set rules/text = Be kind. No multiplaying. Ask on the newbie channel.
+help laws
+```
 
 ## Ownership and safety valves
 

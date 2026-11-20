@@ -157,7 +157,7 @@ name — its line bakes `.name` rather than the `{actor}` token.)
 ```
 Ada.db.voice_as = "a distorted voice"
 Ada: say who goes there
-  Bob hears:  A distorted voice says, "who goes there"
+  Bob hears:  a distorted voice says, "who goes there"
   Ada hears:  You say, "who goes there"
   Bob's `look` still lists:  Ada          # face unaffected
 ```
@@ -201,16 +201,23 @@ if action is not None:
 The manipulation verb cores in ``realm/std/items/verbs.py`` are the
 reference implementations.
 
-## Capitals: ROM's ``act()`` and ``send_to_char``
+## Capitals: a game's choice, not the kernel's
+
+The kernel sends a line exactly as written. The two paths that narrate
+someone's doing to an audience, ``deliver_messages`` (every templated
+message) and a room broadcast (``GameObject.msg_contents``, which softcode
+``remit`` and ``oemit`` use), pass each line through the world's **line
+formatters** (``feature.line_formatter``, ``realm.core.world.format_line``);
+a world that declares none sends ``"{actor} arrives."`` naming "the
+cityguard" as "the cityguard arrives.". ``obj.msg(text)`` to one object,
+softcode ``pemit`` and a command's own output never pass through them.
 
 ROM capitalizes the first letter of what ``act()`` sends and leaves
-``send_to_char`` as written. REALM's ``act()`` is the two paths that narrate
-someone's doing to an audience: ``deliver_messages`` (every templated
-message) and a room broadcast (``GameObject.msg_contents``, which softcode
-``remit`` and ``oemit`` use). Each starts its line with a capital
-(``realm.core.markup.capitalize``: the first visible character, colour codes
-stepped over, never every line), so ``"{actor} arrives."`` naming "the
-cityguard" reads "The cityguard arrives."; ``look``'s title line ("The
-cityguard") is capitalized too. ``obj.msg(text)`` to one object,
-softcode ``pemit`` and a command's own output are ``send_to_char``: sent as
-written, so a builder's deliberately lowercase line stays so.
+``send_to_char`` as written. That rule is the ``basics`` feature's
+formatter, applied when ``CAPITALIZE_LINES`` is on (the Merc scaffold and
+Midgaard write ``CAPITALIZE_LINES = True``): the first visible character,
+colour codes stepped over, never every line (``realm.core.markup.capitalize``),
+so "The cityguard arrives.". A feature that composes a sentence starting
+with a name for one player ("the guildmaster teaches:", ``look``'s title
+line, combat's "CRITICAL! the beastly fido hits you") runs that sentence
+through ``format_line`` too, so a game gets capitals everywhere or nowhere.

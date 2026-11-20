@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from realm.core.search import match_objects, match_one
+from realm.core.search import in_world, match_objects, match_one
 
 if TYPE_CHECKING:
     from realm.commands import CommandContext
@@ -70,6 +70,8 @@ def find_object_global(ctx: CommandContext, spec: str) -> GameObject | None:
     Accepts ``#id``, a bare UUID, or a (partial) name. Requires
     persistence; returns None when the server runs without it. Raises
     AmbiguousMatchError when a name matches several objects equally well.
+    A name never finds an account (``in_world``): ``Bree`` is the
+    character, not the login record of the same name.
     """
     persistence = ctx.persistence
     if not persistence:
@@ -83,7 +85,7 @@ def find_object_global(ctx: CommandContext, spec: str) -> GameObject | None:
     if '-' in spec and len(spec) > 30:
         return persistence.get_cached(spec)
 
-    return match_one(spec, persistence.all_cached())
+    return match_one(spec, in_world(persistence.all_cached()))
 
 
 def resolve_target(ctx: CommandContext, name: str) -> GameObject | None:

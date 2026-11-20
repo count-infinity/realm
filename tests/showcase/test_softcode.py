@@ -127,7 +127,7 @@ class TestObjectVerbs:
                 "The Comet's Tail") in sim.seen(alice)
 
         await sim.do(alice, "play comet")
-        line = "Holo-jukebox spins up: The Comet's Tail"
+        line = "holo-jukebox spins up: The Comet's Tail"
         assert line in sim.seen(alice)
         assert line in sim.seen(bob)          # remit reaches the room
 
@@ -146,13 +146,13 @@ class TestObjectVerbs:
         assert sim.seen(alice) == []
 
         await sim.do(bela, "play comet")      # the owner still may
-        assert "Holo-jukebox spins up: The Comet's Tail" in sim.seen(bela)
+        assert "holo-jukebox spins up: The Comet's Tail" in sim.seen(bela)
 
         await sim.do(bela, "@lock/use holo-jukebox =")
         assert "Lock/use cleared from holo-jukebox." in sim.seen(bela)
         sim.seen(alice)
         await sim.do(alice, "play comet")
-        assert "Holo-jukebox spins up: The Comet's Tail" in sim.seen(alice)
+        assert "holo-jukebox spins up: The Comet's Tail" in sim.seen(alice)
 
     async def test_builtins_dispatch_before_dollar_triggers(self, jukebox_world):
         sim, bela, alice, bob = jukebox_world
@@ -209,7 +209,7 @@ class TestBuilderTriggers:
         sim.seen(alice)
 
         await sim.do(alice, "say Looks like it's getting dark out there.")
-        assert ('Keeper says, "The lamp must never go dark. Never!"'
+        assert ('keeper says, "The lamp must never go dark. Never!"'
                 in sim.seen(alice))
 
     async def test_on_get_fires_when_item_taken(self, lighthouse_world):
@@ -233,7 +233,7 @@ class TestBuilderTriggers:
 
         await sim.do(bela, "@tr keeper/on_tick")
         assert "Triggered keeper/on_tick." in sim.seen(bela)
-        assert "Keeper polishes the great lens." in sim.seen(alice)
+        assert "keeper polishes the great lens." in sim.seen(alice)
 
     async def test_halt_tag_silences_every_trigger(self, lighthouse_world):
         sim, bela, alice = lighthouse_world
@@ -426,7 +426,7 @@ class TestInlineFunctions:
 
         await sim.do(alice, "consult crystal")
         out = joined(sim.seen(alice))
-        assert 'Mood crystal says, "The auspices favor' in out
+        assert 'mood crystal says, "The auspices favor' in out
         assert any(word in out for word in ("war", "trade", "rest"))
 
 

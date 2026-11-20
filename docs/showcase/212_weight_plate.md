@@ -290,7 +290,7 @@ Counterweights settle with a boom. The prize gate swings open.
 
 > look pressure plate
 
-Pressure plate
+pressure plate
 A broad iron plate, sprung to sink under real weight.
 
 Contains:

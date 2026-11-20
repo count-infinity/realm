@@ -9,20 +9,24 @@ played through the input path a connection uses
 ``route_input``). Each section is one numbered line of "What 'complete'
 means here" at the top of ``MUD_PLAN.md`` and asserts what the player sees.
 
-The story: Ann makes Bree (a warrior) and Cole (a cleric). Bree takes the
-baker's quest (line 11 begins there, so her fido kills count), is hurt by a
-fido, rests, dies to the vagabond, recovers her sword from her corpse,
-beats the vagabond the second time and loots him, levels on the way to the
-weapon shop, sells his sword and jerkin, buys a cap and wears it (3); kicks
-a fido, practises at her own guild (the Guild of Swordsmen, whose bar lets
-in only warriors) and starts studying lore (4); is paid for the quest (11)
-and logs out. Dan makes Eve;
-Bree, back with her lore trained, talks to her and mails her (5); Cole
-finds Bree's achievement (6); Bree, the superuser, bans, unbans and resets
-Dan, announces a shutdown, backs up, makes a mistake and restores (7); Eve
-grows hungry and eats Bree's bread (8); Bree buys a dog that fights beside
-her, then a horse she rides (9); founds a clan Eve joins (10); and builds
-a loft that only Friends of the Baker may climb to, which Cole does (12).
+The story: Ann makes Bree (a warrior) and Cole (a cleric), each outfitted
+as ROM's ``do_outfit`` does (a weapon, the Mud School's banner, vest and
+shield). Bree takes the baker's quest (line 11 begins there, so her fido
+kills count), picks a fight with a fido and is hurt, rests, dies to the
+vagabond, recovers her things from her corpse, beats the vagabond the
+second time, loots him and raises a level, sells his sword and jerkin,
+buys a cap and wears it (3); finds four more fidos with ``where fido``,
+kicks one, practises at her own guild (the Guild of Swordsmen, whose bar
+lets in only warriors) and starts studying lore (4); is paid for the quest
+(11) and logs out. Dan makes Eve; Bree, back with her lore trained, talks
+to her and mails her (5); Cole finds Bree's achievement (6); Bree, the
+superuser, bans, unbans and resets Dan, announces a shutdown, backs up,
+makes a mistake and restores (7); Eve grows hungry and eats Bree's bread
+(8); Bree buys a dog that fights beside her (its kill raises her to level
+3), then a horse she rides (9); founds a clan Eve joins (10); and builds a
+loft that only Friends of the Baker may climb to, which Cole does (12).
+``tests/test_fido_to_level_two.py`` plays the same town as a player who is
+not the superuser, from creation to level 2 on fidos alone.
 
 Deterministic: the dice are seeded, and loaded (``Fate``) where the story
 needs a fight won or lost; every clock the engine reads is one
@@ -328,7 +332,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "Cole" not in out                     # out of play: not in the room
 
     # --- 11 (begun). The baker's quest, taken first so the fidos count ----------
-    assert "<10hp 100m 100mv>" in out             # the prompt
+    assert "<20hp 100m 100mv>" in out             # the prompt
     out = await game.walk(ann, "north", "west", "north")
     assert "The Bakery" in out and "baker (!)" in out
     out = await ann.send("quest list")
@@ -339,52 +343,62 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "Fido trouble (stage 1 of 1)" in out and "fidos killed: 0/5" in out
 
     # --- 3. alone from level 1 to level 2 ----------------------------------------
-    # Back in the square the beastly fido goes for her. It rolls its best;
-    # Bree fumbles (twice: her first swing, and in the next round) before
-    # she finds her stroke. She wins, hurt.
-    game.fate({bree: ["worst", "worst", "best"]}, others="best")
+    # Back in the square, a beastly fido. It lets her be (ROM's fido bites
+    # only sleepers), so she picks the fight. It rolls its best; Bree
+    # fumbles (twice: her first swing, and in the next round) before she
+    # finds her stroke. She wins, hurt.
     out = await game.walk(ann, "south", "east", "south")
+    assert "The Common Square" in out and "the beastly fido" in out
+    game.fate({bree: ["worst", "worst", "best"]}, others="best")
+    assert "You square off against the beastly fido!" in await ann.send("kill fido")
+    await game.fight(ann)
+    out = ann.take()
     assert "CRITICAL! The beastly fido hits you for 8 damage!" in out
-    assert "The beastly fido falls dead!" in out and "You gain 85 experience." in out
+    assert "The beastly fido falls dead!" in out and "You gain 170 experience." in out
     assert "[Fido trouble] fidos killed: 1/5" in out
-    assert "<2hp 100m 89mv>" in out
+    assert "<4hp 100m 89mv>" in out
     out = await ann.send("score")
-    assert "Experience: 85 / 1000 to level 2" in out and "HP: 2/10" in out
+    assert "Experience: 170 / 1000 to level 2" in out and "HP: 4/20" in out
     # Rest it off.
     assert "You sit down and rest." in await ann.send("rest")
     await game.wait(60)
-    assert "<10hp 100m 100mv>" in await ann.send("stand")
+    assert "<20hp 100m 100mv>" in await ann.send("stand")
     # The vagabond in the dark alley, and the alley cat: Bree dies.
     await ann.send("east")
     game.fate({bree: "worst"}, others="best")
     assert "You square off against the vagabond!" in await ann.send("kill vagabond")
     await game.fight(ann)
     out = ann.take()
-    assert "You have been KILLED!!" in out and "You lose 85 experience." in out
+    assert "You have been KILLED!!" in out and "You lose 170 experience." in out
     assert "The Common Square" in out and "<1hp 100m 98mv>" in out   # back home
-    # Rest, go back for the body; the cat jumps her, and loses.
+    # Rest, go back for the body (the alley cat, ROM's wimpy kind, lets her
+    # be), and put her things back on.
     await ann.send("rest")
     await game.wait(60)
     await ann.send("stand")
     game.fate({bree: "best"}, others="worst")
     out = await ann.send("east")
-    assert "the corpse of Bree" in out
-    assert "You pick up a short sword." in await ann.send("get all from corpse")
+    assert "the corpse of Bree" in out and "an alley cat" in out
+    assert game.combat().encounter_of(bree) is None
+    assert "You pick up a short sword, a war banner, a sub issue vest, and a sub issue " \
+        "shield." in await ann.send("get all from corpse")
     assert "You ready a short sword." in await ann.send("wield sword")
-    await game.fight(ann)
-    assert "An alley cat falls dead!" in ann.take()
-    # The vagabond again, and this time she wins: his gear is hers.
+    out = await ann.send("wear all")
+    assert "You put on the war banner." in out and "You put on the sub issue shield." in out
+    # The vagabond again, and this time she wins: his gear is hers, and
+    # she raises a level (his 800, doubled at level 1 as ROM pays).
     assert "You square off against the vagabond!" in await ann.send("kill vagabond")
     await game.fight(ann)
     out = ann.take()
-    assert "The vagabond falls dead!" in out and "You gain 800 experience." in out
+    assert "The vagabond falls dead!" in out and "You gain 1600 experience." in out
+    assert "You raise a level!!  You are now level 2." in out
+    assert "You gain 6 hit points, 1 practice and 1 training session. " \
+        "Your THAC0 is now 19." in out
     out = await ann.send("get all from corpse vagabond")
     assert "a small sword" in out and "a hard leather jerkin" in out
-    # To the weapon shop, by way of Poor Alley's fido (a level-0 fido pays
-    # 85; she needs one more); on Main Street another jumps her, and she
-    # levels.
-    out = await game.walk(ann, "west", "west", "east", "north", "east", "east", "north")
-    assert "You advance to level 2! (+6 HP)" in out
+    # To the weapon shop.
+    out = await game.walk(ann, "west", "north", "east", "east", "north")
+    assert "The Weapon Shop" in out
     assert "You sell a small sword for 100 gold." in await ann.send("sell small")
     # The armourer takes his jerkin.
     out = await game.walk(ann, "south", "west", "west", "west", "south")
@@ -397,38 +411,59 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     assert "You buy a leather cap for 150 gold." in await ann.send("buy cap-1")
     assert "You put on the leather cap." in await ann.send("wear cap")
     out = await ann.send("score")
-    assert "You are Bree, a level 2 warrior." in out and "Wearing:  a leather cap" in out
-    assert "AC: 9" in out and "Practices: 1" in out
+    assert "You are Bree, a level 2 warrior." in out
+    assert "Wearing:  a war banner, a sub issue vest, a sub issue shield, a leather cap" in out
+    # ROM's 5 practices and 3 training sessions at creation, and a level's.
+    assert "AC: 7" in out and "Practices: 6   Training sessions: 4" in out
+    assert "Experience: 600 / 2000 to level 3" in out
     out = await ann.send("equipment")
     assert "<head>    a leather cap" in out and "<wielded> a short sword" in out
-    assert "<16hp 100m 65mv>" in out
+    assert "<body>    a sub issue vest" in out and "<shield>  a sub issue shield" in out
+    assert "<26hp 100m 69mv>" in out
     out = await ann.send("inventory")
     assert "a leather bracer" in out and "You have 165 gold." in out and "cap" not in out
 
     # --- 4. a class skill by name, learning by use, practice, study ----------------
     out = await ann.send("skills")
     assert "kick                 40%   (use: 0/10)" in out
-    assert "melee                42%" in out                # learnt by use already
+    assert "melee                41%   (use: 6/10)" in out  # learnt by use already
     await game.repopulate()                                 # the fidos are back
+    # Four more fidos for the baker: `where` says where they are.
+    out = await ann.send("where fido")
+    assert out.count("the beastly fido") == 4
+    assert "Melancholy's Maps" in out and "The Common Square" in out
     game.fate({bree: "best"}, others="worst")
-    await game.walk(ann, "south", "east")                   # one fido on the way
-    out = await ann.send("east")
-    assert "the beastly fido" in out                        # the square's pounces
+    out = await game.walk(ann, "south", "east", "north")
+    assert "Melancholy's Maps" in out and "the beastly fido" in out
     assert "You kick the beastly fido." in await ann.send("kick fido")
     await game.fight(ann)
     assert "The beastly fido falls dead!" in ann.take()
+    out = await game.walk(ann, "south", "east")
+    assert "The Common Square" in out and "the beastly fido" in out
+    await ann.send("kill fido")
+    await game.fight(ann)
+    out = await game.walk(ann, "north", "west", "west")
+    assert "Main Street" in out and "the beastly fido" in out
+    await ann.send("kill fido")
+    await game.fight(ann)
+    out = await game.walk(ann, "east", "east", "east", "east")
+    assert "The Main Street" in out and "the beastly fido" in out
+    await ann.send("kill fido")
+    await game.fight(ann)
+    out = ann.take()
+    assert "The beastly fido falls dead!" in out and "fidos killed: 5/5" in out
     out = await ann.send("skills")
     assert "kick                 40%   (use: 2/10)" in out  # kicking teaches kicking
-    assert "melee                42%   (use: 6/10)" in out
+    assert "melee                42%   (use: 4/10)" in out  # and swinging, swinging
     # Her own guild: the Guild of Swordsmen, through its bar, which lets
     # in warriors (and barbarians) only.
-    out = await game.walk(ann, "north", "east", "east", "south", "east", "south")
+    out = await game.walk(ann, "south", "east", "south")
     assert "The Tournament and Practice Yard" in out and "the guildmaster" in out
     out = await ann.send("practice")
     assert "The guildmaster teaches:" in out and "bash                30" in out
-    assert "You have 1 practice session." in out
+    assert "You have 6 practice sessions." in out
     assert "You practice bash (31)." in await ann.send("practice bash")
-    assert "You have 0 practice sessions." in await ann.send("practice")
+    assert "You have 5 practice sessions." in await ann.send("practice")
     assert "You begin studying lore." in await ann.send("study lore")
 
     # --- 11 (ended). Five fidos: back to the baker to be paid ---------------------
@@ -574,19 +609,20 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     out = ann.take()
     assert "The rottweiler leaps to Bree's side!" in out
     assert "The rottweiler hits the vagabond!" in out and "The vagabond falls dead!" in out
-    # One companion at Bree's level (Merc: 1 + level / 10): the dog goes,
-    # and a horse takes its place.
+    assert "You raise a level!!  You are now level 3." in out     # the dog's kill is hers
+    # One companion at Bree's level (Merc: 1 + level / 10, still 1 at 3):
+    # the dog goes, and a horse takes its place.
     assert "You dismiss the rottweiler." in await ann.send("dismiss rottweiler")
     await game.walk(ann, "east", "north")
     assert "You buy a brown horse for 10 gold." in await ann.send("buy horse")
     assert "You can't ride in here." in await ann.send("mount horse")   # a shop
     out = await ann.send("south")
-    assert "A brown horse arrives." in out and "<16hp 100m 80mv>" in out
+    assert "A brown horse arrives." in out and "<32hp 100m 80mv>" in out
     horse = game.find("brown horse", where=bree.location)
     assert "You mount the brown horse." in await ann.send("mount horse")
     out = await game.walk(ann, "west", "west")
     assert "You ride west on a brown horse." in out and "The Common Square" in out
-    assert "<16hp 100m 80mv>" in out                      # Bree spent nothing ...
+    assert "<32hp 100m 80mv>" in out                      # Bree spent nothing ...
     assert horse.db.move < horse.db.max_move              # ... the horse paid
     assert "a brown horse (mount, ridden)" in await ann.send("companions")
     assert "Bree arrives, riding a brown horse." in dan.take()
@@ -615,7 +651,7 @@ async def play(game: Game, server: GameServer, capsys) -> None:
     out = await dan.send("clubhouse")
     assert "You leave clubhouse." in out and "The Clubhouse" in out
     out = await ann.send("who")
-    assert "Bree the Swordpupil (2 warrior) [Boss of Fido Hunters]" in out
+    assert "Bree the Swordpupil (3 warrior) [Boss of Fido Hunters]" in out
     assert "Eve the Pilferer (1 thief) [Fido Hunters]" in out
 
     # --- 12. building in softcode, no restart ------------------------------------------

@@ -527,3 +527,52 @@ class TestAdministration:
         await admin.send("@sitelock 10.7. = no new accounts")
         out = await d.send("create Zed correcthorse")
         assert d.account is None and "no new accounts" in out
+
+
+# --- accounts are not in the world (2026-11-17) ------------------------------------------
+
+
+class TestAccountsAreNotInTheWorld:
+    """An account is not a thing in the world: an in-world name lookup never
+    finds one, even when its character has the same name (the telnet
+    play-through's ``@teleport Bree = ...`` moved Bree's account)."""
+
+    async def _two(self, server):
+        admin = await _with_characters(server, "Root", "rootpassword", "Boss")
+        bree = await _with_characters(server, "Bree", "correcthorse", "Bree")
+        await admin.send("@dig Garden")
+        await admin.send("@dig Shed")
+        await admin.send("@teleport Shed")      # away from Bree: lookups go global
+        assert admin.player.location is not bree.player.location
+        return admin, bree
+
+    async def test_teleport_by_name_moves_the_character(self, server):
+        admin, bree = await self._two(server)
+        out = await admin.send("@teleport Bree = Garden")
+        assert "Teleported Bree to Garden" in out
+        assert bree.player.location.name == "Garden"
+        assert bree.account.location is None
+
+    async def test_an_account_is_never_placed_or_destroyed(self, server):
+        admin, bree = await self._two(server)
+        account = bree.account
+        out = await admin.send(f"@teleport #{account.id} = Garden")
+        assert account.location is None and "not in the world" in out
+        out = await admin.send(f"@destroy #{account.id}")
+        assert server.persistence.get_cached(account.id) is account and "not in the world" in out
+
+    async def test_admin_commands_find_the_character(self, server):
+        admin, bree = await self._two(server)
+        await admin.send("@set Bree/mood = cheerful")
+        assert bree.player.db.mood == "cheerful" and bree.account.db.get("mood") is None
+        assert "Bree is frozen" in await admin.send("@freeze Bree")
+        assert "Bree is thawed" in await admin.send("@thaw Bree")
+        assert "You are snooping Bree" in await admin.send("@snoop Bree")
+        out = await admin.send("@eval result = get('Bree').id")
+        assert bree.player.id in out
+        assert "Booted Bree" in await admin.send("@boot Bree")
+
+    async def test_the_account_command_still_finds_accounts(self, server):
+        admin, _bree = await self._two(server)
+        out = await admin.send("@account Bree")
+        assert "Bree" in out and "127.0.0.1" in out

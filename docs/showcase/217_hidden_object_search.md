@@ -202,7 +202,7 @@ Exits: out
 
 > look brass key
 
-Brass key
+brass key
 A small brass key, filmed with dust.
 
 > get leather ledger

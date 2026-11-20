@@ -57,8 +57,12 @@ async def test_buy_wear_see_it_quaff_and_watch_the_prompt(midgaard, monkeypatch)
     assert not jerkin.has_tag("worn")
     assert f"You must be level {jerkin.db.level} to use" in "\n".join(sim.seen(brom))
     brom.db.level = jerkin.db.level
+    # The Mud School's vest (ROM's outfit) is on his body: the jerkin replaces it.
+    vest = next(o for o in brom.contents if o.name == "a sub issue vest")
     await sim.do(brom, "wear jerkin")
-    assert jerkin.has_tag("worn")
+    assert not jerkin.has_tag("worn") and "a sub issue vest" in "\n".join(sim.seen(brom))
+    await sim.do(brom, "wear jerkin replace")
+    assert jerkin.has_tag("worn") and not vest.has_tag("worn")
     sim.seen(brom)
     await sim.do(brom, "equipment")
     sheet = "\n".join(sim.seen(brom)).splitlines()

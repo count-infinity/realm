@@ -1,5 +1,86 @@
 # Your First MUD
 
+## Play Midgaard
+
+Four commands make a running Diku game and connect to it:
+
+```bash
+realm init midgaard --system merc --template midgaard
+cd midgaard
+realm start
+telnet localhost 4000          # from another terminal; or Mudlet, TinTin++
+```
+
+(`TELNET_PORT` in `config.py` is the port; REALM is installed as in
+[Installation](installation.md).) At the welcome screen, `create <account>
+<password>`, name a character and pick a class. You wake in the Common
+Square with 20 hit points, a weapon and the Mud School's banner, vest and
+shield. The beastly fidos, level 0 dogs, roam the town; six of them make
+level 2. A real first fight, as a mage on a server someone else started
+(the dice will roll differently for you):
+
+```text
+> create Kit correcthorse
+Account 'Kit' created. Name your first character:
+> Kit
+> mage
+You grip a gnarled dagger, ready for trouble.
+You have been equipped by the Mud School: a war banner, a sub issue vest, a sub issue shield.
+Welcome to the world, Kit!
+> where fido
+the beastly fido  Grubby Inn
+the beastly fido  The Main Street
+> north
+> east
+> east
+The Main Street
+...
+You see:
+  the beastly fido
+> consider fido
+The perfect match!
+> kill fido
+You square off against the beastly fido!
+*** Combat begins! Next beat in 3s — queue your action. ***
+You hit the beastly fido for 1 damage!
+The beastly fido hits you for 2 damage!
+...
+CRITICAL! You hit the beastly fido for 4 damage! The beastly fido is defeated!
+The beastly fido falls dead!
+You gain 170 experience.
+*** The fight is over. ***
+```
+
+Five fidos later (resting in between: `rest`, then `stand` when full):
+
+```text
+You hit the beastly fido for 2 damage! The beastly fido is defeated!
+The beastly fido falls dead!
+You gain 170 experience.
+You raise a level!!  You are now level 2.
+You gain 2 hit points, 10 mana, 2 practices and 1 training session.
+> score
+You are Kit, a level 2 mage.
+Experience: 20 / 2000 to level 3
+HP: 22/22   Mana: 120/120   Move: 100/100
+Practices: 7   Training sessions: 4
+```
+
+(Roll lines and prompts are left out; "The Main Street" names two rooms,
+so the first one tried was empty.)
+
+`help newbie` has the rest: `rest` then `stand` to heal, the corpse to
+loot, your guild to `practice` at, the Mud School up from the Temple.
+
+**The first character on a new server is its superuser.** It plays as
+everyone does (a fido fight, experience and levels are the same), but
+aggressive monsters leave it alone, every lock opens for it (any class
+walks into any guild) and it never goes hungry. Type `quell` to play as a
+mortal, and `unquell` to have your powers back; or make your own account
+first and a second one to play.
+
+## From an empty directory
+
 This page is for a developer who wants a Diku-style game and wants to
 build it. In about an hour it takes you from an empty directory to a
 running game you have played, opened to builders and added to: a room, a
@@ -28,6 +109,8 @@ Creating REALM project: demo (from template: midgaard)
   Created config.py
   Created data/achievements.json
   Created data/areas/midgaard.json
+  Created data/areas/school.json
+  Created data/help.json
   Created data/quests.json
   Created data/skills.json
   Created data/stable.json
@@ -42,6 +125,8 @@ Creating REALM project: demo (from template: midgaard)
 | `rules.py` | `GameRules`, your own copy of the Merc rules (classes, skills, advancement) |
 | `game.py` | your game's own commands, behaviors and softcode functions |
 | `data/areas/midgaard.json` | the town: 143 rooms, converted from ROM 2.4's `midgaard.are` |
+| `data/areas/school.json` | ROM's Mud School, the newbie area up from the Temple (`school.are`) |
+| `data/help.json` | `help newbie`, the first steps |
 | `data/quests.json`, `achievements.json` | the baker's quest, and the achievement it pays |
 | `data/stable.json`, `skills.json` | a horse for the pet shop, and lore, a skill you study |
 | `tests/test_game.py` | a smoke test: `pytest` boots the game in memory |
@@ -54,6 +139,7 @@ port 4000:
 [INFO] realm.server.game: Midgaard game server started
 ...
 Imported 1048 objects (143 rooms) from Midgaard, 30 spells from merc-classic.
+Imported 315 objects (59 rooms) from the Mud School, up from the Temple.
 Starting room: The Common Square
 ```
 
@@ -76,6 +162,7 @@ TinTin++ or any MUD client):
 +==============================================================+
 |  create <account> <password>    make an account              |
 |  connect <account> <password>   log in to yours              |
+|  New here? Once you are in, type 'help newbie'.              |
 +==============================================================+
 ```
 
@@ -100,6 +187,7 @@ Choose by number or name.
 > warrior
 Class: warrior.
 You grip a short sword, ready for trouble.
+You have been equipped by the Mud School: a war banner, a sub issue vest, a sub issue shield.
 Your warrior steps into the world, ready to earn their name.
 
 Welcome to the world, Bree!
@@ -111,16 +199,17 @@ the poor alley and to the east is the dark alley.  To the north, this square
 is connected to the market square.  From the south you notice a nasty smell.
 
 You see:
-  2 beastly fidos
-  an alley cat
+  the beastly fido
 
 Exits: north, east, south, west
-<10hp 100m 100mv>
+<20hp 100m 100mv>
 ```
 
 The first character made on a server is the superuser. The last line is
 the prompt: hit points, mana and movement (`PROMPT` in `config.py`; each
-player can change their own with `prompt`).
+player can change their own with `prompt`). Every new character has 20
+hit points, its class weapon, and what ROM's `do_outfit` hands out: the
+Mud School's war banner, vest and shield.
 
 A second character on the same account:
 
@@ -161,33 +250,51 @@ slots, `skills` what you know:
 > score
 You are Bree, a level 1 warrior.
 Experience: 0 / 1000 to level 2
-HP: 10/10   Mana: 100/100   Move: 100/100
-THAC0: 20   AC: 10
+HP: 20/20   Mana: 100/100   Move: 100/100
+THAC0: 20   AC: 8
 Alignment: 0 (neutral)
 Wielding: a short sword
+Wearing:  a war banner, a sub issue vest, a sub issue shield
 ```
 
-**Fight.** Fidos roam the town and attack on sight. Things are called as
+**Fight.** Fidos roam the town (`where fido` says where); ROM's fido
+bites only someone asleep, so you pick the fight. Things are called as
 ROM calls them ("the beastly fido", "a long sword") and answer to their
 ROM keywords (`fido`, `dog`). `consider` sizes one up; `kill` starts a
-fight, which goes in rounds every 15 seconds, with the dice shown
-(`SHOW_ROLLS`; `showrolls off` hides them):
+fight, which goes in rounds every 3 seconds (ROM's; `COMBAT_BEAT_DEFAULT`
+in `config.py`), with the dice shown (`SHOW_ROLLS`; `showrolls off` hides
+them):
 
 ```text
 > consider fido
 The perfect match!
-The beastly fido eyes you with suspicion.
+The beastly fido seems well-disposed toward you.
 > kill fido
 You square off against the beastly fido!
-*** Combat begins! Next beat in 15s — queue your action. ***
-You hit the beastly fido for 4 damage!
-  [d20(18) vs need 10 (THAC0 20 - AC 10)]  [1d6(3)+1 = 4]
-You hit the beastly fido for 5 damage! The beastly fido is defeated!
-  [d20(13) vs need 10 (THAC0 20 - AC 10)]  [1d6(4)+1 = 5]
+*** Combat begins! Next beat in 3s — queue your action. ***
+CRITICAL! You hit the beastly fido for 6 damage!
+  [d20(20) vs need 10 (THAC0 20 - AC 10)]  [2d6(5)+1 = 6]
+CRITICAL! The beastly fido hits you for 3 damage!
+  [d20(20) vs need 12 (THAC0 20 - AC 8)]  [2d4(3)+0 = 3]
+-- Round 1 done. Next beat in 3s; you will: Attack the beastly fido. (queue <maneuver> to change)
+<17hp 100m 100mv>
+You miss the beastly fido.
+  [d20(9) vs need 10 (THAC0 20 - AC 10)]
+You block the beastly fido's attack with your shield.
+  [d20(12) vs need 12 (THAC0 20 - AC 8)]
+...
+You hit the beastly fido for 4 damage! The beastly fido is defeated!
+  [d20(12) vs need 10 (THAC0 20 - AC 10)]  [1d6(3)+1 = 4]
 The beastly fido falls dead!
-You gain 85 experience.
+You gain 170 experience.
 *** The fight is over. ***
 ```
+
+A fido is worth 85 experience to a level-1 character and ROM doubles what
+a new character earns (the bonus fades by level 6), so six fidos make
+level 2. A cityguard passing by joins a fight against anything evil
+("PROTECT THE INNOCENT!!  BANZAI!!"), and when his blow kills the fido the
+experience is his: fight where no guard stands.
 
 Hurt, you recover on your own; `rest` or `sleep` is faster, and `stand`
 gets up. A warrior's class skills are commands: `kick fido` in a fight
@@ -200,15 +307,32 @@ up to a quarter of a level's experience poorer; what you carried waits in
 your corpse where you fell:
 
 ```text
-CRITICAL! The vagabond hits you for 13 damage! You have been defeated!
+CRITICAL! The vagabond hits you for 10 damage! You have been defeated!
 You have been KILLED!!
-You lose 85 experience.
+You lose 170 experience.
 ...
 > get all from corpse
-You pick up a short sword.
+You pick up a short sword, a war banner, a sub issue vest, and a sub issue shield.
 > wield sword
 You ready a short sword.
+> wear all
+You put on the war banner.
+You put on the sub issue vest.
+You put on the sub issue shield.
 ```
+
+**Level.** Experience past the level's mark raises you a level, and the
+game says what came with it:
+
+```text
+The vagabond falls dead!
+You gain 1600 experience.
+You raise a level!!  You are now level 2.
+You gain 6 hit points, 1 practice and 1 training session. Your THAC0 is now 19.
+```
+
+`score` shows the practices and training sessions waiting to be spent
+(below).
 
 **Work.** The baker, north, west and north of the square, sells bread and
 pies, and has a quest:
@@ -269,7 +393,8 @@ You put on the leather cap.
 `equipment` now shows `<head>    a leather cap`, and `score` a better armor
 class.
 
-**Learn.** A level brings practice sessions, spent at your own guild:
+**Learn.** A new character has five practice sessions and three training
+sessions, and each level brings more; practices are spent at your own guild:
 each class's bar lets in only that class ("You aren't allowed in there."),
 and the guildmaster is beyond it. The warriors' Guild of Swordsmen is
 east, east and south of Market Square, then east through the bar and
@@ -298,6 +423,11 @@ You begin studying lore.
 
 and the next time you log in, "You have finished training lore to level
 9."
+
+A training session raises a characteristic by one: `train strength` at the
+adept of Furey, in ROM's Mud School (up from the Temple of Mota: north,
+north, north and up from the Common Square), the newbie area, with weak
+monsters to practise on and no cityguards.
 
 **Talk.** Another player, anywhere in the game:
 

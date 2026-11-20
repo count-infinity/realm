@@ -232,7 +232,8 @@ class TestGroupPlay:
         sam.db.following = pat.id
         ogre = _mob(merc, "ogre", room, level=3, points=400)
         await _kill(merc, ogre, pat)
-        assert (pat.db.xp, sam.db.xp) == (300, 100)
+        # 300 and 100 by level, then ROM's low-level bonus: 10 / (level + 4).
+        assert (pat.db.xp, sam.db.xp) == (300 * 10 // 7, 100 * 10 // 5)
 
     async def test_a_party_member_elsewhere_gets_nothing(self, merc):
         room, away = _room(merc), _room(merc, "Away")
@@ -241,7 +242,7 @@ class TestGroupPlay:
         sam.db.following = pat.id
         ogre = _mob(merc, "ogre", room, level=1, points=100)
         await _kill(merc, ogre, pat)
-        assert pat.db.xp == 100 and not sam.db.xp
+        assert pat.db.xp == 200 and not sam.db.xp       # 100, doubled at level 1 (ROM)
 
     async def test_split_shares_coins(self, merc):
         room = _room(merc)
@@ -369,6 +370,24 @@ class TestLookingAround:
         assert "Players near you:" in seen
         assert "Sam" in seen and "Market" in seen
         assert "Kim" not in seen
+
+    async def test_where_finds_someone_by_name_in_the_zone(self, merc):
+        # ROM's `where <name>`: who of that name is in this area, and where;
+        # how a new character finds a fido.
+        a, b, c = _room(merc, "Gate"), _room(merc, "Market"), _room(merc, "Swamp")
+        for room in (a, b):
+            room.add_tag("zone:town")
+        c.add_tag("zone:marsh")
+        pat = _hero(merc, room=a)
+        _mob(merc, "the beastly fido", b)
+        _mob(merc, "the beastly fido", c)                # another zone
+        _mob(merc, "the cityguard", b)
+        await merc.do(pat, "where fido")
+        seen = text(merc, pat)
+        assert "the beastly fido" in seen and "Market" in seen
+        assert "Swamp" not in seen and "cityguard" not in seen
+        await merc.do(pat, "where dragon")
+        assert "You didn't find any dragon." in text(merc, pat)
 
     async def test_consider_compares_levels_under_merc(self, merc):
         room = _room(merc)

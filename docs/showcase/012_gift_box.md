@@ -1,4 +1,4 @@
-# 012. Gift box
+# 012. gift box
 
 > Checklist item 12 ([now]): *containers, set_lock per recipient, ON_OPEN*
 

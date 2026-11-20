@@ -75,7 +75,7 @@ class TestMidgaardPlayable:
             grog = await _barbarian(sim, system)
             assert grog.db.get("character_class") == "barbarian"
             assert grog.db.get("level") == 1
-            assert grog.db.get("hp") == 13               # d12 (12) + con-16 (+1)
+            assert grog.db.get("hp") == 20               # ROM's new_char, every class
             assert grog.location.id == COMMON_SQUARE
             assert grog.location.name == "The Common Square"
             club = [o for o in grog.contents if o.has_tag("wielded")]
@@ -123,23 +123,17 @@ class TestMidgaardPlayable:
         finally:
             _teardown(sim)
 
-    async def test_the_fido_is_aggressive(self):
-        # ACT_AGGRESSIVE: the fido pounces when a mortal enters its room
-        # (the shipped `aggressive` behavior reacts to event:on_enter).
+    async def test_the_fido_lets_the_awake_walk_by(self):
+        # ROM's fido is ACT_AGGRESSIVE and ACT_WIMPY: aggr_update leaves an
+        # awake player alone (it would bite a sleeper). Before 2026-11-17
+        # it jumped every newcomer, two at a time.
         sim, system, mgr = await _world()
         try:
-            from realm.core.propagation import Action
             square = sim.store.get_cached(COMMON_SQUARE)
             fido = [o for o in square.contents
                     if "npc" in o.tags and "fido" in o.name][0]
-            grog = await _barbarian(sim, system)          # a mortal walks in
-            aggro = next(b for b in fido.get_behaviors()
-                         if b.behavior_id == "aggressive")
-            arrival = Action(actor=grog, target=square,
-                             action_type="event:on_enter")
-            await aggro.on_react(fido, arrival)
-            assert fido.has_tag("in_combat")              # it attacked
-            assert grog.has_tag("in_combat")
+            assert "aggressive" not in [b.behavior_id for b in fido.get_behaviors()]
+            assert "F" in fido.db.rom_act and "H" in fido.db.rom_act
         finally:
             _teardown(sim)
 
@@ -213,7 +207,7 @@ class TestMidgaardPlayable:
                 encounter.queue(grog, QueuedAction("attack", target_id=fido.id))
             assert int(fido.db.get("hp") or 0) <= 0        # fido is dead
             # A level-0 fido is a level below level-1 Grog: its 100 points, bent 15% down.
-            assert int(grog.db.get("xp") or 0) == 85
+            assert int(grog.db.get("xp") or 0) == 170   # 85, doubled at level 1 (ROM)
         finally:
             _teardown(sim)
 
@@ -400,8 +394,96 @@ def _seen(sim, player) -> str:
     return "\n".join(sim.seen(player))
 
 
+async def _seen_after(sim, player, line) -> str:
+    sim.seen(player)
+    await sim.do(player, line)
+    return _seen(sim, player)
+
+
 @pytest.mark.asyncio
 class TestTheTownAsROMHasIt:
+
+    async def test_the_mud_school_is_up_from_the_temple(self, town):
+        # ROM's newbie area (school.are, vnums 3700-3799), converted the way
+        # Midgaard is: the Temple's `up` (ROM 3001 D4) leads into it, its
+        # exit `down` back, and it has ROM's trainer (the adept of Furey,
+        # ACT_TRAIN) and the leashed monsters to practise on.
+        temple, entrance = town.store.get_cached("rom_3001"), town.store.get_cached("rom_3700")
+        assert entrance is not None and entrance.name == "Entrance to Mud School"
+        pat = _character(town, "Pat", "warrior", temple)
+        await town.do(pat, "up")
+        assert pat.location is entrance
+        assert "This is the entrance to the Merc Mud School." in _seen(town, pat)
+        await town.do(pat, "down")
+        assert pat.location is temple
+        furey = next(o for o in town.store.find_cached(tag="npc")
+                     if o.db.get("prototype_vnum") == 3718)
+        trainer = next(b for b in furey.get_behaviors() if b.behavior_id == "trainer")
+        assert trainer.get_param("trains_stats") is True
+        pat.location, pat.db.trains = furey.location, 1        # a level's session
+        strength = pat.db.strength
+        out = await _seen_after(town, pat, "train strength")
+        assert f"Your strength rises to {strength + 1}." in out and pat.db.trains == 0
+        monsters = [o for o in town.store.find_cached(tag="npc")
+                    if o.db.get("prototype_vnum") == 3702]
+        assert monsters and all(o.location.has_tag("zone:mud_school") for o in monsters)
+
+    async def test_help_newbie_tells_a_new_character_what_to_do(self, town):
+        # ROM shows a new character its "newbie info" help; the banner here
+        # points to it.
+        pat = _character(town, "Pat", "mage", town.store.get_cached(COMMON_SQUARE))
+        out = await _seen_after(town, pat, "help newbie")
+        assert "NEWBIE INFO" in out and "where fido" in out and "kill fido" in out
+        assert "NEWBIE INFO" in await _seen_after(town, pat, "help newbie info")
+        assert "help newbie" in town.world.setting("WELCOME_BANNER")
+
+    async def test_a_new_character_is_outfitted_as_rom_does(self, town):
+        # ROM's do_outfit: the class weapon, and the Mud School's vest,
+        # shield and war banner, worn, worth nothing at a shop (cost 0).
+        rules = get_world().rules
+        pat = _character(town, "Pat", "mage", town.store.get_cached(COMMON_SQUARE))
+        await rules.outfit_new_character(pat, town.store)
+        worn = {o.db.get("slot"): o for o in pat.contents if o.has_tag("worn")}
+        assert {slot: o.name for slot, o in worn.items()} == {
+            "body": "a sub issue vest", "shield": "a sub issue shield",
+            "light": "a war banner"}
+        assert all(not o.has_tag("prototype") and o.db.get("value") == 0
+                   for o in worn.values())
+        assert [o.name for o in pat.contents if o.has_tag("wielded")] == ["a gnarled dagger"]
+        assert pat.db.armor_class == 8
+        out = await _seen_after(town, pat, "equipment")
+        assert "<body>    a sub issue vest" in out and "<light>   a war banner" in out
+
+    async def test_a_locked_door_opens_with_its_key_from_both_sides(self, town):
+        # midgaard.are: room 3110's `D3` is a `door` with key 3120 (an iron
+        # key; the cityguard in room 3111 carries one, `G 0 3120`) to room
+        # 3142, whose `D1` door leads back (BACKLOG 2026-11-17).
+        inside, beyond = town.store.get_cached("rom_3110"), town.store.get_cached("rom_3142")
+        west = next(o for o in inside.contents if o.is_exit and o.name == "west")
+        east = next(o for o in beyond.contents if o.is_exit and o.name == "east")
+        assert west.db.get("key_id") == east.db.get("key_id") == "rom_obj_3120"
+        assert town.store.get_cached("rom_3120").db.get("unlocks") is None   # a room
+        key = next(o for o in town.store.find_cached(tag="key")
+                   if o.db.get("rom_vnum") == 3120 and not o.has_tag("prototype"))
+        assert key.location.db.get("prototype_vnum") == 3060      # the cityguard's
+        pat = _character(town, "Pat", "warrior", inside)
+        sam = _character(town, "Sam", "warrior", beyond)
+        key.location = pat
+        # Locked at boot, both sides: ROM's `D 0 3110 3 2` and `D 0 3142 1 2`.
+        assert west.has_tag("locked") and east.has_tag("locked")
+        await town.do(sam, "open east")
+        assert "locked" in _seen(town, sam).lower() and east.has_tag("closed")
+        await town.do(pat, "unlock west")
+        assert not west.has_tag("locked") and not east.has_tag("locked")
+        await town.do(pat, "lock west")
+        assert "You lock the door with a key." in _seen(town, pat)     # its short description
+        assert west.has_tag("locked") and east.has_tag("locked")
+        await town.do(pat, "unlock west")
+        await town.do(pat, "open west")
+        assert not west.has_tag("closed") and not east.has_tag("closed")
+        assert "The door opens." in _seen(town, sam)
+        await town.do(sam, "east")
+        assert sam.location is inside
 
     async def test_the_baker_keeps_the_bakery_and_sells_bread(self, town):
         bakery = town.store.get_cached("rom_3009")
@@ -552,6 +634,14 @@ async def test_a_world_made_from_the_old_conversion_still_boots():
                                                "slot": "about"}},
         {"id": "old_lamp", "name": "lamp", "tags": ["thing", "light"],
          "location": "cloned_baker", "attrs": {"rom_vnum": 3998, "worn": "hold"}},
+        # A door and its key as the importer wrote them before 2026-11-17:
+        # the key's vnum in the exit's `key`, nothing on the key.
+        {"id": "old_door", "name": "north", "tags": ["exit", "door", "closed"],
+         "location": "rom_3018",
+         "attrs": {"destination": "rom_3009", "keywords": "door", "key": "rom_obj_3120"}},
+        {"id": "old_key", "name": "an iron key", "tags": ["thing", "key"],
+         "location": "rom_3018", "attrs": {"rom_vnum": 3120, "item_type": "key",
+                                           "aliases": ["key", "iron"]}},
     ]
     before = list(sys.path)
     sim = Simulator.from_game(MIDGAARD_GAME)
@@ -572,9 +662,18 @@ async def test_a_world_made_from_the_old_conversion_still_boots():
         assert apron.has_tag("worn") and apron.db.get("slot") == "about"
         assert lamp.has_tag("worn") and lamp.db.get("slot") == "held"
         assert not any(o.db.get("worn") for o in (sword, apron, lamp))
+        # The old door and key are mended at boot: `key_id` and `unlocks`.
+        door, key = sim.store.get_cached("old_door"), sim.store.get_cached("old_key")
+        assert door.db.get("key_id") == "rom_obj_3120" and door.db.get("key") is None
+        assert key.db.get("unlocks") == "rom_obj_3120"
+        mo = sim.player("Mo", location=sim.store.get_cached("rom_3018"))
+        await sim.do(mo, "get key")
+        await sim.do(mo, "lock door")
+        assert door.has_tag("locked")
     finally:
         _teardown(sim)
         sys.modules.pop("rules", None)
         sys.modules.pop("game", None)
         sys.path[:] = before
         install_default()
+

@@ -58,7 +58,9 @@ CORE_CATEGORIES = frozenset({
 # Conventional names for tags GAMES emit — the kernel itself never fires
 # them (a hard-SF game has no "magic"; that's genre, not engine). They live
 # here only so packs converge on the same spelling; has_atag() reads any
-# string either way.
+# string either way, and nothing checks a tag against this set. A tag one
+# feature gives its meaning (``companions``' ``accompanied``) is declared by
+# that feature, not here.
 
 #: Magical / supernatural causation — the anti-magic-ward category.
 MAGIC = "magic"
@@ -66,15 +68,9 @@ MAGIC = "magic"
 #: Against the target's will — knockback, compel, forced march.
 FORCED = "forced"
 
-#: A direct placement the mover's company shares — recall, a gate spell:
-#: the ``companions`` feature brings along the pets beside the mover and
-#: the mount under it. A teleport without it (``@tel``, a summons) moves
-#: the mover alone.
-ACCOMPANIED = "accompanied"
-
-RESERVED_CATEGORIES = frozenset({MAGIC, FORCED, ACCOMPANIED})
+RESERVED_CATEGORIES = frozenset({MAGIC, FORCED})
 
 __all__ = [
     "MOVEMENT", "HOSTILE", "VISUAL", "SOUND", "SCRIPTED", "FAILURE",
-    "MAGIC", "FORCED", "ACCOMPANIED", "CORE_CATEGORIES", "RESERVED_CATEGORIES",
+    "MAGIC", "FORCED", "CORE_CATEGORIES", "RESERVED_CATEGORIES",
 ]

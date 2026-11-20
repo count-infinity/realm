@@ -179,6 +179,23 @@ async def test_collect_counts_what_is_held_and_consume_takes_it_at_the_hand_in(s
     assert not [o for o in alice.contents if o.name == "apple"]
 
 
+async def test_consumed_gear_is_taken_off_first(sim):
+    # A worn thing a collect objective consumes comes off as ROM's
+    # extract_obj takes it off: what it granted goes with it (2026-11-17).
+    bakery, baker, alice = _baker_quest(sim, stages=[
+        {"text": "Bring the goggles.",
+         "objectives": [{"kind": "collect", "name": "goggles", "count": 1,
+                         "consume": True}]}])
+    sim.obj("goggles", location=alice, tags=["thing", "wearable"], slot="eyes",
+            grants_tags=["nightvision"])
+    await sim.do(alice, "wear goggles")
+    assert alice.has_tag("nightvision")
+    await sim.do(alice, "quest accept fido")
+    assert "Quest complete: Fido trouble!" in await _say(sim, alice, "quest complete")
+    assert not [o for o in alice.contents if o.name == "goggles"]
+    assert not alice.has_tag("nightvision")
+
+
 async def test_deliver_counts_an_item_given_to_the_named_npc(sim):
     bakery, baker, alice = _baker_quest(sim, stages=[
         {"text": "Take the parcel to the miller.",

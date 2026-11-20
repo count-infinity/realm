@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from realm.commands import CommandContext
 from realm.commands.base import save_object
-from realm.core.action_tags import ACCOMPANIED
 from realm.core.action_types import ActionType
 from realm.core.markup import escape, wrap
 from realm.core.movement import move_to
@@ -92,13 +91,13 @@ async def cmd_logout(ctx: CommandContext) -> None:
 
 async def cmd_help(ctx: CommandContext) -> None:
     """
-    Show help on commands.
+    Show help on commands, and the game's own help topics.
 
-    Usage: help [command]
+    Usage: help [command or topic]
 
     Example:
         help combat
-        help fasttalk
+        help newbie
     """
     if not ctx.dispatcher:
         await ctx.session.send("Help unavailable.")
@@ -130,8 +129,27 @@ async def _show_command_list(ctx: CommandContext) -> None:
     ctx.session.send_paged("\n".join(lines))
 
 
+def help_topic(topic: str) -> GameObject | None:
+    """The game's ``help_def`` (a help topic written as data, ROM's help
+    file entry) whose name, or one of whose ``keywords``, is ``topic``."""
+    from realm.core.defs import def_kinds, def_objects
+    if "help" not in def_kinds():
+        return None
+    want = topic.strip().lower()
+    for name, entry in def_objects("help").items():
+        words = entry.db.get("keywords") or []
+        if want == name or want in [str(word).lower() for word in words]:
+            return entry
+    return None
+
+
 async def _show_command_help(ctx: CommandContext, topic: str) -> None:
-    """Detail one command, or search help text when nothing matches."""
+    """A help topic of that name, else detail one command, or search help
+    text when nothing matches."""
+    entry = help_topic(topic)
+    if entry is not None:
+        ctx.session.send_paged(str(entry.db.get("text") or ""))
+        return
     dispatcher = ctx.dispatcher
     cmd = dispatcher.get_command(topic.lower())
     if cmd is not None:
@@ -268,10 +286,10 @@ async def recall_to(player: GameObject, dest: GameObject, session) -> bool:
     """Recall ``player`` to ``dest`` under ``recall``'s rules: not from a
     ``no_recall`` room, a check in a fight (``GameSystem.recall_refusal``)
     and its cost (``after_recall``), through ``dest``'s locks. Tells the
-    player why not; True when they arrived. The move is tagged
-    ``accompanied``, so a pet beside the player and the mount under it come
-    too (the ``companions`` feature). The ``recall`` service offers it
-    (``clan recall`` goes to the clan's home with it)."""
+    player why not; True when they arrived. The move carries the ``recall``
+    service's ``tags`` (``companions`` adds ``accompanied``, so a pet beside
+    the player and the mount under it come too). The ``recall`` service
+    offers it (``clan recall`` goes to the clan's home with it)."""
     world = find_world()
     here = player.location
     if here is not None and here.has_tag('no_recall'):
@@ -290,16 +308,17 @@ async def recall_to(player: GameObject, dest: GameObject, session) -> bool:
         return False
 
     # Move through the one relocation core (not forced — recall is voluntary,
-    # so home's ENTER/TELEPORT locks and movement wards still apply). The
-    # player's company comes too (ROM's do_recall takes the pet), when the
-    # world has companions.
-    if not await move_to(player, dest, mover=player, extra_tags=[ACCOMPANIED]):
+    # so home's ENTER/TELEPORT locks and movement wards still apply), with
+    # whatever tags other features asked a recall to carry (the player's
+    # company comes too when the world has companions: ROM's do_recall takes
+    # the pet).
+    service = world.services.get("recall") if world is not None else None
+    tags = list(service.tags) if service is not None else []
+    if not await move_to(player, dest, mover=player, extra_tags=tags):
         await session.send("Something prevents you from recalling home.")
         return False
-    if from_combat:
-        combat = world.services.get("combat") if world is not None else None
-        if combat is not None:
-            combat.withdraw(player)
+    # Out of any fight it was in: ``combat`` takes whoever is placed out of
+    # a fight's room out of it.
     if rules is not None:
         rules.after_recall(player, from_combat=from_combat)
     if here is not None:

@@ -39,7 +39,7 @@ FEATURE_ALL = {
     "channels": [],
     "clans": ["clan_of", "clans_of", "find_clan", "has_power"],
     "clock": [],
-    "companions": ["companions_of", "master_of", "set_master"],
+    "companions": ["ACCOMPANIED", "companions_of", "master_of", "set_master"],
     "combat": ["AttackResult", "CombatAction", "CombatView", "Combatant",
                "DamageResult", "DamageType", "RollResult", "Ruleset", "deal_damage"],
     "crime": [],

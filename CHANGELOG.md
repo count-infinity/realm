@@ -96,8 +96,10 @@ A 0.2.0 database is refused at start until it is migrated
   Midgaard database made before keeps its old town (see "Midgaard from
   ROM 2.4's own area file"). Two things are carried over at boot with no
   step of yours: a mob's gear with the importer's old `worn` attribute is
-  equipped, and a player's command aliases kept in `aliases` move to
-  `command_aliases` (see "Eight things the first hour turned up").
+  equipped, a converted door's old `key` becomes `key_id` and its keys gain
+  `unlocks`, and a player's command aliases kept in `aliases` move to
+  `command_aliases` (see "Eight things the first hour turned up" and "Five
+  more").
 - **Python names that moved:** `online_players` and `is_online` from
   `realm.std.channels.common` to `realm.gateway.session`; `cmd_who` to
   `realm.std.basics.presence`; `wear` and `remove` to
@@ -134,7 +136,7 @@ default; a game sets only what it wants different.
 |---|---|
 | server | `LINKDEAD_SECONDS`, `IDLE_TIMEOUT`, `COMMAND_RATE`, `COMMAND_BURST`, `FLOOD_DISCONNECT_SECONDS`, `BACKUP_INTERVAL_HOURS`, `BACKUP_KEEP`, `PAGE_LENGTH`, `WEB_CLIENT` |
 | `accounts` | `MAX_CHARACTERS`, `ACCOUNT_MULTIPLAY` |
-| `basics` | `PROMPT`, `ALIAS_LIMIT` |
+| `basics` | `PROMPT`, `ALIAS_LIMIT`, `CAPITALIZE_LINES` |
 | `combat` | `PLAYER_DEATH`, `CORPSE_LOCK_SECONDS` |
 | `vitals` | `REGEN_INTERVAL`, `REST_REGEN`, `SLEEP_REGEN` |
 | `needs` | `NEEDS_INTERVAL`, `FOOD_LOSS`, `WATER_LOSS`, `NEEDS_REMINDER_TICKS`, `HUNGER_DEATH_HOURS`, `THIRST_DEATH_HOURS`, `HUNGRY_AWARD`, `FATIGUE_SLEEP_RECOVERY` |
@@ -169,11 +171,12 @@ default; a game sets only what it wants different.
   `banned_until`, `ban_reason`).
 - **Pets and mounts come along on `recall`**, as ROM's pet does: a
   companion beside its master recalls with it, and a rider recalls on its
-  mount. The seam is the new reserved action tag `accompanied`
-  (`realm.core.action_tags.ACCOMPANIED`), which `recall` puts on its move;
-  a softcode gate spell opts in with `move_to(enactor, dest,
-  tags=['accompanied'])`. `@tel`, `teleport_obj` and a summons still move
-  the mover alone.
+  mount. The seam is the action tag `accompanied`
+  (`realm.std.companions.ACCOMPANIED`: the `companions` feature's word, not
+  a kernel one), which `companions` adds to the `recall` service's `tags`
+  so `recall` puts it on its move; a softcode gate spell opts in with
+  `move_to(enactor, dest, tags=['accompanied'])`. `@tel`, `teleport_obj`
+  and a summons still move the mover alone.
 - **One prompt after an announcement**: `@shutdown` (and anything else
   whose output is flushed while the command runs) no longer writes the
   typist's prompt twice. `Session.input_arrived()` marks the prompt on the
@@ -254,18 +257,24 @@ default; a game sets only what it wants different.
 
 ### Eight things the first hour turned up (after the plan, 2026-11-17)
 
-- **Lines start with a capital**, as ROM's `act()` writes them: "The
-  beastly fido hits you", "The cityguard arrives.". Every templated
-  message (`deliver_messages`) and every room broadcast
-  (`GameObject.msg_contents`, so softcode `remit` and `oemit`) is
-  capitalized when sent (`realm.core.markup.capitalize`: the first visible
-  letter, colour codes stepped over). A line sent to one object
-  (`obj.msg`, softcode `pemit`, a command's own output) is ROM's
-  `send_to_char` and is sent as written. A few NPC-first lines told to one
-  player are capitalized where they are made ("The guildmaster
-  teaches:"), and so are the mid-line sentences combat builds ("CRITICAL!
-  The vagabond hits you", "... The beastly fido is defeated!") and
-  `look`'s title line.
+- **Lines start with a capital in a Merc game**, as ROM's `act()` writes
+  them: "The beastly fido hits you", "The cityguard arrives.". It is the
+  game's choice, not the kernel's: the `basics` setting `CAPITALIZE_LINES`
+  (off; the Merc scaffold and Midgaard write `CAPITALIZE_LINES = True`).
+  Every templated message (`deliver_messages`) and every room broadcast
+  (`GameObject.msg_contents`, so softcode `remit` and `oemit`) passes
+  through the world's line formatters, the new `feature.line_formatter`
+  seam (with none, a line is sent exactly as written); `basics`' formatter
+  capitalizes the first visible letter when the setting is on
+  (`realm.core.markup.capitalize`, colour codes stepped over). A line sent
+  to one object (`obj.msg`, softcode `pemit`, a command's own output) is
+  ROM's `send_to_char` and is never touched. The NPC-first lines features
+  compose for one player ("The guildmaster teaches:"), the mid-line
+  sentences combat builds ("CRITICAL! The vagabond hits you", "... The
+  beastly fido is defeated!") and `look`'s title line go through the same
+  formatters (`realm.core.world.format_line`), so a game gets capitals
+  everywhere or nowhere. (The first cut of this item capitalized every
+  game's lines; corrected the same day.)
 - **Merc reads level 0 as 0** (`realm.games.merc.system.char_level`; an
   unset level is still 1): a level-0 fido is a level below a new
   character, so it pays 85 experience, not 100, `consider` and saving
@@ -306,6 +315,113 @@ default; a game sets only what it wants different.
   game replays the same under any `PYTHONHASHSEED`.
   `tests/test_first_hour.py` brings the fidos back by moving the clock and
   pulsing.
+
+### Five more, and two rules out of the kernel (after the plan, 2026-11-17)
+
+- **`drop all` keeps your equipment on**, as ROM's does: worn and wielded
+  gear stays put. `drop`, `give`, `put`, `sell` and `eat` of a worn thing
+  by name say "You must remove it first." ("You must unwield it first." for
+  a weapon in hand), and a name that also fits a carried spare means the
+  spare (ROM's `get_obj_carry`). A script's `drop` and `give` refuse it too.
+  A quest that consumes worn gear takes it off first (the new `items`
+  service's `unequip`), so what it granted goes with it.
+- **Both sides of a door agree.** `open`, `close`, `lock`, `unlock`, a
+  keycard swipe, a picked lock and a script's `open`/`close` change the
+  door's far side too (`realm.core.pairing.far_side`: the exit's partner,
+  else the exit beyond that leads back, ROM's `pexit_rev`), and the room
+  beyond hears "The gate opens." / "The gate closes.".
+- **Converted doors open with their keys.** The ROM importer names a door's
+  key in `key_id` (`rom_obj_<vnum>`), which `lock` and `unlock` read, and
+  gives every key (and any object a door names) the matching `unlocks`; it
+  wrote `key`, which nothing read. The refresh script mends a converted
+  file (the shipped Midgaard is refreshed, and equals a fresh run of its
+  recipe). Saved worlds: an exit's old `key` becomes `key_id`, and keys
+  (spawner and zone-reset prototypes' too) gain `unlocks`, at boot (the
+  `items` feature).
+- **A teleport takes you out of the fight.** Anyone placed out of a
+  fight's room by a non-walking move (`@teleport`, `recall`, softcode
+  `move_to`, `teleport_obj`) leaves the fight on arrival, and a fight left
+  with nobody to fight ends at once, as ROM's `transfer` calls
+  `stop_fighting`. It was "You're in the middle of combat" in the new room
+  until the next round noticed.
+- **A zone reset takes a mob's gear with it.** `zone_reset` clears a spawn
+  with what it carries, wears and wields (a player's own thing inside goes
+  to its owner's home); the reload brings the prototype's `contents`. The
+  ROM importer now writes `contents` for `--zone-reset` as for `--repop`.
+- **Capitals and `accompanied` left the kernel**: see the first item of
+  "Eight things the first hour turned up" and "The maintainer's
+  decisions" above. `realm.core.action_tags.ACCOMPANIED` is gone (it is
+  `realm.std.companions.ACCOMPANIED`); `RESERVED_CATEGORIES` is `magic` and
+  `forced`.
+
+### Kill a fido and level up (after the plan, 2026-11-17)
+
+The maintainer's goal: a playable Midgaard where a new player, with no
+admin help, kills beastly fidos and levels up. A telnet play-through and
+`tests/test_fido_to_level_two.py` (a mage who is not the superuser, honest
+dice, creation to level 2) prove it; `docs/getting-started/your-first-mud.md`
+opens with "Play Midgaard".
+
+- **A name never finds an account.** `@teleport Bree = ...` moved Bree's
+  account (it shares her name) because a global name lookup saw accounts
+  and the matcher silently took the first of two same-named "twins". Global
+  lookups (`@teleport`, `@set`, `@chown`, `@destroy`, `@nuke`, `@snoop`,
+  `@freeze`, `@boot`, `@force`, softcode `get()`) leave accounts out
+  (`realm.core.search.in_world`); only `@account` looks them up. An
+  account's `#id` is never placed or destroyed ("An account is not in the
+  world."). Twins are taken first only when interchangeable (same name,
+  place and kind); two cityguards in two rooms, or a player and an NPC of
+  one name, are a question ("Which 'cityguard' do you mean?").
+- **Aggressive mobs leave administrators alone**, as ROM's `aggr_update`
+  skips immortals; `quell` to be jumped.
+- **ROM's `D` resets are applied.** A converted door starts closed or
+  locked as ROM boots it (the room file's lock value and the `D` reset,
+  ROM 2.4's `db.c`), both sides agreeing; `--zone-reset` doors carry
+  `reset_tags`, which the `zone_reset` behavior puts back at each reset
+  (any object's `reset_tags`, `{tag: present}`). Midgaard's 17 doors are
+  re-converted: its four gates and the Cityguard Head Quarters' east door
+  start closed; the Captain's Office, the jail, the Elm Street grate and
+  Melancholy's room start locked. A saved world keeps its doors as they are.
+- **`pick gate`** finds a door by its keywords, as `open gate` does.
+- **ROM's wimpy aggressors spare the awake.** A mob that is
+  `ACT_AGGRESSIVE` and `ACT_WIMPY` (the beastly fido, the alley cat) is not
+  `aggressive` (ROM's attack only a sleeper); two fidos jumped every
+  newcomer. The refresh script mends a converted file; a saved world's
+  fidos stay as they were.
+- **Merc: 20 hit points at level 1**, every class (ROM's and Merc's
+  `new_char`); it was the class hit die (a mage had 4). And ROM's `nanny`
+  gives a new character 5 practices and 3 training sessions; `score` shows
+  both ("Practices: 5   Training sessions: 3").
+- **Merc: ROM's low-level bonus.** Below level 6 a kill pays `10 / (level
+  + 4)` times as much to each member (`share_award`): a level-1
+  character's fido pays 170 (85 before), so level 2 is six fidos.
+- **Merc: a level says what it brought**: "You raise a level!!  You are
+  now level 2." and "You gain 6 hit points, 1 practice and 1 training
+  session. Your THAC0 is now 19." (it was "You advance to level 2! (+6 HP)").
+- **ROM's outfit.** A new Merc character also wears the Mud School's war
+  banner, vest and shield (worth nothing at a shop), when their
+  prototypes are in the world (`ROM_OUTFIT_VNUMS`).
+- **The Mud School.** The Midgaard template ships ROM's `school.are`
+  converted (`data/areas/school.json`), up from the Temple as in ROM: the
+  leashed monsters, the adepts who practise and train. New characters still
+  start in the Common Square.
+- **ROM's three-second rounds.** The Merc scaffold and Midgaard write
+  `COMBAT_BEAT_DEFAULT = 3.0` and `COMBAT_BEAT_MIN = 3.0` (the default beat
+  is 15 seconds; a passing cityguard took every kill first).
+- **`help newbie`**, and help topics as data: a `help_def` object is a help
+  topic (its name and `keywords` find its `text`). Midgaard's banner points
+  to `help newbie` (`data/help.json`).
+- **`where fido`**: `where <name>` lists who of that name is in your zone
+  and where (ROM's `where <name>`).
+- **`wear all`** puts on everything carried that has a free slot.
+- `get all from` an empty container says "There is nothing in the corpse
+  of the beastly fido." (it read "There's nothing to get corpse of ...").
+- **The start room survives a restart.** A room `init_world` chose
+  (`server.startup_room`, Midgaard's Common Square) was never kept: after
+  the first restart new characters and the respawning dead arrived in a
+  default "The Void" with no way out. The chosen room is now tagged
+  `start_room`. A world made before this boots with a WARNING saying how
+  to tag the right room (docs/guides/operations.md, "Upgrading").
 
 ### The first hour (step 17)
 

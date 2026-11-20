@@ -6,6 +6,8 @@ Carrying, giving, wearing and using objects; doors and locks.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from realm.features import Feature
 from realm.std.items.actions import ItemAction
 from realm.std.items.commands import (
@@ -16,8 +18,15 @@ from realm.std.items.commands import (
     cmd_unwield,
     cmd_use,
     cmd_wield,
+    mend_old_door_keys,
 )
-from realm.std.items.equipment import cmd_equipment, cmd_unwear, cmd_wear, equip_old_gear
+from realm.std.items.equipment import (
+    cmd_equipment,
+    cmd_unwear,
+    cmd_wear,
+    equip_old_gear,
+    unequip,
+)
 from realm.std.items.food import cmd_drink, cmd_eat, cmd_fill
 from realm.std.items.inventory import (
     cmd_drop,
@@ -32,6 +41,17 @@ feature = Feature(
     doc='Carrying, giving, wearing and using objects; doors and locks.',
 )
 feature.on_boot(equip_old_gear)
+feature.on_boot(mend_old_door_keys)
+
+
+@feature.on_install
+def _offer_items(world) -> None:
+    """``world.services["items"]``: ``unequip(wearer, item)`` takes gear off
+    silently, as ROM's ``obj_from_char`` does to equipment leaving its owner,
+    for a feature that destroys what a character holds (a quest's consumed
+    collect objective)."""
+    world.services["items"] = SimpleNamespace(unequip=unequip)
+
 
 feature.command(
     'get',
@@ -114,7 +134,7 @@ feature.command(
     cmd_wear,
     category='items',
     help_text='Wear a carried item',
-    usage='wear <item> [replace]',
+    usage='wear <item> [replace] | wear all',
 )
 feature.command(
     'equipment',

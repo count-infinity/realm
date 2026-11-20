@@ -148,8 +148,9 @@ def _offer_damage(world) -> None:
 def _start_combat(world) -> None:
     """Create the CombatManager. The ruleset is COMBAT_RULESET, else the
     game system's own pairing; hostile actions between combat-capable
-    parties then start a fight (the fireball WAS your turn)."""
-    from realm.std.combat.manager import CombatManager
+    parties then start a fight (the fireball WAS your turn), and anyone
+    placed out of a fight's room leaves the fight."""
+    from realm.std.combat.manager import CombatManager, placed_out_of_the_fight
     from realm.std.combat.system import create_combat_system
 
     manager = CombatManager(
@@ -162,6 +163,8 @@ def _start_combat(world) -> None:
     world.services["combat"] = manager
     world.add_closer(manager.stop_all)
     world.observe(manager.hostile_observer)
+    # Placed elsewhere by a teleport, a recall or a script: out of the fight.
+    world.observe(placed_out_of_the_fight)
 
 
 @feature.on_install

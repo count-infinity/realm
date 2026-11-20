@@ -126,7 +126,7 @@ Cara knows Bob:
 
 ```text
 > pose beckons to /Bob.        (Ada is disguised)
-Cara reads:  A hooded figure beckons to Bob.
+Cara reads:  a hooded figure beckons to Bob.
 ```
 
 You register nothing extra here, because pointing an emote at the naming path is

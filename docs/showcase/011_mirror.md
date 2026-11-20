@@ -104,7 +104,7 @@ after dressing up:
 Description set for Bilda.
 
 > look tall mirror
-Tall mirror
+tall mirror
 A tall oval of old glass in a tarnished brass frame; whatever stands
 before it, it returns. In the glass: Bilda -- Tall, wiry, one chipped
 tooth.
@@ -113,7 +113,7 @@ tooth.
 You put on the woolen scarf.
 
 > look tall mirror
-Tall mirror
+tall mirror
 A tall oval of old glass in a tarnished brass frame; whatever stands
 before it, it returns. In the glass: Bilda -- Tall, wiry, one chipped
 tooth. Worn: woolen scarf.

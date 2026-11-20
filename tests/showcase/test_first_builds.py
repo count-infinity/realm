@@ -58,9 +58,9 @@ class TestMagic8Ball:
 
         pinned_rand["value"] = 3
         out = await do(sim, bilda, "shake")
-        assert 'Oracle ball says, "Ask again later."' in out
+        assert 'oracle ball says, "Ask again later."' in out
         # Bystanders hear the oracle too — the ball speaks to the room.
-        assert 'Oracle ball says, "Ask again later."' in sim.seen(kess)
+        assert 'oracle ball says, "Ask again later."' in sim.seen(kess)
 
     async def test_shake_falls_through_to_the_default_answer(
             self, sim, pinned_rand):
@@ -69,7 +69,7 @@ class TestMagic8Ball:
 
         pinned_rand["value"] = 8  # no case 8 in the table -> default
         out = await do(sim, bilda, "shake")
-        assert 'Oracle ball says, "The fluid clouds. No answer comes."' in out
+        assert 'oracle ball says, "The fluid clouds. No answer comes."' in out
 
     async def test_retheme_reads_the_answers_attribute(self, sim, pinned_rand):
         _room, bilda = workshop_and_builder(sim)
@@ -79,8 +79,8 @@ class TestMagic8Ball:
 
         pinned_rand["value"] = 2  # index 2 of the 3-answer list
         out = await do(sim, bilda, "shake")
-        assert "Oracle ball trembles in Bilda's grip." in out
-        assert 'Oracle ball says, "The dice are still rolling."' in out
+        assert "oracle ball trembles in Bilda's grip." in out
+        assert 'oracle ball says, "The dice are still rolling."' in out
 
     async def test_shake_only_works_near_the_ball(self, sim):
         room, bilda = workshop_and_builder(sim)
@@ -90,7 +90,7 @@ class TestMagic8Ball:
         out = await do(sim, remote, "shake")
         # Not in the search path (room contents/room/inventory/zone), so
         # the trigger never fires (a live server answers "Huh?").
-        assert not any("Oracle ball says" in line for line in out)
+        assert not any("oracle ball says" in line for line in out)
 
 
 # =========================================================================

@@ -17,11 +17,10 @@ import logging
 from typing import TYPE_CHECKING
 
 from realm.core.behaviors import BehaviorRegistry
-from realm.core.markup import capitalize
 from realm.core.objects import GameObject as GameObjectCls
 from realm.core.pools import damage_pool
 from realm.core.propagation import Action, propagate
-from realm.core.world import get_world
+from realm.core.world import format_line, get_world
 from realm.std.combat.actions import CombatAction
 from realm.std.combat.encounter import CombatEncounter, deliver_combat_messages
 from realm.std.combat.loot import loot_corpse
@@ -84,6 +83,21 @@ def _barely_alive(obj: GameObject, name: str) -> int:
         maximum = pool_max(obj, name)
         return max(int(maximum or 1) - 1, int(pool.floor or 0))
     return (pool.spent_at if pool is not None else 0) + 1
+
+
+async def placed_out_of_the_fight(action: Action) -> None:
+    """Observer: whoever arrives somewhere (``on_enter``: a teleport, a
+    recall, a script's ``move_to``) while still in a fight in another room
+    leaves it (``CombatManager.leave_if_elsewhere``)."""
+    from realm.core.action_types import ActionType
+    if action.action_type != ActionType.ON_ENTER or action.blocked:
+        return
+    obj = action.actor
+    if obj is None or not obj.has_tag('in_combat'):
+        return
+    combat = get_world().services.get("combat")
+    if combat is not None:
+        await combat.leave_if_elsewhere(obj)
 
 
 def is_combat_capable(obj: GameObject) -> bool:
@@ -199,6 +213,17 @@ class CombatManager:
         target = encounter.get(participant.target_id)
         return target.obj if target is not None else None
 
+    async def leave_if_elsewhere(self, obj: GameObject) -> None:
+        """``obj`` is no longer in its fight's room, by any move but a flee
+        (which leaves the fight itself): a teleport, a recall, a script's
+        placement. It is out of the fight at once, as ROM's ``transfer``
+        calls ``stop_fighting``, and a fight that has nobody left to fight
+        ends now rather than at its next beat."""
+        for encounter in list(self._encounters.values()):
+            if encounter.get(obj.id) is not None and obj.location is not encounter.room:
+                encounter.remove(obj.id)
+                await encounter.settle()
+
     def withdraw(self, obj: GameObject) -> None:
         """Take ``obj`` out of its fight at once, wherever it is now (it may
         already have left the room: ``recall``); the others fight on, or
@@ -241,7 +266,7 @@ class CombatManager:
             return None
         weapon.remove_tag('wielded')
         weapon.location = target.location
-        target.msg(capitalize(f"{weapon.name} flies from your hand!"))
+        target.msg(format_line(f"{weapon.name} flies from your hand!"))
         target.location.msg_contents(f"{weapon.name} flies from {target.name}'s hand!",
                                      exclude=[target])
         return weapon

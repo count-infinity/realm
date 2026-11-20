@@ -58,7 +58,7 @@ load them.
 | `realm.std.sight` | `room_is_lit`, `can_see_room` |
 | `realm.std.economy` | `EconomyAction` |
 | `realm.std.accounts` | `account_of`, `characters_of` ([Accounts](../guides/accounts.md)) |
-| `realm.std.companions` | `master_of`, `companions_of`, `set_master` ([Pets, Charm and Mounts](../guides/companions.md)) |
+| `realm.std.companions` | `master_of`, `companions_of`, `set_master`, `ACCOMPANIED` (the action tag of a move whose company comes along; [Pets, Charm and Mounts](../guides/companions.md)) |
 | `realm.std.clans` | `find_clan`, `clan_of`, `clans_of`, `has_power` ([Clans](../guides/clans.md)) |
 | `realm.std.quests` | `find_quest`, `state`, `accept`, `credit`, `complete`, `fail` ([Quests](../guides/quests.md)) |
 | `realm.games.gurps` | `GurpsSystem`, `GURPSRuleset`, `TEMPLATES` |

@@ -35,13 +35,17 @@ are found; the behavior is the ward described under
 room left sees "The kitten disappears with Alice.", and the kitten is in
 the room Alice wakes to. One somewhere else, or unconscious, stays where
 it is. The seam is an action tag, not a recall rule: a direct placement
-tagged `accompanied` (`realm.core.action_tags.ACCOMPANIED`) brings the
-mover's company, so a softcode gate spell opts in with
-`move_to(enactor, dest, tags=['accompanied'])`. A placement without it
-(`@tel`, softcode `teleport_obj` or `move_to` without the tag, a summons) moves the mover alone,
-as ROM's `transfer` and `summon` leave the pet behind. Each companion
-moves through the same checks (a destination's locks can keep it out)
-and leaves any fight it was in.
+tagged `accompanied` (`realm.std.companions.ACCOMPANIED`, this feature's
+word) brings the mover's company, so a softcode gate spell opts in with
+`move_to(enactor, dest, tags=['accompanied'])`. `recall` belongs to
+`basics`, which knows nothing of pets: its `recall` service keeps a list of
+`tags` its move carries, and this feature adds `accompanied` to it when the
+world loads (list `basics` before `companions` in `FEATURES`, as `CLASSIC`
+does; the other order logs a WARNING). A placement without the tag
+(`@tel`, softcode `teleport_obj` or `move_to` without it, a summons) moves
+the mover alone, as ROM's `transfer` and `summon` leave the pet behind.
+Each companion moves through the same checks (a destination's locks can
+keep it out) and leaves any fight it was in.
 
 From Python, the feature's public names:
 

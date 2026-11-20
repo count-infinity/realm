@@ -132,7 +132,7 @@ Something rattles and settles inside the crate as the seal breaks.
 You open the supply crate.
 
 > look supply crate
-Supply crate
+supply crate
 A scuffed drop-crate. Stenciled across the lid: CONTENTS RANDOMIZED AT DEPOT.
 
 Contains:

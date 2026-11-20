@@ -6,8 +6,10 @@ imported the way a builder would:
 
 - **World**: ``data/areas/midgaard.json`` - the classic Midgaard, converted
   from its ROM ``.are`` with ``realm import-rom --repop`` so its mobs
-  (the beastly fido, beggars, cityguards) respawn on death. Import any other
-  converted ROM area alongside it the same way.
+  (the beastly fido, beggars, cityguards) respawn on death; and
+  ``data/areas/school.json``, ROM's Mud School (``school.are``, converted
+  the same way), up from the Temple. Import any other converted ROM area
+  alongside them the same way.
 - **Rules**: ``rules.py``, a subclass of the ``merc`` game system - THAC0
   combat, percentile skills, XP-and-level advancement. Pick a class at
   character creation; a level-1 barbarian starts kitted with a club in the
@@ -19,6 +21,8 @@ imported the way a builder would:
   Bakery wants five fidos dead (``quest list`` there, ``quests`` for the
   journal), and makes the killer a Friend of the Baker
   (``data/achievements.json``), on every character of their account.
+- **Help**: ``data/help.json``, ``help newbie``: the first steps, as ROM's
+  "newbie info" (the banner points to it).
 - **A skill to study**: ``data/skills.json``, lore, which ``study lore``
   trains over real time, logged in or not.
 - **A horse**: ``data/stable.json``, a brown horse the pet shop sells
@@ -44,6 +48,15 @@ GAME_SYSTEM = "rules.GameRules"
 # The line after each batch of output: hit points, mana, movement.
 PROMPT = "<{hp}hp {mana}m {move}mv> "
 
+# Every narrated line starts with a capital, as ROM's act() writes it
+# ("The cityguard arrives.").
+CAPITALIZE_LINES = True
+
+# A combat round every 3 seconds, ROM's PULSE_VIOLENCE (players may still
+# `pace` slower).
+COMBAT_BEAT_DEFAULT = 3.0
+COMBAT_BEAT_MIN = 3.0
+
 # Every built-in feature, and this game's own game.py.
 from realm import CLASSIC  # noqa: E402
 
@@ -64,6 +77,7 @@ WELCOME_BANNER = """
 +==============================================================+
 |  create <account> <password>    make an account              |
 |  connect <account> <password>   log in to yours              |
+|  New here? Once you are in, type 'help newbie'.              |
 +==============================================================+
 """
 
@@ -90,6 +104,12 @@ async def init_world(server):
     # rom_<vnum> ids, which a fresh-id clone would break.
     created = await import_objects(json.loads(area.read_text()),
                                    server.persistence, preserve_ids=True)
+
+    # ROM's Mud School (school.are, vnums 3700-3799), up from the Temple of
+    # Midgaard: the newbie area, its trainer and the gear ROM's outfit gives.
+    school = Path(__file__).parent / "data" / "areas" / "school.json"
+    schooled = await import_objects(json.loads(school.read_text()),
+                                    server.persistence, preserve_ids=True)
 
     # Drop new characters into the Common Square.
     for obj in created:
@@ -118,8 +138,9 @@ async def init_world(server):
     # The town's first quest: the baker, in the Bakery (vnum 3009), wants
     # five fidos dead (data/quests.json). Its reward, besides experience
     # and a loaf: an achievement every character of the account shares
-    # (data/achievements.json).
-    for name in ("achievements.json", "quests.json"):
+    # (data/achievements.json). And `help newbie` (data/help.json), the
+    # first steps, as ROM's "newbie info".
+    for name in ("achievements.json", "quests.json", "help.json"):
         data = Path(__file__).parent / "data" / name
         await import_objects(json.loads(data.read_text()), server.persistence)
 
@@ -143,5 +164,8 @@ async def init_world(server):
     rooms = sum(1 for o in created if o.has_tag("room"))
     print(f"Imported {len(created)} objects ({rooms} rooms) from Midgaard, "
           f"{len(pack)} spells from merc-classic.")
+    rooms = sum(1 for o in schooled if o.has_tag("room"))
+    print(f"Imported {len(schooled)} objects ({rooms} rooms) from the Mud School, "
+          "up from the Temple.")
     start = server.startup_room
     print(f"Starting room: {start.name if start else '(default)'}")

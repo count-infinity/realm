@@ -21,7 +21,10 @@ and refuses. `wear <item> replace` takes off whatever has been worn
 there longest and puts the new item on. Taking off goes through the same
 gated `item:on_remove` as `remove`, so a cursed ring that refuses to come off
 also refuses to be replaced. Under Merc, an item whose slot the system does
-not have (ROM's `float`) cannot be worn.
+not have (ROM's `float`) cannot be worn. `wear all` (ROM's) puts on
+everything carried that has a free slot, in the order carried, and passes
+over a full slot rather than replacing what is there; handy after picking
+your things out of your own corpse.
 
 Before `wear` or `wield` does anything, the game system has its say
 (`wear_refusal`, `repels`, [Game Systems](game-systems.md#the-world-around-the-character)).
@@ -123,7 +126,10 @@ current template, `prompt default` goes back to the game's, and
 space.
 
 The Merc scaffold (`realm init --system merc`) and the Midgaard template
-set `PROMPT = "<{hp}hp {mana}m {move}mv> "`.
+set `PROMPT = "<{hp}hp {mana}m {move}mv> "`, and `CAPITALIZE_LINES = True`
+(the `basics` setting that starts every narrated line with a capital, as
+ROM's `act()` does: "The cityguard arrives.", not "the cityguard
+arrives."; off, the default, a line is sent as written).
 
 When it appears:
 

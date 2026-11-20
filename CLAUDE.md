@@ -76,7 +76,7 @@ not the feature.
 | `realm/packs/` | Content packs (worldio JSON bundles) |
 | `realm/examples/` | The example games `realm init --template <name>` copies (midgaard, spacegame, wilderness); inside the package so a wheel has them (`tests/test_packaging.py`) |
 | `realm/tools/rom_import.py` | ROM `.are` -> worldio converter behind `realm import-rom`. `scripts/` holds developer tools only (doc generators, example builders, `dev/move_modules.py`, `dev/refresh_rom_items.py`, which brings a converted area such as the shipped Midgaard up to the importer's current mappings) |
-| `tests/test_first_hour.py` | The acceptance test of `MUD_PLAN.md`: a real server on a `realm init --system merc --template midgaard` game, played line by line ("What 'complete' means here"); `docs/getting-started/your-first-mud.md` is its guide for people |
+| `tests/test_first_hour.py` | The acceptance test of `MUD_PLAN.md`: a real server on a `realm init --system merc --template midgaard` game, played line by line ("What 'complete' means here"); `docs/getting-started/your-first-mud.md` is its guide for people (its "Play Midgaard" opens it); `tests/test_fido_to_level_two.py` plays the same town as a player who is not the superuser, from creation to level 2 on fidos |
 | `realm/persistence/worldio.py` | Export/import with ref remapping |
 | `realm/persistence/store.py` | `Store` protocol: what engine code may call on a store (`PersistenceManager`, `MemoryStore`) |
 
@@ -105,7 +105,7 @@ row with a running example in `tests/test_where_things_go.py`):
 | a reaction to every action | `feature.observer` |
 
 The rest (`.dest_resolver`, `.reaper`, `.queue_kind`, `.check_modifier`,
-`.name_resolver`, `.speech_renderer`, `.group_formatter`, `.fallback`,
+`.name_resolver`, `.speech_renderer`, `.line_formatter`, `.group_formatter`, `.fallback`,
 `.traversal_gate`, `.after_traverse`, `.sight_rule`, `.marker`,
 `.input_interceptor`, `.login`, `.audience`, `.on_install`/`.on_reload`/
 `.on_boot`/`.on_close`) is listed in the same guide. A built-in feature is a

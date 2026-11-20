@@ -116,12 +116,16 @@ class TestMercSystem:
         sim, room, system = arena
         warrior = _make(system, sim, room, "Conan", "warrior")
         assert warrior.db.get("level") == 1
-        assert warrior.db.get("hp") == 10          # hit die 10 + con bonus 0
+        # ROM's and Merc's new_char: every class starts with 20 hit points;
+        # the hit die tells from level 2 (a 4-hp mage died to one fido).
+        assert warrior.db.get("hp") == warrior.db.get("max_hp") == 20
         assert warrior.db.get("strength") == 16
         assert warrior.db.get("thac0") == 20
         mage = _make(system, sim, room, "Merlin", "mage")
-        assert mage.db.get("hp") == 4              # d4 class, fragile
+        assert mage.db.get("hp") == 20
         assert mage.db.get("max_mana") > 100       # casters get mana
+        # ROM's nanny: 5 practices and 3 training sessions to start with.
+        assert (mage.db.practices, mage.db.trains) == (5, 3)
 
     def test_worn_armor_lowers_ac(self, arena):
         sim, room, system = arena
@@ -160,12 +164,51 @@ class TestAdvancement:
         sim, room, system = arena
         hero = _make(system, sim, room, "Conan", "warrior")
         hp0 = hero.db.get("hp")
+        sim.seen(hero)
         system.grant_award(hero, 1000)             # exactly one level
+        seen = sim.seen(hero)
         assert hero.db.get("level") == 2
         assert hero.db.get("xp") == 0
         assert hero.db.get("hp") == hp0 + 6        # d10 expected roll = 6
         assert hero.db.get("thac0") == 19          # warrior: -1 per level
-        assert hero.db.get("practices") >= 1
+        assert hero.db.get("practices") == 5 + 1   # ROM's 5 at creation, 1 a level
+        # What happened, said plainly (ROM's "You raise a level!!" and what
+        # it gained).
+        assert seen == ["You gain 1000 experience.",
+                        "You raise a level!!  You are now level 2.",
+                        "You gain 6 hit points, 1 practice and 1 training session. "
+                        "Your THAC0 is now 19."]
+
+    def test_score_shows_practices_and_training_sessions(self, arena):
+        # What a level brought, where the player looks (ROM's score: "You
+        # have 1 practices and 1 training sessions.").
+        sim, room, system = arena
+        hero = _make(system, sim, room, "Conan", "warrior")
+        assert "Practices: 5   Training sessions: 3" in system.score_lines(hero)
+        system.grant_award(hero, 1000)
+        assert "Practices: 6   Training sessions: 4" in system.score_lines(hero)
+
+    def test_a_caster_hears_its_mana(self, arena):
+        sim, room, system = arena
+        mage = _make(system, sim, room, "Merlin", "mage")
+        sim.seen(mage)
+        system.grant_award(mage, 1000)
+        assert sim.seen(mage)[-1] == \
+            "You gain 2 hit points, 10 mana, 2 practices and 1 training session."
+
+    def test_low_levels_earn_more_as_in_rom(self, arena):
+        # ROM's xp_compute, for each member: below level 6,
+        # xp = 10 * xp / (level + 4). The kill's worth is unchanged.
+        sim, room, system = arena
+        hero = _make(system, sim, room, "Conan", "warrior")
+        fido = sim.obj("fido", location=room, tags=["npc"])
+        fido.db.level, fido.db.points = 0, 100
+        assert system.death_award(fido, hero) == 85
+        assert system.share_award(85, [hero]) == [(hero, 170)]   # doubled at level 1
+        hero.db.level = 2
+        assert system.share_award(70, [hero]) == [(hero, 116)]   # 70 * 10 / 6
+        hero.db.level = 6
+        assert system.share_award(100, [hero]) == [(hero, 100)]  # no bonus from 6
 
     def test_one_award_can_cross_several_levels(self, arena):
         sim, room, system = arena

@@ -15,7 +15,8 @@ from realm.commands import CommandContext
 from realm.commands.base import find_object
 from realm.core.world import get_world
 from realm.std.items.actions import ItemAction
-from realm.std.items.verbs import gate_item_action
+from realm.std.items.commands import door_named
+from realm.std.items.verbs import door_state, door_word, gate_item_action
 from realm.std.rules.checks import check, contest
 from realm.std.stealth.stealth import HIDDEN_TAG
 
@@ -27,6 +28,8 @@ async def cmd_pick(ctx: CommandContext) -> None:
 
     Usage: pick <target>
 
+    A door answers to its keywords as for ``open`` (``pick gate``).
+
     Example:
         pick chest             (lockpicking check; carry lockpicks)
     """
@@ -34,6 +37,8 @@ async def cmd_pick(ctx: CommandContext) -> None:
         await ctx.session.send("Pick what?")
         return
     target = find_object(ctx, ctx.args.strip(), search_exits=True)
+    if target is None and ctx.player.location is not None:
+        target = door_named(ctx.player.location, ctx.args.strip())
     if not target:
         await ctx.session.send(f"You don't see '{ctx.args.strip()}' here.")
         return
@@ -41,6 +46,7 @@ async def cmd_pick(ctx: CommandContext) -> None:
         await ctx.session.send("It isn't locked.")
         return
 
+    called = door_word(target) or target.name
     skill = target.db.get('lock_skill') or 'lockpicking'
     modifier = -int(target.db.get('lock_difficulty') or 0)
     # Proper tools matter: without lockpicks you're improvising.
@@ -56,17 +62,17 @@ async def cmd_pick(ctx: CommandContext) -> None:
         # `picked` in the action data lets scripts tell a jimmy from a key.
         if await gate_item_action(
                 ctx.player, ItemAction.ON_UNLOCK, target, extra={'picked': True},
-                fail_msg=f"The lock on {target.name} defies your tools.",
-                apply=lambda _a: target.remove_tag('locked')) is None:
+                fail_msg=f"The lock on {called} defies your tools.",
+                apply=lambda _a: door_state(target, 'locked', False)) is None:
             return
-        ctx.player.msg(f"Click. You defeat the lock on {target.name}.")
+        ctx.player.msg(f"Click. You defeat the lock on {called}.")
         if ctx.player.location:
             ctx.player.location.msg_contents(
-                f"{ctx.player.get_display_name(None)} fiddles with {target.name}.",
+                f"{ctx.player.get_display_name(None)} fiddles with {called}.",
                 exclude=[ctx.player],
             )
     else:
-        ctx.player.msg(f"The lock on {target.name} resists your attempt.")
+        ctx.player.msg(f"The lock on {called} resists your attempt.")
 
 
 async def cmd_hide(ctx: CommandContext) -> None:

@@ -448,7 +448,7 @@ class TestNPCBehaviors:
         visitor, sess = make_player("Visitor", location=outside)
         await move_through_exit(visitor, post)
 
-        assert any('Guard says, "Building\'s closed."' in line
+        assert any('guard says, "Building\'s closed."' in line
                    for line in drain(sess))
 
     async def test_patrol_walks_route_and_respects_doors(self):

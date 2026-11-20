@@ -381,8 +381,8 @@ class TestGoingWithout:
         pat = _eater(merc, pit, xp=0)
         rat = merc.obj("rat", location=pit, tags=["npc"], hp=1, max_hp=1, points=100)
         await settle(harm(rat, "hp", 5), source=pat)
-        assert seen == [("Pat", 100)]
-        assert pat.db.xp == 100
+        assert seen == [("Pat", 200)]                   # 100, doubled at level 1 (ROM)
+        assert pat.db.xp == 200
 
 
 # --- 12.4 eating and drinking ---------------------------------------------------

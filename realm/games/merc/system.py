@@ -10,10 +10,11 @@ Diku rather than the shipped GURPS/D20 packages:
   lock you were never taught.
 - **Four classes** — mage / cleric / thief / warrior, each with a hit die,
   a THAC0 progression, and starting skills.
-- **Level-based HP** — a fresh character gets its class hit die; each level
-  grants another (its expected roll) plus a constitution bonus. This is
-  the one thing the point-buy GURPS/D20 packages do not do, and it is why
-  this system overrides the award seam (see ``grant_award`` below).
+- **Level-based HP** — a fresh character has ROM's and Merc's 20 hit
+  points, whatever its class; each level grants its class hit die (the
+  expected roll) plus a constitution bonus. This is the one thing the
+  point-buy GURPS/D20 packages do not do, and it is why this system
+  overrides the award seam (see ``grant_award`` below).
 
 **Advancement is XP-and-level here, not point-buy CP.** The GameSystem ABC
 stays model-neutral: it exposes one seam, ``grant_award(player, amount)``,
@@ -171,6 +172,24 @@ def is_evil(obj: GameObject) -> bool:
     return alignment(obj) <= -350
 
 
+#: Hit points at level 1, every class: ROM's and Merc's ``new_char``.
+FIRST_LEVEL_HP = 20
+
+#: Practices and training sessions a new character has: ROM's ``nanny``.
+FIRST_PRACTICES = 5
+FIRST_TRAINS = 3
+
+#: ROM's ``do_outfit`` (``merc.h``): besides the weapon, a new character
+#: wears the Mud School's war banner (``OBJ_VNUM_SCHOOL_BANNER``), vest and
+#: shield, when a converted ``school.are`` put their prototypes in the world.
+ROM_OUTFIT_VNUMS = (3716, 3703, 3704)
+
+#: ROM's ``xp_compute``: below this level a kill pays ``10 / (level + 4)``
+#: times as much (double at level 1), so a new character's first levels come
+#: quickly.
+LOW_LEVEL_BONUS_BELOW = 6
+
+
 def _hit_die_expected(die: int) -> int:
     return round((1 + die) / 2)
 
@@ -296,9 +315,12 @@ class MercSystem(GameSystem):
     def finish_chargen(self, player: GameObject) -> str:
         cls = str(player.db.get("character_class") or "warrior")
         spec = self._classes().get(cls, self._classes()["warrior"])
-        # Level 1: full hit die + con bonus (Diku gives max HP at first level).
-        hp = spec["hit_die"] + _con_bonus(player)
-        set_pool(player, 'hp', hp, max=hp)
+        # Level 1: ROM's and Merc's 20 hit points for every class; the class
+        # hit die tells from level 2 on.
+        set_pool(player, 'hp', FIRST_LEVEL_HP, max=FIRST_LEVEL_HP)
+        # ROM's nanny: practices and training sessions to start with.
+        player.db.practices = FIRST_PRACTICES
+        player.db.trains = FIRST_TRAINS
         player.db.thac0 = 20
         player.db.max_mana = 100 + spec["mana_per_level"]
         player.db.mana = player.db.max_mana
@@ -307,7 +329,36 @@ class MercSystem(GameSystem):
 
     async def outfit_new_character(self, player: GameObject,
                                    persistence: Any) -> None:
-        """Hand the new character its class starting weapon, wielded."""
+        """Hand the new character its class starting weapon, wielded, and,
+        as ROM's ``do_outfit`` does, the school's banner, vest and shield
+        (``ROM_OUTFIT_VNUMS``) worn, when the world has their prototypes."""
+        await self._outfit_weapon(player, persistence)
+        await self._outfit_school_gear(player, persistence)
+        self.recompute_ac(player)
+
+    async def _outfit_school_gear(self, player: GameObject, persistence: Any) -> None:
+        from realm.core.ops.objects import clone
+        if persistence is None:
+            return
+        given = []
+        for vnum in ROM_OUTFIT_VNUMS:
+            proto = persistence.get_cached(f"rom_obj_{vnum}")
+            slot = proto.db.get("slot") if proto is not None else None
+            if slot is None or any(o.has_tag("worn") and o.db.get("slot") == slot
+                                   for o in player.contents):
+                continue
+            item = clone(None, proto, location=player).value
+            item.remove_tag("prototype")
+            item.add_tag("worn")
+            item.db.value = 0                    # ROM: obj->cost = 0
+            item.owner = player
+            await persistence.save(item)
+            given.append(item.name)
+        if given:
+            player.msg("You have been equipped by the Mud School: "
+                       + ", ".join(given) + ".")
+
+    async def _outfit_weapon(self, player: GameObject, persistence: Any) -> None:
 
         cls = str(player.db.get("character_class") or "warrior")
         spec = self._classes().get(cls, self._classes()["warrior"])
@@ -326,7 +377,6 @@ class MercSystem(GameSystem):
         if persistence is not None:
             await persistence.save(item)
         player.msg(f"You grip {weapon['name']}, ready for trouble.")
-        self.recompute_ac(player)
 
     def recompute_ac(self, player: GameObject) -> int:
         """Armor class from dexterity and worn armor (lower is better).
@@ -366,6 +416,8 @@ class MercSystem(GameSystem):
         victim's ``points`` (the importer mints ``level * 100``) is the
         base, bent by the level difference the classic Diku way: prey
         above your level pays a premium, grey-con prey pays a pittance.
+        (What each member is paid, with ROM's low-level bonus, is
+        ``share_award``'s.)
         """
         base = int(victim.db.get("points") or 100)
         if killer is not None:
@@ -391,11 +443,18 @@ class MercSystem(GameSystem):
     def share_award(self, award: int,
                     members: list[GameObject]) -> list[tuple[GameObject, int]]:
         """ROM's ``group_gain``: each member's share is the award times their
-        level over the levels of everyone sharing it."""
+        level over the levels of everyone sharing it; and ROM's
+        ``xp_compute`` pays a member below level 6 ``10 / (level + 4)``
+        times its share (double at level 1), so first levels come quickly."""
         levels = [max(1, char_level(m)) for m in members]   # a divisor
         total = sum(levels)
-        return [(member, max(1, int(award) * level // total))
-                for member, level in zip(members, levels, strict=True)]
+        shares = []
+        for member, level in zip(members, levels, strict=True):
+            share = max(1, int(award) * level // total)
+            if char_level(member) < LOW_LEVEL_BONUS_BELOW:
+                share = 10 * share // (max(0, char_level(member)) + 4)
+            shares.append((member, share))
+        return shares
 
     def on_kill(self, member: GameObject, victim: GameObject) -> None:
         """Merc's alignment shift: killing what is far more evil than you
@@ -533,8 +592,9 @@ class MercSystem(GameSystem):
         if worn:
             lines.append("Wearing:  " + ", ".join(o.name for o in worn))
         practices = int(player.db.get("practices") or 0)
-        if practices:
-            lines.append(f"Practices: {practices}")
+        trains = int(player.db.get("trains") or 0)
+        if practices or trains:
+            lines.append(f"Practices: {practices}   Training sessions: {trains}")
         # Diku's conditions, said rather than counted: at a quarter or less.
         for pool, line in (("food", "You are hungry."), ("water", "You are thirsty.")):
             percent = pool_percent(player, pool)
@@ -564,17 +624,27 @@ class MercSystem(GameSystem):
             gain = max(1, _hit_die_expected(spec["hit_die"]) + _con_bonus(player))
             set_pool(player, 'hp', int(pool_get(player, 'hp') or 0) + gain,
                      max=int(pool_max(player, 'hp') or 0) + gain)
-            if spec["mana_per_level"]:
-                player.db.max_mana = int(player.db.get("max_mana") or 0) \
-                    + spec["mana_per_level"]
-                player.db.mana = int(player.db.get("mana") or 0) \
-                    + spec["mana_per_level"]
+            mana = int(spec["mana_per_level"])
+            if mana:
+                player.db.max_mana = int(player.db.get("max_mana") or 0) + mana
+                player.db.mana = int(player.db.get("mana") or 0) + mana
             # THAC0 improves one point every ``thac0_rate`` levels.
+            thac0 = int(player.db.get("thac0") or 20)
             player.db.thac0 = 20 - (level // spec["thac0_rate"])
             practices = max(1, (int(player.db.get("intelligence") or 13) - 11) // 2)
             player.db.practices = int(player.db.get("practices") or 0) + practices
             player.db.trains = int(player.db.get("trains") or 0) + 1
-            player.msg(f"You advance to level {level + 1}! (+{gain} HP)")
+            # ROM's advance_level: the level, then what it brought.
+            gains = [f"{gain} hit point{'s' if gain != 1 else ''}"]
+            if mana:
+                gains.append(f"{mana} mana")
+            gains.append(f"{practices} practice{'s' if practices != 1 else ''}")
+            gains.append("1 training session")
+            line = f"You gain {', '.join(gains[:-1])} and {gains[-1]}."
+            if int(player.db.thac0) < thac0:
+                line += f" Your THAC0 is now {player.db.thac0}."
+            player.msg(f"You raise a level!!  You are now level {level + 1}.")
+            player.msg(line)
 
 
 __all__ = ["MercSystem", "MERC_CLASSES", "BUILTIN_SKILL_DEFAULTS", "ALIGNMENT_WORDS",

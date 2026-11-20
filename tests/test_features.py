@@ -176,7 +176,10 @@ class TestDefaultEqualsToday:
                 # step 14: clan benefits and messages of the day at login
                 "realm.std.clans.feature.clans_observer",
                 # step 15: quest progress from kills, items, arrivals and talk
-                "realm.std.quests.quests.quest_observer"}
+                "realm.std.quests.quests.quest_observer",
+                # added after the freeze (2026-11-17): placed out of a fight's
+                # room (a teleport, a recall), out of the fight
+                "realm.std.combat.manager.placed_out_of_the_fight"}
             assert sorted(observers) == OBSERVERS
             # MUD_PLAN step 2 added the player corpse's claim.
             # step 5 the trainer; step 13 the companion ward and the charm;
@@ -330,7 +333,7 @@ class TestGameFeature:
                 sim.obj("apple", location=room, tags=["thing"])
             sim.seen(bob)
             await sim.do(alice, "say hello")
-            assert 'A masked figure says, "HELLO"' in sim.seen(bob)
+            assert 'a masked figure says, "HELLO"' in sim.seen(bob)
             await sim.do(bob, "look")
             assert any("apple x2" in line for line in sim.seen(bob))
         finally:

@@ -37,6 +37,12 @@ COMPANION_TAG = "companion"
 WAITING_ATTR = "companion_room"
 BOND = "companion:on_bond"
 RELEASE = "companion:on_release"
+#: The action tag of a direct placement the mover's company shares: recall
+#: (``companions`` adds it to the ``recall`` service's ``tags``), a gate
+#: spell (softcode ``move_to(enactor, dest, tags=['accompanied'])``). The
+#: pets beside the mover and the mount under it come along; a placement
+#: without it (``@tel``, a summons) moves the mover alone.
+ACCOMPANIED = "accompanied"
 
 
 def _cached(obj_id) -> GameObject | None:
@@ -267,15 +273,12 @@ async def come_along(master: GameObject, origin: GameObject | None,
     from realm.core.movement import move_to
     from realm.std.companions.riding import rider_of
     world = get_world()
-    combat = world.services.get("combat")
     for npc in companions_of(master):
         if npc.is_player or npc.location is not origin or npc.has_tag("unconscious"):
             continue
+        # Placed out of its fight's room, it is out of the fight (``combat``).
         if not await move_to(npc, destination, extra_tags=tags, mover=master):
             continue
-        if combat is not None:
-            combat.withdraw(npc)
-        npc.remove_tag("in_combat")
         if rider_of(npc) is not master:
             origin.msg_contents(f"{the(npc)} disappears with {master.name}.")
         if world.store is not None:
@@ -351,6 +354,7 @@ async def charm(caster: GameObject, target: GameObject, *, duration: int,
 
 
 __all__ = [
+    "ACCOMPANIED",
     "BOND",
     "COMPANION_TAG",
     "MASTER_ATTR",

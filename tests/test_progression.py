@@ -362,8 +362,9 @@ class TestPractice:
 
     async def test_a_level_grants_trains(self, merc):
         pat = await _made(merc, "Pat", "warrior", xp=1000)
+        assert pat.db.trains == 3                           # ROM's nanny: 3 to start
         merc.game_system.advance_level(pat)
-        assert pat.db.level == 2 and pat.db.trains == 1
+        assert pat.db.level == 2 and pat.db.trains == 3 + 1
 
 
 # --- 5.4 idle training ------------------------------------------------------------------

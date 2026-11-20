@@ -1,0 +1,21 @@
+{
+  "realm_format": 1,
+  "objects": [
+    {
+      "id": "help_newbie",
+      "name": "newbie",
+      "tags": [
+        "help_def"
+      ],
+      "attrs": {
+        "keywords": [
+          "newbie info",
+          "new",
+          "start",
+          "midgaard"
+        ],
+        "text": "NEWBIE INFO\n\nWelcome to Midgaard. You start in the Common Square, the middle of town,\nwhere the beastly fidos roam: level 0 dogs, an easy first fight.\n\n  look, score, equipment      where you are, how you stand, what you wear\n  where fido                  which streets the fidos are in right now\n  consider fido               how a fight with it would go\n  kill fido                   fight it; a round every 3 seconds\n  flee                        run, when a fight goes badly\n  rest  ...  stand            sit down to heal faster, then get up\n  get all from corpse         loot what it carried\n\nFidos come back to the Common Square, Poor Alley (west) and both ends of\nMain Street (north, then west or east) a minute or two after they die.\n\nEach kill earns experience; 1000 of it makes level 2 (and 2000 more, level\n3). Every level brings hit points, a better THAC0, practices and a\ntraining session (you start with five practices and three sessions).\nSpend practices at your own guild's guildmaster with 'practice'\n(warriors: north, east, east, south, east, south; mages: north, west,\nwest, south, south, east). Your guild's bar lets in only your class.\n\nThe cityguards are on your side: one passing by joins your fight against\nan evil beast, and if his blow kills it, the experience is his. Fight\nwhere no guard stands.\n\nIf you die you wake in the Common Square, a quarter of a level's\nexperience poorer; your corpse, with everything you carried, waits where\nyou fell ('get all from corpse').\n\nThe Mud School, up from the Temple of Mota (north, north, north, up), has\nweak monsters to practise on, no guards, and a trainer ('train') for your\ntraining sessions."
+      }
+    }
+  ]
+}

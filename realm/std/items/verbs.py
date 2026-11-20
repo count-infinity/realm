@@ -13,9 +13,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from realm.core.action_types import ActionType
-from realm.core.language import singular_name
+from realm.core.language import definite_name, singular_name
+from realm.core.pairing import far_side
 from realm.core.propagation import Action, deliver_messages, gate_action
 from realm.std.items.actions import ItemAction
+from realm.std.items.equipment import take_it_off_first
 
 if TYPE_CHECKING:
     from realm.core.objects import GameObject
@@ -82,6 +84,10 @@ async def do_drop(actor: GameObject, target: GameObject) -> bool:
     if actor.location is None:
         actor.msg("You can't drop things here.")
         return False
+    refusal = take_it_off_first(target) if target.location is actor else None
+    if refusal:
+        actor.msg(refusal)
+        return False
 
     def _apply(_a):
         target.location = actor.location
@@ -104,6 +110,10 @@ async def do_give(actor: GameObject, item: GameObject, target: GameObject) -> bo
     """Hand ``item`` from ``actor`` to ``target``."""
     if target is actor:
         actor.msg("Give it to yourself? That doesn't make sense.")
+        return False
+    refusal = take_it_off_first(item) if item.location is actor else None
+    if refusal:
+        actor.msg(refusal)
         return False
 
     # For 'give', the target is the recipient and the item travels via
@@ -146,6 +156,33 @@ def door_word(target: GameObject) -> str | None:
     return f"the {first}"
 
 
+def door_state(target: GameObject, tag: str, on: bool) -> GameObject | None:
+    """Put ``tag`` (``closed``, ``locked``) on ``target`` or take it off. A
+    door has two faces that agree: an exit's far side
+    (``realm.core.pairing.far_side``: its partner, else the exit beyond
+    leading back) changes too, as ROM's ``do_open``/``do_close``/
+    ``do_lock``/``do_unlock`` change ``pexit_rev``. Returns that far side,
+    or None. Every ``open``, ``close``, ``lock``, ``unlock``, keycard swipe
+    and picked lock goes through here."""
+    (target.add_tag if on else target.remove_tag)(tag)
+    far = far_side(target) if target.is_exit else None
+    if far is not None:
+        (far.add_tag if on else far.remove_tag)(tag)
+    return far
+
+
+def _tell_far_side(far: GameObject | None, verb: str) -> None:
+    """The room beyond hears its face of the door move: "The gate opens."
+    (ROM's "The $d opens.": "the door" when the exit has no keywords and is
+    named for a direction)."""
+    if far is None or far.location is None:
+        return
+    from realm.core.ops.exits import OPPOSITES
+    door = door_word(far) or ("the door" if far.name.lower() in OPPOSITES
+                              else definite_name(far))
+    far.location.msg_contents(f"{door[:1].upper()}{door[1:]} {verb}.")
+
+
 async def do_open(actor: GameObject, target: GameObject) -> bool:
     """Open a door or container (must be closed and not locked)."""
     if not target.has_tag('closed'):
@@ -159,10 +196,16 @@ async def do_open(actor: GameObject, target: GameObject) -> bool:
         )
         return False
 
+    far = None
+
+    def _open(_a):
+        nonlocal far
+        far = door_state(target, 'closed', False)
+
     action = await gate_item_action(
         actor, ItemAction.ON_OPEN, target,
         fail_msg=f"You can't open {target.name}.",
-        apply=lambda _a: target.remove_tag('closed'),
+        apply=_open,
     )
     if action is None:
         return False
@@ -171,6 +214,7 @@ async def do_open(actor: GameObject, target: GameObject) -> bool:
     action.add_message("actor", f"You open {door}.")
     action.add_message("room", f"{{actor}} opens {door}.")
     deliver_messages(action)
+    _tell_far_side(far, "opens")
     return True
 
 
@@ -185,10 +229,16 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
         actor.msg(f"You can't close {target.name}.")
         return False
 
+    far = None
+
+    def _close(_a):
+        nonlocal far
+        far = door_state(target, 'closed', True)
+
     action = await gate_item_action(
         actor, ItemAction.ON_CLOSE, target,
         fail_msg=f"You can't close {target.name}.",
-        apply=lambda _a: target.add_tag('closed'),
+        apply=_close,
     )
     if action is None:
         return False
@@ -197,8 +247,9 @@ async def do_close(actor: GameObject, target: GameObject) -> bool:
     action.add_message("actor", f"You close {door}.")
     action.add_message("room", f"{{actor}} closes {door}.")
     deliver_messages(action)
+    _tell_far_side(far, "closes")
     return True
 
 
-__all__ = ["gate_item_action", "door_word", "do_get", "do_drop", "do_give", "do_open",
-           "do_close"]
+__all__ = ["gate_item_action", "door_word", "door_state", "do_get", "do_drop", "do_give",
+           "do_open", "do_close"]

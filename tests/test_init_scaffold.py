@@ -447,6 +447,34 @@ def test_no_scaffold_restates_the_death_rule(tmp_path, monkeypatch, clean_import
     assert settings.raw["PROMPT"] == "<{hp}hp {mana}m {move}mv> "
 
 
+async def test_the_merc_scaffold_and_midgaard_capitalize_lines(tmp_path, monkeypatch,
+                                                              clean_import_state):
+    """ROM's ``act()`` capitalizes a line's first letter; that is Merc's
+    presentation, so the Merc scaffold and Midgaard write
+    ``CAPITALIZE_LINES = True`` and every other scaffold sends lines as
+    written (BACKLOG 2026-11-17, "Kernel")."""
+    from realm.testing import Simulator
+    monkeypatch.chdir(tmp_path)
+    for system in SYSTEMS:
+        assert cmd_init(_Args(f"g_{system}", system=system)) == 0
+        config = (tmp_path / f"g_{system}" / "config.py").read_text()
+        assert ("CAPITALIZE_LINES = True" in config) == (system == "merc"), system
+    assert cmd_init(_Args("town", template="midgaard")) == 0
+    assert load_config(tmp_path / "town").raw["CAPITALIZE_LINES"] is True
+    for system, line in (("merc", "The cityguard arrives."),
+                         ("gurps", "the cityguard arrives.")):
+        sim = Simulator.from_game(tmp_path / f"g_{system}")
+        try:
+            room = sim.room("Square")
+            pat = sim.player("Pat", location=room)
+            room.msg_contents("the cityguard arrives.")
+            assert sim.seen(pat) == [line], system
+        finally:
+            sim.close()
+            sys.modules.pop("rules", None)
+            sys.modules.pop("game", None)
+
+
 async def test_a_new_game_starts_with_channels_and_socials(tmp_path, monkeypatch,
                                                            clean_import_state):
     """MUD_PLAN 7.2/7.3: the scaffold's init_world imports the channels and
@@ -465,3 +493,20 @@ async def test_a_new_game_starts_with_channels_and_socials(tmp_path, monkeypatch
                                "meritocracy", "plutocracy"}
     finally:
         sim.close()
+
+
+def test_the_merc_scaffold_and_midgaard_fight_in_roms_rounds(tmp_path, monkeypatch,
+                                                            clean_import_state):
+    """ROM's ``PULSE_VIOLENCE``: a round every 3 seconds. REALM's default
+    beat is 15 (a turn-based table's), which made a fido fight in the
+    telnet play-through last a minute and let every passing cityguard take
+    the kill first. The Merc scaffold and Midgaard write ROM's."""
+    monkeypatch.chdir(tmp_path)
+    for system in SYSTEMS:
+        assert cmd_init(_Args(f"g_{system}", system=system)) == 0
+        raw = load_config(tmp_path / f"g_{system}").raw
+        assert (raw.get("COMBAT_BEAT_DEFAULT"), raw.get("COMBAT_BEAT_MIN")) == \
+            ((3.0, 3.0) if system == "merc" else (None, None)), system
+    assert cmd_init(_Args("town", template="midgaard")) == 0
+    raw = load_config(tmp_path / "town").raw
+    assert (raw["COMBAT_BEAT_DEFAULT"], raw["COMBAT_BEAT_MIN"]) == (3.0, 3.0)

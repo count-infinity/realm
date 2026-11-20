@@ -610,6 +610,13 @@ class CombatEncounter:
         return len(alive) >= 2 and any(
             self.participants[obj_id].target_id in alive for obj_id in alive)
 
+    async def settle(self) -> None:
+        """Close the fight now if someone leaving between beats left it with
+        nobody to fight (a teleport, a recall). A round being resolved
+        settles at its own end."""
+        if not self._over and not self._resolving and not self._check_continue():
+            await self._close()
+
     def _announce(self, text: str) -> None:
         for participant in self.participants.values():
             participant.obj.msg(text)

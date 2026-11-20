@@ -13,7 +13,6 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 from realm.core import defs
-from realm.core.markup import capitalize
 from realm.core.tags import TagSet
 
 if TYPE_CHECKING:
@@ -494,12 +493,14 @@ class GameObject:
 
         Used for room broadcasts. ``exclude`` skips listed objects (typically
         the actor and target of an action that already received their own
-        per-perspective messages). A broadcast is ROM's ``act()`` to the
-        room, so it starts with a capital letter ("the beastly fido falls
-        dead!" reads "The beastly fido falls dead!"); ``msg`` to one object
-        is ``send_to_char``, sent as written.
+        per-perspective messages). A broadcast is a narrated line, so the
+        world's line formatters present it (``feature.line_formatter``;
+        Merc's ``CAPITALIZE_LINES`` makes "the beastly fido falls dead!"
+        read "The beastly fido falls dead!"); ``msg`` to one object is sent
+        as written.
         """
-        text = capitalize(text)
+        from realm.core.world import format_line
+        text = format_line(text)
         excluded_ids: set[str] = set()
         if exclude is not None:
             for obj in exclude:

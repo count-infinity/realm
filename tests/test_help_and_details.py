@@ -440,3 +440,25 @@ async def test_help_shows_a_pipe_as_a_pipe():
         assert "<attack|defend|repeat|nothing>" in strip("\n".join(sim.seen(pat)))
     finally:
         sim.close()
+
+
+async def test_a_game_writes_its_own_help_topics():
+    """A ``help_def`` object is a help topic: ``help <its name>`` or one of
+    its ``keywords`` shows its ``text`` (ROM's help files, such as the
+    "newbie info" a new character is shown). A topic of a command's name
+    comes before the command's own help; anything else is as before."""
+    from realm.testing import Simulator
+    sim = Simulator()
+    try:
+        pat = sim.player("Pat", location=sim.room("Hall"))
+        sim.obj("newbie", tags=["help_def"], keywords=["new", "start"],
+                text="Welcome! Kill a fido: 'where fido', then 'kill fido'.")
+        for line in ("help newbie", "help NEWBIE", "help start"):
+            await sim.do(pat, line)
+            assert sim.seen(pat) == ["Welcome! Kill a fido: 'where fido', then 'kill fido'."]
+        await sim.do(pat, "help channel")
+        assert "usage: channel" in "\n".join(sim.seen(pat))
+        await sim.do(pat, "help zzyzx")
+        assert sim.seen(pat) == ["No help found for 'zzyzx'."]
+    finally:
+        sim.close()

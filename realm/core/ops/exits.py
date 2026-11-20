@@ -48,8 +48,12 @@ def check_relocate(actor: GameObject | None, target: GameObject,
                    destination: GameObject, *, consent: bool = False) -> None:
     """Moving yourself is always allowed; anything else needs relocation
     authority (control of it, or of the room it stands in) or the target's
-    consent (it invoked the mover)."""
+    consent (it invoked the mover). An account is never placed, nor a
+    place: it is a login record, not a thing in the world."""
+    from realm.core.options import ACCOUNT_TAG
     from realm.permissions.locks import may_relocate
+    if target.has_tag(ACCOUNT_TAG) or destination.has_tag(ACCOUNT_TAG):
+        raise Invalid("An account is not in the world (see @account).")
     if target is destination:
         raise Invalid("Can't teleport something to itself.")
     if actor is None or target is actor or consent:

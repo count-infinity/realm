@@ -11,10 +11,9 @@ from realm.commands.base import find_exit, find_object
 from realm.core.action_tags import VISUAL
 from realm.core.action_types import ActionType
 from realm.core.attrflags import visual_attrs
-from realm.core.markup import capitalize
 from realm.core.movement import resolve_exit_destination
 from realm.core.propagation import ROOM_TARGET_CHAIN, Action, propagate
-from realm.core.world import get_world
+from realm.core.world import format_line, get_world
 from realm.std.look.describe import detail_lines, may_examine
 from realm.std.look.render import render_room
 
@@ -203,7 +202,7 @@ async def _show_object(ctx: CommandContext, target) -> None:
     # disguise or an unintroduced stranger reads by their assumed name).
     # `@examine` deliberately does NOT — it shows the truth.
     # A title line, so it starts with a capital ("The cityguard").
-    await ctx.session.send(f"\n{capitalize(target.get_display_name(ctx.player))}")
+    await ctx.session.send(f"\n{format_line(target.get_display_name(ctx.player))}")
 
     # "You see nothing special." is the fallback for an object that shows
     # the looker NOTHING — no description and no perceptible details. It
@@ -262,7 +261,7 @@ def _using_lines(target, carried: list, viewer) -> list[str]:
     if not rows:
         return []
     width = max(len(slot) for slot, _ in rows) + 2
-    return [f"{capitalize(target.get_display_name(viewer))} is using:"] + [
+    return [format_line(f"{target.get_display_name(viewer)} is using:")] + [
         f"  {f'<{slot}>':{width}} {name}" for slot, name in rows]
 
 

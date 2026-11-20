@@ -8,9 +8,10 @@ docs/guides/companions.md.
 
 from __future__ import annotations
 
+import logging
 from types import SimpleNamespace
 
-from realm.core.action_tags import ACCOMPANIED, HOSTILE
+from realm.core.action_tags import HOSTILE
 from realm.core.action_types import ActionType
 from realm.features import Feature
 from realm.std.combat.actions import CombatAction
@@ -24,6 +25,7 @@ from realm.std.companions.commands import (
     cmd_order,
 )
 from realm.std.companions.companions import (
+    ACCOMPANIED,
     BOND,
     RELEASE,
     bond_refusal,
@@ -38,6 +40,8 @@ from realm.std.companions.companions import (
     set_master,
     the,
 )
+
+logger = logging.getLogger(__name__)
 
 feature = Feature(
     'companions',
@@ -178,4 +182,17 @@ def _offer_companions(world) -> None:
         mount_of=riding.mount_of, dismount=riding.dismount,
         bond_refusal=bond_refusal, buy_pet=buy_pet, charm=charm)
     world.observe(companions_observer)
+
+
+@feature.on_install
+def _recall_with_company(world) -> None:
+    """A recall's move is ``accompanied`` (ROM's ``do_recall`` takes the
+    pet): ``basics``' ``recall`` service lists the tags its move carries.
+    Install hooks run in feature order, so ``basics`` must come first."""
+    recall = world.services.get("recall")
+    if recall is not None:
+        recall.tags.append(ACCOMPANIED)
+    elif "basics" in world.features.names:
+        logger.warning("companions is listed before basics in FEATURES, so a "
+                       "recall leaves pets and mounts behind; list basics first.")
 

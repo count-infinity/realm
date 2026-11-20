@@ -367,7 +367,9 @@ Left open (found on the way):
   places; capitalizing the line where it is sent would fix them all.
   *2026-11-17: `deliver_messages` and `msg_contents` capitalize
   (`markup.capitalize`); `obj.msg` is `send_to_char`, as written. See
-  below.*
+  below. Corrected 2026-11-17: only where the game asks
+  (`CAPITALIZE_LINES`, on in the Merc scaffold and Midgaard); the kernel
+  sends lines as written ("Kernel", at the end of this section).*
 - [x] **Merc reads level 0 as level 1** (`int(level or 1)` in
   `death_award`, `consider` and elsewhere): ROM's level-0 fido pays as a
   level-1 mob. *2026-11-17: `char_level` (0 is 0, unset is 1); the fido
@@ -619,18 +621,299 @@ Clocks a test can move (2026-11-17). Judgment calls:
 
 Left open (found on the way, 2026-11-17):
 
-- [ ] **`drop all` drops wielded and worn gear** without taking it off
-  (it stays tagged; ROM's `drop all` skips equipment).
-- [ ] **A door has two sides that do not agree**: `close gate` closes
+- [x] **`drop all` drops wielded and worn gear** without taking it off
+  (it stays tagged; ROM's `drop all` skips equipment). *2026-11-17:
+  skipped; `drop`/`give`/`put`/`sell`/`eat` by name say "You must remove it
+  first." (`items`' `take_it_off_first`); see below.*
+- [x] **A door has two sides that do not agree**: `close gate` closes
   this side's exit only; ROM closes the room beyond's reverse exit too.
-- [ ] **Converted locked doors cannot be unlocked with their keys**: the
+  *2026-11-17: `items`' `door_state` changes the far side
+  (`realm.core.pairing.far_side`) on every open, close, lock, unlock, swipe
+  and pick.*
+- [x] **Converted locked doors cannot be unlocked with their keys**: the
   importer writes the key's id as `key`, and `lock`/`unlock` read
-  `key_id` against a key's `unlocks`.
-- [ ] **`@teleport` leaves a character in its fight** ("You're in the
-  middle of combat" in the new room).
-- [ ] **`zone_reset` clears a mob but not what it carries**, which would
+  `key_id` against a key's `unlocks`. *2026-11-17: the importer writes
+  `key_id` and `unlocks`; the refresh script and a boot step mend old
+  files and worlds.*
+- [x] **`@teleport` leaves a character in its fight** ("You're in the
+  middle of combat" in the new room). *2026-11-17: `combat` observes
+  arrivals; one placed out of its fight's room leaves it, and an emptied
+  fight ends at once.*
+- [x] **`zone_reset` clears a mob but not what it carries**, which would
   orphan a `contents` prototype's gear (so the importer writes `contents`
-  only for `--repop`).
+  only for `--repop`). *2026-11-17: a cleared spawn's contents are
+  released with it (`release_contents`); `--zone-reset` writes `contents`
+  too.*
+
+**2026-11-17: two rules out of the kernel, and the five items above.**
+Judgment calls:
+
+- **Kernel.** Capitalisation and `accompanied` are no longer kernel
+  policy. Capitals: the kernel keeps one neutral seam,
+  `feature.line_formatter` (`World.line_formatters`,
+  `realm.core.world.format_line`), through which `deliver_messages` and
+  `msg_contents` pass every line (none installed: as written); ROM's rule
+  is `basics`' formatter, applied when its setting `CAPITALIZE_LINES` is
+  on (default off; the Merc scaffold's `config.py` and Midgaard's write
+  `True`). `realm.core.markup.capitalize` stays, a text function with no
+  game meaning. `accompanied`: declared by `companions`
+  (`realm.std.companions.ACCOMPANIED`); `realm.core.action_tags` lost it,
+  and `RESERVED_CATEGORIES` is `magic` and `forced`.
+- **Why a `basics` setting, not the Merc layer.** Every `CLASSIC` world
+  loads the `merc` feature (and `gurps`, `d20`), whatever `GAME_SYSTEM`
+  is, so a formatter declared there would have capitalized GURPS games
+  too; and capitals are presentation a non-Merc Diku-style game may want.
+  `basics` owns the other presentation default the Merc scaffold changes
+  (`PROMPT`), so the scaffold writes both lines. The formatter reads the
+  setting per line, so `reconfigure` in a test (or a later config) holds.
+- **Capitals everywhere or nowhere.** The sentences features compose for
+  one player that the first cut capitalized by hand ("the guildmaster
+  teaches:", the healer's "tends your wounds", the disarm, the
+  pickpocket, `look`'s title and "is using:", combat's "CRITICAL! ..." and
+  "... is defeated!") now go through `format_line` too: in a MUSH a
+  deliberately lowercase name stays lowercase there as well. A line whose
+  first word is the feature's own article ("The gate opens.", "The gate is
+  already open.") is written capitalized: it is not a name. 19 test files
+  and 21 showcase transcripts went back to the lowercase they had before
+  the first cut (their worlds are not Merc); the Midgaard tests, the first
+  hour and its guide keep their capitals (Midgaard sets it).
+- **`accompanied`: reserving did nothing.** `RESERVED_CATEGORIES` is read
+  by nothing; it is a spelling convention for categories many packs share
+  (`magic`, `forced`), and the kernel never emitted `accompanied`. One
+  feature owns its meaning, so it declares it. `recall` (`basics`) may not
+  import `companions`, so the `recall` service gained `tags`, the action
+  tags its move carries, and `companions`' `on_install` appends
+  `accompanied` (the `slot_sources` pattern). Install hooks run in feature
+  order: with `companions` listed before `basics`, the service is not
+  there yet, and a WARNING says to list `basics` first (pets would stay
+  behind on recall). Softcode's `tags=['accompanied']` is unchanged.
+- **Worn gear: refuse by name, skip in bulk, ROM's lookup.** ROM's
+  `get_obj_carry` never finds equipment, so `drop sword` while wielding
+  says "You do not have that item."; here a name that fits only equipment
+  says to take it off ("You must remove it first.", ROM's `do_give` line;
+  "You must unwield it first." for a weapon, since REALM's `remove` does
+  not take a wielded one), and a carried spare answers first (`find_carried`).
+  The verb cores `do_drop`/`do_give` refuse too, so a script cannot drop
+  what its NPC wields. Destroying paths: a quest's consumed collect item
+  is taken off first through the new `items` service (`unequip`; `quests`
+  may not import `items`); a spent potion or scroll is never worn, so
+  `magic_items` is unchanged; the corpse makers and `zap` already
+  unequip.
+- **Doors: the far side.** `far_side` lives beside `partner_of` in
+  `realm/core/pairing.py` (topology, no game meaning: the partner, else
+  the one exit in the destination leading back, the compass opposite when
+  there are several). The tags it moves are the `items` feature's. Lock
+  and unlock move the far side silently (ROM's do too); open and close
+  tell the room beyond ("The gate opens.", ROM's `act` to `to_room`). The
+  mirror hooks of showcase 025 still work (writing a tag already there
+  changes nothing); its text now says the stock commands move both faces.
+  Raw writes (`add_tag`, `@tag`) still touch one side, deliberately.
+- **Keys: `key_id`/`unlocks` are canonical** (the consumer's names,
+  `docs/tutorial/02-keys-and-doors.md`). The token is `rom_obj_<vnum>`
+  (ROM's `has_key` matches the key object's vnum); every `key`-type object
+  carries `unlocks`, so a cross-area key works, and so does any other
+  object a door names. Mobs and rooms share ROM's vnum space, so only a
+  `thing` is marked (the first refresh marked the sexton and Road
+  Crossing, vnum 3120; caught by the recipe comparison and pinned in
+  tests). The shipped Midgaard was refreshed from its committed copy with
+  `scripts/dev/refresh_rom_items.py` and is byte-identical to a fresh run
+  of the documented recipe from `~/ROM/area/midgaard.are` (checked). Saved
+  worlds: `items`' `mend_old_door_keys` (on boot) renames an exit's
+  `rom_obj_*` `key` to `key_id` and gives keys `unlocks`, prototypes in
+  spawners and zone resets included; cheap (one pass), so done rather
+  than leaving every converted door unopenable.
+- **Teleport: an observer, not a list of call sites.** Every placement
+  (`move_to`, forced or not) and every walk fires `on_enter`; `combat`
+  observes it and takes anyone whose fight is in another room out of it
+  (`leave_if_elsewhere`), then `settle()`s the encounter: a fight left with
+  nobody to fight closes now ("*** The fight is over. ***"), not at its
+  next beat; mid-round it settles at the round's end as before. `recall`'s
+  and `come_along`'s own `withdraw` calls were dropped (the observer does
+  it). Flee already left first. Raw `location` writes fire nothing and
+  stay as they were: `enter_instance` (softcode), `leave_with` at logout
+  (which withdraws itself), death; the round's "not in the room" check
+  still catches them.
+- **zone_reset: `release_contents`.** A cleared spawn's contents get the
+  teardown disposition (players out, a player's own thing to its owner's
+  home, the rest deleted), so gear goes with its mob and a gift does not
+  vanish. The floor and corpses were never spawns. With that, the
+  importer's `--zone-reset` writes each `reset_spec` entry's `contents`
+  (the first placed instance's G/E gear, or a container's P contents),
+  as `--repop`'s spawners do.
+
+Left open (found on the way, 2026-11-17):
+
+- [x] **ROM's `D` resets are not applied**: a door's state at boot
+  (Midgaard's 3110 west, 3142 south and others are locked in ROM, its
+  gates closed) never reaches the converted exit; the importer's report
+  claimed it did (corrected). The refresh script cannot derive it (an
+  exit keeps no raw ROM state), so it needs a re-conversion of the
+  shipped town, and closed gates with no `spec_mayor` to open them.
+  *2026-11-17: applied as ROM 2.4's `db.c` reads them, both sides; the
+  shipped town re-converted (17 doors); `--zone-reset` doors are put back
+  by `zone_reset` (`reset_tags`). See below.*
+- [x] **`pick` does not find a door by its keywords** (`pick gate`), as
+  `open`/`lock`/`unlock` do (`door_named`). *2026-11-17: it does, and
+  names the door ("You defeat the lock on the gate.").*
+- [x] **`@teleport Bree = ...` can move Bree's account object.** From
+  another room the name resolves globally (`find_object_global`), the
+  account and the character share the name, and `match_one` takes the
+  first of same-named "twins" silently: the telnet play-through put the
+  account object into Cityguard Head Quarters. A global name lookup should
+  prefer characters (or refuse the ambiguity) and never place an account.
+  *2026-11-17: no in-world name lookup sees an account
+  (`realm.core.search.in_world`); twins must share a place and a kind; an
+  account is never placed or destroyed. See below.*
+- [x] **An aggressive mob attacks a superuser.** Midgaard's captain and
+  cityguards in the Captain's Office (ROM 3140/3141, `ACT_AGGRESSIVE`) set
+  on the first character on teleporting in; ROM's `aggr_update` skips
+  immortals. *2026-11-17: `aggressive` skips administrators; `quell` to be
+  jumped. See below.*
+
+**2026-11-17: the four items above, and a playable fido-to-level-up.** The
+maintainer's goal: a new player on a fresh `realm init --system merc
+--template midgaard`, with no admin help, kills beastly fidos and levels
+up. A real telnet play-through (a superuser warrior, then a second
+account's warrior and mage) found what stood in the way;
+`tests/test_fido_to_level_two.py` plays it from creation to level 2 as a
+mage who is not the superuser, with honest seeded dice. Judgment calls:
+
+- **Accounts are not in the world, by the matcher.** The kernel already
+  knew `ACCOUNT_TAG` (`realm.core.options`), so `realm.core.search.in_world`
+  drops accounts and `find_object_global` and softcode `get()` use it;
+  every admin command that looks a name up globally (`@teleport`, `@set`,
+  `@chown`, `@destroy`, `@nuke`, `@snoop`, `@freeze`, `@thaw`, `@boot`,
+  `@force`, `@examine`) goes through `resolve_target`/`find_object_global`,
+  so one change covers them (the audit found no other path; `tell`, `mail`
+  and channels look up `tag="player"`). `@account` keeps its own lookup.
+  An explicit `#id` still reaches an account (an admin examining one), but
+  `ops.check_relocate` and `ops.check_destroy` refuse it ("An account is not
+  in the world."). `@find` still lists accounts: it is a text search that
+  shows each hit's tags. **Twins** (taken first without asking) must now
+  share name, place and kind (`player`/`npc`/`exit`/`room`): three apples
+  on one floor are interchangeable, two cityguards in two rooms or a
+  player and an NPC of one name are a question. Softcode `get()` keeps its
+  documented first-match contract (minus accounts).
+- **REALM's immortal is an administrator** (`get_role(x) >= Role.ADMIN`),
+  the rank the `needs` feature already exempts as ROM exempts immortals;
+  a builder is attacked (REALM's builder rank is a building permission,
+  not ROM's level-52 immortal). `quell` is the opt-in: a quelled admin is a
+  mortal player for every rule, this one included. No new toggle.
+- **`D` resets follow `~/ROM/src/db.c`.** That loader (ROM 2.4 with
+  romolc) reads a room-file lock value and a `D` reset's state with one
+  table (1 closed, 2 closed and locked, 3 to 5 adding NOPASS/PICKPROOF) and
+  ORs them; in Midgaard every door has a `D` reset agreeing with its value,
+  so stock ROM's reading (the value as a door kind) gives the same doors
+  bar PICKPROOF. Both sides of a door take each other's state (REALM's
+  faces agree; ROM keeps one per side). NOPASS and PICKPROOF are reported.
+  `DOOR_ARE`'s door (lock value 2) now starts locked; its test unlocks
+  first. **Resets put doors back** where the machinery has a place: a
+  `zone_reset` puts back any `reset_tags` (`{tag: present}`, generic, so
+  not a door rule in `spawning`), written by `--zone-reset`. `--repop`
+  has no area clock (per-room spawners), so nothing closes a door again
+  there (reported; logged below). Saved worlds keep their doors as they
+  are (door state is live state); a fresh `realm init` gets the closed
+  gates and locked doors. The shipped file was re-converted with the
+  documented recipe and equals a fresh run (`cmp`).
+- **`pick`** tries `door_named` after things and exit names, as `open`
+  does, and names a door by its keyword in its lines.
+- **Fidos.** ROM's fido is `ACT_AGGRESSIVE | ACT_WIMPY`: `aggr_update`
+  passes over an awake victim for a wimpy aggressor, so it bites only
+  sleepers. The importer gave it `aggressive`, and two fidos jumped every
+  arrival (a 10-hp warrior died in the play-through before typing a
+  command). The importer (and the refresh script) leave a wimpy aggressor
+  unaggressive; attacking sleepers is not modeled (logged). Saved worlds'
+  fidos keep `aggressive` (a behavior, not broken data; no boot mend).
+- **20 hit points at level 1.** ROM and Merc start every class at 20
+  (`new_char`); REALM's Merc gave the class hit die (a mage 4, a warrior
+  10). `FIRST_LEVEL_HP`; the hit die tells from level 2. ROM's `nanny`
+  also gives 5 practices and 3 training sessions (`FIRST_PRACTICES`,
+  `FIRST_TRAINS`); `score` shows both. ROM's prime-attribute +3 is not
+  taken (Merc's classes set their stats).
+- **ROM's low-level bonus, per member** (`share_award`, as ROM computes
+  `xp_compute` for each group member with their own level): 10 / (level +
+  4) below level 6. `death_award` (what the kill is worth) is unchanged.
+  ROM's other terms (alignment, the ±25% randomizing, playing-time
+  scaling) are not taken. Level 2 is six fidos (it was twelve).
+- **A level says what it brought**, ROM's `advance_level`: "You raise a
+  level!!  You are now level 2." then "You gain 6 hit points, 1 practice
+  and 1 training session. Your THAC0 is now 19." (mana for casters; THAC0
+  only when it moved). Merc's trains already existed; `train` needs a
+  trainer with `trains_stats` (the Mud School's adept of Furey).
+- **ROM's outfit in `MercSystem`**, a ROM-only rule in `realm/games/merc`:
+  the school's banner, vest and shield (`ROM_OUTFIT_VNUMS`, ROM's
+  `merc.h`) are cloned from their prototypes when a world has them, worn,
+  `value` 0 (ROM's `cost = 0`). A slot already filled is skipped. ROM's
+  map (`OBJ_VNUM_MAP`) is not given. The character-sheet test that wears
+  body armour now `wear ... replace`s the vest.
+- **The Mud School, yes; starting there, no.** `school.are` converts
+  cleanly (`--repop`; two resets naming Midgaard objects are reported) and
+  is up from the Temple as in ROM, where Midgaard's `up` exit led nowhere.
+  It gives the outfit its objects, a trainer, weak monsters and no
+  cityguards. ROM starts new characters in it; the template keeps the
+  Common Square, which its banner promises and the maintainer's goal is
+  about (fidos are there), and `help newbie` names the school.
+- **Three-second rounds, as config.** ROM's `PULSE_VIOLENCE`; REALM's
+  default beat is 15 s (a turn-based table's). The Merc scaffold and
+  Midgaard write `COMBAT_BEAT_DEFAULT`/`COMBAT_BEAT_MIN = 3.0`; the engine
+  default is unchanged. With 15 s rounds a passing cityguard
+  (`spec_guard`: the most evil fighter) killed every fido before the
+  player's first swing.
+- **Help topics as data** (`help_def`, a `basics` def kind): name or
+  `keywords`, `text` paged, before a command of the same name. Midgaard's
+  `help newbie` is ROM's "newbie info" for this town; the welcome banner
+  points to it (ROM shows it at creation: not done, logged).
+- **`where <name>`**: NPCs and online players in the viewer's zone whom
+  the viewer could see, matched without the substring tier, at most ten
+  (ROM shows the first only).
+- **`wear all`** (ROM's): what has a free slot, never replacing; a
+  player who died re-dresses from their corpse in one command.
+- **The start room.** Midgaard's `init_world` set `server.startup_room`
+  without tagging it, and `_load_world` finds the start room by its tag,
+  so the first restart made a default "The Void" (no exits) the start
+  room for good: the second character of the play-through was born there,
+  and the dead respawned there. `prepare_world` tags the room `init_world`
+  chose. A mend in the template's `game.py` cannot reach an existing game
+  (its `game.py` is the game's own copy) and nothing can tell which room
+  was meant, so the boot logs a WARNING with the `@tag` fix
+  (docs/guides/operations.md).
+- **Small things the play-through showed**: `get all from` an empty
+  corpse read "There's nothing to get corpse of the beastly fido." (now
+  "There is nothing in the corpse of the beastly fido."); `score` showed
+  practices but never training sessions ("Practices: 6   Training
+  sessions: 4"). The void warning fires only for a void with no exits (a
+  scaffold builder digs out of the default void, which is no mistake).
+- **The first hour's story** follows: Bree picks her first fight (no
+  fido jumps her), has 20 hit points, earns 170 a fido, loses 170 at
+  death, re-dresses with `wear all`, levels on the vagabond (1600), finds
+  four fidos with `where fido` for the baker, and reaches level 3 when her
+  rottweiler kills the second vagabond. Still deterministic under
+  `PYTHONHASHSEED` 0, 1, 2, 5 and 77.
+
+Left open (found on the way, 2026-11-17):
+
+- [ ] **Cityguards take a newbie's kills.** ROM's `spec_guard` joins any
+  fight against the most evil fighter, and the experience is the killer's;
+  with three-second rounds a newbie usually wins first, but not always.
+  ROM's `do_kill` also strikes at once, where REALM's first round comes a
+  beat later; an opening round (a combat setting) would close the gap.
+  `help newbie` warns.
+- [ ] **A wimpy aggressor never bites a sleeper**, as ROM's does (fidos
+  and alley cats are simply not aggressive); and ROM's aggressor spares a
+  player more than five levels above it (`ch->level >= vch->level - 5`),
+  which `aggressive` does not model.
+- [ ] **Under `--repop` nothing closes a door again**, and nothing opens
+  Midgaard's gates at dawn (`spec_mayor`): a gate a player opens stays
+  open until someone closes it.
+- [ ] **ROM shows "newbie info" at creation**; REALM's banner says to type
+  `help newbie`. A game hook after chargen would do it.
+- [ ] **ROM's newbie map** (3162, "a map of the city of Midgaard", which
+  ROM's `nanny` gives every new character) carries its picture in an
+  extra description, which the importer drops (rooms' and objects' `E`
+  sections); with them it could join the outfit.
+- [ ] **`where fido` names rooms that share a name** ("Main Street",
+  "The Main Street" are two rooms each), so the answer can mislead; ROM is
+  the same.
 
 ## Priority 1 - Should Address Soon
 

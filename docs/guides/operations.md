@@ -83,7 +83,7 @@ exits with 0 after `@shutdown` or a signal (`Ctrl-C`, `systemctl stop`),
 
 | Command | Does |
 |---|---|
-| `@snoop <player>` | everything the player is sent is copied to you, each line marked `[Name]` |
+| `@snoop <player>` | everything the player is sent is copied to you, each line marked `[Name]` (a player's name means the character, never the account of the same name; the same for `@freeze`, `@thaw`, `@boot` and every other name lookup but `@account`) |
 | `@snoop` | stops every snoop you have running |
 | `@freeze <player>` | everything they type is answered "You are frozen and cannot act." (`quit` still works) |
 | `@thaw <player>` | lets them act again |
@@ -161,8 +161,19 @@ database's version to the engine's, in order, each in its own
 transaction, and refuses while the server is running. A database newer
 than the engine is refused too: upgrade the engine. Changes to the
 objects themselves (accounts made from old characters, a new clock, command
-aliases moved out of `aliases` into `command_aliases`) are made at boot,
-and need nothing from you.
+aliases moved out of `aliases` into `command_aliases`, a converted door's
+`key` renamed `key_id` and its keys given `unlocks`) are made at boot, and
+need nothing from you.
+
+One thing a boot cannot mend: a world whose `init_world` chose a start
+room before 2026-11-17 (Midgaard's Common Square) lost that choice at its
+first restart, and new characters and the dead coming back have arrived
+in a default room called "The Void" (no exits) ever since. Nothing tells
+which room was meant, so the boot logs a WARNING instead; an administrator
+fixes it with `@tag <the room> = start_room` and `@untag <the void> =
+start_room` (and `@teleport`s anyone standing in the void). A world made
+now keeps its start room: the room `init_world` chooses is tagged
+`start_room`.
 
 | Version | Change |
 |---|---|

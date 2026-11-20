@@ -76,12 +76,13 @@ shops, and specials follow the ROM 2.4 `db.c` field order.
 | ROM | REALM |
 |---|---|
 | room (`#ROOMS`) | object tagged `room`; `sector:<name>` tag + `sector` attr; room-flag letters kept as `rom_room_flags`, and `ROOM_NO_RECALL` (N) tagged `no_recall`; `ROOM_PET_SHOP` (M): the room's shopkeeper sells the mobs reset into the next room (vnum + 1) as pets (`sells_pets`, `pet_stock` naming their prototypes, each priced at ROM's `10 * level * level` silver in gold as `value`) |
-| door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a lockable door adds `door`/`closed` tags, the key vnum as a `key` attr; the door's keywords as `keywords` (`gate`), which `open`, `close`, `lock` and `unlock` answer to as ROM's `find_door` does (`open gate`), and which name it in their lines ("You open the gate."). They are not `aliases`: an exit's aliases walk through it, and ROM never walks on a door keyword |
+| door `D0..D5` | an object tagged `exit` in the origin room, `db.destination` = the target room's id; a door (a lock value above 0) is tagged `door`, and `closed` and `locked` as it starts (see reset `D` below), and names its key in `key_id` (`rom_obj_<vnum>`), which every `key`-type object (and any other object a door names) answers to in `unlocks`, so `lock` and `unlock` work with the key as ROM's `has_key` does; the door's keywords as `keywords` (`gate`), which `open`, `close`, `lock` and `unlock` answer to as ROM's `find_door` does (`open gate`), and which name it in their lines ("You open the gate."). They are not `aliases`: an exit's aliases walk through it, and ROM never walks on a door keyword |
 | names | a mob or object is called by its **short description** (`the wizard`, `a long sword`): that is its `name`, shown in rooms, inventory, shop lists and combat. Its ROM **keywords** are its `aliases`, the whole list and each word (`["sword long", "sword", "long"]`), so `get sword`, `get long` and `get sword long` all find it. With no short description the keywords are the name |
-| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `credits` (its money in gold: ROM's `wealth`, which is silver, over 100; the raw figure kept as `rom_wealth`), `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight), ACT_SCAVENGER → `scavenger` that picks up what lies about and eats no corpse (`eat_corpses: false`; only `spec_fido` eats them). Shopkeepers are stripped of `wandering` and kept at the counter |
+| mobile (`#MOBILES`) | object tagged `npc` + `prototype`; `level`, `alignment`, `sex`, `credits` (its money in gold: ROM's `wealth`, which is silver, over 100; the raw figure kept as `rom_wealth`), `points` (level-scaled kill XP), `hp`/`max_hp` (from the hit dice), `damage_dice`; `race:<x>` tag. **ACT flags → the shipped NPC-AI behaviors**: non-SENTINEL → `wandering` (`stay_in_zone` if ACT_STAY_AREA), ACT_AGGRESSIVE → `aggressive` (attack-on-sight; not with ACT_WIMPY, which in ROM attacks only a sleeping player: the beastly fido and the alley cat leave the awake alone), ACT_SCAVENGER → `scavenger` that picks up what lies about and eats no corpse (`eat_corpses: false`; only `spec_fido` eats them). Shopkeepers are stripped of `wandering` and kept at the counter |
 | room (`#ROOMS`), continued | also tagged `zone:<area>` (one zone per imported area — bounds STAY_AREA wanderers, and the room-set a `zone_reset` or `population` orchestrator draws on) and `outdoor` for any non-interior sector (so an orchestrator can populate "all outdoor rooms") |
 | object (`#OBJECTS`) | object tagged `thing` + `prototype` + the item-type word; `ITEM_MAGIC` tagged `magic` and `ITEM_ANTI_GOOD`/`_EVIL`/`_NEUTRAL` tagged `anti_good`/`anti_evil`/`anti_neutral`; `level` (the least level to use it under Merc), `weight`, `value` (cost), `slot` for wearables (Merc's slot names: the hold flag is `held`, a light source `light`), `wieldable` for weapons; potions, pills, scrolls, wands and staves get `spells`, `spell_level` and `charges`; food gets `nourishment` (its hours of fullness times 20), drink containers `liquid` (the liquid's name; an old-format number is looked up in ROM's liquid table), `liquid_held` and `liquid_remaining` (units times 30, CoffeeMud's importer's scale) and the `drink` tag, fountains `liquid` and the `drink` and `fountain` tags (they never run dry); the five ROM value fields kept raw in `rom_values` |
-| reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script. Read as ROM's `load_resets` reads them: a line starting with `*` is a comment, and after a reset's fields the rest of its line is one too. `P` puts into an object, never a mob that shares its vnum. `E` equips as a player's gear is: a weapon at `wield` is tagged `wielded` (the mob fights with it), anything else `worn` in its Merc `slot` (ROM's `hold` is `held`; `float`, which Merc has no slot for, stays carried and is reported). With `--repop` a mob's spawner prototype carries its `G` and `E` gear as `contents`, so a killed mob comes back armed, as ROM's repop re-runs those resets |
+| reset `M`/`O`/`G`/`E`/`P` | **instantiated at convert time**: the world ships with mobs and gear already placed (a static snapshot, the way a builder's `@export` looks), not a reset script. Read as ROM's `load_resets` reads them: a line starting with `*` is a comment, and after a reset's fields the rest of its line is one too. `P` puts into an object, never a mob that shares its vnum. `E` equips as a player's gear is: a weapon at `wield` is tagged `wielded` (the mob fights with it), anything else `worn` in its Merc `slot` (ROM's `hold` is `held`; `float`, which Merc has no slot for, stays carried and is reported). With `--repop` a mob's spawner prototype carries its `G` and `E` gear as `contents`, so a killed mob comes back armed, as ROM's repop re-runs those resets; with `--zone-reset` each `reset_spec` entry carries the gear (or a container's `P` contents) of the first one placed, and a reset clears a mob with its gear before it reloads |
+| reset `D` and a door's lock value | a door's state at boot, as ROM 2.4's `db.c` reads both: the room file's lock value and a `D <0> <room> <door> <state>` reset name the same flags (0 open, 1 closed, 2 closed and locked; 3 to 5 add NOPASS and PICKPROOF, which have no equivalent and are reported), and a reset adds its flags to the value's. The two sides of a door start agreeing: each side takes the other's state too (ROM keeps one per side). A `D` on an exit that is no door is reported and skipped (ROM refuses to boot). ROM's area reset puts every door back as it started; with `--zone-reset` each door exit carries `reset_tags` (`{"closed": true, "locked": true}`) and the zone master's reset puts them back; with `--repop` nothing closes a door again (reported) |
 | shop (`#SHOPS`) | the keeper mob (never an object with the same vnum) gains the `shopkeeper` behavior with `markup`/`buyback` derived from its profit margins; per-item-type buy filters kept as `rom_shop_buys` |
 
 The prototypes are emitted too (tagged `prototype`), so even a mob or item
@@ -149,8 +150,9 @@ in REALM yet, and a builder can wire it up in softcode.
   Use `--repop` to keep a lived-in world stocked continuously, `--zone-reset`
   for a dungeon that should snap back between delves (see [maintain vs
   restore](../guides/world-management.md#keeping-a-world-alive-four-tools)).
-  Reset `R` (randomize exits) and reset `D` door-state are noted in
-  `--report`.
+  Reset `R` (randomize exits) is noted in `--report` and not applied.
+  Reset `D` sets a door's state at boot (see the table above); only
+  `--zone-reset` closes and locks doors again afterwards.
 - **`#SPECIALS` (spec_procs).** Compiled C behavior functions, **mapped to
   shipped behaviors** where one fits: `spec_cast_*` / `spec_breath_*` →
   `caster` (with that proc's canonical spell list; import the `merc-classic`
@@ -227,7 +229,7 @@ What is left is one item, mob programs. (Counts are areas affected, out of
 | `spec_poison` (32) | `venomous` |
 | `spec_fido`, `spec_janitor` (30) | `scavenger`, eating corpses (the fido) or picking up litter (the janitor) |
 | resets | the mobs and objects placed at convert time; `--repop` respawns them and restocks shops, `--zone-reset` restores the whole zone |
-| doors, keys | exits with `door`/`closed` tags and a `key` attribute; `open gate` by the door's keywords |
+| doors, keys | exits with `door`/`closed` tags and a `key_id` its key's `unlocks` matches; `open gate` by the door's keywords; opening, closing, locking or unlocking one side does the other's too |
 | sectors | `sector:<name>`, `outdoor`, `lamplit` city streets; movement points per sector; night darkens outdoor rooms |
 | `ROOM_NO_RECALL` | `no_recall`: `recall` is refused there |
 | `ROOM_PET_SHOP` | the keeper sells the next room's mobs as pets that follow, obey `order` and fight beside their owner ([Pets, Charm and Mounts](../guides/companions.md#pet-shops)) |
@@ -257,8 +259,8 @@ lost (`--room-flags VNUM=LETTERS`, `--spells VNUM[,VNUM]=spell[+spell]`).
   import as objects without their behavior (a teleport is showcase 157 /
   033 in softcode); corpses in the file are containers.
 - Smaller losses are listed under [Capability gaps](#capability-gaps-what-does-not-map-and-why):
-  a light's duration, a container's key, reset `R` and `D`, cross-area
-  exits.
+  a light's duration, a container's key, reset `R`, a door closed again
+  under `--repop`, cross-area exits.
 
 ## The shipped Midgaard
 
@@ -315,6 +317,38 @@ again:
    and run `tests/test_first_hour.py`, `tests/test_midgaard_playable.py`
    and the rest of the suite: they play this exact file.
 
+A fresh run of these steps gives a file byte-identical to the shipped one
+(`cmp`); keep it so.
+
+### The shipped Mud School
+
+`realm/examples/midgaard/data/areas/school.json` is ROM's newbie area,
+`area/school.are` from the same distribution (`#AREADATA` `Name mud
+school`, `VNUMs 3700 3799`, 2,192 lines): 59 rooms with the leashed
+monsters a new character practises on, the adepts who practise and train
+(the adept of Furey is ROM's `ACT_TRAIN`), the shop of the adept of
+Selene, and the "sub issue" gear ROM's `do_outfit` hands out. One step
+makes it:
+
+```bash
+realm import-rom path/to/area/school.are --out school.json --repop --report
+```
+
+and the result is copied over the shipped file as is (two-space
+indentation; nothing in it needs the refresh script). Its entrance (3700)
+is up from Midgaard's Temple of Mota (3001), as in ROM, and its way out
+leads back down. Two of its resets give the adept of Selene Midgaard
+objects (3138, 3031), which a converter of one area cannot see: reported
+and skipped.
+
+ROM starts a new character in the school (`ROOM_VNUM_SCHOOL`); the
+template keeps the Common Square, where the fidos are (the template's
+promise, and what the maintainer asked for), and the school is a short
+walk away (`help newbie` says where). `MercSystem.outfit_new_character`
+gives a new character the school's war banner, vest and shield, worn and
+worth nothing at a shop, as ROM's `do_outfit` does (`ROM_OUTFIT_VNUMS`),
+whenever their prototypes are in the world.
+
 **The `.are` is not in the repository.** The Diku licence
 (`doc/license.doc` in the ROM distribution) must go "as is" with any copy
 of any part of DikuMud, and ROM's (`doc/rom.license`) asks a derivative to
@@ -328,7 +362,8 @@ command; whether a REALM game that loads a converted area owes that is a
 question for the maintainer (BACKLOG, "After the MUD plan").
 
 The template adds what ROM keeps in its C code rather than the area file:
-ROM's `class_table` closes each guild's bar to the other classes (the
+the Mud School above (ROM's `nanny` and `do_outfit`); ROM's `class_table`
+closes each guild's bar to the other classes (the
 Mage's Bar 3018, the Cleric's Bar 3003, the Thieves Bar 3028, the Bar of
 Swordsmen 3022), which `init_world` does with an `enter` lock on each
 (`GUILD_BARS` in the template's `config.py`; barbarians, a class ROM never

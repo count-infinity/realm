@@ -26,6 +26,8 @@ from realm.std.economy.credits import (
     transfer_credits,
 )
 from realm.std.economy.shop import find_shopkeeper
+from realm.std.items.equipment import take_it_off_first
+from realm.std.items.inventory import find_carried
 
 
 async def cmd_credits(ctx: CommandContext) -> None:
@@ -170,10 +172,13 @@ async def cmd_sell(ctx: CommandContext) -> None:
             f"{keeper.name.capitalize()} isn't buying.")
         return
 
-    item = find_object(ctx, ctx.args.strip(),
-                       search_room=False, search_inventory=True)
+    item = find_carried(ctx, ctx.args.strip())
     if item is None:
         await ctx.session.send(f"You aren't carrying '{ctx.args.strip()}'.")
+        return
+    refusal = take_it_off_first(item)
+    if refusal:
+        await ctx.session.send(refusal)
         return
 
     price = behavior.price_to_sell(keeper, item, ctx.player)

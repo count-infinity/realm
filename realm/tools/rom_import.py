@@ -45,6 +45,17 @@ DIRS = [
     ("west", 1), ("up", 5), ("down", 4),
 ]
 
+#: ROM's exit reset flags for a door's lock value in the room file
+#: (``load_rooms``) and for a ``D`` reset's state (``load_resets``): one table
+#: in ROM 2.4's ``db.c``, and a ``D`` reset ORs its flags into the room
+#: file's. 1 is closed, 2 closed and locked; NOPASS (no ``pass door``) and
+#: PICKPROOF have no equivalent here and are reported.
+DOOR_STATES = {
+    0: (), 1: ("closed",), 2: ("closed", "locked"),
+    3: ("closed", "locked", "nopass"), 4: ("closed", "locked", "pickproof"),
+    5: ("closed", "locked", "nopass", "pickproof"),
+}
+
 SECTORS = {
     0: "inside", 1: "city", 2: "field", 3: "forest", 4: "hills",
     5: "mountain", 6: "water_swim", 7: "water_noswim", 8: "underwater",
@@ -416,6 +427,8 @@ class Area:
     mob_resets: list = field(default_factory=list)   # (mob_v, room_v)
     obj_resets: list = field(default_factory=list)   # (obj_v, room_v)
     obj_reset_rooms: set = field(default_factory=set)   # rooms with O resets
+    #: ROM ``D`` resets: (room vnum, direction) -> the state's reset flags.
+    door_resets: dict = field(default_factory=dict)
     _inst: int = 0
 
     def gap(self, msg: str) -> None:
@@ -607,7 +620,12 @@ def _mobiles(r: Reader, area: Area) -> None:
             proto["behaviors"].append(
                 {"behavior_id": "wandering",
                  "params": {"stay_in_zone": "G" in act_letters}})  # STAY_AREA
-        if "F" in act_letters:                           # ACT_AGGRESSIVE
+        if "F" in act_letters and "H" in act_letters:    # ACT_AGGRESSIVE + ACT_WIMPY
+            # ROM's aggr_update: a wimpy aggressor attacks only a player
+            # who is asleep (the beastly fido); no one awake is jumped.
+            area.gap("ACT_AGGRESSIVE with ACT_WIMPY: attacks only the sleeping in ROM; "
+                     "not aggressive here")
+        elif "F" in act_letters:                         # ACT_AGGRESSIVE
             proto["behaviors"].append(
                 {"behavior_id": "aggressive", "params": {}})
         if "C" in act_letters:                           # ACT_SCAVENGER
@@ -782,8 +800,17 @@ def _objects(r: Reader, area: Area) -> None:
                 attrs["ac_apply"] = int(values[0])
             except (ValueError, TypeError):
                 pass
+        if type_name == "key":
+            attrs["unlocks"] = key_token(vnum)
         area.obj_protos[vnum] = obj_record(
             f"rom_obj_{vnum}", shown, look, tags, attrs)
+
+
+def key_token(vnum: int) -> str:
+    """The lock a ROM key object opens: an exit's ``key_id`` and the key's
+    ``unlocks`` (what ``lock`` and ``unlock`` match) both name it, as ROM's
+    ``has_key`` matches the key object's vnum."""
+    return f"rom_obj_{vnum}"
 
 
 def wear_slot(type_name: str, wear_bits: int) -> str | None:
@@ -961,6 +988,9 @@ def _rooms(r: Reader, area: Area) -> None:
                 room["_exits"].append({
                     "dir": d, "desc": door_desc, "keywords": keywords,
                     "locks": locks, "key": key, "to": to_vnum})
+                if key > 0 and key in area.obj_protos:
+                    # Any object can be ROM's key, not only a `key`-type one.
+                    area.obj_protos[key]["attrs"].setdefault("unlocks", key_token(key))
             elif sub == "E":
                 r.string()
                 r.string()                 # extra desc kw + text
@@ -1032,12 +1062,50 @@ def _reset(r: Reader, area: Area, letter: str, last_mob_iid: str | None) -> str 
         wear = r.number()
         _equip_mob(area, obj_v, last_mob_iid, wear)
     elif letter == "D":
-        area.gap("reset D (door open/closed/locked state): applied as "
-                 "the exit's initial lock tags where possible")
+        room_v = r.number()
+        door = r.number()
+        state = r.number()
+        _door_reset(area, room_v, door, state)
     else:
         area.gap("reset R (randomize exits) has no static equivalent; "
                  "the exits are emitted in their authored order")
     return last_mob_iid
+
+
+def _door_reset(area: Area, room_v: int, door: int, state: int) -> None:
+    """ROM's ``load_resets`` ``D``: the door in ``room_v``'s ``door``
+    direction starts ``state`` (0 open, 1 closed, 2 closed and locked; see
+    ``DOOR_STATES``). ROM refuses to boot on a ``D`` for an exit that is no
+    door; here it is reported and skipped."""
+    room = area.rooms.get(room_v)
+    exit_ = next((ex for ex in (room or {}).get("_exits", []) if ex["dir"] == door), None)
+    if exit_ is None or not exit_["locks"]:
+        area.gap("reset D on an exit that is not a door (ROM refuses to boot): skipped")
+        return
+    if state not in DOOR_STATES:
+        area.gap("reset D with a state ROM does not know: skipped")
+        return
+    flags = area.door_resets.setdefault((room_v, door), set())
+    flags.update(DOOR_STATES[state])
+
+
+def _door_flags(area: Area) -> dict[tuple[int, int], set[str]]:
+    """Each door's state at boot, (room vnum, direction) -> flags: its lock
+    value's (``DOOR_STATES``), ORed with its ``D`` resets', and with those of
+    the door's other side, the exit beyond leading back (ROM keeps one set
+    per side; REALM's two faces of a door agree, so they start agreeing)."""
+    own: dict[tuple[int, int], set[str]] = {}
+    for vnum, room in area.rooms.items():
+        for ex in room.get("_exits", []):
+            if ex["locks"]:
+                own[(vnum, ex["dir"])] = (set(DOOR_STATES.get(ex["locks"], ()))
+                                          | area.door_resets.get((vnum, ex["dir"]), set()))
+    flags: dict[tuple[int, int], set[str]] = {}
+    for (vnum, door), state in own.items():
+        ex = next(e for e in area.rooms[vnum]["_exits"] if e["dir"] == door)
+        back = DIRS[door][1] if door < len(DIRS) else None
+        flags[(vnum, door)] = state | own.get((ex["to"], back), set())
+    return flags
 
 
 def _clone_proto(area: Area, protos: dict[int, dict], vnum: int,
@@ -1322,12 +1390,18 @@ def _attach_zone_reset(area: Area) -> None:
             proto = protos.get(vnum)
             if proto is None or room_v not in area.rooms:
                 continue
-            spec.append({"prototype": _instance_prototype(proto, vnum),
-                         "room": f"rom_{room_v}", "count": count})
-            for inst in area.objects:
-                if inst["attrs"].get("prototype_vnum") == vnum \
-                        and inst.get("location") == f"rom_{room_v}" \
-                        and kind in inst["tags"] and marker not in inst["tags"]:
+            prototype = _instance_prototype(proto, vnum)
+            placed = [inst for inst in area.objects
+                      if inst["attrs"].get("prototype_vnum") == vnum
+                      and inst.get("location") == f"rom_{room_v}"
+                      and kind in inst["tags"]]
+            if placed:
+                # A reset clears a mob (or a container) with what it holds and
+                # reloads it with its G, E (or P) resets, as --repop's spawners do.
+                prototype["contents"] = carried_prototypes(area.objects, placed[0]["id"])
+            spec.append({"prototype": prototype, "room": f"rom_{room_v}", "count": count})
+            for inst in placed:
+                if marker not in inst["tags"]:
                     inst["tags"].append(marker)
 
     _entries(area.mob_resets, area.mob_protos, "npc")
@@ -1352,6 +1426,7 @@ def _finalize(area: Area) -> None:
     elif area.repop:
         _attach_spawners(area)         # after #SHOPS patched keeper protos
         _attach_restockers(area)
+    doors = _door_flags(area)
     for vnum, room in area.rooms.items():
         exits = room.pop("_exits", [])
         area.objects.append(room)
@@ -1363,17 +1438,30 @@ def _finalize(area: Area) -> None:
             name = DIRS[ex["dir"]][0] if ex["dir"] < len(DIRS) else \
                 f"dir{ex['dir']}"
             tags = ["exit"]
-            if ex["locks"]:
-                tags.append("door")
-                if ex["locks"] >= 2:
-                    tags.append("closed")
             eattrs = {"destination": f"rom_{ex['to']}"}
+            state = doors.get((vnum, ex["dir"]))
+            if state is not None:
+                tags.append("door")
+                tags.extend(t for t in ("closed", "locked") if t in state)
+                for flag in ("nopass", "pickproof"):
+                    if flag in state:
+                        area.gap(f"door flag {flag.upper()}: no equivalent; the door "
+                                 "is closed and locked")
+                if area.zone_reset:
+                    # ROM's area reset sets every exit back to its reset
+                    # flags; the zone master's reset puts these back.
+                    eattrs["reset_tags"] = {"closed": "closed" in state,
+                                            "locked": "locked" in state}
+                elif "closed" in state:
+                    area.gap("a door's state is set at boot only: nothing closes or "
+                             "locks it again (ROM's area reset does; --zone-reset "
+                             "puts doors back)")
             if ex["keywords"]:
                 eattrs["keywords"] = ex["keywords"]
             if ex["desc"]:
                 eattrs["look"] = ex["desc"]
             if ex["key"] and ex["key"] > 0:
-                eattrs["key"] = f"rom_obj_{ex['key']}"
+                eattrs["key_id"] = key_token(ex["key"])
             area.objects.append(obj_record(
                 f"rom_exit_{vnum}_{ex['dir']}", name, ex["desc"], tags,
                 eattrs, location=f"rom_{vnum}"))

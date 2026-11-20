@@ -99,13 +99,19 @@ def build_world(store, settings: Settings | None = None, *,
     return world
 
 
+#: The default start room's name, when a world has no ``start_room``.
+_VOID = "The Void"
+
+
 async def prepare_world(world: World, host, *, empty: bool) -> None:
     """The first-boot steps after a world is loaded, shared by
     ``GameServer.start`` and ``Simulator.start``: the game's ``init_world``
     (only when the store was ``empty``; it receives ``host``, which offers
     ``persistence`` and a settable ``startup_room``), data-defined role
     ranks, and a default start room when neither the data nor
-    ``init_world`` provided one."""
+    ``init_world`` provided one. A start room ``init_world`` chose is
+    tagged ``start_room`` (the tag the next boot looks for), so the choice
+    outlives a restart."""
     init_world = world.settings.init_world
     if empty and init_world:
         try:
@@ -113,6 +119,11 @@ async def prepare_world(world: World, host, *, empty: bool) -> None:
         except Exception as e:
             logger.error(f"Error in init_world callback: {e}")
             raise
+        chosen = world.startup_room
+        if chosen is not None and not chosen.has_tag('start_room'):
+            chosen.add_tag('start_room')
+            if world.store is not None:
+                await world.store.save(chosen)
 
     # Data-defined role_def ranks active from boot (including any
     # init_world just created) rather than from the first @reload.
@@ -122,7 +133,7 @@ async def prepare_world(world: World, host, *, empty: bool) -> None:
     if world.startup_room is None:
         from realm.core.objects import GameObject
         world.startup_room = GameObject(
-            name="The Void",
+            name=_VOID,
             description="You are floating in an empty void. This is the default "
                         "starting location.",
             tags=['room', 'start_room'],
@@ -130,6 +141,14 @@ async def prepare_world(world: World, host, *, empty: bool) -> None:
         if world.store is not None:
             await world.store.save(world.startup_room)
         logger.info("Created default startup room")
+    elif (world.startup_room.name == _VOID and world.store is not None
+          and not any(o.is_exit for o in world.startup_room.contents)
+          and any(room is not world.startup_room for room in world.store.find_cached(tag='room'))):
+        # A world saved before init_world's choice was kept lost it at its
+        # first restart; nothing here can tell which room was meant.
+        logger.warning(f"The start room is the default {_VOID!r}, which has no way out; "
+                       "tag the room new characters should start in: "
+                       "@tag <room> = start_room, then @untag the void's start_room")
 
 
 #: What became of a line of input (``route_input``).

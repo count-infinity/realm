@@ -98,7 +98,10 @@ in the room, never a corpse or a plain thing: `kill fido` beside "the
 corpse of fido dog" means the fido. A fight goes on while one living
 fighter has another as its target; when the last of one side dies, flees
 or leaves, the others stop (two mobs whose quarry is gone do not stay in
-combat).
+combat). Walking out takes a `flee`; anyone placed out of the room some
+other way (`@teleport`, `recall`, a script's `move_to` or `teleport_obj`)
+is out of the fight the moment they arrive, as ROM's `transfer` stops the
+fight, and a fight left with nobody to fight ends at once.
 
 ## Coming round
 
@@ -125,7 +128,9 @@ once. `ON_DEATH` fires first, then the body is dealt with as its
 
 When a player's party kills something, the game system divides the award
 among the party members in the room (`share_award`: equal shares, or
-under Merc by level, so a level 3 and a level 1 split it 3:1) and then
+under Merc by level, so a level 3 and a level 1 split it 3:1, and a member
+below level 6 is paid ROM's low-level bonus, `10 / (level + 4)` times the
+share: a level-1 character's fido pays 170, not 85) and then
 each sees the kill (`on_kill`: under Merc, alignment moves). The corpse
 holds the victim's money as well as its belongings; the killer's
 `autoloot` setting takes everything from it at once, `autogold` only the

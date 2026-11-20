@@ -100,3 +100,62 @@ class TestZoneReset:
         skel = _skeletons(w.crypt)[0]
         assert skel.has_tag(f"reset:{w.master.id}")
         assert not skel.has_tag("ephemeral")
+
+    async def test_a_cleared_mob_takes_what_it_carries_with_it(self, world):
+        # A spec prototype's ``contents`` (the importer's G and E resets)
+        # come with each spawn; a reset clears them with their mob rather
+        # than leaving them inside a deleted mob (BACKLOG 2026-11-17).
+        w = world
+        w.master.db.set("reset_spec", [
+            {"prototype": {"name": "a skeleton", "tags": ["npc"], "contents": [
+                {"name": "a rusty sword", "tags": ["thing", "weapon", "wielded"]},
+                {"name": "a bone", "tags": ["thing"]}]},
+             "room": w.crypt.id, "count": 1},
+        ])
+        await _force_due(w)
+        [first] = _skeletons(w.crypt)
+        sword = next(o for o in first.contents if o.name == "a rusty sword")
+        await _force_due(w)
+        [second] = _skeletons(w.crypt)
+        assert {o.name for o in second.contents} == {"a rusty sword", "a bone"}
+        assert w.store.get_cached(sword.id) is None and sword.location is None
+        swords = [o for o in w.store.all_cached() if o.name == "a rusty sword"]
+        assert swords == [next(o for o in second.contents if o.name == "a rusty sword")]
+
+    async def test_a_reset_leaves_the_floor_a_corpse_and_a_players_things(self, world):
+        # Only the master's spawns and what is inside them go: a thing on
+        # the floor, a corpse, and a player's own thing a skeleton was given
+        # (it goes home to its owner) stay in the world.
+        w = world
+        await _force_due(w)
+        skeleton = _skeletons(w.crypt)[0]
+        litter = w.sim.obj("a torn map", location=w.crypt, tags=["thing"])
+        corpse = w.sim.obj("corpse of a skeleton", location=w.crypt,
+                           tags=["thing", "container"])
+        ring = w.sim.obj("Alice's ring", location=skeleton, tags=["thing"])
+        ring.owner = w.alice
+        w.alice.db.set("home", w.hall.id)
+        await _force_due(w)
+        assert litter.location is w.crypt and corpse.location is w.crypt
+        assert ring.location is w.hall and w.store.get_cached(ring.id) is ring
+
+
+@pytest.mark.asyncio
+async def test_a_reset_puts_doors_back_as_they_were(world):
+    # ROM's reset_room sets every exit back to its reset flags (the room
+    # file's door and the area's D resets): a gate players opened closes, a
+    # lock they picked locks, a door they shut opens. Here an object's
+    # ``reset_tags`` ({tag: present}) are put back at each reset.
+    w = world
+    gate = w.sim.obj("west", location=w.crypt, tags=["exit", "door"],
+                     destination=w.hall.id,
+                     reset_tags={"closed": True, "locked": True})
+    hatch = w.sim.obj("down", location=w.crypt, tags=["exit", "door", "closed"],
+                      destination=w.hall.id,
+                      reset_tags={"closed": False, "locked": False})
+    outside = w.sim.obj("east", location=w.hall, tags=["exit", "door"],
+                        destination=w.crypt.id, reset_tags={"closed": True})
+    await _force_due(w)
+    assert gate.has_tag("closed") and gate.has_tag("locked")
+    assert not hatch.has_tag("closed")
+    assert not outside.has_tag("closed")           # the hall is not the master's zone

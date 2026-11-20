@@ -32,6 +32,8 @@ def get(frame, spec: str) -> GameObject | None:
     - anything else — a NAME match, local first (the executor's room and
       inventory) then the whole world, taking the FIRST match and never
       raising on ambiguity. Prefer ``#id``/``$keyid`` when identity matters.
+      A name never finds an account (a character's login record, often of
+      the same name); ``#id`` still does.
 
     Returns the GameObject, or None if not found.
 
@@ -57,7 +59,7 @@ def get(frame, spec: str) -> GameObject | None:
     # player commands; then the whole world. Same tiered matcher as
     # commands; scripts take the first match rather than raising on
     # ambiguity.
-    from realm.core.search import match_objects
+    from realm.core.search import in_world, match_objects
 
     local: list[GameObject] = []
     if frame.executor is not None:
@@ -73,7 +75,7 @@ def get(frame, spec: str) -> GameObject | None:
 
     if not frame.store:
         return None
-    matches = match_objects(spec, frame.store.all_cached()).matches
+    matches = match_objects(spec, in_world(frame.store.all_cached())).matches
     return matches[0] if matches else None
 
 @softfn(group='Objects & attributes', readonly=True)

@@ -26,9 +26,11 @@ door is a solved problem.
 **The two-sided problem.** `@dig The Vault = vault door, vault door`
 gives you what every MU* gives you: *two independent exit objects*
 wearing the same name, A→B in this room and B→A in the new one. Tag one
-side `closed` and the other side still stands open; unlock the north
-face and walk through, and the south face still claims to be locked.
-Every multi-room build hits this eventually. What links them is the
+side `closed` by hand (`add_tag`, `@tag`) and the other side still
+stands open. The stock `open`/`close`/`lock`/`unlock` commands already
+move both faces, as ROM's do (since 2026-11-17); everything else that
+writes state on one side (a script, a lever, a timer) is yours to keep in
+step, and every multi-room build hits that eventually. What links them is the
 **pairing** the engine made at birth: a two-way `@dig` stamps each
 exit's `partner` attribute with the other's `#id`, and the engine owns
 that relationship end to end. Relinking a paired exit (`@link`,
@@ -63,7 +65,11 @@ sound:
   drift.)
 
 The mirror scripts simply read that engine-maintained `partner`
-attribute with `V('partner')`; nothing is wired by hand.
+attribute with `V('partner')`; nothing is wired by hand. With the stock
+commands they are belt and braces (the far side is already in the new
+state, and writing a tag it has is a no-op); they earn their keep once a
+script of yours changes one face directly, and the same pattern carries to
+pairs the engine does not know as doors.
 
 ## Build it
 

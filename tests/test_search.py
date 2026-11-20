@@ -244,3 +244,31 @@ class TestHelperIntegration:
 
         assert gem2.location is alice
         assert gem1.location is room
+
+
+class TestTwinsShareAPlace:
+    """Twins are only autopicked when they are interchangeable: same name,
+    same place, same kind. Anything else is a choice the player must make."""
+
+    def test_same_name_in_different_places_is_ambiguous(self):
+        a, b = GameObject("Room A", tags=["room"]), GameObject("Room B", tags=["room"])
+        g1 = GameObject("cityguard", location=a, tags=["npc"])
+        g2 = GameObject("cityguard", location=b, tags=["npc"])
+        with pytest.raises(AmbiguousMatchError):
+            match_one("cityguard", [g1, g2])
+
+    def test_a_player_and_an_npc_of_one_name_are_not_twins(self):
+        room = GameObject("Room", tags=["room"])
+        npc = GameObject("Bree", location=room, tags=["npc"])
+        player = GameObject("Bree", location=room, tags=["player"])
+        with pytest.raises(AmbiguousMatchError):
+            match_one("bree", [npc, player])
+
+    def test_a_global_lookup_never_finds_an_account(self):
+        room = GameObject("Room", tags=["room"])
+        account = GameObject("Bree", tags=["account"])
+        bree = GameObject("Bree", location=room, tags=["player"])
+        boss = GameObject("Boss", location=room, tags=["player"])
+        ctx = make_ctx(boss, persistence=MockPersistence(account, bree, boss, room))
+        assert find_object_global(ctx, "Bree") is bree
+        assert find_object_global(ctx, "Bre") is bree

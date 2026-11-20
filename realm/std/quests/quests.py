@@ -211,14 +211,19 @@ def _stage_met(player: GameObject, quest: Quest, number: int, rec: dict) -> bool
 
 
 async def _consume(player: GameObject, quest: Quest, number: int) -> None:
-    """Take the items of the stage's ``consume`` collect objectives."""
+    """Take the items of the stage's ``consume`` collect objectives; worn
+    gear comes off first (``items``' ``unequip``), so what it granted goes
+    with it."""
     stage = quest.stage(number)
     from realm.core.ops.objects import destroy
-    store = get_world().store
+    world = get_world()
+    store, items = world.store, world.services.get("items")
     for objective in (stage.objectives if stage is not None else ()):
         if objective.kind != "collect" or not objective.consume:
             continue
         for item in _held(player, objective)[:objective.count]:
+            if items is not None and item.location is player:
+                items.unequip(player, item)
             if store is not None:
                 await destroy(None, item, store)
             else:

@@ -822,6 +822,25 @@ class TestDestubbedBrains:
         assert encounter.get(alice.id) is not None
         assert any('"Fresh meat!"' in line for line in drain(sess))
 
+    async def test_aggressive_spares_an_immortal_unless_quelled(self, manager):
+        # ROM's aggr_update skips IS_IMMORTAL; here an administrator (the
+        # needs feature's test too), and ``quell`` is the way to be a mortal.
+        lair = GameObject("Lair", tags=["room"])
+        outside = GameObject("Cave Mouth", tags=["room"])
+        from realm.std.combat.behaviors import AggressiveBehavior
+        beast, _ = make_fighter("beast", lair, player=False)
+        beast.add_behavior(AggressiveBehavior())
+
+        boss, _ = make_fighter("Boss", outside)
+        boss.add_tag("god")
+        await move_through_exit(boss, lair)
+        assert manager.encounter_of(beast) is None
+
+        await move_through_exit(boss, outside)
+        boss.add_tag("quelled")
+        await move_through_exit(boss, lair)
+        assert manager.encounter_of(beast) is not None
+
     async def test_defensive_writes_flee_reflex(self, manager):
         from realm.std.combat.behaviors import DefensiveBehavior
         npc = GameObject("merchant", tags=["npc"])
@@ -864,3 +883,59 @@ class TestDestubbedBrains:
         await encounter.resolve_round()
 
         assert any("corporate healthcare" in line for line in drain(sess))
+
+
+# --- Leaving a fight by being placed elsewhere -------------------------------------
+
+
+@pytest.mark.asyncio
+class TestPlacedOutOfTheFight:
+    """ROM's ``transfer`` (and every other move out of the room) calls
+    ``stop_fighting``: whoever is relocated out of a fight's room by a
+    non-walking move (``@teleport``, recall, softcode ``move_to`` and
+    ``teleport_obj``) leaves it at once, and the fight goes on without them
+    or ends (BACKLOG 2026-11-17: "You're in the middle of combat" in the new
+    room)."""
+
+    def _fight(self):
+        from realm.testing import Simulator
+        sim = Simulator()
+        arena, street = sim.room("Arena"), sim.room("Street")
+        sim.obj("north", location=street, tags=["exit"], destination=arena.id)
+        bob = sim.player("Bob", location=arena, hp=30, max_hp=30)
+        fido = sim.obj("a fido", location=arena, tags=["npc"], hp=30, max_hp=30)
+        return sim, arena, street, bob, fido
+
+    async def test_teleported_out_of_a_fight_and_the_fight_ends(self):
+        sim, arena, street, bob, fido = self._fight()
+        try:
+            combat = sim.world.services["combat"]
+            await combat.initiate(bob, fido)
+            ada = sim.player("Ada", location=street)
+            ada.add_tag("admin")
+            await sim.do(ada, "@teleport Bob = Street")
+            assert bob.location is street
+            assert not bob.has_tag("in_combat") and combat.encounter_in(arena) is None
+            assert not fido.has_tag("in_combat")
+            await sim.do(bob, "north")                   # free to walk
+            assert bob.location is arena
+        finally:
+            sim.close()
+
+    async def test_a_scripted_placement_leaves_the_fight_the_rest_fight_on(self):
+        from realm.core.movement import move_to
+        sim, arena, street, bob, fido = self._fight()
+        try:
+            combat = sim.world.services["combat"]
+            cat = sim.obj("a cat", location=arena, tags=["npc"], hp=30, max_hp=30)
+            await combat.initiate(bob, fido)
+            await combat.initiate(cat, bob)
+            assert await move_to(fido, street, force=True)    # softcode teleport_obj
+            assert not fido.has_tag("in_combat")
+            encounter = combat.encounter_in(arena)
+            assert encounter is not None and encounter.get(fido.id) is None
+            assert bob.has_tag("in_combat") and cat.has_tag("in_combat")
+            assert await move_to(cat, street)                 # softcode move_to
+            assert combat.encounter_in(arena) is None and not bob.has_tag("in_combat")
+        finally:
+            sim.close()

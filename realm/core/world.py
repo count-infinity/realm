@@ -88,6 +88,9 @@ class World:
     #: (recipient, action) -> bool: True keeps an action's queued messages
     #: from ``recipient`` (``feature.deaf_rule``: a sleeper hears nothing)
     deaf_rules: list[Callable] = field(default_factory=list)
+    #: (text) -> str: how a narrated line is presented (``feature.line_formatter``;
+    #: none: as written)
+    line_formatters: list[Callable] = field(default_factory=list)
     group_formatter: Callable | None = None                           # contents lines
     #: (player) -> str | None: the line after each batch of output (``feature.prompt``)
     prompt_renderer: Callable | None = None
@@ -120,6 +123,19 @@ class World:
             raise KeyError(f"{key!r} is not a kernel setting and no loaded feature "
                            f"declares it")
         return self.settings.raw.get(key, declared[key][0])
+
+    def format_line(self, text: str) -> str:
+        """``text`` through this world's line formatters
+        (``feature.line_formatter``), in feature order; as written when there
+        are none. A formatter that raises is logged and skipped (it only
+        presents the line, so it must not eat it)."""
+        for fn in self.line_formatters:
+            try:
+                text = fn(text)
+            except Exception as exc:      # noqa: BLE001 - never eat the line
+                logger.error("line formatter %r failed: %s",
+                             getattr(fn, "__name__", fn), exc)
+        return text
 
     def changed_settings(self) -> dict[str, Any]:
         """Every config key whose value differs from its default: kernel
@@ -200,4 +216,16 @@ def setting(key: str, default: Any = _MISSING) -> Any:
                    f"ask its features)")
 
 
-__all__ = ["World", "get_world", "find_world", "set_world", "use_world", "setting"]
+def format_line(text: str) -> str:
+    """``text`` as the current world presents a narrated line (its
+    ``feature.line_formatter``s: Merc's capital first letter); as written
+    when no world is installed or it declares none. The kernel runs every
+    ``deliver_messages`` line and room broadcast through it; a feature runs
+    the sentences it composes for one player through it ("the guildmaster
+    teaches:")."""
+    world = _current
+    return text if world is None else world.format_line(text)
+
+
+__all__ = ["World", "get_world", "find_world", "set_world", "use_world", "setting",
+           "format_line"]

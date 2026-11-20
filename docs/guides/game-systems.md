@@ -37,7 +37,7 @@ Three systems ship in-box:
 | Combat | 3d6 vs skill; AoA/AoD/Feint | d20 + mod + prof vs AC | d20 THAC0 vs descending AC |
 | Advancement | flat 4 CP / skill level | escalating CP cost | **XP + leveling** (per-level HP) |
 | Currency | credits | gold | gold |
-| Derived | HP from ST | HP from HT, AC 10 + DEX | HP by class hit die; AC from worn armor |
+| Derived | HP from ST | HP from HT, AC 10 + DEX | 20 HP at level 1, then the class hit die each level; AC from worn armor |
 
 `merc` is the Diku/Merc/ROM-lineage package (`realm.games.merc.system.MercSystem`) —
 the rules a converted ROM area wants ([Importing ROM
@@ -46,7 +46,9 @@ and it plays like a real Diku. `realm/examples/midgaard` is exactly that, ready 
 run: a level-1 **barbarian** wakes in the Common Square with a club, kills
 respawning fidos for XP, and trades at the shops (`realm init --template
 midgaard`). Its five classes are warrior, barbarian, thief, cleric, and
-mage; each starts with its class weapon (the ``outfit_new_character`` seam).
+mage; each starts with 20 hit points, its class weapon and, as ROM's
+`do_outfit`, the Mud School's war banner, vest and shield (the
+``outfit_new_character`` seam; the template ships ROM's `school.are`).
 
 Merc's class skills are things a player types. The `merc-classic` pack
 ships them as ability definitions ([Abilities as Data](abilities.md)):
@@ -78,8 +80,8 @@ What a Diku player expects, and where it lives:
 | THAC0 against descending AC, damroll, natural 20 and 1 | `MercRuleset` |
 | hit points, mana and movement; regeneration by stat and level; resting and sleeping | `MercSystem.pools`, `regen`; the `vitals` feature ([Life and Death](life-and-death.md)) |
 | movement points per sector | the `merc` feature's traversal gate |
-| five classes, a hit die and THAC0 rate each, level-1 kit | `MERC_CLASSES`, `outfit_new_character` |
-| experience, levels to `LEVEL_CAP` (50), practices and trains | `grant_award`, `advance_level`; [Progression](progression.md) |
+| five classes, a hit die and THAC0 rate each, 20 hit points, 5 practices and 3 training sessions at level 1 (`FIRST_LEVEL_HP`, ROM's `nanny`), ROM's outfit (the class weapon; the school's banner, vest and shield when `school.are` is loaded, `ROM_OUTFIT_VNUMS`) | `MERC_CLASSES`, `finish_chargen`, `outfit_new_character` |
+| experience, levels to `LEVEL_CAP` (50), practices and trains; below level 6 a kill pays `10 / (level + 4)` times as much (ROM's `xp_compute`: double at level 1); a level says what it brought ("You raise a level!!", then the hit points, mana, practices, training session and THAC0) | `grant_award`, `share_award`, `advance_level`; [Progression](progression.md) |
 | class titles on `who` (`Pat the Swordpupil (1 warrior)`) | each class's `titles`, `who_title` |
 | percentile skills, learned by use after practice | `resolve_check`, `default_progression = "use"` |
 | kick, bash, backstab, rescue, disarm, trip; dodge, parry, shield block, second and third attack | the `merc-classic` pack and `MercRuleset` (above) |
@@ -92,7 +94,9 @@ What a Diku player expects, and where it lives:
 | `recall` costs half your movement (and 25 experience out of a fight) | `after_recall` |
 | pets, charm person, mounts; one follower, one more each ten levels | `companion_limit`; the `companions` feature ([Pets, Charm and Mounts](companions.md)) |
 | corpses, `autoloot`, `autogold`; death costs a quarter level | the `combat` feature, `on_death` |
-| `scan`, `exits`, `where`, `report`, `brief`, `autoexit` | the `look` and `talk` features (any system) |
+| `scan`, `exits`, `where` (`where fido`: where in the zone), `report`, `brief`, `autoexit` | the `look` and `talk` features (any system) |
+| a combat round every 3 seconds (`PULSE_VIOLENCE`) | `COMBAT_BEAT_DEFAULT` and `COMBAT_BEAT_MIN`, written by the Merc scaffold and Midgaard |
+| aggressive mobs leave immortals alone (`aggr_update`) | the `aggressive` behavior skips administrators (`quell` to be jumped) |
 | guards, patrolmen, thieves, fidos, janitors, casters | behaviors the ROM importer attaches ([the import guide](../development/rom-import.md)) |
 
 What it leaves out is ROM's mob programs; see the import guide.
@@ -113,7 +117,7 @@ questions neutrally:
 | Method | Neutral `GameSystem` | `PointBuyMixin` (GURPS, D20) | `MercSystem` |
 |---|---|---|---|
 | `improve_cost(skill, level)` | `None`: `improve` says the game has no skill purchase | 4 (D20 escalates) | inherits `None`; Merc trains with practices |
-| `death_award(victim, killer)` | 0: kills award nothing | the victim's `points` over ten | the victim's `points` as XP, bent by level difference |
+| `death_award(victim, killer)` | 0: kills award nothing | the victim's `points` over ten | the victim's `points` as XP, bent by level difference (each member's low-level bonus is `share_award`'s) |
 | `grant_award(player, amount)` | nothing | bank `character_points` | bank XP, then `advance_level` |
 | `score_lines(player)` | the character's pools (`HP: 7/10`) | character points, skills, the `improve` hint | level, XP to next, pools, THAC0/AC, gear |
 

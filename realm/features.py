@@ -107,6 +107,7 @@ class Feature:
         self.name_resolvers: list[Callable] = []
         self.speech_renderers: list[Callable] = []
         self.deaf_rules: list[Callable] = []
+        self.line_formatters: list[Callable] = []
         self.prompts: list[tuple[Callable, bool]] = []
         self.group_formatters: list[tuple[Callable, bool]] = []
         self.protocols: list[tuple[str, type, dict[str, Any]]] = []
@@ -379,6 +380,17 @@ class Feature:
         from that recipient. ``vitals`` makes a sleeper deaf to the room
         (but not to what is addressed to them, the action's target)."""
         self.deaf_rules.append(fn)
+        return fn
+
+    def line_formatter(self, fn: Callable) -> Callable:
+        """Declare a ``(text) -> str`` presentation of a narrated line: every
+        message ``deliver_messages`` sends and every room broadcast
+        (``msg_contents``) passes through the world's formatters, in feature
+        order, and a feature may run its own composed lines through them
+        (``realm.core.world.format_line``). With none, lines go out exactly as
+        written. ``basics`` declares ROM's capital first letter, applied when
+        ``CAPITALIZE_LINES`` is on. One that raises is logged and skipped."""
+        self.line_formatters.append(fn)
         return fn
 
     def prompt(self, fn: Callable | None = None, *, replace: bool = False):
@@ -812,6 +824,7 @@ class FeatureSet:
             world.name_resolvers.extend(f.name_resolvers)
             world.speech_renderers.extend(f.speech_renderers)
             world.deaf_rules.extend(f.deaf_rules)
+            world.line_formatters.extend(f.line_formatters)
             for fn, _replace in f.group_formatters:
                 world.group_formatter = fn
             for fn, _replace in f.prompts:

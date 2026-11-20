@@ -407,6 +407,7 @@
     "rom_wear": [
      "A"
     ],
+    "unlocks": "rom_obj_3121",
     "prototype_vnum": 3121
    },
    "locks": {},
@@ -1117,6 +1118,7 @@
     "rom_wear": [
      "A"
     ],
+    "unlocks": "rom_obj_3120",
     "prototype_vnum": 3120
    },
    "locks": {},
@@ -3856,6 +3858,7 @@
     "rom_wear": [
      "A"
     ],
+    "unlocks": "rom_obj_3122",
     "prototype_vnum": 3122
    },
    "locks": {},
@@ -3894,6 +3897,7 @@
     "rom_wear": [
      "A"
     ],
+    "unlocks": "rom_obj_3137",
     "prototype_vnum": 3137
    },
    "locks": {},
@@ -4452,6 +4456,7 @@
     "rom_wear": [
      "A"
     ],
+    "unlocks": "rom_obj_3123",
     "prototype_vnum": 3123
    },
    "locks": {},
@@ -8882,10 +8887,6 @@
      }
     },
     {
-     "behavior_id": "aggressive",
-     "params": {}
-    },
-    {
      "behavior_id": "scavenger",
      "params": {
       "eat_corpses": true,
@@ -9263,10 +9264,6 @@
      "params": {
       "stay_in_zone": true
      }
-    },
-    {
-     "behavior_id": "aggressive",
-     "params": {}
     },
     {
      "behavior_id": "scavenger",
@@ -11627,10 +11624,6 @@
      }
     },
     {
-     "behavior_id": "aggressive",
-     "params": {}
-    },
-    {
      "behavior_id": "scavenger",
      "params": {
       "eat_corpses": true,
@@ -11700,10 +11693,6 @@
      "params": {
       "stay_in_zone": true
      }
-    },
-    {
-     "behavior_id": "aggressive",
-     "params": {}
     },
     {
      "behavior_id": "scavenger",
@@ -11976,10 +11965,6 @@
      "params": {
       "stay_in_zone": true
      }
-    },
-    {
-     "behavior_id": "aggressive",
-     "params": {}
     }
    ],
    "location": "rom_3026",
@@ -17842,6 +17827,7 @@
           "rom_wear": [
            "A"
           ],
+          "unlocks": "rom_obj_3121",
           "prototype_vnum": 3121
          },
          "behaviors": []
@@ -18454,7 +18440,8 @@
    "description": "You see Park Road.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3111",
@@ -18474,13 +18461,14 @@
    "tags": [
     "exit",
     "door",
-    "closed"
+    "closed",
+    "locked"
    ],
    "attrs": {
     "destination": "rom_3142",
     "keywords": "door",
     "look": "You see a sign saying 'KEEP OUT'.",
-    "key": "rom_obj_3120"
+    "key_id": "rom_obj_3120"
    },
    "locks": {},
    "behaviors": [],
@@ -18784,6 +18772,7 @@
           "rom_wear": [
            "A"
           ],
+          "unlocks": "rom_obj_3120",
           "prototype_vnum": 3120
          },
          "behaviors": []
@@ -18854,7 +18843,8 @@
    "description": "You see the cityguard head quarters.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3110",
@@ -20597,13 +20587,14 @@
    "tags": [
     "exit",
     "door",
-    "closed"
+    "closed",
+    "locked"
    ],
    "attrs": {
     "destination": "rom_3600",
     "keywords": "grate",
     "look": "Through the solid iron bars you see the graveyard.",
-    "key": "rom_obj_3121"
+    "key_id": "rom_obj_3121"
    },
    "locks": {},
    "behaviors": [],
@@ -22536,6 +22527,7 @@
           "rom_wear": [
            "A"
           ],
+          "unlocks": "rom_obj_3122",
           "prototype_vnum": 3122
          },
          "behaviors": []
@@ -22569,6 +22561,7 @@
           "rom_wear": [
            "A"
           ],
+          "unlocks": "rom_obj_3137",
           "prototype_vnum": 3137
          },
          "behaviors": []
@@ -22715,13 +22708,14 @@
    "tags": [
     "exit",
     "door",
-    "closed"
+    "closed",
+    "locked"
    ],
    "attrs": {
     "destination": "rom_3110",
     "keywords": "door",
     "look": "You see the Cityguard Head Quarters.",
-    "key": "rom_obj_3120"
+    "key_id": "rom_obj_3120"
    },
    "locks": {},
    "behaviors": [],
@@ -22736,13 +22730,14 @@
    "tags": [
     "exit",
     "door",
-    "closed"
+    "closed",
+    "locked"
    ],
    "attrs": {
     "destination": "rom_3143",
     "keywords": "door",
     "look": "You see the heavy steel door.",
-    "key": "rom_obj_3137"
+    "key_id": "rom_obj_3137"
    },
    "locks": {},
    "behaviors": [],
@@ -22780,13 +22775,14 @@
    "tags": [
     "exit",
     "door",
-    "closed"
+    "closed",
+    "locked"
    ],
    "attrs": {
     "destination": "rom_3142",
     "keywords": "door",
     "look": "You see the heavy steel door.",
-    "key": "rom_obj_3137"
+    "key_id": "rom_obj_3137"
    },
    "locks": {},
    "behaviors": [],
@@ -23036,13 +23032,14 @@
    "tags": [
     "exit",
     "door",
-    "closed"
+    "closed",
+    "locked"
    ],
    "attrs": {
     "destination": "rom_3161",
     "keywords": "door",
     "look": "A sign on the door says, \"Unauthorized Personel Prohibited\".",
-    "key": "rom_obj_3161"
+    "key_id": "rom_obj_3161"
    },
    "locks": {},
    "behaviors": [],
@@ -23099,13 +23096,14 @@
    "tags": [
     "exit",
     "door",
-    "closed"
+    "closed",
+    "locked"
    ],
    "attrs": {
     "destination": "rom_3160",
     "keywords": "door",
     "look": "A small door to the south leads out into the map shop.",
-    "key": "rom_obj_3161"
+    "key_id": "rom_obj_3161"
    },
    "locks": {},
    "behaviors": [],
@@ -24176,12 +24174,13 @@
    "description": "You see the southern gate.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3256",
     "look": "You see the southern gate.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -24235,12 +24234,13 @@
    "description": "You see the southern gate.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3255",
     "look": "You see the southern gate.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -24872,12 +24872,13 @@
    "description": "The northern plains are visible through the gate.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3268",
     "look": "The northern plains are visible through the gate.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -25272,12 +25273,13 @@
    "description": "You see the north gate of Midgaard.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3262",
     "look": "You see the north gate of Midgaard.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -27847,10 +27849,6 @@
          }
         },
         {
-         "behavior_id": "aggressive",
-         "params": {}
-        },
-        {
          "behavior_id": "scavenger",
          "params": {
           "eat_corpses": true,
@@ -28588,10 +28586,6 @@
          "params": {
           "stay_in_zone": true
          }
-        },
-        {
-         "behavior_id": "aggressive",
-         "params": {}
         },
         {
          "behavior_id": "scavenger",
@@ -30137,10 +30131,6 @@
          }
         },
         {
-         "behavior_id": "aggressive",
-         "params": {}
-        },
-        {
          "behavior_id": "scavenger",
          "params": {
           "eat_corpses": true,
@@ -30310,10 +30300,6 @@
          "params": {
           "stay_in_zone": true
          }
-        },
-        {
-         "behavior_id": "aggressive",
-         "params": {}
         },
         {
          "behavior_id": "scavenger",
@@ -30679,10 +30665,6 @@
          "params": {
           "stay_in_zone": true
          }
-        },
-        {
-         "behavior_id": "aggressive",
-         "params": {}
         }
        ],
        "contents": []
@@ -32496,13 +32478,14 @@
    "description": "The city gate is to the west.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3052",
     "keywords": "gate",
     "look": "The city gate is to the west.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -32836,13 +32819,14 @@
    "description": "You see the city gate.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3053",
     "keywords": "gate",
     "look": "You see the city gate.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -33898,13 +33882,14 @@
    "description": "The city gate is to the east.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3040",
     "keywords": "gate",
     "look": "The city gate is to the east.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -33993,13 +33978,14 @@
    "description": "You see the city gate.",
    "tags": [
     "exit",
-    "door"
+    "door",
+    "closed"
    ],
    "attrs": {
     "destination": "rom_3041",
     "keywords": "gate",
     "look": "You see the city gate.",
-    "key": "rom_obj_3133"
+    "key_id": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -36626,10 +36612,6 @@
      }
     },
     {
-     "behavior_id": "aggressive",
-     "params": {}
-    },
-    {
      "behavior_id": "scavenger",
      "params": {
       "eat_corpses": true,
@@ -36874,10 +36856,6 @@
      "params": {
       "stay_in_zone": true
      }
-    },
-    {
-     "behavior_id": "aggressive",
-     "params": {}
     }
    ],
    "location": null,
@@ -42512,7 +42490,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "unlocks": "rom_obj_3120"
    },
    "locks": {},
    "behaviors": [],
@@ -42550,7 +42529,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "unlocks": "rom_obj_3121"
    },
    "locks": {},
    "behaviors": [],
@@ -42588,7 +42568,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "unlocks": "rom_obj_3122"
    },
    "locks": {},
    "behaviors": [],
@@ -42626,7 +42607,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "unlocks": "rom_obj_3123"
    },
    "locks": {},
    "behaviors": [],
@@ -42856,7 +42838,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "unlocks": "rom_obj_3133"
    },
    "locks": {},
    "behaviors": [],
@@ -43002,7 +42985,8 @@
     "rom_extra": [],
     "rom_wear": [
      "A"
-    ]
+    ],
+    "unlocks": "rom_obj_3137"
    },
    "locks": {},
    "behaviors": [],
@@ -43360,7 +43344,8 @@
      "A",
      "O"
     ],
-    "slot": "held"
+    "slot": "held",
+    "unlocks": "rom_obj_3161"
    },
    "locks": {},
    "behaviors": [],

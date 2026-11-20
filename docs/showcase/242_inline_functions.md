@@ -95,7 +95,7 @@ Roses climb a broken trellis. Thorns glint among the stems. You have paused here
 > look mood crystal
 A fist-sized crystal on a plinth. Right now it glows violet.
 > consult crystal
-Mood crystal says, "The auspices favor trade."
+mood crystal says, "The auspices favor trade."
 ```
 
 Look again — the visit count climbs, the crystal changes color, and a
